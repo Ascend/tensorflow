@@ -71,6 +71,14 @@
 
     "tf.device(xxx)" --> "tf.device(/cpu:0)"
 
+4、目前tf_adapter的默认配置项
+    
+    a) config中的remapping默认设置为RewriterConfig.OFF
+
+    b) custom_op.parameter_map["use_off_line"].b = True默认设置为True
+
+    c) custom_op.parameter_map["enable_data_pre_proc"].b = True默认设置为True
+
 ## 贡献
 
 欢迎参与贡献。
