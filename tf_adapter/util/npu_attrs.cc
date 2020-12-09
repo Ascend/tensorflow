@@ -333,6 +333,13 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       }
     }
   }
+  if (!do_npu_optimizer) {
+    if ((const_cast<SessionOptions *>(options.sess_options))->config.mutable_graph_options() != nullptr &&
+        (const_cast<SessionOptions *>(options.sess_options))->config.mutable_graph_options()->mutable_rewrite_options() != nullptr) {
+        (const_cast<SessionOptions *>(options.sess_options))->config.mutable_graph_options()->
+                                     mutable_rewrite_options->set_remapping(RewriterConfig::OFF);
+        }
+  }
   // pass options
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_dp"] = std::to_string(enable_dp);
