@@ -334,10 +334,10 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
     }
   }
   if (!do_npu_optimizer) {
-    if ((const_cast<SessionOptions *>(options.sess_options))->config.mutable_graph_options() != nullptr &&
-        (const_cast<SessionOptions *>(options.sess_options))->config.mutable_graph_options()->mutable_rewrite_options() != nullptr) {
-        (const_cast<SessionOptions *>(options.sess_options))->config.mutable_graph_options()->
-                                     mutable_rewrite_options->set_remapping(RewriterConfig::OFF);
+    if ((const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options() != nullptr &&
+        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->mutable_rewrite_options() != nullptr) {
+        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->
+                                     mutable_rewrite_options()->set_remapping(RewriterConfig::OFF);
         }
   }
   // pass options
