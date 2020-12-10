@@ -22,5 +22,6 @@
 "nn":                           ["dropout"],
 "keras":                        ["https://support.huaweicloud.com/mprtg-A800_9000_9010/atlasprtg_13_0008.html"],
 
-"report_file":                  ["success_report.txt",      "failed_report.txt",             "need_migration_doc.txt"]
+"report_file":                  ["success_report.txt",      "failed_report.txt",             "need_migration_doc.txt"],
+"report_file_status": 0
 }
