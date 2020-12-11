@@ -27,7 +27,7 @@ def log_info(lineno, msg, file):
 
 def log_success_report(lineno, msg):
     content = (util_global.get_value('path', '') + ':' + str(lineno) +
-               ' "change ' + util_global.get_value(msg)[1] +
+               ' change ' + util_global.get_value(msg)[1] +
                ' to ' + util_global.get_value(msg)[2])
     print(content)
     write_conver_report(content, util_global.get_value('report_file')[0])

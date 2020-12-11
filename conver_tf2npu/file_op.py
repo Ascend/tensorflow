@@ -57,12 +57,14 @@ def write_report_terminator(content):
     while times > 0:
         if get_bit_val(value, times - 1):
             file = util_global.get_value('report_file')[times - 1]
-                if os.path.exists(os.path.join(report_path, file)):
+            if os.path.exists(os.path.join(report_path, file)):
                 file = open(os.path.join(report_path, file), 'a')
                 file.write(content)
                 file.write("\r\n")
                 file.write("\r\n")
                 file.close()
+        times = times - 1
+    util_global.set_value('report_file_status', 0)
 
 def write_conver_report(content, file):
     report_path = util_global.get_value('report')
