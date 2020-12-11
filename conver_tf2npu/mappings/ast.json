@@ -13,7 +13,7 @@
 "EstimatorSpec":                ["NPUEstimatorSpec",        "tf.estimator.EstimatorSpec",   "NPUEstimatorSpec"],
 "RunConfig":                    ["NPURunConfig",            "tf.estimator.RunConfig",       "NPURunConfig"],
 "Estimator":                    ["NPUEstimator",            "tf.estimator.Estimator",       "NPUEstimator"],
-"import":                       ["",                        "",                             "'from npu_bridge.npu_init_import *'"],
+"import":                       ["",                        "",                             "'from npu_bridge.npu_init import *'"],
 
 "batch":                        ["",                        "batch(xxx)",                   "batch(xxx, drop_remainder=True)"],
 "map_and_batch":                ["",                        "map_and_batch(xxx)",           "map_and_batch(xxx, drop_remainder=True)"],
