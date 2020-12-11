@@ -325,7 +325,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction *ctx) {
   std::map<std::string, std::string> init_options;
-  std::string precision_mode;
+  std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = std::to_string(false);
   std::string profiling_options = "training_trace";
   std::string auto_tune_mode;
@@ -360,7 +360,12 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_debug_dir", &debug_dir);
   }
 
-  init_options["ge.exec.precision_mode"] = precision_mode;
+  init_options["ge.exec.isTailingOptimization"] = is_tailing_optimization;
+  if (precision_mode.empty()) {
+    init_options[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
+  } else {
+    init_options[ge::PRECISION_MODE] = precision_mode;
+  }
   init_options[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
   if (profiling_mode != std::to_string(false) && !checkProfilingOptions(profiling_options)) {
     LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
