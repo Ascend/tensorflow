@@ -386,12 +386,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   std::map<std::string, std::string> pass_options;
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   bool do_npu_optimizer = false;
-  bool enable_dp = false;
-  bool use_off_line = false;
+  bool enable_dp = true;
+  bool use_off_line = true;
   bool mix_compile_mode = false;
   int iterations_per_loop = 1;
   bool lower_functional_ops = false;
-  string job = "default";
+  string job = "localhost";
   int task_index = 0;
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
@@ -412,6 +412,13 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       }
     }
   }
+  if (!do_npu_optimizer) {
+    if ((const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options() != nullptr &&
+        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->mutable_rewrite_options() != nullptr) {
+        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->
+                                     mutable_rewrite_options()->set_remapping(RewriterConfig::OFF);
+        }
+  }
   // pass options
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_dp"] = std::to_string(enable_dp);
@@ -428,12 +435,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
 std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction *ctx) {
   std::map<std::string, std::string> pass_options;
   std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(false);
-  std::string use_off_line = std::to_string(false);
+  std::string enable_dp = std::to_string(true);
+  std::string use_off_line = std::to_string(true);
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "default";
+  string job = "localhost";
   std::string task_index = "0";
   Status s = Status::OK();
   string npuOptimizer;
@@ -465,12 +472,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
 std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::map<std::string, std::string> pass_options;
   std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(false);
-  std::string use_off_line = std::to_string(false);
+  std::string enable_dp = std::to_string(true);
+  std::string use_off_line = std::to_string(true);
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "default";
+  string job = "localhost";
   std::string task_index = "0";
   Status s = Status::OK();
 
@@ -510,12 +517,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
 std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) {
   std::map<std::string, std::string> all_options;
   std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(false);
-  std::string use_off_line = std::to_string(false);
+  std::string enable_dp = std::to_string(true);
+  std::string use_off_line = std::to_string(true);
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "default";
+  string job = "localhost";
   std::string task_index = "0";
   Status s = Status::OK();
 
@@ -731,12 +738,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
 std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
   std::map<std::string, std::string> pass_options;
   pass_options["do_npu_optimizer"] = std::to_string(false);
-  pass_options["enable_dp"] = std::to_string(false);
-  pass_options["use_off_line"] = std::to_string(false);
+  pass_options["enable_dp"] = std::to_string(true);
+  pass_options["use_off_line"] = std::to_string(true);
   pass_options["mix_compile_mode"] = std::to_string(false);
   pass_options["iterations_per_loop"] = std::to_string(1);
   pass_options["lower_functional_ops"] = std::to_string(false);
-  pass_options["job"] = "default";
+  pass_options["job"] = "localhost";
   pass_options["task_index"] = std::to_string(0);
   return pass_options;
 }
@@ -767,12 +774,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
   std::map<std::string, std::string> pass_options;
   bool do_npu_optimizer = false;
-  bool enable_dp = false;
-  bool use_off_line = false;
+  bool enable_dp = true;
+  bool use_off_line = true;
   bool mix_compile_mode = false;
   int iterations_per_loop = 1;
   bool lower_functional_ops = false;
-  string job = "default";
+  string job = "localhost";
   int task_index = 0;
   string bp_point;
   string fp_point;
