@@ -33,8 +33,8 @@ class ConverByAst(ast.NodeTransformer):
         ast.NodeTransformer.generic_visit(self, node)
         return node
     def visit_Attribute(self, node):
-        if node.attr in util_global.get_value('nn') and isinstance(node.value, ast.Attribute):
-            if node.value.attr == 'nn':
+        if node.attr in util_global.get_value('nn_layers') and isinstance(node.value, ast.Attribute):
+            if node.value.attr == 'nn' or node.value.attr == 'layers':
                 return attribute(node)
         if node.attr in util_global.get_value('estimator') and isinstance(node.value, ast.Attribute):
             if node.value.attr == 'estimator':
@@ -43,9 +43,12 @@ class ConverByAst(ast.NodeTransformer):
             if isinstance(node.value, ast.Name):
                 if 'hvd' in str(node.value.id):
                     return attribute(node)
-            if isinstance(node.value, ast.Attribute):
+            if isinstance(node.value, ast.Attribu
                 if 'hvd' in str(node.value.attr):
                     return attribute(node)
+        if node.attr == 'run':
+            util_global.set_value('need_conver', True)
+            return node
         return node
 
     def visit_FunctionDef(self, node):

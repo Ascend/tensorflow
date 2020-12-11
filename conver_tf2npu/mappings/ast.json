@@ -1,7 +1,8 @@
 {
 "need_conver": false,
 "gelu":                         ["npu_unary_ops",           "tf.gelu",                      "npu_unary_ops.gelu"],
-"dropout":                      ["npu_ops",                 "tf.nn.dropout",                "npu_ops.dropout"],
+"dropout":                      ["npu_ops",                 "tf.xxx.dropout",                "npu_ops.dropout"],
+"Dropout":                      ["npu_ops",                 "tf.xxx.Dropout",                "npu_ops.dropout"],
 "init":                         ["print",                   "hvd.init",                     "None"],
 "DistributedOptimizer":         ["NPUDistributedOptimizer", "hvd.DistributedOptimizer",     "NPUDistributedOptimizer"],
 "rank":                         ["get_rank_id",             "hvd.rank",                     "get_rank_id"],
@@ -12,6 +13,7 @@
 "EstimatorSpec":                ["NPUEstimatorSpec",        "tf.estimator.EstimatorSpec",   "NPUEstimatorSpec"],
 "RunConfig":                    ["NPURunConfig",            "tf.estimator.RunConfig",       "NPURunConfig"],
 "Estimator":                    ["NPUEstimator",            "tf.estimator.Estimator",       "NPUEstimator"],
+"import":                       ["",                        "",                             "'from npu_bridge.npu_init_import *'"],
 
 "batch":                        ["",                        "batch(xxx)",                   "batch(xxx, drop_remainder=True)"],
 "map_and_batch":                ["",                        "map_and_batch(xxx)",           "map_and_batch(xxx, drop_remainder=True)"],
@@ -19,8 +21,8 @@
 
 "hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
-"nn":                           ["dropout"],
-"keras":                        ["https://support.huaweicloud.com/mprtg-A800_9000_9010/atlasprtg_13_0008.html"],
+"nn_layers":                    ["dropout",                 "Dropout"],
+"keras":                        [""],
 
 "report_file":                  ["success_report.txt",      "failed_report.txt",             "need_migration_doc.txt"],
 "report_file_status": 0
