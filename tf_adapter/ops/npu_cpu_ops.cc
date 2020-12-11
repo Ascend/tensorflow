@@ -31,6 +31,7 @@ limitations under the License.
 #include "tensorflow/core/framework/tensor.pb.h"
 
 namespace tensorflow {
+using shape_inference::DimensionHandle;
 using shape_inference::InferenceContext;
 using shape_inference::ShapeHandle;
 
@@ -88,6 +89,81 @@ REGISTER_OP("CacheRemoteIndexToLocal")
   .Attr("T: {int64, int32, uint32, uint64}")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     c->set_output(0, c->Vector(c->Rank(c->input(1))));
+    return Status::OK();
+  });
+//regist deformable offsets op
+REGISTER_OP("DeformableOffsets")
+  .Input("x: T")
+  .Input("offsets: T")
+  .Output("y: T")
+  .Attr("T: {float16, float32}")
+  .Attr("strides: list(int)")
+  .Attr("pads: list(int)")
+  .Attr("ksize: list(int)")
+  .Attr("dilations: list(int) = [1,1,1,1]")
+  .Attr("data_format: {'NHWC', 'NCHW'} = 'NHWC'")
+  .Attr("deformable_groups: int = 1")
+  .Attr("modulated: bool = true")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    std::string dt_format;
+    const std::set<std::string> kValidFormat = {"NHWC", "NCHW"};
+    if (!c->GetAttr("data_format", &dt_format).ok()) {
+        dt_format = "NHWC";
+    }
+    if (kValidFormat.find(dt_format) == kValidFormat.end()) {
+        return errors::InvalidArgument("Invalid data format string: ",
+                                        dt_format);
+    }
+
+    size_t pos_n = dt_format.find("N");
+    size_t pos_c = dt_format.find("C");
+    size_t pos_h = dt_format.find("H");
+    size_t pos_w = dt_format.find("W");
+
+    auto input_x_shape = c->input(0);
+    auto input_offsets_shape = c->input(1);
+    int64_t input_offsets_h = c->Value(c->Dim(input_offsets_shape, pos_h));
+    int64_t input_offsets_w = c->Value(c->Dim(input_offsets_shape, pos_w));
+
+    std::vector<int32_t> ksizes;
+    TF_RETURN_IF_ERROR(c->GetAttr("ksize", &ksizes));
+    if (ksizes.size() != 2) {
+        return errors::InvalidArgument(
+          "ksize attribute should contain 2 values, but got: ",
+          ksizes.size());
+    }
+    const int64_t kh = ksizes[0];
+    const int64_t kw = ksizes[1];
+
+    const int32_t rank = 4;
+    std::vector<DimensionHandle> out_dims(rank);
+    out_dims[pos_n] = c->Dim(input_x_shape, pos_n);
+    out_dims[pos_c] = c->Dim(input_x_shape, pos_c);
+    out_dims[pos_h] = c->MakeDim(input_offsets_h * kh);
+    out_dims[pos_w] = c->MakeDim(input_offsets_w * kw);
+    c->set_output(0, c->MakeShape(out_dims));
+    return Status::OK();
+  });
+//regist deformable offsets grad op
+REGISTER_OP("DeformableOffsetsGrad")
+  .Input("grad: T")
+  .Input("x: T")
+  .Input("offsets: T")
+  .Output("grad_x: T")
+  .Output("grad_offsets: T")
+  .Attr("T: {float16, float32}")
+  .Attr("strides: list(int)")
+  .Attr("pads: list(int)")
+  .Attr("ksize: list(int)")
+  .Attr("dilations: list(int) = [1,1,1,1]")
+  .Attr("data_format: {'NHWC', 'NCHW'} = 'NHWC'")
+  .Attr("deformable_groups: int = 1")
+  .Attr("modulated: bool = true")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto input_x_shape = c->input(1);
+    auto input_offsets_shape = c->input(2);
+    c->set_output(0, input_x_shape);
+    c->set_output(1, input_offsets_shape);
     return Status::OK();
   });
 }  // namespace tensorflow
