@@ -43,7 +43,7 @@ class ConverByAst(ast.NodeTransformer):
             if isinstance(node.value, ast.Name):
                 if 'hvd' in str(node.value.id):
                     return attribute(node)
-            if isinstance(node.value, ast.Attribu
+            if isinstance(node.value, ast.Attribute):
                 if 'hvd' in str(node.value.attr):
                     return attribute(node)
         if node.attr == 'run':
