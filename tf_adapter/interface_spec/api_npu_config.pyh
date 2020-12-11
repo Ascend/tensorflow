@@ -15,7 +15,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                 op_compiler_cache_mode=None, op_compiler_cache_dir=None, debug_dir=None):
 
 class ProfilingConfig():
-    def __init__(self, enable_profiling=False, enable_options=[], fp_point=None, bp_point=None):
+    def __init__(self, enable_profiling=False, profiling_options=None):
 
 class DumpConfig():
     def __init__(self, enable_dump=False, dump_path=None, dump_step=None,
