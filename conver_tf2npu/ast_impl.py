@@ -19,8 +19,9 @@ from util import log_migration_report
 
 def attribute(node):
     log_success_report(getattr(node, "lineno", "None"), node.attr)
-    if node.attr == 'dropout':
+    if node.attr in util_global.get_value('nn_layers'):
         node.value = ast.Name(id=util_global.get_value(node.attr)[0], ctx=ast.Load())
+        node.attr = 'dropout'
     else:
         node = ast.Name(id=util_global.get_value(node.attr)[0], ctx=ast.Load())
     util_global.set_value('need_conver', True)
@@ -91,6 +92,7 @@ def ast_call(node):
     return node
 
 def insert_npu_import(r_node):
+    log_success_report('0', 'import')
     npu_alias = ast.alias(name='*', asname=None)
     npu_import = ast.ImportFrom(module='npu_bridge.npu_init', names=[npu_alias], level=0)
     r_node.body.insert(0, npu_import)

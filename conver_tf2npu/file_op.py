@@ -44,15 +44,27 @@ def write_report_after_conver(new_file_path, report_file, dst_content):
     file.write(dst_content)
     file.close()
 
+def get_bit_val(value, index):
+    if value & (1 << index):
+        return 1
+    else:
+        return 0
+
 def write_report_terminator(content):
     report_path = util_global.get_value('report')
-    for file in util_global.get_value('report_file'):
-        if os.path.exists(os.path.join(report_path, file)):
-            file = open(os.path.join(report_path, file), 'a')
-            file.write(content)
-            file.write("\r\n")
-            file.write("\r\n")
-            file.close()
+    value = util_global.get_value('report_file_status')
+    times = value.bit_length()
+    while times > 0:
+        if get_bit_val(value, times - 1):
+            file = util_global.get_value('report_file')[times - 1]
+            if os.path.exists(os.path.join(report_path, file)):
+                file = open(os.path.join(report_path, file), 'a')
+                file.write(content)
+                file.write("\r\n")
+                file.write("\r\n")
+                file.close()
+        times = times - 1
+    util_global.set_value('report_file_status', 0)
 
 def write_conver_report(content, file):
     report_path = util_global.get_value('report')

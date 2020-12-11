@@ -27,10 +27,14 @@ def log_info(lineno, msg, file):
 
 def log_success_report(lineno, msg):
     content = (util_global.get_value('path', '') + ':' + str(lineno) +
-               ' "change ' + util_global.get_value(msg)[1] +
+               ' change ' + util_global.get_value(msg)[1] +
                ' to ' + util_global.get_value(msg)[2])
     print(content)
     write_conver_report(content, util_global.get_value('report_file')[0])
+    util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b1))
+
+def log_failed_report(lineno, msg):
+    util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b10))
 
 def log_migration_report(lineno, msg):
     content = (util_global.get_value('path', '') + ':' + str(lineno) + ' "' + msg +
@@ -38,3 +42,4 @@ def log_migration_report(lineno, msg):
                util_global.get_value(msg)[0])
     print(content)
     write_conver_report(content, util_global.get_value('report_file')[2])
+    util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b100))
