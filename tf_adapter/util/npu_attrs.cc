@@ -360,7 +360,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_debug_dir", &debug_dir);
   }
 
-  init_options["ge.exec.isTailingOptimization"] = is_tailing_optimization;
+
   if (precision_mode.empty()) {
     init_options[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
   } else {
