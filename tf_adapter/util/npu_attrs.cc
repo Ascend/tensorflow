@@ -83,22 +83,6 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
   delete[] buffer;
 }
 
-inline bool checkProfilingOptions(string &options) {
-  if (options.empty()) { return false; }
-  std::set<string> validOptions;
-  validOptions.insert("training_trace");
-  validOptions.insert("task_trace");
-  validOptions.insert("op_trace");
-
-  std::vector<string> optionVec;
-  Split(options, optionVec, ":");
-  if (optionVec.empty()) { return false; }
-  for (const auto &option : optionVec) {
-    if (validOptions.find(option) == validOptions.end()) { return false; }
-  }
-  return true;
-}
-
 inline Status checkDumpStep(const string &dump_step) {
   std::string tmp_dump_step = dump_step + "|";
   std::smatch result;
@@ -311,7 +295,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   std::map<std::string, std::string> init_options;
   init_options["ge.exec.precision_mode"] = "allow_fp32_to_fp16";
   init_options[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(false);
-  init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = "training_trace";
+  init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = "";
   init_options[ge::AUTO_TUNE_MODE] = "";
   init_options[ge::OPTION_GRAPH_RUN_MODE] = "1";
   init_options[ge::OP_DEBUG_LEVEL] = "0";
@@ -327,15 +311,13 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::map<std::string, std::string> init_options;
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = std::to_string(false);
-  std::string profiling_options = "training_trace";
+  std::string profiling_options;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
   std::string enable_scope_fusion_passes;
   std::string enable_exception_dump;
   string npuOptimizer;
-  string bp_point;
-  string fp_point;
   string mstune_mode;
   string work_path;
   std::string op_compiler_cache_mode;
@@ -350,8 +332,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_graph_run_mode", &graph_run_mode);
     ctx->GetAttr("_op_debug_level", &op_debug_level);
     ctx->GetAttr("_enable_scope_fusion_passes", &enable_scope_fusion_passes);
-    ctx->GetAttr("_bp_point", &bp_point);
-    ctx->GetAttr("_fp_point", &fp_point);
     ctx->GetAttr("_enable_exception_dump", &enable_exception_dump);
     ctx->GetAttr("_mstune_mode", &mstune_mode);
     ctx->GetAttr("_work_path", &work_path);
@@ -367,16 +347,11 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     init_options[ge::PRECISION_MODE] = precision_mode;
   }
   init_options[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
-  if (profiling_mode != std::to_string(false) && !checkProfilingOptions(profiling_options)) {
-    LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
-  }
   init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
   init_options[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options[ge::OP_DEBUG_LEVEL] = op_debug_level;
   init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
-  init_options[ge::OPTION_EXEC_PROFILING_BPPONIT_OPTIONS] = bp_point;
-  init_options[ge::OPTION_EXEC_PROFILING_FPPONIT_OPTIONS] = fp_point;
   init_options["ge.exec.enable_exception_dump"] = enable_exception_dump;
   init_options["ge.buildMode"] = mstune_mode;
   init_options["ge.tuningPath"] = work_path;
@@ -546,15 +521,13 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string is_tailing_optimization = std::to_string(false);
   std::string precision_mode;
   std::string profiling_mode = std::to_string(false);
-  std::string profiling_options = "training_trace";
+  std::string profiling_options;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
   std::string enable_scope_fusion_passes;
   std::string enable_exception_dump;
   string npuOptimizer;
-  string bp_point;
-  string fp_point;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string input_shape;
@@ -643,8 +616,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (attrs.Find("_enable_scope_fusion_passes") != nullptr) {
       enable_scope_fusion_passes = attrs.Find("_enable_scope_fusion_passes")->s();
     }
-    if (attrs.Find("_fp_point") != nullptr) { fp_point = attrs.Find("_fp_point")->s(); }
-    if (attrs.Find("_bp_point") != nullptr) { bp_point = attrs.Find("_bp_point")->s(); }
     if (attrs.Find("_enable_exception_dump") != nullptr) {
       enable_exception_dump = attrs.Find("_enable_exception_dump")->s();
     }
@@ -701,9 +672,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["is_tailing_optimization"] = is_tailing_optimization;
   all_options["precision_mode"] = precision_mode;
   all_options["profiling_mode"] = profiling_mode;
-  if (profiling_mode != std::to_string(false) && !checkProfilingOptions(profiling_options)) {
-    LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
-  }
   all_options["profiling_options"] = profiling_options;
   all_options["auto_tune_mode"] = auto_tune_mode;
   all_options["graph_run_mode"] = graph_run_mode;
@@ -719,8 +687,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["lower_functional_ops"] = lower_functional_ops;
   all_options["job"] = job;
   all_options["task_index"] = task_index;
-  all_options["fp_point"] = fp_point;
-  all_options["bp_point"] = bp_point;
   all_options["op_select_implmode"] = op_select_implmode;
   all_options["optypelist_for_implmode"] = optypelist_for_implmode;
   all_options["input_shape"] = input_shape;
@@ -771,7 +737,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool is_tailing_optimization = false;
   std::string precision_mode;
   bool profiling_mode = false;
-  std::string profiling_options = "training_trace";
+  std::string profiling_options;
   std::string auto_tune_mode;
   int graph_run_mode = 1;
   int op_debug_level = 0;
@@ -786,8 +752,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool lower_functional_ops = false;
   string job = "localhost";
   int task_index = 0;
-  string bp_point;
-  string fp_point;
   int enable_exception_dump = 0;
   string op_select_implmode;
   string optypelist_for_implmode;
@@ -855,11 +819,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         is_tailing_optimization = params.at("is_tailing_optimization").b();
       }
       if (params.count("profiling_mode")) { profiling_mode = params.at("profiling_mode").b(); }
-      if (params.count("profiling_options") && profiling_mode) {
-        profiling_options = params.at("profiling_options").s();
+      if (profiling_mode) {
+        if (params.count("profiling_options")) {
+          profiling_options = params.at("profiling_options").s();
+        } else {
+          LOG(FATAL) << "profiling_options must be set when use profiling";
+        }
       }
-      if (params.count("fp_point")) { fp_point = params.at("fp_point").s(); }
-      if (params.count("bp_point")) { bp_point = params.at("bp_point").s(); }
       if (params.count("auto_tune_mode")) { auto_tune_mode = params.at("auto_tune_mode").s(); }
       if (params.count("graph_run_mode")) {
         graph_run_mode = params.at("graph_run_mode").i();
@@ -992,18 +958,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
   init_options["precision_mode"] = precision_mode;
   init_options["profiling_mode"] = std::to_string(profiling_mode);
-  if (profiling_mode && !checkProfilingOptions(profiling_options)) {
-    LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
-  }
-  if (profiling_mode && (profiling_options.find("task_trace") != string::npos ||
-      profiling_options.find("training_trace") != string::npos)) {
-    if (bp_point == "" || fp_point == "") {
-      LOG(WARNING) << "profiling training_trace option should use with bp_point and fp_point";
-    } else {
-      init_options["bp_point"] = bp_point;
-      init_options["fp_point"] = fp_point;
-    }
-  }
   init_options["profiling_options"] = profiling_options;
   init_options["auto_tune_mode"] = auto_tune_mode;
   init_options["graph_run_mode"] = std::to_string(graph_run_mode);

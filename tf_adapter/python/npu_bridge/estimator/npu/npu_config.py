@@ -212,23 +212,16 @@ class ProfilingConfig():
 
     def __init__(self,
                  enable_profiling=False,
-                 enable_options=[],
-                 fp_point=None,
-                 bp_point=None):
+                 profiling_options=None):
         """
         Constructs a ProfilingConfig.
         Args:
             enable_profiling: Enable profiling, default is False.
-            enable_options: Profiling options, list of `training_trace` or `task_trace`
-                or `op_trace`.
-            fp_point: Forward propagation first node name.
-            bp_point: back propagation last node name.
+            profiling_options: Profiling options, a string include all profiling options.
         """
 
         self._enable_profiling = enable_profiling
-        self._enable_options = enable_options
-        self._fp_point = fp_point
-        self._bp_point = bp_point
+        self._profiling_options = profiling_options
 
 class DumpConfig():
     """Dump Config with NPU support."""

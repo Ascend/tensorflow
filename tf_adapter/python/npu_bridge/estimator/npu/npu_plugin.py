@@ -13,19 +13,15 @@ __option_exec_profiling_mode = str(tf_adapter.OPTION_EXEC_PROFILING_MODE)
 __option_exec_profiling_options = str(tf_adapter.OPTION_EXEC_PROFILING_OPTIONS)
 __option_graph_run_mode = str(tf_adapter.OPTION_GRAPH_RUN_MODE)
 __option_exec_option_exec_hccl_flag = str(tf_adapter.OPTION_EXEC_HCCL_FLAG)
-__option_exec_fp_point = str(tf_adapter.OPTION_EXEC_PROFILING_FPPONIT_OPTIONS)
-__option_exec_bp_point = str(tf_adapter.OPTION_EXEC_PROFILING_BPPONIT_OPTIONS)
 
 def npu_resource_init(graph_run_mode = 1,
                       op_debug_level = 0,
                       enable_profiling = False,
-                      enable_options = ["training_trace"],
+                      profiling_options = None,
                       auto_tune_mode = None,
                       precision_mode = None,
                       enable_scope_fusion_passes = None,
                       enable_exception_dump = 0,
-                      fp_point = None,
-                      bp_point = None,
                       mstune_mode = None,
                       work_path = None,
                       op_compiler_cache_mode=None,
@@ -46,16 +42,10 @@ def npu_resource_init(graph_run_mode = 1,
     init[__option_exec_profiling_mode] = str(enable_profiling)
 
     if enable_profiling:
-        enable_options = str(util.check_profiling_options(enable_options))
-        init[__option_exec_profiling_options] = enable_options
-        if "task_trace" in enable_options or "training_trace" in enable_options:
-          if fp_point is None or bp_point is None:
-            logging.warning("profiling training_trace option should use with bp_point and fp_point")
-          else:
-            init[__option_exec_fp_point] = str(fp_point)
-            init[__option_exec_bp_point] = str(bp_point)
-    else:
-        init[__option_exec_profiling_options] = str("training_trace")
+      if profiling_options is None:
+        raise ValueError('profiling_options must be set when use profiling')
+      else:
+        init[__option_exec_profiling_options] = str(profiling_options)
 
     if auto_tune_mode is not None:
         init[__auto_tune_mode] = str(auto_tune_mode)

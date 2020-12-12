@@ -141,9 +141,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   // profiling configuration
   LOG(INFO) << "[GePlugin] profiling_mode : " << init_options[ge::OPTION_EXEC_PROFILING_MODE]
-            << ", profiling_options:" << init_options[ge::OPTION_EXEC_PROFILING_OPTIONS]
-            << ", fp_point: " << init_options[ge::OPTION_EXEC_PROFILING_FPPONIT_OPTIONS]
-            << ", bp_point: " << init_options[ge::OPTION_EXEC_PROFILING_BPPONIT_OPTIONS];
+            << ", profiling_options:" << init_options[ge::OPTION_EXEC_PROFILING_OPTIONS];
 
   // mix precision configuration
   LOG(INFO) << "[GePlugin] precision_mode : " << init_options[ge::PRECISION_MODE];

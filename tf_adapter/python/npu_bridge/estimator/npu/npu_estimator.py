@@ -536,33 +536,13 @@ class NPUEstimator(estimator_lib.Estimator):
             config: NPURunConfig.
             custom_op: Custom optimizers.
         """
-        if config._profiling_config is None:
-            """
-            there is no profiling config in user's python script,
-            then use the default profiling configuration
-            """
-            custom_op.parameter_map["profiling_mode"].b = False
-            profiling_options = "training_trace"
-            custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(profiling_options)
-
-        else:
+        if config._profiling_config is not None:
+            custom_op.parameter_map["profiling_mode"].b = config._profiling_config._enable_profiling
             if config._profiling_config._enable_profiling:
-                # User enable profiling
-                custom_op.parameter_map["profiling_mode"].b = True
-                # check profiling ,and get valid options
-                profiling_options = self.__check_profiling_options(config._profiling_config._enable_options)
-                custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(profiling_options)
-                if "task_trace" in profiling_options or  "training_trace" in profiling_options:
-                    if config._profiling_config._fp_point is None or config._profiling_config._bp_point is None:
-                        logging.warning("profiling training_trace option should use with bp_point and fp_point")
-                    else:
-                        custom_op.parameter_map["bp_point"].s = tf.compat.as_bytes(config._profiling_config._bp_point)
-                        custom_op.parameter_map["fp_point"].s = tf.compat.as_bytes(config._profiling_config._fp_point)
-            else:
-                # User disable profiling,
-                custom_op.parameter_map["profiling_mode"].b = False
-                profiling_options = "training_trace"
-                custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(profiling_options)
+                if config._profiling_config._profiling_options is None:
+                    raise ValueError('profiling_options must be set when use profiling')
+                else:
+                    custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(config._profiling_config._profiling_options)
 
     def __load_mix_precision(self, config, custom_op):
         """Load mix precision config ,and add to custom_optimizers
