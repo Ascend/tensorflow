@@ -63,6 +63,7 @@ else
 	@swig -c++ -python -threads $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/swig/ge_plugin.i
 	@mv $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/swig/ge_plugin_wrap.cxx $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/util/
 	@mv $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/swig/tf_adapter.py $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/python/npu_bridge/
+	@mv $(TF_ADPTER_REL_WORKSPACE_BASE)/conver_tf2npu $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/python/npu_bridge/
 	@bash $(PWD)/tensorflow/tools/build_wheel.sh $(PWD)/$@ $(product)
 endif
 
