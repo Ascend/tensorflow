@@ -63,8 +63,50 @@ class CacheRemoteIndexToLocalOp : public OpKernel {
   void Compute(OpKernelContext *context) override { LOG(INFO) << "CacheRemoteIndexToLocalOp Compute"; }
 };
 
+template <typename T>
+class DeformableOffsetsOp : public OpKernel {
+ public:
+  explicit DeformableOffsetsOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~DeformableOffsetsOp() override {}
+  void Compute(OpKernelContext *context) override {
+    LOG(INFO) << "DeformableOffsetsOp Compute, num_inputs: "
+              << context->num_inputs();
+  }
+  bool IsExpensive() override { return false; }
+};
+
+template <typename T>
+class DeformableOffsetsGradOp : public OpKernel {
+ public:
+  explicit DeformableOffsetsGradOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~DeformableOffsetsGradOp() override {}
+  void Compute(OpKernelContext *context) override {
+    LOG(INFO) << "DeformableOffsetsGradOp Compute, num_inputs: "
+              << context->num_inputs();
+  }
+  bool IsExpensive() override { return false; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
 REGISTER_KERNEL_BUILDER(Name("CacheAdd").Device(DEVICE_CPU), CacheAddOp);
 REGISTER_KERNEL_BUILDER(Name("CacheRemoteIndexToLocal").Device(DEVICE_CPU), CacheRemoteIndexToLocalOp);
+
+#define REGISTER_KERNEL(type)                                \
+REGISTER_KERNEL_BUILDER(Name("DeformableOffsets")            \
+                            .Device(DEVICE_CPU)              \
+                            .TypeConstraint<type>("T"),      \
+                        DeformableOffsetsOp<type>)
+REGISTER_KERNEL(float);
+REGISTER_KERNEL(Eigen::half);
+#undef REGISTER_KERNEL
+
+#define REGISTER_KERNEL(type)                                \
+REGISTER_KERNEL_BUILDER(Name("DeformableOffsetsGrad")        \
+                            .Device(DEVICE_CPU)              \
+                            .TypeConstraint<type>("T"),      \
+                        DeformableOffsetsGradOp<type>)
+REGISTER_KERNEL(float);
+REGISTER_KERNEL(Eigen::half);
+#undef REGISTER_KERNEL
 }  // namespace tensorflow
