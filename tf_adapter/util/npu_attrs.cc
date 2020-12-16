@@ -378,20 +378,16 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       do_npu_optimizer = true;
       const auto &params = custom_optimizer.parameter_map();
       if (params.count("enable_data_pre_proc")) { enable_dp = params.at("enable_data_pre_proc").b(); }
-      if (params.count("use_off_line")) {
-        use_off_line = params.at("use_off_line").b();
-        if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
-        if (params.count("iterations_per_loop")) { iterations_per_loop = params.at("iterations_per_loop").i(); }
-        if (params.count("lower_functional_ops")) { lower_functional_ops = params.at("lower_functional_ops").b(); }
-        if (params.count("job")) {
-          job = params.at("job").s();
-        } else {
-          job = "localhost";
-        }
-        if (params.count("task_index")) { task_index = params.at("task_index").i(); }
+      if (params.count("use_off_line")) { use_off_line = params.at("use_off_line").b(); }
+      if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
+      if (params.count("iterations_per_loop")) { iterations_per_loop = params.at("iterations_per_loop").i(); }
+      if (params.count("lower_functional_ops")) { lower_functional_ops = params.at("lower_functional_ops").b(); }
+      if (params.count("job")) {
+        job = params.at("job").s();
       } else {
         job = "localhost";
       }
+      if (params.count("task_index")) { task_index = params.at("task_index").i(); }
     }
   }
   if (!do_npu_optimizer) {
@@ -466,24 +462,20 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   if (attrs.Find("_NpuOptimizer") != nullptr) {
     do_npu_optimizer = std::to_string(true);
     if (attrs.Find("_enable_data_pre_proc") != nullptr) { enable_dp = attrs.Find("_enable_data_pre_proc")->s(); }
-    if (attrs.Find("_use_off_line") != nullptr) {
-      use_off_line = attrs.Find("_use_off_line")->s();
-      if (attrs.Find("_mix_compile_mode") != nullptr) { mix_compile_mode = attrs.Find("_mix_compile_mode")->s(); }
-      if (attrs.Find("_iterations_per_loop") != nullptr) {
-        iterations_per_loop = attrs.Find("_iterations_per_loop")->s();
-      }
-      if (attrs.Find("_lower_functional_ops") != nullptr) {
-        lower_functional_ops = attrs.Find("_lower_functional_ops")->s();
-      }
-      if (attrs.Find("_job") != nullptr) {
-        job = attrs.Find("_job")->s();
-      } else {
-        job = "localhost";
-      }
-      if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
+    if (attrs.Find("_use_off_line") != nullptr) { use_off_line = attrs.Find("_use_off_line")->s(); }
+    if (attrs.Find("_mix_compile_mode") != nullptr) { mix_compile_mode = attrs.Find("_mix_compile_mode")->s(); }
+    if (attrs.Find("_iterations_per_loop") != nullptr) {
+      iterations_per_loop = attrs.Find("_iterations_per_loop")->s();
+    }
+    if (attrs.Find("_lower_functional_ops") != nullptr) {
+      lower_functional_ops = attrs.Find("_lower_functional_ops")->s();
+    }
+    if (attrs.Find("_job") != nullptr) {
+      job = attrs.Find("_job")->s();
     } else {
       job = "localhost";
     }
+    if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -551,24 +543,20 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   if (attrs.Find("_NpuOptimizer") != nullptr) {
     do_npu_optimizer = std::to_string(true);
     if (attrs.Find("_enable_data_pre_proc") != nullptr) { enable_dp = attrs.Find("_enable_data_pre_proc")->s(); }
-    if (attrs.Find("_use_off_line") != nullptr) {
-      use_off_line = attrs.Find("_use_off_line")->s();
-      if (attrs.Find("_mix_compile_mode") != nullptr) { mix_compile_mode = attrs.Find("_mix_compile_mode")->s(); }
-      if (attrs.Find("_iterations_per_loop") != nullptr) {
-        iterations_per_loop = attrs.Find("_iterations_per_loop")->s();
-      }
-      if (attrs.Find("_lower_functional_ops") != nullptr) {
-        lower_functional_ops = attrs.Find("_lower_functional_ops")->s();
-      }
-      if (attrs.Find("_job") != nullptr) {
-        job = attrs.Find("_job")->s();
-      } else {
-        job = "localhost";
-      }
-      if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
+    if (attrs.Find("_use_off_line") != nullptr) { use_off_line = attrs.Find("_use_off_line")->s(); }
+    if (attrs.Find("_mix_compile_mode") != nullptr) { mix_compile_mode = attrs.Find("_mix_compile_mode")->s(); }
+    if (attrs.Find("_iterations_per_loop") != nullptr) {
+      iterations_per_loop = attrs.Find("_iterations_per_loop")->s();
+    }
+    if (attrs.Find("_lower_functional_ops") != nullptr) {
+      lower_functional_ops = attrs.Find("_lower_functional_ops")->s();
+    }
+    if (attrs.Find("_job") != nullptr) {
+      job = attrs.Find("_job")->s();
     } else {
       job = "localhost";
     }
+    if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
 
     if (attrs.Find("_variable_format_optimize") != nullptr) {
       variable_format_optimize = attrs.Find("_variable_format_optimize")->s();
@@ -867,18 +855,17 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
       do_npu_optimizer = true;
       if (params.count("enable_data_pre_proc")) { enable_dp = params.at("enable_data_pre_proc").b(); }
-      if (params.count("use_off_line")) {
-        use_off_line = params.at("use_off_line").b();
-        if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
-        if (params.count("iterations_per_loop")) { iterations_per_loop = params.at("iterations_per_loop").i(); }
-        if (params.count("lower_functional_ops")) { lower_functional_ops = params.at("lower_functional_ops").b(); }
-        if (params.count("job")) {
-          job = params.at("job").s();
-        } else {
-          job = "localhost";
-        }
-        if (params.count("task_index")) { task_index = params.at("task_index").i(); }
+      if (params.count("use_off_line")) { use_off_line = params.at("use_off_line").b(); }
+      if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
+      if (params.count("iterations_per_loop")) { iterations_per_loop = params.at("iterations_per_loop").i(); }
+      if (params.count("lower_functional_ops")) { lower_functional_ops = params.at("lower_functional_ops").b(); }
+      if (params.count("job")) {
+        job = params.at("job").s();
+      } else {
+        job = "localhost";
       }
+      if (params.count("task_index")) { task_index = params.at("task_index").i(); }
+
       if (params.count("enable_exception_dump")) { enable_exception_dump = params.at("enable_exception_dump").i(); }
       if (!params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
         op_select_implmode = "high_performance";
