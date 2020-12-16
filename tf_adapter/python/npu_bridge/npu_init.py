@@ -4,6 +4,7 @@ from npu_bridge.estimator.npu.npu_config import DumpConfig
 from npu_bridge.estimator.npu.npu_config import DynamicInputConfig
 
 from npu_bridge.estimator.npu.npu_estimator import NPUEstimator
+from npu_bridge.estimator.npu.npu_estimator import NPUEstimatorSpec
 from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
 
 from npu_bridge.estimator.npu.npu_hook import NPUCheckpointSaverHook
