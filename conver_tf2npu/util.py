@@ -38,7 +38,7 @@ def log_failed_report(lineno, msg):
 
 def log_migration_report(lineno, msg):
     content = (util_global.get_value('path', '') + ':' + str(lineno) + ' "' + msg +
-               '" feature needs to be migrated manually, Please refer to the migration guide: ' +
+               '" feature needs to be migrated manually, Please refer to the migration guide.' +
                util_global.get_value(msg)[0])
     print(content)
     write_conver_report(content, util_global.get_value('report_file')[2])

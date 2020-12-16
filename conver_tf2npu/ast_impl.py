@@ -97,6 +97,40 @@ def insert_npu_import(r_node):
     npu_import = ast.ImportFrom(module='npu_bridge.npu_init', names=[npu_alias], level=0)
     r_node.body.insert(0, npu_import)
 
+def ast_assign(node):
+    if isinstance(node.value, ast.Call):
+        if isinstance(node.value.func, ast.Attribute):
+            if isinstance(node.value.func, ast.Attribute):
+                if node.value.func.attr == 'max_pooling2d':
+                    log_success_report(getattr(node, "lineno", "None"), node.value.func.attr)
+                    util_global.set_value('need_conver', True)
+                    elts_new = []
+                    for target in node.targets:
+                        elts_new.append(target)
+                    elts_new.append(ast.Name(id='argmax', ctx=ast.Load()))
+                    node.targets=[ast.Tuple(elts=elts_new)]
+
+                    keywords_new = []
+                    for keyword in node.value.keywords:
+                        if keyword.arg == 'inputs':
+                            keyword_new = ast.keyword(arg='input', value=keyword.value)
+                            keywords_new.append(keyword_new)
+                        if keyword.arg == 'pool_size':
+                            elts_new = [ast.Num(n=1), keyword.value, keyword.value, ast.Num(n=1)]
+                            keyword_new = ast.keyword(arg='ksize', value=ast.Tuple(elts=elts_new))
+                            keywords_new.append(keyword_new)
+                        if keyword.arg == 'strides':
+                            elts_new = [ast.Num(n=1), keyword.value, keyword.value, ast.Num(n=1)]
+                            keyword_new = ast.keyword(arg='strides', value=ast.Tuple(elts=elts_new))
+                            keywords_new.append(keyword_new)
+                        if keyword.arg == 'padding' or keyword.arg == 'data_format':
+                            keywords_new.append(keyword)
+                    func_new = ast.Attribute(value=ast.Attribute(value=ast.Attribute(value=ast.Attribute(value=ast.Name(id='tf', ctx=ast.Load()), attr='compat', ctx=ast.Load()), attr='v1', ctx=ast.Load()), attr='nn', ctx=ast.Load()), attr='max_pool_with_argmax', ctx=ast.Load())
+                    node.value = ast.Call(func=func_new,
+                                          args=[],
+                                          keywords=keywords_new)
+    return node
+
 # Format printing for locate
 def node_tree(node:str):
     str2list = list(node.replace(' ', ''))

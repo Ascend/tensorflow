@@ -75,6 +75,8 @@
 
     "tf.device(xxx)" --> "tf.device(/cpu:0)"
 
+    "tf.cpmpat.v1.layers.max_pooling2d" --> "tf.compat.v1.nn.max_pool_with_argmax"
+
 4、目前tf_adapter的默认配置项
     
     a) config中的remapping默认设置为RewriterConfig.OFF
