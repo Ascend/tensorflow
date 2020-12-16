@@ -24,6 +24,7 @@
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
 "nn_layers":                    ["dropout",                 "Dropout"],
 "keras":                        [""],
+"run":                          [" if sess.run is train, need add npu's session config for tf.Session. e.g.,\n session_config = tf.ConfigProto()\n custom_op = session_config.graph_options.rewrite_options.custom_optimizers.add()\n custom_op.name = 'NpuOptimizer'"],
 
 "report_file":                  ["success_report.txt",      "failed_report.txt",             "need_migration_doc.txt"],
 "report_file_status": 0

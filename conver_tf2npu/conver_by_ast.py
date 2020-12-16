@@ -20,6 +20,7 @@ import util_global
 from file_op import write_output_after_conver
 from file_op import write_report_after_conver
 from util import log_success_report
+from util import log_migration_report
 from ast_impl import attribute
 from ast_impl import node_tree
 from ast_impl import insert_npu_import
@@ -48,6 +49,7 @@ class ConverByAst(ast.NodeTransformer):
                 if 'hvd' in str(node.value.attr):
                     return attribute(node)
         if node.attr == 'run':
+            log_migration_report(getattr(node, "lineno", "None"), node.attr)
             util_global.set_value('need_conver', True)
             return node
         return node
