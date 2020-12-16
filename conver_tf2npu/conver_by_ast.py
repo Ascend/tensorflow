@@ -27,6 +27,7 @@ from ast_impl import import_from
 from ast_impl import ast_import
 from ast_impl import ast_function_def
 from ast_impl import ast_call
+from ast_impl import ast_assign
 
 class ConverByAst(ast.NodeTransformer):
     def generic_visit(self, node):
@@ -69,6 +70,11 @@ class ConverByAst(ast.NodeTransformer):
 
     def visit_Import(self, node):
         ast_import(node)
+        self.generic_visit(node)
+        return node
+
+    def visit_Assign(self, node):
+        ast_assign(node)
         self.generic_visit(node)
         return node
 
