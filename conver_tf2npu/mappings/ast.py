@@ -18,7 +18,7 @@
 "batch":                        ["",                        "batch(xxx)",                   "batch(xxx, drop_remainder=True)"],
 "map_and_batch":                ["",                        "map_and_batch(xxx)",           "map_and_batch(xxx, drop_remainder=True)"],
 "device":                       ["",                        "tf.device(xxx)",               "tf.device(/cpu:0)"],
-"max_pooling2d":                ["",                        "max_pooling2d",                 "max_pool_with_argmax"],
+"max_pooling2d":                ["",                        "max_pooling2d",                "max_pool_with_argmax"],
 
 "hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
