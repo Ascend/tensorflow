@@ -295,7 +295,7 @@ RTS_API rtError_t rtGetRunMode(rtRunMode *mode);
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_DRV_ERR for can not get aicpu deploy
  */
-RTS_API rtError_t rtGetAicpuDeploy(rtAicpuDeployType_t *deplyType);
+RTS_API rtError_t rtGetAicpuDeploy(rtAicpuDeployType_t *deployType);
 
 /**
  * @ingroup dvrt_dev
@@ -309,7 +309,7 @@ RTS_API rtError_t rtSetSocVersion(const char *version);
  * @brief get chipType
  * @return RT_ERROR_NONE for ok
  */
-rtError_t rtGetSocVersion(char *version, const uint32_t maxLen);
+RTS_API rtError_t rtGetSocVersion(char *version, const uint32_t maxLen);
 
 /**
  * @ingroup dvrt_dev
@@ -330,12 +330,12 @@ RTS_API rtError_t rtGetPairDevicesInfo(uint32_t devId, uint32_t otherDevId, int3
                     FEATURE_TYPE_MEMCPY = 0,
                     FEATURE_TYPE_RSV,
                } rtFeatureType_t;
- * @param [in] infoType   info type
+ * @param [in] featureInfo  info type
                typedef enum tagMemcpyInfo {
                     MEMCPY_INFO_SUPPORT_ZEROCOPY = 0,
                     MEMCPY_INFO _RSV,
                } rtMemcpyInfo_t;
- * @param [out] value   the capability info
+ * @param [out] value  the capability info RT_CAPABILITY_SUPPORT or RT_CAPABILITY_NOT_SUPPORT
  * @return RT_ERROR_NONE for ok
  */
 RTS_API rtError_t rtGetRtCapability(rtFeatureType_t featureType, int32_t featureInfo, int64_t *value);

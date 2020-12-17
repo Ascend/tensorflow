@@ -141,11 +141,11 @@ class GraphUtils {
 
   static Graph CreateGraphFromComputeGraph(const ComputeGraphPtr compute_graph);
 
+  static GraphPtr CreateGraphPtrFromComputeGraph(const ComputeGraphPtr compute_graph);
+
   static graphStatus RecoverGraphOperators(const Graph &graph);
 
   static ComputeGraphPtr CreateGraphFromOperator(const string &name, const std::vector<Operator> &inputs);
-
-  static GraphPtr CreateGraphPtrFromComputeGraph(const ComputeGraphPtr compute_graph);
 
   static graphStatus AddEdge(const OutDataAnchorPtr &src, const InDataAnchorPtr &dst);
 

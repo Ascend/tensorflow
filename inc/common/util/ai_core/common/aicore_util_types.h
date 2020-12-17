@@ -1,12 +1,17 @@
 /**
- * @file aicore_util_types.h
+ * Copyright 2019-2020 Huawei Technologies Co., Ltd
  *
- * Copyright (c) Huawei Technologies Co., Ltd. 2019-2019. All rights reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * @brief struct\enuum
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * @version 1.0
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #ifndef INC_COMMON_UTILS_AI_CORE_COMMON_TYPES_H_
@@ -128,7 +133,8 @@ static const std::map<ge::DataType, uint32_t> DATATYPE_SIZE_MAP{
     {ge::DT_BOOL, sizeof(bool)},
     {ge::DT_DUAL, sizeof(float) + sizeof(int8_t)},
     {ge::DT_DUAL_SUB_UINT8, sizeof(int8_t)},
-    {ge::DT_DUAL_SUB_INT8, sizeof(int8_t)}};
+    {ge::DT_DUAL_SUB_INT8, sizeof(int8_t)}
+};
 
 enum OpReduceType {
   REDUCE_MEAN = 0,
