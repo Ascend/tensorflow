@@ -22,18 +22,9 @@
 #include <string>
 #include <vector>
 #include "detail/attributes_holder.h"
+#include "graph/compiler_options.h"
 
 namespace ge {
-#ifdef HOST_VISIBILITY
-#define GE_FUNC_HOST_VISIBILITY __attribute__((visibility("default")))
-#else
-#define GE_FUNC_HOST_VISIBILITY
-#endif
-#ifdef DEV_VISIBILITY
-#define GE_FUNC_DEV_VISIBILITY __attribute__((visibility("default")))
-#else
-#define GE_FUNC_DEV_VISIBILITY
-#endif
 
 using std::shared_ptr;
 

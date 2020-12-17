@@ -96,6 +96,7 @@ class Node : public std::enable_shared_from_this<Node> {
   ComputeGraphPtr GetOwnerComputeGraph() const;
   graphStatus SetOwnerComputeGraph(const ComputeGraphPtr &graph);
   graphStatus SetAnyOwnerComputeGraph(const ComputeGraphPtr &graph);
+
   Vistor<InDataAnchorPtr> GetAllInDataAnchors() const;
   Vistor<OutDataAnchorPtr> GetAllOutDataAnchors() const;
   uint32_t GetAllInDataAnchorsSize() const;
@@ -117,7 +118,7 @@ class Node : public std::enable_shared_from_this<Node> {
   Vistor<NodePtr> GetInDataNodes() const;
   // All in Control nodes
   Vistor<NodePtr> GetInControlNodes() const;
-  // GetInAllNodes = InDataNodes + InControlNodes
+  // All in Data nodes and Control nodes
   Vistor<NodePtr> GetInAllNodes() const;
 
   // All out Data nodes
@@ -125,7 +126,7 @@ class Node : public std::enable_shared_from_this<Node> {
   uint32_t GetOutDataNodesSize() const;
   // All out Control nodes
   Vistor<NodePtr> GetOutControlNodes() const;
-  // GetOutAllNodes = OutDataNodes + InControlNodes
+  // All out Data nodes and Control nodes
   Vistor<NodePtr> GetOutAllNodes() const;
 
   // Get all in data nodes and its out-anchor

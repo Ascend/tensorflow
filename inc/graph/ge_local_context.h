@@ -37,7 +37,6 @@ class GEThreadLocalContext {
   map<string, string> GetAllGlobalOptions() const;
   map<string, string> GetAllOptions() const;
 
-
  private:
   map<string, string> graph_options_;
   map<string, string> session_options_;

@@ -18,16 +18,28 @@
 #define D_SYSLOG_H_
 
 #ifdef __cplusplus
+#ifndef LOG_CPP
 extern "C" {
+#endif
 #endif // __cplusplus
 
 #ifndef LINUX
 #define LINUX 0
 #endif // LINUX
 
+#ifndef WIN
+#define WIN 1
+#endif
+
 #ifndef OS_TYPE
 #define OS_TYPE 0
 #endif // OS_TYPE
+
+#if (OS_TYPE == LINUX)
+#define DLL_EXPORT __attribute__((visibility("default")))
+#else
+#define DLL_EXPORT _declspec(dllexport)
+#endif
 
 /**
  * @ingroup slog
@@ -95,6 +107,7 @@ extern "C" {
 #define SECURITY_LOG_MASK   (0x00100000)
 #define RUN_LOG_MASK        (0x01000000)
 #define OPERATION_LOG_MASK  (0x10000000)
+#define RESERVERD_LENGTH 52
 
 typedef struct tagDCODE {
   const char *cName;
@@ -105,6 +118,18 @@ typedef struct tagKV {
   char *kname;
   char *value;
 } KeyValue;
+
+typedef enum {
+    APPLICATION = 0,
+    SYSTEM
+} ProcessType;
+
+typedef struct {
+    ProcessType type;
+    unsigned int pid;
+    unsigned int deviceId;
+    char reserved[RESERVERD_LENGTH];
+} LogAttr;
 
 /**
  * @ingroup slog
@@ -180,12 +205,11 @@ enum {
   INVLID_MOUDLE_ID
 };
 
-#if (OS_TYPE == LINUX)
 /**
  * @ingroup slog
  * @brief External log interface, which called by modules
  */
-extern void dlog_init(void);
+DLL_EXPORT void dlog_init(void);
 
 /**
  * @ingroup slog
@@ -195,7 +219,7 @@ extern void dlog_init(void);
  * @param [out]enableEvent: 1: enable; 0: disable
  * @return: module level(0: debug, 1: info, 2: warning, 3: error, 4: null output)
  */
-extern int dlog_getlevel(int moduleId, int *enableEvent);
+DLL_EXPORT int dlog_getlevel(int moduleId, int *enableEvent);
 
 /**
  * @ingroup slog
@@ -206,7 +230,7 @@ extern int dlog_getlevel(int moduleId, int *enableEvent);
  * @param [in]enableEvent: 1: enable; 0: disable, others:invalid
  * @return: 0: SUCCEED, others: FAILED
  */
-extern int dlog_setlevel(int moduleId, int level, int enableEvent);
+DLL_EXPORT int dlog_setlevel(int moduleId, int level, int enableEvent);
 
 /**
  * @ingroup slog
@@ -217,7 +241,15 @@ extern int dlog_setlevel(int moduleId, int level, int enableEvent);
  * @param [in]logLevel: eg: DLOG_EVENT/DLOG_ERROR/DLOG_WARN/DLOG_INFO/DLOG_DEBUG
  * @return: 1:enable, 0:disable
  */
-extern int CheckLogLevel(int moduleId, int logLevel);
+DLL_EXPORT int CheckLogLevel(int moduleId, int logLevel);
+
+/**
+ * @ingroup slog
+ * @brief DlogSetAttr: set log attr, default pid is 0, default device id is 0, default process type is APPLICATION
+ * @param [in]logAttr: attr info, include pid(must be larger than 0), process type and device id(chip ID)
+ * @return: 0: SUCCEED, others: FAILED
+ */
+DLL_EXPORT int DlogSetAttr(LogAttr logAttr);
 
 /**
  * @ingroup slog
@@ -343,7 +375,7 @@ extern int CheckLogLevel(int moduleId, int logLevel);
  * @ingroup slog
  * @brief DlogFlush: flush log buffer to file
  */
-void DlogFlush(void);
+DLL_EXPORT void DlogFlush(void);
 
 /**
  * @ingroup slog
@@ -357,12 +389,9 @@ void DlogEventInner(int moduleId, const char *fmt, ...);
 void DlogInner(int moduleId, int level, const char *fmt, ...);
 void DlogWithKVInner(int moduleId, int level, KeyValue *pstKVArray, int kvNum, const char *fmt, ...);
 
-#else
-_declspec(dllexport) void dlog_init(void);
-_declspec(dllexport) int dlog_getlevel(int moduleId, int *enableEvent);
-#endif // OS_TYPE
-
 #ifdef __cplusplus
+#ifndef LOG_CPP
 }
+#endif // LOG_CPP
 #endif // __cplusplus
 #endif // D_SYSLOG_H_
