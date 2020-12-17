@@ -250,3 +250,124 @@ def variable_initializer_in_host(var_list):
     An Op that run the initializers of all the specified variables.
   """
   return tf.initializers.variables(var_list, name='var_in_host')
+
+def fair_division(input, number):
+    def get_sum(list):
+        res = 0
+        for item in list:
+            res += item.size
+        return res
+
+    def get_left_input_sum(list):
+        res = 0
+        for item in list:
+            if item.root_rank_id < 0:
+                res += item.size
+        return res
+
+    def get_average(list, size):
+        large_number_list = []
+        average_size = 0
+        res = 0
+        if size == 1:
+            for item in list:
+                if item.root_rank_id < 0:
+                    res += item.size
+            return res
+        while True:
+            res = 0
+            find_large_number = False
+            for item in list:
+                if item not in large_number_list and item.root_rank_id < 0:
+                    res += item.size
+            average_size = res // (size - len(large_number_list))
+            for item in list:
+                if item not in large_number_list and item.root_rank_id < 0 and item.size > res - item.size:
+                    find_large_number = True
+                    large_number_list.append(item)
+            if not find_large_number:
+                break
+        return average_size
+
+    if number > len(input) or number < 0:
+        raise ValueError("'number' is greater than the number of inputs or 'number' is less than 0. ")
+    elif number == len(input):
+        for i in range(len(input)):
+            input[i].root_rank_id = i
+        return input
+
+    j = -1
+    last_index = 0
+    while True:
+        j = j+1
+        total_number = number - j
+        if total_number == 0:
+            break
+        average_size = get_average(input, total_number)
+        tmp_list = []
+        tmp_last_index = last_index
+        for i in range(tmp_last_index, len(input) - total_number + 1):
+            if get_sum(tmp_list) + input[i].size <= average_size:
+                input[i].root_rank_id = j
+                tmp_list.append(input[i])
+                last_index = i+1
+            else:
+                if len(tmp_list) <= 0:
+                    input[i].root_rank_id = j
+                    tmp_list.append(input[i])
+                    last_index = i+1
+                elif (get_sum(tmp_list) + input[i].size - average_size) <= (average_size - get_sum(tmp_list)):
+                    input[i].root_rank_id = j
+                    tmp_list.append(input[i])
+                    last_index = i+1
+                break
+
+    return input
+
+class GradDivisionItem():
+    def __init__(self, grad, var):
+        self.grad = grad
+        self.var = var
+        self.size = self.__get_size()
+        self.root_rank_id = -1
+
+    def __get_size(self):
+        size = 1
+        grad_shape = self.grad.shape
+        if len(grad_shape) <= 0:
+            return 0
+        for i in range(len(grad_shape)):
+            size = size * int(grad_shape[i])
+        size = size * self.grad.dtype.size
+        return size
+
+_GRADIENTS_AND_VARS = []
+
+def add_grads_and_vars(grads_and_vars, rank_size):
+    global _GRADIENTS_AND_VARS
+    _GRADIENTS_AND_VARS.clear()
+    for grad, var in grads_and_vars:
+        if grad is not None:
+            item = GradDivisionItem(grad, var)
+            _GRADIENTS_AND_VARS.append(item)
+    _GRADIENTS_AND_VARS = fair_division(_GRADIENTS_AND_VARS, rank_size)
+
+def get_gid_by_grad(grad):
+    gid = -1
+    global _GRADIENTS_AND_VARS
+    for item in _GRADIENTS_AND_VARS:
+        if item.grad.name == grad.name:
+            gid = item.root_rank_id
+    return gid
+
+def get_gid_by_weight(weight):
+    gid = -1
+    global _GRADIENTS_AND_VARS
+    for item in _GRADIENTS_AND_VARS:
+        if item.var.name == weight.name:
+            gid = item.root_rank_id
+    return gid
+
+def get_all_grad_item():
+    global _GRADIENTS_AND_VARS
+    return _GRADIENTS_AND_VARS

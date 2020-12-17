@@ -935,6 +935,6 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
 }
 
 // We register DpTfToGE insertion for phase 102 in POST_PARTITIONING grouping
-REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, 3, DpTfToGEConversionPass);
+REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, 4, DpTfToGEConversionPass);
 REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_PARTITIONING, 102, DpTfToGEConversionPass);
 }  // namespace tensorflow
