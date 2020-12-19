@@ -27,12 +27,12 @@ static const int64_t UNKNOWN_DIM_NUM = -2;
 static const std::vector<int64_t> UNKNOWN_SHAPE = {-1};
 static const std::vector<int64_t> UNKNOWN_RANK = {-2};
 
-#if(defined(HOST_VISIBILITY)) && (defined(__GNUC__))
+#ifdef HOST_VISIBILITY
 #define GE_FUNC_HOST_VISIBILITY __attribute__((visibility("default")))
 #else
 #define GE_FUNC_HOST_VISIBILITY
 #endif
-#if(defined(DEV_VISIBILITY)) && (defined(__GNUC__))
+#ifdef DEV_VISIBILITY
 #define GE_FUNC_DEV_VISIBILITY __attribute__((visibility("default")))
 #else
 #define GE_FUNC_DEV_VISIBILITY
@@ -116,8 +116,8 @@ enum Format {
   FORMAT_C1HWNC0,
   FORMAT_FRACTAL_DECONV_TRANSPOSE,
   FORMAT_FRACTAL_DECONV_SP_STRIDE_TRANS,
-  FORMAT_NC1HWC0_C04,    // NC1HWC0, C0 is 4
-  FORMAT_FRACTAL_Z_C04,  // FRACZ, C0 is 4
+  FORMAT_NC1HWC0_C04,    // NC1HWC0, C0 =4
+  FORMAT_FRACTAL_Z_C04,  // FRACZ, C0 =4
   FORMAT_CHWN,
   FORMAT_FRACTAL_DECONV_SP_STRIDE8_TRANS,
   FORMAT_HWCN,
@@ -221,11 +221,6 @@ struct TensorType {
   static TensorType FLOAT() { return TensorType{DT_FLOAT, DT_FLOAT16}; }
 
   std::shared_ptr<TensorTypeImpl> tensor_type_impl_;
-};
-
-enum MEMORY_SIZE_CALC_TYPE {
-  MEMORY_SIZE_NORMAL = 0,
-  ALWAYS_EMPTY
 };
 }  // namespace ge
 

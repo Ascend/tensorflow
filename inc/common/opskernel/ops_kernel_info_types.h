@@ -44,6 +44,7 @@ struct RunContext {
 };
 
 /*lint +e148*/
+
 struct Task {
   uint32_t id;
   uint16_t type;

@@ -20,7 +20,6 @@
 #include <string>
 #include <vector>
 #include "graph/ge_attr_value.h"
-#include "graph/compiler_options.h"
 
 namespace ge {
 
@@ -93,7 +92,7 @@ class _GeSerializable {
     SaveItem(namedAttrs, args...);
   }
 
-  static void SaveItem(GeAttrValue::NAMED_ATTRS &namedAttrs METADEF_ATTRIBUTE_UNUSED) {}
+  static void SaveItem(GeAttrValue::NAMED_ATTRS &namedAttrs __attribute__((__unused__))) {}
 
   template <class T, class... Args>
   static graphStatus LoadItem(GeAttrValue::NAMED_ATTRS &namedAttrs, string itemName, T &item, Args &... args) {
@@ -105,7 +104,7 @@ class _GeSerializable {
     return LoadItem(namedAttrs, args...);
   }
 
-  static graphStatus LoadItem(GeAttrValue::NAMED_ATTRS &namedAttrs METADEF_ATTRIBUTE_UNUSED) { return GRAPH_SUCCESS; }
+  static graphStatus LoadItem(GeAttrValue::NAMED_ATTRS &namedAttrs __attribute__((__unused__))) { return GRAPH_SUCCESS; }
 };
 
 #define _GE_FI(a) #a, a
