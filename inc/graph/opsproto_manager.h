@@ -17,6 +17,8 @@
 #ifndef INC_GRAPH_OPSPROTO_MANAGER_H_
 #define INC_GRAPH_OPSPROTO_MANAGER_H_
 
+#include <dirent.h>
+#include <dlfcn.h>
 #include <string.h>
 #include <map>
 #include <string>

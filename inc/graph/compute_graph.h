@@ -94,6 +94,9 @@ class ComputeGraph : public std::enable_shared_from_this<ComputeGraph>, public A
   NodePtr AddInputNode(NodePtr node);
   NodePtr AddOutputNode(NodePtr node);
   NodePtr AddOutputNodeByIndex(NodePtr node, int32_t index);
+  // insert node with specific pre_node
+  NodePtr AddNodeAfter(OpDescPtr &op, const NodePtr &pre_node);
+  NodePtr AddNodeAfter(NodePtr node, const NodePtr &pre_node);
 
   graphStatus RemoveNode(const NodePtr &node);
   graphStatus RemoveInputNode(const NodePtr &node);
@@ -256,6 +259,7 @@ class ComputeGraph : public std::enable_shared_from_this<ComputeGraph>, public A
   /// topo order of DFS is `c, b, a` with `dfs_reverse=false` as default
   /// in same case, user could get `c, a, b` with `dfs_reverse=true`
   graphStatus TopologicalSortingGraph(bool dfs_reverse = false);
+  graphStatus TopologicalSortingGraph();
   graphStatus SortNodes(std::vector<NodePtr> &stack, std::map<NodePtr, uint32_t> &mapInEdgeNum);
   Vistor<NodePtr> AllGraphNodes(std::vector<std::shared_ptr<ComputeGraph>> &subgraphs) const;
   size_t GetInEdgeSize(const NodePtr &node);

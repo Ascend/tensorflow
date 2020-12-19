@@ -25,7 +25,6 @@
 
 #include "./ge_error_codes.h"
 #include "./types.h"
-#include "ascend_string.h"
 
 namespace ge {
 class ShapeImpl;
@@ -67,8 +66,8 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY TensorDesc {
   // set shape with -2, it stand for unknown shape
   graphStatus SetUnknownDimNumShape();
   // for unknown shape
-  graphStatus SetShapeRange(const std::vector<std::pair<int64_t, int64_t>> &range);
-  graphStatus GetShapeRange(std::vector<std::pair<int64_t, int64_t>> &range) const;
+  graphStatus SetShapeRange(const std::vector<std::pair<int64_t,int64_t>> &range);
+  graphStatus GetShapeRange(std::vector<std::pair<int64_t,int64_t>> &range) const;
 
   Format GetFormat() const;
   void SetFormat(Format format);
@@ -82,13 +81,8 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY TensorDesc {
   DataType GetDataType() const;
   void SetDataType(DataType dt);
 
-  ATTRIBUTED_DEPRECATED(graphStatus GetName(AscendString &))
   std::string GetName() const;
-  graphStatus GetName(AscendString &name);
-
-  ATTRIBUTED_DEPRECATED(void SetName(const char *))
   void SetName(const std::string &name);
-  void SetName(const char *name);
 
   // Attr acess
   void SetSize(int64_t size);
@@ -121,12 +115,8 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Tensor {
   graphStatus SetData(std::vector<uint8_t> &&data);
   graphStatus SetData(const std::vector<uint8_t> &data);
   graphStatus SetData(const uint8_t *data, size_t size);
-  ATTRIBUTED_DEPRECATED(graphStatus SetData(const char *data))
   graphStatus SetData(const std::string &data);
-  graphStatus SetData(const char *data);
-  ATTRIBUTED_DEPRECATED(graphStatus SetData(const std::vector<AscendString> &))
   graphStatus SetData(const std::vector<std::string> &data);
-  graphStatus SetData(const std::vector<AscendString> &datas);
   graphStatus IsValid();
 
   Tensor Clone() const;
@@ -136,5 +126,6 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Tensor {
   friend class TensorAdapter;
 };
 }  // namespace ge
+/*lint +e148*/
 
 #endif  // INC_EXTERNAL_GRAPH_TENSOR_H_

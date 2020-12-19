@@ -14,25 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef INC_EXTERNAL_GRAPH_ASCEND_STRING_H_
-#define INC_EXTERNAL_GRAPH_ASCEND_STRING_H_
+#ifndef INC_FRAMEWORK_COMMON_GE_FORMAT_UTIL_H_
+#define INC_FRAMEWORK_COMMON_GE_FORMAT_UTIL_H_
 
-#include <string>
-#include <memory>
+#include <vector>
+
+#include "common/ge_inner_error_codes.h"
+#include "graph/tensor.h"
 
 namespace ge {
-class AscendString {
+class GeFormatUtil {
  public:
-  AscendString() = default;
-
-  ~AscendString() = default;
-
-  explicit AscendString(const char* name);
-
-  const char* GetString() const;
-
- private:
-  std::shared_ptr<std::string> name_;
+  ///
+  /// @name   TransShape
+  /// @brief  transform the shape of tensor according to destination format
+  /// @param  [in] src_desc       source tensor desc
+  /// @param  [in] dst_format     destination format
+  /// @param  [out] dst_shape     destination shape
+  /// @return Status
+  ///
+  static Status TransShape(const TensorDesc &src_desc, Format dst_format, std::vector<int64_t> &dst_shape);
 };
 }  // namespace ge
-#endif  // INC_EXTERNAL_GRAPH_ASCEND_STRING_H_
+
+#endif  // INC_FRAMEWORK_COMMON_GE_FORMAT_UTIL_H_

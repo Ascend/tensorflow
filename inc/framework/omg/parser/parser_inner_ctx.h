@@ -23,18 +23,14 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
 #include "external/register/register_fmk_types.h"
 #include "external/register/register_types.h"
 #include "framework/omg/omg_inner_types.h"
 
-namespace ge
-{
-struct ParserContext
-{
+namespace ge {
+struct ParserContext {
   // format of the input specified by the command line
   std::unordered_map<std::string, domiTensorFormat_t> input_nodes_format_map;
-  std::vector<domiTensorFormat_t> output_formats;
   // user-designate input dims
   std::vector<std::pair<std::string, std::vector<int64_t>>> user_input_dims;
   std::unordered_map<std::string, std::vector<int64_t>> input_dims;
@@ -62,13 +58,10 @@ struct ParserContext
   bool train_flag = false;
   domi::domiTensorFormat_t format = domi::DOMI_TENSOR_ND;
   domi::FrameworkType type = domi::FRAMEWORK_RESERVED;
-  RunMode run_mode = GEN_OM_MODEL;
-  // save caffe custom proto path, used by caffe parse
-  std::string custom_proto_path;
-  // save caffe proto path, used by caffe parse
-  std::string caffe_proto_path;
-  // name of the pass that needs to take effect
-  std::string enable_scope_fusion_passes;
+  RunMode run_mode = ONLY_PRE_CHECK;
+  std::string custom_proto_path; // save caffe custom proto path, used by caffe parse
+  std::string caffe_proto_path; // save caffe proto path, used by caffe parse
+  std::string enable_scope_fusion_passes;  // name of the pass that needs to take effect
 };
 
 ParserContext &GetParserContext();

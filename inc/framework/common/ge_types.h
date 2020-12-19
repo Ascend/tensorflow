@@ -44,7 +44,6 @@ enum FrameworkType {
   MINDSPORE = 1,
   TENSORFLOW = 3,
   ANDROID_NN,
-  ONNX,
   FRAMEWORK_RESERVED,
 };
 

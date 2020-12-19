@@ -32,8 +32,6 @@ class TypeUtils {
  public:
   static bool IsDataTypeValid(DataType dt);
   static bool IsFormatValid(Format format);
-  static bool IsDataTypeValid(std::string dt); // for user json input
-  static bool IsFormatValid(std::string format); // for user json input
   static bool IsInternalFormat(Format format);
 
   static std::string ImplyTypeToSerialString(domi::ImplyType imply_type);

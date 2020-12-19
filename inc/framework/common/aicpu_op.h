@@ -14,15 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef INC_GRAPH_COMMON_ERROR_CODES_H_
-#define INC_GRAPH_COMMON_ERROR_CODES_H_
+#ifndef INC_FRAMEWORK_COMMON_AICPU_OP_H_
+#define INC_FRAMEWORK_COMMON_AICPU_OP_H_
 
-#include "external/graph/ge_error_codes.h"
+#include "cce/customize.h"
 
-namespace ge {
-const graphStatus NO_DEPENDENCE_FUNC = 50331647;
-const graphStatus NO_OVERLAP_DIM = 50331646;
-const graphStatus NOT_SUPPORT_SLICE = 50331645;
-}  // namespace ge
-
-#endif  // INC_GRAPH_COMMON_ERROR_CODES_H_
+#endif  // INC_FRAMEWORK_COMMON_AICPU_OP_H_
