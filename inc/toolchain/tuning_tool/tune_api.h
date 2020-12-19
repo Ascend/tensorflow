@@ -27,6 +27,11 @@ enum MsTuneStatus {
     MSTUNE_FAILED,   /** tune failed */
 };
 
+// Option key: for train options sets
+const std::string MSTUNE_SELF_KEY = "mstune";
+const std::string MSTUNE_GEINIT_KEY = "initialize";
+const std::string MSTUNE_GESESS_KEY = "session";
+
 /**
  * @ingroup mstune
  * @par 描述: 命令行调优
@@ -52,7 +57,7 @@ MsTuneStatus MsTuning(const std::map<std::string, std::string> &option, std::str
  * @param  tuningGraph [IN] 调优图
  * @param  dependGraph [IN] 调优依赖图
  * @param  session [IN] ge连接会话
- * @param  option [IN] 调优参数
+ * @param  option [IN] 参数集. 包含调优参数及ge参数
  * @retval #MSTUNE_SUCCESS 执行成功
  * @retval #MSTUNE_FAILED 执行失败
  * @par 依赖:
@@ -61,7 +66,7 @@ MsTuneStatus MsTuning(const std::map<std::string, std::string> &option, std::str
  * @see 无
  * @since
  */
-extern "C" MsTuneStatus MsGradientTuning(ge::Graph &tuningGraph, std::vector<ge::Graph> &dependGraph,
-    ge::Session *session, const std::map<std::string, std::string> &option);
+extern "C" MsTuneStatus MsTrainTuning(ge::Graph &tuningGraph, std::vector<ge::Graph> &dependGraph,
+    ge::Session *session, const std::map<std::string, std::map<std::string, std::string>> &option);
 
 #endif
