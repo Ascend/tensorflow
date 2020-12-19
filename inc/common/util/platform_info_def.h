@@ -69,6 +69,7 @@ typedef struct tag_ai_core_spec {
   uint32_t unzip_max_ratios;
   uint32_t unzip_channels;
   uint8_t unzip_is_tight;
+  uint8_t cube_vector_split;
 } AiCoreSpec;
 
 typedef struct tag_ai_core_memory_rates {
