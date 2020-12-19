@@ -312,7 +312,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   bool mix_compile_mode = false;
   int iterations_per_loop = 1;
   bool lower_functional_ops = false;
-  string job = "localhost";
+  string job = "default";
   int task_index = 0;
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
@@ -361,7 +361,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "localhost";
+  string job = "default";
   std::string task_index = "0";
   Status s = Status::OK();
   string npuOptimizer;
@@ -398,7 +398,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "localhost";
+  string job = "default";
   std::string task_index = "0";
   Status s = Status::OK();
 
@@ -443,7 +443,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "localhost";
+  string job = "default";
   std::string task_index = "0";
   Status s = Status::OK();
 
@@ -609,7 +609,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
   pass_options["mix_compile_mode"] = std::to_string(false);
   pass_options["iterations_per_loop"] = std::to_string(1);
   pass_options["lower_functional_ops"] = std::to_string(false);
-  pass_options["job"] = "localhost";
+  pass_options["job"] = "default";
   pass_options["task_index"] = std::to_string(0);
   return pass_options;
 }
