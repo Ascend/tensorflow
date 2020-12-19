@@ -18,14 +18,13 @@
 #define INC_EXTERNAL_GE_GE_API_TYPES_H_
 
 #include <cstdint>
-#include <functional>
-#include <memory>
-#include <set>
 #include <string>
 #include <vector>
+#include <set>
+#include <functional>
+#include <memory>
 
-namespace ge
-{
+namespace ge {
 // Option key: graph run mode
 const char *const OPTION_GRAPH_RUN_MODE = "ge.graphRunMode";
 
@@ -106,8 +105,7 @@ const char *const SAVE_ORIGINAL_MODEL = "ge.saveOriginalModel";
 const char *const ORIGINAL_MODEL_FILE = "ge.originalModelFile";
 const char *const INPUT_FP16_NODES = "ge.INPUT_NODES_SET_FP16";
 const char *const OP_DEBUG_LEVEL = "ge.opDebugLevel";
-}
-
+}  // namespace configure_option
 // Configure stream num by Session constructor options param,
 // its value should be int32_t type, default value is "1"
 const std::string STREAM_NUM = "ge.streamNum";
@@ -295,41 +293,30 @@ const std::string MDL_BANK_PATH_FLAG = "ge.mdl_bank_path";
 
 // Configure op bank path
 const std::string OP_BANK_PATH_FLAG = "ge.op_bank_path";
+const std::string OP_BANK_UPDATE_FLAG = "ge.op_bank_update";
 
 // Graph run mode
-enum GraphRunMode
-{
-  PREDICTION = 0,
-  TRAIN
-};
+enum GraphRunMode { PREDICTION = 0, TRAIN };
 
 // Input/Output tensor info
-struct InputTensorInfo
-{
+struct InputTensorInfo {
   uint32_t data_type;         // data type
   std::vector<int64_t> dims;  // shape description
   void *data;                 // tensor data
   int64_t length;             // tensor length
 };
 
-struct OutputTensorInfo
-{
+struct OutputTensorInfo {
   uint32_t data_type;               // data type
   std::vector<int64_t> dims;        // shape description
   std::unique_ptr<uint8_t[]> data;  // tensor data
   int64_t length;                   // tensor length
-  OutputTensorInfo() : data_type(0), dims({}), data(nullptr), length(0)
-  {
-  }
+  OutputTensorInfo() : data_type(0), dims({}), data(nullptr), length(0) {}
   OutputTensorInfo(OutputTensorInfo &&out)
-      : data_type(out.data_type), dims(out.dims), data(std::move(out.data)), length(out.length)
-  {
-  }
+      : data_type(out.data_type), dims(out.dims), data(std::move(out.data)), length(out.length) {}
 
-  OutputTensorInfo &operator=(OutputTensorInfo &&out)
-  {
-    if (this != &out)
-    {
+  OutputTensorInfo &operator=(OutputTensorInfo &&out) {
+    if (this != &out) {
       data_type = out.data_type;
       dims = out.dims;
       data = std::move(out.data);
@@ -344,8 +331,7 @@ struct OutputTensorInfo
 using Status = uint32_t;
 using RunAsyncCallback = std::function<void(Status, std::vector<ge::OutputTensorInfo> &)>;
 // for ir build
-namespace ir_option
-{
+namespace ir_option {
 static const char *const INPUT_FORMAT = "input_format";
 static const char *const INPUT_SHAPE = "input_shape";
 static const char *const OP_NAME_MAP = "op_name_map";
@@ -379,11 +365,13 @@ static const char *const OPTYPELIST_FOR_IMPLMODE = ge::OPTYPELIST_FOR_IMPLMODE.c
 static const char *const DEBUG_DIR = ge::DEBUG_DIR;
 static const char *const OP_COMPILER_CACHE_DIR = ge::OP_COMPILER_CACHE_DIR;
 static const char *const OP_COMPILER_CACHE_MODE = ge::OP_COMPILER_CACHE_MODE;
-static const char *const MDL_BANK_PATH_FLAG = ge::MDL_BANK_PATH_FLAG.c_str();
-static const char *const OP_BANK_PATH_FLAG = ge::OP_BANK_PATH_FLAG.c_str();
+static const char *const MDL_BANK_PATH = ge::MDL_BANK_PATH_FLAG.c_str();
+static const char *const OP_BANK_PATH = ge::OP_BANK_PATH_FLAG.c_str();
+static const char *const OP_BANK_UPDATE = ge::OP_BANK_UPDATE_FLAG.c_str();
 static const char *const OP_DEBUG_LEVEL = ge::OP_DEBUG_LEVEL.c_str();
 
 // for interface: aclgrphBuildModel
+#ifdef __GNUC__
 const std::set<std::string> ir_builder_suppported_options = {INPUT_FORMAT,
                                                              INPUT_SHAPE,
                                                              OP_NAME_MAP,
@@ -402,8 +390,9 @@ const std::set<std::string> ir_builder_suppported_options = {INPUT_FORMAT,
                                                              DEBUG_DIR,
                                                              OP_COMPILER_CACHE_DIR,
                                                              OP_COMPILER_CACHE_MODE,
-                                                             MDL_BANK_PATH_FLAG,
-                                                             OP_BANK_PATH_FLAG};
+                                                             MDL_BANK_PATH,
+                                                             OP_BANK_PATH,
+                                                             OP_BANK_UPDATE};
 
 // for interface: aclgrphParse
 const std::set<std::string> ir_parser_suppported_options = {INPUT_FORMAT,
@@ -439,6 +428,7 @@ const std::set<std::string> global_options = {CORE_TYPE,
                                               DEBUG_DIR,
                                               OP_COMPILER_CACHE_DIR,
                                               OP_COMPILER_CACHE_MODE};
+#endif
 }  // namespace ir_option
 }  // namespace ge
 

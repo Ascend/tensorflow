@@ -31,7 +31,7 @@ class StrInfos {
   bool Init();
   std::string GetAIcVersion();
   std::string GetCcecAIcVersion();
-  std:: GetCcecAIvVersion();
+  std::string GetCcecAIvVersion();
   std::string IsSupportAICpuCompiler();
 
   void SetAIcVersion(std::string &aic_version);
