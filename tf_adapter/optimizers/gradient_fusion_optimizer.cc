@@ -263,6 +263,11 @@ Status GradFusionOptimizer::Optimize(Cluster *cluster, const GrapplerItem &item,
 
   for (const auto &nodeDef : graphOrigin.node()) {
     if (IsHcomOp(nodeDef)) {
+      std::string op_name;
+      op_name = nodeDef.name();
+      if (op_name.find("_Weight_Update_Sharding") != std::string::npos) {
+        continue;
+      }
       DataType dType;
       auto attrMap = nodeDef.attr();
       auto iter = attrMap.find(DATA_TYPE_ATTR);

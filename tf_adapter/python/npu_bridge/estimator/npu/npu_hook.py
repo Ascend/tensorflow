@@ -143,7 +143,7 @@ def broadcast_global_variables(root_rank, index):
         to all other processes.
     """
     op_list = []
-    for var in tf.global_variables():
+    for var in tf.trainable_variables():
         # the input and out tensor of HCOMBroadcast interface are list
         inputs = [var]
         outputs=hccl_ops.broadcast(tensor=inputs,root_rank=root_rank)

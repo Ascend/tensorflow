@@ -22,6 +22,7 @@ from npu_bridge.estimator.npu.npu_config import NPURunConfig
 from npu_bridge.estimator.npu.npu_hook import *
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.estimator import npu_ops
+from npu_bridge.estimator.npu.npu_saver import *
 
 import six
 from six.moves import queue as Queue
@@ -441,7 +442,8 @@ class NPUEstimator(estimator_lib.Estimator):
                     npu_hooks.append(NPUCheckpointSaverHook(
                         checkpoint_dir=model_dir,
                         save_secs=config.save_checkpoints_secs,
-                        save_steps=config.save_checkpoints_steps))
+                        save_steps=config.save_checkpoints_steps,
+                        saver=NPUSaver()))
 
                 if isinstance(estimator_spec, NPUEstimatorSpec):
                     if estimator_spec._host_call is not None:
