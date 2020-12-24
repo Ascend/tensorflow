@@ -13,6 +13,7 @@
 # limitations under the License.
 # ============================================================================
 import json
+import os
 
 def _init():
     global _global_dict
@@ -22,6 +23,8 @@ def _init():
         items = load_dict.items()
         for key, value in items:
             set_value(key, value)
+    value = "_npu_" + time.strftime('%Y%m%d%H%M%S')
+    set_value('timestap', value)
 
 def set_value(key, value):
     _global_dict[key] = value

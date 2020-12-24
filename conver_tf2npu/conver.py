@@ -24,10 +24,11 @@ def conver():
     print("Begin conver, input file: " + util_global.get_value('input'))
     out_path = util_global.get_value('output')
     dst_path = os.path.split(util_global.get_value('input').rstrip('\\/'))[-1]
+    dsp_path_new = dst_path + util_global.get_value('timestap')
     conver_path = os.walk(util_global.get_value('input'))
     for path,dir_list,file_list in conver_path:
         for file_name in file_list:
-            out_path_dst = abs_join(dst_path, path.split(dst_path)[1])
+            out_path_dst = abs_join(dsp_path_new, path.split(dst_path)[1])
             if file_name.endswith(".py"):
                 util_global.set_value('path', os.path.join(path, file_name))
                 mkdir(os.path.join(out_path, out_path_dst))
