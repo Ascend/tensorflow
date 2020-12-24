@@ -22,7 +22,6 @@ gen_npu_ops = helper.get_gen_ops();
 
 from tensorflow.python.platform import tf_logging as logging
 from npu_bridge.estimator.npu.npu_common import NPUBasics
-from npu_bridge.estimator.npu import util
 
 def allreduce(tensor, var, average=True):
     """
@@ -70,43 +69,6 @@ def allreduce(tensor, var, average=True):
         new_tensor = tf.div(summed_tensor, rank_size) if average else summed_tensor
 
         return new_tensor
-
-def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
-    basic = NPUBasics("")
-    size = basic.size()
-    # the tensor is the instance of tf.IndexedSlices
-    if isinstance(tensor, tf.IndexedSlices):
-        # For IndexedSlices, do two allgathers intead of a reduce.
-        logging.debug("HcomAllgather...")
-        values=hccl_ops.allgather(tensor.values, size)
-        indices=hccl_ops.allgather(tensor.indices, size)
-
-        if values is  None:
-            raise ValueError('the result of tf.HcomAllgather([tensor.values]) is empty')
-        if indices is None:
-            raise ValueError('the result of tf.HcomAllgather([tensor.indices]) is empty')
-
-        # To make this operation into an average, divide all gathered values by the size.
-        rank_size = tf.cast(size, tensor.values.dtype)
-        new_values = tf.div(values, rank_size) if average else values
-
-        return tf.IndexedSlices(new_values, indices,dense_shape=tensor.dense_shape)
-
-    else:
-        logging.debug("HcomReduce...")
-        local_rank_id = os.getenv('DEVICE_ID')
-        if local_rank_id == None or int(local_rank_id) < 0:
-            raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
-
-        summed_tensor=hccl_ops.reduce(tensor,"sum", root_rank, fusion, fusion_id)
-        if summed_tensor is None:# and summed_tensor:
-            raise ValueError('the result of tf.DavinciReduce([tensor]) is empty')
-        if root_rank != int(local_rank_id):
-            return summed_tensor
-        else:
-            rank_size = tf.cast(size, dtype=tensor.dtype)
-            new_tensor = tf.div(summed_tensor, rank_size) if average else summed_tensor
-            return new_tensor
 
 class NPUOptimizer(optimizer.Optimizer):
   """An optimizer that wraps another tf.Optimizer that can using an allreduce to
@@ -266,9 +228,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
     average gradient values before applying gradients to model weights.
     """
 
-    def __init__(self, optimizer,
-                 is_weight_update_sharding=False,
-                 name=None):
+    def __init__(self, optimizer, name=None):
         """
         Construct a new DistributedOptimizer, which uses another optimizer
         under the hood for computing single-process gradient values and
@@ -285,7 +245,6 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         if name is None:
             name = "Distributed{}".format(type(optimizer).__name__)
         self._optimizer = optimizer
-        self._is_weight_update_sharding = is_weight_update_sharding
         super(NPUDistributedOptimizer, self).__init__(name=name, use_locking=False)
 
     def compute_gradients(self, *args, **kwargs):
@@ -302,58 +261,15 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
             return gradients
 
         averaged_gradients = []
-        if self._is_weight_update_sharding and int(rank_size) <= len(gradients):
-            local_rank_id = os.getenv('DEVICE_ID')
-            if local_rank_id == None or int(local_rank_id) < 0:
-                raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
-            util.add_grads_and_vars(gradients, int(rank_size))
-            with tf.name_scope(self._name + "_Reduce_Weight_Update_Sharding"):
-                for grad, var in gradients:
-                    rank_id = util.get_gid_by_grad(grad)
-                    avg_grad = reduce(grad, var, rank_id, True, 2, rank_id) if grad is not None else None
-                    averaged_gradients.append((avg_grad, var))
-        elif self._is_weight_update_sharding and int(rank_size) > len(gradients):
-            raise ValueError("The number of gradients is less than rank_size, "
-                             "so weight_update_sharding cannot be executed")
-        else:
-            with tf.name_scope(self._name + "_Allreduce"):
-                for grad, var in gradients:
-                    avg_grad = allreduce(grad, var, True) if grad is not None else None
-                    averaged_gradients.append((avg_grad, var))
+        with tf.name_scope(self._name + "_Allreduce"):
+            for grad, var in gradients:
+                avg_grad = allreduce(grad, var, True) if grad is not None else None
+                averaged_gradients.append((avg_grad, var))
         return averaged_gradients
 
-    def apply_gradients(self, grads_and_vars, global_step=None, name=None):
-        rank_size = os.getenv('RANK_SIZE')
-        if rank_size == None or int(rank_size) <= 1:
-            return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
-
-        if self._is_weight_update_sharding:
-            op_list = []
-            local_rank_id = os.getenv('DEVICE_ID')
-            if local_rank_id == None or int(local_rank_id) < 0:
-                raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
-            local_grads_and_vars = []
-            for grad, var in grads_and_vars:
-                rank_id = util.get_gid_by_weight(var)
-                if rank_id >= 0 and rank_id == int(local_rank_id):
-                    local_grads_and_vars.append((grad, var))
-            apply_res = self._optimizer.apply_gradients(local_grads_and_vars, global_step, name)
-            with tf.get_default_graph().control_dependencies([apply_res]):
-                with tf.name_scope(self._name + "_Broadcast_Weight_Update_Sharding"):
-                    for grad, var in grads_and_vars:
-                        rank_id = util.get_gid_by_weight(var)
-                        with tf.get_default_graph().control_dependencies(op_list):
-                            outputs = hccl_ops.broadcast([var], rank_id)
-                        if outputs is not None:
-                            op_list.append(outputs[0].op)
-            for grad, var in grads_and_vars:
-                rank_id = util.get_gid_by_weight(var)
-                if rank_id >= 0 and rank_id != int(local_rank_id):
-                    op_list.append(grad)
-            op_list.append(apply_res)
-            return tf.group(op_list)
-        else:
-            return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
+    def apply_gradients(self, *args, **kwargs):
+        """Calls this same method on the underlying optimizer."""
+        return self._optimizer.apply_gradients(*args, **kwargs)
 
     def get_slot(self, *args, **kwargs):
         """Calls this same method on the underlying optimizer."""
