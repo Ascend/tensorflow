@@ -13,7 +13,7 @@
 # limitations under the License.
 # ============================================================================
 import json
-import os
+import time
 
 def _init():
     global _global_dict

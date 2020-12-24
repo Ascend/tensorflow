@@ -20,9 +20,9 @@
 
     /home/BERT --这个是被迁移的脚本路径
 
-    /home/out  --这个是迁移后的脚本路径
+    /home/out  --这个是迁移后的脚本路径,会在这个目录下生成转换后的脚本，文件命名规则：BERT_npu_yyyyMMddHHmmss
 
-    /home/report --这个是迁移过程的迁移报告
+    /home/report --这个是迁移过程的迁移报告,会在这个目录下生成报告，文件命名规则：report_npu_yyyyMMddHHmmss
 
            迁移报告分三种：
 
