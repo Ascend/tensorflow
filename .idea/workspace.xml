@@ -10,8 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b586fbe6-d2fc-4962-9403-37330e206706" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/conver_tf2npu/conver_by_ast.py" beforeDir="false" afterPath="$PROJECT_DIR$/conver_tf2npu/conver_by_ast.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf_adapter/util/npu_attrs.cc" beforeDir="false" afterPath="$PROJECT_DIR$/tf_adapter/util/npu_attrs.cc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
