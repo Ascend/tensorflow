@@ -134,7 +134,7 @@ def setup_ascend(env_path):
       print('Invalid ascend path: %s cannot be found.' % ascend_path)
   print('ascend path: %s.' % ascend_path)
   with open(real_config_path('LINK_FLAGS'), 'a') as f:
-    f.write(os.path.join(ascend_path, "driver", "lib64", "driver", "libtsdclient.so\n"))
+    f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libtsdclient.so\n"))
     f.write(os.path.join(ascend_path, "driver", "lib64", "common", "libc_sec.so\n"))
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libge_runner.so\n"))
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libfmk_parser.so\n"))

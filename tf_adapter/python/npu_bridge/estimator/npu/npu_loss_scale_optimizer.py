@@ -116,8 +116,7 @@ class NPULossScaleOptimizer(optimizer.Optimizer):
       scaled_loss = loss_val * math_ops.cast(loss_scale,
                                              loss_val.dtype.base_dtype)
 
-    with tf.name_scope(self._name):
-        self._float_status = gen_npu_ops.npu_alloc_float_status()
+    self._float_status = gen_npu_ops.npu_alloc_float_status()
 
     grads_and_vars = self._opt.compute_gradients(
         scaled_loss,
