@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import os
 import sys
 import getopt
 import util_global
@@ -20,8 +21,9 @@ from conver import conver
 
 def para_check_and_set(argv):
     input  = "input"
-    output = "output"
-    report = "report"
+    output = "output" + util_global.get_value('timestap')
+    report = "report" + util_global.get_value('timestap')
+    report_suffix = report
 
     try:
         opts, args = getopt.getopt(argv, "hi:o:r:", ["help", "input=", "output=", "report="])
@@ -44,10 +46,17 @@ def para_check_and_set(argv):
             sys.exit()
         elif opt in ("-i", "--input"):
             input = arg
+            if str(input).endswith('/'):
+                input = input[0:len(input)-1]
         elif opt in ("-o", "--output"):
             output = arg
+            if str(output).endswith('/'):
+                output = output[0:len(output)-1]
         elif opt in ("-r", "--report"):
             report = arg
+            if str(report).endswith('/'):
+                report = report[0:len(report)-1]
+            report = os.path.join(report, report_suffix)
     util_global.set_value('input',  input)
     util_global.set_value('output', output)
     util_global.set_value('report', report)
@@ -55,5 +64,4 @@ def para_check_and_set(argv):
 if __name__ == "__main__":
     util_global._init()
     para_check_and_set(sys.argv[1:])
-    before_clear()
     conver()
