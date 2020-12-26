@@ -725,6 +725,7 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["op_compiler_cache_dir"].s = tf.compat.as_bytes(config._op_compiler_cache_dir)
         if config._debug_dir is not None:
             custom_op.parameter_map["debug_dir"].s = tf.compat.as_bytes(config._debug_dir)
+        custom_op.parameter_map["hcom_multi_mode"].b = config._hcom_multi_mode
 
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)

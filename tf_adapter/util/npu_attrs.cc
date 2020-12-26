@@ -323,6 +323,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string op_compiler_cache_mode;
   std::string op_compiler_cache_dir;
   std::string debug_dir;
+  std::string hcom_multi_mode;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -338,6 +339,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_compiler_cache_mode", &op_compiler_cache_mode);
     ctx->GetAttr("_op_compiler_cache_dir", &op_compiler_cache_dir);
     ctx->GetAttr("_debug_dir", &debug_dir);
+    ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
   }
 
 
@@ -358,6 +360,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
   init_options["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["ge.debugDir"] = debug_dir;
+  init_options["ge.hcomMultiMode"] = hcom_multi_mode;
 
   return init_options;
 }
@@ -539,6 +542,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string op_compiler_cache_mode;
   std::string op_compiler_cache_dir;
   std::string debug_dir;
+  std::string hcom_multi_mode;
 
   if (attrs.Find("_NpuOptimizer") != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -648,6 +652,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (attrs.Find("_debug_dir") != nullptr) {
       debug_dir = attrs.Find("_debug_dir")->s();
     }
+    if (attrs.Find("_hcom_multi_mode") != nullptr) {
+      hcom_multi_mode = attrs.Find("_hcom_multi_mode")->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -696,6 +703,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["op_compiler_cache_mode"] = op_compiler_cache_mode;
   all_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
   all_options["debug_dir"] = debug_dir;
+  all_options["hcom_multi_mode"] = hcom_multi_mode;
 
   return all_options;
 }
@@ -762,6 +770,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_compiler_cache_mode;
   std::string op_compiler_cache_dir;
   std::string debug_dir;
+  bool hcom_multi_mode = false;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -921,6 +930,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("debug_dir")) {
         debug_dir = params.at("debug_dir").s();
       }
+      if (params.count("hcom_multi_mode")) {
+        hcom_multi_mode = params.at("hcom_multi_mode").b();
+      }
     }
   }
 
@@ -948,6 +960,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["fusion_switch_file"] = fusion_switch_file;
   sess_options["enable_compress_weight"] = std::to_string(enable_compress_weight);
   sess_options["compress_weight_conf"] = compress_weight_conf;
+  sess_options["hcom_multi_mode"] = std::to_string(hcom_multi_mode);
 
   init_options["precision_mode"] = precision_mode;
   init_options["profiling_mode"] = std::to_string(profiling_mode);
