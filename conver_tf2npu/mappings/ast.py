@@ -2,7 +2,6 @@
 "need_conver": false,
 "gelu":                         ["npu_unary_ops",           "tf.gelu",                      "npu_unary_ops.gelu"],
 "dropout":                      ["npu_ops",                 "tf.nn.dropout",                "npu_ops.dropout"],
-"Dropout":                      ["npu_ops",                 "tf.xxx.Dropout",                "npu_ops.dropout"],
 "init":                         ["print",                   "hvd.init",                     "None"],
 "DistributedOptimizer":         ["NPUDistributedOptimizer", "hvd.DistributedOptimizer",     "NPUDistributedOptimizer"],
 "rank":                         ["get_rank_id",             "hvd.rank",                     "get_rank_id"],
