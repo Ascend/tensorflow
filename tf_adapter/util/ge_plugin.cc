@@ -169,6 +169,8 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   LOG(INFO) << "[GePlugin] debugDir : " << init_options["ge.debugDir"];
 
+  LOG(INFO) << "[GePlugin] hcom_multi_mode : " << init_options["ge.hcomMultiMode"];
+
   // mstune mode and work path
   if (!init_options["ge.buildMode"].empty()) {
     init_options["ge.buildMode"] = "tuning";

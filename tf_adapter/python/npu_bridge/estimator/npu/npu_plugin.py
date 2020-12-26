@@ -26,7 +26,8 @@ def npu_resource_init(graph_run_mode = 1,
                       work_path = None,
                       op_compiler_cache_mode=None,
                       op_compiler_cache_dir=None,
-                      debug_dir=None):
+                      debug_dir=None,
+                      hcom_multi_mode=False):
 
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
     if graph_run_mode > 1:
@@ -77,6 +78,10 @@ def npu_resource_init(graph_run_mode = 1,
         init["ge.op_compiler_cache_dir"] = op_compiler_cache_dir
     if debug_dir is not None:
         init["ge.debugDir"] = debug_dir
+
+    util.check_bool_type(hcom_multi_mode, "hcom_multi_mode")
+    hcom_multi_mode = util.convert_bool_to_int(hcom_multi_mode)
+    init["ge.hcomMultiMode"] = str(hcom_multi_mode)
 
     init_options=tf_adapter.map_string_string(init)
     tf_adapter.PluginInit(init_options)

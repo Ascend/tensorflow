@@ -61,7 +61,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  compress_weight_conf=None,
                  op_compiler_cache_mode=None,
                  op_compiler_cache_dir=None,
-                 debug_dir=None
+                 debug_dir=None,
+                 hcom_multi_mode=False
                  ):
         """
         Constructs a NPUConfig.
@@ -194,6 +195,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._op_compiler_cache_mode=op_compiler_cache_mode
         self._op_compiler_cache_dir=op_compiler_cache_dir
         self._debug_dir=debug_dir
+        self._hcom_multi_mode = hcom_multi_mode
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
