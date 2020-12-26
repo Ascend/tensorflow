@@ -45,10 +45,6 @@
 
     "tf.nn.dropout" --> "npu_ops.dropout"
 
-    "tf.layers.dropout" --> "npu_ops.dropout"
-
-    "tf.layers.Dropout" --> "npu_ops.dropout"
-
     "hvd.init" --> "None"
 
     "hvd.DistributedOptimizer" --> "NPUDistributedOptimizer"

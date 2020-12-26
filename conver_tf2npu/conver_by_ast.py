@@ -36,7 +36,7 @@ class ConverByAst(ast.NodeTransformer):
         return node
     def visit_Attribute(self, node):
         if node.attr in util_global.get_value('nn_layers') and isinstance(node.value, ast.Attribute):
-            if node.value.attr == 'nn' or node.value.attr == 'layers':
+            if node.value.attr == 'nn':
                 return attribute(node)
         if node.attr in util_global.get_value('estimator') and isinstance(node.value, ast.Attribute):
             if node.value.attr == 'estimator':
