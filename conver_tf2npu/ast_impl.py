@@ -69,6 +69,15 @@ def ast_call(node):
         node.args = [ast.Call(func=ast.Name(id='get_rank_size', ctx=ast.Load()), args=[], keywords=[]),
                      ast.Call(func=ast.Name(id='get_rank_id', ctx=ast.Load()), args=[], keywords=[])]
         util_global.set_value('need_conver', True)
+    if isinstance(node.func, ast.Attribute) and node.func.attr == 'dropout':
+        log_success_report(getattr(node, "lineno", "None"), 'dropout')
+        func=ast.Attribute(value=ast.Name(id='npu_ops', ctx=ast.Load()), attr='dropout', ctx=ast.Load())
+        keywords_new = []
+        for keyword in node.keywords:
+            if keyword.arg != 'rate':
+                keywords_new.append(keyword)
+        node.keywords = keywords_new
+        util_global.set_value('need_conver', True)
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'batch' or node.func.attr == 'map_and_batch'):
         exist = False
         for keyword in node.keywords:
