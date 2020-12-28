@@ -1,8 +1,7 @@
 {
 "need_conver": false,
 "gelu":                         ["npu_unary_ops",           "tf.gelu",                      "npu_unary_ops.gelu"],
-"dropout":                      ["npu_ops",                 "tf.xxx.dropout",                "npu_ops.dropout"],
-"Dropout":                      ["npu_ops",                 "tf.xxx.Dropout",                "npu_ops.dropout"],
+"dropout":                      ["npu_ops",                 "tf.nn.dropout",                "npu_ops.dropout"],
 "init":                         ["print",                   "hvd.init",                     "None"],
 "DistributedOptimizer":         ["NPUDistributedOptimizer", "hvd.DistributedOptimizer",     "NPUDistributedOptimizer"],
 "rank":                         ["get_rank_id",             "hvd.rank",                     "get_rank_id"],
@@ -22,7 +21,7 @@
 
 "hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
-"nn_layers":                    ["dropout",                 "Dropout"],
+"nn_layers":                    ["dropout"],
 "keras":                        [""],
 "run":                          [" if sess.run is train, need add npu's session config for tf.Session. e.g.,\n session_config = tf.ConfigProto()\n custom_op = session_config.graph_options.rewrite_options.custom_optimizers.add()\n custom_op.name = 'NpuOptimizer'"],
 
