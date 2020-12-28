@@ -19,11 +19,7 @@ from util import log_migration_report
 
 def attribute(node):
     log_success_report(getattr(node, "lineno", "None"), node.attr)
-    if node.attr in util_global.get_value('nn_layers'):
-        node.value = ast.Name(id=util_global.get_value(node.attr)[0], ctx=ast.Load())
-        node.attr = 'dropout'
-    else:
-        node = ast.Name(id=util_global.get_value(node.attr)[0], ctx=ast.Load())
+    node = ast.Name(id=util_global.get_value(node.attr)[0], ctx=ast.Load())
     util_global.set_value('need_conver', True)
     return node
 
