@@ -72,7 +72,7 @@ def ast_call(node):
     if isinstance(node.func, ast.Attribute) and node.func.attr == 'dropout':
         if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == 'nn':
             log_success_report(getattr(node, "lineno", "None"), 'dropout')
-            func=ast.Attribute(value=ast.Name(id='npu_ops', ctx=ast.Load()), attr='dropout', ctx=ast.Load())
+            node.func=ast.Attribute(value=ast.Name(id='npu_ops', ctx=ast.Load()), attr='dropout', ctx=ast.Load())
             keywords_new = []
             for keyword in node.keywords:
                 if keyword.arg != 'rate':
