@@ -52,7 +52,7 @@ def allgather(tensor, rank_size, group="hccl_world_group"):
 #  @param fusion_id int类型，算子融合索引标识，相同fusion_id的算子将会融合。
 #  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group";
 #  @return 对输入tensor执行完broadcast操作之后的结果tensor
-def broadcast(tensor, root_rank, fusion=0, fusion_id=-1, group="hccl_world_group"):
+def broadcast(tensor, root_rank, fusion=2, fusion_id=0, group="hccl_world_group"):
     result = gen_hccl_ops.hcom_broadcast(
         input=tensor,
         fusion=fusion,

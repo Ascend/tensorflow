@@ -242,71 +242,10 @@ int64 GradFusionOptimizer::GetFusionTensorSize() {
 }
 
 Status GradFusionOptimizer::Optimize(Cluster *cluster, const GrapplerItem &item, GraphDef *optimizedGraph) {
+  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize begin";
   REQUIRES_NOT_NULL(optimizedGraph);
-  const int64 fusionTensorSize = GetFusionTensorSize();
-  GraphDef graphOrigin;
-  std::map<std::pair<string, DataType>, std::vector<NodeDef>> fusionHcomOps;
-  std::map<std::pair<string, DataType>, int64_t> currentGradSumSize;
   *optimizedGraph = item.graph;
-  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize begin, OriginNodeNum: " << item.graph.node_size();
-  LOG(INFO) << "INFO: FUSION_TENSOR_SIZE: " << fusionTensorSize;
-
-  if (fusionTensorSize < 0) { return errors::InvalidArgument("FUSION_TENSOR_SIZE is invalid"); }
-
-  REQUIRES_STATUS_OK(TopologicalSort(optimizedGraph));
-  nodeMap_.reset(new (std::nothrow) NodeMap(optimizedGraph));
-  REQUIRES_NOT_NULL(nodeMap_);
-  fusionOpInfo_.clear();
-  fusionOpPool_.clear();
-  graphOrigin = *optimizedGraph;
-  for (const auto &nodeDef : graphOrigin.node()) { nameToNode_[nodeDef.name()] = nodeDef; }
-
-  for (const auto &nodeDef : graphOrigin.node()) {
-    if (IsHcomOp(nodeDef)) {
-      std::string op_name;
-      op_name = nodeDef.name();
-      if (op_name.find("_Weight_Update_Sharding") != std::string::npos) {
-        continue;
-      }
-      DataType dType;
-      auto attrMap = nodeDef.attr();
-      auto iter = attrMap.find(DATA_TYPE_ATTR);
-      if (iter != attrMap.end()) {
-        dType = iter->second.list().type(0);
-      } else {
-        LOG(INFO) << "INFO: Use default dataType: DT_FLOAT";
-        dType = DT_FLOAT;
-      }
-      std::pair<string, DataType> key = std::make_pair(nodeDef.op(), dType);
-
-      fusionHcomOps[key].push_back(nodeDef);
-      int64_t inputTensorSize = 0;
-      NodeDef tmpNode = nodeDef;
-      TF_RETURN_IF_ERROR(GetInputTensorSize(tmpNode, inputTensorSize));
-      if (currentGradSumSize.count(key) != 0) {
-        if (INT64_MAX - inputTensorSize < currentGradSumSize[key]) {
-          return errors::InvalidArgument("input tensor size is overflow");
-        }
-        currentGradSumSize[key] += inputTensorSize;
-      } else {
-        currentGradSumSize[key] = inputTensorSize;
-      }
-      if (currentGradSumSize[key] >= fusionTensorSize) {
-        if (fusionHcomOps[key].size() > 1) { TF_RETURN_IF_ERROR(FusionOp(fusionHcomOps[key], optimizedGraph)); }
-        fusionHcomOps[key].clear();
-        currentGradSumSize[key] = 0;
-      }
-    }
-  }
-
-  for (auto iter : fusionHcomOps) {
-    if (!iter.second.empty()) {
-      if (iter.second.size() > 1) { TF_RETURN_IF_ERROR(FusionOp(iter.second, optimizedGraph)); }
-      iter.second.clear();
-    }
-  }
-  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize end, finalNodeNum: " << optimizedGraph->node_size();
-
+  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize end";
   return Status::OK();
 }
 
