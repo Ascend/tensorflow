@@ -19,6 +19,7 @@ import astunparse
 import util_global
 from file_op import write_output_after_conver
 from file_op import write_report_after_conver
+from file_op import scan_file
 from util import log_success_report
 from util import log_migration_report
 from ast_impl import attribute
@@ -29,6 +30,7 @@ from ast_impl import ast_import
 from ast_impl import ast_function_def
 from ast_impl import ast_call
 from ast_impl import ast_assign
+from visit_by_ast import *
 
 class ConverByAst(ast.NodeTransformer):
     def generic_visit(self, node):
@@ -77,16 +79,21 @@ class ConverByAst(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-def conver_ast(path, out_path_dst, file_name):
+def conver_ast(path, out_path_dst, file_name, xlsx_writer):
     util_global.set_value('need_conver', False)
-    file = open(os.path.join(path, file_name), "r")
-    source = file.read()
+    with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
+        source = file.read()
     r_node = ast.parse(source)
 
     sys.setrecursionlimit(10000)
     visitor = ConverByAst()
     visitor.visit(r_node)
     ast.fix_missing_locations(r_node)
+
+    (api, lineno) = get_tf_api(os.path.join(path, file_name))
+    if len(api) == 0:
+        print("No Tensorflow module is imported in script {}.".format(file_name))
+    scan_file(file_name, api, lineno, xlsx_writer)
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)
