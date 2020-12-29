@@ -136,6 +136,10 @@ class GeOp : public AsyncOpKernel {
   MsTuningFunc tuning_api_;
   string auto_tune_mode_;
   std::vector<Node*> dynamic_shape_nodes_;
+  std::string dynamic_input_;
+  std::string dynamic_graph_execute_mode_;
+  std::string data_inputs_shape_range_;
+  std::string getnext_inputs_shape_range_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_

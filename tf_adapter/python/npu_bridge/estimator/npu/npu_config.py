@@ -62,7 +62,10 @@ class NPURunConfig(run_config_lib.RunConfig):
                  op_compiler_cache_mode=None,
                  op_compiler_cache_dir=None,
                  debug_dir=None,
-                 hcom_multi_mode=False
+                 hcom_multi_mode=False,
+                 dynamic_input=False,
+                 dynamic_graph_execute_mode="dynamic_execute",
+                 dynamic_inputs_shape_range=None
                  ):
         """
         Constructs a NPUConfig.
@@ -123,6 +126,9 @@ class NPURunConfig(run_config_lib.RunConfig):
         fusion_switch_file: Fusion switch configuration file path.
         enable_compress_weight: Whether to enable global weight compression.
         compress_weight_conf:Path and file name of the node list configuration file to be compressed.
+        dynamic_input:Whether Input is dynamic.
+        dynamic_graph_execute_mode:Dynamic graph execute mode. lazy_recompile or dynamic_execute
+        dynamic_inputs_shape_range:Inputs shape range.
         """
 
         # Check iterations_per_loop.
@@ -196,6 +202,9 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._op_compiler_cache_dir=op_compiler_cache_dir
         self._debug_dir=debug_dir
         self._hcom_multi_mode = hcom_multi_mode
+        self._dynamic_input = dynamic_input
+        self._dynamic_graph_execute_mode = dynamic_graph_execute_mode
+        self._dynamic_inputs_shape_range = dynamic_inputs_shape_range
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

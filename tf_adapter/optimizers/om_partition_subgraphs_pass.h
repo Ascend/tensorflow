@@ -60,6 +60,9 @@ class OMPartitionSubgraphsPass : public GraphOptimizationPass {
  private:
   Status ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                       const OptimizationPassRegistry::Grouping pass_group_value);
+  void GetGraphDynamicExecConfig(Node *node, bool enable_dp, std::map<std::string, std::string> &graph_options);
+  void ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
+                            std::map<std::string, std::string> &graph_options);
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_OM_PARTITION_SUBGRAPHS_PASS_H_

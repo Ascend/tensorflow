@@ -977,9 +977,10 @@ Node *AddIdentityNode(Graph *graph, const Edge *edge, const string &srcName, int
 class OMSplitter {
  public:
   OMSplitter(string groupAttribute, Graph const *graphIn, std::map<std::string, std::string> npu_optimizer_options,
-             std::map<std::string, std::string> pass_options)
+             std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
       : groupAttribute_(std::move(groupAttribute)), graphIn_(graphIn),
-        npu_optimizer_options_(std::move(npu_optimizer_options)), pass_options_(std::move(pass_options)) {}
+        npu_optimizer_options_(std::move(npu_optimizer_options)), pass_options_(std::move(pass_options)),
+        graph_options_(std::move(graph_options)) {}
 
   ~OMSplitter() = default;
   // Find subgraphs marked with 'groupAttribute', and build a new
@@ -1062,7 +1063,8 @@ class OMSplitter {
     bool isIsolatedSubgraph();
 
     Status SetOptions(std::map<std::string, std::string> npu_optimizer_options,
-                      std::map<std::string, std::string> pass_options);
+                      std::map<std::string, std::string> pass_options,
+                      std::map<std::string, std::string> graph_options);
 
     // GEOp node(s) in the output graph. Not owned.
     // both point to the function call node.
@@ -1101,6 +1103,7 @@ class OMSplitter {
 
     std::map<std::string, std::string> npu_optimizer_options_;
     std::map<std::string, std::string> pass_options_;
+    std::map<std::string, std::string> graph_options_;
   };
 
   // Returns the key attribute  associated with a node in attr, Sets
@@ -1163,6 +1166,7 @@ class OMSplitter {
   std::unordered_map<string, Subgraph> subgraphs_;
   std::map<std::string, std::string> npu_optimizer_options_;
   std::map<std::string, std::string> pass_options_;
+  std::map<std::string, std::string> graph_options_;
 
   TF_DISALLOW_COPY_AND_ASSIGN(OMSplitter);
 };
@@ -1328,6 +1332,10 @@ Status OMSplitter::Subgraph::BuildFunctionDef(const string &name, FunctionLibrar
     attr_name = std::string("_") + option.first;
     AddNodeAttr(attr_name, option.second, &GEOpNodeDef_);
   }
+  for (const auto &option : graph_options_) {
+    attr_name = std::string("_") + option.first;
+    AddNodeAttr(attr_name, option.second, &GEOpNodeDef_);
+  }
   AddNodeAttr("_NpuOptimizer", "NpuOptimizer", &GEOpNodeDef_);
 
   if (library->Find(name) == nullptr) { TF_RETURN_IF_ERROR(library->AddFunctionDef(fdef)); }
@@ -1350,9 +1358,11 @@ Status OMSplitter::Subgraph::AddGEOpNode(const std::unordered_map<const Node *, 
 bool OMSplitter::Subgraph::isIsolatedSubgraph() { return false; }
 
 Status OMSplitter::Subgraph::SetOptions(std::map<std::string, std::string> npu_optimizer_options,
-                                        std::map<std::string, std::string> pass_options) {
+                                        std::map<std::string, std::string> pass_options,
+                                        std::map<std::string, std::string> graph_options) {
   npu_optimizer_options_ = std::move(npu_optimizer_options);
   pass_options_ = std::move(pass_options);
+  graph_options_ = std::move(graph_options);
   return Status::OK();
 }
 
@@ -1376,7 +1386,7 @@ Status OMSplitter::CopySubgraphNodes(std::unordered_map<const Node *, Node *> *n
     if (!IsInSubgraph(subgraphId)) { continue; }
 
     Subgraph &subgraph = subgraphs_[subgraphId];
-    Status s = subgraph.SetOptions(npu_optimizer_options_, pass_options_);
+    Status s = subgraph.SetOptions(npu_optimizer_options_, pass_options_, graph_options_);
     if (s != Status::OK()) {
       LOG(INFO) << "Subgraph Id: " << subgraphId << "set npu optimizer error.";
       return s;
@@ -1656,11 +1666,13 @@ Status OMSplitter::BuildOutputGraph(Graph *graphOut) {
 Status OMPartitionSubgraphsInFunctions(string groupAttribute, std::unique_ptr<Graph> *graph, const string &graph_format,
                                        FunctionLibraryDefinition *flib_def,
                                        std::map<std::string, std::string> npu_optimizer_options,
-                                       std::map<std::string, std::string> pass_options) {
+                                       std::map<std::string, std::string> pass_options,
+                                       std::map<std::string, std::string> graph_options) {
   Graph *graphIn = graph->get();
   FunctionLibraryDefinition *const library = flib_def;
 
-  OMSplitter omsplitter(std::move(groupAttribute), graphIn, std::move(npu_optimizer_options), std::move(pass_options));
+  OMSplitter omsplitter(std::move(groupAttribute), graphIn, std::move(npu_optimizer_options),
+                        std::move(pass_options), std::move(graph_options));
   uint32_t subgraphNum = 0;
   TF_RETURN_IF_ERROR(omsplitter.SplitIntoSubgraphs(subgraphNum));
 
@@ -1704,6 +1716,61 @@ Status OMPartitionSubgraphsPass::Run(const GraphOptimizationPassOptions &options
   }
 
   return Status::OK();
+}
+
+void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
+                                                    std::map<std::string, std::string> &graph_options) {
+  std::vector<std::string> inputsVec;
+  std::vector<std::string> shapesVec;
+  Split(dynamic_inputs_shape_range, inputsVec, ";");
+  std::sort(inputsVec.begin(), inputsVec.end());
+  for (auto tmp : inputsVec) {
+    std::vector<std::string> shapeVec;
+    Split(tmp, shapeVec, ":");
+    if (shapeVec.size() != 2) {
+      LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
+    } else if (shapeVec[0] != "data" && shapeVec[0] != "getnext") {
+      LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
+    } else {
+      shapesVec.push_back(shapeVec[1]);
+    }
+  }
+  if (shapesVec.empty() || shapesVec.size() > 2) {
+    LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, more than 2 input styles.";
+  } else if (shapesVec.size() == 1) {
+    if (!enable_dp) {
+      graph_options["data_inputs_shape_range"] = shapesVec[0];
+    } else {
+      graph_options["getnext_inputs_shape_range"] = shapesVec[0];
+    }
+  } else {
+    if (!enable_dp) {
+      graph_options["data_inputs_shape_range"] = shapesVec[1] + shapesVec[0];
+    } else {
+      graph_options["data_inputs_shape_range"] = shapesVec[0];
+      graph_options["getnext_inputs_shape_range"] = shapesVec[1];
+    }
+  }
+}
+
+void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(Node *node, bool enable_dp,
+    std::map<std::string, std::string> &graph_options) {
+  // get attr from graph_options
+  auto node_attrs = node->def().attr();
+  const std::string kDynamicInput = "_graph_dynamic_input";
+  const std::string kDynamicGraphExecuteMode = "_graph_dynamic_graph_execute_mode";
+  const std::string kDynamicInputsShapeRange = "_graph_dynamic_inputs_shape_range";
+  if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
+    bool dynamic_input = node_attrs.at(kDynamicInput).b();
+    if (dynamic_input) {
+      graph_options["dynamic_input"] = std::to_string(dynamic_input);
+      graph_options["dynamic_graph_execute_mode"] = node_attrs.at(kDynamicGraphExecuteMode).s();
+      std::string dynamic_inputs_shape_range = node_attrs.at(kDynamicInputsShapeRange).s();
+      if (!dynamic_inputs_shape_range.empty()) {
+        ParseInputShapeRange(dynamic_inputs_shape_range, enable_dp, graph_options);
+      }
+    }
+  }
 }
 
 Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
@@ -1785,6 +1852,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   string graph_format_value;
   Graph *graphIn = graph->get();
   int getnext_node_count = 0;
+  bool include_getnext = false;
   for (Node *node : graphIn->op_nodes()) {
     if (node->type_string() == "NPUInit") {
       std::string attr_name;
@@ -1824,20 +1892,33 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       }
       graphIn->RemoveNode(node);
     }
-    if (is_set_dynamic_config && node->type_string() == "IteratorGetNext") {
-      getnext_node_count++;
+    if (node->type_string() == "IteratorGetNext") {
+      include_getnext = true;
+      if (is_set_dynamic_config) { getnext_node_count++; }
     }
   }
   if (getnext_node_count > 1) {
     LOG(FATAL) << "dynamic dims func can not support graph with "
                << getnext_node_count << " IteratorGetNext node.";
   }
-
+  std::map<std::string, std::string> graph_options;
+  bool enable_dp = (pass_options["enable_dp"] == "1") && include_getnext;
+  // get attr from pass_options
+  graph_options["dynamic_input"] = pass_options["dynamic_input"];
+  graph_options["dynamic_graph_execute_mode"] = pass_options["dynamic_graph_execute_mode"];
+  std::string dynamic_inputs_shape_range = pass_options["dynamic_inputs_shape_range"];
+  if (!dynamic_inputs_shape_range.empty()) {
+    ParseInputShapeRange(dynamic_inputs_shape_range, enable_dp, graph_options);
+  }
   for (Node *node : graphIn->op_nodes()) {
     if (node->type_string() == "OneShotIterator" && iterations_per_loop != 1) {
       LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
     }
-
+    // get attr from graph options.
+    GetGraphDynamicExecConfig(node, enable_dp, graph_options);
+    if (graph_options["dynamic_input"] == "1" && iterations_per_loop > 1) {
+      LOG(FATAL) << "iterations_per_loop only support 1 in dynamic input mode.";
+    }
     string device_name;
     if (job != "localhost" && job != "ps" && job != "default") {
       device_name = std::string("/job:") + std::string(job) + std::string("/replica:0/task:")
@@ -1955,7 +2036,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     }
   }
   TF_RETURN_IF_ERROR(OMSplitter::OMPartitionSubgraphsInFunctions(
-      OMSplitter::PARTITION_SUB_GRAPH_ATTR, graph, graph_format_value, func_lib, all_options, pass_options));
+      OMSplitter::PARTITION_SUB_GRAPH_ATTR, graph, graph_format_value, func_lib, all_options, pass_options, graph_options));
   LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions success.";
   FixupSourceAndSinkEdges(graph->get());
 
