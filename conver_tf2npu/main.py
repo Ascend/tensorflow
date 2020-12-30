@@ -21,26 +21,29 @@ from conver import conver
 
 def para_check_and_set(argv):
     input  = "input"
+    list = "TF1.15_API支持度清单.xlsx"
     output = "output" + util_global.get_value('timestap')
     report = "report" + util_global.get_value('timestap')
     report_suffix = report
 
     try:
-        opts, args = getopt.getopt(argv, "hi:o:r:", ["help", "input=", "output=", "report="])
+        opts, args = getopt.getopt(argv, "hi:l:o:r:", ["help", "input=", "list=", "output=", "report="])
     except getopt.GetoptError:
         print('Parameter error, please check.')
-        print('    main.py -i <input> -o <output> -r <report>')
-        print('or: main.py --input=<input> --output=<output> --report=<report>')
+        print('    main.py -i <input> -l <list> -o <output> -r <report>')
+        print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
         print('-i or --input:  The source script to be converted, Default value: input/')
+        print('-l or --list:  The list of supported api, Default value: TF1.15_API支持度清单.xlsx')
         print('-o or --output: The destination script after converted, Default value: output/')
         print('-r or --report: Conversion report, Default value: report/')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
-            print('    main.py -i <input> -o <output> -r <report>')
-            print('or: main.py --input=<input> --output=<output> --report=<report>')
+            print('    main.py -i <input> -l <list> -o <output> -r <report>')
+            print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
             print('-i or --input:  The source script to be converted, Default value: input/')
+            print('-l or --list:  The list of supported api, Default value: TF1.15_API支持度清单.xlsx')
             print('-o or --output: The destination script after converted, Default value: output/')
             print('-r or --report: Conversion report, Default value: report/')
             sys.exit()
@@ -48,6 +51,8 @@ def para_check_and_set(argv):
             input = arg
             if str(input).endswith('/'):
                 input = input[0:len(input)-1]
+        elif opt in ("-l", "--input"):
+            list = arg
         elif opt in ("-o", "--output"):
             output = arg
             if str(output).endswith('/'):
@@ -57,7 +62,8 @@ def para_check_and_set(argv):
             if str(report).endswith('/'):
                 report = report[0:len(report)-1]
             report = os.path.join(report, report_suffix)
-    util_global.set_value('input',  input)
+    util_global.set_value('input', input)
+    util_global.set_value('list', list)
     util_global.set_value('output', output)
     util_global.set_value('report', report)
 

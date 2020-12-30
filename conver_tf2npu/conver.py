@@ -19,6 +19,7 @@ from file_op import mkdir
 from file_op import mkdir_and_copyfile
 from file_op import write_report_terminator
 from file_op import abs_join
+import pandas as pd
 
 def conver():
     print("Begin conver, input file: " + util_global.get_value('input'))
@@ -26,13 +27,18 @@ def conver():
     dst_path = os.path.split(util_global.get_value('input').rstrip('\\/'))[-1]
     dst_path_new = dst_path + util_global.get_value('timestap')
     conver_path = os.walk(util_global.get_value('input'))
-    for path,dir_list,file_list in conver_path:
+    report_dir = util_global.get_value('report')
+    mkdir(report_dir)
+    report_xlsx = os.path.join(report_dir, 'api_analysis_report.xlsx')
+    util_global.set_value('count_api', 0)
+    xlsx_writer = pd.ExcelWriter(report_xlsx)
+    for path, dir_list, file_list in conver_path:
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(dst_path)[1])
             if file_name.endswith(".py"):
                 util_global.set_value('path', os.path.join(path, file_name))
                 mkdir(os.path.join(out_path, out_path_dst))
-                conver_ast(path, out_path_dst, file_name)
+                conver_ast(path, out_path_dst, file_name, xlsx_writer)
                 if util_global.get_value('need_conver', False):
                     content = "Finish conver file: " + os.path.join(path, file_name)
                     print(content)
@@ -41,5 +47,7 @@ def conver():
                     mkdir_and_copyfile(path, abs_join(out_path, out_path_dst), file_name)
             else:
                 mkdir_and_copyfile(path, abs_join(out_path, out_path_dst), file_name)
-
+    if util_global.get_value('count_api'):
+        xlsx_writer.save()
+        xlsx_writer.close()
     print("Finish conver, output file: " + out_path + "; report file: " + util_global.get_value('report'))

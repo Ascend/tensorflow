@@ -1,85 +1,117 @@
-# 迁移脚本使用说明
+# TF1.x脚本迁移工具使用说明
 
 [View English](README.en.md)
 
+## 功能介绍
+该工具适用于原生的Tensorflow训练脚本迁移场景，AI算法工程师通过该工具分析原生的TensorFlow Python API在昇腾AI处理器上的支持度情况，同时将原生的TensorFlow训练自动迁移成昇腾AI处理器支持的脚本。对于无法自动迁移的API，您可以参考工具输出的迁移报告，对训练脚本进行相应的适配修改。
+
+使用该工具前，需要了解工具对训练脚本的限制要求：
+1. 该工具仅配套TensorFlow 1.15版本的训练脚本。
+
+
+2. 目前支持的TensorFlow模块引入方式如下，如果您的训练脚本未按照如下方式引用TensorFlow模块，请先修改训练脚本。
+
+    import tensorflow as XXX
+
+    import tensorflow.compat.v1 as XXX
 
 ## 使用指导
-1、迁移脚本主要是将原生的tensorflow脚本自动迁移成NPU支持的脚本。
+1. 安装依赖。
 
-2、执行方式请直接下载脚本后执行，执行以下命令获取脚本的使用帮助：
+    pip install pandas  
+    pip install xlrd==1.2.0  
+    pip install openpyxl  
+    pip install tkintertable  
 
-   python3 main.py -h
 
-   举例说明：
+2. 执行如下命令进行脚本迁移。
 
-   python3 main.py -i /home/BERT -o /home/out -r /home/report
+   命令举例(Linux)：
+
+   python3 main.py -i /home/BERT -l /home/TF1.15_API支持度清单.xlsx -o /home/out -r /home/report
 
    其中：
 
-    main.py  --这个是主函数
+    main.py：为工具的主函数入口
 
-    /home/BERT --这个是被迁移的脚本路径
+    /home/BERT：被迁移的脚本路径
 
-    /home/out  --这个是迁移后的脚本路径,会在这个目录下生成转换后的脚本，文件命名规则：BERT_npu_yyyyMMddHHmmss
+    /home/TF1.15_API支持度清单.xlsx：TensorFlow 1.15在昇腾AI处理器上的支持度清单
 
-    /home/report --这个是迁移过程的迁移报告,会在这个目录下生成报告，文件命名规则：report_npu_yyyyMMddHHmmss
+    /home/out：迁移后的脚本路径
 
-           迁移报告分三种：
+    /home/report：生成的迁移报告路径
+    > 通过**python3 main.py -h**可以获取脚本的使用帮助。
+	
+	命令举例(Windows)：
+	
+	python3 main_win.py  
+	
+	- 在弹出的窗口依次选择“原始脚本路径”、“API支持度清单”、“输出迁移脚本路径”、“输出分析报告路径”
+	
+	- 点击“开始分析”，就能看到分析结果，并在指定的“输出迁移脚本路径”下生成迁移后的脚本，在指定的“输出分析报告路径”下生成分析报告
+	
+	- 点击“重新开始分析”，则返回选择路径窗口，可以重新指定输入脚本，再次分析
+	
+	- 点击“退出”，则退出分析工具
 
-               1、success_report.txt  --这个是迁移成功的结果
+3. 在/home/report下可以看到迁移报告
 
-                   例如：下面的报告的内容表示把run_ner.py的第522行的hvd.ran迁移为NPU的get_ran_id
+    - api_brief_report.txt：为脚本中API的统计结果，例如：
+      ```
+      1.In brief: Total API: 304, in which Support: 180, Support after migrated by tool: 6, Support after migrated manually: 1, Analysing: 6, Unsupport: 109, Deprecated: 2
+      2.After eliminate duplicate: Total API: 122, in which Support: 69, Support after migrated by tool: 3, Support after migrated manually: 1, Analysing: 3, Unsupport: 44, Deprecated: 2
+      ```
+    - api_analysis_report.txt：为详细的API分析报告，分析报告包括：序号、脚本文件名、代码行、模块名、API名、支持度、迁移建议。
 
-                   /home/BERT/run_ner.py:522 "change hvd.rank to get_rank_id"
-                   
-               2、failed_report.txt   --这个是迁移失败的结果
+      请参考该表中的迁移建议进行相关修改和适配。其中部分API（**支持度**为**支持但需工具迁移**的这一项对应的API）迁移工具已为您完成自动迁移，您无需再进行手工适配。
 
-               3、need_migration_doc.txt   --这个是需要参考迁移指导进行手动迁移的
 
-  
-3、目前支持自动迁移的功能列表
+4. 附录。
 
-    Tensorflow函数 --> 迁移后的NPU函数
-
-    "tf.gelu" --> "npu_unary_ops.gelu"
-
-    "tf.nn.dropout" --> "npu_ops.dropout"
-
-    "hvd.init" --> "None"
-
-    "hvd.DistributedOptimizer" --> "NPUDistributedOptimizer"
-
-    "hvd.rank" --> "get_rank_id"
-
-    "hvd.local_rank" --> "get_local_rank_id"
-
-    "hvd.size" --> "get_rank_size"
-
-    "BroadcastGlobalVariablesHook" --> "None"
-
-    "dataset.shard(xxx, xxx)" --> "dataset.shard(get_rank_size(), get_rank_id())"
-
-    "tf.estimator.EstimatorSpec" --> "NPUEstimatorSpec"
-
-    "tf.estimator.RunConfig" --> "NPURunConfig"
-
-    "tf.estimator.Estimator" --> "NPUEstimator"
-
-    "batch(xxx)" --> "batch(xxx, drop_remainder=True)"
-
-    "map_and_batch(xxx)" --> "map_and_batch(xxx, drop_remainder=True)"
-
-    "tf.device(xxx)" --> "tf.device(/cpu:0)"
-
-    "tf.cpmpat.v1.layers.max_pooling2d" --> "tf.compat.v1.nn.max_pool_with_argmax"
-
-4、目前tf_adapter的默认配置项
+    目前支持自动迁移的功能列表：
     
-    a) config中的remapping默认设置为RewriterConfig.OFF
+     Tensorflow函数 --> 迁移后的NPU函数
 
-    b) custom_op.parameter_map["use_off_line"].b = True默认设置为True
+     "tf.gelu" --> "npu_unary_ops.gelu"
 
-    c) custom_op.parameter_map["enable_data_pre_proc"].b = True默认设置为True
+     "tf.nn.dropout" --> "npu_ops.dropout"
+
+     "hvd.init" --> "None"
+
+     "hvd.DistributedOptimizer" --> "NPUDistributedOptimizer"
+
+     "hvd.rank" --> "get_rank_id"
+
+     "hvd.local_rank" --> "get_local_rank_id"
+
+     "hvd.size" --> "get_rank_size"
+
+     "BroadcastGlobalVariablesHook" --> "None"
+
+     "dataset.shard(xxx, xxx)" --> "dataset.shard(get_rank_size(), get_rank_id())"
+
+     "tf.estimator.EstimatorSpec" --> "NPUEstimatorSpec"
+
+     "tf.estimator.RunConfig" --> "NPURunConfig"
+
+     "tf.estimator.Estimator" --> "NPUEstimator"
+
+     "batch(xxx)" --> "batch(xxx, drop_remainder=True)"
+
+     "map_and_batch(xxx)" --> "map_and_batch(xxx, drop_remainder=True)"
+
+     "tf.device(xxx)" --> "tf.device(/cpu:0)"
+
+     "tf.cpmpat.v1.layers.max_pooling2d" --> "tf.compat.v1.nn.max_pool_with_argmax"
+
+    目前迁移工具默认设置的配置项：
+    
+    config中的remapping默认设置为RewriterConfig.OFF
+
+    custom_op.parameter_map["use_off_line"].b = True默认设置为True
+
+    custom_op.parameter_map["enable_data_pre_proc"].b = True默认设置为True
 
 ## 贡献
 
