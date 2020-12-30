@@ -59,8 +59,8 @@ class GeOp : public AsyncOpKernel {
   void GlobalFinalize();
 
   // Build GraphDef from FunctionDef.
-  Status BuildGraphDef(const FunctionLibraryDefinition &flib_def, const FunctionDef &func_def,
-                       const std::vector<Tensor> &input_vec, GraphDef &graph_def, bool &is_initialize);
+  Status BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
+                       GraphDef &graph_def, bool &is_initialize);
 
   // prepare input tensor
   Status BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::InputTensorInfo> &inputs);

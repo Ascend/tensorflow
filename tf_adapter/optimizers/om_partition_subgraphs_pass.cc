@@ -1745,7 +1745,7 @@ void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_s
     }
   } else {
     if (!enable_dp) {
-      graph_options["data_inputs_shape_range"] = shapesVec[1] + shapesVec[0];
+      graph_options["data_inputs_shape_range"] = shapesVec[1] + "," + shapesVec[0];
     } else {
       graph_options["data_inputs_shape_range"] = shapesVec[0];
       graph_options["getnext_inputs_shape_range"] = shapesVec[1];

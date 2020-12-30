@@ -72,6 +72,7 @@ limitations under the License.
 using namespace tdt;
 
 namespace tensorflow {
+Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library);
 namespace {
 inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
 Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::OutputTensorInfo> &outputs) {
@@ -470,8 +471,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     OP_REQUIRES_ASYNC(ctx, ctx->function_library() != nullptr, errors::Internal("function library is nullptr"), done);
     const FunctionLibraryDefinition *flib_def = ctx->function_library()->GetFunctionLibraryDefinition();
     OP_REQUIRES_ASYNC(ctx, flib_def != nullptr, errors::Internal("flib_def is nullptr"), done);
-    const FunctionDef *fdef = flib_def->Find(function_.name());
-    OP_REQUIRES_ASYNC(ctx, fdef != nullptr, errors::Internal("fdef is nullptr"), done);
     std::shared_ptr<Graph> graph = std::make_shared<Graph>(OpRegistry::Global());
     OP_REQUIRES_ASYNC(ctx, graph != nullptr, errors::Internal("create tensorflow graph failed"), done);
 
@@ -483,7 +482,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     // Build GraphDef from FunctionDef
     GraphDef ori_graph_def;
-    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, *fdef, input_vec, ori_graph_def, is_initialized_graph_), done);
+    FunctionLibraryDefinition flib_new(*flib_def);
+    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(flib_new, input_vec, ori_graph_def, is_initialized_graph_), done);
 
     /* if graph is init verify graph, return */
     if (this->is_initialized_graph_ == true) {
@@ -515,23 +515,29 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
-    auto build_sub_graph = [this, flib_def](const google::protobuf::Message *root_proto,
+    auto build_sub_graph = [this, flib_new](const google::protobuf::Message *root_proto,
                                             const std::string &graph) -> std::unique_ptr<google::protobuf::Message> {
       // const tensorflow::GraphDef *graph_def_in = reinterpret_cast<const tensorflow::GraphDef *>(root_proto);
       LOG(INFO) << "[GEOP] build_sub_graph enter, sub graph name is " << graph;
-      const FunctionDef *func_def = flib_def->Find(graph);
+      const FunctionDef *func_def = flib_new.Find(graph);
       if (func_def == nullptr) {
         LOG(ERROR) << "[GEOP] Sub graph not found in library, sub graph name is " << graph;
         return nullptr;
       }
       // get infershape
-      Graph subgraph(flib_def);
-      Status status = InferShapeUtil::GetSubGraphFromFunctionDef(*flib_def, *func_def, &subgraph);
+      Graph subgraph(flib_new);
+      Status status = InferShapeUtil::GetSubGraphFromFunctionDef(flib_new, *func_def, &subgraph);
       if (status != Status::OK()) {
-        LOG(ERROR) << "[GEOP] Get subgraph from functiondef fail.";
+        LOG(ERROR) << "[GEOP] Get subgraph from functiondef fail:" << status.error_message();
         return nullptr;
       }
       LOG(INFO) << "[GEOP] Get subgraph from functiondef success.";
+      char *enable_force_v2_control = getenv("ENABLE_FORCE_V2_CONTROL");
+      if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
+        GraphDef graph_def;
+        subgraph.ToGraphDef(&graph_def);
+        WriteTextProto(Env::Default(), graph + "_graph.pbtxt", graph_def);
+      }
 
       bool is_initialize = false;
       for (Node *node : subgraph.nodes()) {
@@ -550,6 +556,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         return nullptr;
       }
       subgraph.ToGraphDef(sub_graph_def.get());
+      if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
+        sub_graph_def->release_library();
+        sub_graph_def->mutable_versions()->clear_min_consumer();
+      }
 
       unique_ptr<google::protobuf::Message> graph_def_out(std::move(sub_graph_def));
 
@@ -748,11 +758,15 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
 }
 
 // Build GraphDef from FunctionDef.
-Status GeOp::BuildGraphDef(const FunctionLibraryDefinition &flib_def, const FunctionDef &func_def,
+Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
                            const std::vector<Tensor> &input_vec, GraphDef &graph_def, bool &is_initialize) {
+  const FunctionDef *func_def = flib_def.Find(function_.name());
+  if (func_def == nullptr) {
+    return errors::Internal("%s: fdef is nullptr", function_.name());
+  }
   // get infershape
   Graph graph(OpRegistry::Global());
-  Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, &func_def, &graph);
+  Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, func_def, &graph);
   if (!ret.ok()) {
     LOG(ERROR) << "[GEOP] InferShape failed, " << ret.error_message();
     return ret;
@@ -802,6 +816,45 @@ Status GeOp::BuildGraphDef(const FunctionLibraryDefinition &flib_def, const Func
     }
   }
   graph.ToGraphDef(&graph_def);
+  char *enable_force_v2_control = getenv("ENABLE_FORCE_V2_CONTROL");
+  if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
+    WriteTextProto(Env::Default(), function_.name() + "_v1.pbtxt", graph_def);
+
+    Status status = FunctionalizeControlFlow(&graph, &flib_def);
+    if (status != Status::OK()) {
+      LOG(WARNING) << "[GEOP] Failed functionalize control flow: " << status.error_message();
+      return Status::OK();
+    }
+    graph.ToGraphDef(&graph_def);
+    WriteTextProto(Env::Default(), function_.name() + "_v2.pbtxt", graph_def);
+
+    for (int i = 0; i < graph_def.node_size(); ++i) {
+      NodeDef *node_def = graph_def.mutable_node(i);
+      node_def->clear_experimental_debug_info();
+    }
+
+    for (auto &name : flib_def.ListFunctionNames()) {
+      const FunctionDef *fdef = flib_def.Find(name);
+      if (fdef == nullptr) { continue; }
+
+      FunctionDef func_def(*fdef);
+      for (int i = 0; i < func_def.node_def_size(); ++i) {
+        NodeDef *node_def = func_def.mutable_node_def(i);
+        node_def->clear_experimental_debug_info();
+
+        AttrValue &value_i = (*node_def->mutable_attr())["input_tensor_desc"];
+        for (NameAttrList &func : *(value_i.mutable_list()->mutable_func())) {
+          (*func.mutable_attr())["serialize_shape"].set_type(DT_INT32);
+        }
+
+        AttrValue &value_o = (*node_def->mutable_attr())["output_tensor_desc"];
+        for (NameAttrList &func : *(value_o.mutable_list()->mutable_func())) {
+          (*func.mutable_attr())["serialize_shape"].set_type(DT_INT32);
+        }
+      }
+      flib_def.ReplaceFunction(name, func_def);
+    }
+  }
   return Status::OK();
 }
 
@@ -987,8 +1040,23 @@ Status GeOp::GenerateDesc(Node *&node) {
       REQUIRES_NOT_NULL(in_edge);
       int src_output = in_edge->src_output();
       if (in_node->def().attr().find(OUTPUT_DESC) != in_node->def().attr().end()) {
-        NameAttrList desc_attr = in_node->def().attr().at(OUTPUT_DESC).list().func(src_output);
-        *(input_tensor_descs.mutable_list()->add_func()) = desc_attr;
+        const AttrValue_ListValue &attr_list = in_node->def().attr().at(OUTPUT_DESC).list();
+        if (attr_list.func_size() > src_output) {
+          NameAttrList desc_attr = in_node->def().attr().at(OUTPUT_DESC).list().func(src_output);
+          *(input_tensor_descs.mutable_list()->add_func()) = desc_attr;
+        } else {
+          NameAttrList name_attr_list;
+          name_attr_list.set_name(std::to_string(0));
+          AttrValue attr_format_value;
+          attr_format_value.set_i((int64_t)domi_format);
+          name_attr_list.mutable_attr()->insert({SERIALIZE_FORMAT, attr_format_value});
+          AttrValue attr_datatype_value;
+          attr_datatype_value.set_i((int64_t)inputs[num]);
+          name_attr_list.mutable_attr()->insert({SERIALIZE_DATATYPE, attr_datatype_value});
+          AttrValue attr_shape_value;
+          name_attr_list.mutable_attr()->insert({SERIALIZE_SHAPE, attr_shape_value});
+          *(input_tensor_descs.mutable_list()->add_func()) = name_attr_list;
+        }
       } else {
         LOG(INFO) << "[GEOP] no OUTPUT_DESC: " << node->name() << " <-- " << in_node->name();
         if (num > 0 && node->type_string() == "Merge" && in_node->type_string() == "NextIteration") {
