@@ -10,6 +10,8 @@ from tensorflow.python.training import training_util
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import init_ops
 from tensorflow.python.framework import dtypes
+from tensorflow.python.util import compat
+from tensorflow.core.framework import attr_value_pb2
 from tensorflow.core.framework import variable_pb2
 from tensorflow.python.ops import resource_variable_ops
 
@@ -371,3 +373,49 @@ def get_gid_by_weight(weight):
 def get_all_grad_item():
     global _GRADIENTS_AND_VARS
     return _GRADIENTS_AND_VARS
+
+def set_graph_dynamic_exec_config(fetch, dynamic_input = False,
+                                  dynamic_graph_execute_mode = "dynamic_execute",
+                                  dynamic_inputs_shape_range = None):
+  """
+  add dynamic exec config to operation or tensor.
+  Args:
+    fetch:
+    dynamic_input:Whether Input is dynamic.
+    dynamic_graph_execute_mode: Dynamic graph execute mode.
+    dynamic_inputs_shape_range: Inputs shape range. In dynamic_execute mode, should be set.
+  Returns:
+  An fetch that includes dynamic exec config.
+  """
+  def _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
+                  dynamic_inputs_shape_range_attr):
+    if isinstance(fetch, ops.Operation):
+      fetch._set_attr("_graph_dynamic_input", dynamic_input_attr)
+      fetch._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
+      fetch._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
+    else:
+      fetch.op._set_attr("_graph_dynamic_input", dynamic_input_attr)
+      fetch.op._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
+      fetch.op._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
+
+  if dynamic_graph_execute_mode != "lazy_recompile" and dynamic_graph_execute_mode != "dynamic_execute":
+    raise ValueError("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute")
+  dynamic_input_attr = attr_value_pb2.AttrValue(b = dynamic_input)
+  dynamic_graph_execute_mode_attr = attr_value_pb2.AttrValue(s = compat.as_bytes(dynamic_graph_execute_mode))
+  if dynamic_inputs_shape_range is None:
+    dynamic_inputs_shape_range = ""
+  dynamic_inputs_shape_range_attr = attr_value_pb2.AttrValue(s = compat.as_bytes(dynamic_inputs_shape_range))
+  if isinstance(fetch, (ops.Operation, ops.Tensor)):
+    _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
+                 dynamic_inputs_shape_range_attr)
+  elif isinstance(fetch, (tuple, list)):
+    for tensor in fetch:
+      tensor = set_graph_dynamic_exec_config(tensor, dynamic_input, dynamic_graph_execute_mode,
+                                             dynamic_inputs_shape_range)
+  elif isinstance(fetch, str):
+    tensor = set_graph_dynamic_exec_config(ops.get_default_graph().get_tensor_by_name(fetch),
+                dynamic_input, dynamic_graph_execute_mode, dynamic_inputs_shape_range)
+    return tensor
+  else:
+    raise ValueError("fetch is invalid, should be op, tensor, list, tuple or tensor name.")
+  return fetch

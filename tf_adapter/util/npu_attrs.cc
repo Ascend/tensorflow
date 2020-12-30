@@ -376,6 +376,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   bool lower_functional_ops = false;
   string job = "default";
   int task_index = 0;
+  bool dynamic_input = false;
+  std::string dynamic_graph_execute_mode = "dynamic_execute";
+  std::string dynamic_inputs_shape_range;
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
       do_npu_optimizer = true;
@@ -391,6 +394,18 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
         job = "localhost";
       }
       if (params.count("task_index")) { task_index = params.at("task_index").i(); }
+      if (params.count("dynamic_input")) {
+        dynamic_input = params.at("dynamic_input").b();
+        if (dynamic_input) {
+          if (params.count("dynamic_graph_execute_mode")) {
+            dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
+            if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
+              LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
+            }
+          }
+          if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+        }
+      }
     }
   }
   if (!do_npu_optimizer) {
@@ -409,6 +424,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   pass_options["lower_functional_ops"] = std::to_string(lower_functional_ops);
   pass_options["job"] = job;
   pass_options["task_index"] = std::to_string(task_index);
+  pass_options["dynamic_input"] = std::to_string(dynamic_input);
+  pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
+  pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
 
   return pass_options;
 }
@@ -423,6 +441,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   std::string lower_functional_ops = std::to_string(false);
   string job = "default";
   std::string task_index = "0";
+  std::string dynamic_input = std::to_string(false);
+  std::string dynamic_graph_execute_mode = "dynamic_execute";
+  std::string dynamic_inputs_shape_range;
   Status s = Status::OK();
   string npuOptimizer;
 
@@ -435,6 +456,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
       ctx->GetAttr("_lower_functional_ops", &lower_functional_ops);
       if (ctx->GetAttr("_job", &job) != Status::OK()) { job = "localhost"; }
       ctx->GetAttr("_task_index", &task_index);
+      ctx->GetAttr("_dynamic_input", &dynamic_input);
+      ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode);
+      ctx->GetAttr("_dynamic_inputs_shape_range", &dynamic_inputs_shape_range);
     }
   }
   // pass options
@@ -446,6 +470,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   pass_options["lower_functional_ops"] = lower_functional_ops;
   pass_options["job"] = job;
   pass_options["task_index"] = task_index;
+  pass_options["dynamic_input"] = dynamic_input;
+  pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
+  pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
 
   return pass_options;
 }
@@ -460,6 +487,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string lower_functional_ops = std::to_string(false);
   string job = "default";
   std::string task_index = "0";
+  std::string dynamic_input = std::to_string(false);
+  std::string dynamic_graph_execute_mode = "dynamic_execute";
+  std::string dynamic_inputs_shape_range;
   Status s = Status::OK();
 
   if (attrs.Find("_NpuOptimizer") != nullptr) {
@@ -479,6 +509,13 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
       job = "localhost";
     }
     if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
+    if (attrs.Find("_dynamic_input") != nullptr) { dynamic_input = attrs.Find("_dynamic_input")->s(); }
+    if (attrs.Find("_dynamic_graph_execute_mode") != nullptr) {
+      dynamic_graph_execute_mode = attrs.Find("_dynamic_graph_execute_mode")->s();
+    }
+    if (attrs.Find("_dynamic_inputs_shape_range") != nullptr) {
+      dynamic_inputs_shape_range = attrs.Find("_dynamic_inputs_shape_range")->s();
+    }
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -489,6 +526,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   pass_options["lower_functional_ops"] = lower_functional_ops;
   pass_options["job"] = job;
   pass_options["task_index"] = task_index;
+  pass_options["dynamic_input"] = dynamic_input;
+  pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
+  pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
 
   return pass_options;
 }
@@ -754,6 +794,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool lower_functional_ops = false;
   string job = "localhost";
   int task_index = 0;
+  bool dynamic_input = false;
+  std::string dynamic_graph_execute_mode = "dynamic_execute";
+  std::string dynamic_inputs_shape_range;
   int enable_exception_dump = 0;
   string op_select_implmode;
   string optypelist_for_implmode;
@@ -874,6 +917,18 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         job = "localhost";
       }
       if (params.count("task_index")) { task_index = params.at("task_index").i(); }
+      if (params.count("dynamic_input")) {
+        dynamic_input = params.at("dynamic_input").b();
+        if (dynamic_input) {
+          if (params.count("dynamic_graph_execute_mode")) {
+            dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
+            if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
+              LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
+            }
+          }
+          if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+        }
+      }
 
       if (params.count("enable_exception_dump")) { enable_exception_dump = params.at("enable_exception_dump").i(); }
       if (!params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
@@ -984,6 +1039,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["lower_functional_ops"] = std::to_string(lower_functional_ops);
   pass_options["job"] = job;
   pass_options["task_index"] = std::to_string(task_index);
+  pass_options["dynamic_input"] = std::to_string(dynamic_input);
+  pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
+  pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
 
   std::string attr_name;
   for (const auto &option : sess_options) {

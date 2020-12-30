@@ -202,6 +202,17 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   Status s = ctx->GetAttr("_session", &tf_session_);
   if (s.ok()) { LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_; }
 
+  ctx->GetAttr("_dynamic_input", &dynamic_input_);
+  if (!dynamic_input_.empty() && dynamic_input_ == "1") {
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
+    ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
+    ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
+    LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
+              << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
+              << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
+              << ", data_inputs_shape_range: " << data_inputs_shape_range_;
+  }
+
   // global environment Initialize, invoke once for each process
   string sess_config = "";
   OP_REQUIRES_OK(ctx, ctx->GetAttr("_NpuOptimizer", &sess_config));
@@ -430,22 +441,24 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   // if input shapes changed, cache graphs
-  uint32_t cache_graph_id;
+  uint32_t cache_graph_id = graph_id_;
   bool is_set_dynamic_config = !sess_options_["ge.inputShape"].empty() && !sess_options_["ge.dynamicDims"].empty();
   bool is_tuning = !mstune_mode_.empty() && !work_path_.empty();
+  bool is_lazy_recompile_mode = dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile";
   if (is_set_dynamic_config && is_tuning) {
     LOG(FATAL) << "dynamic input config can not use with mstuning.";
   } else if (is_set_dynamic_config && !is_tuning) {
-    cache_graph_id = graph_id_;
     if (InitRebuildFlag(cache_graph_id) != 0) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
       return;
     }
   } else if (!is_set_dynamic_config && is_tuning) {
-    cache_graph_id = graph_id_;
+    LOG(INFO) << "[GEOP] in tune func, do not rebuild graph.";
   } else {
-    // if set dynamic input config, do not cache graphs.
-    GetExecGraphId(ctx, cache_graph_id, input_shapes);
+    // in dynamic input mode, cache graphs.
+    if (is_lazy_recompile_mode) {
+      GetExecGraphId(ctx, cache_graph_id, input_shapes);
+    }
     if (InitRebuildFlag(cache_graph_id) != 0) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
       return;
@@ -581,6 +594,11 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       LOG(INFO) << "[GEOP] set graph option.";
       graph_options_["ge.exec.placement"] = "HOST";
     }
+    if (dynamic_input_ == "1") {
+      graph_options_["ge.exec.dynamicInput"] = dynamic_input_;
+      graph_options_["ge.exec.dynamicGraphExecuteMode"] = dynamic_graph_execute_mode_;
+      graph_options_["ge.exec.dataInputsShapeRange"] = data_inputs_shape_range_;
+    }
     if (is_tuning) {
       if (!is_train_graph_) {
         LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
@@ -631,7 +649,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                 << " ,tf session: " << tf_session_ << " ,graph id:" << cache_graph_id;
     }
     build_flag_ = true;
-    if (!is_set_dynamic_config) {
+    if (!is_set_dynamic_config && is_lazy_recompile_mode) {
       cache_graphs_.insert(std::make_pair(input_shapes, cache_graph_id));
       graph_counts_.push_back(std::make_pair(input_shapes, 1));
     }
@@ -697,7 +715,13 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
 void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
   // Add dp custom kernel label
-  if (node->type_string() == "IteratorGetNext") { node->AddAttr("_kernel", "dp"); }
+  if (node->type_string() == "IteratorGetNext") {
+    node->AddAttr("_kernel", "dp");
+    if (dynamic_input_ == "1") {
+      node->AddAttr("_dynamic_graph_execute_mode", dynamic_graph_execute_mode_);
+      node->AddAttr("_getnext_inputs_shape_range", getnext_inputs_shape_range_);
+    }
+  }
   if (node->type_string() == "Assert" || node->type_string() == "Print" || node->type_string() == "PrintV2") {
     node->AddAttr("_kernel", "extend");
   }
@@ -890,6 +914,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::InputTen
   // populate inputs
   for (int i = 0; i < num_inputs; i++) {
     Tensor tensor(ctx->input(i));
+    LOG(INFO) << "[GEOP] Input tensor " << i << " shape: " << tensor.shape().DebugString();
     DataType data_type = tensor.dtype();
     size_t total_bytes = tensor.TotalBytes();
     void *tensor_ptr = DMAHelper::base(&tensor);
@@ -930,6 +955,9 @@ Status GeOp::GenerateDesc(Node *&node) {
   REQUIRES_NOT_NULL(node);
   NodeDef &node_def = const_cast<NodeDef &>(node->def());
   const OpDef &op_def = node->op_def();
+  if (dynamic_input_ == "1" && node->type_string() == "IteratorGetNext") {
+    node_def.set_op("DynamicGetNext");
+  }
 
   std::string format = this->data_format_;  // format
   int32_t domi_format = domi::domiTensorFormat_t::DOMI_TENSOR_RESERVED;
