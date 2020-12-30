@@ -30,7 +30,7 @@ from ast_impl import ast_import
 from ast_impl import ast_function_def
 from ast_impl import ast_call
 from ast_impl import ast_assign
-from visit_by_ast import *
+from visit_by_ast import get_tf_api
 
 class ConverByAst(ast.NodeTransformer):
     def generic_visit(self, node):

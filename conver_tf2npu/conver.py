@@ -29,10 +29,10 @@ def conver():
     conver_path = os.walk(util_global.get_value('input'))
     report_dir = util_global.get_value('report')
     mkdir(report_dir)
-    report_xlsx = os.path.join(report_dir,'api_analysis_report.xlsx')
-    util_global.set_value('count_unsupport',0)
+    report_xlsx = os.path.join(report_dir, 'api_analysis_report.xlsx')
+    util_global.set_value('count_api', 0)
     xlsx_writer = pd.ExcelWriter(report_xlsx)
-    for path,dir_list,file_list in conver_path:
+    for path, dir_list, file_list in conver_path:
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(dst_path)[1])
             if file_name.endswith(".py"):
@@ -47,7 +47,7 @@ def conver():
                     mkdir_and_copyfile(path, abs_join(out_path, out_path_dst), file_name)
             else:
                 mkdir_and_copyfile(path, abs_join(out_path, out_path_dst), file_name)
-    if util_global.get_value('count_unsupport'):
+    if util_global.get_value('count_api'):
         xlsx_writer.save()
         xlsx_writer.close()
     print("Finish conver, output file: " + out_path + "; report file: " + util_global.get_value('report'))

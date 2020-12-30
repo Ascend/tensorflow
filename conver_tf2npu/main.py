@@ -62,7 +62,7 @@ def para_check_and_set(argv):
             if str(report).endswith('/'):
                 report = report[0:len(report)-1]
             report = os.path.join(report, report_suffix)
-    util_global.set_value('input',  input)
+    util_global.set_value('input', input)
     util_global.set_value('list', list)
     util_global.set_value('output', output)
     util_global.set_value('report', report)
