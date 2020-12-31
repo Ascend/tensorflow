@@ -1863,7 +1863,10 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       node->AddAttr("_NpuOptimizer", "NpuOptimizer");
     }
 
-    if (node->type_string() == "_UnaryOpsComposition") {
+    if (node->type_string() == "IteratorGetNext") {
+      include_getnext = true;
+      if (is_set_dynamic_config) { getnext_node_count++; }
+    } else if (node->type_string() == "_UnaryOpsComposition") {
       LOG(INFO) << "begin split _UnaryOpsComposition.";
       Node *pre_node = nullptr;
       if (node->in_edges().size() != 1) {
@@ -1891,10 +1894,6 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
         graphIn->AddEdge(unary_node, 0, out_edge->dst(), out_edge->dst_input());
       }
       graphIn->RemoveNode(node);
-    }
-    if (node->type_string() == "IteratorGetNext") {
-      include_getnext = true;
-      if (is_set_dynamic_config) { getnext_node_count++; }
     }
   }
   if (getnext_node_count > 1) {
