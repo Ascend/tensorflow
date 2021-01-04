@@ -138,7 +138,7 @@ def setup_ascend(env_path):
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libfmk_parser.so\n"))
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libdatatransfer.so\n"))
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libindextransform.so\n"))
-
+    f.write(os.path.join(ascend_path, "atc", "lib64", "libalog.so\n"))
 def setup_swig():
   """Get swig install path."""
   default_swig_path = which('swig')

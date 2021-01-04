@@ -47,7 +47,11 @@ foreach (LINK_FLAG ${LINK_FLAGS})
     target_link_libraries(_tf_adapter PUBLIC "${LINK_FLAG}" -Wl,--no-as-needed)
 endforeach (LINK_FLAG)
 
-set_target_properties(_tf_adapter PROPERTIES PREFIX "")
+    target_compile_definitions(_tf_adapter PUBLIC
+        LOG_CPP
+    )
+
+    set_target_properties(_tf_adapter PROPERTIES PREFIX "")
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/dist/python/npu_bridge)
 

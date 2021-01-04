@@ -34,6 +34,7 @@ limitations under the License.
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 
@@ -141,7 +142,7 @@ Status SetVarFormatPass::Run(const GraphOptimizationPassOptions &options) {
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
   if (job == "ps" || job == "default") {
-    LOG(INFO) << "job is " << job << " Skip the optimizer : SetVarFormatPass.";
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : SetVarFormatPass.";
     return Status::OK();
   }
 

@@ -30,6 +30,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/graph/node_builder.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/npu_attrs.h"
 
 namespace tensorflow {
@@ -49,7 +50,7 @@ Status ControlFlowConversionPass::Run(const GraphOptimizationPassOptions &option
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
   if (job == "ps" || job == "default") {
-    LOG(INFO) << "job is " << job << " Skip the optimizer : ControlFlowConversionPass.";
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : ControlFlowConversionPass.";
     return Status::OK();
   }
 
@@ -61,7 +62,7 @@ Status ControlFlowConversionPass::Run(const GraphOptimizationPassOptions &option
   bool use_off_line = pass_options["use_off_line"] == "1";
   bool lower_functional_ops = pass_options["lower_functional_ops"] == "1";
   if (!use_off_line || lower_functional_ops) {
-    LOG(INFO) << "Skip the optimizer";
+    ADP_LOG(INFO) << "Skip the optimizer";
     return Status::OK();
   }
 

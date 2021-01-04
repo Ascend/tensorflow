@@ -29,13 +29,14 @@ limitations under the License.
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/shape_inference.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class EmbeddingRankIdOpKernel : public OpKernel {
  public:
   explicit EmbeddingRankIdOpKernel(OpKernelConstruction *context) : OpKernel(context) {}
   ~EmbeddingRankIdOpKernel() {}
-  void Compute(OpKernelContext *context) override { LOG(INFO) << "EmbeddingRankIdOp Compute."; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingRankIdOp Compute."; }
 };
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 }  // namespace tensorflow

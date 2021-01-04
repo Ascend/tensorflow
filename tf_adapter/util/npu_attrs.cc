@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tdt/index_transform.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "securec.h"
@@ -42,6 +43,7 @@ Status GetEnvDeviceID(uint32_t &device_id) {
   const char* tmp_device_id = std::getenv("DEVICE_ID");
   string env_device_id(tmp_device_id == nullptr ? "" : tmp_device_id);
   if (env_ascend_device_id.empty() && env_device_id.empty()) {
+    ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0";
     LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0";
   } else if (!env_ascend_device_id.empty()) {
     if (!strings::safe_strto64(env_ascend_device_id, &logic_device_id)) {
@@ -201,17 +203,26 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     if (enable_dump != std::to_string(false)) {
       if (ctx->GetAttr("_dump_step", &dump_step) == Status::OK() && !dump_step.empty()) {
         Status s = checkDumpStep(dump_step);
-        if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
       }
       if (ctx->GetAttr("_dump_mode", &dump_mode) == Status::OK()) {
         Status s = checkDumpMode(dump_mode);
-        if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
       }
     }
     if (enable_dump_debug != std::to_string(false)) {
       if (ctx->GetAttr("_dump_debug_mode", &dump_debug_mode) == Status::OK()) {
         Status s = checkDumpDebugMode(dump_debug_mode);
-        if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
       }
     }
     ctx->GetAttr("_stream_max_parallel_num", &stream_max_parallel_num);
@@ -289,7 +300,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   }
   init_options[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
   if (profiling_mode != std::to_string(false) && !checkProfilingOptions(profiling_options)) {
-    LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
+    ADP_LOG(ERROR) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
+	  LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
   }
   init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
   init_options[ge::AUTO_TUNE_MODE] = auto_tune_mode;
@@ -514,20 +526,29 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         dump_step = attrs.Find("_dump_step")->s();
         if (!dump_step.empty()) {
           Status s = checkDumpStep(dump_step);
-          if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+          if (!s.ok()) {
+            ADP_LOG(ERROR) << s.error_message();
+            LOG(FATAL) << s.error_message();
+          }
         }
       }
       if (attrs.Find("_dump_mode") != nullptr) {
         dump_mode = attrs.Find("_dump_mode")->s();
         Status s = checkDumpMode(dump_mode);
-        if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
       }
     }
     if (enable_dump_debug != std::to_string(false)) {
       if (attrs.Find("_dump_debug_mode") != nullptr) {
         dump_debug_mode = attrs.Find("_dump_debug_mode")->s();
         Status s = checkDumpDebugMode(dump_debug_mode);
-        if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
       }
     }
     if (attrs.Find("_stream_max_parallel_num") != nullptr) {
@@ -576,7 +597,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["precision_mode"] = precision_mode;
   all_options["profiling_mode"] = profiling_mode;
   if (profiling_mode != std::to_string(false) && !checkProfilingOptions(profiling_options)) {
-    LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
+    ADP_LOG(ERROR) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
+	  LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
   }
   all_options["profiling_options"] = profiling_options;
   all_options["auto_tune_mode"] = auto_tune_mode;
@@ -671,8 +693,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         if (params.count("dump_path")) {
           string tmp_path = params.at("dump_path").s();
           Status s = CheckPath(tmp_path, dump_path);
-          if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+          if (!s.ok()) {
+            ADP_LOG(ERROR) << s.error_message();
+            LOG(FATAL) << s.error_message();
+          }
         } else {
+          ADP_LOG(ERROR) << "if use dump function, dump_path must be set.";
           LOG(FATAL) << "if use dump function, dump_path must be set.";
         }
       }
@@ -680,19 +706,28 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         if (params.count("dump_step")) {
           dump_step = params.at("dump_step").s();
           Status s = checkDumpStep(dump_step);
-          if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+          if (!s.ok()) {
+            ADP_LOG(ERROR) << s.error_message();
+            LOG(FATAL) << s.error_message();
+          }
         }
         if (params.count("dump_mode")) {
           dump_mode = params.at("dump_mode").s();
           Status s = checkDumpMode(dump_mode);
-          if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+          if (!s.ok()) {
+            ADP_LOG(ERROR) << s.error_message();
+            LOG(FATAL) << s.error_message();
+          }
         }
       }
       if (enable_dump_debug) {
         if (params.count("dump_debug_mode")) {
           dump_debug_mode = params.at("dump_debug_mode").s();
           Status s = checkDumpDebugMode(dump_debug_mode);
-          if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+          if (!s.ok()) {
+            ADP_LOG(ERROR) << s.error_message();
+            LOG(FATAL) << s.error_message();
+          }
         }
       }
       if (params.count("stream_max_parallel_num")) {
@@ -711,7 +746,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("auto_tune_mode")) { auto_tune_mode = params.at("auto_tune_mode").s(); }
       if (params.count("graph_run_mode")) {
         graph_run_mode = params.at("graph_run_mode").i();
-        if (graph_run_mode > 1) { LOG(FATAL) << "graph_run_mode value must be 0 or 1"; }
+        if (graph_run_mode > 1) {
+          ADP_LOG(ERROR) << "graph_run_mode value must be 0 or 1";
+          LOG(FATAL) << "graph_run_mode value must be 0 or 1";
+        }
       }
       if (params.count("op_debug_level")) { op_debug_level = params.at("op_debug_level").i(); }
       if (params.count("enable_scope_fusion_passes")) {
@@ -747,13 +785,20 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       } else if (params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
         op_select_implmode = params.at("op_select_implmode").s();
         Status s = CheckOpImplMode(op_select_implmode);
-        if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
       } else if (params.count("optypelist_for_implmode") && !params.count("op_select_implmode")) {
+        ADP_LOG(ERROR) << "when use optypelist_for_implmode, op_select_implmode must be set.";
         LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
       } else {
         op_select_implmode = params.at("op_select_implmode").s();
         Status s = CheckOpImplMode(op_select_implmode);
-        if (!s.ok()) { LOG(FATAL) << s.error_message(); }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
         optypelist_for_implmode = params.at("optypelist_for_implmode").s();
       }
     }
@@ -779,12 +824,14 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options["precision_mode"] = precision_mode;
   init_options["profiling_mode"] = std::to_string(profiling_mode);
   if (profiling_mode && !checkProfilingOptions(profiling_options)) {
+    ADP_LOG(ERROR) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
     LOG(FATAL) << "profiling options must be in 'training_trace', 'task_trace' or 'op_trace'";
   }
   if (profiling_mode && (profiling_options.find("task_trace") != string::npos ||
       profiling_options.find("training_trace") != string::npos)) {
     if (bp_point == "" || fp_point == "") {
-      LOG(WARNING) << "profiling training_trace options should use with bp_point and fp_point";
+      ADP_LOG(WARNING) << "profiling training_trace options should use with bp_point and fp_point";
+	    LOG(WARNING) << "profiling training_trace options should use with bp_point and fp_point";
     } else {
       init_options["bp_point"] = bp_point;
       init_options["fp_point"] = fp_point;

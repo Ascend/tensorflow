@@ -29,15 +29,18 @@ limitations under the License.
 #define TENSORFLOW_COMMON_COMMON_H_
 
 #include "tensorflow/core/platform/env.h"
+#include "tf_adapter/common/adp_logger.h"
 
 #define CHECK_NOT_NULL(v)                                                                                              \
   if ((v) == nullptr) {                                                                                                \
+    ADP_LOG(ERROR) << #v " is nullptr.";                                                                               \
     LOG(ERROR) << #v " is nullptr.";                                                                                   \
     return;                                                                                                            \
   }
 
 #define REQUIRES_NOT_NULL(v)                                                                                           \
   if ((v) == nullptr) {                                                                                                \
+    ADP_LOG(ERROR) << #v " is nullptr.";                                                                               \
     LOG(ERROR) << #v " is nullptr.";                                                                                   \
     return errors::InvalidArgument(#v " is nullptr.");                                                                 \
   }

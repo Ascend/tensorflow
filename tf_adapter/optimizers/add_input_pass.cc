@@ -36,6 +36,7 @@ limitations under the License.
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/lib/random/simple_philox.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
@@ -73,7 +74,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
     for (Node *n : graph->get()->nodes()) {
       REQUIRES_NOT_NULL(n);
       if (n->attrs().Find("_NoNeedOptimize")) {
-        LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip AddInputPass.";
+        ADP_LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip AddInputPass.";
         findMarkNoNeed = true;
         break;
       }
@@ -93,7 +94,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
 
     std::string job = pass_options["job"];
     if (job == "ps" || job == "default" || job == "localhost") {
-      LOG(INFO) << "job is " << job << " Skip the optimizer : AddInputPass.";
+      ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : AddInputPass.";
       continue;
     }
 
@@ -126,8 +127,8 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
       Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
     }
     int64 endTime = InferShapeUtil::GetCurrentTimestap();
-    LOG(INFO) << "AddInputPass subgraph_" << std::to_string(graph_num) << " success. ["
-              << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+    ADP_LOG(INFO) << "AddInputPass subgraph_" << std::to_string(graph_num) << " success. ["
+                  << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   }
 
   return Status::OK();
