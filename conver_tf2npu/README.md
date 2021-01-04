@@ -72,7 +72,7 @@
 
 4. 附录。
 
-    目前支持自动迁移的功能列表：
+    a. 目前支持自动迁移的功能列表：
     
      Tensorflow函数 --> 迁移后的NPU函数
 
@@ -108,7 +108,7 @@
 
      "tf.cpmpat.v1.layers.max_pooling2d" --> "tf.compat.v1.nn.max_pool_with_argmax"
 
-    目前迁移工具默认设置的配置项：
+    b. 目前迁移工具默认设置的配置项：
     
     config中的remapping默认设置为RewriterConfig.OFF
 
@@ -116,7 +116,7 @@
 
     custom_op.parameter_map["enable_data_pre_proc"].b = True默认设置为True
 	
-	目前API支持度：
+	c. 目前API支持度：
 	
 	支持：此类API在昇腾AI处理器海思上绝对支持，无需适配修改。
 	
