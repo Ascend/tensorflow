@@ -123,14 +123,21 @@ def scan_file(file_name, api, lineno):
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
                                    '支持度': support_type, '迁移建议': migrate_advice})
-    analyse_result.index.name = '序号'
-    analyse_result.index = analyse_result.index + 1  #index start from 1
 
     # when there are tf apis used in script, analysis report will be generated
     report = util_global.get_value('generate_dir_report')
     if len(script_name):
         report = report.append(analyse_result)
         util_global.set_value('generate_dir_report', report)
+
+def adjust_index():
+    report = util_global.get_value('generate_dir_report')
+    index_column = []
+    for i in range(len(report)):
+        index_column.append(i+1)
+    report.index = index_column
+    report.index.name = '序号'
+    util_global.set_value('generate_dir_report', report)
 
 def get_api_statistic(analysis_report):
     code_api = analysis_report['API名'].values.tolist()

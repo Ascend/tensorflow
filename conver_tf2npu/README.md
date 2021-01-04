@@ -107,7 +107,7 @@
      "tf.device(xxx)" --> "tf.device(/cpu:0)"
 
      "tf.cpmpat.v1.layers.max_pooling2d" --> "tf.compat.v1.nn.max_pool_with_argmax"
-
+    
     b. 目前迁移工具默认设置的配置项：
     
     config中的remapping默认设置为RewriterConfig.OFF

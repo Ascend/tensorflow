@@ -21,6 +21,7 @@ from file_op import write_report_terminator
 from file_op import abs_join
 import pandas as pd
 from file_op import get_api_statistic
+from file_op import adjust_index
 
 def conver():
     print("Begin conver, input file: " + util_global.get_value('input'))
@@ -49,6 +50,7 @@ def conver():
             else:
                 mkdir_and_copyfile(path, abs_join(out_path, out_path_dst), file_name)
 
+    adjust_index()
     analysis_report = util_global.get_value('generate_dir_report')
     analysis_report.to_excel(report_xlsx, index=True)
     get_api_statistic(analysis_report)
