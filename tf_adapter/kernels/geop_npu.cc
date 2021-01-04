@@ -469,7 +469,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   if (!build_flag_) {
     // Get Graph
     OP_REQUIRES_ASYNC(ctx, ctx->function_library() != nullptr, errors::Internal("function library is nullptr"), done);
-    const FunctionLibraryDefinition *flib_def = ctx->function_library()->GetFunctionLibraryDefinition();
+    FunctionLibraryDefinition *flib_def = const_cast<FunctionLibraryDefinition *>(ctx->function_library()->GetFunctionLibraryDefinition());
     OP_REQUIRES_ASYNC(ctx, flib_def != nullptr, errors::Internal("flib_def is nullptr"), done);
     std::shared_ptr<Graph> graph = std::make_shared<Graph>(OpRegistry::Global());
     OP_REQUIRES_ASYNC(ctx, graph != nullptr, errors::Internal("create tensorflow graph failed"), done);
@@ -482,8 +482,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     // Build GraphDef from FunctionDef
     GraphDef ori_graph_def;
-    FunctionLibraryDefinition flib_new(*flib_def);
-    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(flib_new, input_vec, ori_graph_def, is_initialized_graph_), done);
+    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_), done);
 
     /* if graph is init verify graph, return */
     if (this->is_initialized_graph_ == true) {
@@ -515,18 +514,18 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
-    auto build_sub_graph = [this, flib_new](const google::protobuf::Message *root_proto,
+    auto build_sub_graph = [this, flib_def](const google::protobuf::Message *root_proto,
                                             const std::string &graph) -> std::unique_ptr<google::protobuf::Message> {
       // const tensorflow::GraphDef *graph_def_in = reinterpret_cast<const tensorflow::GraphDef *>(root_proto);
       LOG(INFO) << "[GEOP] build_sub_graph enter, sub graph name is " << graph;
-      const FunctionDef *func_def = flib_new.Find(graph);
+      const FunctionDef *func_def = flib_def->Find(graph);
       if (func_def == nullptr) {
         LOG(ERROR) << "[GEOP] Sub graph not found in library, sub graph name is " << graph;
         return nullptr;
       }
       // get infershape
-      Graph subgraph(flib_new);
-      Status status = InferShapeUtil::GetSubGraphFromFunctionDef(flib_new, *func_def, &subgraph);
+      Graph subgraph(flib_def);
+      Status status = InferShapeUtil::GetSubGraphFromFunctionDef(*flib_def, *func_def, &subgraph);
       if (status != Status::OK()) {
         LOG(ERROR) << "[GEOP] Get subgraph from functiondef fail:" << status.error_message();
         return nullptr;
@@ -760,13 +759,13 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
 // Build GraphDef from FunctionDef.
 Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
                            const std::vector<Tensor> &input_vec, GraphDef &graph_def, bool &is_initialize) {
-  const FunctionDef *func_def = flib_def.Find(function_.name());
-  if (func_def == nullptr) {
+  const FunctionDef *function_def = flib_def.Find(function_.name());
+  if (function_def == nullptr) {
     return errors::Internal("%s: fdef is nullptr", function_.name());
   }
   // get infershape
   Graph graph(OpRegistry::Global());
-  Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, func_def, &graph);
+  Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, function_def, &graph);
   if (!ret.ok()) {
     LOG(ERROR) << "[GEOP] InferShape failed, " << ret.error_message();
     return ret;
