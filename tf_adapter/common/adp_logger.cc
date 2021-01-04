@@ -29,5 +29,5 @@ limitations under the License.
 #include "toolchain/slog.h"
 
 AdapterLogger::~AdapterLogger(){
-  DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
+  DlogSub(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
 }
