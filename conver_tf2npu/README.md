@@ -9,11 +9,14 @@
 1. 该工具仅配套TensorFlow 1.15版本的训练脚本。
 
 
-2. 目前支持的TensorFlow模块引入方式如下，如果您的训练脚本未按照如下方式引用TensorFlow模块，请先修改训练脚本。
+2. 目前仅支持Python3的脚本
 
-    import tensorflow as XXX
 
-    import tensorflow.compat.v1 as XXX
+3. 目前支持的TensorFlow模块引入方式如下，如果您的训练脚本未按照如下方式引用TensorFlow模块，请先修改训练脚本。
+
+    import tensorflow as tf
+
+    import tensorflow.compat.v1 as tf
 
 ## 使用指导
 1. 安装依赖。
@@ -26,7 +29,7 @@
 
 2. 执行如下命令进行脚本迁移。
 
-   命令举例(Linux)：
+   a. 命令举例(Linux)：
 
    python3 main.py -i /home/BERT -l /home/TF1.15_API支持度清单.xlsx -o /home/out -r /home/report
 
@@ -43,7 +46,7 @@
     /home/report：生成的迁移报告路径
     > 通过**python3 main.py -h**可以获取脚本的使用帮助。
 	
-	命令举例(Windows)：
+	b. 命令举例(Windows)：
 	
 	python3 main_win.py  
 	
@@ -112,6 +115,22 @@
     custom_op.parameter_map["use_off_line"].b = True默认设置为True
 
     custom_op.parameter_map["enable_data_pre_proc"].b = True默认设置为True
+	
+	目前API支持度：
+	
+	支持：此类API在昇腾AI处理器海思上绝对支持，无需适配修改。
+	
+	支持但需手工迁移：此类API需要您参考迁移建议，进行适配修改。
+	
+	支持但需工具迁移：此类API工具已为您自动迁移，无需用户修改适配。
+	
+	不支持：此类API或者部分数据类型在昇腾AI处理器上不支持，建议您不要使用，否则会引起训练失败。
+	
+	分析中：此类API我们正在分析中，不保证绝对支持，建议您不要使用，否则可能会引起训练失败。
+	
+	废弃：此类API在Tensorflow1.15版本已废弃，建议您不要使用，否则可能会引起训练失败。
+	
+	NA：此类API不在《TF1.15_API支持度清单》的扫描范围内，不保证绝对支持，建议您不要使用，否则可能会引起训练失败。
 
 ## 贡献
 

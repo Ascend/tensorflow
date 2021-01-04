@@ -79,7 +79,7 @@ class ConverByAst(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-def conver_ast(path, out_path_dst, file_name, xlsx_writer):
+def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
@@ -93,7 +93,7 @@ def conver_ast(path, out_path_dst, file_name, xlsx_writer):
     (api, lineno) = get_tf_api(os.path.join(path, file_name))
     if len(api) == 0:
         print("No Tensorflow module is imported in script {}.".format(file_name))
-    scan_file(file_name, api, lineno, xlsx_writer)
+    scan_file(file_name, api, lineno)
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)
