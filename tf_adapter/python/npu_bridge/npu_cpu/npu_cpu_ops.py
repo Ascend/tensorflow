@@ -20,3 +20,17 @@ def embeddingrankid(addr_tensor, index, row_memory=320, mode='mod'):
         row_memory=row_memory,
         mode=mode)
     return result
+
+## 提供RandomChoiceWithMask功能
+#  @param x bool 类型
+#  @param count int 类型
+#  @param seed int类型
+#  @param seed2 int类型
+#  @return y int32类型 mask bool 类型
+def RandomChoiceWithMask(x, count, seed=0, seed2=0):
+    result = gen_npu_cpu_ops.random_choice_with_mask(
+        x=x,
+        count=count,
+        seed=seed,
+        seed2=seed2)
+    return result
