@@ -141,11 +141,11 @@ class GraphUtils {
 
   static Graph CreateGraphFromComputeGraph(const ComputeGraphPtr compute_graph);
 
+  static GraphPtr CreateGraphPtrFromComputeGraph(const ComputeGraphPtr compute_graph);
+
   static graphStatus RecoverGraphOperators(const Graph &graph);
 
   static ComputeGraphPtr CreateGraphFromOperator(const string &name, const std::vector<Operator> &inputs);
-
-  static GraphPtr CreateGraphPtrFromComputeGraph(const ComputeGraphPtr compute_graph);
 
   static graphStatus AddEdge(const OutDataAnchorPtr &src, const InDataAnchorPtr &dst);
 
@@ -377,6 +377,14 @@ class GraphUtils {
 
   static NodePtr FindNodeFromAllNodes(ComputeGraphPtr &graph, const std::string &name);
 
+  ///
+  /// Check if out_data_anchor is reference of input
+  /// @param [in] out_data_anchor
+  /// @param [out] reuse_in_index
+  /// @return bool
+  ///
+  static bool IsRefFromInput(const OutDataAnchorPtr &out_data_anchor, int32_t &reuse_in_index);
+
  private:
   ///
   /// Get reference-mapping for in_data_anchors of node
@@ -467,14 +475,6 @@ class GraphUtils {
   static graphStatus UpdateRefMapping(const NodeIndexIO &cur_node_info, const NodeIndexIO &exist_node_info,
                                       std::map<std::string, std::list<NodeIndexIO>> &symbol_to_anchors,
                                       std::map<std::string, std::string> &anchor_to_symbol);
-
-  ///
-  /// Check if out_data_anchor is reference of input
-  /// @param [in] out_data_anchor
-  /// @param [out] reuse_in_index
-  /// @return bool
-  ///
-  static bool IsRefFromInput(const OutDataAnchorPtr &out_data_anchor, int32_t &reuse_in_index);
 };
 
 class ComputeGraphBuilder {

@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Huawei Technologies Co., Ltd
+ * Copyright 2019-2020 Huawei Technologies Co., Ltd
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,31 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef INC_GRAPH_OPSPROTO_MANAGER_H_
-#define INC_GRAPH_OPSPROTO_MANAGER_H_
+#ifndef INC_GRAPH_COMMON_ERROR_CODES_H_
+#define INC_GRAPH_COMMON_ERROR_CODES_H_
 
-#include <string.h>
-#include <map>
-#include <string>
-#include <vector>
-#include <mutex>
+#include "external/graph/ge_error_codes.h"
 
 namespace ge {
-class OpsProtoManager {
- public:
-  static OpsProtoManager *Instance();
-
-  bool Initialize(const std::map<std::string, std::string> &options);
-  void Finalize();
-
- private:
-  void LoadOpsProtoPluginSo(std::string &path);
-
-  std::string pluginPath_;
-  std::vector<void *> handles_;
-  bool is_init_ = false;
-  std::mutex mutex_;
-};
+const graphStatus NO_DEPENDENCE_FUNC = 50331647;
+const graphStatus NO_OVERLAP_DIM = 50331646;
+const graphStatus NOT_SUPPORT_SLICE = 50331645;
 }  // namespace ge
 
-#endif  // INC_GRAPH_OPSPROTO_MANAGER_H_
+#endif  // INC_GRAPH_COMMON_ERROR_CODES_H_

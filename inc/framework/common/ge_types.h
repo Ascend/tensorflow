@@ -44,6 +44,7 @@ enum FrameworkType {
   MINDSPORE = 1,
   TENSORFLOW = 3,
   ANDROID_NN,
+  ONNX,
   FRAMEWORK_RESERVED,
 };
 
@@ -256,6 +257,8 @@ struct TaskDescInfo {
   uint32_t block_dim;
   uint32_t task_id;
   uint32_t stream_id;
+  std::string shape_type;
+  int64_t cur_iter_num;
 };
 
 // Profiling info of graph
@@ -269,6 +272,8 @@ struct ComputeGraphDescInfo {
   std::vector<Format> output_format;
   std::vector<std::vector<int64_t>> output_shape;
   std::vector<DataType> output_data_type;
+  uint32_t task_id;
+  uint32_t stream_id;
 };
 
 struct OpDescInfo {

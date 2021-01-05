@@ -27,12 +27,12 @@ static const int64_t UNKNOWN_DIM_NUM = -2;
 static const std::vector<int64_t> UNKNOWN_SHAPE = {-1};
 static const std::vector<int64_t> UNKNOWN_RANK = {-2};
 
-#ifdef HOST_VISIBILITY
+#if(defined(HOST_VISIBILITY)) && (defined(__GNUC__))
 #define GE_FUNC_HOST_VISIBILITY __attribute__((visibility("default")))
 #else
 #define GE_FUNC_HOST_VISIBILITY
 #endif
-#ifdef DEV_VISIBILITY
+#if(defined(DEV_VISIBILITY)) && (defined(__GNUC__))
 #define GE_FUNC_DEV_VISIBILITY __attribute__((visibility("default")))
 #else
 #define GE_FUNC_DEV_VISIBILITY
@@ -64,6 +64,7 @@ enum DataType {
   DT_RESOURCE = 23,        // resource type
   DT_STRING_REF = 24,      // string ref type
   DT_DUAL = 25,            // dual output type
+  DT_VARIANT = 26,         // dt_variant type
   DT_UNDEFINED             // Used to indicate a DataType field has not been set.
 };
 
@@ -95,6 +96,7 @@ inline int GetSizeByDataType(DataType data_type) {
       -1,  // DT_RESOURCE = 23,           resource type
       -1,  // DT_STRING_REF = 24,        string ref type
       5,   // DT_DUAL = 25,               dual output type (float + int8)
+      -1,  // DT_VARIANT                  variant type
            // DT_UNDEFINED    Used to indicate a DataType field has not been set.
   };
   if (data_type >= DT_UNDEFINED) {
@@ -116,8 +118,8 @@ enum Format {
   FORMAT_C1HWNC0,
   FORMAT_FRACTAL_DECONV_TRANSPOSE,
   FORMAT_FRACTAL_DECONV_SP_STRIDE_TRANS,
-  FORMAT_NC1HWC0_C04,    // NC1HWC0, C0 =4
-  FORMAT_FRACTAL_Z_C04,  // FRACZ, C0 =4
+  FORMAT_NC1HWC0_C04,    // NC1HWC0, C0 is 4
+  FORMAT_FRACTAL_Z_C04,  // FRACZ, C0 is 4
   FORMAT_CHWN,
   FORMAT_FRACTAL_DECONV_SP_STRIDE8_TRANS,
   FORMAT_HWCN,
