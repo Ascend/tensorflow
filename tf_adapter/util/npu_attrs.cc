@@ -675,8 +675,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   string op_select_implmode;
   string optypelist_for_implmode;
 
-  LOG(INFO) << "yuxing log test !";
-
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
