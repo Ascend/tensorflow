@@ -28,6 +28,7 @@ limitations under the License.
 #include "securec.h"
 #include "tdt/tdt_host_interface.h"
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include <string>
@@ -64,7 +65,7 @@ Status GetTensorShape(const string &tensor_shape, TensorShape &shape) {
 Status ConvertDataItem2Tensor(const std::vector<tdt::DataItem> &items, std::vector<Tensor> &tensors) {
   for (auto &item : items) {
     if (item.dataType_ == tdt::TDT_END_OF_SEQUENCE) {
-      LOG(INFO) << "End of processing.";
+      ADP_LOG(INFO) << "End of processing.";
       return Status::OK();
     }
     DataType type;
@@ -96,10 +97,10 @@ class OutfeedEnqueueOp : public OpKernel {
  public:
   explicit OutfeedEnqueueOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
-    LOG(INFO) << "OutfeedEnqueueOp built";
+    ADP_LOG(INFO) << "OutfeedEnqueueOp built";
   }
-  ~OutfeedEnqueueOp() override { LOG(INFO) << "OutfeedEnqueueOp has been destructed"; }
-  void Compute(OpKernelContext *ctx) override { LOG(INFO) << "OutfeedEnqueueOp running"; }
+  ~OutfeedEnqueueOp() override { ADP_LOG(INFO) << "OutfeedEnqueueOp has been destructed"; }
+  void Compute(OpKernelContext *ctx) override { ADP_LOG(INFO) << "OutfeedEnqueueOp running"; }
   bool IsExpensive() override { return false; }
 
  private:
@@ -114,9 +115,9 @@ class OutfeedDequeueOp : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
     OP_REQUIRES(ctx, tdt::TdtHostPreparePopData() == 0, errors::Internal("Prepare Pop Data failed"));
-    LOG(INFO) << "OutfeedDequeueOp built";
+    ADP_LOG(INFO) << "OutfeedDequeueOp built";
   }
-  ~OutfeedDequeueOp() override { LOG(INFO) << "OutfeedDequeueOp has been destructed"; }
+  ~OutfeedDequeueOp() override { ADP_LOG(INFO) << "OutfeedDequeueOp has been destructed"; }
   void Compute(OpKernelContext *ctx) override {
     CHECK_NOT_NULL(ctx);
     std::vector<tdt::DataItem> bundle;
@@ -142,11 +143,11 @@ class StopOutfeedDequeueOp : public OpKernel {
  public:
   explicit StopOutfeedDequeueOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
-    LOG(INFO) << "StopOutfeedDequeueOp built";
+    ADP_LOG(INFO) << "StopOutfeedDequeueOp built";
   }
-  ~StopOutfeedDequeueOp() override { LOG(INFO) << "StopOutfeedDequeueOp has been destructed"; }
+  ~StopOutfeedDequeueOp() override { ADP_LOG(INFO) << "StopOutfeedDequeueOp has been destructed"; }
   void Compute(OpKernelContext *ctx) override {
-    LOG(INFO) << "StopOutfeedDequeueOp running";
+    ADP_LOG(INFO) << "StopOutfeedDequeueOp running";
     OP_REQUIRES(ctx, tdt::TdtHostStop(channel_name_) == 0, errors::Internal("TdtHostStop failed"));
   }
   bool IsExpensive() override { return false; }

@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tf_adapter/optimizers/gradient_fusion_optimizer.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 
 #include "tensorflow/core/grappler/grappler_item.h"
@@ -87,7 +88,7 @@ Status GradFusionOptimizer::GetInputTensorSize(NodeDef &nodeDef, int64_t &inputT
     for (int i = 0; i < inputsNameSize; i++) {
       const string &inputNodeName = nodeDef.input(i);
       if (inputNodeName.empty()) {
-        LOG(INFO) << "Cannot get input node name, curr node : " << nodeDef.name() << " index: " << i;
+        ADP_LOG(INFO) << "Cannot get input node name, curr node : " << nodeDef.name() << " index: " << i;
         continue;
       }
       NodeDef inputNode = nameToNode_[inputNodeName];
@@ -164,7 +165,7 @@ Status GradFusionOptimizer::FusionOp(std::vector<NodeDef> fusionHcomOps, GraphDe
   fusionNode->set_device(fusionHcomOps[0].device());
   fusionNode->set_op(opType);
 
-  LOG(INFO) << "INFO: GradFusionOptimizer::FusionOp  New FusionNodeName: " << fusionNodeName;
+  ADP_LOG(INFO) << "INFO: GradFusionOptimizer::FusionOp  New FusionNodeName: " << fusionNodeName;
   int fusionOutputIdx = 0;
   std::set<string> fusionInputs;
   std::set<string> fusionCtrlInputs;
@@ -244,8 +245,8 @@ Status GradFusionOptimizer::Optimize(Cluster *cluster, const GrapplerItem &item,
   std::map<std::pair<string, DataType>, std::vector<NodeDef>> fusionHcomOps;
   std::map<std::pair<string, DataType>, int64_t> currentGradSumSize;
   *optimizedGraph = item.graph;
-  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize begin, OriginNodeNum: " << item.graph.node_size();
-  LOG(INFO) << "INFO: FUSION_TENSOR_SIZE: " << fusionTensorSize;
+  ADP_LOG(INFO) << "INFO: GradFusionOptimizer::Optimize begin, OriginNodeNum: " << item.graph.node_size();
+  ADP_LOG(INFO) << "INFO: FUSION_TENSOR_SIZE: " << fusionTensorSize;
 
   if (fusionTensorSize < 0) { return errors::InvalidArgument("FUSION_TENSOR_SIZE is invalid"); }
 
@@ -265,7 +266,7 @@ Status GradFusionOptimizer::Optimize(Cluster *cluster, const GrapplerItem &item,
       if (iter != attrMap.end()) {
         dType = iter->second.list().type(0);
       } else {
-        LOG(INFO) << "INFO: Use default dataType: DT_FLOAT";
+        ADP_LOG(INFO) << "INFO: Use default dataType: DT_FLOAT";
         dType = DT_FLOAT;
       }
       std::pair<string, DataType> key = std::make_pair(nodeDef.op(), dType);
@@ -296,7 +297,7 @@ Status GradFusionOptimizer::Optimize(Cluster *cluster, const GrapplerItem &item,
       iter.second.clear();
     }
   }
-  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize end, finalNodeNum: " << optimizedGraph->node_size();
+  ADP_LOG(INFO) << "INFO: GradFusionOptimizer::Optimize end, finalNodeNum: " << optimizedGraph->node_size();
 
   return Status::OK();
 }

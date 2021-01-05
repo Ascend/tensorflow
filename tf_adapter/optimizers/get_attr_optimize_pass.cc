@@ -36,6 +36,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/common_runtime/shape_refiner.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
@@ -61,21 +62,22 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
 
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
-  LOG(INFO) << "NpuAttrs job is " << job;
+
+  ADP_LOG(INFO) << "NpuAttrs job is " << job;
   if (job == "ps" || job == "default") {
-    LOG(INFO) << "job is " << job << " Skip the optimizer : GetAttrOptimizePass.";
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : GetAttrOptimizePass.";
     return Status::OK();
   }
 
   for (Node *n : options.graph->get()->nodes()) {
     REQUIRES_NOT_NULL(n);
     if (n->attrs().Find("_NoNeedOptimize")) {
-      LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip AddSrcOpAttrPass.";
+      ADP_LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip AddSrcOpAttrPass.";
       return Status::OK();
     }
 
     if (n->attrs().Find("_NpuOptimizer")) {
-      LOG(INFO) << "Found mark of get attr optimize on node [" << n->name() << "], skip AddSrcOpAttrPass.";
+      ADP_LOG(INFO) << "Found mark of get attr optimize on node [" << n->name() << "], skip AddSrcOpAttrPass.";
       return Status::OK();
     }
   }
@@ -97,7 +99,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
     if (!device_name.empty() && device_name.find("/job:ps") == std::string::npos) {
       Status s = NpuAttrs::SetNpuOptimizerAttr(options, n);
       if (s != Status::OK()) {
-        LOG(INFO) << "set npu optimizer error.";
+        ADP_LOG(INFO) << "set npu optimizer error.";
         return s;
       }
       break;
@@ -125,7 +127,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
     Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  LOG(INFO) << "GetAttrOptimizePass_" << std::to_string(graph_num) << " success. ["
+  ADP_LOG(INFO) << "GetAttrOptimizePass_" << std::to_string(graph_num) << " success. ["
             << ((endTime - startTime) / kMicrosToMillis) << " ms]";
 
   return Status::OK();
