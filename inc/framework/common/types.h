@@ -18,7 +18,6 @@
 #define INC_FRAMEWORK_COMMON_TYPES_H_
 
 #include <limits.h>
-#include <linux/limits.h>
 #include <stdint.h>
 #include <algorithm>
 #include <map>
@@ -70,6 +69,7 @@ FMK_FUNC_HOST_VISIBILITY FMK_FUNC_DEV_VISIBILITY extern const std::string PROFIL
 FMK_FUNC_HOST_VISIBILITY FMK_FUNC_DEV_VISIBILITY extern const std::string PROFILE_STOP_VALUE;
 FMK_FUNC_HOST_VISIBILITY FMK_FUNC_DEV_VISIBILITY extern const std::map<std::string, std::string> PROFILE_COMPONENT_MAP;
 FMK_FUNC_HOST_VISIBILITY FMK_FUNC_DEV_VISIBILITY extern const std::string PROFILE_CONFIG;
+FMK_FUNC_HOST_VISIBILITY FMK_FUNC_DEV_VISIBILITY extern const std::string PROFILE_MODEL_ID;
 
 FMK_FUNC_HOST_VISIBILITY FMK_FUNC_DEV_VISIBILITY extern const std::string MODEL_ATTR_TASKS;
 FMK_FUNC_HOST_VISIBILITY FMK_FUNC_DEV_VISIBILITY extern const std::string MODEL_ATTR_TASK_GEN_BASE_ADDR;
@@ -449,6 +449,7 @@ REGISTER_OPTYPE_DECLARE(MEMCPYASYNC, "MemcpyAsync");
 REGISTER_OPTYPE_DECLARE(MEMCPYADDRASYNC, "MemcpyAddrAsync");
 REGISTER_OPTYPE_DECLARE(STREAMMERGE, "StreamMerge");
 REGISTER_OPTYPE_DECLARE(ENDGRAPH, "EndGraph");
+REGISTER_OPTYPE_DECLARE(MODELEXIT, "ModelExit");
 REGISTER_OPTYPE_DECLARE(SEND, "Send");
 REGISTER_OPTYPE_DECLARE(RECV, "Recv");
 REGISTER_OPTYPE_DECLARE(ENDOFSEQUENCE, "EndOfSequence");
@@ -524,7 +525,13 @@ REGISTER_OPTYPE_DECLARE(HVDCALLBACKALLGATHER, "HorovodAllgather");
 REGISTER_OPTYPE_DECLARE(HVDCALLBACKBROADCAST, "HorovodBroadcast");
 REGISTER_OPTYPE_DECLARE(HVDWAIT, "HorovodWait");
 
-enum InputMode { INPUT = 0, CONST };
+// aicpu op for online_infer dynamic_dims
+REGISTER_OPTYPE_DECLARE(GETDYNAMICDIMS, "GetDynamicDims");
+
+// profiling training trace node
+REGISTER_OPTYPE_DECLARE(PROFILINGTRAININGTRACE, "ProfilingTrainingTrace");
+
+enum InputMode { INPUT = 0, CONST_INPUT};
 
 // Definition of the processing status enum of the process module
 enum ModelProcessState {
@@ -566,10 +573,10 @@ enum ModelCheckType {
 /// @brief dynamic input type
 ///
 enum DynamicInputType {
-    FIXED = 0,   // default mode
-    DYNAMIC_BATCH = 1,
-    DYNAMIC_IMAGE = 2,
-    DYNAMIC_DIMS = 3
+  FIXED = 0,  // default mode
+  DYNAMIC_BATCH = 1,
+  DYNAMIC_IMAGE = 2,
+  DYNAMIC_DIMS = 3
 };
 
 ///

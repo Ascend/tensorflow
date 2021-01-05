@@ -18,18 +18,21 @@
 #define INC_EXTERNAL_REGISTER_REGISTER_TYPES_H_
 
 namespace domi {
-#ifdef HOST_VISIBILITY
+#if(defined(HOST_VISIBILITY)) && (defined(__GNUC__))
 #define FMK_FUNC_HOST_VISIBILITY __attribute__((visibility("default")))
 #else
 #define FMK_FUNC_HOST_VISIBILITY
 #endif
-#ifdef DEV_VISIBILITY
+#if(defined(DEV_VISIBILITY)) && (defined(__GNUC__))
 #define FMK_FUNC_DEV_VISIBILITY __attribute__((visibility("default")))
 #else
 #define FMK_FUNC_DEV_VISIBILITY
 #endif
-
-/// CCE defined constant
+#ifdef __GNUC__
+#define ATTRIBUTED_DEPRECATED(replacement) __attribute__((deprecated("Please use " #replacement " instead.")))
+#else
+#define ATTRIBUTED_DEPRECATED(replacement) __declspec(deprecated("Please use " #replacement " instead."))
+#endif
 
 ///
 /// @ingroup domi

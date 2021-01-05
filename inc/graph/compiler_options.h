@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Huawei Technologies Co., Ltd
+ * Copyright 2020 Huawei Technologies Co., Ltd
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef INC_EXTERNAL_GRAPH_GE_ERROR_CODES_H_
-#define INC_EXTERNAL_GRAPH_GE_ERROR_CODES_H_
+#ifndef INC_GRAPH_COMPILER_OPTIONS_H_
+#define INC_GRAPH_COMPILER_OPTIONS_H_
 
 namespace ge {
-#if(defined(HOST_VISIBILITY)) && (defined(__GNUC__))
+#ifdef __GNUC__
+#define METADEF_ATTRIBUTE_UNUSED __attribute__((unused))
+#define METADEF_FUNCTION_IDENTIFIER __PRETTY_FUNCTION__
+#define METADEF_BUILTIN_PREFETCH(args_addr) __builtin_prefetch(args_addr)
+
+#ifdef HOST_VISIBILITY
 #define GE_FUNC_HOST_VISIBILITY __attribute__((visibility("default")))
 #else
 #define GE_FUNC_HOST_VISIBILITY
 #endif
-#if(defined(DEV_VISIBILITY)) && (defined(__GNUC__))
+
+#ifdef DEV_VISIBILITY
 #define GE_FUNC_DEV_VISIBILITY __attribute__((visibility("default")))
 #else
 #define GE_FUNC_DEV_VISIBILITY
 #endif
-#ifdef __GNUC__
-#define ATTRIBUTED_DEPRECATED(replacement) __attribute__((deprecated("Please use " #replacement " instead.")))
-#else
-#define ATTRIBUTED_DEPRECATED(replacement) __declspec(deprecated("Please use " #replacement " instead."))
-#endif
 
-using graphStatus = uint32_t;
-const graphStatus GRAPH_FAILED = 0xFFFFFFFF;
-const graphStatus GRAPH_SUCCESS = 0;
-const graphStatus GRAPH_NOT_CHANGED = 1343242304;
-const graphStatus GRAPH_PARAM_INVALID = 50331649;
-const graphStatus GRAPH_NODE_WITHOUT_CONST_INPUT = 50331648;
+#else // WINDOWS
+#define METADEF_ATTRIBUTE_UNUSED
+#define METADEF_FUNCTION_IDENTIFIER __FUNCSIG__
+#define METADEF_BUILTIN_PREFETCH(args_addr)
+#define GE_FUNC_HOST_VISIBILITY
+#define GE_FUNC_DEV_VISIBILITY
+#endif
 }  // namespace ge
 
-#endif  // INC_EXTERNAL_GRAPH_GE_ERROR_CODES_H_
+#endif  // INC_GRAPH_COMPILER_OPTIONS_H_

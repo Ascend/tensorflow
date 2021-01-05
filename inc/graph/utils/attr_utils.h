@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
 #include "graph/detail/attributes_holder.h"
 #include "graph/ge_attr_value.h"
 #include "graph/types.h"
@@ -117,6 +118,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY AttrUtils {
   static OpDescPtr CopyOpDesc(const ConstOpDescPtr &orgOpDesc);
 
   static std::string GetAllAttrsStr(ConstAttrHolderAdapter &&obj);
+  static std::string GetAttrsStrAfterRid(ConstAttrHolderAdapter &&obj, const std::set<std::string> &un_compute_attrs);
 
   class AttrHolderAdapter {
    public:
