@@ -16,9 +16,8 @@ import os
 import pandas as pd
 import tkinter as tk
 from tkinter.filedialog import askdirectory
-from  tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename
 from tkintertable import TableCanvas
-import xlrd
 
 class Analyse(object):
     def __init__(self, parent):
@@ -95,14 +94,7 @@ class Analyse(object):
         if not os.path.exists(report_path):
             print("No api analysis report generated.")
             return
-
-        wb = xlrd.open_workbook(report_path)
-        sheets = wb.sheet_names()
-        report = pd.DataFrame()
-        for item in sheets:
-            rpt = pd.read_excel(report_path, sheet_name=item)
-            report = report.append(rpt)
-
+        report = pd.read_excel(report_path)
         file_index = report['序号'].values.tolist()
         file_name = report['脚本文件名'].values.tolist()
         code_line = report['代码行'].values.tolist()

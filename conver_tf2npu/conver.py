@@ -20,6 +20,8 @@ from file_op import mkdir_and_copyfile
 from file_op import write_report_terminator
 from file_op import abs_join
 import pandas as pd
+from file_op import get_api_statistic
+from file_op import adjust_index
 
 def conver():
     print("Begin conver, input file: " + util_global.get_value('input'))
@@ -30,15 +32,15 @@ def conver():
     report_dir = util_global.get_value('report')
     mkdir(report_dir)
     report_xlsx = os.path.join(report_dir, 'api_analysis_report.xlsx')
-    util_global.set_value('count_api', 0)
-    xlsx_writer = pd.ExcelWriter(report_xlsx)
+    util_global.set_value('generate_dir_report', pd.DataFrame())
+
     for path, dir_list, file_list in conver_path:
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(dst_path)[1])
             if file_name.endswith(".py"):
                 util_global.set_value('path', os.path.join(path, file_name))
                 mkdir(os.path.join(out_path, out_path_dst))
-                conver_ast(path, out_path_dst, file_name, xlsx_writer)
+                conver_ast(path, out_path_dst, file_name)
                 if util_global.get_value('need_conver', False):
                     content = "Finish conver file: " + os.path.join(path, file_name)
                     print(content)
@@ -47,7 +49,9 @@ def conver():
                     mkdir_and_copyfile(path, abs_join(out_path, out_path_dst), file_name)
             else:
                 mkdir_and_copyfile(path, abs_join(out_path, out_path_dst), file_name)
-    if util_global.get_value('count_api'):
-        xlsx_writer.save()
-        xlsx_writer.close()
+
+    adjust_index()
+    analysis_report = util_global.get_value('generate_dir_report')
+    analysis_report.to_excel(report_xlsx, index=True)
+    get_api_statistic(analysis_report)
     print("Finish conver, output file: " + out_path + "; report file: " + util_global.get_value('report'))

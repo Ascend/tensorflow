@@ -49,25 +49,13 @@ def get_tf_api(file_name):
     visitor = VisitByAst()
     visitor.visit(tree)
 
-    p1 = re.compile('import tensorflow')
-    p2 = re.compile('import tensorflow.compat.v1')
-
-    # get name of imported tensorflow
-    import_list = []
-    for line in open(file_name, 'r', encoding='utf-8'):
-        match1 = re.search(p1, line.strip())
-        match2 = re.search(p2, line.strip())
-
-        if match1 or match2:
-            line_split = line.strip().split(' ')
-            import_list.append(line_split[-1])
-
     # get tensorflow related api
     api = []
     lineno = []
+    import_list = ['tf']
     for module in import_list:
         for i in range(len(visitor.calls)):
-            if module + '.' in visitor.calls[i]:
+            if module + '.' in visitor.calls[i] and visitor.calls[i].split('.')[0] == module:
                 api.append(visitor.calls[i])
                 lineno.append(visitor.linenos[i])
     return api, lineno

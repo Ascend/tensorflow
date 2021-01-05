@@ -89,7 +89,7 @@ def abs_join(abs1, abs2):
     abs2 = abs2.strip('\\/') or abs2
     return os.path.join(abs1, abs2)
 
-def scan_file(file_name, api, lineno, xlsx_writer):
+def scan_file(file_name, api, lineno):
     api_list = pd.read_excel(util_global.get_value('list'))
     api_module = api_list['模块名'].values.tolist()
     api_name = api_list['API名'].values.tolist()
@@ -104,6 +104,7 @@ def scan_file(file_name, api, lineno, xlsx_writer):
     migrate_advice = []
     for i in range(len(api)):
         name = api[i]
+        class_name = '.'.join(name.split('.')[:-1])
         script_name.append(file_name)
         code_api.append(name)
         code_line.append(lineno[i])
@@ -111,23 +112,36 @@ def scan_file(file_name, api, lineno, xlsx_writer):
             code_module.append(api_module[api_name.index(name)])
             support_type.append(api_support[api_name.index(name)])
             migrate_advice.append(api_advice[api_name.index(name)])
+        elif class_name in api_name:
+            code_module.append(api_module[api_name.index(class_name)])
+            support_type.append(api_support[api_name.index(class_name)])
+            migrate_advice.append(api_advice[api_name.index(class_name)])
         else:
             code_module.append('Unknown')
-            support_type.append('不支持')
+            support_type.append('NA')
             migrate_advice.append('Unknown')
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
                                    '支持度': support_type, '迁移建议': migrate_advice})
-    analyse_result.index.name = '序号'
-    analyse_result.index = analyse_result.index + 1  #index start from 1
-
-    report_txt = 'api_brief_report.txt'
 
     # when there are tf apis used in script, analysis report will be generated
+    report = util_global.get_value('generate_dir_report')
     if len(script_name):
-        analyse_result.to_excel(xlsx_writer, index=True, sheet_name=file_name)
-        count_api = util_global.get_value('count_api') + 1
-        util_global.set_value('count_api', count_api)
+        report = report.append(analyse_result)
+        util_global.set_value('generate_dir_report', report)
+
+def adjust_index():
+    report = util_global.get_value('generate_dir_report')
+    index_column = []
+    for i in range(len(report)):
+        index_column.append(i+1)
+    report.index = index_column
+    report.index.name = '序号'
+    util_global.set_value('generate_dir_report', report)
+
+def get_api_statistic(analysis_report):
+    code_api = analysis_report['API名'].values.tolist()
+    support_type = analysis_report['支持度'].values.tolist()
 
     # eliminate duplicated data
     eliminate_dup_api = []
@@ -140,17 +154,18 @@ def scan_file(file_name, api, lineno, xlsx_writer):
     # api statistics
     api_analysis = "1.In brief: Total API: {}, in which Support: {}, " \
                    "Support after migrated by tool: {}, Support after migrated manually: {}, " \
-                   "Analysing: {}, Unsupport: {}, Deprecated: {}".format(len(code_api),
+                   "Analysing: {}, Unsupport: {}, Deprecated: {}, NA: {}".format(len(code_api),
                    support_type.count('支持'), support_type.count('支持但需工具迁移'),
                    support_type.count('支持但需手工迁移'), support_type.count('分析中'),
-                   support_type.count('不支持'), support_type.count('废弃'))
+                   support_type.count('不支持'), support_type.count('废弃'), support_type.count('NA'))
 
     api_eliminate_dup = "2.After eliminate duplicate: Total API: {}, in which Support: {}, " \
                         "Support after migrated by tool: {}, Support after migrated manually: {}, " \
-                        "Analysing: {}, Unsupport: {}, Deprecated: {}".format(len(eliminate_dup_api),
+                        "Analysing: {}, Unsupport: {}, Deprecated: {}, NA: {}".format(len(eliminate_dup_api),
                         eliminate_dup_type.count('支持'), eliminate_dup_type.count('支持但需工具迁移'),
                         eliminate_dup_type.count('支持但需手工迁移'), eliminate_dup_type.count('分析中'),
-                        eliminate_dup_type.count('不支持'), eliminate_dup_type.count('废弃'))
-    content = (util_global.get_value('path') + '\n' + api_analysis + '\n' + api_eliminate_dup)
+                        eliminate_dup_type.count('不支持'), eliminate_dup_type.count('废弃'),
+                        eliminate_dup_type.count('NA'))
+    content = (api_analysis + '\n' + api_eliminate_dup)
     print(content)
-    write_analysis_report(content, report_txt)
+    write_analysis_report(content, 'api_brief_report.txt')
