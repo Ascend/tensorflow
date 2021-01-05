@@ -62,6 +62,8 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
 
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
+
+  LOG(INFO) << "yuxing log test";
   ADP_LOG(INFO) << "NpuAttrs job is " << job;
   if (job == "ps" || job == "default") {
     ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : GetAttrOptimizePass.";
