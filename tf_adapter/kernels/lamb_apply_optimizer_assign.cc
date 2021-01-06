@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class LambApplyOptimizerAssignOp : public OpKernel {
@@ -33,7 +34,7 @@ class LambApplyOptimizerAssignOp : public OpKernel {
   explicit LambApplyOptimizerAssignOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~LambApplyOptimizerAssignOp() override = default;
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "LambApplyOptimizerAssignOp Compute, num_inputs: " << context->num_inputs();
+    ADP_LOG(INFO) << "LambApplyOptimizerAssignOp Compute, num_inputs: " << context->num_inputs();
   }
   bool IsExpensive() override { return false; }
 };

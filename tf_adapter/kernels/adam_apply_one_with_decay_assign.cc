@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class AdamApplyOneWithDecayAssignOp : public OpKernel {
@@ -33,7 +34,7 @@ class AdamApplyOneWithDecayAssignOp : public OpKernel {
   explicit AdamApplyOneWithDecayAssignOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~AdamApplyOneWithDecayAssignOp() override = default;
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "AdamApplyOneWithDecayAssignOp Compute, num_inputs: " << context->num_inputs();
+    ADP_LOG(INFO) << "AdamApplyOneWithDecayAssignOp Compute, num_inputs: " << context->num_inputs();
   }
   bool IsExpensive() override { return false; }
 };

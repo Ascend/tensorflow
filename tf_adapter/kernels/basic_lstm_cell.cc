@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class BasicLSTMCellOp : public OpKernel {
@@ -33,7 +34,7 @@ class BasicLSTMCellOp : public OpKernel {
   explicit BasicLSTMCellOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~BasicLSTMCellOp() override = default;
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "BasicLSTMCellOp Compute, num_inputs: " << context->num_inputs();
+    ADP_LOG(INFO) << "BasicLSTMCellOp Compute, num_inputs: " << context->num_inputs();
   }
   bool IsExpensive() override { return false; }
 };
