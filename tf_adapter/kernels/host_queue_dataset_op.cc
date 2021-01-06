@@ -36,6 +36,7 @@ limitations under the License.
 #include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include <dlfcn.h>
@@ -66,7 +67,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
-    LOG(INFO) << "Start to init tdt.";
+    ADP_LOG(INFO) << "Start to init tdt.";
     uint32_t device_id = 0;
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
     int32_t tdt_status = TdtHostInit(device_id);
@@ -74,13 +75,14 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     tdt_release = false;
   }
   ~HostQueueDatasetOp() {
-    LOG(INFO) << "Start to destroy tdt.";
+    ADP_LOG(INFO) << "Start to destroy tdt.";
     if (!tdt_release) {
       int32_t tdt_status = TdtHostDestroy();
       if (tdt_status != 0) {
+        ADP_LOG(ERROR) << "Tdt client close failed.";
         LOG(ERROR) << "Tdt client close failed.";
       } else {
-        LOG(INFO) << "Tdt client close success.";
+        ADP_LOG(INFO) << "Tdt client close success.";
         tdt_release = true;
       }
     }
@@ -143,7 +145,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           cancelled_ = true;
           cond_var_.notify_all();
         }
-        LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
+        ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
 
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
@@ -169,10 +171,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
           if (!buffer_element.status.ok() || (buffer_element.status.ok() && end_of_sequence)) {
             if (!buffer_element.status.ok()) {
+              ADP_LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
               LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
             } else {
-              LOG(INFO) << "Finish to get tensor data, Status:" << buffer_element.status.ToString()
-                        << "; end_of_sequence:" << end_of_sequence;
+              ADP_LOG(INFO) << "Finish to get tensor data, Status:" << buffer_element.status.ToString()
+                            << "; end_of_sequence:" << end_of_sequence;
             }
             mutex_lock lck(mu_);
             buffer_element.host_thread_finished = true;
@@ -185,6 +188,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             mutex_lock lck(mu_);
             for (auto &tensor : args) {
               if (tensor.TotalBytes() > UINT64_MAX - total_bytes_) {
+                ADP_LOG(ERROR) << "The size of tensor is too big";
                 LOG(ERROR) << "The size of tensor is too big";
                 buffer_element.host_thread_finished = true;
                 buffer_.push_back(std::move(buffer_element));
@@ -210,9 +214,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               RecordStart(ctx.get());
             }
             if (cancelled_ || finish_send_) {
-              LOG(INFO) << "Host queue " << dataset()->channel_name_
-                        << " push data thread exit with cancelled: " << cancelled_ << ", finished:" << finish_send_
-                        << " when wait data.";
+              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_
+                            << " push data thread exit with cancelled: " << cancelled_ << ", finished:" << finish_send_
+                            << " when wait data.";
               return;
             }
             if (buffer_.front().host_thread_finished) {
@@ -220,14 +224,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               DataItem end_item;
               if (buffer_.front().status.ok()) {
                 end_item.dataType_ = TDT_END_OF_SEQUENCE;
-                LOG(INFO) << "Push data finish, end_of_sequence_ is true.";
+                ADP_LOG(INFO) << "Push data finish, end_of_sequence_ is true.";
               } else {
                 end_item.dataType_ = TDT_ABNORMAL;
+                ADP_LOG(ERROR) << "Get data failed " << buffer_.front().status.ToString();
                 LOG(ERROR) << "Get data failed " << buffer_.front().status.ToString();
               }
               items.emplace_back(end_item);
               int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items);
-              if (tdt_status != 0) { LOG(INFO) << "End training as tdt host push end data failed " << tdt_status; }
+              if (tdt_status != 0) { ADP_LOG(INFO) << "End training as tdt host push end data failed " << tdt_status; }
               cancelled_ = true;
               cond_var_.notify_all();
               return;
@@ -252,6 +257,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                   std::shared_ptr<void>(const_cast<char *>(tensor.tensor_data().data()), [](void *elem) {});
             } else if (tensor.dtype() == DT_STRING) {
               if (tensor.dims() != 0) {
+                ADP_LOG(ERROR) << "input of DT_STRING type should be scalar,"
+                                  " current dims:"
+                               << tensor.dims();
                 LOG(ERROR) << "input of DT_STRING type should be scalar,"
                               " current dims:"
                            << tensor.dims();
@@ -264,6 +272,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               data_item.dataLen_ = value.size();
               data_item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](void *elem) {});
             } else {
+              ADP_LOG(ERROR) << "Unexpected data type " << DataTypeString(tensor.dtype());
               LOG(ERROR) << "Unexpected data type " << DataTypeString(tensor.dtype());
               mutex_lock lck(mu_);
               cancelled_ = true;
@@ -276,7 +285,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           // call tdt interface
           int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items);
           if (tdt_status != 0) {
-            LOG(INFO) << "End training as tdt host push data finished: " << tdt_status;
+            ADP_LOG(INFO) << "End training as tdt host push data finished: " << tdt_status;
             mutex_lock lck(mu_);
             cancelled_ = true;
             cond_var_.notify_all();
@@ -314,12 +323,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       Status Initialize(IteratorContext *ctx) override {
-        LOG(INFO) << "Start to check channel name. channelName: " << dataset()->channel_name_;
+        ADP_LOG(INFO) << "Start to check channel name. channelName: " << dataset()->channel_name_;
         if (dataset()->channel_name_.empty()) {
           return errors::InvalidArgument("HostQueueDataset channel_name is null.");
         }
 
-        LOG(INFO) << "Start to check receive and send thread.";
+        ADP_LOG(INFO) << "Start to check receive and send thread.";
         try {
           input_impls_.resize(dataset()->inputs_.size());
         } catch (...) { return errors::InvalidArgument("HostQueueDataset resize failed."); }
@@ -334,13 +343,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           TF_RETURN_IF_ERROR(EnsureSendThreadStarted(ctx));
         }
 
-        LOG(INFO) << "HostQueue success to Initialize. channelName: " << dataset()->channel_name_;
+        ADP_LOG(INFO) << "HostQueue success to Initialize. channelName: " << dataset()->channel_name_;
         return Status::OK();
       }
 
       Status GetNextInternal(IteratorContext *ctx, vector<Tensor> *outTensors, bool *endOfSequence) override {
         *endOfSequence = false;
-        LOG(INFO) << "HostQueue Get Next data.";
+        ADP_LOG(INFO) << "HostQueue Get Next data.";
         return Status::OK();
       }
 

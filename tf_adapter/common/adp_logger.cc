@@ -25,19 +25,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/core/framework/op_kernel.h"
 #include "tf_adapter/common/adp_logger.h"
+#include "toolchain/slog.h"
 
-namespace tensorflow {
-class AdamApplyOneAssignOp : public OpKernel {
- public:
-  explicit AdamApplyOneAssignOp(OpKernelConstruction *context) : OpKernel(context) {}
-  ~AdamApplyOneAssignOp() override = default;
-  void Compute(OpKernelContext *context) override {
-    ADP_LOG(INFO) << "AdamApplyOneAssignOp Compute, num_inputs: " << context->num_inputs();
-  }
-  bool IsExpensive() override { return false; }
-};
-
-REGISTER_KERNEL_BUILDER(Name("AdamApplyOneAssign").Device(DEVICE_CPU), AdamApplyOneAssignOp);
-}  // namespace tensorflow
+AdapterLogger::~AdapterLogger(){
+  DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
+}

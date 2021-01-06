@@ -42,6 +42,7 @@ limitations under the License.
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/lib/random/simple_philox.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
@@ -191,14 +192,14 @@ bool DpTfToGEConversionPassImpl::CheckMakeIteratorNode(Node *&n) const {
     for (const Edge *e : n->in_edges()) {  // MakeIterator is contains group_deps
       if (e == nullptr || e->src() == nullptr) { continue; }
       if (str_util::StartsWith(e->src()->def().name(), DP_INIT_GRAPH_MARK)) {
-        LOG(INFO) << "Remove node: " << n->type_string();
+        ADP_LOG(INFO) << "Remove node: " << n->type_string();
         n = e->src();
         if (e->IsControlEdge()) {
           graph_->RemoveControlEdge(e);
         } else {
           graph_->RemoveEdge(e);
         }
-        LOG(INFO) << "PruneForReverseReachability node: " << n->type_string();
+        ADP_LOG(INFO) << "PruneForReverseReachability node: " << n->type_string();
         PruneForReverseReachability(&*graph_, {n});
         return true;
       }
@@ -290,19 +291,21 @@ bool DpTfToGEConversionPassImpl::IsDeviceSupportedOp(const NodeDef &n) const {
   const OpRegistrationData *op_reg_data = nullptr;
   // Tenorflow original op
   if (OpRegistry::Global() == nullptr) {
+    ADP_LOG(ERROR) << "OpRegistry global is nullptr";
     LOG(ERROR) << "OpRegistry global is nullptr";
     return false;
   }
   if (OpRegistry::Global()->LookUp(n.op(), &op_reg_data).ok()) {
     // Node in GE supported
     if (!CheckNode(n.op())) {
-      LOG(INFO) << "Node [" << n.name() << "] op [" << n.op() << "] not supported by GE";
+      ADP_LOG(INFO) << "Node [" << n.name() << "] op [" << n.op() << "] not supported by GE";
       return false;
     } else {  // Top node supported by GE, check its owned function
       for (auto &attr : n.attr()) {
         if (attr.second.has_func()) {
           if (!IsDeviceSupportedFunc(attr.second.func().name())) {
-            LOG(INFO) << "Node [" << n.name() << "] function [" << attr.second.func().name() << "] not supported by GE";
+            ADP_LOG(INFO) << "Node [" << n.name() << "] function [" << attr.second.func().name()
+                          << "] not supported by GE";
             return false;
           }
         }
@@ -310,7 +313,7 @@ bool DpTfToGEConversionPassImpl::IsDeviceSupportedOp(const NodeDef &n) const {
     }
   } else {  // Not tenorflow original op, this must be a function node
     if (!IsDeviceSupportedFunc(n.op())) {
-      LOG(INFO) << "Node [" << n.name() << "] op [" << n.op() << "] is not a supported function by GE";
+      ADP_LOG(INFO) << "Node [" << n.name() << "] op [" << n.op() << "] is not a supported function by GE";
       return false;
     }
   }
@@ -321,13 +324,14 @@ bool DpTfToGEConversionPassImpl::IsDeviceSupportedFunc(const std::string &fn) co
   const FunctionDef *fdef = flib_def_->Find(fn);
   // Node contains not found function
   if (fdef == nullptr) {
+    ADP_LOG(ERROR) << "Function [" << fn << "] not found";
     LOG(ERROR) << "Function [" << fn << "] not found";
     return false;
   }
   // Recursive check function node
   for (const NodeDef &node : fdef->node_def()) {
     if (!IsDeviceSupportedOp(node)) {
-      LOG(INFO) << "Function [" << fn << "] node [" << node.name() << "] not supported by GE";
+      ADP_LOG(INFO) << "Function [" << fn << "] node [" << node.name() << "] not supported by GE";
       return false;
     }
   }
@@ -341,7 +345,7 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
       REQUIRES_NOT_NULL(e);
       if (!IsIteratorNode(e->src())) {
         last_edge = e;
-        LOG(INFO) << strings::StrCat("last edge", GetEdgeName(last_edge));
+        ADP_LOG(INFO) << strings::StrCat("last edge", GetEdgeName(last_edge));
       }
     }
   }
@@ -360,13 +364,13 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
         Status s = GetSplitEdges(e->src(), split_edges, last_edge);
         if (!s.ok()) { return s; }
       } else {  // GE unsupported node, this is a split edge
-        LOG(INFO) << strings::StrCat("Split_", GetEdgeName(e));
-        LOG(INFO) << "Begin check split edge.";
+        ADP_LOG(INFO) << strings::StrCat("Split_", GetEdgeName(e));
+        ADP_LOG(INFO) << "Begin check split edge.";
         if (IsSkipDataset(e->dst())) {
-          LOG(INFO) << "ADD last edge " << GetEdgeName(last_edge);
+          ADP_LOG(INFO) << "ADD last edge " << GetEdgeName(last_edge);
           split_edges.push_back(last_edge);
         } else {
-          LOG(INFO) << "ADD last edge " << GetEdgeName(e);
+          ADP_LOG(INFO) << "ADD last edge " << GetEdgeName(e);
           split_edges.push_back(e);
         }
       }
@@ -377,7 +381,7 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
 
 Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
                                                       std::string &device_queue_name) const {
-  LOG(INFO) << "Start to insert HostQueueDataset and DeviceQueueDataset.";
+  ADP_LOG(INFO) << "Start to insert HostQueueDataset and DeviceQueueDataset.";
   for (const Edge *e : split_edges_.at(topo_end)) {
     REQUIRES_NOT_NULL(e);
     REQUIRES_NOT_NULL(e->src());
@@ -385,7 +389,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
     std::string queue_name = strings::StrCat("Queue_", GetEdgeName(e), "_", GetRandomName());
     host_queue_name = strings::StrCat("Host", queue_name);
     device_queue_name = strings::StrCat("Device", queue_name);
-    LOG(INFO) << "Add_" << host_queue_name;
+    ADP_LOG(INFO) << "Add_" << host_queue_name;
     // Host and Device queue should save type and shape
     auto m_src = e->src()->def().attr();
     bool type_status = false;
@@ -403,7 +407,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
                     .Attr("output_shapes", m_src["output_shapes"])
                     .Finalize(&*graph_, &queue_node_host));
     REQUIRES_NOT_NULL(queue_node_host);
-    LOG(INFO) << "Add_" << device_queue_name;
+    ADP_LOG(INFO) << "Add_" << device_queue_name;
     Node *queue_node_device = nullptr;
     // Make sure that 'queue_name' of host and device queue be same
     TF_CHECK_OK(NodeBuilder(device_queue_name, "DeviceQueueDataset")
@@ -421,18 +425,18 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
 
 Status DpTfToGEConversionPassImpl::RemoveNotSupportDataset(Graph *g, const std::string &device_queue_dataset,
                                                            const std::string &make_iterator) const {
-  LOG(INFO) << "Begin RemoveSplitDataset.";
+  ADP_LOG(INFO) << "Begin RemoveSplitDataset.";
   // find device_queue_dataset and make_iterator
   Node *node = nullptr;
   Node *topo_end = nullptr;
   for (Node *n : g->op_nodes()) {
     REQUIRES_NOT_NULL(n);
     if (n->type_string() == "DeviceQueueDataset" && n->name() == device_queue_dataset) {
-      LOG(INFO) << "device queue dataset node is " << n->name();
+      ADP_LOG(INFO) << "device queue dataset node is " << n->name();
       node = n;
     }
     if (n->type_string() == "MakeIterator" && n->name() == make_iterator) {
-      LOG(INFO) << "make iterator node is " << n->name();
+      ADP_LOG(INFO) << "make iterator node is " << n->name();
       topo_end = n;
     }
   }
@@ -446,6 +450,7 @@ Status DpTfToGEConversionPassImpl::RemoveNotSupportDataset(Graph *g, const std::
       end_dataset = node;
     }
     if (node->num_outputs() != 1) {
+      ADP_LOG(ERROR) << "Invalid node " << node->name() << ", op is" << node->type_string();
       LOG(ERROR) << "Invalid node " << node->name() << ", op is" << node->type_string();
       return errors::InvalidArgument("RemoveSplitDataset: find invalid node.");
     }
@@ -456,21 +461,21 @@ Status DpTfToGEConversionPassImpl::RemoveNotSupportDataset(Graph *g, const std::
     node = edge->dst();
   }
   if (delete_nodes.empty()) {
-    LOG(INFO) << "all sink datasets are supported.";
+    ADP_LOG(INFO) << "all sink datasets are supported.";
     return Status::OK();
   }
   for (Node *n : delete_nodes) {
-    LOG(INFO) << "ready to remove node " << n->name();
+    ADP_LOG(INFO) << "ready to remove node " << n->name();
     g->RemoveNode(n);
   }
-  LOG(INFO) << "end dataset node is " << end_dataset->name();
+  ADP_LOG(INFO) << "end dataset node is " << end_dataset->name();
   REQUIRES_NOT_NULL(g->AddEdge(end_dataset, 0, topo_end, 0));
   return Status::OK();
 }
 
 void DpTfToGEConversionPassImpl::RemoveSplitEdges(Node *topo_end) {
   for (const Edge *e : split_edges_.at(topo_end)) {
-    LOG(INFO) << "Remove_" << GetEdgeName(e);
+    ADP_LOG(INFO) << "Remove_" << GetEdgeName(e);
     graph_->RemoveEdge(e);
   }
 }
@@ -508,7 +513,7 @@ bool DpTfToGEConversionPassImpl::GetNodeFuncs(const FunctionLibraryDefinition *f
 
 bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
                                          std::map<std::string, std::string> all_options) {
-  LOG(INFO) << ">>>> DpTfToGEConversionPassImpl::RunPass <<<<";
+  ADP_LOG(INFO) << ">>>> DpTfToGEConversionPassImpl::RunPass <<<<";
   // Convert just for convenient access
   split_edges_.clear();
   graph_ = &**g;
@@ -521,7 +526,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
       for (Node *in_node : node->in_nodes()) {
         if (IsIteratorNode(in_node)) {
           topo_ends.push_back(node);
-          LOG(INFO) << "Insert topo end node " << node->name();
+          ADP_LOG(INFO) << "Insert topo end node " << node->name();
           break;
         }
       }
@@ -529,11 +534,11 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
   }
   // After traversal, topo_ends should store MakeIterator Nodes.
   if (topo_ends.empty()) {
-    LOG(INFO) << "Do not find MakeIterator <- IteratorV2 connects in the graph,"
+    ADP_LOG(INFO) << "Do not find MakeIterator <- IteratorV2 connects in the graph,"
               << " pass datapreprocess pass.";
     return true;
   }
-  LOG(INFO) << "Start to write graph's pbtxt before optimization.";
+  ADP_LOG(INFO) << "Start to write graph's pbtxt before optimization.";
 
   const char *need_print = getenv("PRINT_MODEL");
   if (nullptr != need_print && strcmp("1", need_print) == 0) {
@@ -544,10 +549,10 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     TF_DO_CHECK_OK(WriteTextProto(Env::Default(), pmodel_path, before_graphdef), ERROR);
   }
 
-  LOG(INFO) << "Start to optimize dp_init topological graph";
+  ADP_LOG(INFO) << "Start to optimize dp_init topological graph";
   for (Node *topo_end : topo_ends) {
     // Get all edges that should be replace with HostQueue->DeviceQueue
-    LOG(INFO) << "Start to find split edges, topo_end node is : " << topo_end->name() << ", op is "
+    ADP_LOG(INFO) << "Start to find split edges, topo_end node is : " << topo_end->name() << ", op is "
               << topo_end->type_string();
     const Edge *tmp_edge = nullptr;
     TF_DO_CHECK_OK(GetSplitEdges(topo_end, split_edges_[topo_end], tmp_edge), ERROR);
@@ -555,20 +560,21 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     const string DEFAULT_DEVICE = topo_end->def().device();
     // Start optimize graph
     // Insert Host and Device queue
-    LOG(INFO) << "Start to add host and device queue on split edges";
+    ADP_LOG(INFO) << "Start to add host and device queue on split edges";
     std::string host_queue_name;
     std::string device_queue_name;
     TF_DO_CHECK_OK(InsertChannelQueue(topo_end, host_queue_name, device_queue_name), ERROR);
-    LOG(INFO) << "host queue name is " << host_queue_name;
-    LOG(INFO) << "device queue name is " << device_queue_name;
+    ADP_LOG(INFO) << "host queue name is " << host_queue_name;
+    ADP_LOG(INFO) << "device queue name is " << device_queue_name;
     // Remove all split edges
-    LOG(INFO) << "Start to remove split edges";
+    ADP_LOG(INFO) << "Start to remove split edges";
     RemoveSplitEdges(topo_end);
 
     // Make a copy of graph for pruned GE
-    LOG(INFO) << "Start to prune GE graph";
+    ADP_LOG(INFO) << "Start to prune GE graph";
     std::unique_ptr<Graph> graph_ge(new (std::nothrow) Graph(OpRegistry::Global()));
     if (graph_ge == nullptr) {
+      ADP_LOG(ERROR) << "new graph ge failed";
       LOG(ERROR) << "new graph ge failed";
       return false;
     }
@@ -583,18 +589,19 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     }
     TF_DO_CHECK_OK(RemoveNotSupportDataset(&*graph_ge, device_queue_name, topo_end->name()), ERROR);
 
-    LOG(INFO) << "Start to to PruneForReverseReachability.";
+    ADP_LOG(INFO) << "Start to to PruneForReverseReachability.";
     PruneForReverseReachability(&*graph_ge, visiable_ge);
     // add function_def begin
-    LOG(INFO) << "Start to add function_def for GEOP's func";
+    ADP_LOG(INFO) << "Start to add function_def for GEOP's func";
     FunctionDefLibrary fdeflib;
     for (auto node : graph_ge->nodes()) {
       std::vector<string> node_funcs;
       if (GetNodeFuncs(flib, node, node_funcs)) {
-        LOG(INFO) << "Node [" << node->name() << "] has func:";
+        ADP_LOG(INFO) << "Node [" << node->name() << "] has func:";
         for (const auto &func : node_funcs) {
           FunctionDef *fdef = fdeflib.add_function();
           if (flib->Find(func) == nullptr) {
+            ADP_LOG(ERROR) << "function def is nullptr";
             LOG(ERROR) << "function def is nullptr";
             return false;
           }
@@ -610,17 +617,19 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     std::string iterator_name = "";
     for (auto in_node : topo_end->in_nodes()) {
       if (in_node == nullptr) {
+        ADP_LOG(ERROR) << "topo end node is nullptr";
         LOG(ERROR) << "topo end node is nullptr";
         return false;
       }
-      LOG(INFO) << "in_node name is " << in_node->name();
+      ADP_LOG(INFO) << "in_node name is " << in_node->name();
       if (IsIteratorNode(in_node)) {
         iterator_name = in_node->name();
-        LOG(INFO) << "iterator name is " << iterator_name;
+        ADP_LOG(INFO) << "iterator name is " << iterator_name;
         break;
       }
     }
     if (iterator_name.empty()) {
+      ADP_LOG(ERROR) << "There is no connection between MakeIteraotr and IteratorV2";
       LOG(ERROR) << "There is no connection between MakeIteraotr and IteratorV2";
       return false;
     }
@@ -629,14 +638,14 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
       if (node->type_string() == "DeviceQueueDataset") { node->AddAttr(DP_ITERATOR_MARK, iterator_name); }
       if (std::find(CUSTOMIZE_DATASET_LIST.begin(), CUSTOMIZE_DATASET_LIST.end(), node->type_string())
           != CUSTOMIZE_DATASET_LIST.end()) {
-        LOG(INFO) << node->name() << " is " << node->type_string() << ", need to add label.";
+        ADP_LOG(INFO) << node->name() << " is " << node->type_string() << ", need to add label.";
         node->AddAttr("_kernel", "dp");
         node->AddAttr(DP_ITERATOR_MARK, iterator_name);
       }
     }
     // Convert GE graph to GEOP function body
     {
-      LOG(INFO) << "Start to convert GE graph to geop function";
+      ADP_LOG(INFO) << "Start to convert GE graph to geop function";
       FunctionDef *fd = fdeflib.add_function();
       TF_DO_CHECK_OK(GraphToFunctionDef(*graph_ge, fn_dpop, fd), ERROR);
     }
@@ -646,15 +655,17 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
       fdeflib.SerializeToString(&func_def_str);
 
       // DPOP node should created by function of geop
-      LOG(INFO) << "Start to convert dpop node to geop function";
+      ADP_LOG(INFO) << "Start to convert dpop node to geop function";
       FunctionDef *fd = fdeflib.add_function();
       if (fd == nullptr || fd->mutable_signature() == nullptr) {
+        ADP_LOG(ERROR) << "fd is nullptr";
         LOG(ERROR) << "fd is nullptr";
         return false;
       }
       fd->mutable_signature()->set_name(fn_geop);
       NodeDef *n = fd->add_node_def();
       if (n == nullptr) {
+        ADP_LOG(ERROR) << "fd node def is nullptr";
         LOG(ERROR) << "fd node def is nullptr";
         return false;
       }
@@ -673,15 +684,17 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     }
     {
       // GEOP node should created by function of geopDataset
-      LOG(INFO) << "Start to convert geop node to geopdataset function";
+      ADP_LOG(INFO) << "Start to convert geop node to geopdataset function";
       FunctionDef *fd = fdeflib.add_function();
       if (fd == nullptr || fd->mutable_signature() == nullptr) {
+        ADP_LOG(ERROR) << "fd is nullptr";
         LOG(ERROR) << "fd is nullptr";
         return false;
       }
       fd->mutable_signature()->set_name(fn_geop_dataset);
       NodeDef *n = fd->add_node_def();
       if (n == nullptr) {
+        ADP_LOG(ERROR) << "fd node def is nullptr";
         LOG(ERROR) << "fd node def is nullptr";
         return false;
       }
@@ -705,7 +718,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
       AddNodeAttr("_NpuOptimizer", "NpuOptimizer", n);
     }
     // Update graph function libray
-    LOG(INFO) << "Start to add geop and geopdataset function in graph library";
+    ADP_LOG(INFO) << "Start to add geop and geopdataset function in graph library";
     // Not a must, just for Tensorbord viewing convenience
     graph_->AddFunctionLibrary(fdeflib);
     flib->AddLibrary(fdeflib);
@@ -716,12 +729,13 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     Node *geop_dataset_node = nullptr;
     std::unordered_set<Node *> isolated_nodes;
     {
-      LOG(INFO) << "Start to add geopdataset node in graph";
+      ADP_LOG(INFO) << "Start to add geopdataset node in graph";
       const Node *n = nullptr;
       for (const Edge *e : topo_end_input_edges) {
         if (IsIteratorNode(e->src())) { n = e->src(); }
       }
       if (n == nullptr) {
+        ADP_LOG(ERROR) << "edge src is nullptr";
         LOG(ERROR) << "edge src is nullptr";
         return false;
       }
@@ -736,7 +750,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
         if (IsMakeIteratorNode(n)) { n->AddAttr("_kernel", "dp"); }
         if (n->type_string() == "HostQueueDataset" && n->name() == host_queue_name) {
           // 0: Host queue always generate one dataset
-          LOG(INFO) << "inputs add node : name is " << n->name() << ", op is " << n->type_string();
+          ADP_LOG(INFO) << "inputs add node : name is " << n->name() << ", op is " << n->type_string();
           inputs.push_back(NodeBuilder::NodeOut(n, 0));
         }
         if (n->type_string().compare("DeviceQueueDataset") == 0 && n->name() == device_queue_name) {
@@ -765,7 +779,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
       }
     }
     // Remove all edges flow to MakeIterator except the one from IteratorV2
-    LOG(INFO) << "Start to combine geopdataset with iterator node and remove "
+    ADP_LOG(INFO) << "Start to combine geopdataset with iterator node and remove "
                  "orignal edges";
 
     // We must copy all topoend input edges as we can't modify it when combine
@@ -773,26 +787,26 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     for (const Edge *e : topo_end_input_edges) {
       if (!IsIteratorNode(e->src())) {
         CHECK_NOTNULL(graph_->AddEdge(dpgroup_dataset_node, 0, e->dst(), e->dst_input()));
-        LOG(INFO) << "Remove_" << GetEdgeName(e);
+        ADP_LOG(INFO) << "Remove_" << GetEdgeName(e);
         graph_->RemoveEdge(e);
       }
     }
     // Prune for the final optimized graph
-    LOG(INFO) << "Start to prune final optimized graph";
+    ADP_LOG(INFO) << "Start to prune final optimized graph";
 
     RemoveIsolatedNode(&*graph_, isolated_nodes);
-    LOG(INFO) << "Start to assign unassigned node on default device";
+    ADP_LOG(INFO) << "Start to assign unassigned node on default device";
     // We do pass after assign, so we must assign all new added nodes
     for (Node *n : (*g)->op_nodes()) {
       if (n->assigned_device_name().empty()) {
         // Use device of MakeIterator node as default
         n->set_assigned_device_name(DEFAULT_DEVICE);
-        LOG(INFO) << "Assigned node [" << n->name() << "] on device [" << n->assigned_device_name() << "]";
+        ADP_LOG(INFO) << "Assigned node [" << n->name() << "] on device [" << n->assigned_device_name() << "]";
       }
     }
   }
 
-  LOG(INFO) << "End optimize dp_init topological graph";
+  ADP_LOG(INFO) << "End optimize dp_init topological graph";
   if (nullptr != need_print && strcmp("1", need_print) == 0) {
     GraphDef after_graphdef;
     (*g)->ToGraphDef(&after_graphdef);
@@ -880,7 +894,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
   for (Node *n : graph->get()->nodes()) {
     REQUIRES_NOT_NULL(n);
     if (n->attrs().Find("_NoNeedOptimize")) {
-      LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip DpTfToGEConversionPass.";
+      ADP_LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip DpTfToGEConversionPass.";
       return Status::OK();
     }
   }
@@ -899,7 +913,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
   }
   std::string job = pass_options["job"];
   if (job == "ps" || job == "default") {
-    LOG(INFO) << "job is " << job << " Skip the optimizer : DpTfToGEConversionPass.";
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : DpTfToGEConversionPass.";
     return Status::OK();
   }
   if (job == "localhost" && pass_group_value != OptimizationPassRegistry::POST_REWRITE_FOR_EXEC) {
@@ -912,7 +926,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
   bool do_npu_optimizer = (pass_options["do_npu_optimizer"] == "1");
   if (do_npu_optimizer) {
     if (!use_off_line) {
-      LOG(INFO) << "Run online process and skip the optimizer";
+      ADP_LOG(INFO) << "Run online process and skip the optimizer";
       return Status::OK();
     }
   } else {
@@ -920,7 +934,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
   }
 
   if (!enableDP) {
-    LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is false";
+    ADP_LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is false";
     return Status::OK();
   }
   auto process_graph = [&](std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
@@ -929,7 +943,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
   // For any pre-partitioning phase, graph is stored in options.graph.
   process_graph(graph, func_lib, all_options);
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  LOG(INFO) << "DpTfToGEConversionPassImpl Run success. [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "DpTfToGEConversionPassImpl Run success. [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
 
   return Status::OK();
 }

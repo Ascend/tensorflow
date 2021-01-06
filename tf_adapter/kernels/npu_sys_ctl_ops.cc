@@ -43,6 +43,7 @@ limitations under the License.
 #include "tdt/tsd_client.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/platform/mutex.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/kernels/geop_npu.h"
 #include "tf_adapter/util/ge_plugin.h"
@@ -57,6 +58,7 @@ static int64 GetCurrentTimestamp() {
   struct timeval tv;
   int ret = gettimeofday(&tv, nullptr);
   if (ret != 0) {
+    ADP_LOG(ERROR) << "Func gettimeofday failed, ret:" << ret;
     LOG(ERROR) << "Func gettimeofday failed, ret:" << ret;
     return 0;
   }
@@ -79,7 +81,7 @@ class NPUInit : public OpKernel {
 };
 
 NPUInit::NPUInit(OpKernelConstruction *ctx) : OpKernel(ctx) {
-  LOG(INFO) << "NPUInit";
+  ADP_LOG(INFO) << "NPUInit";
   mutex_lock lock{g_mu};
   g_npuInitNum++;
   string sess_config;
@@ -87,41 +89,42 @@ NPUInit::NPUInit(OpKernelConstruction *ctx) : OpKernel(ctx) {
   if (s.ok()) {
     init_options_ = NpuAttrs::GetInitOptions(ctx);
   } else {
-    LOG(INFO) << "[NPUInit] NPUInit can not get _NpuOptimizer attr, use default init options";
+    ADP_LOG(INFO) << "[NPUInit] NPUInit can not get _NpuOptimizer attr, use default init options";
     init_options_ = NpuAttrs::GetDefaultInitOptions();
   }
 }
 void NPUInit::Compute(OpKernelContext *ctx) {
   if (GePlugin::GetInstance()->IsGlobal()) {
-    LOG(INFO) << "[NPUInit] GePlugin global, skip GePlugin init";
+    ADP_LOG(INFO) << "[NPUInit] GePlugin global, skip GePlugin init";
     return;
   }
   GePlugin::GetInstance()->Init(init_options_);
-  LOG(INFO) << "[NPUInit] GePlugin init success";
+  ADP_LOG(INFO) << "[NPUInit] GePlugin init success";
 }
 
 NPUInit::~NPUInit() {
-  LOG(INFO) << "[~NPUInit] NPUInit destructed";
+  ADP_LOG(INFO) << "[~NPUInit] NPUInit destructed";
   int64 unInitStartTime = GetCurrentTimestamp();
   {
     mutex_lock lock{g_mu};
     if (g_npuInitNum > 0) { g_npuInitNum--; }
     if (g_npuInitNum != 0) {
       int64 unInitEndTime = GetCurrentTimestamp();
-      LOG(INFO) << "[~NPUInit] NPU Shutdown success. [" << ((unInitEndTime - unInitStartTime) / kMicrosToMillis)
+      ADP_LOG(INFO) << "[~NPUInit] NPU Shutdown success. [" << ((unInitEndTime - unInitStartTime) / kMicrosToMillis)
                 << " ms]";
       return;
     }
   }
   if (!GePlugin::GetInstance()->IsGlobal()) {
     GePlugin::GetInstance()->Finalize();
-    LOG(INFO) << "[~NPUInit] GePlugin Finalize success";
+    ADP_LOG(INFO) << "[~NPUInit] GePlugin Finalize success";
   } else {
-    LOG(INFO) << "[~NPUInit] GePlugin global, skip GePlugin Finalize";
+    ADP_LOG(INFO) << "[~NPUInit] GePlugin global, skip GePlugin Finalize";
   }
 
   int64 unInitEndTime = GetCurrentTimestamp();
-  LOG(INFO) << "[~NPUInit] NPU Shutdown success. [" << ((unInitEndTime - unInitStartTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "[~NPUInit] NPU Shutdown success. [" << ((unInitEndTime - unInitStartTime) / kMicrosToMillis)
+                << " ms]";
 }
 
 class NPUShutdown : public OpKernel {
@@ -131,16 +134,16 @@ class NPUShutdown : public OpKernel {
   ~NPUShutdown() override = default;
 };
 void NPUShutdown::Compute(OpKernelContext *ctx) {
-  LOG(INFO) << "[NPUShutdown] NPUShutdown Compute";
+  ADP_LOG(INFO) << "[NPUShutdown] NPUShutdown Compute";
   {
     mutex_lock lock{g_mu};
     g_npuInitNum = 0;
   }
   if (!GePlugin::GetInstance()->IsGlobal()) {
     GePlugin::GetInstance()->Finalize();
-    LOG(INFO) << "[~NPUShutdown] GePlugin Finalize success";
+    ADP_LOG(INFO) << "[~NPUShutdown] GePlugin Finalize success";
   } else {
-    LOG(INFO) << "[~NPUShutdown] GePlugin global, skip GePlugin Finalize";
+    ADP_LOG(INFO) << "[~NPUShutdown] GePlugin global, skip GePlugin Finalize";
   }
 }
 

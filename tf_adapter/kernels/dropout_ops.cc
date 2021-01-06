@@ -27,13 +27,14 @@ limitations under the License.
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class DropOutDoMaskOp : public OpKernel {
  public:
   explicit DropOutDoMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DropOutDoMaskOp() {}
-  void Compute(OpKernelContext *context) override { LOG(INFO) << "DropOutDoMaskOp Compute "; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DropOutDoMaskOp Compute "; }
   bool IsExpensive() override { return false; }
 };
 
@@ -41,7 +42,7 @@ class DropOutGenMaskOp : public OpKernel {
  public:
   explicit DropOutGenMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DropOutGenMaskOp() {}
-  void Compute(OpKernelContext *context) override { LOG(INFO) << "DropOutGenMaskOp Compute"; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DropOutGenMaskOp Compute"; }
   bool IsExpensive() override { return false; }
 };
 

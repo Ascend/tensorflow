@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/common_runtime/optimization_registry.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 
@@ -71,7 +72,7 @@ Status MarkNoNeedOptimizePass::ProcessGraph(std::unique_ptr<Graph> *graph, Funct
 
   for (Node *n : graph->get()->nodes()) {
     if (n != nullptr && n->attrs().Find("_NoNeedOptimize")) {
-      LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip MarkNoNeedOptimizePass.";
+      ADP_LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip MarkNoNeedOptimizePass.";
       return Status::OK();
     }
   }
@@ -89,7 +90,7 @@ Status MarkNoNeedOptimizePass::ProcessGraph(std::unique_ptr<Graph> *graph, Funct
 
   job = pass_options["job"];
   if (job == "ps" || job == "default") {
-    LOG(INFO) << "job is " << job << " Skip the optimizer : MarkNoNeedOptimizePass.";
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : MarkNoNeedOptimizePass.";
     return Status::OK();
   }
   if (job == "localhost" && pass_group_value != OptimizationPassRegistry::POST_REWRITE_FOR_EXEC) {
@@ -99,13 +100,13 @@ Status MarkNoNeedOptimizePass::ProcessGraph(std::unique_ptr<Graph> *graph, Funct
 
   bool mix_compile_mode = pass_options["mix_compile_mode"] == "1";
   int iterations_per_loop = std::atoi(pass_options["iterations_per_loop"].c_str());
-  LOG(INFO) << "mix_compile_mode is " << (mix_compile_mode ? "True" : "False");
-  LOG(INFO) << "iterations_per_loop is " << iterations_per_loop;
+  ADP_LOG(INFO) << "mix_compile_mode is " << (mix_compile_mode ? "True" : "False");
+  ADP_LOG(INFO) << "iterations_per_loop is " << iterations_per_loop;
 
   for (const auto &func_name : func_lib->ListFunctionNames()) {
     auto *fdef = const_cast<FunctionDef *>(func_lib->Find(func_name));
     if (fdef == nullptr) continue;
-    LOG(INFO) << "Mark function as no need optimize [" << fdef->signature().name() << "]";
+    ADP_LOG(INFO) << "Mark function as no need optimize [" << fdef->signature().name() << "]";
     for (NodeDef &ndef : *fdef->mutable_node_def()) { (*ndef.mutable_attr())["_NoNeedOptimize"].set_b(true); }
   }
 

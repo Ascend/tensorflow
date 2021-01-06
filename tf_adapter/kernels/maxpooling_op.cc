@@ -30,6 +30,7 @@ limitations under the License.
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/platform/macros.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 namespace {
@@ -37,11 +38,11 @@ namespace {
 class MaxPoolingGradGradWithArgmaxOp : public OpKernel {
  public:
   explicit MaxPoolingGradGradWithArgmaxOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    LOG(INFO) << "MaxPoolingGradGradWithArgmaxOp built";
+    ADP_LOG(INFO) << "MaxPoolingGradGradWithArgmaxOp built";
   }
-  ~MaxPoolingGradGradWithArgmaxOp() { LOG(INFO) << "MaxPoolingGradGradWithArgmaxOp has been destructed"; }
+  ~MaxPoolingGradGradWithArgmaxOp() { ADP_LOG(INFO) << "MaxPoolingGradGradWithArgmaxOp has been destructed"; }
   void Compute(OpKernelContext *ctx) override {
-    LOG(INFO) << "[ATTENTION] MaxPoolingGradGradWithArgmaxOp can not run on cpu, \
+    ADP_LOG(INFO) << "[ATTENTION] MaxPoolingGradGradWithArgmaxOp can not run on cpu, \
                   only running on npu, please open use_off_line ";
   }
   bool IsExpensive() override { return false; }

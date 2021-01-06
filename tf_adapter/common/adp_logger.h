@@ -25,19 +25,42 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/core/framework/op_kernel.h"
-#include "tf_adapter/common/adp_logger.h"
+#ifndef TENSORFLOW_ADP_LOGGER_H
+#define TENSORFLOW_ADP_LOGGER_H
 
-namespace tensorflow {
-class AdamApplyOneAssignOp : public OpKernel {
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <stdlib.h>
+
+#define FMK_MODULE_NAME static_cast<int>(FMK)
+#define ADP_MODULE_NAME "TF_ADAPTER"
+
+const int ADP_DEBUG = 0;
+const int ADP_INFO = 1;
+const int ADP_WARNING = 2;
+const int ADP_ERROR = 3;
+const int ADP_EVENT = 16;
+
+
+class AdapterLogger : public std::basic_ostringstream<char> {
  public:
-  explicit AdamApplyOneAssignOp(OpKernelConstruction *context) : OpKernel(context) {}
-  ~AdamApplyOneAssignOp() override = default;
-  void Compute(OpKernelContext *context) override {
-    ADP_LOG(INFO) << "AdamApplyOneAssignOp Compute, num_inputs: " << context->num_inputs();
+  AdapterLogger(const char* fname, int line, int severity) {
+    *this << " [" << fname << ":" << line << "]" << " ";
+    severity_ = severity;
   }
-  bool IsExpensive() override { return false; }
+  ~AdapterLogger();
+
+ private:
+  int severity_;
 };
 
-REGISTER_KERNEL_BUILDER(Name("AdamApplyOneAssign").Device(DEVICE_CPU), AdamApplyOneAssignOp);
-}  // namespace tensorflow
+
+#define _ADP_LOG_INFO AdapterLogger(__FILE__, __LINE__, ADP_INFO)
+#define _ADP_LOG_WARNING AdapterLogger(__FILE__, __LINE__, ADP_WARNING)
+#define _ADP_LOG_ERROR AdapterLogger(__FILE__, __LINE__, ADP_ERROR)
+#define _ADP_LOG_EVENT AdapterLogger(__FILE__, __LINE__, ADP_EVENT)
+#define _ADP_LOG_DEBUG AdapterLogger(__FILE__, __LINE__, ADP_DEBUG)
+
+#define ADP_LOG(LEVEL) _ADP_LOG_##LEVEL
+#endif

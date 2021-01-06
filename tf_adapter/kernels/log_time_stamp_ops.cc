@@ -32,13 +32,14 @@ limitations under the License.
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/platform/macros.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class LogTimeStampOP : public OpKernel {
  public:
-  explicit LogTimeStampOP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new LogTimeStampOP"; }
-  ~LogTimeStampOP() { LOG(INFO) << "del LogTimeStampOP"; }
-  void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in LogTimeStampOP"; }
+  explicit LogTimeStampOP(OpKernelConstruction *ctx) : OpKernel(ctx) { ADP_LOG(INFO) << "new LogTimeStampOP"; }
+  ~LogTimeStampOP() { ADP_LOG(INFO) << "del LogTimeStampOP"; }
+  void Compute(OpKernelContext *ctx) override { ADP_LOG(INFO) << "in LogTimeStampOP"; }
   bool IsExpensive() override { return false; }
 };
 
