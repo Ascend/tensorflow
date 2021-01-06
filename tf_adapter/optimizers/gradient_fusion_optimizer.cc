@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tf_adapter/optimizers/gradient_fusion_optimizer.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 
 #include "tensorflow/core/grappler/grappler_item.h"
@@ -89,7 +90,7 @@ Status GradFusionOptimizer::GetInputTensorSize(NodeDef &nodeDef, int64_t &inputT
     for (int i = 0; i < inputsNameSize; i++) {
       const string &inputNodeName = nodeDef.input(i);
       if (inputNodeName.empty()) {
-        LOG(INFO) << "Cannot get input node name, curr node : " << nodeDef.name() << " index: " << i;
+        ADP_LOG(INFO) << "Cannot get input node name, curr node : " << nodeDef.name() << " index: " << i;
         continue;
       }
       NodeDef inputNode = nameToNode_[inputNodeName];
@@ -168,7 +169,7 @@ Status GradFusionOptimizer::FusionOp(std::vector<NodeDef> fusionHcomOps, GraphDe
   fusionNode->set_device(fusionHcomOps[0].device());
   fusionNode->set_op(opType);
 
-  LOG(INFO) << "INFO: GradFusionOptimizer::FusionOp  New FusionNodeName: " << fusionNodeName;
+  ADP_LOG(INFO) << "INFO: GradFusionOptimizer::FusionOp  New FusionNodeName: " << fusionNodeName;
   int fusionOutputIdx = 0;
   std::set<string> fusionInputs;
   std::set<string> fusionCtrlInputs;
@@ -242,10 +243,10 @@ int64 GradFusionOptimizer::GetFusionTensorSize() {
 }
 
 Status GradFusionOptimizer::Optimize(Cluster *cluster, const GrapplerItem &item, GraphDef *optimizedGraph) {
-  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize begin";
+  ADP_LOG(INFO) << "INFO: GradFusionOptimizer::Optimize begin";
   REQUIRES_NOT_NULL(optimizedGraph);
   *optimizedGraph = item.graph;
-  LOG(INFO) << "INFO: GradFusionOptimizer::Optimize end";
+  ADP_LOG(INFO) << "INFO: GradFusionOptimizer::Optimize end";
   return Status::OK();
 }
 

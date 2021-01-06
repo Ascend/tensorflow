@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "tf_adapter/util/infershape_util.h"
 #include "tensorflow/core/framework/node_def_util.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_ops_identifier.h"
 
@@ -45,6 +46,7 @@ int64 InferShapeUtil::GetCurrentTimestap() {
   struct timeval tv;
   int ret = gettimeofday(&tv, nullptr);
   if (ret != 0) {
+    ADP_LOG(ERROR) << "Func gettimeofday may failed, ret:" << ret;
     LOG(ERROR) << "Func gettimeofday may failed, ret:" << ret;
     return 0;
   }
@@ -81,7 +83,7 @@ Status InferShapeUtil::setArgShapeFromTensorShape(std::vector<Tensor> vecTensor,
 
 Status InferShapeUtil::GetSubGraphFromFunctionDef(const FunctionLibraryDefinition &flib_def,
                                                   const FunctionDef &func_def, Graph *graph) {
-  LOG(INFO) << "The signature name of FunctionDef is " << func_def.signature().name() << ".";
+  ADP_LOG(INFO) << "The signature name of FunctionDef is " << func_def.signature().name() << ".";
   InstantiationResult result;
   AttrSlice attrs(&func_def.attr());
   TF_RETURN_IF_ERROR(InstantiateFunction(
@@ -93,12 +95,12 @@ Status InferShapeUtil::GetSubGraphFromFunctionDef(const FunctionLibraryDefinitio
         return s;
       }, &result));
 
-  LOG(INFO) << "InstantiateFunction " << func_def.signature().name() << " success.";
+  ADP_LOG(INFO) << "InstantiateFunction " << func_def.signature().name() << " success.";
   GraphConstructorOptions opts;
   opts.allow_internal_ops = true;
   opts.expect_device_spec = false;
   TF_RETURN_IF_ERROR(ConvertNodeDefsToGraph(opts, result.nodes, graph));
-  LOG(INFO) << "ConvertNodeDefsToGraph " << func_def.signature().name() << " success.";
+  ADP_LOG(INFO) << "ConvertNodeDefsToGraph " << func_def.signature().name() << " success.";
   return Status::OK();
 }
 
@@ -124,7 +126,7 @@ bool InferShapeUtil::IsInitializedGraph(Node *node) {
 
   if (is_var_init_node->type_string() == "VarIsInitializedOp"
       || is_var_init_node->type_string() == "IsVariableInitialized") {
-    LOG(INFO) << "GEOP::IsInitializedGraph";
+    ADP_LOG(INFO) << "GEOP::IsInitializedGraph";
     return true;
   }
 
@@ -163,6 +165,8 @@ void InferShapeUtil::setShapeOfEnterOP(ShapeRefiner &shapeRef, Node *pNode) {
 
   int iInputNums = pNode->num_inputs();  // Enter has only one input
   if (iInputNums != 1) {
+    ADP_LOG(ERROR) << "Node " << pNode->name() << ", type is " << pNode->type_string()
+                   << ", must has only one input, but now=" << iInputNums;
     LOG(ERROR) << "Node " << pNode->name() << ", type is " << pNode->type_string()
                << ", must has only one input, but now=" << iInputNums;
     return;
@@ -193,6 +197,8 @@ void InferShapeUtil::setShapeOfMergeOP(ShapeRefiner &shapeRef, Node *pNode) {
       Node *pNodeIn = e->src();
       tensorflow::shape_inference::InferenceContext *pCxtIn = shapeRef.GetContext(pNodeIn);
       if (pCxtIn == nullptr) {
+        ADP_LOG(ERROR) << "Can't get context of the input " << pNodeIn->name() << " of the node " << pNode->name()
+                       << ".";
         LOG(ERROR) << "Can't get context of the input " << pNodeIn->name() << " of the node " << pNode->name() << ".";
         return;
       }
@@ -228,7 +234,8 @@ void InferShapeUtil::setShapeOfBroadcastGradientArgsOP(ShapeRefiner &shapeRef, N
     if (pCxt->DebugString(pCxt->output(i)).find('?') != std::string::npos)  // the shape of this output has ?
     {
       pCxt->ShapeHandleToProto(inputShapes[iMaxDimIndex], &proto);
-      LOG(INFO) << "Node name " << pNode->name() << " add attr shape " << pCxt->DebugString(inputShapes[iMaxDimIndex]);
+      ADP_LOG(INFO) << "Node name " << pNode->name() << " add attr shape "
+                    << pCxt->DebugString(inputShapes[iMaxDimIndex]);
     } else {
       pCxt->ShapeHandleToProto(pCxt->output(i), &proto);
     }
@@ -251,7 +258,7 @@ void InferShapeUtil::setShapeOfReshapeOP(ShapeRefiner &shapeRef, Node *pNode) {
     TensorShapeProto proto;
     pCxt->ShapeHandleToProto(inShapes[0], &proto);
     pNode->AddAttr(KEY_SHAPE, proto);  // Reshape has only one output
-    LOG(INFO) << "Node name " << pNode->name() << " add attr shape " << pCxt->DebugString(inShapes[0]);
+    ADP_LOG(INFO) << "Node name " << pNode->name() << " add attr shape " << pCxt->DebugString(inShapes[0]);
   }
 }
 
@@ -264,6 +271,7 @@ void InferShapeUtil::inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRe
     Status addStatus = shapeRef.AddNode(pNode);
     if (!addStatus.ok()) {
       if (iTime != INFER_SHAPE_FIRST_TIME) {
+        ADP_LOG(WARNING) << "AddNode failed, errormsg is " << addStatus.error_message() << ".";
         LOG(WARNING) << "AddNode failed, errormsg is " << addStatus.error_message() << ".";
       }
       continue;
@@ -286,13 +294,13 @@ void InferShapeUtil::printGraphShape(ShapeRefiner &shapeRef, Graph *graph) {
     if (pCxt == nullptr) { continue; }
     iOutNums = pCxt->num_outputs();
     if (iOutNums <= 0) {
-      LOG(INFO) << "Node " << pNode->name() << " has none outputs.";
+      ADP_LOG(INFO) << "Node " << pNode->name() << " has none outputs.";
       return;
     }
     for (int i = 0; i < iOutNums; i++) {
       tensorflow::shape_inference::ShapeHandle shape = pCxt->output(i);
       string strShape = pCxt->DebugString(shape);
-      LOG(INFO) << "The shape of node " << pNode->name() << " output " << i << " is " << strShape;
+      ADP_LOG(INFO) << "The shape of node " << pNode->name() << " output " << i << " is " << strShape;
     }
   }
 }
@@ -301,6 +309,7 @@ Status InferShapeUtil::addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode) {
   REQUIRES_NOT_NULL(pNode);
   shape_inference::InferenceContext *pCxt = shapeRef.GetContext(pNode);
   if (pCxt == nullptr) {
+    ADP_LOG(WARNING) << "The InferenceContext of node " << pNode->name() << " is null.";
     LOG(WARNING) << "The InferenceContext of node " << pNode->name() << " is null.";
     return Status::OK();
   }
@@ -310,7 +319,7 @@ Status InferShapeUtil::addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode) {
 
   AttrSlice attrList = pNode->attrs();
   if (attrList.Find(KEY_SHAPE) != nullptr) {
-    LOG(INFO) << "Node " << pNode->name() << " already has omop_shape attribute.";
+    ADP_LOG(INFO) << "Node " << pNode->name() << " already has omop_shape attribute.";
     return Status::OK();
   }
 
@@ -323,6 +332,8 @@ Status InferShapeUtil::addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode) {
 
     string strShape = pCxt->DebugString(shape);
     if (strShape.find('?') != std::string::npos) {
+      ADP_LOG(WARNING) << "The shape of node " << pNode->name() << " output " << i << " is " << strShape
+                       << ", unknown shape.";
       LOG(WARNING) << "The shape of node " << pNode->name() << " output " << i << " is " << strShape
                    << ", unknown shape.";
 
@@ -343,7 +354,7 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
   (void)flib_def;
   REQUIRES_NOT_NULL(graph);
   REQUIRES_NOT_NULL(func_def);
-  LOG(INFO) << "InferShapeUtil::InferShape";
+  ADP_LOG(INFO) << "InferShapeUtil::InferShape";
   int iTensorNums = vecTensor.size();
   const OpDef &sig = func_def->signature();
   int iInputArgNums = sig.input_arg_size();
@@ -366,7 +377,7 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
       if (e->IsControlEdge()) continue;
       if (e->dst_input() < 0) continue;
 
-      LOG(INFO) << "in_edges: " << e->src()->name() << " --> " << pNode->name();
+      ADP_LOG(INFO) << "in_edges: " << e->src()->name() << " --> " << pNode->name();
       if ((e->src()->type_string() == "NextIteration") || (e->src()->type_string() == "RefNextIteration")) {
         EdgeInfo edgeInfo(e->src(), pNode, e->src_output(), e->dst_input());
         NextIterationEdges.push_back(edgeInfo);
@@ -392,7 +403,7 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
     graph->AddEdge(edgeInfo.src_, edgeInfo.src_output_, edgeInfo.dst_, edgeInfo.dst_input_);
   }
 
-  LOG(INFO) << "InferShapeUtil::InferShape success";
+  ADP_LOG(INFO) << "InferShapeUtil::InferShape success";
   return Status::OK();
 }
 }  // namespace tensorflow

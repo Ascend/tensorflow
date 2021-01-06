@@ -46,6 +46,7 @@ limitations under the License.
 #include "tensorflow/core/graph/graph_def_builder.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
@@ -225,8 +226,8 @@ bool IsWhiteListSupport(const string &op_name, bool mix_compile_mode, const stri
   if (!ans) {
     auto ret = not_support_nodes.insert(op_name);
     if (ret.second) {
-      LOG(INFO) << "node: " << op_name << " is not in white list, "
-                << "so currently not support";
+      ADP_LOG(INFO) << "node: " << op_name << " is not in white list, "
+                    << "so currently not support";
     }
   }
 
@@ -255,7 +256,7 @@ Status SetIteratorShardName(Node *node) {
   }
   node->ClearAttr(ATTR_NAME_SHARED_NAME);
   node->AddAttr(ATTR_NAME_SHARED_NAME, node->name());
-  LOG(INFO) << "shardName is " << shardName;
+  ADP_LOG(INFO) << "shardName is " << shardName;
   return Status::OK();
 }
 
@@ -274,10 +275,12 @@ const int kMaxRecursionDepth = 10;
 
 bool IsNpuSupportingFunc(const string &func_name, FunctionLibraryDefinition *func_lib, int depth) {
   if (func_lib == nullptr) {
+    ADP_LOG(ERROR) << "func lib is nullptr, function name is " << func_name;
     LOG(ERROR) << "func lib is nullptr, function name is " << func_name;
     return false;
   }
   if (depth >= kMaxRecursionDepth) {
+    ADP_LOG(ERROR) << "Rejecting " << func_name << ": function depth limit exceeded.";
     LOG(ERROR) << "Rejecting " << func_name << ": function depth limit exceeded.";
     return false;
   }
@@ -287,7 +290,7 @@ bool IsNpuSupportingFunc(const string &func_name, FunctionLibraryDefinition *fun
   }
   for (NodeDef node_def : func_def->node_def()) {
     if (node_def.op() == "Const") {
-      LOG(INFO) << "Const in func can dump";
+      ADP_LOG(INFO) << "Const in func can dump";
     } else if (!IsNpuSupportingNode(node_def, compile_mode, func_lib)) {
       return false;
     }
@@ -346,17 +349,17 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
 
   if (hasStopOutfeedDequeueOp || hasOutfeedDequeueOp) {
     candidates->clear();
-    LOG(INFO) << "hostcall subgraph will run on host.";
+    ADP_LOG(INFO) << "hostcall subgraph will run on host.";
     return Status::OK();
   }
 
   std::sort(sortedNodes.begin(), sortedNodes.end(), NodeCompare());
-  LOG(INFO) << "FindNpuSupportCandidates enableDP:" << enableDP << ", mix_compile_mode: " << compile_mode
+  ADP_LOG(INFO) << "FindNpuSupportCandidates enableDP:" << enableDP << ", mix_compile_mode: " << compile_mode
             << ", hasMakeIteratorOp:" << hasMakeIteratorOp << ", hasIteratorOp:" << hasIteratorOp;
 
   if (hasMakeIteratorOp && hasIteratorOp) {
     candidates->clear();
-    LOG(INFO) << "preprocessing subgraph will at dp_tf_ge_conversion_pass.";
+    ADP_LOG(INFO) << "preprocessing subgraph will at dp_tf_ge_conversion_pass.";
     return Status::OK();
   }
 
@@ -373,14 +376,14 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
       if (node->type_string() == "IteratorGetNext") {
         for (Node *n : node->in_nodes()) {
           REQUIRES_NOT_NULL(n);
-          LOG(INFO) << node->name() << " has in nodes " << n->name();
+          ADP_LOG(INFO) << node->name() << " has in nodes " << n->name();
           if (n->type_string() == "Iterator" || n->type_string() == "IteratorV2") { candidates->insert(node); }
         }
       }
       if (node->type_string() == "Iterator" || node->type_string() == "IteratorV2") {
         for (Node *n : node->out_nodes()) {
           REQUIRES_NOT_NULL(n);
-          LOG(INFO) << node->name() << " has in nodes " << n->name();
+          ADP_LOG(INFO) << node->name() << " has in nodes " << n->name();
           if (n->type_string() == "IteratorGetNext") { candidates->insert(node); }
         }
       }
@@ -450,8 +453,8 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
         if (IsRefType(dtypeDst) && candidates->count(edge->dst()) > 0) {
           candidates->erase(edge->dst());
           outSet.insert(edge->dst());
-          LOG(INFO) << "Remove node : " << edge->dst()->name() << " from candidates, because of node : " << node->name()
-                    << " REF input.";
+          ADP_LOG(INFO) << "Remove node : " << edge->dst()->name() << " from candidates, because of node : "
+                        << node->name() << " REF input.";
           continue;
         }
         if (dtypeDst == DT_STRING || dtypeDst == DT_RESOURCE) {
@@ -470,8 +473,8 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
         if (IsRefType(dtypeDst) && candidates->count(edge->src()) > 0) {
           candidates->erase(edge->src());
           outSet.insert(edge->src());
-          LOG(INFO) << "Remove node : " << edge->dst()->name() << " from candidates, because of node : " << node->name()
-                    << " REF Output.";
+          ADP_LOG(INFO) << "Remove node : " << edge->dst()->name() << " from candidates, because of node : "
+                        << node->name() << " REF Output.";
           continue;
         }
         if (dtypeDst == DT_STRING || dtypeDst == DT_RESOURCE) {
@@ -481,7 +484,8 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
     }
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  LOG(INFO) << "TFadapter find Npu support candidates cost: [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "TFadapter find Npu support candidates cost: [" << ((endTime - startTime) / kMicrosToMillis)
+                << " ms]";
   return Status::OK();
 }
 
@@ -594,7 +598,7 @@ Status MergeSubgraphsInNewWay(std::vector<std::pair<string, int>> &sortedCluster
     }
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  LOG(INFO) << "TFadapter merge clusters cost: [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "TFadapter merge clusters cost: [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return Status::OK();
 }
 
@@ -638,7 +642,7 @@ Status MergeSubgraphs(std::vector<std::pair<string, int>> &sortedCluster, Ordere
     }
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  LOG(INFO) << "TFadapter merge clusters cost: [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "TFadapter merge clusters cost: [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return Status::OK();
 }
 
@@ -694,6 +698,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
     // Skip NextIteration
     if (src->IsNextIteration()) { continue; }
     if (!cycles.InsertEdge(cluster_map[src]->index, cluster_map[dst]->index)) {
+      ADP_LOG(ERROR) << "Failing due to cycle";
       LOG(ERROR) << "Failing due to cycle";
       return errors::Unimplemented("Input graph has a cycle (inserting an edge from ", src->DebugString(), " to ",
                                    dst->DebugString(), " would create a cycle)");
@@ -730,8 +735,8 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
             for (const auto &dst_start_name : cluster_dst->start_nodes_name) {
               if (src_start_name == dst_start_name) {
                 find_same_start = true;
-                LOG(INFO) << "node : " << src->name() << " and node : " << dst->name()
-                          << " has same start node : " << src_start_name;
+                ADP_LOG(INFO) << "node : " << src->name() << " and node : " << dst->name()
+                              << " has same start node : " << src_start_name;
                 break;
               }
             }
@@ -768,7 +773,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
     }
 
     if (hasSupportNode && hasNonSupportNode) {
-      LOG(INFO) << "Cluster " << cluster->index << " has both Candidate and non-Candidate nodes";
+      ADP_LOG(INFO) << "Cluster " << cluster->index << " has both Candidate and non-Candidate nodes";
       return errors::Internal("Cluster ", cluster->index, " has both Candidate and non-Candidate nodes");
     }
 
@@ -860,14 +865,14 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
     return errors::Internal("Sorted cluster size should be equal to origin subgraph num. ", "Sorted cluster size is ",
                             sortedCluster.size(), ", origin subgraph num is ", clusterNum);
   }
-  LOG(INFO) << "cluster Num is " << clusterNum;
+  ADP_LOG(INFO) << "cluster Num is " << clusterNum;
   if (clusterNum == 0) { return Status::OK(); }
 
   int minGroupSizeTemp = 1;
   int minGroupSize =
       (((minGroupSizeTemp > 0) && (minGroupSizeTemp < MAX_GROUP_SIZE)) ? (minGroupSizeTemp)
                                                                        : (1));  // default threshold is 10.
-  LOG(INFO) << "All nodes in graph: " << graph->num_nodes() << ", max nodes count: " << sortedCluster[0].second
+  ADP_LOG(INFO) << "All nodes in graph: " << graph->num_nodes() << ", max nodes count: " << sortedCluster[0].second
             << " in subgraph: " << sortedCluster[0].first << " minGroupSize: " << minGroupSize;
 
   bool isDateSetCluster = false;
@@ -894,7 +899,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
             return s;
           }
           n->ClearAttr(PARTITION_SUB_GRAPH_ATTR);
-          LOG(INFO) << "Clear isolated NoOp from " << name;
+          ADP_LOG(INFO) << "Clear isolated NoOp from " << name;
           clusterNum -= 1;
         }
       }
@@ -908,7 +913,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
       }
     }
   } else {
-    LOG(INFO) << "Clear all node PARTITION_SUB_GRAPH_ATTR attr.";
+    ADP_LOG(INFO) << "Clear all node PARTITION_SUB_GRAPH_ATTR attr.";
     for (Node *n : npuSupportCandidates) { n->ClearAttr(PARTITION_SUB_GRAPH_ATTR); }
     clusterNum = 0;
   }
@@ -1187,6 +1192,7 @@ Node *OMSplitter::Subgraph::MakeNodeImage(const Graph *graphIn, Node *node) {
   if (graph_ == nullptr) {
     graph_.reset(new (std::nothrow) Graph(graphIn->op_registry()));
     if (graph_ == nullptr) {
+      ADP_LOG(ERROR) << "graph new failed";
       LOG(ERROR) << "graph new failed";
       return nullptr;
     }
@@ -1204,12 +1210,14 @@ Node *OMSplitter::Subgraph::MakeNodeImage(const Graph *graphIn, Node *node) {
     } else if (job == "localhost") {
       device_ = string("/job:localhost/replica:0/task:0/device:CPU:0");
     } else {
+      ADP_LOG(ERROR) << "job type is : " << job << " not support. ";
       LOG(ERROR) << "job type is : " << job << " not support. ";
       return nullptr;
     }
   }
   Node *nodeOut = graph_->CopyNode(node);
   if (nodeOut == nullptr) {
+    ADP_LOG(ERROR) << "copy node failed";
     LOG(ERROR) << "copy node failed";
     return nullptr;
   }
@@ -1301,9 +1309,9 @@ Status OMSplitter::Subgraph::BuildFunctionDef(const string &name, FunctionLibrar
     if (GetNodeFuncs(library, node, nodeFuncs)) {
       std::unique_ptr<FunctionDefLibrary> func_def_lib(new (std::nothrow) FunctionDefLibrary());
       REQUIRES_NOT_NULL(func_def_lib);
-      LOG(INFO) << "Node [" << node->name() << "] has funcs:";
+      ADP_LOG(INFO) << "Node [" << node->name() << "] has funcs:";
       for (const auto &func : nodeFuncs) {
-        LOG(INFO) << func;
+        ADP_LOG(INFO) << func;
         FunctionDef *fdef = func_def_lib->add_function();
         REQUIRES_NOT_NULL(fdef);
         REQUIRES_NOT_NULL(library->Find(func));
@@ -1388,7 +1396,7 @@ Status OMSplitter::CopySubgraphNodes(std::unordered_map<const Node *, Node *> *n
     Subgraph &subgraph = subgraphs_[subgraphId];
     Status s = subgraph.SetOptions(npu_optimizer_options_, pass_options_, graph_options_);
     if (s != Status::OK()) {
-      LOG(INFO) << "Subgraph Id: " << subgraphId << "set npu optimizer error.";
+      ADP_LOG(INFO) << "Subgraph Id: " << subgraphId << "set npu optimizer error.";
       return s;
     }
     Node *image = subgraph.MakeNodeImage(graphIn_, node);
@@ -1491,7 +1499,7 @@ Status OMSplitter::SplitIntoSubgraphs(uint32_t &subgraphNum) {
   for (string &subgraphName : allSubgraphNames) {
     Subgraph &subgraph = subgraphs_[subgraphName];
     if (subgraph.isIsolatedSubgraph()) {
-      LOG(INFO) << "IsolatedSubgraph: " << subgraphName;
+      ADP_LOG(INFO) << "IsolatedSubgraph: " << subgraphName;
       subgraphs_.erase(subgraphName);
       for (Node *node : graphIn_->op_nodes()) {
         string subgraphId;
@@ -1502,7 +1510,7 @@ Status OMSplitter::SplitIntoSubgraphs(uint32_t &subgraphNum) {
   }
 
   subgraphNum = subgraphs_.size();
-  LOG(INFO) << "subgraphNum: " << subgraphNum;
+  ADP_LOG(INFO) << "subgraphNum: " << subgraphNum;
 
   return Status::OK();
 }
@@ -1677,7 +1685,7 @@ Status OMPartitionSubgraphsInFunctions(string groupAttribute, std::unique_ptr<Gr
   TF_RETURN_IF_ERROR(omsplitter.SplitIntoSubgraphs(subgraphNum));
 
   if (subgraphNum == 0) {
-    LOG(INFO) << "No Subgraph has been built.";
+    ADP_LOG(INFO) << "No Subgraph has been built.";
     return Status::OK();
   }
 
@@ -1785,7 +1793,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   for (Node *n : graph->get()->nodes()) {
     REQUIRES_NOT_NULL(n);
     if (n->attrs().Find("_NoNeedOptimize")) {
-      LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip OMPartitionSubgraphsPass.";
+      ADP_LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip OMPartitionSubgraphsPass.";
       return Status::OK();
     }
   }
@@ -1804,7 +1812,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
 
   std::string job = pass_options["job"];
   if (job == "ps" || job == "default") {
-    LOG(INFO) << "job is " << job << " Skip the optimizer : OMPartitionSubgraphsPass.";
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : OMPartitionSubgraphsPass.";
     return Status::OK();
   }
   if (job == "localhost" && pass_group_value != OptimizationPassRegistry::POST_REWRITE_FOR_EXEC) {
@@ -1816,26 +1824,33 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   bool mix_compile_mode = pass_options["mix_compile_mode"] == "1";
   int iterations_per_loop = std::atoi(pass_options["iterations_per_loop"].c_str());
   int task_index = std::atoi(pass_options["task_index"].c_str());
-  if (!iterations_per_loop) { LOG(FATAL) << "iterator_per_loop should be int and must >= 1"; }
-  if (task_index < 0) { LOG(FATAL) << "task_index should be int and must >= 0"; }
+  if (!iterations_per_loop) {
+    ADP_LOG(ERROR) << "iterator_per_loop should be int and must >= 1";
+    LOG(FATAL) << "iterator_per_loop should be int and must >= 1";
+  }
+  if (task_index < 0) {
+    ADP_LOG(ERROR) << "task_index should be int and must >= 0";
+    LOG(FATAL) << "task_index should be int and must >= 0";
+  }
   bool do_npu_optimizer = pass_options["do_npu_optimizer"] == "1";
   if (do_npu_optimizer) {
     if (!use_off_line) {
-      LOG(INFO) << "Run online process and skip the optimizer";
+      ADP_LOG(INFO) << "Run online process and skip the optimizer";
       return Status::OK();
     }
   } else {
     return Status::OK();
   }
 
-  LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " begin.";
-  LOG(INFO) << "mix_compile_mode is " << (mix_compile_mode ? "True" : "False");
-  LOG(INFO) << "iterations_per_loop is " << iterations_per_loop;
-  LOG(INFO) << "input_shape: " << all_options["input_shape"]
-            << "dynamic_dims: " << all_options["dynamic_dims"];
+  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " begin.";
+  ADP_LOG(INFO) << "mix_compile_mode is " << (mix_compile_mode ? "True" : "False");
+  ADP_LOG(INFO) << "iterations_per_loop is " << iterations_per_loop;
+  ADP_LOG(INFO) << "input_shape: " << all_options["input_shape"]
+                << "dynamic_dims: " << all_options["dynamic_dims"];
   bool is_set_dynamic_config = !all_options["input_shape"].empty() &&
                                !all_options["dynamic_dims"].empty();
   if (is_set_dynamic_config && mix_compile_mode) {
+    ADP_LOG(ERROR) << "dynamic config can not use with mix compile.";
     LOG(FATAL) << "dynamic config can not use with mix compile.";
   }
 
@@ -1867,10 +1882,10 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       include_getnext = true;
       if (is_set_dynamic_config) { getnext_node_count++; }
     } else if (node->type_string() == "_UnaryOpsComposition") {
-      LOG(INFO) << "begin split _UnaryOpsComposition.";
+      ADP_LOG(INFO) << "begin split _UnaryOpsComposition.";
       Node *pre_node = nullptr;
       if (node->in_edges().size() != 1) {
-        LOG(INFO) << "edge size if not 1, not support in _UnaryOpsComposition.";
+        ADP_LOG(INFO) << "edge size if not 1, not support in _UnaryOpsComposition.";
         continue;
       }
       pre_node = (*node->in_edges().begin())->src();
@@ -1880,23 +1895,25 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       for (int i = 0; i < node_list.s_size(); i++) {
         const string &node_name = node_list.s(i);
         string op_name = node->name() + "_" + std::to_string(i) + "_" + node_name;
-        LOG(INFO) << "op_names node_list: " << i << " is node: " << node_name;
+        ADP_LOG(INFO) << "op_names node_list: " << i << " is node: " << node_name;
         TF_CHECK_OK(NodeBuilder(op_name, node_name)
                         .Input(pre_node, 0)
                         .Device(pre_node->def().device())
                         .Finalize(&*graphIn, &unary_node));
         REQUIRES_NOT_NULL(unary_node);
-        LOG(INFO) << unary_node->type_string() << " has built success.";
+        ADP_LOG(INFO) << unary_node->type_string() << " has built success.";
         pre_node = unary_node;
       }
       for (auto out_edge : node->out_edges()) {
-        LOG(INFO) << "begin add edge ";
+        ADP_LOG(INFO) << "begin add edge ";
         graphIn->AddEdge(unary_node, 0, out_edge->dst(), out_edge->dst_input());
       }
       graphIn->RemoveNode(node);
     }
   }
   if (getnext_node_count > 1) {
+    ADP_LOG(ERROR) << "dynamic dims func can not support graph with "
+                   << getnext_node_count << " IteratorGetNext node.";
     LOG(FATAL) << "dynamic dims func can not support graph with "
                << getnext_node_count << " IteratorGetNext node.";
   }
@@ -1911,6 +1928,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   }
   for (Node *node : graphIn->op_nodes()) {
     if (node->type_string() == "OneShotIterator" && iterations_per_loop != 1) {
+      ADP_LOG(ERROR) << "iterator_per_loop only support 1 when using OneShotIterator";
       LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
     }
     // get attr from graph options.
@@ -1944,9 +1962,9 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   int subgraphNum = 0;
   TF_RETURN_IF_ERROR(
       OMSplitter::MarkForPartition(graph, subgraphNum, mix_compile_mode, graph_num, func_lib, pass_options));
-  LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
+  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
   if (subgraphNum < 1) {
-    LOG(INFO) << "subgraphNum is " << subgraphNum;
+    ADP_LOG(INFO) << "subgraphNum is " << subgraphNum;
     return Status::OK();
   }
   if (mix_compile_mode) {
@@ -2023,7 +2041,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
               nodeCopy->ClearAttr(partitionAttr);
               nodeCopy->AddAttr(partitionAttr, dstSubgraphId);
               copiedConsts[dstSubgraphId] = nodeCopy;
-              LOG(INFO) << "Copy const node:" << node->name();
+              ADP_LOG(INFO) << "Copy const node:" << node->name();
             }
             Node *nodeCopy = copiedConsts[dstSubgraphId];
             graphIn->AddEdge(nodeCopy, edge->src_output(), edge->dst(), edge->dst_input());
@@ -2036,7 +2054,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   }
   TF_RETURN_IF_ERROR(OMSplitter::OMPartitionSubgraphsInFunctions(
       OMSplitter::PARTITION_SUB_GRAPH_ATTR, graph, graph_format_value, func_lib, all_options, pass_options, graph_options));
-  LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions success.";
+  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions success.";
   FixupSourceAndSinkEdges(graph->get());
 
   if (need_print != nullptr && strcmp("1", need_print) == 0) {
@@ -2047,7 +2065,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " success. ["
+  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " success. ["
             << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return Status::OK();
 }

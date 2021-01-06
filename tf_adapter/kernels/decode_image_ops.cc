@@ -28,6 +28,7 @@ limitations under the License.
 #include "soft_dp/ExternalSoftDp.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tf_adapter/util/plugin_load_manager.h"
+#include "tf_adapter/common/adp_logger.h"
 #include <dlfcn.h>
 
 namespace tensorflow {
@@ -58,9 +59,9 @@ class DecodeImageOp : public OpKernel {
   ~DecodeImageOp() override {
     if (handle_ != nullptr) {
       (void)dlclose(handle_);
-      LOG(INFO) << "dlclose handle finish.";
+      ADP_LOG(INFO) << "dlclose handle finish.";
     } else {
-      LOG(INFO) << "handle is null.";
+      ADP_LOG(INFO) << "handle is null.";
     }
   }
 
@@ -85,6 +86,7 @@ class DecodeImageOp : public OpKernel {
     int width = resize_vec(1);
     Status status(context->allocate_output(0, TensorShape({height, width, 3}), &output));
     if (!status.ok()) {
+      ADP_LOG(ERROR) << "DecodeImageOp, Decode image failed when allocate output";
       LOG(ERROR) << "DecodeImageOp, Decode image failed when allocate output";
       context->SetStatus(status);
       return;

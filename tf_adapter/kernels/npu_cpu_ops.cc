@@ -30,6 +30,7 @@ limitations under the License.
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/resource_op_kernel.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/cache_interface.h"
 
 namespace tensorflow {
@@ -37,13 +38,13 @@ class EmbeddingRankIdOpKernel : public OpKernel {
  public:
   explicit EmbeddingRankIdOpKernel(OpKernelConstruction *context) : OpKernel(context) {}
   ~EmbeddingRankIdOpKernel() {}
-  void Compute(OpKernelContext *context) override { LOG(INFO) << "EmbeddingRankIdOp Compute."; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingRankIdOp Compute."; }
 };
 
 class LruCacheOp : public ResourceOpKernel<CacheInterface> {
  public:
   explicit LruCacheOp(OpKernelConstruction* context) : ResourceOpKernel(context) {}
-  void Compute(OpKernelContext* context) override { LOG(INFO) << "LruCacheOp Compute"; }
+  void Compute(OpKernelContext* context) override { ADP_LOG(INFO) << "LruCacheOp Compute"; }
  private:
   Status CreateResource(CacheInterface** resource) override
                         EXCLUSIVE_LOCKS_REQUIRED(mu_) {
@@ -54,13 +55,13 @@ class LruCacheOp : public ResourceOpKernel<CacheInterface> {
 class CacheAddOp : public OpKernel {
  public:
   explicit CacheAddOp(OpKernelConstruction *context) : OpKernel(context) {}
-  void Compute(OpKernelContext *context) override { LOG(INFO) << "CacheAddOp Compute"; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheAddOp Compute"; }
 };
 
 class CacheRemoteIndexToLocalOp : public OpKernel {
  public:
   explicit CacheRemoteIndexToLocalOp(OpKernelConstruction *context) : OpKernel(context) {}
-  void Compute(OpKernelContext *context) override { LOG(INFO) << "CacheRemoteIndexToLocalOp Compute"; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheRemoteIndexToLocalOp Compute"; }
 };
 
 template <typename T>
@@ -69,7 +70,7 @@ class DeformableOffsetsOp : public OpKernel {
   explicit DeformableOffsetsOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DeformableOffsetsOp() override {}
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "DeformableOffsetsOp Compute, num_inputs: "
+    ADP_LOG(INFO) << "DeformableOffsetsOp Compute, num_inputs: "
               << context->num_inputs();
   }
   bool IsExpensive() override { return false; }
@@ -81,7 +82,7 @@ class DeformableOffsetsGradOp : public OpKernel {
   explicit DeformableOffsetsGradOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DeformableOffsetsGradOp() override {}
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "DeformableOffsetsGradOp Compute, num_inputs: "
+    ADP_LOG(INFO) << "DeformableOffsetsGradOp Compute, num_inputs: "
               << context->num_inputs();
   }
   bool IsExpensive() override { return false; }
