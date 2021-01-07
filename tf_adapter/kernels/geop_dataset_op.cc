@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/kernels/data/captured_function.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 
 namespace tensorflow {
@@ -43,10 +44,10 @@ class GEOPDatasetOp : public DatasetOpKernel {
   }
   ~GEOPDatasetOp() {
     if (f_handle_ != kInvalidHandle && lib_ != nullptr) {
-      LOG(INFO) << "Release function handle:" << f_handle_ << " owned by node instance:" << name();
+      ADP_LOG(INFO) << "Release function handle:" << f_handle_ << " owned by node instance:" << name();
       Status s = lib_->ReleaseHandle(f_handle_);
       if (s != Status::OK()) {
-        LOG(INFO) << "Release function handle:" << f_handle_ << " owned by node instance:" << name()
+        ADP_LOG(INFO) << "Release function handle:" << f_handle_ << " owned by node instance:" << name()
                   << " failed. original err msg: " << s.error_message();
         return;
       }
@@ -101,7 +102,7 @@ class GEOPDatasetOp : public DatasetOpKernel {
       explicit Iterator(const Params &params) : DatasetIterator<Dataset>(params) {}
       ~Iterator() {}
       Status Initialize(IteratorContext *ctx) override {
-        LOG(INFO) << "Start to initialize iterator of GEOPDatasetOp";
+        ADP_LOG(INFO) << "Start to initialize iterator of GEOPDatasetOp";
         REQUIRES_NOT_NULL(ctx);
         REQUIRES_NOT_NULL(dataset());
         REQUIRES_NOT_NULL(dataset()->kernel());
@@ -144,7 +145,10 @@ class GEOPDatasetOp : public DatasetOpKernel {
           n.Notify();
         });
         n.WaitForNotification();
-        if (!s.ok()) { LOG(ERROR) << s; }
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s;
+          LOG(ERROR) << s;
+        }
         return s;
       }
 
@@ -155,7 +159,7 @@ class GEOPDatasetOp : public DatasetOpKernel {
             std::string node_name = ndef.name();
             if (str_util::StartsWith(node_name, "GeOp_")) {
               AddNodeAttr("_session", session, &ndef);
-              LOG(INFO) << "Node " << node_name << " add session info " << session << " success.";
+              ADP_LOG(INFO) << "Node " << node_name << " add session info " << session << " success.";
             }
           }
         }

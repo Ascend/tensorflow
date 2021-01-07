@@ -30,6 +30,7 @@ limitations under the License.
 
 #include "nlohmann/json.hpp"
 #include "tensorflow/core/platform/logging.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/generate_report.h"
 using json = nlohmann::json;
@@ -61,12 +62,12 @@ NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix
     opsPath = path_env;
   } else {
     opsPath = "/usr/local/Ascend/opp";
-    LOG(INFO) << "environment variable ASCEND_OPP_PATH is not set, use default value[" << opsPath << "]";
+    ADP_LOG(INFO) << "environment variable ASCEND_OPP_PATH is not set, use default value[" << opsPath << "]";
   }
   std::string opsJsonPath = opsPath + kOpsInfoJson;
-  LOG(INFO) << "[" << mode << "] Parsing json from " << opsJsonPath;
+  ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << opsJsonPath;
   int32_t opsCnt = NpuOpsIdentifier::ParseOps(opsJsonPath, ops_info_);
-  LOG(INFO) << opsCnt << " ops parsed";
+  ADP_LOG(INFO) << opsCnt << " ops parsed";
   VLOG(1) << ops_info_.dump(2);  // 1 is vlog level, 2 is ops info index
 }
 // Parse and store the ops configuration json file, return num of parsed ops
@@ -78,13 +79,13 @@ int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) {
       jsonConfigFileStream >> root;
       for (auto i = root.begin(); i != root.end(); ++i) { opsCnt++; }
     } catch (json::exception &e) {
-      LOG(INFO) << e.what();
+      ADP_LOG(INFO) << e.what();
       jsonConfigFileStream.close();
       return 0;
     }
     jsonConfigFileStream.close();
   } else {
-    LOG(INFO) << "Open " << f << " failed";
+    ADP_LOG(INFO) << "Open " << f << " failed";
     return 0;
   }
   return opsCnt;

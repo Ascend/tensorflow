@@ -37,6 +37,7 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/shape_refiner.h"
 #include "tensorflow/core/framework/graph_def_util.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
@@ -79,7 +80,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
   if (job == "ps" || job == "default" || job == "localhost") {
-    LOG(INFO) << "job is " << job << " Skip the optimizer : MarkStartNodePass.";
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : MarkStartNodePass.";
     return Status::OK();
   }
 
@@ -88,12 +89,12 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
   for (Node *n : graph->get()->nodes()) {
     REQUIRES_NOT_NULL(n);
     if (n->attrs().Find("_NoNeedOptimize")) {
-      LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip MarkStartNodePass.";
+      ADP_LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip MarkStartNodePass.";
       return Status::OK();
     }
 
     if (n->attrs().Find("_StartNodeName")) {
-      LOG(INFO) << "Found mark of startnode optimize on node [" << n->name() << "], skip MarkStartNodePass.";
+      ADP_LOG(INFO) << "Found mark of startnode optimize on node [" << n->name() << "], skip MarkStartNodePass.";
       return Status::OK();
     }
   }
@@ -152,7 +153,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
     Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  LOG(INFO) << "MarkStartNodePass_" << std::to_string(graph_num) << " success. ["
+  ADP_LOG(INFO) << "MarkStartNodePass_" << std::to_string(graph_num) << " success. ["
             << ((endTime - startTime) / kMicrosToMillis) << " ms]";
 
   return Status::OK();
@@ -177,7 +178,7 @@ Status MarkStartNodePass::TraverseNode(Node *start_node) {
     n->AddAttr("_StartNodeName", start_node_name);
     s = TraverseNode(n);
     if (s != Status::OK()) {
-      LOG(INFO) << "traverse node : " << start_node->name() << " to add start node name failed.";
+      ADP_LOG(INFO) << "traverse node : " << start_node->name() << " to add start node name failed.";
       return s;
     }
   }

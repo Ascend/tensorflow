@@ -50,6 +50,10 @@ if (ENABLE_OPEN_SRC)
         target_link_libraries(_tf_adapter PUBLIC "${LINK_FLAG}")
     endforeach (LINK_FLAG)
 
+    target_compile_definitions(_tf_adapter PUBLIC
+        LOG_CPP
+    )
+
     set_target_properties(_tf_adapter PROPERTIES PREFIX "")
 
     set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/dist/python/npu_bridge)
@@ -105,6 +109,7 @@ else()
     )
     target_compile_definitions(tf_adapter PUBLIC
         _FORTIFY_SOURCE=2
+        LOG_CPP
     )
 
     target_link_libraries(tf_adapter PUBLIC

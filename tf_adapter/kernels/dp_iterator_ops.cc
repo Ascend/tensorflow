@@ -28,6 +28,7 @@ limitations under the License.
 #include "tf_adapter/kernels/dp_iterator_ops.h"
 
 #include "tensorflow/core/kernels/data/iterator_ops.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 
 namespace tensorflow {
@@ -43,7 +44,7 @@ const char kOutputTypes[] = "output_types";
 }  // namespace
 
 void DpMakeIteratorOp::Compute(OpKernelContext *ctx) {
-  LOG(INFO) << "===Begin Computer MakeIterator===";
+  ADP_LOG(INFO) << "===Begin Computer MakeIterator===";
   CHECK_NOT_NULL(ctx);
   DatasetBase *dataset = nullptr;
   OP_REQUIRES_OK(ctx, GetDatasetFromVariantTensor(ctx->input(0), &dataset));
@@ -52,7 +53,7 @@ void DpMakeIteratorOp::Compute(OpKernelContext *ctx) {
   Status s = iterator_resource->SetIteratorFromDataset(ctx, dataset);
   iterator_resource->Unref();
   if (!s.ok()) { ctx->SetStatus(s); }
-  LOG(INFO) << "===End Computer MakeIterator===";
+  ADP_LOG(INFO) << "===End Computer MakeIterator===";
 }
 
 namespace {

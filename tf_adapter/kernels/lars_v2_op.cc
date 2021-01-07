@@ -26,16 +26,17 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 template<typename T>
 class LarsV2OP : public OpKernel {
  public:
-  explicit LarsV2OP(OpKernelConstruction *context) : OpKernel(context) { LOG(INFO) << "new LarsV2OP"; }
-  ~LarsV2OP() override { LOG(INFO) << "del LarsV2OP"; }
+  explicit LarsV2OP(OpKernelConstruction *context) : OpKernel(context) { ADP_LOG(INFO) << "new LarsV2OP"; }
+  ~LarsV2OP() override { ADP_LOG(INFO) << "del LarsV2OP"; }
 
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "LarsV2OP Compute, num_inputs: " << context->num_inputs();
+    ADP_LOG(INFO) << "LarsV2OP Compute, num_inputs: " << context->num_inputs();
 
     // Grab the w_input tensor
     const Tensor &w_tensor = context->input(0);
@@ -58,11 +59,11 @@ class LarsV2OP : public OpKernel {
     for (int i = 1; i < N; i++) {
       auto w = w_input(i);
       sum_w += w;
-      LOG(INFO) << "LarsV2OP w " << w << ", sum_w " << sum_w;
+      ADP_LOG(INFO) << "LarsV2OP w " << w << ", sum_w " << sum_w;
 
       auto g = g_input(i);
       sum_g += g;
-      LOG(INFO) << "LarsV2OP g " << g << ", sum_g " << sum_g;
+      ADP_LOG(INFO) << "LarsV2OP g " << g << ", sum_g " << sum_g;
     }
 
     auto w_norm = sqrt(sum_w);

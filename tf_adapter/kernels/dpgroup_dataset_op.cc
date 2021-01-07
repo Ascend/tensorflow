@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/kernels/data/captured_function.h"
+#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 
 namespace tensorflow {
@@ -90,7 +91,7 @@ class DPGroupDatasetOp : public DatasetOpKernel {
       ~Iterator() {}
       Status Initialize(IteratorContext *ctx) override {
         REQUIRES_NOT_NULL(ctx);
-        LOG(INFO) << "Start to initialize iterator of DPGroupDatasetOp";
+        ADP_LOG(INFO) << "Start to initialize iterator of DPGroupDatasetOp";
         mutex_lock l(mu_);
         try {
           input_impls_.resize(dataset()->inputs_.size());

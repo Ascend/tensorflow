@@ -31,6 +31,7 @@ limitations under the License.
 #include <unistd.h>
 #include "nlohmann/json.hpp"
 #include "tensorflow/core/platform/env.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 using Json = nlohmann::json;
@@ -51,9 +52,9 @@ GenerateReport::GenerateReport() {
   if (getcwd(current_path, PATH_MAX) != nullptr){
     string path = current_path;
     path = path + "/" + kUnsupportedInfoPath;
-    LOG(INFO) << "[GenerateReport] Remove check report path:" << path;
+    ADP_LOG(INFO) << "[GenerateReport] Remove check report path:" << path;
     if (remove(path.c_str()) == 0){
-      LOG(INFO) << "[GenerateReport] Succeed remove check report path:" << path;
+      ADP_LOG(INFO) << "[GenerateReport] Succeed remove check report path:" << path;
     }
   }
 }
@@ -92,7 +93,7 @@ Status GenerateReport::DeleteUnSupportedInfo(Node *node) {
 
 Status GenerateReport::SaveUnsupportedInfo() {
   if (check_info_map_.empty()){
-    LOG(INFO) << "[GenerateReport] All nodes are supported, no need to save report.";
+    ADP_LOG(INFO) << "[GenerateReport] All nodes are supported, no need to save report.";
     return Status::OK();
   }
   Json graph_info;
