@@ -166,4 +166,28 @@ REGISTER_OP("DeformableOffsetsGrad")
     c->set_output(1, input_offsets_shape);
     return Status::OK();
   });
+//regist Random Choice With Mask op
+REGISTER_OP("RandomChoiceWithMask")
+  .Input("x: bool")
+  .Output("y: int32")
+  .Output("mask: bool")
+  .Attr("count: int = 0")
+  .Attr("seed: int = 0")
+  .Attr("seed2: int = 0")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    int64 count(0);
+    c->GetAttr("count", &count);
+    if (count >0) {
+      c->set_output(0, c->Matrix(count, c->Rank(c->input(0))));
+      c->set_output(1, c->Vector(count));
+    } else if (count == 0) {
+      c->set_output(0, c->Matrix(c->UnknownDim(), c->Rank(c->input(0))));
+      c->set_output(1, c->Vector(c->UnknownDim()));
+    } else {
+      return errors::InvalidArgument(
+              "input count must greater or equal to 0 but instead is ",
+              count);
+    }
+    return Status::OK();
+  });
 }  // namespace tensorflow
