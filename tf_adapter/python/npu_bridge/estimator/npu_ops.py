@@ -248,3 +248,13 @@ def adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
     result = gen_npu_ops.adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
                    mul0_x, mul1_x, mul2_x, mul3_x, mul4_x, add2_y, name)
     return result
+
+
+def centralization(x, axes, name=None):
+    if context.executing_eagerly():
+      raise RuntimeError("tf.centralization() is not compatible with "
+                        "eager execution.")
+    x = ops.convert_to_tensor(x, name="x")
+    result = gen_npu_ops.centralization(x, axes, name=None)
+    return result
+

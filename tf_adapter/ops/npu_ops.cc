@@ -422,5 +422,16 @@ REGISTER_OP("AdamApplyOneWithDecayAssign")
     .Input("add2_y: T")
     .Attr("T: {float16, float32}")
     .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("Centralization")
+    .Input("x: T")
+    .Output("y: T")
+    .Attr("axes: {float16, float32}")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+        c->set_output(0, c->input(0));
+	return Status::OK();
+    });
+
 }  // namespace
 }  // namespace tensorflow
