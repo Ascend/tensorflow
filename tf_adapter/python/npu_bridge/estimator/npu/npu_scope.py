@@ -43,3 +43,14 @@ def keep_dtype_scope():
   }
   with ops.get_default_graph()._attr_scope(attrs):
     yield
+
+@contextlib.contextmanager
+def npu_stage_scope(stage):
+  """
+  Enable the node in the scope adding _stage_level attr.
+  """
+  attrs = {
+    "_stage_level": attr_value_pb2.AttrValue(i=stage)
+  }
+  with ops.get_default_graph()._attr_scope(attrs):
+    yield

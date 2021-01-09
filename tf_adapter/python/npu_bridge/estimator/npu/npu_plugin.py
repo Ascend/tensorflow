@@ -89,6 +89,36 @@ def npu_resource_init(graph_run_mode = 1,
 def npu_resource_shutdown():
     tf_adapter.PluginFinalize()
 
+def init_rdma_pool(mem_size):
+  '''
+  mem_size: ramd pool memory size to be allocated. type:int
+  '''
+  if not isinstance(mem_size, int):
+    raise ValueError('{} should be int'.format(mem_size))
+  res = tf_adapter.InitRdmaPool(mem_size)
+  if res != 0:
+    raise RuntimeError('rdma init failed')
+
+def rdma_remote_register(remote_var_list):
+  '''
+  remote_var_list: embedding and opt var list.
+  '''
+  if not isinstance(remote_var_list, (tuple, list)):
+    raise ValueError('{} should be tuple or list'.format(remote_var_list))
+  var_addr_list = []
+  local_rank_size = get_local_rank_size()
+  rank_id = get_rank_id()
+  server_id = int(rank_id / local_rank_size)
+  for var in remote_var_list:
+    server_var = var[server_id]
+    host_var_info = tf_adapter.HostVarInfo()
+    host_var_info.base_addr = server_var[1]
+    host_var_info.var_size = server_var[2]
+    var_addr_list.append(host_var_info)
+  res = tf_adapter.RdmaRemoteRegister(var_addr_list)
+  if res != 0:
+    raise RuntimeError('rdma remote register failed')
+
 def rdma_remote_init(remote_var_list, mem_size):
   '''
   remote_var_list: embedding and opt var list.
