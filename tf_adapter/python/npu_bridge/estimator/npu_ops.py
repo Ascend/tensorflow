@@ -255,6 +255,6 @@ def centralization(x, axes, name=None):
       raise RuntimeError("tf.centralization() is not compatible with "
                         "eager execution.")
     x = ops.convert_to_tensor(x, name="x")
-    result = gen_npu_ops.centralization(x, axes, name=None)
+    result = gen_npu_ops.centralization(x, axes, name=name)
     return result
 
