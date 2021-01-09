@@ -1770,11 +1770,12 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(Node *node, bool enable
   const std::string kDynamicInputsShapeRange = "_graph_dynamic_inputs_shape_range";
   if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
     bool dynamic_input = node_attrs.at(kDynamicInput).b();
+    graph_options["dynamic_input"] = std::to_string(dynamic_input);
     if (dynamic_input) {
-      graph_options["dynamic_input"] = std::to_string(dynamic_input);
-      graph_options["dynamic_graph_execute_mode"] = node_attrs.at(kDynamicGraphExecuteMode).s();
+      std::string graph_execute_mode = node_attrs.at(kDynamicGraphExecuteMode).s();
+      graph_options["dynamic_graph_execute_mode"] = graph_execute_mode;
       std::string dynamic_inputs_shape_range = node_attrs.at(kDynamicInputsShapeRange).s();
-      if (!dynamic_inputs_shape_range.empty()) {
+      if (graph_execute_mode == "dynamic_execute" && !dynamic_inputs_shape_range.empty()) {
         ParseInputShapeRange(dynamic_inputs_shape_range, enable_dp, graph_options);
       }
     }
@@ -1919,13 +1920,6 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   }
   std::map<std::string, std::string> graph_options;
   bool enable_dp = (pass_options["enable_dp"] == "1") && include_getnext;
-  // get attr from pass_options
-  graph_options["dynamic_input"] = pass_options["dynamic_input"];
-  graph_options["dynamic_graph_execute_mode"] = pass_options["dynamic_graph_execute_mode"];
-  std::string dynamic_inputs_shape_range = pass_options["dynamic_inputs_shape_range"];
-  if (!dynamic_inputs_shape_range.empty()) {
-    ParseInputShapeRange(dynamic_inputs_shape_range, enable_dp, graph_options);
-  }
   for (Node *node : graphIn->op_nodes()) {
     if (node->type_string() == "OneShotIterator" && iterations_per_loop != 1) {
       ADP_LOG(ERROR) << "iterator_per_loop only support 1 when using OneShotIterator";
@@ -1952,6 +1946,16 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     Status status = GetNodeAttr(node->def(), "data_format", &node_format_value);
     if (status.ok() && !node_format_value.empty()) {
       if (graph_format_value.empty()) { graph_format_value = node_format_value; }
+    }
+  }
+  // get attr from pass_options
+  if (graph_options["dynamic_input"].empty()) {
+    std::string dynamic_graph_execute_mode = pass_options["dynamic_graph_execute_mode"];
+    graph_options["dynamic_input"] = pass_options["dynamic_input"];
+    graph_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
+    std::string dynamic_inputs_shape_range = pass_options["dynamic_inputs_shape_range"];
+    if (dynamic_graph_execute_mode == "dynamic_execute" && !dynamic_inputs_shape_range.empty()) {
+      ParseInputShapeRange(dynamic_inputs_shape_range, enable_dp, graph_options);
     }
   }
 
