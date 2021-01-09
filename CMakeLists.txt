@@ -4,8 +4,8 @@ if (ENABLE_OPEN_SRC)
     project(TFAdapter)
 
     set(CMAKE_CXX_STANDARD 11)
-    set(CMAKE_C_FLAGS "-O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,-z,relro,-z,now,-z,noexecstack -pipe ${CMAKE_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,-z,relro,-z,now,-z,noexecstack -pipe ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_C_FLAGS "-O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,-z,relro,-z,now,-z,noexecstack -s -pipe ${CMAKE_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,-z,relro,-z,now,-z,noexecstack -s -pipe ${CMAKE_CXX_FLAGS}")
     add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
     # build external prjects
     if(DEFINED ENV{D_PKG_SERVER})
@@ -123,6 +123,7 @@ else()
         ${TF_INSTALL_LIB_PATH}/libtensorflow_framework.so.1
         ${TF_INSTALL_LIB_PATH}/python/_pywrap_tensorflow_internal.so
         -Wl,--as-needed
+        -s
     )
 
     # rename libtf_adapter.so to _tf_adapter.so
