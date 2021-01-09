@@ -220,11 +220,11 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
     ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
     ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
-    ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
-                  << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
-                  << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
-                  << ", data_inputs_shape_range: " << data_inputs_shape_range_;
   }
+  ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
+                << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
+                << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
+                << ", data_inputs_shape_range: " << data_inputs_shape_range_;
 
   // global environment Initialize, invoke once for each process
   string sess_config = "";
