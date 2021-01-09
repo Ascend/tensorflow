@@ -251,6 +251,10 @@ def adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
 
 
 def centralization(x, axes, name=None):
+    """
+    centralization op
+        return x - reduce_mean(x, axes)
+    """
     if context.executing_eagerly():
       raise RuntimeError("tf.centralization() is not compatible with "
                         "eager execution.")

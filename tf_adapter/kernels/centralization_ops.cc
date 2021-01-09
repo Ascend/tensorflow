@@ -30,13 +30,13 @@ limitations under the License.
 
 namespace tensorflow {
 class CentralizationOp : public OpKernel {
- public:
-  explicit CentralizationOp(OpKernelConstruction *context) : OpKernel(context) {}
-  ~CentralizationOp() override = default;
-  void Compute(OpKernelContext *context) override {
-    ADP_LOG(INFO) << "CentralizationOp Compute, num_inputs: " << context->num_inputs();
-  }
-  bool IsExpensive() override { return false; }
+    public:
+        explicit CentralizationOp(OpKernelConstruction *context) : OpKernel(context) {}
+        ~CentralizationOp() override = default;
+        void Compute(OpKernelContext *context) override {
+            ADP_LOG(INFO) << "CentralizationOp Compute, num_inputs: " << context->num_inputs();
+        }
+        bool IsExpensive() override { return false; }
 };
 
 REGISTER_KERNEL_BUILDER(Name("Centralization").Device(DEVICE_CPU), CentralizationOp);
