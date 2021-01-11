@@ -50,7 +50,7 @@ void PluginFinalize();
 
 int32_t InitRdmaPool(size_t size);
 
-int32_t RegisterRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info);
+int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info);
 
 int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t size);
 
