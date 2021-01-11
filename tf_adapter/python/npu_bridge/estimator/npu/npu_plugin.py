@@ -43,10 +43,10 @@ def npu_resource_init(graph_run_mode = 1,
     init[__option_exec_profiling_mode] = str(enable_profiling)
 
     if enable_profiling:
-      if profiling_options is None:
-        raise ValueError('profiling_options must be set when use profiling')
-      else:
-        init[__option_exec_profiling_options] = str(profiling_options)
+        if profiling_options is None:
+            raise ValueError('profiling_options must be set when use profiling')
+        else:
+            init[__option_exec_profiling_options] = str(profiling_options)
 
     if auto_tune_mode is not None:
         init[__auto_tune_mode] = str(auto_tune_mode)
@@ -147,6 +147,9 @@ def rdma_remote_init(remote_var_list, mem_size):
 
 
 def get_var_addr_and_size(var_name):
+    """
+    var_name: variable name.
+    """
     if not isinstance(var_name, str):
         raise ValueError('{} should be str'.format(var_name))
     res = tf_adapter.GetVarAddrAndSize(var_name)
@@ -154,7 +157,13 @@ def get_var_addr_and_size(var_name):
         raise RuntimeError('{} get var addr and size failed'.format(var_name))
     return res[1], res[2]
 
+
 def malloc_shared_memory(var_name, shape, data_type):
+    """
+    var_name: variable name.
+    shape: variable shape.
+    data_type: variable dtype.
+    """
     tensor_info = tf_adapter.TensorInfo()
     tensor_info.var_name = var_name
     tensor_info.dims = tf_adapter.int64_vec(shape)
