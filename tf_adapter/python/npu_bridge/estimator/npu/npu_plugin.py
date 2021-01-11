@@ -117,7 +117,7 @@ def rdma_remote_register(remote_var_list):
         host_var_info.base_addr = server_var[1]
         host_var_info.var_size = server_var[2]
         var_addr_list.append(host_var_info)
-    res = tf_adapter.RdmaRemoteRegister(var_addr_list)
+    res = tf_adapter.RegisterRdmaRemoteAddr(var_addr_list)
     if res != 0:
         raise RuntimeError('rdma remote register failed')
 

@@ -275,7 +275,7 @@ int32_t InitRdmaPool(size_t size) {
 }
 
 int32_t RdmaRemoteRegister(const std::vector<ge::HostVarInfo> &var_info) {
-  ge::Status ret = ge::RdmaRemoteRegister(var_info);
+  ge::Status ret = ge::RegisterRdmaRemoteAddr(var_info);
   if (ret != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GePlugin] rdma remote register failed, ret : " << ToString(ret);
     LOG(ERROR) << "[GePlugin] rdma remote register failed, ret : " << ToString(ret);

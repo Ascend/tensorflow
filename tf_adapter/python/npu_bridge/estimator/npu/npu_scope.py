@@ -13,7 +13,7 @@ def without_npu_compile_scope():
     Enable the non npu compilation of operators within the scope.
     """
     attrs = {
-        "_without_npu_compile" : attr_value_pb2.AttrValue(b=True)
+        "_without_npu_compile": attr_value_pb2.AttrValue(b=True)
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield

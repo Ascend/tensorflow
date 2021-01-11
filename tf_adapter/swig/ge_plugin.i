@@ -38,7 +38,7 @@ namespace std{
 
 extern int32_t InitRdmaPool(size_t size);
 
-extern int32_t RdmaRemoteRegister(const std::vector<ge::HostVarInfo> &var_info);
+extern int32_t RegisterRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info);
 
 extern int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t size);
 
@@ -106,7 +106,7 @@ namespace ge{
 
 extern int32_t InitRdmaPool(size_t size);
 
-extern int32_t RdmaRemoteRegister(const std::vector<ge::HostVarInfo> &var_info);
+extern int32_t RegisterRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info);
 
 extern int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t size);
 
