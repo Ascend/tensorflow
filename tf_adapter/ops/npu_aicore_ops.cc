@@ -31,4 +31,15 @@ REGISTER_OP("FastGeluGrad")
     .Output("backprops: T")
     .Attr("T: realnumbertype")
     .SetShapeFn(tensorflow::shape_inference::MergeBothInputsShapeFn);
+
+REGISTER_OP("Centralization")
+    .Input("x: T")
+    .Output("y: T")
+    .Attr("T: {float16, float32}")
+    .Attr("axes: list(int)")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+        c->set_output(0, c->input(0));
+        return Status::OK();
+    });
 } // namespace tensorflow

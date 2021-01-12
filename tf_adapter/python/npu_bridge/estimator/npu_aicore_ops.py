@@ -41,6 +41,17 @@ def _fast_gelu_grad(op, grad):
   """
   return [npu_aicore_ops.fast_gelu_grad(grad, op.inputs[0])]  # List of one Tensor, since we have one input
 
+
+def centralization(x, axes, name=None):
+    """
+    centralization op
+        return x - reduce_mean(x, axes)
+    """
+    x = ops.convert_to_tensor(x, name="x")
+    result = npu_aicore_ops.centralization(x, axes, name=name)
+    return result
+
+
 # go/tf-wildcard-import
 #from tensorflow.python.util.tf_export import tf_export
 
