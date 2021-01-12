@@ -88,10 +88,19 @@ class DeformableOffsetsGradOp : public OpKernel {
   bool IsExpensive() override { return false; }
 };
 
+class RandomChoiceWithMaskOp : public OpKernel {
+ public:
+  explicit RandomChoiceWithMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~RandomChoiceWithMaskOp() override {}
+  void Compute(OpKernelContext *context) override {
+     ADP_LOG(INFO) << "RandomChoiceWithMaskOp Compute ";
+  }
+};
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
 REGISTER_KERNEL_BUILDER(Name("CacheAdd").Device(DEVICE_CPU), CacheAddOp);
 REGISTER_KERNEL_BUILDER(Name("CacheRemoteIndexToLocal").Device(DEVICE_CPU), CacheRemoteIndexToLocalOp);
+REGISTER_KERNEL_BUILDER(Name("RandomChoiceWithMask").Device(DEVICE_CPU), RandomChoiceWithMaskOp);
 
 #define REGISTER_KERNEL(type)                                \
 REGISTER_KERNEL_BUILDER(Name("DeformableOffsets")            \
