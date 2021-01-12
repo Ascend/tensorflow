@@ -263,6 +263,28 @@ void PluginFinalize() {
   ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success";
 }
 
+int32_t InitRdmaPool(size_t size) {
+  ge::Status ret = ge::InitRdmaPool(size);
+  if (ret != ge::SUCCESS) {
+    ADP_LOG(ERROR) << "[GePlugin] init rdma pool failed, ret : " << ToString(ret);
+    LOG(ERROR) << "[GePlugin] init rdma pool failed, ret : " << ToString(ret);
+    return -1;
+  }
+  ADP_LOG(INFO) << "[GePlugin] init rdma pool success.";
+  return 0;
+}
+
+int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info) {
+  ge::Status ret = ge::RdmaRemoteRegister(var_info);
+  if (ret != ge::SUCCESS) {
+    ADP_LOG(ERROR) << "[GePlugin] rdma remote register failed, ret : " << ToString(ret);
+    LOG(ERROR) << "[GePlugin] rdma remote register failed, ret : " << ToString(ret);
+    return -1;
+  }
+  ADP_LOG(INFO) << "[GePlugin] rdma remote register success.";
+  return 0;
+}
+
 int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t size) {
   ge::Status ret = ge::InitRdmaPool(size);
   if (ret != ge::SUCCESS) {
