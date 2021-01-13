@@ -51,7 +51,7 @@ def para_check_and_set(argv):
             input = arg
             if str(input).endswith('/'):
                 input = input[0:len(input)-1]
-        elif opt in ("-l", "--input"):
+        elif opt in ("-l", "--list"):
             list = arg
         elif opt in ("-o", "--output"):
             output = arg
