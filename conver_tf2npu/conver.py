@@ -52,6 +52,9 @@ def conver():
 
     adjust_index()
     analysis_report = util_global.get_value('generate_dir_report')
-    analysis_report.to_excel(report_xlsx, index=True)
-    get_api_statistic(analysis_report)
+    if analysis_report.empty:
+        print('No api data in the report')
+    else:
+        analysis_report.to_excel(report_xlsx, index=True)
+        get_api_statistic(analysis_report)
     print("Finish conver, output file: " + out_path + "; report file: " + util_global.get_value('report'))

@@ -52,7 +52,7 @@ def get_tf_api(file_name):
     # get tensorflow related api
     api = []
     lineno = []
-    import_list = ['tf']
+    import_list = ['tf','hvd']
     for module in import_list:
         for i in range(len(visitor.calls)):
             if module + '.' in visitor.calls[i] and visitor.calls[i].split('.')[0] == module:

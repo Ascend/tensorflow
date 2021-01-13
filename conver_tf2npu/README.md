@@ -12,11 +12,13 @@
 2. 目前仅支持Python3的脚本
 
 
-3. 目前支持的TensorFlow模块引入方式如下，如果您的训练脚本未按照如下方式引用TensorFlow模块，请先修改训练脚本。
+3. 目前支持的TensorFlow、Horovod模块引入方式如下，如果您的训练脚本未按照如下方式引用TensorFlow模块，请先修改训练脚本。
 
     import tensorflow as tf
 
     import tensorflow.compat.v1 as tf
+	
+	import horovod.tensorflow as hvd
 
 ## 使用指导
 1. 安装依赖。
