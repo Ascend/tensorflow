@@ -96,6 +96,25 @@ class RandomChoiceWithMaskOp : public OpKernel {
     ADP_LOG(INFO) << "RandomChoiceWithMaskOp Compute ";
   }
 };
+
+template <typename T>
+class DenseImageWarpOp : public OpKernel {
+ public:
+  explicit DenseImageWarpOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~DenseImageWarpOp() override {}
+  void Compute(OpKernelContext *context) override {}
+  bool IsExpensive() override { return false; }
+};
+
+template <typename T>
+class DenseImageWarpGradOp : public OpKernel {
+ public:
+  explicit DenseImageWarpGradOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~DenseImageWarpGradOp() override {}
+  void Compute(OpKernelContext *context) override {}
+  bool IsExpensive() override { return false; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
 REGISTER_KERNEL_BUILDER(Name("CacheAdd").Device(DEVICE_CPU), CacheAddOp);
@@ -116,6 +135,24 @@ REGISTER_KERNEL_BUILDER(Name("DeformableOffsetsGrad")        \
                             .Device(DEVICE_CPU)              \
                             .TypeConstraint<type>("T"),      \
                         DeformableOffsetsGradOp<type>)
+REGISTER_KERNEL(float);
+REGISTER_KERNEL(Eigen::half);
+#undef REGISTER_KERNEL
+
+#define REGISTER_KERNEL(type)                                \
+REGISTER_KERNEL_BUILDER(Name("DenseImageWarp")               \
+                            .Device(DEVICE_CPU)              \
+                            .TypeConstraint<type>("T"),      \
+                        DenseImageWarpOp<type>)
+REGISTER_KERNEL(float);
+REGISTER_KERNEL(Eigen::half);
+#undef REGISTER_KERNEL
+
+#define REGISTER_KERNEL(type)                                \
+REGISTER_KERNEL_BUILDER(Name("DenseImageWarpGrad")           \
+                            .Device(DEVICE_CPU)              \
+                            .TypeConstraint<type>("T"),      \
+                        DenseImageWarpGradOp<type>)
 REGISTER_KERNEL(float);
 REGISTER_KERNEL(Eigen::half);
 #undef REGISTER_KERNEL

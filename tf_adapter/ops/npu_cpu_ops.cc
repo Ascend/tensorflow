@@ -190,4 +190,32 @@ REGISTER_OP("RandomChoiceWithMask")
     }
     return Status::OK();
   });
+//regist dense image warp op
+REGISTER_OP("DenseImageWarp")
+  .Input("image: T")
+  .Input("flow: S")
+  .Output("y: T")
+  .Attr("T: {float16, float32}")
+  .Attr("S: {float16, float32}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto input_image_shape = c->input(0);
+    c->set_output(0, input_image_shape);
+    return Status::OK();
+  });
+//regist dense image warp grad op
+REGISTER_OP("DenseImageWarpGrad")
+  .Input("grad: T")
+  .Input("image: T")
+  .Input("flow: S")
+  .Output("grad_image: T")
+  .Output("grad_flow: S")
+  .Attr("T: {float16, float32}")
+  .Attr("S: {float16, float32}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto input_image_shape = c->input(1);
+    auto input_flow_shape = c->input(2);
+    c->set_output(0, input_image_shape);
+    c->set_output(1, input_flow_shape);
+    return Status::OK();
+  });
 }  // namespace tensorflow
