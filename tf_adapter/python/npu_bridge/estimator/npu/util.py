@@ -419,3 +419,6 @@ def set_graph_exec_config(fetch, dynamic_input = False,
   else:
     raise ValueError("fetch is invalid, should be op, tensor, list, tuple or tensor name.")
   return fetch
+
+def npu_compile(sess, *fetches):
+  sess.run(fetches)
