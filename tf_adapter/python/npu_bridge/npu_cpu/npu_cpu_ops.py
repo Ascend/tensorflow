@@ -27,10 +27,31 @@ def embeddingrankid(addr_tensor, index, row_memory=320, mode='mod'):
 #  @param seed int类型
 #  @param seed2 int类型
 #  @return y int32类型 mask bool 类型
-def RandomChoiceWithMask(x, count, seed=0, seed2=0):
+def randomchoicewithmask(x, count, seed=0, seed2=0):
     result = gen_npu_cpu_ops.random_choice_with_mask(
         x=x,
         count=count,
         seed=seed,
         seed2=seed2)
     return result
+
+## 提供DenseImageWarp功能
+#  @param image tensor类型
+#  @param flow tensor类型
+#  @return y tensor类型
+def dense_image_warp(image, flow, name=None):
+    result = gen_npu_cpu_ops.dense_image_warp(
+        image=image,
+        flow=flow,
+        name=name
+    )
+    return result
+
+## DenseImageWarp的梯度函数
+@ops.RegisterGradient("DenseImageWarp")
+def dense_image_warp_grad(op, grad):
+    image = op.inputs[0]
+    flow = op.inputs[1]
+    grad_image, grad_flow = gen_npu_cpu_ops.dense_image_warp_grad(
+        grad, image, flow)
+    return [grad_image, grad_flow]

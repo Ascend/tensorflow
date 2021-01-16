@@ -249,7 +249,7 @@ REGISTER_OP("HcomRemoteWrite")
 
 REGISTER_OP("HcomRemoteScatterWrite")
     .Input("remote: T")
-    .Input("local: dtype")
+    .Input("local: Ref(dtype)")
     .Input("local_offset: T")
     .Attr("T: {int64, uint64}")
     .Attr("dtype: {int8, int16, int32, float16, float32, int64, uint64}")
