@@ -1910,6 +1910,8 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
         graphIn->AddEdge(unary_node, 0, out_edge->dst(), out_edge->dst_input());
       }
       graphIn->RemoveNode(node);
+    } else if (node->type_string() == "DestroyTemporaryVariable" && node->name().find("AccumulateNV2") != std::string::npos) {
+      TF_RETURN_IF_ERROR(AccumulateNFusion(graphIn, node));
     }
   }
   if (getnext_node_count > 1) {
@@ -2071,6 +2073,59 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " success. ["
             << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  return Status::OK();
+}
+
+Status OMPartitionSubgraphsPass::AccumulateNFusion(Graph *graphIn, Node *node) {
+  DataType dtype;
+  TF_RETURN_IF_ERROR(GetNodeAttr(node->attrs(), "T", &dtype));
+
+  std::vector<tensorflow::NodeBuilder::NodeOut> input_nodes;
+  std::vector<Node *> delete_nodes;
+  TensorShapeProto variable_shape;
+  for (auto input_edge : node->in_edges()) {
+    if (input_edge->src()->type_string() == "AssignAdd") {
+      for (auto assignadd_inedge : input_edge->src()->in_edges()) {
+        if (assignadd_inedge->src()->type_string() != "Assign") {
+          input_nodes.emplace_back(assignadd_inedge->src());
+        }
+      }
+      delete_nodes.emplace_back(input_edge->src());
+    } else {
+      for (auto assign_inedge : input_edge->src()->in_edges()) {
+        if (assign_inedge->src()->type_string() == "Const" && !assign_inedge->IsControlEdge()) {
+          variable_shape = assign_inedge->src()->def().attr().at("value").tensor().tensor_shape();
+          delete_nodes.emplace_back(assign_inedge->src());
+        } else if (assign_inedge->src()->type_string() == "TemporaryVariable") {
+          delete_nodes.emplace_back(assign_inedge->src());
+        } else {
+          ADP_LOG(INFO) << "unsupport node in accumulate_n sub graph.";
+        }
+      }
+      delete_nodes.emplace_back(input_edge->src());
+    }
+  }
+  delete_nodes.emplace_back(node);
+
+  Node *accumulate_node = nullptr;
+  TF_CHECK_OK(NodeBuilder(node->name(), "AccumulateNV2")
+                  .Input(input_nodes)
+                  .Attr("T", dtype)
+                  .Attr("shape", variable_shape)
+                  .Device(node->def().device())
+                  .Finalize(&*graphIn, &accumulate_node));
+  REQUIRES_NOT_NULL(accumulate_node);
+
+  for (auto out_edge : node->out_edges()) {
+    if (out_edge->IsControlEdge()) {
+      graphIn->AddControlEdge(accumulate_node, out_edge->dst());
+    } else {
+      graphIn->AddEdge(accumulate_node, 0, out_edge->dst(), out_edge->dst_input());
+    }
+  }
+  for (auto delete_node : delete_nodes) {
+    graphIn->RemoveNode(delete_node);
+  }
   return Status::OK();
 }
 
