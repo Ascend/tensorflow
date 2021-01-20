@@ -51,6 +51,13 @@ def centralization(x, axes, name=None):
     result = npu_aicore_ops.centralization(x, axes, name=name)
     return result
 
+@ops.RegisterGradient("PRelu")
+def prelu_grad(op, grad):
+    dx, da = npu_aicore_ops.p_relu_grad(grad, op.inputs[0], op.inputs[1])
+    return [dx, da]
+
+def prelu(x, weight):
+    return npu_aicore_ops.p_relu(x, weight)
 
 # go/tf-wildcard-import
 #from tensorflow.python.util.tf_export import tf_export
