@@ -3,16 +3,19 @@ from tensorflow.python.framework import load_library
 from tensorflow.python.framework import ops
 from tensorflow.python.platform import resource_loader
 from npu_bridge.helper import helper
+import tensorflow as tf
 
 gen_npu_cpu_ops = helper.get_gen_ops()
 
 class LruCache(object):
-  def __init__(self, cache_size=100000, load_factor=1):
+  def __init__(self, cache_size=100000, load_factor=1, dtype=tf.uint32):
     self._cache_size=cache_size
     self._load_factor=load_factor
+    self._dtype=dtype
     self._cache=gen_npu_cpu_ops.lru_cache(
         cache_size=self._cache_size,
         load_factor=self._load_factor
+        dtype=self._dtype
     )
   ##提供CacheAdd功能
   # @param cache resource类型，保存lruCache资源
@@ -32,5 +35,14 @@ class LruCache(object):
     result=gen_npu_cpu_ops.cache_remote_index_to_local(
         cache=self._cache,
         ids=ids
+    )
+    return result
+  ##提供CacheAllIndexToLocal功能
+  # @param cache resource类型，保存lruCache资源
+  # return result 输出cache中所有的id
+  def cache_all_index_to_local(self, ids):
+    result=gen_npu_cpu_ops.cache_all_index_to_local(
+        cache=self._cache,
+        dtype=self._dtype
     )
     return result

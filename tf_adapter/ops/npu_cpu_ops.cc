@@ -63,6 +63,7 @@ REGISTER_OP("LruCache")
   .Attr("load_factor: float = 1.0")
   .Attr("container: string = ''")
   .Attr("shared_name: string = 'LruCache'")
+  .Attr("dtype: {uint32, uint64, int32, int64}")
   .SetIsStateful()
   .SetShapeFn(shape_inference::ScalarShape);
 //regist cache add op
@@ -70,9 +71,9 @@ REGISTER_OP("CacheAdd")
   .Input("cache: resource")
   .Input("ids: T")
   .Output("swap_in_id: T")
-  .Output("swap_in_idx: int64")
+  .Output("swap_in_idx: T")
   .Output("swap_out_id: T")
-  .Output("swap_out_idx: int64")
+  .Output("swap_out_idx: T")
   .Attr("T: {int64, int32, uint64, uint32}")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     c->set_output(0, c->Vector(c->UnknownDim()));
@@ -85,12 +86,22 @@ REGISTER_OP("CacheAdd")
 REGISTER_OP("CacheRemoteIndexToLocal")
   .Input("cache: resource")
   .Input("ids: T")
-  .Output("local_idx: int64")
+  .Output("local_idx: T")
   .Attr("T: {int64, int32, uint32, uint64}")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     c->set_output(0, c->Vector(c->Rank(c->input(1))));
     return Status::OK();
   });
+//regist cache all index to local op
+REGISTER_OP("CacheAllIndexToLocal")
+  .Input("cache: resource")
+  .Output("local_idx: dtype")
+  .Attr("dtype: {int64, int32, uint32, uint64}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    c->set_output(0, c->Vector(c->UnknownDim()));
+    return Status::OK();
+  });
+
 //regist deformable offsets op
 REGISTER_OP("DeformableOffsets")
   .Input("x: T")
