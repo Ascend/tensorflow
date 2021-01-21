@@ -65,7 +65,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                  hcom_multi_mode=False,
                  dynamic_input=False,
                  dynamic_graph_execute_mode="dynamic_execute",
-                 dynamic_inputs_shape_range=None
+                 dynamic_inputs_shape_range=None,
+                 train_distribute=None,
+                 eval_distribute=None
                  ):
         """
         Constructs a NPUConfig.
@@ -216,7 +218,9 @@ class NPURunConfig(run_config_lib.RunConfig):
             keep_checkpoint_max=keep_checkpoint_max,
             keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours,
             log_step_count_steps=log_step_count_steps,
-            experimental_distribute=experimental_distribute)
+            experimental_distribute=experimental_distribute,
+            train_distribute=train_distribute,
+            eval_distribute=eval_distribute)
 
 class ProfilingConfig():
     """Profiling config with NPU support."""

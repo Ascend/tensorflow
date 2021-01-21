@@ -95,13 +95,29 @@ def ast_call(node):
         log_success_report(getattr(node, "lineno", "None"), node.func.attr)
         node.args = [ast.Str(s='/cpu:0')]
         util_global.set_value('need_conver', True)
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == "get_distribution_strategy" or
+        node.func.attr == "MirroredStrategy" or node.func.attr == "MultiWorkerMirroredStrategy"):
+        log_success_report(getattr(node, "lineno", "None"), node.func.attr)
+        node.func = ast.Attribute(value=ast.Name(id="npu_strategy", ctx=ast.Load()),
+                                  attr="NPUStrategy", ctx=ast.Load())
+        node.keywords = []
+        node.args = []
+        util_global.set_value('need_conver', True)
     return node
 
 def insert_npu_import(r_node):
-    log_success_report('0', 'import')
     npu_alias = ast.alias(name='*', asname=None)
     npu_import = ast.ImportFrom(module='npu_bridge.npu_init', names=[npu_alias], level=0)
-    r_node.body.insert(0, npu_import)
+    for i in range(0, 5):
+        if isinstance(r_node.body[i], ast.Import):
+            r_node.body.insert(i, npu_import)
+            log_success_report(i, "import")
+            break
+        elif isinstance(r_node.body[i], ast.ImportFrom):
+            if r_node.body[i].module != "__future__":
+                r_node.body.insert(i, npu_import)
+                log_success_report(i, "import")
+                break
 
 def ast_assign(node):
     if isinstance(node.value, ast.Call):
@@ -135,6 +151,11 @@ def ast_assign(node):
                     node.value = ast.Call(func=func_new,
                                           args=[],
                                           keywords=keywords_new)
+                elif node.value.func.attr.find("Optimizer") != -1:
+                    log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
+                    npu_func = ast.Name(id="NPUDistributedOptimizer", ctx=ast.Load())
+                    npu_opt = ast.Assign(targets=node.targets, value=ast.Call(func=npu_func, args=node.targets, keywords=[]))
+                    node = ast.If(test=ast.NameConstant(value=True), body=[node, npu_opt], orelse=[])
     return node
 
 # Format printing for locate

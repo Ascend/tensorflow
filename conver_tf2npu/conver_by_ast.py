@@ -75,6 +75,9 @@ class ConverByAst(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node):
+        if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute):
+            if node.value.func.attr.find("Optimizer") != -1:
+                return ast_assign(node)
         ast_assign(node)
         self.generic_visit(node)
         return node
