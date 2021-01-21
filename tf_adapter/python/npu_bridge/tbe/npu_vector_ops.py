@@ -28,7 +28,14 @@
 """Ops for aicore cube."""
 from tensorflow import Tensor
 from tensorflow.python.eager import context
+from tensorflow.python.keras import constraints
+from tensorflow.python.keras import initializers
+from tensorflow.python.keras import regularizers
+from tensorflow.python.keras.engine.base_layer import Layer
+from tensorflow.python.keras.engine.input_spec import InputSpec
+from tensorflow.python.keras.utils import tf_utils
 from npu_bridge.helper import helper
+from npu_bridge.estimator.npu_aicore_ops import prelu
 gen_npu_ops = helper.get_gen_ops()
 
 def lamb_apply_optimizer_assign(input0, input1, input2, input3, mul0_x, mul1_x,
@@ -46,3 +53,35 @@ def lamb_apply_weight_assign(input0, input1, input2, input3, input4, name=None):
                         "eager execution.")
     result = gen_npu_ops.lamb_apply_weight_assign(input0, input1, input2, input3, input4, name)
     return result
+
+
+class PReLU(Layer):
+
+    def __init__(self,
+                 alpha_initializer='zeros',
+                 alpha_regularizer=None,
+                 alpha_constraint=None,
+                 shared_axes=None,
+                 **kwargs):
+        super(PReLU, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.alpha_initializer = initializers.get(alpha_initializer)
+        self.alpha_regularizer = regularizers.get(alpha_regularizer)
+        self.alpha_constraint = constraints.get(alpha_constraint)
+        # now not support shared_axes
+        self.shared_axes = None
+
+    @tf_utils.shape_type_conversion
+    def build(self, input_shape):
+        param_shape = [1, ]
+        self.alpha = self.add_weight(
+            shape=param_shape,
+            name='alpha',
+            initializer=self.alpha_initializer,
+            regularizer=self.alpha_regularizer,
+            constraint=self.alpha_constraint)
+        self.input_spec = InputSpec(ndim=len(input_shape), axes={})
+        self.built = True
+
+    def call(self, inputs):
+        return prelu(inputs, self.alpha)

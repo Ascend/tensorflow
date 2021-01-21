@@ -42,4 +42,29 @@ REGISTER_OP("Centralization")
         c->set_output(0, c->input(0));
         return Status::OK();
     });
+
+REGISTER_OP("PRelu")
+    .Input("x: T")
+    .Input("weight: T")
+    .Output("y: T")
+    .Attr("T: {float16, float32}")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+        c->set_output(0, c->input(0));
+        return Status::OK();
+    });
+
+REGISTER_OP("PReluGrad")
+    .Input("grads: T")
+    .Input("features: T")
+    .Input("weights: T")
+    .Output("dx: T")
+    .Output("da: T")
+    .Attr("T: {float16, float32}")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+        c->set_output(0, c->input(0));
+        c->set_output(1, c->input(2));
+        return Status::OK();
+    });
 } // namespace tensorflow
