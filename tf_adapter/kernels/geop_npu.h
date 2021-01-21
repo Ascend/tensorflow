@@ -140,6 +140,7 @@ class GeOp : public AsyncOpKernel {
   std::string dynamic_graph_execute_mode_;
   std::string data_inputs_shape_range_;
   std::string getnext_inputs_shape_range_;
+  bool need_compile_graph_first_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_

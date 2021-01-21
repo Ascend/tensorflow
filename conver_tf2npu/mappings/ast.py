@@ -14,6 +14,11 @@
 "Estimator":                    ["NPUEstimator",            "tf.estimator.Estimator",       "NPUEstimator"],
 "import":                       ["",                        "",                             "'from npu_bridge.npu_init import *'"],
 
+"NPUDistributedOptimizer":      ["",                        "",                             "NPUDistributedOptimizer(xxx)"],
+"get_distribution_strategy":    ["npu_strategy", "distribution_utils.get_distribution_strategy", "NPUStrategy"],
+"MirroredStrategy":             ["npu_strategy",               "tf.distribute.MirroredStrategy", "NPUStrategy"],
+"MultiWorkerMirroredStrategy":  ["npu_strategy",    "tf.distribute.MultiWorkerMirroredStrategy", "NPUStrategy"],
+
 "batch":                        ["",                        "batch(xxx)",                   "batch(xxx, drop_remainder=True)"],
 "map_and_batch":                ["",                        "map_and_batch(xxx)",           "map_and_batch(xxx, drop_remainder=True)"],
 "device":                       ["",                        "tf.device(xxx)",               "tf.device(/cpu:0)"],

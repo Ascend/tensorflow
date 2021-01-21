@@ -189,7 +189,8 @@ GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false),
       sess_init_flag_(false), compute_graph_empty_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr),
-      job_type_(""), is_host_graph_(false), is_train_graph_(false), handle_(nullptr), tuning_api_(nullptr) {
+      job_type_(""), is_host_graph_(false), is_train_graph_(false), handle_(nullptr), tuning_api_(nullptr),
+      need_compile_graph_first_(false) {
   Initialize(ctx);
 }
 
@@ -692,6 +693,18 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       cache_graphs_.insert(std::make_pair(input_shapes, cache_graph_id));
       graph_counts_.push_back(std::make_pair(input_shapes, 1));
     }
+    if (need_compile_graph_first_) {
+      std::vector<ge::InputTensorInfo> inputs;
+      OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, inputs)), done);
+      int64 compile_start_time = InferShapeUtil::GetCurrentTimestap();
+      ge::Status status = ge_session_->BuildGraph(cache_graph_id, inputs);
+      OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS,
+                        errors::Unavailable("[GEOP] GE session build graph failed, domi_ret : ",
+                        ToString(status)), done);
+      ADP_LOG(INFO) << "[GEOP] Build graph success.";
+      done();
+      return;
+    }
   } else {
     if (compute_graph_empty_) {
       int64 endTime = InferShapeUtil::GetCurrentTimestap();
@@ -779,8 +792,14 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
     is_host_graph_ = true;
     ADP_LOG(INFO) << "[GEOP] variable subgraph is initialized in host.";
   }
-  if (node->name().find("_Allreduce") != string::npos) {
+  if (node->name().find("_Allreduce") != std::string::npos) {
     is_train_graph_ = true;
+  }
+  if (!need_compile_graph_first_) {
+    if (node->name().find("NpuCompile") != std::string::npos) {
+      need_compile_graph_first_ = true;
+      ADP_LOG(INFO) << "[GEOP] set subgraph compile first.";
+    }
   }
   // clear device info && attr
   node_def.set_device("");

@@ -374,7 +374,7 @@ def get_all_grad_item():
     global _GRADIENTS_AND_VARS
     return _GRADIENTS_AND_VARS
 
-def set_graph_dynamic_exec_config(fetch, dynamic_input = False,
+def set_graph_exec_config(fetch, dynamic_input = False,
                                   dynamic_graph_execute_mode = "dynamic_execute",
                                   dynamic_inputs_shape_range = None):
   """
@@ -410,12 +410,15 @@ def set_graph_dynamic_exec_config(fetch, dynamic_input = False,
                  dynamic_inputs_shape_range_attr)
   elif isinstance(fetch, (tuple, list)):
     for tensor in fetch:
-      tensor = set_graph_dynamic_exec_config(tensor, dynamic_input, dynamic_graph_execute_mode,
+      tensor = set_graph_exec_config(tensor, dynamic_input, dynamic_graph_execute_mode,
                                              dynamic_inputs_shape_range)
   elif isinstance(fetch, str):
-    tensor = set_graph_dynamic_exec_config(ops.get_default_graph().get_tensor_by_name(fetch),
+    tensor = set_graph_exec_config(ops.get_default_graph().get_tensor_by_name(fetch),
                 dynamic_input, dynamic_graph_execute_mode, dynamic_inputs_shape_range)
     return tensor
   else:
     raise ValueError("fetch is invalid, should be op, tensor, list, tuple or tensor name.")
   return fetch
+
+def npu_compile(sess, *fetches):
+  sess.run(fetches)
