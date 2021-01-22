@@ -134,7 +134,7 @@ def adjust_index():
     report = util_global.get_value('generate_dir_report')
     index_column = []
     for i in range(len(report)):
-        index_column.append(i+1)
+        index_column.append(i + 1)
     report.index = index_column
     report.index.name = '序号'
     util_global.set_value('generate_dir_report', report)

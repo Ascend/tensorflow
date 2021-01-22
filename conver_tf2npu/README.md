@@ -17,8 +17,8 @@
     import tensorflow as tf
 
     import tensorflow.compat.v1 as tf
-
-    import horovod.tensorflow as hvd
+	
+	import horovod.tensorflow as hvd
 
 ## 使用指导
 1. 安装依赖。
