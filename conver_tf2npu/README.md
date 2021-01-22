@@ -73,13 +73,7 @@
 
     "tf.cpmpat.v1.layers.max_pooling2d" --> "tf.compat.v1.nn.max_pool_with_argmax"
 
-4、目前tf_adapter的默认配置项
-    
-    a) config中的remapping默认设置为RewriterConfig.OFF
-
-    b) custom_op.parameter_map["use_off_line"].b = True默认设置为True
-
-    c) custom_op.parameter_map["enable_data_pre_proc"].b = True默认设置为True
+    涉及迁移的python脚本，会新增'from npu_bridge.npu_init import *'该头文件引用，用于导入NPU相关库
 
 ## 贡献
 
