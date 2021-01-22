@@ -33,7 +33,7 @@ if (ENABLE_OPEN_SRC)
     file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/SWIG_BIN_PATH" SWIG_BIN_PATH)
 
     file(COPY ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/python DESTINATION ${CMAKE_BINARY_DIR}/dist)
-    file(COPY ${CMAKE_CURRENT_LIST_DIR}/conver_tf2npu DESTINATION ${CMAKE_BINARY_DIR}/dist/python/npu_bridge)
+    file(COPY ${CMAKE_CURRENT_LIST_DIR}/convert_tf2npu DESTINATION ${CMAKE_BINARY_DIR}/dist/python/npu_bridge)
     file(COPY ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/swig DESTINATION ${CMAKE_BINARY_DIR}/dist)
     execute_process(COMMAND ${SWIG_BIN_PATH} -python -c++ -threads ${CMAKE_BINARY_DIR}/dist/swig/ge_plugin.i)
     file(COPY ${CMAKE_BINARY_DIR}/dist/swig/tf_adapter.py DESTINATION ${CMAKE_BINARY_DIR}/dist/python/npu_bridge)
@@ -153,7 +153,7 @@ else()
         COMMAND echo "package whl start"
         && mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && cp -r ${BASE_DIR}/tf_adapter/python/. ${CMAKE_CURRENT_BINARY_DIR}/wheel
-        && cp -r ${BASE_DIR}/conver_tf2npu ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
+        && cp -r ${BASE_DIR}/convert_tf2npu ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         && cp -r ${CMAKE_CURRENT_BINARY_DIR}/_tf_adapter.so ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         && cp -r $<TARGET_FILE:SoftDp> ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         # && cp -r ${CMAKE_CURRENT_BINARY_DIR}/../../../../../soft_dp/libSoftDp.so ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
