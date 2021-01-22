@@ -26,11 +26,9 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-# from tensorflow.contrib.offline_train.ops import gen_npu_ops
 from tensorflow.contrib.util import loader
 from tensorflow.python.eager import context
 from tensorflow.python.framework import device
-from tensorflow.python.framework import ops
 from tensorflow.python.platform import resource_loader
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 
@@ -65,7 +63,7 @@ def NPUShutdown(name=None):
   """
   if context.executing_eagerly():
     raise RuntimeError("tf.NPUShutdown() is not compatible with "
-                       "eager execution.")
+                      "eager execution.")
 
   return gen_npu_ops.npu_shutdown(name=name)
 
