@@ -377,7 +377,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   std::map<std::string, std::string> pass_options;
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   bool do_npu_optimizer = false;
-  bool enable_dp = true;
+  bool enable_dp = false;
   bool use_off_line = true;
   bool mix_compile_mode = false;
   int iterations_per_loop = 1;
@@ -424,7 +424,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
 std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction *ctx) {
   std::map<std::string, std::string> pass_options;
   std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(true);
+  std::string enable_dp = std::to_string(false);
   std::string use_off_line = std::to_string(true);
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
@@ -461,7 +461,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
 std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::map<std::string, std::string> pass_options;
   std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(true);
+  std::string enable_dp = std::to_string(false);
   std::string use_off_line = std::to_string(true);
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
@@ -504,7 +504,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
 std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) {
   std::map<std::string, std::string> all_options;
   std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(true);
+  std::string enable_dp = std::to_string(false);
   std::string use_off_line = std::to_string(true);
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
@@ -723,7 +723,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
 std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
   std::map<std::string, std::string> pass_options;
   pass_options["do_npu_optimizer"] = std::to_string(false);
-  pass_options["enable_dp"] = std::to_string(true);
+  pass_options["enable_dp"] = std::to_string(false);
   pass_options["use_off_line"] = std::to_string(true);
   pass_options["mix_compile_mode"] = std::to_string(false);
   pass_options["iterations_per_loop"] = std::to_string(1);
@@ -759,7 +759,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
   std::map<std::string, std::string> pass_options;
   bool do_npu_optimizer = false;
-  bool enable_dp = true;
+  bool enable_dp = false;
   bool use_off_line = true;
   bool mix_compile_mode = false;
   int iterations_per_loop = 1;
