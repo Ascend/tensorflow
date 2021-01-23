@@ -246,3 +246,19 @@ def adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
     result = gen_npu_ops.adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
                    mul0_x, mul1_x, mul2_x, mul3_x, mul4_x, add2_y, name)
     return result
+
+@ops.RegisterGradient("DynamicGruV2")
+def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
+    (x, weight_input, weight_hidden, bias_input, bias_hidden, seq_length, init_h) = op.inputs
+    (y, output_h, update, reset, new, hidden_new) = op.outputs
+    (dw_input, dw_hidden, db_input, db_hidden, dx, dh_prev) = npu_aicore_ops.dynamic_gru_v2_grad(x, weight_input, weight_hidden, y, init_h, output_h, dy, doutput_h, update, reset, new, hidden_new, direction=op.get_attr("direction"), cell_depth=op.get_attr("cell_depth"), keep_prob=op.get_attr("keep_prob"), cell_clip=op.get_attr("cell_clip"), num_proj=op.get_attr("num_proj"), time_major=op.get_attr("time_major"), bias_type=op.get_attr("bias_type"), gate_order=op.get_attr("gate_order"), reset_after=op.get_attr("reset_after"))
+
+    return (dx, dw_input, dw_hidden, db_input, db_hidden, seq_length, dh_prev)
+
+@ops.RegisterGradient("DynamicRnn")
+def dynamic_rnn_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
+    (x, w, b, seq_length, init_h, init_c) = op.inputs
+    (y, output_h, output_c, i, j, f, o, tanhc) = op.outputs
+    (dw, db, dx, dh_prev, dc_prev) = npu_aicore_ops.dynamic_rnn_grad(x, w, b, y, init_h, init_c, output_h, output_c, dy, dh[-1], dc[-1], i, j, f, o, tanhc, cell_type=op.get_attr("cell_type"), direction=op.get_attr("direction"), cell_depth=op.get_attr("cell_depth"), use_peephole=op.get_attr("use_peephole"), keep_prob=op.get_attr("keep_prob"), cell_clip=op.get_attr("cell_clip"), num_proj=op.get_attr("num_proj"), time_major=op.get_attr("time_major"), forget_bias=op.get_attr("forget_bias"))
+
+    return (dx, dw, db, seq_length, dh_prev, dc_prev)

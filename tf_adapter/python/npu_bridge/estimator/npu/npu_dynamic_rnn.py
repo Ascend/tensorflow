@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 import os
+import math
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from npu_bridge.helper import helper
@@ -133,14 +134,17 @@ class _DynamicBasic(base_layer.Layer):
                         (self._direction, DYNAMIC_RNN_UNIDIRECTION, DYNAMIC_RNN_BIDIRECTION))
 
   def build(self, input_shape):
+    if input_shape[0].value is None:
+      raise ValueError("Expected input_shape[0] to be known, saw shape: batch_size.")
     if input_shape[1].value is None:
       raise ValueError("Expected input_shape[1] to be known, saw shape: batch_size.")
+    time_size = input_shape[0].value
     batch_size = input_shape[1].value
     self._seq_length = self.add_variable(
       "dynamicbase/seq_length",
       shape=[batch_size],
       dtype=dtypes.int32,
-      initializer=init_ops.zeros_initializer(dtype=dtypes.int32),
+      initializer=init_ops.constant_initializer(time_size, dtype=dtypes.int32),
       trainable=False)
     self._init_h = array_ops.zeros([batch_size, self._hidden_size], dtype=self._dtype)
     super(_DynamicBasic, self).build(input_shape)
@@ -276,10 +280,6 @@ class DynamicGRUV2(_DynamicBasic):
 
   def call(self,
            x,
-           weight_input=None,
-           weight_hidden=None,
-           bias_input=None,
-           bias_hidden=None,
            seq_length=None,
            init_h=None):
     """Dynamic GRU.
@@ -328,18 +328,10 @@ class DynamicGRUV2(_DynamicBasic):
     super(DynamicGRUV2, self).call(x,
                                    seq_length=seq_length,
                                    init_h=init_h)
-    if weight_input is None:
-      weight_input = self._gruv2_weight_input
-    if weight_hidden is None:
-      weight_hidden = self._gruv2_weight_hiddens
-    if bias_input is None:
-      bias_input = self._bias_input
-    if bias_hidden is None:
-      bias_hidden = self._bias_hidden
-    self._args["weight_input"] = weight_input
-    self._args["weight_hidden"] = weight_hidden
-    self._args["bias_input"] = bias_input
-    self._args["bias_hidden"] = bias_hidden
+    self._args["weight_input"] = self._gruv2_weight_input
+    self._args["weight_hidden"] = self._gruv2_weight_hidden
+    self._args["bias_input"] = self._bias_input
+    self._args["bias_hidden"] = self._bias_hidden
     return gen_npu_ops.dynamic_gru_v2(**self._args)
 
 class DynamicRNN(_DynamicBasic):
@@ -415,8 +407,6 @@ class DynamicRNN(_DynamicBasic):
 
   def call(self,
            x,
-           w=None,
-           b=None,
            seq_length=None,
            init_h=None,
            init_c=None):
@@ -466,13 +456,9 @@ class DynamicRNN(_DynamicBasic):
     super(DynamicRNN, self).call(x,
                                  seq_length=seq_length,
                                  init_h=init_h)
-    if w is None:
-      w = self._rnn_w
-    if b is None:
-      b = self._rnn_b
     if init_c is None:
       init_c = self._init_c
-    self._args["w"] = w
-    self._args["b"] = b
+    self._args["w"] = self._rnn_w
+    self._args["b"] = self._rnn_b
     self._args["init_c"] = init_c
     return gen_npu_ops.dynamic_rnn(**self._args)
