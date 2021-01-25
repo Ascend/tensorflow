@@ -732,8 +732,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       }
     } else if (ge_status == ge::END_OF_SEQUENCE) {
       ctx->SetStatus(errors::OutOfRange("End of sequence"));
-      ADP_LOG(ERROR) << "[GEOP] Out of range: End of sequence.";
-      LOG(ERROR) << "[GEOP] Out of range: End of sequence.";
+      ADP_LOG(WARNING) << "[GEOP] Out of range: End of sequence.";
+      LOG(WARNING) << "[GEOP] Out of range: End of sequence.";
     } else if (ge_status != ge::SUCCESS) {
       tensorflow::Status tfStatus = errors::Unavailable(ToString(ge_status));
       ctx->CtxFailureWithWarning(tfStatus);
