@@ -30,22 +30,20 @@
 #include "runtime/base.h"
 
 namespace ge {
-class ModelListenerAdapter;
-
 class SingleOp;
 class DynamicSingleOp;
 
 struct RunModelData {
   uint32_t index;  // Data index
   uint32_t modelId;
-  std::vector<DataBuffer> blobs;      // All input/output data buffer
-  uint32_t timestamp;                 // Data creation time
-  uint32_t timeout;                   // Processing timeout
-  uint64_t request_id = 0;            // Request ID
-  uint64_t dynamic_batch_size = 0;    // Dynamic batch size scene, set dynamic size, not supported by default:0
-  uint64_t dynamic_image_height = 0;  // Dynamic image size scene, set image height, not supported by default:0
-  uint64_t dynamic_image_width = 0;   // Dynamic image size scene, set image width, not supported by default:0
-  std::vector<uint64_t> dynamic_dims; // Dynamic dims scene, set dynamic dims, not supported by default:empty
+  std::vector<DataBuffer> blobs;       // All input/output data buffer
+  uint32_t timestamp;                  // Data creation time
+  uint32_t timeout;                    // Processing timeout
+  uint64_t request_id = 0;             // Request ID
+  uint64_t dynamic_batch_size = 0;     // Dynamic batch size scene, set dynamic size, not supported by default:0
+  uint64_t dynamic_image_height = 0;   // Dynamic image size scene, set image height, not supported by default:0
+  uint64_t dynamic_image_width = 0;    // Dynamic image size scene, set image width, not supported by default:0
+  std::vector<uint64_t> dynamic_dims;  // Dynamic dims scene, set dynamic dims, not supported by default:empty
 };
 
 class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY GeExecutor {
@@ -55,13 +53,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY GeExecutor {
   ge::Status Initialize();
   ge::Status Finalize();
 
-  // Load model
-  ge::Status LoadModelOffline(uint32_t &model_id, const std::string &path, const std::string &key, int32_t priority,
-                              std::shared_ptr<ge::ModelListener> listener);
-
   ge::Status UnloadModel(uint32_t modelId);
-
-  ge::Status RunModel(const ge::RunModelData &input_data, ge::RunModelData &output_data);
 
   // Get input and output descriptor
   ge::Status GetModelDescInfo(uint32_t model_id, std::vector<ge::TensorDesc> &input_desc,
@@ -165,12 +157,6 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY GeExecutor {
 
   ge::Status GetAippType(uint32_t model_id, uint32_t index, InputAippType &type, size_t &aipp_index);
 
-  ge::Status GetModelDescInfoForZeroCopy(uint32_t model_id, std::vector<ge::TensorDesc> &input_desc,
-                                         std::vector<ge::TensorDesc> &output_desc);
-
-  ge::Status LoadModel(uint32_t &model_id, const ge::ModelData &model_data,
-                       std::shared_ptr<ge::ModelListener> listener);
-
   ge::Status CommandHandle(const ge::Command &command);
 
   ge::Status SetDump(const DumpConfig &dump_config);
@@ -236,6 +222,22 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY GeExecutor {
 
   ///
   /// @ingroup ge
+  /// @brief Synchronous execution of offline model(Do not create thread)
+  /// @param [in] uint32_t model_id: Model ID to execute
+  /// @param [in] void* stream: stream to execute
+  /// @param [in] bool async_mode: is asynchronize mode.
+  /// @param [in] const domi::InputData *input_data: Model input data
+  /// @param [in] const std::vector<GeTensorDesc> &input_desc: description of model input data
+  /// @param [out] domi::OutputData *output_data: Model output data
+  /// @param [out] std::vector<GeTensorDesc> &output_desc: description of model output data
+  /// @return SUCCESS handle successfully / others handle failed
+  ///
+  ge::Status ExecModel(uint32_t model_id, void *stream, const ge::RunModelData &run_input_data,
+                       const std::vector<GeTensorDesc> &input_desc, ge::RunModelData &run_output_data,
+                       std::vector<GeTensorDesc> &output_desc, bool async_mode = false);
+
+  ///
+  /// @ingroup ge
   /// @brief Get weight memory size from model file
   /// @param [in] const std::string &path: Offline model file path
   /// @param [out] size_t &mem_size Execution memory size
@@ -264,13 +266,13 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY GeExecutor {
   static ge::Status LoadDynamicSingleOp(const std::string &model_name, const ge::ModelData &modelData, void *stream,
                                         DynamicSingleOp **single_op);
 
-  static ge::Status ExecuteAsync(DynamicSingleOp *executor,
-                                 const std::vector<GeTensorDesc> &input_desc,
-                                 const std::vector<DataBuffer> &inputs,
-                                 std::vector<GeTensorDesc> &output_desc,
+  static ge::Status ExecuteAsync(DynamicSingleOp *executor, const std::vector<GeTensorDesc> &input_desc,
+                                 const std::vector<DataBuffer> &inputs, std::vector<GeTensorDesc> &output_desc,
                                  std::vector<DataBuffer> &outputs);
 
   static ge::Status ReleaseSingleOpResource(void *stream);
+
+  static ge::Status GetDeviceIdByModelId(uint32_t model_id, uint32_t &device_id);
 
   ge::Status GetBatchInfoSize(uint32_t model_id, size_t &shape_count);
   ge::Status GetOrigInputInfo(uint32_t model_id, uint32_t index, OriginInputInfo &orig_input_info);
@@ -281,8 +283,6 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY GeExecutor {
  private:
   static bool isInit_;
 };
-
-ge::Status ModelInfoParser(const ge::ModelData &model, ge::ModelInfo &model_info);
 }  // namespace ge
 
 #endif  // INC_FRAMEWORK_EXECUTOR_GE_EXECUTOR_H_

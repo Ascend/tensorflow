@@ -1,18 +1,18 @@
 /**
- * Copyright 2019-2020 Huawei Technologies Co., Ltd
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright 2020 Huawei Technologies Co., Ltd
+
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.apache.org/licenses/LICENSE-2.0
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 #ifndef INC_EXTERNAL_GE_IR_BUILD_H_
 #define INC_EXTERNAL_GE_IR_BUILD_H_
@@ -24,15 +24,14 @@
 #include "graph/ge_error_codes.h"
 
 namespace {
-#define IR_MAJOR_VERSION (int(1))
-#define IR_MINOR_VERSION (int(0))
-#define IR_PATCH_VERSION (int(0))
-}
+const int IR_MAJOR_VERSION = 1;
+const int IR_MINOR_VERSION = 0;
+const int IR_PATCH_VERSION = 0;
+}  // namespace
 
-namespace ge{
+namespace ge {
 
-struct ModelBufferData
-{
+struct ModelBufferData {
   std::shared_ptr<uint8_t> data = nullptr;
   uint64_t length;
 };
@@ -45,7 +44,10 @@ struct ModelBufferData
  * @retval GRAPH_SUCCESS The function is successfully executed.
  * @retval OtherValues Failure
  */
+ATTRIBUTED_DEPRECATED(graphStatus aclgrphBuildInitialize(std::map<AscendString, AscendString> &))
 graphStatus aclgrphBuildInitialize(std::map<std::string, std::string> global_options);
+
+graphStatus aclgrphBuildInitialize(std::map<AscendString, AscendString> &global_options);
 
 /**
  * @ingroup AscendCL
@@ -64,7 +66,13 @@ void aclgrphBuildFinalize();
  * @retval GRAPH_SUCCESS The function is successfully executed.
  * @retval OtherValues Failure
  */
-graphStatus aclgrphBuildModel(const ge::Graph &graph, const std::map<std::string, std::string> &build_options, ModelBufferData& model);
+ATTRIBUTED_DEPRECATED(graphStatus aclgrphBuildModel(const ge::Graph &, const std::map<AscendString, AscendString> &,
+                                                    ModelBufferData &))
+graphStatus aclgrphBuildModel(const ge::Graph &graph, const std::map<std::string, std::string> &build_options,
+                              ModelBufferData &model);
+
+graphStatus aclgrphBuildModel(const ge::Graph &graph, const std::map<AscendString, AscendString> &build_options,
+                              ModelBufferData &model);
 
 /**
  * @ingroup AscendCL
@@ -75,7 +83,10 @@ graphStatus aclgrphBuildModel(const ge::Graph &graph, const std::map<std::string
  * @retval GRAPH_SUCCESS The function is successfully executed.
  * @retval OtherValues Failure
  */
-graphStatus aclgrphSaveModel(const string &output_file, const ModelBufferData& model);
+ATTRIBUTED_DEPRECATED(graphStatus aclgrphSaveModel(const char *, const ModelBufferData &))
+graphStatus aclgrphSaveModel(const string &output_file, const ModelBufferData &model);
+
+graphStatus aclgrphSaveModel(const char *output_file, const ModelBufferData &model);
 
 /**
  * @ingroup AscendCL
@@ -91,16 +102,6 @@ graphStatus aclgrphGetIRVersion(int *major_version, int *minor_version, int *pat
 
 /**
  * @ingroup AscendCL
- * @brief infer shape and data type
- *
- * @param graph[IN] the graph ready to build
- * @retval GRAPH_SUCCESS The function is successfully executed.
- * @retval OtherValues Failure
- */
-graphStatus aclgrphInferShapeAndType(ge::Graph &graph);
-
-/**
- * @ingroup AscendCL
  * @brief dump graph
  *
  * @param graph[IN] the graph ready to build
@@ -110,5 +111,20 @@ graphStatus aclgrphInferShapeAndType(ge::Graph &graph);
  * @retval OtherValues Failure
  */
 graphStatus aclgrphDumpGraph(const ge::Graph &graph, const char *file, const size_t len);
-}; // INC_EXTERNAL_GE_IR_BUILD_H_
-#endif
+
+/**
+ * @ingroup AscendCL
+ * @brief create single op graph
+ *
+ * @param op_type[IN] the op_type
+ * @param inputs[IN] the inputdesc
+ * @param outputs[IN] the outputdesc
+ * @param graph[OUT] the graph
+ * @retval GRAPH_SUCCESS The function is successfully executed.
+ * @retval OtherValues Failure
+ */
+graphStatus aclgrphGenerateForOp(const AscendString &op_type, const std::vector<TensorDesc> &inputs,
+                                 const std::vector<TensorDesc> &outputs, Graph &graph);
+
+};      // namespace ge
+#endif  // INC_EXTERNAL_GE_IR_BUILD_H_

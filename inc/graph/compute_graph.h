@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <list>
 #include <deque>
 #include "detail/attributes_holder.h"
 #include "graph/ge_attr_value.h"
@@ -116,6 +117,7 @@ class ComputeGraph : public std::enable_shared_from_this<ComputeGraph>, public A
   ///
   graphStatus UpdateOutputMapping(const std::map<uint32_t, uint32_t> &output_mapping);
 
+  void TopologicalSorting(std::function<bool (const NodePtr &, const NodePtr &)> comp);
   graphStatus TopologicalSorting();
   bool IsValid() const;
   void InValid() { is_valid_flag_ = false; }
@@ -250,6 +252,35 @@ class ComputeGraph : public std::enable_shared_from_this<ComputeGraph>, public A
 
   void SetNodesOwner();
 
+  /**
+   *  To improve preformace of list.size(), we should keep counter on nodes_.size()
+   *  Use follow function to add/erase node from nodes_
+   */
+  inline void EraseFromNodeList(const std::list<NodePtr>::iterator position) {
+    (void) nodes_.erase(position);
+    --direct_nodes_size_;
+  }
+
+  inline void InsertToNodeList(const std::list<NodePtr>::iterator position, const NodePtr &node) {
+    (void) nodes_.insert(position, node);
+    ++direct_nodes_size_;
+  }
+
+  inline void PushBackToNodeList(const NodePtr &node) {
+    (void) nodes_.push_back(node);
+    ++direct_nodes_size_;
+  }
+
+  inline void EmplaceBackToNodeList(const NodePtr &node) {
+    (void) nodes_.emplace_back(node);
+    ++direct_nodes_size_;
+  }
+
+  inline void ClearNodeList() {
+    (void) nodes_.clear();
+    direct_nodes_size_ = 0;
+  }
+
   friend class ModelSerializeImp;
   friend class GraphDebugImp;
   friend class OnnxUtils;
@@ -258,7 +289,8 @@ class ComputeGraph : public std::enable_shared_from_this<ComputeGraph>, public A
   std::string name_;
   uint32_t graph_id_ = 0;
   ProtoAttrMapHelper attrs_;
-  std::vector<NodePtr> nodes_;
+  std::list<NodePtr> nodes_;
+  size_t direct_nodes_size_ = 0;
   std::map<OperatorImplPtr, NodePtr> all_nodes_infos_;
   std::vector<NodePtr> target_nodes_info_;
 

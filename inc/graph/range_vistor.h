@@ -18,6 +18,7 @@
 #define INC_GRAPH_RANGE_VISTOR_H_
 
 #include <vector>
+#include <list>
 
 template <class E, class O>
 class RangeVistor {
@@ -26,6 +27,7 @@ class RangeVistor {
   using ConstIterator = typename std::vector<E>::const_iterator;
 
   RangeVistor(O owner, const std::vector<E> &vs) : owner_(owner), elements_(vs) {}
+  RangeVistor(O owner, const std::list<E> &vs) : owner_(owner), elements_(vs.begin(), vs.end()) {}
 
   ~RangeVistor() {}
 

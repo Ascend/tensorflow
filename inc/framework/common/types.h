@@ -431,11 +431,13 @@ REGISTER_OPTYPE_DECLARE(HCOMBROADCAST, "HcomBroadcast");
 REGISTER_OPTYPE_DECLARE(HCOMALLGATHER, "HcomAllGather");
 REGISTER_OPTYPE_DECLARE(HCOMALLREDUCE, "HcomAllReduce");
 REGISTER_OPTYPE_DECLARE(HCOMREDUCESCATTER, "HcomReduceScatter");
+REGISTER_OPTYPE_DECLARE(HCOMREDUCE, "HcomReduce");
 REGISTER_OPTYPE_DECLARE(HCOMSEND, "HcomSend");
 REGISTER_OPTYPE_DECLARE(HCOMRECEIVE, "HcomReceive");
 REGISTER_OPTYPE_DECLARE(HCOMREMOTEREAD, "HcomRemoteRead");
 REGISTER_OPTYPE_DECLARE(HCOMREMOTEREFREAD, "HcomRemoteRefRead");
 REGISTER_OPTYPE_DECLARE(HCOMREMOTEWRITE, "HcomRemoteWrite");
+REGISTER_OPTYPE_DECLARE(HCOMREMOTESCATTERWRITE, "HcomRemoteScatterWrite");
 
 REGISTER_OPTYPE_DECLARE(VARASSIGN, "VarAssign");
 REGISTER_OPTYPE_DECLARE(VARISINITIALIZEDOP, "VarIsInitializedOp");
@@ -531,7 +533,7 @@ REGISTER_OPTYPE_DECLARE(GETDYNAMICDIMS, "GetDynamicDims");
 // profiling training trace node
 REGISTER_OPTYPE_DECLARE(PROFILINGTRAININGTRACE, "ProfilingTrainingTrace");
 
-enum InputMode { INPUT = 0, CONST_INPUT};
+enum InputMode { INPUT = 0, CONST_INPUT };
 
 // Definition of the processing status enum of the process module
 enum ModelProcessState {
@@ -607,7 +609,7 @@ static constexpr uint32_t MODEL_FILE_CHECKSUM_LENGTH = 64;
 ///
 /// @brief length of the reserved field in the model file header
 ///
-static constexpr uint32_t MODEL_FILE_RESERVED_LENGTH = 79;
+static constexpr uint32_t MODEL_FILE_RESERVED_LENGTH = 75;
 
 ///
 /// @ingroup domi_omg
@@ -845,9 +847,10 @@ struct ModelFileHeader {
   uint32_t ops = 0;                                       // Computing power (Kops)
   uint8_t userdefineinfo[USER_DEFINE_INFO_LENGTH] = {0};  // User-defined information. The value contains 32 characters
   uint32_t om_ir_version = 0;
+  uint32_t model_num = 0;
   uint8_t platform_version[PLATFORM_VERSION_LEN] = {0};
   uint8_t platform_type = {0};
-  uint8_t reserved[MODEL_FILE_RESERVED_LENGTH] = {0};  // Reserved field 79
+  uint8_t reserved[MODEL_FILE_RESERVED_LENGTH] = {0};  // Reserved field 75
 };
 
 static constexpr uint8_t TARGET_TYPE_LTTE_8BIT = 0;
@@ -1095,6 +1098,7 @@ struct BasicInfo {
   uint32_t total_size;       // total memory size
 };
 #pragma pack()  // Cancels single-byte alignment
+enum class MemorySizeCalcType { NORMAL = 0, ALWAYS_EMPTY };
 }  // namespace ge
 
 namespace domi {
