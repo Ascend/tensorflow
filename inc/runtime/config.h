@@ -42,6 +42,7 @@ typedef enum tagRtChipType {
   CHIP_MDC,
   CHIP_LHISI,
   CHIP_DC,
+  CHIP_CLOUD_V2,
   CHIP_END,
 } rtChipType_t;
 
@@ -50,6 +51,7 @@ typedef enum tagRtVersion {
   VER_NA = VER_BEGIN,
   VER_ES,
   VER_CS,
+  VER_SD3403,
   VER_END,
 } rtVersion_t;
 
@@ -62,6 +64,7 @@ typedef enum tagRtPlatformType {
   PLATFORM_LHISI_ES,
   PLATFORM_LHISI_CS,
   PLATFORM_DC,
+  PLATFORM_CLOUD_V2,
   PLATFORM_END,
 } rtPlatformType_t;
 

@@ -87,19 +87,9 @@ typedef struct rtExceptionInfo {
     uint32_t deviceid;
 } rtExceptionInfo;
 
-typedef struct rtTaskFailInfo {
-    uint32_t taskid;
-    uint32_t streamid;
-    uint32_t tid;
-    uint32_t deviceid;
-    uint32_t retcode;
-} rtTaskFailInfo;
-
 typedef void (*rtErrorCallback)(rtExceptionType);
 
 typedef void (*rtTaskFailCallback)(rtExceptionInfo *exceptionInfo);
-
-typedef void (*rtTaskFailCallbackByModule)(rtTaskFailInfo *exceptionInfo);
 
 typedef void (*rtDeviceStateCallback)(uint32_t devId, bool isOpen);
 
@@ -120,6 +110,8 @@ typedef void *rtEvent_t;
  * @brief label handle.
  */
 typedef void *rtLabel_t;
+
+typedef void *rtModel_t;
 
 /**
  * @ingroup profiling_base
@@ -209,7 +201,7 @@ RTS_API rtError_t rtRegDeviceStateCallback(const char *regName, rtDeviceStateCal
  * @param [out] NA
  * @return RT_ERROR_NONE for ok
  */
-RTS_API rtError_t rtRegTaskFailCallbackByModule(const char *moduleName, rtTaskFailCallbackByModule callback);
+RTS_API rtError_t rtRegTaskFailCallbackByModule(const char *moduleName, rtTaskFailCallback callback);
 
 /**
  * @ingroup dvrt_base
@@ -225,6 +217,8 @@ typedef void *rtNotify_t;
  * @return RT_ERROR_INVALID_VALUE for error input
  */
 RTS_API rtError_t rtLabelCreate(rtLabel_t *label);
+
+RTS_API rtError_t rtLabelCreateV2(rtLabel_t *label, rtModel_t model);
 
 /**
  * @ingroup dvrt_base
@@ -300,6 +294,8 @@ RTS_API rtError_t rtLabelSwitchByIndex(void *ptr, uint32_t max, void *labelInfoP
  * @return RT_ERROR_INVALID_VALUE for error input
  */
 RTS_API rtError_t rtLabelGotoEx(rtLabel_t label, rtStream_t stream);
+
+rtError_t rtLabelCreateExV2(rtLabel_t *label, rtModel_t model, rtStream_t stream);
 
 /**
  * @ingroup dvrt_base

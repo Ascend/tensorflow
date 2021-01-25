@@ -23,6 +23,7 @@
 #include <mutex>
 #include "tdt/status.h"
 #include "tdt/data_common.h"
+#include "toolchain/prof_callback.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,7 +50,7 @@ extern "C" {
 * @li tsd_client.h: Header file where the interface declaration is located.
 * @li data_common.h: Header file where 'TDT_StatusT' defined
 */
-TDT_StatusT TsdOpen(const uint32_t phyDeviceId, const uint32_t rankSize);
+TDT_LIB_EXPORT TDT_StatusT TsdOpen(const uint32_t logicDeviceId, const uint32_t rankSize);
 
 /**
 * @ingroup Close
@@ -67,7 +68,10 @@ TDT_StatusT TsdOpen(const uint32_t phyDeviceId, const uint32_t rankSize);
 * @li tsd_client.h: Header file where the interface declaration is located.
 * @li data_common.h: Header file where 'TDT_StatusT' defined
 */
-TDT_StatusT TsdClose(const uint32_t phyDeviceId);
+TDT_LIB_EXPORT TDT_StatusT TsdClose(const uint32_t logicDeviceId);
+
+TDT_LIB_EXPORT TDT_StatusT UpdateProfilingMode(const uint32_t logicDeviceId, const uint32_t flag);
+TDT_LIB_EXPORT TDT_StatusT TsdSetMsprofReporterCallback(MsprofReporterCallback callback);
 
 /**
 * @ingroup CreateCmdParameterObj
