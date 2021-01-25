@@ -61,7 +61,7 @@ int32_t TdtHostInit(uint32_t deviceId);
 * @li tdt_host_interface.h: Header file where the interface declaration is located.
 * @li data_common.h: Header file where 'DataItem' defined
 */
-int32_t TdtHostPushData(const std::string &channelName, uint32_t deviceId = 0);
+int32_t TdtHostPushData(const std::string &channelName, std::vector<DataItem> &item, uint32_t deviceId = 0);
 
 /**
 * @ingroup TdtHostDestroy
