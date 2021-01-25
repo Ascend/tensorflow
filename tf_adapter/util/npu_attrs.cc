@@ -240,14 +240,14 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
       if (ctx->GetAttr("_dump_step", &dump_step) == Status::OK() && !dump_step.empty()) {
         Status s = checkDumpStep(dump_step);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
       }
       if (ctx->GetAttr("_dump_mode", &dump_mode) == Status::OK()) {
         Status s = checkDumpMode(dump_mode);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
       }
@@ -256,7 +256,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
       if (ctx->GetAttr("_dump_debug_mode", &dump_debug_mode) == Status::OK()) {
         Status s = checkDumpDebugMode(dump_debug_mode);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
       }
@@ -411,6 +411,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
           if (params.count("dynamic_graph_execute_mode")) {
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
+              ADP_LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
           }
@@ -634,7 +635,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         if (!dump_step.empty()) {
           Status s = checkDumpStep(dump_step);
           if (!s.ok()) {
-            ADP_LOG(ERROR) << s.error_message();
+            ADP_LOG(FATAL) << s.error_message();
             LOG(FATAL) << s.error_message();
           }
         }
@@ -643,7 +644,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         dump_mode = attrs.Find("_dump_mode")->s();
         Status s = checkDumpMode(dump_mode);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
       }
@@ -653,7 +654,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         dump_debug_mode = attrs.Find("_dump_debug_mode")->s();
         Status s = checkDumpDebugMode(dump_debug_mode);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
       }
@@ -854,11 +855,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           string tmp_path = params.at("dump_path").s();
           Status s = CheckPath(tmp_path, dump_path);
           if (!s.ok()) {
-            ADP_LOG(ERROR) << s.error_message();
+            ADP_LOG(FATAL) << s.error_message();
             LOG(FATAL) << s.error_message();
           }
         } else {
-          ADP_LOG(ERROR) << "if use dump function, dump_path must be set.";
+          ADP_LOG(FATAL) << "if use dump function, dump_path must be set.";
           LOG(FATAL) << "if use dump function, dump_path must be set.";
         }
       }
@@ -867,7 +868,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           dump_step = params.at("dump_step").s();
           Status s = checkDumpStep(dump_step);
           if (!s.ok()) {
-            ADP_LOG(ERROR) << s.error_message();
+            ADP_LOG(FATAL) << s.error_message();
             LOG(FATAL) << s.error_message();
           }
         }
@@ -875,7 +876,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           dump_mode = params.at("dump_mode").s();
           Status s = checkDumpMode(dump_mode);
           if (!s.ok()) {
-            ADP_LOG(ERROR) << s.error_message();
+            ADP_LOG(FATAL) << s.error_message();
             LOG(FATAL) << s.error_message();
           }
         }
@@ -885,7 +886,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           dump_debug_mode = params.at("dump_debug_mode").s();
           Status s = checkDumpDebugMode(dump_debug_mode);
           if (!s.ok()) {
-            ADP_LOG(ERROR) << s.error_message();
+            ADP_LOG(FATAL) << s.error_message();
             LOG(FATAL) << s.error_message();
           }
         }
@@ -902,7 +903,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         if (params.count("profiling_options")) {
           profiling_options = params.at("profiling_options").s();
         } else {
-          ADP_LOG(ERROR) << "profiling_options must be set when use profiling";
+          ADP_LOG(FATAL) << "profiling_options must be set when use profiling";
           LOG(FATAL) << "profiling_options must be set when use profiling";
         }
       }
@@ -910,7 +911,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("graph_run_mode")) {
         graph_run_mode = params.at("graph_run_mode").i();
         if (graph_run_mode > 1) {
-          ADP_LOG(ERROR) << "graph_run_mode value must be 0 or 1";
+          ADP_LOG(FATAL) << "graph_run_mode value must be 0 or 1";
           LOG(FATAL) << "graph_run_mode value must be 0 or 1";
         }
       }
@@ -924,18 +925,18 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         mstune_mode = params.at("mstune_mode").s();
         Status s  = CheckMstuneMode(mstune_mode);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
         if (params.count("work_path")) {
           string tmp_path = params.at("work_path").s();
           s = CheckPath(tmp_path, work_path);
           if (!s.ok()) {
-            ADP_LOG(ERROR) << s.error_message();
+            ADP_LOG(FATAL) << s.error_message();
             LOG(FATAL) << s.error_message();
           }
         } else {
-          ADP_LOG(ERROR) << "work_path must be set when use mstune_mode.";
+          ADP_LOG(FATAL) << "work_path must be set when use mstune_mode.";
           LOG(FATAL) << "work_path must be set when use mstune_mode.";
         }
       }
@@ -967,6 +968,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           if (params.count("dynamic_graph_execute_mode")) {
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
+              ADP_LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
           }
@@ -981,17 +983,17 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         op_select_implmode = params.at("op_select_implmode").s();
         Status s = CheckOpImplMode(op_select_implmode);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
       } else if (params.count("optypelist_for_implmode") && !params.count("op_select_implmode")) {
-        ADP_LOG(ERROR) << "when use optypelist_for_implmode, op_select_implmode must be set.";
+        ADP_LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
         LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
       } else {
         op_select_implmode = params.at("op_select_implmode").s();
         Status s = CheckOpImplMode(op_select_implmode);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
         optypelist_for_implmode = params.at("optypelist_for_implmode").s();
@@ -1001,38 +1003,38 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         input_shape = params.at("input_shape").s();
         Status s = CheckInputShape(input_shape);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
         dynamic_dims = params.at("dynamic_dims").s();
         s = CheckDynamicDims(dynamic_dims);
         if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
+          ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
         dynamic_node_type = params.at("dynamic_node_type").i();
         if (dynamic_node_type < 0 || dynamic_node_type > 1) {
-          ADP_LOG(ERROR) << "dynamic_node_type should be 0 or 1.";
+          ADP_LOG(FATAL) << "dynamic_node_type should be 0 or 1.";
           LOG(FATAL) << "dynamic_node_type should be 0 or 1.";
         }
       } else if (!params.count("input_shape") && !params.count("dynamic_dims") &&
                  !params.count("dynamic_node_type")) {
         // the three parameters are not set normally.
       } else {
-        ADP_LOG(ERROR) << "input_shape, dynamic_dims and dynamic_node_type should use together.";
+        ADP_LOG(FATAL) << "input_shape, dynamic_dims and dynamic_node_type should use together.";
         LOG(FATAL) << "input_shape, dynamic_dims and dynamic_node_type should use together.";
       }
       if (params.count("buffer_optimize")) {
         buffer_optimize = params.at("buffer_optimize").s();
         if (buffer_optimize != "l2_optimize" && buffer_optimize != "off_optimize") {
-          ADP_LOG(ERROR) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
+          ADP_LOG(FATAL) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
           LOG(FATAL) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
         }
       }
       if (params.count("enable_small_channel")) { enable_small_channel = params.at("enable_small_channel").i(); }
       if (params.count("fusion_switch_file")) { fusion_switch_file = params.at("fusion_switch_file").s(); }
       if (params.count("enable_compress_weight") && params.count("compress_weight_conf")) {
-        ADP_LOG(ERROR) << "enable_compress_weight can not use with compress_weight_conf.";
+        ADP_LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
         LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
       }
       if (params.count("enable_compress_weight")) { enable_compress_weight = params.at("enable_compress_weight").b(); }

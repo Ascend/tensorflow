@@ -470,7 +470,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   bool is_tuning = !mstune_mode_.empty() && !work_path_.empty();
   bool is_lazy_recompile_mode = dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile";
   if (is_set_dynamic_config && is_tuning) {
-    ADP_LOG(ERROR) << "dynamic input config can not use with mstuning.";
+    ADP_LOG(FATAL) << "dynamic input config can not use with mstuning.";
     LOG(FATAL) << "dynamic input config can not use with mstuning.";
   } else if (is_set_dynamic_config && !is_tuning) {
     if (InitRebuildFlag(cache_graph_id) != 0) {
@@ -677,7 +677,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options_);
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-      ADP_LOG(ERROR) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: "
+      ADP_LOG(FATAL) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: "
                      << tf_session_ << ", graph id: " << cache_graph_id;
       LOG(FATAL) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: " << tf_session_
                  << ", graph id: " << cache_graph_id;
@@ -727,7 +727,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   auto callback = [done, ctx, run_start_time](ge::Status ge_status, std::vector<ge::OutputTensorInfo> &outputs) {
     if (ge_status == ge::SUCCESS) {
       if (BuildOutputTensorInfo(ctx, outputs) != Status::OK()) {
-        ADP_LOG(ERROR) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
+        ADP_LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
         LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
       }
     } else if (ge_status == ge::END_OF_SEQUENCE) {
@@ -738,7 +738,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       tensorflow::Status tfStatus = errors::Unavailable(ToString(ge_status));
       ctx->CtxFailureWithWarning(tfStatus);
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-      ADP_LOG(ERROR) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
+      ADP_LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
       LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
     }
     int64 run_end_time = InferShapeUtil::GetCurrentTimestap();
@@ -755,7 +755,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   ge::Status status = ge_session_->RunGraphAsync(cache_graph_id, inputs, callback);
   if (status != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-    ADP_LOG(ERROR) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: "
+    ADP_LOG(FATAL) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: "
                    << tf_session_ << " ,graph id: " << cache_graph_id;
     LOG(FATAL) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: " << tf_session_
                << " ,graph id: " << cache_graph_id;

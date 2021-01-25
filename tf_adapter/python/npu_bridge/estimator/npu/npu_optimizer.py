@@ -343,7 +343,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
                     for grad, var in grads_and_vars:
                         rank_id = util.get_gid_by_weight(var)
                         with tf.get_default_graph().control_dependencies(op_list):
-                            outputs = hccl_ops.broadcast([var], rank_id)
+                            outputs = hccl_ops.broadcast([var], rank_id, 0)
                         if outputs is not None:
                             op_list.append(outputs[0].op)
             for grad, var in grads_and_vars:
