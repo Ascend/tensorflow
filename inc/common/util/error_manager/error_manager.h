@@ -32,12 +32,6 @@ class ErrorManager {
 
   ///
   /// @brief init
-  /// @return int 0(success) -1(fail)
-  ///
-  int Init();
-
-  ///
-  /// @brief init
   /// @param [in] path: current so path
   /// @return int 0(success) -1(fail)
   ///
@@ -73,25 +67,6 @@ class ErrorManager {
   void ATCReportErrMessage(std::string error_code, const std::vector<std::string> &key = {},
                            const std::vector<std::string> &value = {});
 
-  ///
-  /// @brief report graph compile failed message such as error code and op_name in mstune case
-  /// @param [in] graph_name: root graph name
-  /// @param [in] msg: failed message map, key is error code, value is op_name
-  /// @return int 0(success) -1(fail)
-  ///
-  int ReportMstuneCompileFailedMsg(const std::string &root_graph_name,
-                                   const std::map<std::string, std::string> &msg);
-
-  ///
-  /// @brief get graph compile failed message in mstune case
-  /// @param [in] graph_name: graph name
-  /// @param [out] msg_map: failed message map, key is error code, value is op_name list
-  /// @return int 0(success) -1(fail)
-  ///
-  int GetMstuneCompileFailedMsg(const std::string &graph_name, 
-                                std::map<std::string, 
-                                std::vector<std::string>> &msg_map);
-
  private:
   struct ErrorInfo {
     std::string error_id;
@@ -111,16 +86,11 @@ class ErrorManager {
 
   int ReadJsonFile(const std::string &file_path, void *handle);
 
-  void ClassifyCompileFailedMsg(const std::map<std::string, std::string> &msg,
-                                std::map<std::string,
-                                std::vector<std::string>> &classfied_msg);
-
   bool is_init_ = false;
   std::mutex mutex_;
   std::map<std::string, ErrorInfo> error_map_;
   std::vector<std::string> error_messages_;
   std::vector<std::string> warning_messages_;
-  std::map<std::string, std::map<std::string, std::vector<std::string>>> compile_failed_msg_map_;
 };
 
 #endif  // ERROR_MANAGER_H_

@@ -261,7 +261,6 @@ class GraphUtils {
   /// The data anchors replacing behavior is the same with
   /// `ReplaceNodeDataAnchors`. In addition, replace all `old_node` control
   /// anchors with `new_node`'s.
-  /// Note: input/output control edges of 'old_node' will NOT be deleted
   /// @param new_node
   /// @param old_node
   /// @param inputs_map
