@@ -449,10 +449,10 @@ DLL_EXPORT int DlogSetAttrForC(LogAttr logAttr);
  * @param [in]fmt: log content
  */
 #define DlogForC(moduleId, level, fmt, ...)                                                 \
-  do {                                                                                      \
+  do {                                                                                  \
     if(CheckLogLevelForC(moduleId, level) == 1) {                                           \
         DlogInnerForC(moduleId, level, "[%s:%d]" fmt, __FILE__, __LINE__, ##__VA_ARGS__);   \
-     }                                                                                      \
+     }                                                                                  \
   } while (0)
 
 /**
@@ -466,10 +466,10 @@ DLL_EXPORT int DlogSetAttrForC(LogAttr logAttr);
  * @param [in]fmt: log content
  */
 #define DlogSubForC(moduleId, submodule, level, fmt, ...)                                                   \
-  do {                                                                                                      \
+  do {                                                                                                  \
     if(CheckLogLevelForC(moduleId, level) == 1) {                                                           \
         DlogInnerForC(moduleId, level, "[%s:%d][%s]" fmt, __FILE__, __LINE__, submodule, ##__VA_ARGS__);    \
-    }                                                                                                       \
+    }                                                                                                   \
   } while (0)
 
 /**
@@ -484,10 +484,10 @@ DLL_EXPORT int DlogSetAttrForC(LogAttr logAttr);
  * @param [in]fmt: log content
  */
 #define DlogWithKVForC(moduleId, level, pstKVArray, kvNum, fmt, ...)                                                \
-  do {                                                                                                              \
+  do {                                                                                                          \
     if(CheckLogLevelForC(moduleId, level) == 1) {                                                                   \
         DlogWithKVInnerForC(moduleId, level, pstKVArray, kvNum, "[%s:%d]" fmt, __FILE__, __LINE__, ##__VA_ARGS__);  \
-    }                                                                                                               \
+    }                                                                                                           \
   } while (0)
 
 /**
