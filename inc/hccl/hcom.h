@@ -97,6 +97,8 @@ extern HcclResult hcom_all_gather(const char *tag, void *inputPtr, void *outputP
 extern HcclResult hcom_all_reduce(const char *tag, void *inputPtr, void *outputPtr, u64 count,
                                   HcclDataType dataType, HcclReduceOp op, const char *group, rtStream_t stream);
 
+extern HcclResult hcom_reduce(const char *tag, void *inputPtr, void *outputPtr, u64 count,HcclDataType dataType,HcclReduceOp op, u32 root, const char *group, rtStream_t stream);
+
 /**
  * @brief Broadcast operator.
  *
