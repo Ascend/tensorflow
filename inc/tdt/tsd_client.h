@@ -49,7 +49,7 @@ extern "C" {
 * @li tsd_client.h: Header file where the interface declaration is located.
 * @li data_common.h: Header file where 'TDT_StatusT' defined
 */
-TDT_LIB_EXPORT TDT_StatusT TsdOpen(const uint32_t phyDeviceId, const uint32_t rankSize);
+TDT_StatusT TsdOpen(const uint32_t phyDeviceId, const uint32_t rankSize);
 
 /**
 * @ingroup Close
@@ -67,7 +67,7 @@ TDT_LIB_EXPORT TDT_StatusT TsdOpen(const uint32_t phyDeviceId, const uint32_t ra
 * @li tsd_client.h: Header file where the interface declaration is located.
 * @li data_common.h: Header file where 'TDT_StatusT' defined
 */
-TDT_LIB_EXPORT TDT_StatusT TsdClose(const uint32_t phyDeviceId);
+TDT_StatusT TsdClose(const uint32_t phyDeviceId);
 
 /**
 * @ingroup CreateCmdParameterObj

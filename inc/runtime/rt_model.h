@@ -278,6 +278,7 @@ typedef struct tagLabelDevInfo_t {
     uint16_t labelId;
 }rtLabelDevInfo;
 
+typedef void *rtModel_t;
 typedef rtError_t (*rtTaskGenCallback)(rtModel_t model, rtTaskInfo_t *taskInfo);
 
 /**

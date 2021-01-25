@@ -19,6 +19,10 @@ if (ENABLE_OPEN_SRC)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/soft_dp)
+    include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/graphengine/inc)
+    include_directories(${CMAKE_CURRENT_LIST_DIR}/graphengine/inc/external)
+    include_directories(${CMAKE_CURRENT_LIST_DIR}/metadef/inc)
+    include_directories(${CMAKE_CURRENT_LIST_DIR}/metadef/inc/external)
 
     if (NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/tools/COMPILE_FLAGS OR NOT EXISTS
             ${CMAKE_CURRENT_LIST_DIR}/tools/LINK_FLAGS OR NOT EXISTS

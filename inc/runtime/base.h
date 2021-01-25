@@ -41,12 +41,12 @@ static const int32_t RT_ERROR_NONE = 0; // success
  * @brief runtime exception numbers.
  */
 typedef enum tagRtExceptionType {
-    RT_EXCEPTION_NONE = 0,
-    RT_EXCEPTION_TS_DOWN = 1,
-    RT_EXCEPTION_TASK_TIMEOUT = 2,
-    RT_EXCEPTION_TASK_FAILURE = 3,
-    RT_EXCEPTION_DEV_RUNNING_DOWN = 4,
-    RT_EXCEPTION_STREAM_ID_FREE_FAILED = 5
+  RT_EXCEPTION_NONE = 0,
+  RT_EXCEPTION_TS_DOWN = 1,
+  RT_EXCEPTION_TASK_TIMEOUT = 2,
+  RT_EXCEPTION_TASK_FAILURE = 3,
+  RT_EXCEPTION_DEV_RUNNING_DOWN = 4,
+  RT_EXCEPTION_STREAM_ID_FREE_FAILED = 5
 } rtExceptionType;
 
 /**
@@ -54,12 +54,12 @@ typedef enum tagRtExceptionType {
  * @brief Switch type.
  */
 typedef enum tagRtCondition {
-    RT_EQUAL = 0,
-    RT_NOT_EQUAL,
-    RT_GREATER,
-    RT_GREATER_OR_EQUAL,
-    RT_LESS,
-    RT_LESS_OR_EQUAL
+  RT_EQUAL = 0,
+  RT_NOT_EQUAL,
+  RT_GREATER,
+  RT_GREATER_OR_EQUAL,
+  RT_LESS,
+  RT_LESS_OR_EQUAL
 } rtCondition_t;
 
 /**
@@ -67,17 +67,17 @@ typedef enum tagRtCondition {
  * @brief Data Type of Extensible Switch Task.
  */
 typedef enum tagRtSwitchDataType {
-    RT_SWITCH_INT32 = 0,
-    RT_SWITCH_INT64 = 1,
+  RT_SWITCH_INT32 = 0,
+  RT_SWITCH_INT64 = 1,
 } rtSwitchDataType_t;
 
 typedef enum tagRtStreamFlagType {
-    RT_HEAD_STREAM = 0,  // first stream
-    RT_INVALID_FLAG = 0xFFFFFFFF,
+  RT_HEAD_STREAM = 0,  // first stream
+  RT_INVALID_FLAG = 0xFFFFFFFF,
 } rtStreamFlagType_t;
 
 typedef enum tagRtLimitType {
-    RT_LIMIT_TYPE_LOW_POWER_TIMEOUT = 0,  // timeout for power down , ms
+  RT_LIMIT_TYPE_LOW_POWER_TIMEOUT = 0,  // timeout for power down , ms
 } rtLimitType_t;
 
 typedef struct rtExceptionInfo {
@@ -85,12 +85,21 @@ typedef struct rtExceptionInfo {
     uint32_t streamid;
     uint32_t tid;
     uint32_t deviceid;
-    uint32_t retcode;
 } rtExceptionInfo;
+
+typedef struct rtTaskFailInfo {
+    uint32_t taskid;
+    uint32_t streamid;
+    uint32_t tid;
+    uint32_t deviceid;
+    uint32_t retcode;
+} rtTaskFailInfo;
 
 typedef void (*rtErrorCallback)(rtExceptionType);
 
 typedef void (*rtTaskFailCallback)(rtExceptionInfo *exceptionInfo);
+
+typedef void (*rtTaskFailCallbackByModule)(rtTaskFailInfo *exceptionInfo);
 
 typedef void (*rtDeviceStateCallback)(uint32_t devId, bool isOpen);
 
@@ -111,12 +120,6 @@ typedef void *rtEvent_t;
  * @brief label handle.
  */
 typedef void *rtLabel_t;
-
-/**
- * @ingroup dvrt_base
- * @brief model handle.
- */
-typedef void *rtModel_t;
 
 /**
  * @ingroup profiling_base
@@ -140,13 +143,13 @@ RTS_API rtError_t rtProfilerConfig(uint16_t type);
  * @ingroup profiling_base
  * @brief start rts profiler.
  */
-RTS_API rtError_t rtProfilerStart(uint64_t profConfig, int32_t numsDev, uint32_t *deviceList);
+RTS_API rtError_t rtProfilerStart(uint64_t profConfig, int32_t numsDev, uint32_t* deviceList);
 
 /**
  * @ingroup profiling_base
  * @brief stop rts profiler.
  */
-RTS_API rtError_t rtProfilerStop(uint64_t profConfig, int32_t numsDev, uint32_t *deviceList);
+RTS_API rtError_t rtProfilerStop(uint64_t profConfig, int32_t numsDev, uint32_t* deviceList);
 
 /**
  * @ingroup profiling_base
@@ -206,7 +209,7 @@ RTS_API rtError_t rtRegDeviceStateCallback(const char *regName, rtDeviceStateCal
  * @param [out] NA
  * @return RT_ERROR_NONE for ok
  */
-RTS_API rtError_t rtRegTaskFailCallbackByModule(const char *moduleName, rtTaskFailCallback callback);
+RTS_API rtError_t rtRegTaskFailCallbackByModule(const char *moduleName, rtTaskFailCallbackByModule callback);
 
 /**
  * @ingroup dvrt_base
@@ -222,16 +225,6 @@ typedef void *rtNotify_t;
  * @return RT_ERROR_INVALID_VALUE for error input
  */
 RTS_API rtError_t rtLabelCreate(rtLabel_t *label);
-
-/**
- * @ingroup dvrt_base
- * @brief create label instance
- * @param [out] label  created label
- * @param [in] model  label set model
- * @return RT_ERROR_NONE for ok
- * @return RT_ERROR_INVALID_VALUE for error input
- */
-RTS_API rtError_t rtLabelCreateV2(rtLabel_t *label, rtModel_t model);
 
 /**
  * @ingroup dvrt_base
@@ -329,17 +322,6 @@ RTS_API rtError_t rtLabelListCpy(rtLabel_t *label, uint32_t labelNumber, void *d
  * @return RT_ERROR_INVALID_VALUE for error input
  */
 RTS_API rtError_t rtLabelCreateEx(rtLabel_t *label, rtStream_t stream);
-
-/**
- * @ingroup dvrt_base
- * @brief labels to dev info
- * @param [out] label  created label handle
- * @param [in] model  label bind model
- * @param [in] stream  label bind stream
- * @return RT_ERROR_NONE for ok
- * @return RT_ERROR_INVALID_VALUE for error input
- */
-rtError_t rtLabelCreateExV2(rtLabel_t *label, rtModel_t model, rtStream_t stream);
 
 /**
  * @ingroup dvrt_base
