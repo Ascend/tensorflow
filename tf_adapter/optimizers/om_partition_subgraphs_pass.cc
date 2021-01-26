@@ -1736,14 +1736,17 @@ void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_s
     std::vector<std::string> shapeVec;
     Split(tmp, shapeVec, ":");
     if (shapeVec.size() != 2) {
+      ADP_LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
       LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
     } else if (shapeVec[0] != "data" && shapeVec[0] != "getnext") {
+      ADP_LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
       LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
     } else {
       shapesVec.push_back(shapeVec[1]);
     }
   }
   if (shapesVec.empty() || shapesVec.size() > 2) {
+    ADP_LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, more than 2 input styles.";
     LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, more than 2 input styles.";
   } else if (shapesVec.size() == 1) {
     if (!enable_dp) {
@@ -1826,11 +1829,11 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   int iterations_per_loop = std::atoi(pass_options["iterations_per_loop"].c_str());
   int task_index = std::atoi(pass_options["task_index"].c_str());
   if (!iterations_per_loop) {
-    ADP_LOG(ERROR) << "iterator_per_loop should be int and must >= 1";
+    ADP_LOG(FATAL) << "iterator_per_loop should be int and must >= 1";
     LOG(FATAL) << "iterator_per_loop should be int and must >= 1";
   }
   if (task_index < 0) {
-    ADP_LOG(ERROR) << "task_index should be int and must >= 0";
+    ADP_LOG(FATAL) << "task_index should be int and must >= 0";
     LOG(FATAL) << "task_index should be int and must >= 0";
   }
   bool do_npu_optimizer = pass_options["do_npu_optimizer"] == "1";
@@ -1851,7 +1854,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   bool is_set_dynamic_config = !all_options["input_shape"].empty() &&
                                !all_options["dynamic_dims"].empty();
   if (is_set_dynamic_config && mix_compile_mode) {
-    ADP_LOG(ERROR) << "dynamic config can not use with mix compile.";
+    ADP_LOG(FATAL) << "dynamic config can not use with mix compile.";
     LOG(FATAL) << "dynamic config can not use with mix compile.";
   }
 
@@ -1915,7 +1918,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     }
   }
   if (getnext_node_count > 1) {
-    ADP_LOG(ERROR) << "dynamic dims func can not support graph with "
+    ADP_LOG(FATAL) << "dynamic dims func can not support graph with "
                    << getnext_node_count << " IteratorGetNext node.";
     LOG(FATAL) << "dynamic dims func can not support graph with "
                << getnext_node_count << " IteratorGetNext node.";
@@ -1924,12 +1927,13 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   bool enable_dp = (pass_options["enable_dp"] == "1") && include_getnext;
   for (Node *node : graphIn->op_nodes()) {
     if (node->type_string() == "OneShotIterator" && iterations_per_loop != 1) {
-      ADP_LOG(ERROR) << "iterator_per_loop only support 1 when using OneShotIterator";
+      ADP_LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
       LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
     }
     // get attr from graph options.
     GetGraphDynamicExecConfig(node, enable_dp, graph_options);
     if (graph_options["dynamic_input"] == "1" && iterations_per_loop > 1) {
+      ADP_LOG(FATAL) << "iterations_per_loop only support 1 in dynamic input mode.";
       LOG(FATAL) << "iterations_per_loop only support 1 in dynamic input mode.";
     }
     string device_name;

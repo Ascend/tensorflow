@@ -27,7 +27,13 @@ limitations under the License.
 
 #include "tf_adapter/common/adp_logger.h"
 #include "toolchain/slog.h"
+#include "toolchain/plog.h"
 
 AdapterLogger::~AdapterLogger(){
-  DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
+  if (severity_ == ADP_FATAL) {
+    DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, ADP_ERROR, "%s", str().c_str());
+    DlogReportFinalize();
+  } else {
+    DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
+  }
 }
