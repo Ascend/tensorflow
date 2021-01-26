@@ -64,6 +64,12 @@ class CacheRemoteIndexToLocalOp : public OpKernel {
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheRemoteIndexToLocalOp Compute"; }
 };
 
+class CacheAllIndexToLocalOp : public OpKernel {
+ public:
+  explicit CacheAllIndexToLocalOp(OpKernelConstruction *context) : OpKernel(context) {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheAllIndexToLocalOp Compute"; }
+};
+
 template <typename T>
 class DeformableOffsetsOp : public OpKernel {
  public:
@@ -119,6 +125,7 @@ REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRan
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
 REGISTER_KERNEL_BUILDER(Name("CacheAdd").Device(DEVICE_CPU), CacheAddOp);
 REGISTER_KERNEL_BUILDER(Name("CacheRemoteIndexToLocal").Device(DEVICE_CPU), CacheRemoteIndexToLocalOp);
+REGISTER_KERNEL_BUILDER(Name("CacheAllIndexToLocal").Device(DEVICE_CPU), CacheAllIndexToLocalOp);
 REGISTER_KERNEL_BUILDER(Name("RandomChoiceWithMask").Device(DEVICE_CPU), RandomChoiceWithMaskOp);
 
 #define REGISTER_KERNEL(type)                                \
