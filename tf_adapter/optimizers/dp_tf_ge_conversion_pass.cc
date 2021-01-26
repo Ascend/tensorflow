@@ -49,6 +49,7 @@ limitations under the License.
 
 namespace tensorflow {
 static const int64 kMicrosToMillis = 1000;
+static int64 g_channel_index = 1;
 // GE ops white list
 const static std::vector<std::string> GE_OPS_WHITELIST = {
     "MapDataset",     "ParallelMapDataset",   "BatchDataset", "MapAndBatchDataset", "DeviceQueueDataset",
@@ -166,7 +167,8 @@ class DpTfToGEConversionPassImpl {
   inline bool IsDeviceSupportedFunc(const std::string &fn) const;
   inline Status GetSplitEdges(const Node *n, std::vector<const Edge *> &split_edges, const Edge *e);
   inline void RemoveSplitEdges(Node *topo_end);
-  inline Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name, std::string &device_queue_name) const;
+  inline Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name, std::string &device_queue_name,
+                                   std::map<std::string, std::string> &all_options) const;
   bool GetNodeFuncs(const FunctionLibraryDefinition *flib_def, Node *node, std::vector<string> &node_funcs);
   bool RemoveIsolatedNode(Graph *g, std::unordered_set<Node *> visited);
   Status RemoveNotSupportDataset(Graph *g, const std::string &device_queue_dataset,
@@ -380,13 +382,22 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
 }
 
 Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
-                                                      std::string &device_queue_name) const {
+                                                      std::string &device_queue_name,
+                                                      std::map<std::string, std::string> &all_options) const {
   ADP_LOG(INFO) << "Start to insert HostQueueDataset and DeviceQueueDataset.";
   for (const Edge *e : split_edges_.at(topo_end)) {
     REQUIRES_NOT_NULL(e);
     REQUIRES_NOT_NULL(e->src());
     REQUIRES_NOT_NULL(e->dst());
-    std::string queue_name = strings::StrCat("Queue_", GetEdgeName(e), "_", GetRandomName());
+    std::string local_rank_id = all_options["local_rank_id"];
+    std::string local_device_list = all_options["local_device_list"];
+    std::string queue_name;
+    if (local_rank_id == "-1") {
+      queue_name = strings::StrCat("Queue_", GetEdgeName(e), "_", GetRandomName());
+    } else {
+      queue_name = strings::StrCat(e->src()->name(), "_index_", std::to_string(g_channel_index));
+      g_channel_index += 1;
+    }
     host_queue_name = strings::StrCat("Host", queue_name);
     device_queue_name = strings::StrCat("Device", queue_name);
     ADP_LOG(INFO) << "Add_" << host_queue_name;
@@ -405,6 +416,8 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
                     .Attr("channel_name", queue_name)
                     .Attr("output_types", type_status ? m_src["output_types"] : m_src["Toutput_types"])
                     .Attr("output_shapes", m_src["output_shapes"])
+                    .Attr("_local_rank_id", local_rank_id)
+                    .Attr("_local_device_list", local_device_list)
                     .Finalize(&*graph_, &queue_node_host));
     REQUIRES_NOT_NULL(queue_node_host);
     ADP_LOG(INFO) << "Add_" << device_queue_name;
@@ -563,7 +576,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     ADP_LOG(INFO) << "Start to add host and device queue on split edges";
     std::string host_queue_name;
     std::string device_queue_name;
-    TF_DO_CHECK_OK(InsertChannelQueue(topo_end, host_queue_name, device_queue_name), ERROR);
+    TF_DO_CHECK_OK(InsertChannelQueue(topo_end, host_queue_name, device_queue_name, all_options), ERROR);
     ADP_LOG(INFO) << "host queue name is " << host_queue_name;
     ADP_LOG(INFO) << "device queue name is " << device_queue_name;
     // Remove all split edges

@@ -67,7 +67,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                  dynamic_graph_execute_mode="dynamic_execute",
                  dynamic_inputs_shape_range=None,
                  train_distribute=None,
-                 eval_distribute=None
+                 eval_distribute=None,
+                 local_rank_id=None,
+                 local_device_list=None
                  ):
         """
         Constructs a NPUConfig.
@@ -131,6 +133,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         dynamic_input:Whether Input is dynamic.
         dynamic_graph_execute_mode:Dynamic graph execute mode. lazy_recompile or dynamic_execute
         dynamic_inputs_shape_range:Inputs shape range.
+        local_rank_id: Local sequence number of the device in a group.
+        local_device_list: Available devices.
         """
 
         # Check iterations_per_loop.
@@ -207,6 +211,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._dynamic_input = dynamic_input
         self._dynamic_graph_execute_mode = dynamic_graph_execute_mode
         self._dynamic_inputs_shape_range = dynamic_inputs_shape_range
+        self._local_rank_id = local_rank_id
+        self._local_device_list = local_device_list
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

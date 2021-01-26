@@ -730,7 +730,11 @@ class NPUEstimator(estimator_lib.Estimator):
         custom_op.parameter_map["dynamic_graph_execute_mode"].s = tf.compat.as_bytes(config._dynamic_graph_execute_mode)
         if config._dynamic_inputs_shape_range is not None:
             custom_op.parameter_map["dynamic_inputs_shape_range"].s = tf.compat.as_bytes(config._dynamic_inputs_shape_range)
-
+        if config._local_rank_id is not None:
+            custom_op.parameter_map["local_rank_id"].i = config._local_rank_id
+        if config._local_device_list is not None:
+            custom_op.parameter_map["local_device_list"].s = tf.compat.as_bytes(config._local_device_list)
+            
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)
 
