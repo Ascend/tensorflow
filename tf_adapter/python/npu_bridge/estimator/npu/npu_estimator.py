@@ -18,6 +18,7 @@ from tensorflow.python.training import session_run_hook
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import tf_inspect
 
+from npu_bridge.estimator.npu import util
 from npu_bridge.estimator.npu.npu_config import NPURunConfig
 from npu_bridge.estimator.npu.npu_hook import *
 from npu_bridge.estimator.npu.npu_common import NPUBasics
@@ -734,7 +735,10 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["local_rank_id"].i = config._local_rank_id
         if config._local_device_list is not None:
             custom_op.parameter_map["local_device_list"].s = tf.compat.as_bytes(config._local_device_list)
-            
+
+        if config._session_device_id is not None:
+            util.check_nonnegative_integer(session_device_id, "session_device_id")
+            custom_op.parameter_map["session_device_id"].i = config._session_device_id
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)
 

@@ -242,6 +242,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string input_shape;
   std::string dynamic_dims;
   std::string dynamic_node_type;
+  std::string session_device_id;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -290,6 +291,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     ctx->GetAttr("_enable_compress_weight", &enable_compress_weight);
     ctx->GetAttr("_compress_weight_conf", &compress_weight_conf);
     ctx->GetAttr("_dynamic_node_type", &dynamic_node_type);
+    ctx->GetAttr("_session_device_id", &session_device_id);
   }
 
   // session options
@@ -315,6 +317,9 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   sess_options["ge.enableCompressWeight"] = enable_compress_weight;
   sess_options["compress_weight_conf"] = compress_weight_conf;
   sess_options["ge.dynamicNodeType"] = dynamic_node_type;
+  if (0 <= std::atoi(session_device_id.c_str())) {
+    sess_options["ge.session_device_id"] = session_device_id;
+  }
 
   return sess_options;
 }
@@ -650,6 +655,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string op_compiler_cache_dir;
   std::string debug_dir;
   std::string hcom_multi_mode;
+  std::string session_device_id;
 
   if (attrs.Find("_NpuOptimizer") != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -777,6 +783,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (attrs.Find("_hcom_multi_mode") != nullptr) {
       hcom_multi_mode = attrs.Find("_hcom_multi_mode")->s();
     }
+    if (attrs.Find("_session_device_id") != nullptr) {
+      session_device_id = attrs.Find("_session_device_id")->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -828,6 +837,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
   all_options["debug_dir"] = debug_dir;
   all_options["hcom_multi_mode"] = hcom_multi_mode;
+  all_options["session_device_id"] = session_device_id;
 
   return all_options;
 }
@@ -900,6 +910,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_compiler_cache_dir;
   std::string debug_dir;
   bool hcom_multi_mode = false;
+  int session_device_id = -1;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1132,6 +1143,14 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("hcom_multi_mode")) {
         hcom_multi_mode = params.at("hcom_multi_mode").b();
       }
+      if (params.count("session_device_id")) {
+        if (0 <= params.at("session_device_id").i()) {
+          session_device_id = params.at("session_device_id").i();
+        } else {
+          ADP_LOG(ERROR) << "session_device_id must be nonnegative integer.";
+          LOG(FATAL) << "session_device_id must be nonnegative integer.";
+        }
+      }
     }
   }
 
@@ -1160,6 +1179,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["enable_compress_weight"] = std::to_string(enable_compress_weight);
   sess_options["compress_weight_conf"] = compress_weight_conf;
   sess_options["hcom_multi_mode"] = std::to_string(hcom_multi_mode);
+  sess_options["session_device_id"] = std::to_string(session_device_id);
 
   init_options["precision_mode"] = precision_mode;
   init_options["profiling_mode"] = std::to_string(profiling_mode);

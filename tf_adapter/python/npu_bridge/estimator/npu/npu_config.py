@@ -69,7 +69,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  train_distribute=None,
                  eval_distribute=None,
                  local_rank_id=None,
-                 local_device_list=None
+                 local_device_list=None,
+                 session_device_id=None
                  ):
         """
         Constructs a NPUConfig.
@@ -213,6 +214,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._dynamic_inputs_shape_range = dynamic_inputs_shape_range
         self._local_rank_id = local_rank_id
         self._local_device_list = local_device_list
+        self._session_device_id = session_device_id
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
