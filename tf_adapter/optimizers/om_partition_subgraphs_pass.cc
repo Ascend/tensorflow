@@ -1758,11 +1758,11 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   int iterations_per_loop = std::atoi(pass_options["iterations_per_loop"].c_str());
   int task_index = std::atoi(pass_options["task_index"].c_str());
   if (!iterations_per_loop) {
-    ADP_LOG(ERROR) << "iterator_per_loop should be int and must >= 1";
+    ADP_LOG(FATAL) << "iterator_per_loop should be int and must >= 1";
     LOG(FATAL) << "iterator_per_loop should be int and must >= 1";
   }
   if (task_index < 0) {
-    ADP_LOG(ERROR) << "task_index should be int and must >= 0";
+    ADP_LOG(FATAL) << "task_index should be int and must >= 0";
     LOG(FATAL) << "task_index should be int and must >= 0";
   }
   bool do_npu_optimizer = pass_options["do_npu_optimizer"] == "1";
@@ -1783,7 +1783,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   bool is_set_dynamic_config = !all_options["input_shape"].empty() &&
                                !all_options["dynamic_dims"].empty();
   if (is_set_dynamic_config && mix_compile_mode) {
-    ADP_LOG(ERROR) << "dynamic config can not use with mix compile.";
+    ADP_LOG(FATAL) << "dynamic config can not use with mix compile.";
     LOG(FATAL) << "dynamic config can not use with mix compile.";
   }
 
@@ -1844,7 +1844,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     }
   }
   if (getnext_node_count > 1) {
-    ADP_LOG(ERROR) << "dynamic dims func can not support graph with "
+    ADP_LOG(FATAL) << "dynamic dims func can not support graph with "
                    << getnext_node_count << " IteratorGetNext node.";
     LOG(FATAL) << "dynamic dims func can not support graph with "
                << getnext_node_count << " IteratorGetNext node.";
@@ -1852,7 +1852,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
 
   for (Node *node : graphIn->op_nodes()) {
     if (node->type_string() == "OneShotIterator" && iterations_per_loop != 1) {
-      ADP_LOG(ERROR) << "iterator_per_loop only support 1 when using OneShotIterator";
+      ADP_LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
       LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
     }
 

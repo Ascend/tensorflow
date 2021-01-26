@@ -41,6 +41,7 @@ const int ADP_INFO = 1;
 const int ADP_WARNING = 2;
 const int ADP_ERROR = 3;
 const int ADP_EVENT = 16;
+const int ADP_FATAL = 32;
 
 
 class AdapterLogger : public std::basic_ostringstream<char> {
@@ -61,6 +62,7 @@ class AdapterLogger : public std::basic_ostringstream<char> {
 #define _ADP_LOG_ERROR AdapterLogger(__FILE__, __LINE__, ADP_ERROR)
 #define _ADP_LOG_EVENT AdapterLogger(__FILE__, __LINE__, ADP_EVENT)
 #define _ADP_LOG_DEBUG AdapterLogger(__FILE__, __LINE__, ADP_DEBUG)
+#define _ADP_LOG_FATAL AdapterLogger(__FILE__, __LINE__, ADP_FATAL)
 
 #define ADP_LOG(LEVEL) _ADP_LOG_##LEVEL
 #endif

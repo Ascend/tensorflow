@@ -98,7 +98,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   Status s = GetEnvDeviceID(device_id_);
   if (!s.ok()) {
-    ADP_LOG(ERROR) << s.error_message();
+    ADP_LOG(FATAL) << s.error_message();
     LOG(FATAL) << s.error_message();
   }
   init_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_id_);
@@ -190,7 +190,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   int32_t ret = tdt::TdtHostInit(static_cast<uint32_t>(device_id_));
   if (ret != 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-    ADP_LOG(ERROR) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
+    ADP_LOG(FATAL) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
     LOG(FATAL) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
   }
 
@@ -198,7 +198,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ge::Status status = ge::GEInitialize(init_options);
   if (status != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-    ADP_LOG(ERROR) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
+    ADP_LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
     LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
   }
   domi::GetContext().train_flag = true;
@@ -208,7 +208,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ge::Status status_parser = ge::ParserInitialize(init_options);
   if (status_parser != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-    ADP_LOG(ERROR) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
+    ADP_LOG(FATAL) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
     LOG(FATAL) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
   }
   ADP_LOG(INFO) << "[GePlugin] Initialize parser success.";
