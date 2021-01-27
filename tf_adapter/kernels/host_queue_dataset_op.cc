@@ -38,6 +38,7 @@ limitations under the License.
 #include "tensorflow/core/util/env_var.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
+#include "tf_adapter/kernels/threads_pool.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include <dlfcn.h>
 #include <thread>
@@ -56,28 +57,68 @@ const static uint32_t kMaxValue = 128;
 const uint64_t kTotalBytes = 2147483648;
 std::atomic<bool> tdt_release(false);
 
-using InitFunc = int (*)(uint32_t);
-using PushDataFunc = int (*)(const string &, const vector<DataItem> &);
-using DestroyFunc = int (*)();
-
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
   explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx) {
     // ctx is not nullptr
+    device_id_ = 0;
+    std::string tmp_rank_id;
+    std::string tmp_device_list;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
-    ADP_LOG(INFO) << "Start to init tdt.";
-    uint32_t device_id = 0;
-    OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
-    int32_t tdt_status = TdtHostInit(device_id);
-    OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &tmp_rank_id));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &tmp_device_list));
+    ADP_LOG(INFO) << "Get local rank id:" << tmp_rank_id << ", local device list:" << tmp_device_list;
+    // local rank id range 0-7
+    local_rank_id_ = std::atoi(tmp_rank_id.c_str());
+    for (int i = 0; i < tmp_device_list.size(); i += 2) {
+      int device_id = std::atoi(&tmp_device_list[i]);
+      OP_REQUIRES(ctx, device_id >= 0, errors::InvalidArgument("device id should be >= 0."));
+      local_device_list_.push_back(device_id);
+    }
+    if (local_rank_id_ == 0) {
+      ADP_LOG(INFO) << "Start to init all tdt host.";
+      pools_ = std::make_shared<ThreadPool>();
+      pools_->InitThreadPool(local_device_list_.size());
+      std::vector<std::future<int32_t>> tdt_status;
+      for (auto device_id : local_device_list_) {
+        tdt_status.emplace_back(pools_->Enqueue(TdtInFeedInit, device_id));
+      }
+      for (auto && result : tdt_status) {
+        OP_REQUIRES(ctx, result.get() == 0, errors::InvalidArgument("Tdt host init failed."));
+      }
+      ADP_LOG(INFO) << "Init all tdt host success.";
+    } else if (local_rank_id_ == -1) {
+      ADP_LOG(INFO) << "Start to init tdt.";
+      uint32_t device_id = 0;
+      OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
+      device_id_ = device_id;
+      int32_t tdt_status = TdtInFeedInit(device_id_);
+      OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
+      ADP_LOG(INFO) << "Init tdt host success.";
+    } else { ADP_LOG(INFO) << "Tdt client do not init in slave."; }
     tdt_release = false;
   }
   ~HostQueueDatasetOp() {
-    ADP_LOG(INFO) << "Start to destroy tdt.";
-    if (!tdt_release) {
-      int32_t tdt_status = TdtHostDestroy();
+    int32_t tdt_status = 0;
+    if (!tdt_release && local_rank_id_ == 0) {
+      ADP_LOG(INFO) << "Start to destroy all host tdt.";
+      std::vector<std::future<int32_t>> tdt_status;
+      for (auto device_id : local_device_list_) {
+        tdt_status.emplace_back(pools_->Enqueue(TdtInFeedDestroy, device_id));
+      }
+      for (auto &&result : tdt_status) {
+        if (result.get() != 0) {
+          LOG(ERROR) << "Tdt client close failed.";
+          ADP_LOG(ERROR) << "Tdt client close failed.";
+        }
+      }
+      ADP_LOG(INFO) << "Tdt client close all host success.";
+      tdt_release = true;
+    } else if (!tdt_release && local_rank_id_ == -1) {
+      ADP_LOG(INFO) << "Start to destroy tdt.";
+      tdt_status = TdtInFeedDestroy(device_id_);
       if (tdt_status != 0) {
         ADP_LOG(ERROR) << "Tdt client close failed.";
         LOG(ERROR) << "Tdt client close failed.";
@@ -85,6 +126,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Tdt client close success.";
         tdt_release = true;
       }
+    } else {
+      ADP_LOG(INFO) << "Tdt client do not destroy in slave.";
+      tdt_release = true;
     }
   }
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
@@ -95,7 +139,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       OP_REQUIRES_OK(ctx, GetDatasetFromVariantTensor(ctx->input(i), &input));
       inputs.push_back(input);
     }
-    *output = new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_);
+    *output = new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_,
+                                    local_rank_id_, local_device_list_, device_id_, pools_);
     OP_REQUIRES(ctx, *output != nullptr,
                 errors::InvalidArgument("Data process host queue dataset op: new dataset failed."));
   }
@@ -104,9 +149,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   class Dataset : public DatasetBase {
    public:
     Dataset(OpKernelContext *ctx, const std::vector<DatasetBase *> &inputs, const string &channelName,
-            const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes)
+            const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes,
+            const int &local_rank_id, const std::vector<uint32_t> &local_device_list,
+            const uint32_t &device_id, std::shared_ptr<ThreadPool> pools)
         : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName), output_types_(outputTypes),
-          output_shapes_(outputShapes) {
+          output_shapes_(outputShapes), local_rank_id_(local_rank_id), local_device_list_(local_device_list),
+          device_id_(device_id), pools_(pools) {
       for (const auto &input : inputs_) { input->Ref(); }
     }
 
@@ -231,8 +279,19 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 LOG(ERROR) << "Get data failed " << buffer_.front().status.ToString();
               }
               items.emplace_back(end_item);
-              int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items);
-              if (tdt_status != 0) { ADP_LOG(INFO) << "End training as tdt host push end data failed " << tdt_status; }
+              if (dataset()->local_rank_id_ == 0) {
+                std::vector<std::future<int32_t>> tdt_status;
+                for (auto device_id : dataset()->local_device_list_) {
+                  tdt_status.emplace_back(dataset()->pools_->Enqueue(TdtHostPushData,
+                                          dataset()->channel_name_, items, device_id));
+                }
+                for (auto &&result : tdt_status) {
+                  if (result.get() != 0) { ADP_LOG(INFO) << "End training as tdt host push end data failed."; }
+                }
+              } else {
+                int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items, dataset()->device_id_);
+                if (tdt_status != 0) { ADP_LOG(INFO) << "End training as tdt host push end data failed " << tdt_status; }
+              }
               cancelled_ = true;
               cond_var_.notify_all();
               return;
@@ -283,13 +342,30 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             total_bytes += tensor.TotalBytes();
           }
           // call tdt interface
-          int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items);
-          if (tdt_status != 0) {
-            ADP_LOG(INFO) << "End training as tdt host push data finished: " << tdt_status;
-            mutex_lock lck(mu_);
-            cancelled_ = true;
-            cond_var_.notify_all();
-            return;
+          if (dataset()->local_rank_id_ == 0) {
+            std::vector<std::future<int32_t>> tdt_status;
+            for (auto device_id : dataset()->local_device_list_) {
+              tdt_status.emplace_back(dataset()->pools_->Enqueue(TdtHostPushData,
+                                      dataset()->channel_name_, items, device_id));
+            }
+            for (auto &&result : tdt_status) {
+              if (result.get() != 0) {
+                ADP_LOG(INFO) << "End training as tdt host push data finished.";
+                mutex_lock lck(mu_);
+                cancelled_ = true;
+                cond_var_.notify_all();
+                return;
+              }
+            }
+          } else {
+            int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items, dataset()->device_id_);
+            if (tdt_status != 0) {
+              ADP_LOG(INFO) << "End training as tdt host push data finished: " << tdt_status;
+              mutex_lock lck(mu_);
+              cancelled_ = true;
+              cond_var_.notify_all();
+              return;
+            }
           }
           {
             mutex_lock lck(mu_);
@@ -339,8 +415,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         {
           mutex_lock lck(mu_);
-          TF_RETURN_IF_ERROR(EnsureReceiveThreadStarted(ctx));
-          TF_RETURN_IF_ERROR(EnsureSendThreadStarted(ctx));
+          if (dataset()->local_rank_id_ <= 0) {
+            TF_RETURN_IF_ERROR(EnsureReceiveThreadStarted(ctx));
+            TF_RETURN_IF_ERROR(EnsureSendThreadStarted(ctx));
+          } else {
+            ADP_LOG(INFO) << "HostQueue is not chief, not send data.";
+            return Status::OK();
+          }
         }
 
         ADP_LOG(INFO) << "HostQueue success to Initialize. channelName: " << dataset()->channel_name_;
@@ -385,14 +466,22 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       std::unique_ptr<Thread> receive_thread_ GUARDED_BY(mu_);
       std::unique_ptr<Thread> send_thread_ GUARDED_BY(mu_);
     };
+    std::shared_ptr<ThreadPool> pools_;
     const std::vector<DatasetBase *> inputs_;
     std::string channel_name_;
     const DataTypeVector output_types_;
     const vector<PartialTensorShape> output_shapes_;
+    int local_rank_id_;
+    std::vector<uint32_t> local_device_list_;
+    uint32_t device_id_;
   };
   std::string channel_name_;
   DataTypeVector output_types_;
   vector<PartialTensorShape> output_shapes_;
+  std::shared_ptr<ThreadPool> pools_;
+  int local_rank_id_;
+  std::vector<uint32_t> local_device_list_;
+  uint32_t device_id_;
 };
 
 REGISTER_KERNEL_BUILDER(Name("HostQueueDataset").Device(DEVICE_CPU), HostQueueDatasetOp);

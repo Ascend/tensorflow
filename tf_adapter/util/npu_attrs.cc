@@ -200,6 +200,23 @@ inline Status CheckDynamicDims(const string &dynamic_dims) {
   return Status::OK();
 }
 
+inline Status CheckLocalRankId(int local_rank_id) {
+  int kMaxDeviceId = 7;
+  if (local_rank_id < 0 || local_rank_id > kMaxDeviceId) {
+    return errors::InvalidArgument("local rank id should be in [0,7]");
+  }
+  return Status::OK();
+}
+
+inline Status CheckDeviceList(std::string local_device_list) {
+  std::string tmp_device_list = local_device_list + ",";
+  std::regex pattern("(\\d{1,},)+");
+  if (!regex_match(tmp_device_list, pattern)) {
+    return errors::InvalidArgument("local_device_list style is invalid, example:'1,2,3'");
+  }
+  return Status::OK();
+}
+
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
   std::string variable_format_optimize = std::to_string(true);
@@ -390,6 +407,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   bool dynamic_input = false;
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
+  int local_rank_id = -1;
+  std::string local_device_list;
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
       do_npu_optimizer = true;
@@ -411,11 +430,27 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
           if (params.count("dynamic_graph_execute_mode")) {
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
-              ADP_LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
+              ADP_LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
           }
           if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+        }
+      }
+      if (params.count("local_rank_id")) {
+        local_rank_id = params.at("local_rank_id").i();
+        Status s = CheckLocalRankId(local_rank_id);
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
+      }
+      if (params.count("local_device_list")) {
+        local_device_list = params.at("local_device_list").s();
+        Status s = CheckDeviceList(local_device_list);
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
         }
       }
     }
@@ -439,6 +474,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   pass_options["dynamic_input"] = std::to_string(dynamic_input);
   pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
+  pass_options["local_rank_id"] = std::to_string(local_rank_id);
+  pass_options["local_device_list"] = local_device_list;
 
   return pass_options;
 }
@@ -456,6 +493,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   std::string dynamic_input = std::to_string(false);
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
+  std::string local_rank_id = "-1";
+  std::string local_device_list;
   Status s = Status::OK();
   string npuOptimizer;
 
@@ -471,6 +510,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
       ctx->GetAttr("_dynamic_input", &dynamic_input);
       ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode);
       ctx->GetAttr("_dynamic_inputs_shape_range", &dynamic_inputs_shape_range);
+      ctx->GetAttr("_local_rank_id", &local_rank_id);
+      ctx->GetAttr("_local_device_list", &local_device_list);
     }
   }
   // pass options
@@ -485,6 +526,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   pass_options["dynamic_input"] = dynamic_input;
   pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
+  pass_options["local_rank_id"] = local_rank_id;
+  pass_options["local_device_list"] = local_device_list;
 
   return pass_options;
 }
@@ -502,6 +545,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string dynamic_input = std::to_string(false);
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
+  std::string local_rank_id = "-1";
+  std::string local_device_list;
   Status s = Status::OK();
 
   if (attrs.Find("_NpuOptimizer") != nullptr) {
@@ -528,6 +573,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
     if (attrs.Find("_dynamic_inputs_shape_range") != nullptr) {
       dynamic_inputs_shape_range = attrs.Find("_dynamic_inputs_shape_range")->s();
     }
+    if (attrs.Find("_local_rank_id") != nullptr) {
+      local_rank_id = attrs.Find("_local_rank_id")->s();
+    }
+    if (attrs.Find("_local_device_list") != nullptr) {
+      local_device_list = attrs.Find("_local_device_list")->s();
+    }
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -541,6 +592,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   pass_options["dynamic_input"] = dynamic_input;
   pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
+  pass_options["local_rank_id"] = local_rank_id;
+  pass_options["local_device_list"] = local_device_list;
 
   return pass_options;
 }
@@ -555,6 +608,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string lower_functional_ops = std::to_string(false);
   string job = "default";
   std::string task_index = "0";
+  std::string local_rank_id = "-1";
+  std::string local_device_list;
   Status s = Status::OK();
 
   std::string variable_format_optimize = std::to_string(true);
@@ -613,6 +668,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
       job = "localhost";
     }
     if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
+    if (attrs.Find("_local_rank_id") != nullptr) {
+      local_rank_id = attrs.Find("_local_rank_id")->s();
+    }
+    if (attrs.Find("_local_device_list") != nullptr) {
+      local_device_list = attrs.Find("_local_device_list")->s();
+    }
 
     if (attrs.Find("_variable_format_optimize") != nullptr) {
       variable_format_optimize = attrs.Find("_variable_format_optimize")->s();
@@ -749,6 +810,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["lower_functional_ops"] = lower_functional_ops;
   all_options["job"] = job;
   all_options["task_index"] = task_index;
+  all_options["local_rank_id"] = local_rank_id;
+  all_options["local_device_list"] = local_device_list;
   all_options["op_select_implmode"] = op_select_implmode;
   all_options["optypelist_for_implmode"] = optypelist_for_implmode;
   all_options["input_shape"] = input_shape;
@@ -818,6 +881,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool dynamic_input = false;
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
+  int local_rank_id = -1;
+  std::string local_device_list;
   int enable_exception_dump = 0;
   string op_select_implmode;
   string optypelist_for_implmode;
@@ -968,11 +1033,27 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           if (params.count("dynamic_graph_execute_mode")) {
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
-              ADP_LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
+              ADP_LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
           }
           if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+        }
+      }
+      if (params.count("local_rank_id")) {
+        local_rank_id = params.at("local_rank_id").i();
+        Status s = CheckLocalRankId(local_rank_id);
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
+      }
+      if (params.count("local_device_list")) {
+        local_device_list = params.at("local_device_list").s();
+        Status s = CheckDeviceList(local_device_list);
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
         }
       }
 
@@ -1105,6 +1186,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["dynamic_input"] = std::to_string(dynamic_input);
   pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
+  pass_options["local_rank_id"] = std::to_string(local_rank_id);
+  pass_options["local_device_list"] = local_device_list;
 
   std::string attr_name;
   for (const auto &option : sess_options) {
