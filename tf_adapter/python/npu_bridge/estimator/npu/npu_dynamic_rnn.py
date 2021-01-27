@@ -234,7 +234,6 @@ class DynamicGRUV2(_DynamicBasic):
       is_training=is_training)
     self._gate_order = gate_order
     self._reset_after = reset_after
-    self._args["bias_type"] = "single_bias"
     self._args["gate_order"] = self._gate_order
     self._args["reset_after"] = self._reset_after
     self._gruv2_weight_input = None
