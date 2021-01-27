@@ -737,7 +737,6 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["local_device_list"].s = tf.compat.as_bytes(config._local_device_list)
 
         if config._session_device_id is not None:
-            util.check_nonnegative_integer(session_device_id, "session_device_id")
             custom_op.parameter_map["session_device_id"].i = config._session_device_id
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)

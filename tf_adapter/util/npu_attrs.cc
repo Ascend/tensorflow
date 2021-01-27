@@ -44,8 +44,8 @@ Status GetEnvDeviceID(uint32_t &device_id) {
   const char* tmp_device_id = std::getenv("DEVICE_ID");
   string env_device_id(tmp_device_id == nullptr ? "" : tmp_device_id);
   if (env_ascend_device_id.empty() && env_device_id.empty()) {
-    ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0";
-    LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0";
+    ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, if set session_device_id, session_device_id has a higher priority";
+    LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, if set session_device_id, session_device_id has a higher priority";
   } else if (!env_ascend_device_id.empty()) {
     if (!strings::safe_strto64(env_ascend_device_id, &logic_device_id)) {
       return errors::InvalidArgument("ASCEND_DEVICE_ID is valid, not digit.");
@@ -1147,7 +1147,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         if (0 <= params.at("session_device_id").i()) {
           session_device_id = params.at("session_device_id").i();
         } else {
-          ADP_LOG(ERROR) << "session_device_id must be nonnegative integer.";
+          ADP_LOG(FATAL) << "session_device_id must be nonnegative integer.";
           LOG(FATAL) << "session_device_id must be nonnegative integer.";
         }
       }
