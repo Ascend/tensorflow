@@ -24,6 +24,8 @@ from util import log_success_report
 from util import log_migration_report
 from ast_impl import attribute
 from ast_impl import node_tree
+from ast_impl import insert_config_pb2_import
+from ast_impl import insert_npu_init_func
 from ast_impl import insert_npu_import
 from ast_impl import import_from
 from ast_impl import ast_import
@@ -75,7 +77,13 @@ class ConverByAst(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node):
+        for target in node.targets:
+            if (isinstance(target, ast.Name) and target.id == 'global_jit_level') or (isinstance(target, ast.Attribute) and target.attr == 'global_jit_level'):
+                return ast_assign(node)
+
         if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute):
+            if (node.value.func.attr == 'ConfigProto') or (node.value.func.attr == 'GraphOptions') or (node.value.func.attr == 'OptimizerOptions'):
+                return ast_assign(node)
             if node.value.func.attr.find("Optimizer") != -1:
                 return ast_assign(node)
         ast_assign(node)
@@ -84,6 +92,8 @@ class ConverByAst(ast.NodeTransformer):
 
 def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
+    util_global.set_value('import_config_pb2', False)
+    util_global.set_value('insert_npu_init_func', False)
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
     r_node = ast.parse(source)
@@ -100,6 +110,10 @@ def conver_ast(path, out_path_dst, file_name):
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)
+        if util_global.get_value('import_config_pb2', False):
+            insert_config_pb2_import(r_node)
+        if util_global.get_value('insert_npu_init_func', False):
+            insert_npu_init_func(r_node)
         dst_content = astunparse.unparse(r_node)
         write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
 
