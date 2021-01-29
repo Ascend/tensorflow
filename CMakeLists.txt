@@ -76,6 +76,36 @@ else()
     set(CMAKE_C_COMPILE_OBJECT "<CMAKE_C_COMPILER> <DEFINES> -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
     set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> <DEFINES>  -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
 
+    add_custom_command(
+        OUTPUT ${BASE_DIR}/tensorflow_framework.cc
+        COMMAND touch ${BASE_DIR}/tensorflow_framework.cc
+    )
+
+    add_library(tensorflow_framework SHARED
+        ${BASE_DIR}/tensorflow_framework.cc
+    )
+
+    #rename libtensorflow_framework.so to libtensorflow_framework.so.1
+    set_target_properties(tensorflow_framework
+        PROPERTIES
+        VERSION 1
+    )
+
+    add_custom_command(
+        OUTPUT ${BASE_DIR}/pywrap_tensorflow_internal.cc
+        COMMAND touch ${BASE_DIR}/pywrap_tensorflow_internal.cc
+    )
+
+    add_library(pywrap_tensorflow_internal SHARED
+        ${BASE_DIR}/pywrap_tensorflow_internal.cc
+    )
+
+    #rename libpywrap_tensorflow_internal.so to _pywrap_tensorflow_internal.so
+    set_target_properties(pywrap_tensorflow_internal
+        PROPERTIES
+        PREFIX _
+    )
+
     execute_process(COMMAND ${HI_PYTHON} -c "import tensorflow as tf; print(tf.sysconfig.get_lib(),end='')"
                     OUTPUT_VARIABLE TF_INSTALL_LIB_PATH)
 
@@ -100,8 +130,8 @@ else()
         ${TOP_DIR}/third_party/json/include/
         ${TOP_DIR}/third_party/tensorflow/tensorflow-1.15.0/
         ${TF_INSTALL_LIB_PATH}/include/
-        # ${HI_PYTHON_INC}/
-        /opt/buildtools/python3.7/include/python3.7m/
+        ${HI_PYTHON_INC}/
+        # /opt/buildtools/python3.7/include/python3.7m/
     )
 
     target_compile_options(tf_adapter PUBLIC
@@ -124,8 +154,8 @@ else()
         datatransfer
         fmk_parser
         indextransform
-        ${TF_INSTALL_LIB_PATH}/libtensorflow_framework.so.1
-        ${TF_INSTALL_LIB_PATH}/python/_pywrap_tensorflow_internal.so
+        tensorflow_framework
+        pywrap_tensorflow_internal
         -Wl,--as-needed
         -s
     )
@@ -148,7 +178,7 @@ else()
     ###################################################################################################
     add_custom_target(
         hw_npu_bridge_1.15.0 ALL
-        DEPENDS tf_adapter SoftDp ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl
+        DEPENDS tensorflow_framework pywrap_tensorflow_internal tf_adapter SoftDp ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl
     )
 
     # package _tf_adapter.so and libSoftDp.so in npu_bridge-xxx.whl
@@ -164,6 +194,12 @@ else()
     	&& cd ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && ${HI_PYTHON} setup.py bdist_wheel >/dev/null
         && cp -f dist/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
+        && rm -rf ${BASE_DIR}/pywrap_tensorflow_internal.cc
+        && rm -rf ${BASE_DIR}/tensorflow_framework.cc
+        && rm -rf ${BASE_DIR}/_pywrap_tensorflow_internal.so
+        && rm -rf ${BASE_DIR}/libpywrap_tensorflow_internal.so
+        && rm -rf ${BASE_DIR}/libtensorflow_framework.so.1
+        && rm -rf ${BASE_DIR}/libtensorflow_framework.so
         && echo "package whl end"
     )
 
