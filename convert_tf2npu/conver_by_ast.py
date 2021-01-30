@@ -39,6 +39,7 @@ class ConverByAst(ast.NodeTransformer):
         ast.NodeTransformer.generic_visit(self, node)
         return node
     def visit_Attribute(self, node):
+        self.generic_visit(node)
         if node.attr in util_global.get_value('estimator') and isinstance(node.value, ast.Attribute):
             if node.value.attr == 'estimator':
                 return attribute(node)
@@ -84,7 +85,7 @@ class ConverByAst(ast.NodeTransformer):
         if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute):
             if (node.value.func.attr == 'ConfigProto') or (node.value.func.attr == 'GraphOptions') or (node.value.func.attr == 'OptimizerOptions'):
                 return ast_assign(node)
-            if node.value.func.attr.find("Optimizer") != -1:
+            if isinstance(node.value.func.value, ast.Attribute) and node.value.func.attr.find("Optimizer") != -1:
                 return ast_assign(node)
         ast_assign(node)
         self.generic_visit(node)

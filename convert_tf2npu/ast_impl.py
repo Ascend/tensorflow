@@ -183,16 +183,26 @@ def ast_call(node):
 def insert_npu_import(r_node):
     npu_alias = ast.alias(name='*', asname=None)
     npu_import = ast.ImportFrom(module='npu_bridge.npu_init', names=[npu_alias], level=0)
-    for i in range(0, 5):
+    num = 5 if len(r_node.body) >= 5 else lend(r_node.body)
+    import_index = 0
+    is_insert = False
+    for i in range(0, num):
         if isinstance(r_node.body[i], ast.Import):
             r_node.body.insert(i, npu_import)
             log_success_report(i, "import")
+            is_insert = True
             break
         elif isinstance(r_node.body[i], ast.ImportFrom):
             if r_node.body[i].module != "__future__":
                 r_node.body.insert(i, npu_import)
                 log_success_report(i, "import")
+                is_insert = True
                 break
+            else:
+                import_index = i + 1
+    if not is_insert:
+        r_node.body.insert(import_index, npu_import)
+        log_success_report(import_index, "import")
 
 def insert_npu_init_func(r_node):
     n = 0
@@ -401,7 +411,7 @@ def ast_assign(node):
                                 value=ast.Name(id='config_pb2', ctx=ast.Load()))))
                     node = ast.If(test=ast.NameConstant(value=True), body=[node, global_jit_level_assign_node], orelse=[])
 
-                elif node.value.func.attr.find("Optimizer") != -1:
+                elif isinstance(node.value.func.value, ast.Attribute) and node.value.func.attr.find("Optimizer") != -1:
                     log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
                     npu_func = ast.Name(id="NPUDistributedOptimizer", ctx=ast.Load())
                     npu_opt = ast.Assign(targets=node.targets, value=ast.Call(func=npu_func, args=node.targets, keywords=[]))
