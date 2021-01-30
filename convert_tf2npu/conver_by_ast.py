@@ -26,6 +26,7 @@ from ast_impl import attribute
 from ast_impl import node_tree
 from ast_impl import insert_config_pb2_import
 from ast_impl import insert_npu_init_func
+from ast_impl import insert_RewriterConfig_import
 from ast_impl import insert_npu_import
 from ast_impl import import_from
 from ast_impl import ast_import
@@ -95,6 +96,8 @@ def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
     util_global.set_value('import_config_pb2', False)
     util_global.set_value('insert_npu_init_func', False)
+    util_global.set_value('import_RewriterConfig', False)
+
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
     r_node = ast.parse(source)
@@ -115,6 +118,8 @@ def conver_ast(path, out_path_dst, file_name):
             insert_config_pb2_import(r_node)
         if util_global.get_value('insert_npu_init_func', False):
             insert_npu_init_func(r_node)
+        if util_global.get_value('import_RewriterConfig', False):
+            insert_RewriterConfig_import(r_node)
         dst_content = astunparse.unparse(r_node)
         write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
 
