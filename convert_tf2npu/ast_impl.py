@@ -197,7 +197,7 @@ def ast_call(node):
 def insert_npu_import(r_node):
     npu_alias = ast.alias(name='*', asname=None)
     npu_import = ast.ImportFrom(module='npu_bridge.npu_init', names=[npu_alias], level=0)
-    num = 5 if len(r_node.body) >= 5 else lend(r_node.body)
+    num = 5 if len(r_node.body) >= 5 else len(r_node.body)
     import_index = 0
     is_insert = False
     for i in range(0, num):
