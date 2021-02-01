@@ -121,6 +121,7 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::OutputTensorI
       void *src_ptr = static_cast<void *>(output.data.get());
       size_t left_size = total_bytes;
       while (left_size > SECUREC_MEM_MAX_LEN) {
+        REQUIRES_NOT_NULL(dst_ptr);
         auto err = memcpy_s(dst_ptr, SECUREC_MEM_MAX_LEN, src_ptr, SECUREC_MEM_MAX_LEN);
         if (err != EOK) {
           ADP_LOG(ERROR) << "[GEOP] Outputs mem copy failed, index:" << i << ", errret:" << err
