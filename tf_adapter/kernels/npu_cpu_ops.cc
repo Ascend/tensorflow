@@ -44,6 +44,7 @@ class EmbeddingRankIdOpKernel : public OpKernel {
 class LruCacheOp : public ResourceOpKernel<CacheInterface> {
  public:
   explicit LruCacheOp(OpKernelConstruction* context) : ResourceOpKernel(context) {}
+  ~LruCacheOp() override {}
   void Compute(OpKernelContext* context) override { ADP_LOG(INFO) << "LruCacheOp Compute"; }
  private:
   Status CreateResource(CacheInterface** resource) override
@@ -61,12 +62,14 @@ class CacheAddOp : public OpKernel {
 class CacheRemoteIndexToLocalOp : public OpKernel {
  public:
   explicit CacheRemoteIndexToLocalOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~CacheRemoteIndexToLocalOp() override {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheRemoteIndexToLocalOp Compute"; }
 };
 
 class CacheAllIndexToLocalOp : public OpKernel {
  public:
   explicit CacheAllIndexToLocalOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~CacheAllIndexToLocalOp() override {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheAllIndexToLocalOp Compute"; }
 };
 
