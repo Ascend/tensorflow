@@ -21,7 +21,7 @@ from conver import conver
 
 def para_check_and_set(argv):
     input  = "input"
-    list = "TF1.15_API支持度清单.xlsx"
+    list = "tf1.15_api_support_list.xlsx"
     output = "output" + util_global.get_value('timestap')
     report = "report" + util_global.get_value('timestap')
     report_suffix = report
@@ -33,7 +33,7 @@ def para_check_and_set(argv):
         print('    main.py -i <input> -l <list> -o <output> -r <report>')
         print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
         print('-i or --input:  The source script to be converted, Default value: input/')
-        print('-l or --list:  The list of supported api, Default value: TF1.15_API支持度清单.xlsx')
+        print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
         print('-o or --output: The destination script after converted, Default value: output/')
         print('-r or --report: Conversion report, Default value: report/')
         sys.exit(2)
@@ -43,7 +43,7 @@ def para_check_and_set(argv):
             print('    main.py -i <input> -l <list> -o <output> -r <report>')
             print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
             print('-i or --input:  The source script to be converted, Default value: input/')
-            print('-l or --list:  The list of supported api, Default value: TF1.15_API支持度清单.xlsx')
+            print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
             print('-o or --output: The destination script after converted, Default value: output/')
             print('-r or --report: Conversion report, Default value: report/')
             sys.exit()

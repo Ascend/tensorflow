@@ -33,7 +33,7 @@
 
    a. 命令举例(Linux)：
 
-   python3 main.py -i /home/BERT -l /home/TF1.15_API支持度清单.xlsx -o /home/out -r /home/report
+   python3 main.py -i /home/BERT -l /home/tf1.15_api_support_list.xlsx -o /home/out -r /home/report
 
    其中：
 
@@ -41,7 +41,7 @@
 
     /home/BERT：被迁移的脚本路径
 
-    /home/TF1.15_API支持度清单.xlsx：TensorFlow 1.15在昇腾AI处理器上的支持度清单
+    /home/tf1.15_api_support_list.xlsx：TensorFlow 1.15在昇腾AI处理器上的支持度清单
 
     /home/out：迁移后的脚本路径
 
