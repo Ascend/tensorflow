@@ -42,6 +42,7 @@ class Scope::ScopeImpl {
   void AddNode(ge::OperatorPtr &node_def);
   const std::vector<ge::OperatorPtr> &Nodes() const { return nodes_; }
   const std::unordered_map<std::string, ge::OperatorPtr> &AllNodesMap();
+  const std::map<std::string, ge::OperatorPtr> &AllNodesMapNew();
   void AddSubScope(Scope *scope) { sub_scopes_[scope->Name()] = scope; }
   Scope *GetSubScope(const std::string &scope_name) const;
   const std::unordered_map<std::string, Scope *> &GetSubScopes() const { return sub_scopes_; }
@@ -57,10 +58,11 @@ class Scope::ScopeImpl {
   std::string name_;
   std::string sub_type_;
   Scope *father_scope_;
-  std::unordered_map<std::string, int32_t> op_nums_;
+  std::map<std::string, int32_t> op_nums_;
   std::unordered_map<std::string, Scope *> sub_scopes_;
   std::vector<ge::OperatorPtr> nodes_;
   std::unordered_map<std::string, ge::OperatorPtr> all_nodes_map_;
+  std::map<std::string, ge::OperatorPtr> all_nodes_map_new_;
   std::vector<Scope *> all_sub_scopes_;
 };
 
@@ -112,8 +114,8 @@ class FusionScopesResult::FusionScopesResultImpl {
   const std::vector<ge::OperatorPtr> &Nodes() const { return nodes_; }
   void AddScopes(const std::vector<Scope *> &scopes) { scopes_.insert(scopes_.end(), scopes.begin(), scopes.end()); }
   const std::vector<Scope *> &Scopes() const { return scopes_; }
-  const std::unordered_map<std::string, std::vector<int32_t>> &GetInputs() const { return inputs_; }
-  const std::unordered_map<std::string, std::vector<int32_t>> &GetOutputs() const { return outputs_; }
+  const std::map<std::string, std::vector<int32_t>> &GetInputs() const { return inputs_; }
+  const std::map<std::string, std::vector<int32_t>> &GetOutputs() const { return outputs_; }
   void InsertInputs(const std::string &inner_op_name, const std::vector<int32_t> &index_map);
   void InsertOutputs(const std::string &inner_op_name, const std::vector<int32_t> &index_map);
   bool FindNodes(const std::string &node_name) const;
@@ -131,8 +133,8 @@ class FusionScopesResult::FusionScopesResultImpl {
   std::string description_;
   std::vector<Scope *> scopes_;
   std::vector<ge::OperatorPtr> nodes_;
-  std::unordered_map<std::string, std::vector<int32_t>> inputs_;
-  std::unordered_map<std::string, std::vector<int32_t>> outputs_;
+  std::map<std::string, std::vector<int32_t>> inputs_;
+  std::map<std::string, std::vector<int32_t>> outputs_;
   std::vector<InnerNodeInfo> inner_node_infos_;
 };
 
@@ -177,6 +179,7 @@ class ScopeGraph::ScopeGraphImpl {
   FusionScopesResult *GetFusionScopesResults(const domi::tensorflow::NodeDef *node_def) const;
   FusionScopesResult *GetFusionScopesResults(const string &node_name) const;
   const std::unordered_map<std::string, ge::OperatorPtr> &GetNodesMap() const { return nodes_map_; }
+  const std::map<std::string, ge::OperatorPtr> &GetNodesMapNew() const { return nodes_map_new_; }
   bool IsFusionOpChild(const std::string &node_name, std::vector<ScopeFusionOpInfo> &info_list);
   bool FusionOpChildIgnore(const ScopeFusionOpInfo &info);
   bool IsFusionOp(const domi::tensorflow::NodeDef *node_def);
@@ -188,6 +191,7 @@ class ScopeGraph::ScopeGraphImpl {
   void CheckScopesResult(FusionScopesResult *fusion_node);
   std::unordered_map<std::string, FusionScopesResult *> fusion_results_;
   std::unordered_map<std::string, ge::OperatorPtr> nodes_map_;
+  std::map<std::string, ge::OperatorPtr> nodes_map_new_;
   ScopeTree *scope_tree_;
 };
 }  // namespace ge

@@ -131,6 +131,7 @@ class ComputeGraph : public std::enable_shared_from_this<ComputeGraph>, public A
   graphStatus InferOriginFormat();
   graphStatus InferShapeInNeed();
   graphStatus InsertEventNodes();
+  graphStatus InsertGraphEvents();
   bool operator==(const ComputeGraph &r_compute_graph) const;
 
   /*lint +e504*/
@@ -251,6 +252,12 @@ class ComputeGraph : public std::enable_shared_from_this<ComputeGraph>, public A
                                  const std::vector<NodePtr> &l_node_ptr_vector) const;
 
   void SetNodesOwner();
+
+  /**
+   *  Move Send Event nodes after it`s control node
+   *  Move Recv Event nodes before it`s control node
+   */
+  graphStatus ReorderEventNodes();
 
   /**
    *  To improve preformace of list.size(), we should keep counter on nodes_.size()

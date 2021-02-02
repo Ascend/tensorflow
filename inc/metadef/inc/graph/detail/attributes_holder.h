@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <set>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -146,7 +147,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY AttrHolder {
 
  protected:
   graphStatus AddRequiredAttr(const std::string &name);
-  const std::unordered_set<string> GetAllAttrNames() const;
+  const std::set<string> GetAllAttrNames() const;
   const std::map<string, GeAttrValue> GetAllAttrs() const;  // lint !e1073
 
   virtual ProtoAttrMapHelper MutableAttrMap() = 0;

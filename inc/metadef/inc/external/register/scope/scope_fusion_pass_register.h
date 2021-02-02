@@ -355,10 +355,7 @@ class GE_FUNC_HOST_VISIBILITY GE_FUNC_DEV_VISIBILITY ScopeFusionPassRegistry {
   using CreateFn = ScopeBasePass *(*)();
   ~ScopeFusionPassRegistry();
 
-  static ScopeFusionPassRegistry &GetInstance() {
-    static ScopeFusionPassRegistry instance;
-    return instance;
-  }
+  static ScopeFusionPassRegistry& GetInstance();
 
   ATTRIBUTED_DEPRECATED(void RegisterScopeFusionPass(const char *, CreateFn, bool))
   void RegisterScopeFusionPass(const std::string &pass_name, CreateFn create_fn, bool is_general);

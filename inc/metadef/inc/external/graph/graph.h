@@ -115,6 +115,8 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Graph {
 
   graphStatus AddControlEdge(GNode &src_node, GNode &dst_node);
 
+  graphStatus CopyFrom(const Graph &src_graph);
+
   static GraphPtr ConstructFromInputs(const std::vector<Operator> &inputs, const AscendString &name);
 
  private:
