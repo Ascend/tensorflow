@@ -183,6 +183,22 @@ class GraphUtils {
   static graphStatus InsertTransNode(ComputeGraphPtr compute_graph, const InDataAnchorPtr &in_data_anchor,
                                      const std::vector<OpDescPtr> &vec_op_desc);
 
+  static graphStatus CopyGraph(const Graph &src_graph, Graph &dst_graph);
+
+  static graphStatus CopyComputeGraph(const ComputeGraphPtr &src_compute_graph,
+                                      ComputeGraphPtr &dst_compute_graph,
+                                      std::map<ConstNodePtr, NodePtr> &node_old_2_new,
+                                      std::map<ConstOpDescPtr, OpDescPtr> &op_desc_old_2_new,
+                                      int32_t &depth);
+
+  static graphStatus CopyMembers(const ComputeGraphPtr &src_compute_graph,
+                                 ComputeGraphPtr &dst_compute_graph,
+                                 const std::unordered_map<std::string, NodePtr> &all_new_nodes);
+
+  static graphStatus CopyGraphImpl(const Graph &src_graph, Graph &dst_graph,
+                                   const std::map<ConstNodePtr, NodePtr> &node_old_2_new,
+                                   const std::map<ConstOpDescPtr, OpDescPtr> &op_desc_old_2_new);
+
   ///
   /// @brief Insert node: src->insert_node:input_index, insert_node:output_index->dst
   /// @param [in] src

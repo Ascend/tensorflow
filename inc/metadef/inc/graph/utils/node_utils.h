@@ -86,7 +86,7 @@ class NodeUtils {
   static std::vector<ComputeGraphPtr> GetAllSubgraphs(const Node &node);
   static ComputeGraphPtr GetSubgraph(const Node &node, uint32_t index);
   static graphStatus SetSubgraph(Node &node, uint32_t index, const ComputeGraphPtr &subgraph);
-
+  static NodePtr CreatNodeWithoutGraph(const OpDescPtr op_desc);
   ///
   /// Check if node is input of subgraph
   /// @param [in] node

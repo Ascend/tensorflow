@@ -22,6 +22,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <set>
 #include <unordered_set>
 #include <vector>
 #include "detail/attributes_holder.h"
@@ -320,7 +321,7 @@ class OpDesc : public std::enable_shared_from_this<OpDesc>, public AttrHolder {
   vector<GeTensorDescPtr> inputs_desc_{};
   map<string, uint32_t> input_name_idx_{};
   vector<string> register_input_name_{};
-  std::unordered_set<string> optional_input_names_{};
+  std::set<string> optional_input_names_{};
   vector<GeTensorDescPtr> outputs_desc_{};
   map<string, uint32_t> output_name_idx_{};
   vector<string> register_output_name_{};

@@ -79,7 +79,13 @@ class OpDescUtils {
   static Operator CreateOperatorFromOpDesc(OpDescPtr op_desc);
   static Operator CreateOperatorFromNode(ge::ConstNodePtr node_ptr);
   static OpDescPtr GetOpDescFromOperator(const Operator& oprt);
-
+  static graphStatus CopyOperatorLinks(const std::map<string, ge::Operator> &src_op_list,
+                                       std::map<string, ge::Operator> &dst_op_list);
+  static graphStatus CopyOperators(ComputeGraphPtr &dst_compute_graph,
+                                   const std::map<ConstNodePtr, NodePtr> &node_old_2_new,
+                                   const std::map<ConstOpDescPtr, OpDescPtr> &op_desc_old_2_new,
+                                   const std::map<string, ge::Operator> &src_op_list,
+                                   std::map<string, ge::Operator> &dst_op_list);
   static OpDescPtr CreateConstOp(const GeTensorPtr& tensor_ptr);
 
   static graphStatus SetSubgraphInstanceName(const std::string &subgraph_name,

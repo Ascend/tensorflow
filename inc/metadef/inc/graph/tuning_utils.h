@@ -67,7 +67,7 @@ const std::set<std::string> build_step_options = {
 using SubgraphCreateOutNode = std::unordered_map<ComputeGraphPtr, NodePtr>;
 using NodetoNodeMap = std::unordered_map<NodePtr, NodePtr>;
 using NodeVec = std::vector<NodePtr>;
-using NodeNametoNodeNameMap = std::unordered_map<std::string, std::string>;
+using NodeNametoNodeNameMap = std::map<std::string, std::string>;
 using NodetoNodeNameMap = std::unordered_map<NodePtr, std::string>;
 class TuningUtils {
  public:
