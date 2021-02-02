@@ -106,9 +106,6 @@ else()
         PREFIX _
     )
 
-    execute_process(COMMAND ${HI_PYTHON} -c "import tensorflow as tf; print(tf.sysconfig.get_lib(),end='')"
-                    OUTPUT_VARIABLE TF_INSTALL_LIB_PATH)
-
     file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/*.cc)
     add_library(tf_adapter SHARED
         ${SOURCES}
@@ -129,9 +126,8 @@ else()
         ${TOP_DIR}/libc_sec/include/
         ${TOP_DIR}/third_party/json/include/
         ${TOP_DIR}/third_party/tensorflow/tensorflow-1.15.0/
-        ${TF_INSTALL_LIB_PATH}/include/
+        ${TOP_DIR}/third_party/tensorflow/compile_deps/tf-1.15.0/include/
         ${HI_PYTHON_INC}/
-        # /opt/buildtools/python3.7/include/python3.7m/
     )
 
     target_compile_options(tf_adapter PUBLIC
