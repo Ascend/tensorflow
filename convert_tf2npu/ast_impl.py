@@ -164,14 +164,37 @@ def ast_call(node):
         node = ast.NameConstant(value=None)
         return node
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator' and (node.func.value.attr == 'tpu')):
+        add_eval_on_tpu = True
+        add_use_tpu = True
+        add_export_to_tpu = True
         for keyword in node.keywords:
             if (keyword.arg == 'eval_on_tpu') or (keyword.arg == 'use_tpu') or (keyword.arg == 'export_to_tpu'):
                 if (not isinstance(keyword.value, ast.NameConstant)) or (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value != False)):
                     log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(' + keyword.arg + '=*)')
                     keyword.value = ast.NameConstant(value=False)
                     util_global.set_value('need_conver', True)
+                if add_eval_on_tpu and (keyword.arg == 'eval_on_tpu'):
+                    add_eval_on_tpu = False
+                if add_use_tpu and (keyword.arg == 'use_tpu'):
+                    add_use_tpu = False
+                if add_export_to_tpu and (keyword.arg == 'export_to_tpu'):
+                    add_export_to_tpu = False
+        if add_eval_on_tpu:
+            log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(eval_on_tpu=*)')
+            node.keywords.append(ast.keyword(arg='eval_on_tpu', value=ast.NameConstant(value=False)))
+            util_global.set_value('need_conver', True)
+        if add_use_tpu:
+            log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(use_tpu=*)')
+            node.keywords.append(ast.keyword(arg='use_tpu', value=ast.NameConstant(value=False)))
+            util_global.set_value('need_conver', True)
+        if add_export_to_tpu:
+            log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(export_to_tpu=*)')
+            node.keywords.append(ast.keyword(arg='export_to_tpu', value=ast.NameConstant(value=False)))
+            util_global.set_value('need_conver', True)
         return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'RunConfig'):
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'RunConfig') \
+        and ((isinstance(node.func.value, ast.Name) and node.func.value.id == 'tpu') \
+            or (isinstance(node.func.value, ast.Attribute) and node.func.value.attr == 'tpu')):
         for keyword in node.keywords:
             if keyword.arg == 'session_config':
                 log_success_report(getattr(node, 'lineno', 'None'), 'add_npu_config')
