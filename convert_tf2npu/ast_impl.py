@@ -75,7 +75,8 @@ def ast_call(node):
                     keywords_new.append(keyword)
             node.keywords = keywords_new
             util_global.set_value('need_conver', True)
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'batch' or node.func.attr == 'map_and_batch'):
+    if isinstance(node.func, ast.Attribute) and ((node.func.attr == 'map_and_batch') or (node.func.attr == 'batch' \
+        and (not isinstance(node.func.value, ast.Attribute) or (isinstance(node.func.value, ast.Attribute) and node.func.value.attr != 'train')))):
         exist = False
         for keyword in node.keywords:
             if keyword.arg == 'drop_remainder':
