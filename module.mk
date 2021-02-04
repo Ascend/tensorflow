@@ -63,10 +63,6 @@ else
 	@swig -c++ -python -threads $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/swig/ge_plugin.i
 	@mv $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/swig/ge_plugin_wrap.cxx $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/util/
 	@mv $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/swig/tf_adapter.py $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/python/npu_bridge/
-	#@mkdir $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/python/npu_bridge/convert_tf2npu
-	#@mv $(TF_ADPTER_REL_WORKSPACE_BASE)/convert_tf2npu/tf1.15_api_support_list.xlsx $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/python/npu_bridge/convert_tf2npu/
-	#@rsync -av $(TF_ADPTER_REL_WORKSPACE_BASE)/convert_tf2npu $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/python/npu_bridge
-	#@rm -r $(TF_ADPTER_REL_WORKSPACE_BASE)/convert_tf2npu/
 	@mv $(TF_ADPTER_REL_WORKSPACE_BASE)/convert_tf2npu $(TF_ADPTER_REL_WORKSPACE_BASE)/tf_adapter/python/npu_bridge/
 	@bash $(PWD)/tensorflow/tools/build_wheel.sh $(PWD)/$@ $(product)
 endif
