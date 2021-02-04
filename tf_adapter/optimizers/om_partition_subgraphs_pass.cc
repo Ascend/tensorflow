@@ -324,6 +324,27 @@ bool IsNpuSupportingNode(Node *node, bool mix_compile_mode, FunctionLibraryDefin
   return IsNpuSupportingNode(node->def(), mix_compile_mode, func_lib);
 }
 
+bool IsUnSupportedResource(bool mix_compile_mode, Node* node) {
+  if (!mix_compile_mode) { return false; }
+  for (size_t i = 0; i < node->num_inputs(); i++) {
+    const Edge *edge = nullptr;
+    if (!node->input_edge(i, &edge).ok()) {
+      continue;
+    }
+    auto dtype = node->input_type(i);
+    if (dtype == DT_RESOURCE) {
+      return edge->src()->type_string() != "VarHandleOp";
+    }
+  }
+  for (size_t i = 0; i < node->num_outputs(); i++) {
+    auto dtype = node->output_type(i);
+    if (dtype == DT_RESOURCE) {
+      return node->type_string() != "VarHandleOp";
+    }
+  }
+  return false;
+}
+
 Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, FunctionLibraryDefinition *func_lib,
                                 bool enableDP, bool mix_compile_mode) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
@@ -404,7 +425,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
         if (ctrlEdgeNum >= 1) { continue; }
       }
       // normal needed down op
-      if (IsNpuSupportingNode(node, compile_mode, func_lib)) {
+      if (IsNpuSupportingNode(node, compile_mode, func_lib) && !IsUnSupportedResource(compile_mode, node)) {
         candidates->insert(node);
       } else {
         outSet.insert(node);
