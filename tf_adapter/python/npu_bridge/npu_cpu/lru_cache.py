@@ -14,7 +14,7 @@ class LruCache(object):
     self._dtype=dtype
     self._cache=gen_npu_cpu_ops.lru_cache(
         cache_size=self._cache_size,
-        load_factor=self._load_factor
+        load_factor=self._load_factor,
         dtype=self._dtype
     )
   ##提供CacheAdd功能
