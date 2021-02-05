@@ -782,6 +782,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_compiler_cache_mode;
   std::string op_compiler_cache_dir;
   std::string debug_dir;
+  int64 rank_size = 1;
+  (void) ReadInt64FromEnvVar("RANK_SIZE", 1, &rank_size);
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -796,7 +798,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         variable_memory_max_size = params.at("variable_memory_max_size").s();
       }
       if (params.count("enable_dump")) { enable_dump = params.at("enable_dump").b(); }
-      if (params.count("enable_dump_debug")) { enable_dump_debug = params.at("enable_dump_debug").b(); }
+      if (params.count("enable_dump_debug")) {
+        enable_dump_debug = params.at("enable_dump_debug").b();
+        if (rank_size > 1 && enable_dump_debug) {
+          ADP_LOG(FATAL) << "enable_dump_debug should be false in distributed network.";
+          LOG(FATAL) << "enable_dump_debug should be false in distributed network.";
+        }
+      }
       if (enable_dump || enable_dump_debug) {
         if (params.count("dump_path")) {
           string tmp_path = params.at("dump_path").s();
@@ -866,8 +874,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_scope_fusion_passes")) {
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
-      int64 rank_size = 1;
-      (void) ReadInt64FromEnvVar("RANK_SIZE", 1, &rank_size);
       if (rank_size > 1 && params.count("mstune_mode")) {
         mstune_mode = params.at("mstune_mode").s();
         Status s  = CheckMstuneMode(mstune_mode);
