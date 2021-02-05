@@ -48,7 +48,7 @@ def allreduce(tensor, var, average=True):
         values=hccl_ops.allgather(tensor.values, size)
         indices=hccl_ops.allgather(tensor.indices, size)
 
-        if values is  None:
+        if values is None:
             raise ValueError('the result of tf.HcomAllgather([tensor.values]) is empty')
         if indices is None:
             raise ValueError('the result of tf.HcomAllgather([tensor.indices]) is empty')
@@ -137,6 +137,7 @@ class NPUOptimizer(optimizer.Optimizer):
     if name is None:
       name = "NPUOptimizer{}".format(type(opt).__name__)
     self._name = name
+    super(NPUOptimizer, self).__init__(name=self._name, use_locking=False)
 
   def compute_gradients(self,
                         loss,
