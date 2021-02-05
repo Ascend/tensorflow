@@ -448,13 +448,6 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
     for (auto edge : node->out_edges()) {
       REQUIRES_NOT_NULL(edge);
       REQUIRES_NOT_NULL(edge->dst());
-      if (edge->dst()->IsMerge()) {
-        candidates->erase(edge->dst());
-        outSet.insert(edge->dst());
-        ADP_LOG(INFO) << "Remove node : " << edge->dst()->name() << " from candidates, because of node : "
-                        << node->name() << " input: " << edge->src()->name() << " is not support.";
-        continue;
-      }
       if (!edge->IsControlEdge()) {
         DataType dtypeDst = edge->dst()->input_type(edge->dst_input());
         if (IsRefType(dtypeDst) && candidates->count(edge->dst()) > 0) {
