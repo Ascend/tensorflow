@@ -93,6 +93,7 @@ class NPULossScaleOptimizer(optimizer.Optimizer):
     self._float_status = tf.constant([0.0], dtype=tf.float32)
     self._is_distributed = is_distributed
     self._name = "NPULossScaleOptimizer{}".format(type(optimizer).__name__)
+    super(NPULossScaleOptimizer, self).__init__(name=self._name, use_locking=False)
 
   def compute_gradients(self,
                         loss,
