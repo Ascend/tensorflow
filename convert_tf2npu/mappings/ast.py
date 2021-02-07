@@ -53,7 +53,12 @@
 "GraphOptions.global_jit_level":
                                 ["",                        "",                             "GraphOptions.optimizer_options.global_jit_level=OFF"],
 "ConfigProto.global_jit_level": ["",                        "",                             "ConfigProto.graph_options.optimizer_options.global_jit_level=OFF"],
-"add_npu_config":                ["",                        "",                             "add NPU config"],
+"add_npu_config":               ["",                        "",                             "add NPU config"],
+"VirtualDeviceConfiguration":   ["",                        "",                             "set/add memory_limit=None"],
+"set_memory_growth":            ["",                        "*.set_memory_growth()",        "None"],
+"set_virtual_device_configuration":
+                                ["",                        "*.set_virtual_device_configuration()",         "None"],
+"*.xla.experimental.jit_scope": ["",                        "",                             "set/add compile_ops=False"],
 
 "hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],

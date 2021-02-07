@@ -216,6 +216,44 @@ def ast_call(node):
         util_global.set_value('import_config_pb2', True)
         util_global.set_value('need_conver', True)
         return node
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'VirtualDeviceConfiguration'):
+        log_success_report(getattr(node, 'lineno', 'None'), 'VirtualDeviceConfiguration')
+        util_global.set_value('need_conver', True)
+        memory_limit = None
+        for keyword in node.keywords:
+            if keyword.arg == 'memory_limit':
+                memory_limit = keyword
+                break
+        if memory_limit:
+            memory_limit.value = ast.NameConstant(value=None)
+        else:
+            node.keywords.append(ast.keyword(arg='memory_limit', value=ast.NameConstant(value=None)))
+        return node
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'set_memory_growth'):
+        log_success_report(getattr(node, 'lineno', 'None'), 'set_memory_growth')
+        util_global.set_value('need_conver', True)
+        node = ast.NameConstant(value=None)
+        return node
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'set_virtual_device_configuration'):
+        log_success_report(getattr(node, 'lineno', 'None'), 'set_virtual_device_configuration')
+        util_global.set_value('need_conver', True)
+        node = ast.NameConstant(value=None)
+        return node
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'jit_scope'):
+        if isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'experimental'):
+            if isinstance(node.func.value.value, ast.Attribute) and (node.func.value.value.attr == 'xla'):
+                log_success_report(getattr(node, 'lineno', 'None'), '*.xla.experimental.jit_scope')
+                util_global.set_value('need_conver', True)
+                compile_ops = None
+                for keyword in node.keywords:
+                    if keyword.arg == 'compile_ops':
+                        compile_ops = keyword
+                        break
+                if compile_ops:
+                    compile_ops.value = ast.NameConstant(value=False)
+                else:
+                    node.keywords.append(ast.keyword(arg='compile_ops', value=ast.NameConstant(value=False)))
+                return node
     return node
 
 def insert_npu_import(r_node):
@@ -309,7 +347,6 @@ def insert_config_pb2_import(r_node):
         if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
             break
         n += 1
-
     while n < lenline:
         if isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == '__future__'):
             n += 1
@@ -319,11 +356,9 @@ def insert_config_pb2_import(r_node):
             continue
         else:
             break
-
     if n < lenline:
         log_success_report(n, 'import config_pb2')
-        config_pb2_alias = ast.alias(name='tensorflow.core.protobuf.config_pb2', asname=None)
-        r_node.body.insert(n, ast.Import(names=[config_pb2_alias]))
+        r_node.body.insert(n, ast.ImportFrom(module='tensorflow.core.protobuf', names=[ast.alias(name='config_pb2', asname=None)], level=0))
 
 def insert_RewriterConfig_import(r_node):
     n = 0
@@ -332,7 +367,6 @@ def insert_RewriterConfig_import(r_node):
         if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
             break
         n += 1
-
     while n < lenline:
         if isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == '__future__'):
             n += 1
@@ -342,10 +376,8 @@ def insert_RewriterConfig_import(r_node):
             continue
         else:
             break
-
     if n < lenline:
         log_success_report(n, 'import RewriterConfig')
-        config_pb2_alias = ast.alias(name='tensorflow.core.protobuf.config_pb2', asname=None)
         r_node.body.insert(n, ast.ImportFrom(module='tensorflow.core.protobuf.rewriter_config_pb2', names=[ast.alias(name='RewriterConfig', asname=None)], level=0))
 
 def ast_assign(node):
