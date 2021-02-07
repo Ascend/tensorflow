@@ -15,6 +15,7 @@ from tensorflow.python.ops.cond_v2 import cond_v2
 from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer
+from tensorflow.python.keras import optimizers
 from npu_bridge.hccl import hccl_ops
 from npu_bridge.estimator import npu_ops
 
@@ -25,7 +26,7 @@ from tensorflow.python.platform import tf_logging as logging
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.estimator.npu import util
 
-def allreduce(tensor, var, average=True):
+def allreduce(tensor, average=True):
     """
     Perform an allreduce on a tf.Tensor or tf.IndexedSlices.
 
@@ -189,10 +190,10 @@ class NPUOptimizer(optimizer.Optimizer):
             if self._is_loss_scale and (len(grads) == len(gradients)) and self._is_tailing_optimization:
               self._reduce_all(grads)
               with tf.get_default_graph().control_dependencies([self._is_overall_finite]):
-                avg_grad = allreduce(grad, var, True) if grad is not None else None
+                avg_grad = allreduce(grad, True) if grad is not None else None
                 averaged_gradients.append((avg_grad, var))
             else:
-              avg_grad = allreduce(grad, var, True) if grad is not None else None
+              avg_grad = allreduce(grad, True) if grad is not None else None
               averaged_gradients.append((avg_grad, var))
     if self._is_loss_scale:
       return self._down_scale(averaged_gradients, loss_scale)
@@ -320,7 +321,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         else:
             with tf.name_scope(self._name + "_Allreduce"):
                 for grad, var in gradients:
-                    avg_grad = allreduce(grad, var, True) if grad is not None else None
+                    avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_gradients.append((avg_grad, var))
         return averaged_gradients
 
@@ -368,3 +369,40 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
     def variables(self, *args, **kwargs):
         """Calls this same method on the underlying optimizer."""
         return self._optimizer.variables(*args, **kwargs)
+
+class KerasDistributeOptimizer(optimizers.Optimizer):
+    """
+    An optimizer that wraps another keras Optimizer, using an allreduce to
+    average gradient values before applying gradients to model weights.
+    """
+    def __init__(self, optimizer, **kwargs):
+        """
+        Construct a new KerasDistributeOptimizer, which uses another optimizer
+        under the hood for computing single-process gradient values and
+        applying gradient updates after the gradient values have been averaged
+        across all the hcom ranks.
+
+        Args:
+            optimizer: Optimizer to use for get_updates gradients.
+        """
+        super(KerasDistributeOptimizer, self).__init__(**kwargs)
+        self._optimizer = optimizer
+        old_get_gradient = self._optimizer.get_gradients
+        def new_get_gradient(loss, params):
+            grads = old_get_gradient(loss, params)
+            rank_size = os.getenv('RANK_SIZE', '1')
+            if rank_size == None or int(rank_size) <= 1:
+                return grads
+            averaged_grads = []
+            with tf.name_scope("KerasDistributeOptimizer_Allreduce"):
+                for grad in grads:
+                    avg_grad = allreduce(grad, True) if grad is not None else None
+                    averaged_grads.append(avg_grad)
+            return averaged_grads
+        self._optimizer.get_gradients = new_get_gradient
+
+    def get_updates(self, loss, params):
+        return self._optimizer.get_updates(loss, params)
+
+    def get_config(self):
+        return self._optimizer.get_config()

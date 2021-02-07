@@ -254,6 +254,34 @@ def ast_call(node):
                 else:
                     node.keywords.append(ast.keyword(arg='compile_ops', value=ast.NameConstant(value=False)))
                 return node
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'compile'):
+        opt_map = {"adadelta": "tf.keras.optimizers.Adadelta",
+                   "adagrad": "tf.keras.optimizers.Adagrad",
+                   "adam": "tf.keras.optimizers.Adam",
+                   "adamax": "tf.keras.optimizers.Adamax",
+                   "ftrl": "tf.keras.optimizers.Ftrl",
+                   "nadam": "tf.keras.optimizers.Nadam",
+                   "rmsprop": "tf.keras.optimizers.RMSprop",
+                   "sgd": "tf.keras.optimizers.SGD"}
+        for keyword in node.keywords:
+            if keyword.arg == "optimizer":
+                log_success_report(getattr(node, 'lineno', 'None'), 'KerasDistributeOptimizer')
+                opt_func_name = ast.Name(id="npu_keras_optimizer", ctx=ast.Load())
+                if isinstance(keyword.value, ast.Str):
+                    keras_opt = opt_map[keyword.value.s].split(".")
+                    tf_opt_func = ast.Attribute(value=ast.Attribute(value=ast.Attribute(value=ast.Name(id=keras_opt[0], ctx=ast.Load()),
+                                                attr=keras_opt[1], ctx=ast.Load()), attr=keras_opt[2], ctx=ast.Load()),
+                                                attr=keras_opt[3], ctx=ast.Load())
+                    keyword.value = ast.Call(func=opt_func_name, args=[ast.Call(func=tf_opt_func, args=[], keywords=[])], keywords=[])
+                elif isinstance(keyword.value, ast.Call):
+                    if keyword.value.func.attr.find("Optimizer") != -1:
+                        func_name = ast.Name(id="npu_tf_optimizer", ctx=ast.Load())
+                        keyword.value = ast.Call(func=func_name, args=[keyword.value], keywords=[])
+                    else:
+                        keyword.value = ast.Call(func=opt_func_name, args=[keyword.value], keywords=[])
+                util_global.set_value('need_conver', True)
+                util_global.set_value('insert_npu_keras_opt_func', True)
+                return node
     return node
 
 def insert_npu_import(r_node):
@@ -380,6 +408,76 @@ def insert_RewriterConfig_import(r_node):
         log_success_report(n, 'import RewriterConfig')
         r_node.body.insert(n, ast.ImportFrom(module='tensorflow.core.protobuf.rewriter_config_pb2', names=[ast.alias(name='RewriterConfig', asname=None)], level=0))
 
+def insert_npu_tf_opt_func(r_node):
+    n = 0
+    lenline = len(r_node.body)
+
+    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
+        n += 1
+
+    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
+        n += 1
+
+    if n < lenline:
+        npu_func = ast.Name(id="NPUDistributedOptimizer", ctx=ast.Load())
+        assign_target = ast.Name(id="npu_opt", ctx=ast.Store())
+        assign_args = ast.Name(id="opt", ctx=ast.Load())
+        npu_opt = ast.Assign(targets=[assign_target], value=ast.Call(func=npu_func, args=[assign_args], keywords=[]))
+        return_node = ast.Return(value=ast.Name(id='npu_opt', ctx=ast.Load()))
+
+        r_node.body.insert(n, ast.FunctionDef(
+            name='npu_tf_optimizer',
+            args=ast.arguments(
+                args=[
+                    ast.arg(arg='opt', annotation=None)
+                ],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[]),
+            body=[
+                npu_opt,
+                return_node
+            ],
+            decorator_list=[],
+            returns=None))
+
+def insert_npu_keras_opt_func(r_node):
+    n = 0
+    lenline = len(r_node.body)
+
+    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
+        n += 1
+
+    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
+        n += 1
+
+    if n < lenline:
+        npu_func = ast.Name(id="KerasDistributeOptimizer", ctx=ast.Load())
+        assign_target = ast.Name(id="npu_opt", ctx=ast.Store())
+        assign_args = ast.Name(id="opt", ctx=ast.Load())
+        npu_opt = ast.Assign(targets=[assign_target], value=ast.Call(func=npu_func, args=[assign_args], keywords=[]))
+        return_node = ast.Return(value=ast.Name(id='npu_opt', ctx=ast.Load()))
+
+        r_node.body.insert(n, ast.FunctionDef(
+            name='npu_keras_optimizer',
+            args=ast.arguments(
+                args=[
+                    ast.arg(arg='opt', annotation=None)
+                ],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[]),
+            body=[
+                npu_opt,
+                return_node
+            ],
+            decorator_list=[],
+            returns=None))
+
 def ast_assign(node):
     for target in node.targets:
         if (isinstance(target, ast.Name) and target.id == 'global_jit_level') or (isinstance(target, ast.Attribute) and target.attr == 'global_jit_level'):
@@ -486,10 +584,22 @@ def ast_assign(node):
                     util_global.set_value('need_conver', True)
                 elif isinstance(node.value.func.value, ast.Attribute) and node.value.func.attr.find("Optimizer") != -1:
                     log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
-                    npu_func = ast.Name(id="NPUDistributedOptimizer", ctx=ast.Load())
-                    npu_opt = ast.Assign(targets=node.targets, value=ast.Call(func=npu_func, args=node.targets, keywords=[]))
-                    node = ast.If(test=ast.NameConstant(value=True), body=[node, npu_opt], orelse=[])
+                    node.value = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node.value], keywords=[])
                     util_global.set_value('need_conver', True)
+                    util_global.set_value('insert_npu_tf_opt_func', True)
+                elif isinstance(node.value.func.value, ast.Call) and isinstance(node.value.func.value.func, ast.Attribute):
+                    if node.value.func.value.func.attr.find("Optimizer") != -1:
+                        log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
+                        node.value = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node.value.func.value], keywords=[])
+                        util_global.set_value('need_conver', True)
+                        util_global.set_value('insert_npu_tf_opt_func', True)
+                elif isinstance(node.value.func, ast.Attribute):
+                    opt_list = ["Adadelta", "Adagrad", "Adam", "Adamax", "Ftrl", "Nadam", "RMSprop", "SGD"]
+                    if node.value.func.attr in opt_list:
+                        log_success_report(getattr(node, "lineno", "None"), "KerasDistributeOptimizer")
+                        node.value = ast.Call(func=ast.Name(id="npu_keras_optimizer", ctx=ast.Load()), args=[node.value], keywords=[])
+                        util_global.set_value('need_conver', True)
+                        util_global.set_value('insert_npu_keras_opt_func', True)
     return node
 
 # Format printing for locate
