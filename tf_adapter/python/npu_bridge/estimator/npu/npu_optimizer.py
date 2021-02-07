@@ -11,6 +11,7 @@ import tensorflow as tf
 from tensorflow.python.eager import context
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import gen_control_flow_ops
+from tensorflow.python.ops.cond_v2 import cond_v2
 from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer
@@ -212,9 +213,9 @@ class NPUOptimizer(optimizer.Optimizer):
 
         return true_apply_gradients(grads_and_vars, global_step, name)
 
-      update_vars = control_flow_ops.cond(self._is_overall_finite,
-                                          true_apply_gradients_fn,
-                                          gen_control_flow_ops.no_op)
+      update_vars = cond_v2(self._is_overall_finite,
+                            true_apply_gradients_fn,
+                            gen_control_flow_ops.no_op)
 
       # Potentially adjust gradient scale in case of finite gradients.
       return control_flow_ops.group(
