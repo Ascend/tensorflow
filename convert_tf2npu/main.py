@@ -62,6 +62,11 @@ def para_check_and_set(argv):
             if str(report).endswith('/'):
                 report = report[0:len(report)-1]
             report = os.path.join(report, report_suffix)
+
+    if input in output or input in report:
+        print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
+        sys.exit(2)
+
     util_global.set_value('input', input)
     util_global.set_value('list', list)
     util_global.set_value('output', output)
