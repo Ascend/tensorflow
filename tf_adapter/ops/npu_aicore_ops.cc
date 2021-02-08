@@ -272,9 +272,9 @@ REGISTER_OP("DynamicRnnGrad")
       auto output_db_shape = 
           c->MakeShape({hidden_size_4});
       auto output_dh_prev_shape = 
-          c->MakeShape({batch_size, hidden_size});
+          c->MakeShape({1, batch_size, hidden_size});
       auto output_dc_prev_shape = 
-          c->MakeShape({batch_size, hidden_size});       
+          c->MakeShape({1, batch_size, hidden_size});       
       c->set_output(0, output_dw_shape);
       c->set_output(1, output_db_shape);
       c->set_output(2, output_dx_shape);
