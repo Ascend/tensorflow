@@ -51,15 +51,14 @@ def ast_function_def(node):
     return node
 
 def ast_call(node):
-    if isinstance(node.func, ast.Attribute):
-        if len(node.args) > 0:
-            if isinstance(node.args[0], ast.Call):
-                if isinstance(node.args[0].func, ast.Attribute):
-                    if node.args[0].func.attr == 'BroadcastGlobalVariablesHook':
-                        log_success_report(getattr(node, "lineno", "None"), 'BroadcastGlobalVariablesHook')
-                        node.func = ast.Name(id=util_global.get_value('BroadcastGlobalVariablesHook')[0], ctx=ast.Load())
-                        node.args = []
-                        util_global.set_value('need_conver', True)
+    if isinstance(node.func, ast.Attribute) and node.func.attr == "BroadcastGlobalVariablesHook":
+        log_success_report(getattr(node, "lineno", "None"), 'BroadcastGlobalVariablesHook')
+        node.func = ast.Name(id="NpuEmptyHook", ctx=ast.Load())
+        node.args = []
+        node.keywords = []
+        util_global.set_value('need_conver', True)
+        util_global.set_value('insert_empty_hook', True)
+        return node
     if isinstance(node.func, ast.Attribute) and node.func.attr == 'shard':
         log_success_report(getattr(node, "lineno", "None"), 'shard')
         node.args = [ast.Call(func=ast.Name(id='get_rank_size', ctx=ast.Load()), args=[], keywords=[]),
@@ -477,6 +476,23 @@ def insert_npu_keras_opt_func(r_node):
             ],
             decorator_list=[],
             returns=None))
+
+def insert_empty_hook(r_node):
+    n = 0
+    lenline = len(r_node.body)
+
+    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
+        n += 1
+
+    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
+        n += 1
+
+    if n < lenline:
+        hook_attr = ast.Attribute(value=ast.Attribute(value=ast.Name(id="tf", ctx=ast.Load()), attr="train", ctx=ast.Load()),
+                                  attr="SessionRunHook", ctx=ast.Load())
+        class_def = ast.ClassDef(name="NpuEmptyHook", bases=[hook_attr], keywords=[],
+                                 body=[ast.Pass()], decorator_list=[])
+        r_node.body.insert(n, class_def)
 
 def ast_assign(node):
     for target in node.targets:
