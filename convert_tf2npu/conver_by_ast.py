@@ -28,6 +28,8 @@ from ast_impl import insert_config_pb2_import
 from ast_impl import insert_npu_init_func
 from ast_impl import insert_RewriterConfig_import
 from ast_impl import insert_npu_import
+from ast_impl import insert_npu_tf_opt_func
+from ast_impl import insert_npu_keras_opt_func
 from ast_impl import import_from
 from ast_impl import ast_import
 from ast_impl import ast_function_def
@@ -86,8 +88,6 @@ class ConverByAst(ast.NodeTransformer):
         if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute):
             if (node.value.func.attr == 'ConfigProto') or (node.value.func.attr == 'GraphOptions') or (node.value.func.attr == 'OptimizerOptions'):
                 return ast_assign(node)
-            if isinstance(node.value.func.value, ast.Attribute) and node.value.func.attr.find("Optimizer") != -1:
-                return ast_assign(node)
         ast_assign(node)
         self.generic_visit(node)
         return node
@@ -97,6 +97,8 @@ def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('import_config_pb2', False)
     util_global.set_value('insert_npu_init_func', False)
     util_global.set_value('import_RewriterConfig', False)
+    util_global.set_value('insert_npu_tf_opt_func', False)
+    util_global.set_value('insert_npu_keras_opt_func', False)
 
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
@@ -120,6 +122,10 @@ def conver_ast(path, out_path_dst, file_name):
             insert_npu_init_func(r_node)
         if util_global.get_value('import_RewriterConfig', False):
             insert_RewriterConfig_import(r_node)
+        if util_global.get_value('insert_npu_tf_opt_func', False):
+            insert_npu_tf_opt_func(r_node)
+        if util_global.get_value('insert_npu_keras_opt_func', False):
+            insert_npu_keras_opt_func(r_node)
         dst_content = astunparse.unparse(r_node)
         write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
 

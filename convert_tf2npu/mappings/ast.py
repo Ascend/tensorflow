@@ -16,6 +16,7 @@
 "import config_pb2":            ["",                        "",                             "import tensorflow.core.protobuf.config_pb2"],
 "import RewriterConfig":        ["",                        "",                             "from tensorflow.core.protobuf.config_pb2 import RewriterConfig"],
 "NPUDistributedOptimizer":      ["",                        "",                             "NPUDistributedOptimizer(xxx)"],
+"KerasDistributeOptimizer":      ["",                        "",                             "KerasDistributeOptimizer(xxx)"],
 "get_distribution_strategy":    ["npu_strategy", "distribution_utils.get_distribution_strategy", "NPUStrategy"],
 "MirroredStrategy":             ["npu_strategy",               "tf.distribute.MirroredStrategy", "NPUStrategy"],
 "MultiWorkerMirroredStrategy":  ["npu_strategy",    "tf.distribute.MultiWorkerMirroredStrategy", "NPUStrategy"],
