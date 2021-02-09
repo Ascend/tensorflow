@@ -7,7 +7,7 @@
 "rank":                         ["get_rank_id",             "hvd.rank",                     "get_rank_id"],
 "local_rank":                   ["get_local_rank_id",       "hvd.local_rank",               "get_local_rank_id"],
 "size":                         ["get_rank_size",           "hvd.size",                     "get_rank_size"],
-"BroadcastGlobalVariablesHook": ["print",                   "BroadcastGlobalVariablesHook", "None"],
+"BroadcastGlobalVariablesHook": ["print",                   "hvd.BroadcastGlobalVariablesHook", "None"],
 "shard":                        ["",                        "dataset.shard(xxx, xxx)",      "dataset.shard(get_rank_size(), get_rank_id())"],
 "EstimatorSpec":                ["NPUEstimatorSpec",        "tf.estimator.EstimatorSpec",   "NPUEstimatorSpec"],
 "RunConfig":                    ["NPURunConfig",            "tf.estimator.RunConfig",       "NPURunConfig"],
@@ -61,7 +61,7 @@
                                 ["",                        "*.set_virtual_device_configuration()",         "None"],
 "*.xla.experimental.jit_scope": ["",                        "",                             "set/add compile_ops=False"],
 
-"hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer"],
+"hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer","BroadcastGlobalVariablesHook"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
 "nn_layers":                    ["dropout"],
 "keras":                        [""],

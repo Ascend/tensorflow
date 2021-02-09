@@ -30,6 +30,7 @@ from ast_impl import insert_RewriterConfig_import
 from ast_impl import insert_npu_import
 from ast_impl import insert_npu_tf_opt_func
 from ast_impl import insert_npu_keras_opt_func
+from ast_impl import insert_empty_hook
 from ast_impl import import_from
 from ast_impl import ast_import
 from ast_impl import ast_function_def
@@ -99,6 +100,7 @@ def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('import_RewriterConfig', False)
     util_global.set_value('insert_npu_tf_opt_func', False)
     util_global.set_value('insert_npu_keras_opt_func', False)
+    util_global.set_value('insert_empty_hook', False)
 
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
@@ -126,6 +128,8 @@ def conver_ast(path, out_path_dst, file_name):
             insert_npu_tf_opt_func(r_node)
         if util_global.get_value('insert_npu_keras_opt_func', False):
             insert_npu_keras_opt_func(r_node)
+        if util_global.get_value('insert_empty_hook', False):
+            insert_empty_hook(r_node)
         dst_content = astunparse.unparse(r_node)
         write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
 
