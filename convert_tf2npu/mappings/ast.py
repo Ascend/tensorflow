@@ -56,10 +56,20 @@
 "ConfigProto.global_jit_level": ["",                        "",                             "ConfigProto.graph_options.optimizer_options.global_jit_level=OFF"],
 "add_npu_config":               ["",                        "",                             "add NPU config"],
 "VirtualDeviceConfiguration":   ["",                        "",                             "set/add memory_limit=None"],
+"set_soft_device_placement":    ["",                        "",                             "set/add enabled=True"],
 "set_memory_growth":            ["",                        "*.set_memory_growth()",        "None"],
 "set_virtual_device_configuration":
                                 ["",                        "*.set_virtual_device_configuration()",         "None"],
 "*.xla.experimental.jit_scope": ["",                        "",                             "set/add compile_ops=False"],
+"Estimators":                   ["Estimator",               
+                                 "BaselineClassifier",                  "BaselineEstimator",                            "BaselineRegressor",
+                                 "BoostedTreesClassifier",              "BoostedTreesEstimator",                        "BoostedTreesRegressor",
+                                 "DNNClassifier",                       "DNNEstimator",                                 "DNNRegressor",
+                                 "DNNLinearCombinedClassifier",         "DNNLinearCombinedEstimator",                   "DNNLinearCombinedRegressor",
+                                 "LinearClassifier",                    "LinearEstimator",                              "LinearRegressor"],
+"EstimatorFunc":                ["train"],
+"import NPUBroadcastGlobalVariablesHook":
+                                ["",                        "",         "from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook"],
 
 "hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer","BroadcastGlobalVariablesHook"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
