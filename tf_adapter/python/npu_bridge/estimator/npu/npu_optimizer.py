@@ -214,7 +214,7 @@ class NPUOptimizer(optimizer.Optimizer):
 
         return true_apply_gradients(grads_and_vars, global_step, name)
 
-      update_vars = cond_v2(self._is_overall_finite,
+      update_vars = control_flow_ops.cond(self._is_overall_finite,
                             true_apply_gradients_fn,
                             gen_control_flow_ops.no_op)
 
