@@ -180,6 +180,9 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   ADP_LOG(INFO) << "[GePlugin] hcom_multi_mode : " << init_options["ge.hcomMultiMode"];
 
+  init_options["ge.fusionTensorSize"] = std::to_string(GetFusionTensorSize());
+  ADP_LOG(INFO) << "[GePlugin] fusionTensorSize : " << init_options["ge.fusionTensorSize"];
+
   // mstune mode and work path
   if (!init_options["ge.buildMode"].empty()) {
     init_options["ge.buildMode"] = "tuning";
@@ -220,6 +223,23 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
 std::map<std::string, std::string> GePlugin::GetInitOptions() {
   return init_options_;
+}
+
+uint64_t GePlugin::GetFusionTensorSize() {
+  const char *env_fusion_tensor_size = getenv("FUSION_TENSOR_SIZE");
+  
+  // default (50KBytes)
+  const uint64_t default_fusion_tensor_size = 524288000;
+  if (env_fusion_tensor_size == nullptr || strlen(env_fusion_tensor_size) >= ADAPTER_ENV_MAX_LENTH) {
+    return default_fusion_tensor_size;
+  }
+  std::string temp_fusion_tensor_size(env_fusion_tensor_size);
+  std::istringstream string_stream(temp_fusion_tensor_size);
+  uint64_t fusion_tensor_size = 0;
+  if (!(string_stream >> fusion_tensor_size)) {
+    fusion_tensor_size = default_fusion_tensor_size;
+  }
+  return fusion_tensor_size;
 }
 
 void GePlugin::Finalize() {
