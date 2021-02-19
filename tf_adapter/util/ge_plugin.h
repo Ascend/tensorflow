@@ -53,6 +53,9 @@ class GePlugin {
 
   ~GePlugin();
 
+  uint64_t GetFusionTensorSize();
+
+
   uint32_t device_id_;
   bool isInit_;
   bool isGlobal_;
