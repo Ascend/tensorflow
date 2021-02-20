@@ -26,6 +26,10 @@ from ast_impl import attribute
 from ast_impl import node_tree
 from ast_impl import insert_config_pb2_import
 from ast_impl import insert_npu_init_func
+from ast_impl import insert_NPUBroadcastGlobalVariablesHook_import
+from ast_impl import insert_npu_hooks_append_func
+from ast_impl import insert_npu_run_config_func
+from ast_impl import insert_npu_session_config_func
 from ast_impl import insert_RewriterConfig_import
 from ast_impl import insert_npu_import
 from ast_impl import insert_npu_tf_opt_func
@@ -44,9 +48,9 @@ class ConverByAst(ast.NodeTransformer):
         return node
     def visit_Attribute(self, node):
         self.generic_visit(node)
-        if node.attr in util_global.get_value('estimator') and isinstance(node.value, ast.Attribute):
-            if node.value.attr == 'estimator':
-                return attribute(node)
+        #if node.attr in util_global.get_value('estimator') and isinstance(node.value, ast.Attribute):
+        #    if node.value.attr == 'estimator':
+        #        return attribute(node)
         if node.attr in util_global.get_value('hvd'):
             if isinstance(node.value, ast.Name):
                 if 'hvd' in str(node.value.id):
@@ -97,6 +101,11 @@ def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
     util_global.set_value('import_config_pb2', False)
     util_global.set_value('insert_npu_init_func', False)
+    util_global.set_value('insert_estimator_add_hook_func', False)
+    util_global.set_value('insert_npu_hooks_append', False)
+    util_global.set_value('import_NPUBroadcastGlobalVariablesHook', False)
+    util_global.set_value('insert_npu_run_config_func', False)
+    util_global.set_value('insert_npu_session_config_func', False)
     util_global.set_value('import_RewriterConfig', False)
     util_global.set_value('insert_npu_tf_opt_func', False)
     util_global.set_value('insert_npu_keras_opt_func', False)
@@ -118,6 +127,14 @@ def conver_ast(path, out_path_dst, file_name):
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)
+        if util_global.get_value('insert_npu_hooks_append', False):
+            insert_npu_hooks_append_func(r_node)
+        if util_global.get_value('import_NPUBroadcastGlobalVariablesHook', False):
+            insert_NPUBroadcastGlobalVariablesHook_import(r_node)
+        if util_global.get_value('insert_npu_run_config_func', False):
+            insert_npu_run_config_func(r_node)
+        if util_global.get_value('insert_npu_session_config_func', False):
+            insert_npu_session_config_func(r_node)
         if util_global.get_value('import_config_pb2', False):
             insert_config_pb2_import(r_node)
         if util_global.get_value('insert_npu_init_func', False):
