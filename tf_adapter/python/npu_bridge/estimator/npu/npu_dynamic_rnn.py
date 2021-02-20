@@ -16,6 +16,7 @@ import os
 import math
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
+from tensorflow.python.framework import tensor_shape
 from npu_bridge.helper import helper
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import init_ops
@@ -146,13 +147,11 @@ class _DynamicBasic(base_layer.Layer):
       dtype=dtypes.int32,
       initializer=init_ops.constant_initializer(time_size, dtype=dtypes.int32),
       trainable=False)
-    self._init_h = array_ops.zeros([batch_size, self._hidden_size], dtype=self._dtype)
     super(_DynamicBasic, self).build(input_shape)
 
   def call(self,
            x,
-           seq_length=None,
-           init_h=None):
+           seq_length=None):
     """Dynamic GRU.
     Args:
         inputs: the input sequence to the RNN model. If `time_major` is True
@@ -200,10 +199,8 @@ class _DynamicBasic(base_layer.Layer):
     self._args["x"] = x
     if seq_length is None:
       seq_length = self._seq_length
-    if init_h is None:
-      init_h = self._init_h
     self._args["seq_length"] = seq_length
-    self._args["init_h"] = init_h
+
 
 class DynamicGRUV2(_DynamicBasic):
   """Create a basic class for dynamic using Layer."""
@@ -275,6 +272,7 @@ class DynamicGRUV2(_DynamicBasic):
       shape=[3 * self._hidden_size],
       dtype=self._dtype,
       initializer=init_ops.random_uniform_initializer(-stdv, stdv))
+    self._init_h = array_ops.zeros([batch_size, self._hidden_size], dtype=self._dtype)
     super(DynamicGRUV2, self).build(input_shape)
 
   def call(self,
@@ -324,9 +322,10 @@ class DynamicGRUV2(_DynamicBasic):
         else 
           y, output_h
     """
-    super(DynamicGRUV2, self).call(x,
-                                   seq_length=seq_length,
-                                   init_h=init_h)
+    super(DynamicGRUV2, self).call(x, seq_length=seq_length)
+    if init_h is None:
+      init_h = self._init_h
+    self._args["init_h"] = init_h
     self._args["weight_input"] = self._gruv2_weight_input
     self._args["weight_hidden"] = self._gruv2_weight_hidden
     self._args["bias_input"] = self._bias_input
@@ -401,6 +400,7 @@ class DynamicRNN(_DynamicBasic):
       shape=[4 * self._hidden_size],
       dtype=self._dtype,
       initializer=init_ops.zeros_initializer(dtype=self._dtype))
+    self._init_h = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
     self._init_c = array_ops.zeros([batch_size, self._hidden_size], dtype=self._dtype)
     super(DynamicRNN, self).build(input_shape)
 
@@ -452,12 +452,23 @@ class DynamicRNN(_DynamicBasic):
         else 
           y, output_h
     """
-    super(DynamicRNN, self).call(x,
-                                 seq_length=seq_length,
-                                 init_h=init_h)
+    super(DynamicRNN, self).call(x, seq_length=seq_length)
+    if init_h is None:
+      init_h = self._init_h
+    else:
+      init_h_shape = tensor_shape.TensorShape(init_h)
+      if init_h_shape.ndims == 2:
+        init_h = tf.reshape(init_h, [1, init_h_shape[0], init_h_shape[1]])
+    if init_c is None:
+      init_c = self._init_c
+    else:
+      init_c_shape = tensor_shape.TensorShape(init_c)
+      if init_c_shape.ndims == 2:
+        init_c = tf.reshape(init_c, [1, init_c_shape[0], init_c_shape[1]])    
     if init_c is None:
       init_c = self._init_c
     self._args["w"] = self._rnn_w
     self._args["b"] = self._rnn_b
+    self._args["init_h"] = init_h
     self._args["init_c"] = init_c
     return gen_npu_ops.dynamic_rnn(**self._args)
