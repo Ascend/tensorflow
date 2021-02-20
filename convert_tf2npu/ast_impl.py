@@ -275,10 +275,15 @@ def ast_call(node):
                         ast.keyword(arg='run_config', value=config.value)
                     ]
                 )
-                util_global.set_value('insert_npu_run_config_func', True)
-                util_global.set_value('need_conver', True)
             else:
-                pass
+                node.keywords.append(
+                    ast.keyword(
+                        arg='config',
+                        value=ast.Call(func=ast.Name(id='npu_run_config_init', ctx=ast.Load()), args=[], keywords=[])
+                    )
+                )
+            util_global.set_value('insert_npu_run_config_func', True)
+            util_global.set_value('need_conver', True)
             return node
     for estimator_func in util_global.get_value('EstimatorFunc', []):
         if isinstance(node.func, ast.Attribute) and (node.func.attr == estimator_func):
