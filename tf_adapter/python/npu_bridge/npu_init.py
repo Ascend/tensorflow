@@ -12,6 +12,7 @@ from npu_bridge.estimator.npu.npu_hook import NPUOutputTensorHook
 
 from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
 from npu_bridge.estimator.npu.npu_optimizer import NPUOptimizer
+from npu_bridge.estimator.npu.npu_optimizer import KerasDistributeOptimizer
 
 from npu_bridge.estimator.npu.npu_loss_scale_optimizer import NPULossScaleOptimizer
 
