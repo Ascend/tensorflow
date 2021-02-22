@@ -70,6 +70,7 @@
 "EstimatorFunc":                ["train"],
 "import NPUBroadcastGlobalVariablesHook":
                                 ["",                        "",         "from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook"],
+"import os":                    ["",                        "",         "import os"],
 
 "hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer","BroadcastGlobalVariablesHook"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
