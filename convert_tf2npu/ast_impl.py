@@ -463,12 +463,38 @@ def insert_npu_hooks_append_func(r_node):
                 attr='append',
                 ctx=ast.Load()
             ),
-            args=[ast.Name(id='NPUBroadcastGlobalVariablesHook', ctx=ast.Load())],
+            args=[
+                ast.Call(
+                    func=ast.Name(id='NPUBroadcastGlobalVariablesHook', ctx=ast.Load()),
+                    args=[
+                        ast.Num(n=0),
+                        ast.Call(
+                            func=ast.Name(id='int', ctx=ast.Load()),
+                            args=[
+                                ast.Call(
+                                    func=ast.Attribute(
+                                        value=ast.Name(id='os', ctx=ast.Load()),
+                                        attr='getenv',
+                                        ctx=ast.Load()
+                                    ),
+                                    args=[
+                                        ast.Str(s='RANK_ID'), ast.Str(s='0')
+                                    ],
+                                    keywords=[]
+                                )
+                            ],
+                            keywords=[]
+                        )
+                    ],
+                    keywords=[]
+                )
+            ],
             keywords=[]
         )
     )
     return_node = ast.Return(value=ast.Name(id='hooks_list', ctx=ast.Load()))
     util_global.set_value('import_NPUBroadcastGlobalVariablesHook', True)
+    util_global.set_value('import_os', True)
     r_node.body.insert(n, ast.FunctionDef(
         name='npu_hooks_append',
         args=ast.arguments(
@@ -635,6 +661,7 @@ def insert_npu_session_config_func(r_node):
     )
     return_node = ast.Return(value=ast.Name(id='session_config', ctx=ast.Load()))
     util_global.set_value('import_RewriterConfig', True)
+    util_global.set_value('import_config_pb2', True)
     r_node.body.insert(n, ast.FunctionDef(
         name='npu_session_config_init',
         args=ast.arguments(
@@ -947,6 +974,26 @@ def insert_empty_hook(r_node):
         class_def = ast.ClassDef(name="NpuEmptyHook", bases=[hook_attr], keywords=[],
                                  body=[ast.Pass()], decorator_list=[])
         r_node.body.insert(n, class_def)
+
+def insert_os_import(r_node):
+    n = 0
+    lenline = len(r_node.body)
+    while n < lenline:
+        if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
+            break
+        n += 1
+    while n < lenline:
+        if isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == '__future__'):
+            n += 1
+            continue
+        elif isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == 'npu_bridge.npu_init'):
+            n += 1
+            continue
+        else:
+            break
+    if n < lenline:
+        log_success_report(n, 'import os')
+        r_node.body.insert(n, ast.Import(names=[ast.alias(name='os', asname=None)]))
 
 def ast_assign(node):
     for target in node.targets:
