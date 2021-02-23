@@ -59,6 +59,9 @@ def ast_call(node):
         util_global.set_value('need_conver', True)
         util_global.set_value('insert_empty_hook', True)
         return node
+    if isinstance(node.func, ast.Attribute) and node.func.attr == "DistributedOptimizer":
+        log_success_report(getattr(node, "lineno", "None"), 'DistributedOptimizer')
+        return node.args[0]
     if isinstance(node.func, ast.Attribute) and node.func.attr == 'shard':
         log_success_report(getattr(node, "lineno", "None"), 'shard')
         node.args = [ast.Call(func=ast.Name(id='get_rank_size', ctx=ast.Load()), args=[], keywords=[]),

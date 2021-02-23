@@ -72,7 +72,7 @@
                                 ["",                        "",         "from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook"],
 "import os":                    ["",                        "",         "import os"],
 
-"hvd":                          ["init","rank",             "local_rank","size",           "DistributedOptimizer","BroadcastGlobalVariablesHook"],
+"hvd":                          ["init","rank",             "local_rank","size",            "BroadcastGlobalVariablesHook"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
 "nn_layers":                    ["dropout"],
 "keras":                        [""],
