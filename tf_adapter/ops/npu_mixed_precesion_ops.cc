@@ -44,8 +44,7 @@ REGISTER_OP("NpuAllocFloatStatus")
 
     Output
         output: One float element tensor.
-    )doc")
-    .SetIsStateful();
+    )doc");
 
 REGISTER_OP("NpuGetFloatStatus")
     .Input("input_float: float")
@@ -59,8 +58,7 @@ REGISTER_OP("NpuGetFloatStatus")
 
     Output
         output: The one float status element tensor.
-    )doc")
-    .SetIsStateful();
+    )doc");
 
 REGISTER_OP("NpuClearFloatStatus")
     .Input("float_status: float")
@@ -74,6 +72,5 @@ REGISTER_OP("NpuClearFloatStatus")
 
     Output
         output: The float element tensor set to zero.
-    )doc")
-    .SetIsStateful();
+    )doc");
 }  // namespace tensorflow
