@@ -268,15 +268,17 @@ void GeOp::Finalize() {
     {
       mutex_lock lock{mu_};
       uint32_t graph_id = -1;
-      bool ret = DecrementGraphIdCount(tf_session_, graph_id);
-      if (!ret || graph_id < kInvalidGraphId) {
-        ADP_LOG(ERROR) << "tf session " << tf_session_ << " sub graph id failed.";
-        LOG(ERROR) << "tf session " << tf_session_ << " sub graph id failed.";
-        return;
-      }
-      if (graph_id == kInvalidGraphId) {
-        SessionManager::GetInstance().DestroyGeSession(tf_session_);
-        ClearGraphIdCount(tf_session_);
+      if (sess_init_flag_ || !tf_session_.empty()) {
+        bool ret = DecrementGraphIdCount(tf_session_, graph_id);
+        if (!ret || graph_id < kInvalidGraphId) {
+          ADP_LOG(ERROR) << "tf session " << tf_session_ << " sub graph id failed.";
+          LOG(ERROR) << "tf session " << tf_session_ << " sub graph id failed.";
+          return;
+        }
+        if (graph_id == kInvalidGraphId) {
+          SessionManager::GetInstance().DestroyGeSession(tf_session_);
+          ClearGraphIdCount(tf_session_);
+        }
       }
 
       if (!SessionManager::GetInstance().IsGeSessionExist()) {
