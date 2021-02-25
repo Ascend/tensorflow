@@ -114,7 +114,11 @@ def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('import_os', False)
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
-    r_node = ast.parse(source)
+    try:
+        r_node = ast.parse(source)
+    except Exception as e:
+        print(repr(e))
+        return
 
     sys.setrecursionlimit(10000)
     visitor = ConverByAst()

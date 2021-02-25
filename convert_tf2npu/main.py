@@ -48,22 +48,22 @@ def para_check_and_set(argv):
             print('-r or --report: Conversion report, Default value: report/')
             sys.exit()
         elif opt in ("-i", "--input"):
-            input = arg
+            input = os.path.abspath(arg)
             if str(input).endswith('/'):
                 input = input[0:len(input)-1]
         elif opt in ("-l", "--list"):
             list = arg
         elif opt in ("-o", "--output"):
-            output = arg
+            output = os.path.abspath(arg)
             if str(output).endswith('/'):
                 output = output[0:len(output)-1]
         elif opt in ("-r", "--report"):
-            report = arg
+            report = os.path.abspath(arg)
             if str(report).endswith('/'):
                 report = report[0:len(report)-1]
             report = os.path.join(report, report_suffix)
 
-    if input in output or input in report:
+    if input+'/' in output+'/' or input+'/' in report+'/':
         print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
         sys.exit(2)
 
