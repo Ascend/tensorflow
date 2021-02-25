@@ -405,4 +405,8 @@ class KerasDistributeOptimizer(optimizers.Optimizer):
         return self._optimizer.get_updates(loss, params)
 
     def get_config(self):
-        return self._optimizer.get_config()
+        config = {
+            "optimizer": self._optimizer
+        }
+        base_config = super(KerasDistributeOptimizer, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
