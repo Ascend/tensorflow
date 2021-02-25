@@ -91,7 +91,7 @@ class FixedLossScaleManager(LossScaleManager):
     """
     if loss_scale < 1:
       raise ValueError("loss scale must be at least 1.")
-    self._loss_scale = ops.convert_to_tensor(loss_scale, dtype=dtypes.float32)
+    self._loss_scale = ops.convert_to_tensor(loss_scale, dtype=dtypes.float32, name="loss_scale")
 
   def get_loss_scale(self):
     return self._loss_scale

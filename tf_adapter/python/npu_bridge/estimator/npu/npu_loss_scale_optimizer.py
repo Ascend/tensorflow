@@ -151,10 +151,10 @@ class NPULossScaleOptimizer(optimizer.Optimizer):
       with tf.get_default_graph().control_dependencies([local_float_status]):
         aggregated_float_status = hccl_ops.allreduce([self._float_status], "sum", fusion=0)
         is_overall_finite = math_ops.reduce_all(tf.equal(aggregated_float_status,
-                                                      cleared_float_status))
+                                                cleared_float_status), name="overflow_status_reduce_all")
     else:
       is_overall_finite = math_ops.reduce_all(tf.equal(self._float_status,
-                                                       cleared_float_status))
+                                              cleared_float_status), name="overflow_status_reduce_all")
     # Only update gradients when all grads are finite.
     def true_apply_gradients_fn():
       # TODO: Check should allreduce before or after _down_scale() ?
