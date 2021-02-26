@@ -75,10 +75,31 @@ class Analyse(object):
         self.api_list.set(file_)
 
     def analyse(self):
-        call_main_py = 'python main.py -i ' +  self.script_path.get() + \
-                       ' -l ' + self.api_list.get() + \
-                       ' -o ' + self.output_path.get() + \
-                       ' -r ' + self.report_path.get()
+        # verify input arguments
+        if self.script_path.get() == '':
+            print('Parameter error, please select the folder of source script to be converted.')
+            return
+        if self.api_list.get() == '':
+            print('Parameter error, please select the list of supported api.')
+            return
+
+        # generate command
+        if self.output_path.get() == '' and self.report_path.get() == '':
+            call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                                         ' -l ' + self.api_list.get()
+        elif self.output_path.get() == '':
+            call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                                         ' -l ' + self.api_list.get() + \
+                                         ' -r ' + self.report_path.get()
+        elif self.report_path.get() == '':
+            call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                                         ' -l ' + self.api_list.get() + \
+                                         ' -o ' + self.output_path.get()
+        else:
+            call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                                         ' -l ' + self.api_list.get() + \
+                                         ' -o ' + self.output_path.get() + \
+                                         ' -r ' + self.report_path.get()
         os.system(call_main_py)
         self.hide()
 
@@ -89,8 +110,17 @@ class Analyse(object):
         tk.Button(new_frame, text='退出', command=exit).grid(row=5, column=1, padx=10, pady=10, stick=tk.E)
 
         # load analysis report
-        report_dir = self.report_path.get()
-        report_path = os.path.join(report_dir, os.listdir(report_dir)[-1], 'api_analysis_report.xlsx')
+        if self.report_path.get() == '':
+            self.report_path.set(os.getcwd())
+
+        report_root_dir = self.report_path.get()
+        report_dir = []
+        for item in os.listdir(report_root_dir):
+            if 'report_npu' in item:
+                report_dir.append(item)
+        report_dir.sort()
+
+        report_path = os.path.join(report_root_dir, report_dir[-1], 'api_analysis_report.xlsx')
         if not os.path.exists(report_path):
             print("No api analysis report generated.")
             return
