@@ -614,6 +614,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (status != ge::SUCCESS) {
       std::string error_message = ge::GEGetErrorMsg();
       std::string warning_message = ge::GEGetWarningMsg();
+      std::stringstream ss;
       ss << "graph parse failed. ret : " << status << std::endl
          << "Error Message is : " << std::endl
          << error_message << warning_message;
@@ -697,6 +698,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
       std::string error_message = ge::GEGetErrorMsg();
       std::string warning_message = ge::GEGetWarningMsg();
+      std::stringstream ss;
       ss << "[GEOP] call ge session add graph failed, kernel: " << geop_name
          << ", tf session: " << tf_session_
          << ", graph id: " << cache_graph_id << std::endl
@@ -722,6 +724,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       if (status != ge::SUCCESS) {
         std::string error_message = ge::GEGetErrorMsg();
         std::string warning_message = ge::GEGetWarningMsg();
+        std::stringstream ss;
         ss << "[GEOP] GE session build graph failed, domi_ret : " << status << std::endl
            << "Error Message is : " << std::endl
            << error_message << warning_message;
@@ -790,6 +793,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                    << tf_session_ << " ,graph id: " << cache_graph_id;
     std::string error_message = ge::GEGetErrorMsg();
     std::string warning_message = ge::GEGetWarningMsg();
+    std::stringstream ss;
     ss << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name
        << ", tf session: " << tf_session_
        << ", graph id: " << cache_graph_id << std::endl
