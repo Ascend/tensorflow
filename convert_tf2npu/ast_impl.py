@@ -327,15 +327,24 @@ def ast_call(node):
                                                 attr=keras_opt[1], ctx=ast.Load()), attr=keras_opt[2], ctx=ast.Load()),
                                                 attr=keras_opt[3], ctx=ast.Load())
                     keyword.value = ast.Call(func=opt_func_name, args=[ast.Call(func=tf_opt_func, args=[], keywords=[])], keywords=[])
-                elif isinstance(keyword.value, ast.Call):
-                    if keyword.value.func.attr.find("Optimizer") != -1:
-                        func_name = ast.Name(id="npu_tf_optimizer", ctx=ast.Load())
-                        keyword.value = ast.Call(func=func_name, args=[keyword.value], keywords=[])
-                    else:
-                        keyword.value = ast.Call(func=opt_func_name, args=[keyword.value], keywords=[])
                 util_global.set_value('need_conver', True)
                 util_global.set_value('insert_npu_keras_opt_func', True)
                 return node
+    if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
+        if node.func.attr.find("Optimizer") != -1:
+            log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
+            node = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node], keywords=[])
+            util_global.set_value('need_conver', True)
+            util_global.set_value('insert_npu_tf_opt_func', True)
+            return node
+    if isinstance(node.func, ast.Attribute):
+        opt_list = ["Adadelta", "Adagrad", "Adam", "Adamax", "Ftrl", "Nadam", "RMSprop", "SGD"]
+        if node.func.attr in opt_list:
+            log_success_report(getattr(node, "lineno", "None"), "KerasDistributeOptimizer")
+            node = ast.Call(func=ast.Name(id="npu_keras_optimizer", ctx=ast.Load()), args=[node], keywords=[])
+            util_global.set_value('need_conver', True)
+            util_global.set_value('insert_npu_keras_opt_func', True)
+            return node
     return node
 
 def insert_npu_import(r_node):
@@ -1102,24 +1111,6 @@ def ast_assign(node):
                                 value=ast.Name(id='config_pb2', ctx=ast.Load()))))
                     node = ast.If(test=ast.NameConstant(value=True), body=[node, global_jit_level_assign_node], orelse=[])
                     util_global.set_value('need_conver', True)
-                elif isinstance(node.value.func.value, ast.Attribute) and node.value.func.attr.find("Optimizer") != -1:
-                    log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
-                    node.value = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node.value], keywords=[])
-                    util_global.set_value('need_conver', True)
-                    util_global.set_value('insert_npu_tf_opt_func', True)
-                elif isinstance(node.value.func.value, ast.Call) and isinstance(node.value.func.value.func, ast.Attribute):
-                    if node.value.func.value.func.attr.find("Optimizer") != -1:
-                        log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
-                        node.value = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node.value.func.value], keywords=[])
-                        util_global.set_value('need_conver', True)
-                        util_global.set_value('insert_npu_tf_opt_func', True)
-                elif isinstance(node.value.func, ast.Attribute):
-                    opt_list = ["Adadelta", "Adagrad", "Adam", "Adamax", "Ftrl", "Nadam", "RMSprop", "SGD"]
-                    if node.value.func.attr in opt_list:
-                        log_success_report(getattr(node, "lineno", "None"), "KerasDistributeOptimizer")
-                        node.value = ast.Call(func=ast.Name(id="npu_keras_optimizer", ctx=ast.Load()), args=[node.value], keywords=[])
-                        util_global.set_value('need_conver', True)
-                        util_global.set_value('insert_npu_keras_opt_func', True)
     return node
 
 # Format printing for locate
