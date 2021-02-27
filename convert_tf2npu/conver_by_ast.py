@@ -72,8 +72,8 @@ class ConverByAst(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
-        node = ast_call(node)
         self.generic_visit(node)
+        node = ast_call(node)
         return node
 
     def visit_ImportFrom(self, node):
