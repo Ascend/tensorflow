@@ -704,7 +704,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
          << ", graph id: " << cache_graph_id << std::endl
          << "Error Message is : " << std::endl
          << error_message << warning_message;
-      LOG(FATAL) << ss;
+      LOG(FATAL) << ss.str();
       OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
     } else {
       add_graph_flag_ = true;
