@@ -32,6 +32,7 @@ limitations under the License.
 #include <dirent.h>
 #include <dlfcn.h>
 #include <fstream>
+#include <sstream>
 #include <map>
 #include <memory>
 #include <mmpa/mmpa_api.h>
@@ -336,7 +337,11 @@ int GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
   auto ret = ge_session_->RemoveGraph(cache_graph_id);
   if (ret != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret;
-    LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret;
+    std::string error_message = ge::GEGetErrorMsg();
+    std::string warning_message = ge::GEGetWarningMsg();
+    LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret << std::endl
+               << "Error Message is : " << std::endl
+               <<error_message << warning_message;
     return -1;
   }
 
@@ -606,8 +611,15 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     ge::Status status = model_parser->ParseProtoWithSubgraph(
         reinterpret_cast<google::protobuf::Message *>(&ori_graph_def), build_sub_graph, compute_graph);
-    OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Internal("graph parse failed, domi_ret : ", ToString(status)),
-                      done);
+    if (status != ge::SUCCESS) {
+      std::string error_message = ge::GEGetErrorMsg();
+      std::string warning_message = ge::GEGetWarningMsg();
+      ss << "graph parse failed. ret : " << status << std::endl
+         << "Error Message is : " << std::endl
+         << error_message << warning_message;
+      OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Internal(ss.str()), done);
+    }
+
     domi::GetContext().format = ge::GetParserContext().format;
 
     ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success, kernel_name:" << geop_name
@@ -682,10 +694,16 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: "
                      << tf_session_ << ", graph id: " << cache_graph_id;
-      LOG(FATAL) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: " << tf_session_
-                 << ", graph id: " << cache_graph_id;
-      OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS,
-                        errors::Unavailable("[GEOP] GE session add graph failed, domi_ret : ", ToString(status)), done);
+
+      std::string error_message = ge::GEGetErrorMsg();
+      std::string warning_message = ge::GEGetWarningMsg();
+      ss << "[GEOP] call ge session add graph failed, kernel: " << geop_name
+         << ", tf session: " << tf_session_
+         << ", graph id: " << cache_graph_id << std::endl
+         << "Error Message is : " << std::endl
+         << error_message << warning_message;
+      LOG(FATAL) << ss;
+      OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
     } else {
       add_graph_flag_ = true;
       ADP_LOG(INFO) << "[GEOP] Add graph to ge session success, kernel_name:" << geop_name
@@ -701,9 +719,15 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, inputs)), done);
       int64 compile_start_time = InferShapeUtil::GetCurrentTimestap();
       ge::Status status = ge_session_->BuildGraph(cache_graph_id, inputs);
-      OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS,
-                        errors::Unavailable("[GEOP] GE session build graph failed, domi_ret : ",
-                        ToString(status)), done);
+      if (status != ge::SUCCESS) {
+        std::string error_message = ge::GEGetErrorMsg();
+        std::string warning_message = ge::GEGetWarningMsg();
+        ss << "[GEOP] GE session build graph failed, domi_ret : " << status << std::endl
+           << "Error Message is : " << std::endl
+           << error_message << warning_message;
+        OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
+      }
+
       ADP_LOG(INFO) << "[GEOP] Build graph success.";
       done();
       return;
@@ -742,7 +766,11 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       ctx->CtxFailureWithWarning(tfStatus);
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
-      LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
+      std::string error_message = ge::GEGetErrorMsg();
+      std::string warning_message = ge::GEGetWarningMsg();
+      LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed" << std::endl
+                 << "Error Message is : " << std::endl
+                 << error_message << warning_message;
     }
     int64 run_end_time = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "[GEOP] RunGraphAsync callback, status:" << ge_status << ", kernel_name:"
@@ -760,11 +788,16 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
     ADP_LOG(FATAL) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: "
                    << tf_session_ << " ,graph id: " << cache_graph_id;
-    LOG(FATAL) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: " << tf_session_
-               << " ,graph id: " << cache_graph_id;
+    std::string error_message = ge::GEGetErrorMsg();
+    std::string warning_message = ge::GEGetWarningMsg();
+    ss << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name
+       << ", tf session: " << tf_session_
+       << ", graph id: " << cache_graph_id << std::endl
+       << "Error Message is : " << std::endl
+       << error_message << warning_message;
+    LOG(FATAL) << ss.str();
+    OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
   }
-  OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS,
-                    errors::Unavailable("ge session run graph failed, ret_status:", ToString(status)), done);
 
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name:" << geop_name << ", ret_status:" << ToString(status)
