@@ -1028,31 +1028,56 @@ def ast_assign(node):
                 if node.value.func.attr == 'max_pooling2d':
                     log_success_report(getattr(node, "lineno", "None"), node.value.func.attr)
                     util_global.set_value('need_conver', True)
-                    elts_new = []
-                    for target in node.targets:
-                        elts_new.append(target)
-                    elts_new.append(ast.Name(id='argmax', ctx=ast.Load()))
-                    node.targets=[ast.Tuple(elts=elts_new)]
-
-                    keywords_new = []
+                    inputs = None
+                    pool_size = None
+                    strides = None
+                    padding = None
+                    data_format = None
+                    name = None
+                    for index, arg in enumerate(node.value.args):
+                        if index == 0: inputs = arg
+                        elif index == 1: pool_size = arg
+                        elif index == 2: strides = arg
+                        elif index == 3: padding = arg
+                        elif index == 4: data_format = arg
+                        elif index == 5: name = arg
                     for keyword in node.value.keywords:
-                        if keyword.arg == 'inputs':
-                            keyword_new = ast.keyword(arg='input', value=keyword.value)
-                            keywords_new.append(keyword_new)
-                        if keyword.arg == 'pool_size':
-                            elts_new = [ast.Num(n=1), keyword.value, keyword.value, ast.Num(n=1)]
-                            keyword_new = ast.keyword(arg='ksize', value=ast.Tuple(elts=elts_new))
-                            keywords_new.append(keyword_new)
-                        if keyword.arg == 'strides':
-                            elts_new = [ast.Num(n=1), keyword.value, keyword.value, ast.Num(n=1)]
-                            keyword_new = ast.keyword(arg='strides', value=ast.Tuple(elts=elts_new))
-                            keywords_new.append(keyword_new)
-                        if keyword.arg == 'padding' or keyword.arg == 'data_format':
-                            keywords_new.append(keyword)
-                    func_new = ast.Attribute(value=ast.Attribute(value=ast.Attribute(value=ast.Attribute(value=ast.Name(id='tf', ctx=ast.Load()), attr='compat', ctx=ast.Load()), attr='v1', ctx=ast.Load()), attr='nn', ctx=ast.Load()), attr='max_pool_with_argmax', ctx=ast.Load())
-                    node.value = ast.Call(func=func_new,
-                                          args=[],
-                                          keywords=keywords_new)
+                        if keyword.arg == 'inputs': inputs = keyword.value
+                        elif keyword.arg == 'pool_size': pool_size = keyword.value
+                        elif keyword.arg == 'strides': strides = keyword.value
+                        elif keyword.arg == 'padding': padding = keyword.value
+                        elif keyword.arg == 'data_format': data_format = keyword.value
+                        elif keyword.arg == 'name': name = keyword.value
+                    node.value.func = ast.Attribute(value=ast.Attribute(
+                        value=ast.Name(id='tf', ctx=ast.Load()), attr='nn', ctx=ast.Load()), attr='max_pool_with_argmax', ctx=ast.Load())
+                    node.value.args=[]
+                    node.value.keywords=[]
+                    if inputs:
+                        node.value.keywords.append(ast.keyword(arg='input', value=inputs))
+                    if pool_size:
+                        if isinstance(pool_size, ast.Num):
+                            node.value.keywords.append(ast.keyword(
+                                arg='ksize', value=ast.List(elts=[ast.Num(n=1), pool_size, pool_size, ast.Num(n=1)], ctx=ast.Load())))
+                        elif (isinstance(pool_size, ast.List) or isinstance(pool_size, ast.Tuple)) and len(pool_size.elts) >= 2:
+                            node.value.keywords.append(ast.keyword(
+                                arg='ksize', value=ast.List(elts=[ast.Num(n=1), pool_size.elts[0], pool_size.elts[1], ast.Num(n=1)], ctx=ast.Load())))
+                    if strides:
+                        if isinstance(pool_size, ast.Num):
+                            node.value.keywords.append(ast.keyword(
+                                arg='strides', value=ast.List(elts=[ast.Num(n=1), strides, strides, ast.Num(n=1)], ctx=ast.Load())))
+                        elif (isinstance(strides, ast.List) or isinstance(strides, ast.Tuple)) and len(strides.elts) >= 2:
+                            node.value.keywords.append(ast.keyword(
+                                arg='strides', value=ast.List(elts=[ast.Num(n=1), strides.elts[0], strides.elts[1], ast.Num(n=1)], ctx=ast.Load())))
+                    if padding:
+                        padding.s = padding.s.upper()
+                        node.value.keywords.append(ast.keyword(arg='padding', value=padding))
+                    if data_format:
+                        node.value.keywords.append(ast.keyword(arg='data_format', value=data_format))
+                    if name:
+                        node.value.keywords.append(ast.keyword(arg='name', value=name))
+                    node.targets.append(ast.Name(id='argmax', ctx=ast.Store()))
+                    node.targets = [ast.Tuple(elts=node.targets, ctx=ast.Store())]
+                    return node
                 elif node.value.func.attr == 'OptimizerOptions':
                     log_success_report(getattr(node, 'lineno', 'None'), 'OptimizerOptions.global_jit_level')
                     util_global.set_value('import_config_pb2', True)
