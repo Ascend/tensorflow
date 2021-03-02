@@ -68,12 +68,16 @@ class PReLU(Layer):
         self.alpha_initializer = initializers.get(alpha_initializer)
         self.alpha_regularizer = regularizers.get(alpha_regularizer)
         self.alpha_constraint = constraints.get(alpha_constraint)
-        # now not support shared_axes
-        self.shared_axes = None
+        self.shared_axes = shared_axes
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape):
-        param_shape = [1, ]
+        param_shape = list(input_shape[1:])
+        if self.shared_axes is not None:
+            for i in self.shared_axes:
+                param_shape[i - 1] = 1
+        if sum(param_shape) == len(param_shape):
+            param_shape = [1, ]
         self.alpha = self.add_weight(
             shape=param_shape,
             name='alpha',
