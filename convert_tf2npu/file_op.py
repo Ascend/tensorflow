@@ -93,8 +93,8 @@ def scan_file(file_name, api, lineno):
     api_list = pd.read_excel(util_global.get_value('list'))
     api_module = api_list['模块名'].values.tolist()
     api_name = api_list['API名'].values.tolist()
-    api_support = api_list['支持度'].values.tolist()
-    api_advice = api_list['迁移建议'].values.tolist()
+    api_support = api_list['工具迁移API支持度'].values.tolist()
+    api_advice = api_list['说明'].values.tolist()
 
     script_name = []
     code_line = []
@@ -122,7 +122,7 @@ def scan_file(file_name, api, lineno):
             migrate_advice.append('Unknown')
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
-                                   '支持度': support_type, '迁移建议': migrate_advice})
+                                   '工具迁移API支持度': support_type, '说明': migrate_advice})
 
     # when there are tf apis used in script, analysis report will be generated
     report = util_global.get_value('generate_dir_report')
@@ -141,7 +141,7 @@ def adjust_index():
 
 def get_api_statistic(analysis_report):
     code_api = analysis_report['API名'].values.tolist()
-    support_type = analysis_report['支持度'].values.tolist()
+    support_type = analysis_report['工具迁移API支持度'].values.tolist()
 
     # eliminate duplicated data
     eliminate_dup_api = []

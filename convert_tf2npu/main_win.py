@@ -130,8 +130,8 @@ class Analyse(object):
         code_line = report['代码行'].values.tolist()
         code_module = report['模块名'].values.tolist()
         code_api = report['API名'].values.tolist()
-        support_type = report['支持度'].values.tolist()
-        migrate_advice = report['迁移建议'].values.tolist()
+        support_type = report['工具迁移API支持度'].values.tolist()
+        migrate_advice = report['说明'].values.tolist()
 
         table = TableCanvas(new_frame)
         table.show()
@@ -154,8 +154,8 @@ class Analyse(object):
         table.model.columnlabels['3'] = '代码行'
         table.model.columnlabels['4'] = '模块名'
         table.model.columnlabels['5'] = 'API名'
-        table.model.columnlabels['6'] = '支持度'
-        table.model.columnlabels['7'] = '迁移建议'
+        table.model.columnlabels['6'] = '工具迁移API支持度'
+        table.model.columnlabels['7'] = '说明'
 
         table.show()
 
