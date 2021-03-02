@@ -401,7 +401,7 @@ class DynamicRNN(_DynamicBasic):
       dtype=self._dtype,
       initializer=init_ops.zeros_initializer(dtype=self._dtype))
     self._init_h = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
-    self._init_c = array_ops.zeros([batch_size, self._hidden_size], dtype=self._dtype)
+    self._init_c = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
     super(DynamicRNN, self).build(input_shape)
 
   def call(self,
