@@ -377,7 +377,9 @@ class NPUEstimator(estimator_lib.Estimator):
         config = self.__load_graph_optimizers(config)
 
         # Init npu system: get task and device info from configuration file.
-        self.__load_job_info(job_start_file)
+        if not self.__load_job_info(job_start_file):
+            raise ValueError('Load job info failed, '
+                            'please check whether `JOB_ID` is set in environment variable')
 
         # Check modie dir in NPUEstimator and NPURunConfig
         model_dir = self.__check_model_dir(model_dir, config)
