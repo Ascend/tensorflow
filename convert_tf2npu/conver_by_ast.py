@@ -49,9 +49,6 @@ class ConverByAst(ast.NodeTransformer):
         return node
     def visit_Attribute(self, node):
         self.generic_visit(node)
-        #if node.attr in util_global.get_value('estimator') and isinstance(node.value, ast.Attribute):
-        #    if node.value.attr == 'estimator':
-        #        return attribute(node)
         if node.attr in util_global.get_value('hvd'):
             if isinstance(node.value, ast.Name):
                 if 'hvd' in str(node.value.id):

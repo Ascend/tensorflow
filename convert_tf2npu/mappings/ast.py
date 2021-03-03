@@ -73,7 +73,7 @@
 "import os":                    ["",                        "",         "import os"],
 "Session()":                    ["",                        "*.Session()",                  "*.Session(config=npu_session_config_init())"],
 
-"hvd":                          ["init","rank",             "local_rank","size",            "BroadcastGlobalVariablesHook"],
+"hvd":                          ["init","rank",             "local_rank","size"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
 "nn_layers":                    ["dropout"],
 "keras":                        [""],
