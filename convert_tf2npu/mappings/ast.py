@@ -71,12 +71,12 @@
 "import NPUBroadcastGlobalVariablesHook":
                                 ["",                        "",         "from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook"],
 "import os":                    ["",                        "",         "import os"],
+"Session()":                    ["",                        "*.Session()",                  "*.Session(config=npu_session_config_init())"],
 
 "hvd":                          ["init","rank",             "local_rank","size",            "BroadcastGlobalVariablesHook"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
 "nn_layers":                    ["dropout"],
 "keras":                        [""],
-"run":                          [" if sess.run is train, need add npu's session config for tf.Session. e.g.,\n session_config = tf.ConfigProto()\n custom_op = session_config.graph_options.rewrite_options.custom_optimizers.add()\n custom_op.name = 'NpuOptimizer'"],
 
 "report_file":                  ["success_report.txt",      "failed_report.txt",             "need_migration_doc.txt"],
 "report_file_status": 0

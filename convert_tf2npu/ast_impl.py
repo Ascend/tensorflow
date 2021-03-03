@@ -51,6 +51,37 @@ def ast_function_def(node):
     return node
 
 def ast_call(node):
+    if (isinstance(node.func, ast.Name) and node.func.id == 'Session') \
+        or (isinstance(node.func, ast.Attribute) and node.func.attr == 'Session'):
+        log_success_report(getattr(node, 'lineno', 'None'), 'Session()')
+        config = None
+        for index, _ in enumerate(node.args):
+            if index == 2: 
+                config = node.args.pop(2)
+                break
+        for keyword in node.keywords:
+            if keyword.arg == 'config':
+                config = keyword
+                break
+        if config:
+            if isinstance(config, ast.keyword):
+                config.value = ast.Call(
+                    func=ast.Name(id='npu_session_config_init', ctx=ast.Load()),
+                    args=[],
+                    keywords=[ast.keyword(arg='session_config', value=config.value)])
+            else:
+                node.keywords.append(ast.keyword(arg='config', value=ast.Call(
+                    func=ast.Name(id='npu_session_config_init', ctx=ast.Load()),
+                    args=[],
+                    keywords=[ast.keyword(arg='session_config', value=config)])))
+        else:
+            node.keywords.append(ast.keyword(arg='config', value=ast.Call(
+                func=ast.Name(id='npu_session_config_init', ctx=ast.Load()),
+                args=[],
+                keywords=[])))
+        util_global.set_value('need_conver', True)
+        util_global.set_value('insert_npu_session_config_func', True)
+        return node
     if isinstance(node.func, ast.Attribute) and node.func.attr == "BroadcastGlobalVariablesHook":
         log_success_report(getattr(node, "lineno", "None"), 'BroadcastGlobalVariablesHook')
         node.func = ast.Name(id="NpuEmptyHook", ctx=ast.Load())
@@ -1071,6 +1102,8 @@ def ast_assign(node):
                     if padding:
                         padding.s = padding.s.upper()
                         node.value.keywords.append(ast.keyword(arg='padding', value=padding))
+                    else:
+                        node.value.keywords.append(ast.keyword(arg='padding', value=ast.Str(s='SAME')))
                     if data_format:
                         node.value.keywords.append(ast.keyword(arg='data_format', value=data_format))
                     if name:

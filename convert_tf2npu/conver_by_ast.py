@@ -59,10 +59,6 @@ class ConverByAst(ast.NodeTransformer):
             if isinstance(node.value, ast.Attribute):
                 if 'hvd' in str(node.value.attr):
                     return attribute(node)
-        if node.attr == 'run':
-            log_migration_report(getattr(node, "lineno", "None"), node.attr)
-            util_global.set_value('need_conver', True)
-            return node
         return node
 
     def visit_FunctionDef(self, node):
