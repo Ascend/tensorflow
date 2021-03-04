@@ -66,20 +66,36 @@ REGISTER_OP("HcomAllGather")
     .Attr("rank_size: int")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-      // Scalar input is not supported.
+      int rankSize = 0;
+      TF_CHECK_OK(c->GetAttr("rank_size", &rankSize));
+      Status rankSizeStatus =
+          ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rank_size should be greater than 0.")));
+      TF_CHECK_OK(rankSizeStatus);
+
+      int32 inputRank = c->Rank(c->input(0));
+      if (InferenceContext::kUnknownRank == inputRank) {
+        ShapeHandle out = c->UnknownShapeOfRank(1);
+        c->set_output(0, out);
+        return Status::OK();
+      }
+      for (int32 i = 0; i < inputRank; i++) {
+        DimensionHandle dimHandle = c->Dim(c->input(0), i);
+        int64 value = c->Value(dimHandle);
+        if (InferenceContext::kUnknownDim == value) {
+          ShapeHandle out = c->UnknownShapeOfRank(1);
+          c->set_output(0, out);
+          return Status::OK();
+        }
+      }
+
       shape_inference::ShapeHandle unused;
       TF_RETURN_IF_ERROR(c->WithRankAtLeast(c->input(0), 1, &unused));
 
       shape_inference::ShapeHandle inSubshape;
       TF_RETURN_IF_ERROR(c->Subshape(c->input(0), 1, &inSubshape));
 
-      int rankSize = 0;
       auto inputFirstDimValue = c->Value(c->Dim(c->input(0), 0));
       shape_inference::ShapeHandle outputFirstDimAsShape;
-      TF_CHECK_OK(c->GetAttr("rank_size", &rankSize));
-      Status rankSizeStatus =
-          ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rankSize should be greater than 0.")));
-      TF_CHECK_OK(rankSizeStatus);
       std::vector<shape_inference::DimensionHandle> outputFirstDim;
       outputFirstDim.push_back(c->MakeDim(rankSize * inputFirstDimValue));
       outputFirstDimAsShape = c->MakeShape(outputFirstDim);
@@ -151,20 +167,36 @@ REGISTER_OP("HcomReduceScatter")
     .Attr("rank_size: int")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-      // Scalar input is not supported.
+      int rankSize = 0;
+      TF_CHECK_OK(c->GetAttr("rank_size", &rankSize));
+      Status rankSizeStatus =
+          ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rank_size should be greater than 0.")));
+      TF_CHECK_OK(rankSizeStatus);
+
+      int32 inputRank = c->Rank(c->input(0));
+      if (InferenceContext::kUnknownRank == inputRank) {
+        ShapeHandle out = c->UnknownShapeOfRank(1);
+        c->set_output(0, out);
+        return Status::OK();
+      }
+      for (int32 i = 0; i < inputRank; i++) {
+        DimensionHandle dimHandle = c->Dim(c->input(0), i);
+        int64 value = c->Value(dimHandle);
+        if (InferenceContext::kUnknownDim == value) {
+          ShapeHandle out = c->UnknownShapeOfRank(1);
+          c->set_output(0, out);
+          return Status::OK();
+        }
+      }
+
       shape_inference::ShapeHandle unused;
       TF_RETURN_IF_ERROR(c->WithRankAtLeast(c->input(0), 1, &unused));
 
       shape_inference::ShapeHandle inSubshape;
       TF_RETURN_IF_ERROR(c->Subshape(c->input(0), 1, &inSubshape));
 
-      int rankSize = 0;
       auto inputFirstDimValue = c->Value(c->Dim(c->input(0), 0));
       shape_inference::ShapeHandle outputFirstDimAsShape;
-      TF_CHECK_OK(c->GetAttr("rank_size", &rankSize));
-      Status rankSizeStatus =
-          ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rank_size should be greater than 0.")));
-      TF_CHECK_OK(rankSizeStatus);
       Status outputFirstDimStatus = ((inputFirstDimValue % rankSize) == 0)
           ? (Status::OK())
           : (errors::InvalidArgument("input first dim should be N * rank_size."));
