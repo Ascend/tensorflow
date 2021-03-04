@@ -2,7 +2,10 @@ from hccl.manage.api import get_local_rank_size
 from hccl.manage.api import get_rank_id
 from npu_bridge import tf_adapter
 from npu_bridge.estimator.npu import util
+from npu_bridge.estimator.npu import npu_scope
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.ops import variable_scope
+from tensorflow.python.ops import init_ops
 import json
 import os
 
@@ -112,11 +115,13 @@ def rdma_remote_register(remote_var_list):
     rank_id = get_rank_id()
     server_id = int(rank_id / local_rank_size)
     for var in remote_var_list:
-        server_var = var[server_id]
-        host_var_info = tf_adapter.HostVarInfo()
-        host_var_info.base_addr = server_var[1]
-        host_var_info.var_size = server_var[2]
-        var_addr_list.append(host_var_info)
+        for line in var:
+            var_server_id = int(line[0] / local_rank_size)
+            if server_id == var_server_id:
+                host_var_info = tf_adapter.HostVarInfo()
+                host_var_info.base_addr = line[1]
+                host_var_info.var_size = line[2]
+                var_addr_list.append(host_var_info)
     res = tf_adapter.RegistRdmaRemoteAddr(var_addr_list)
     if res != 0:
         raise RuntimeError('rdma remote register failed')
@@ -172,3 +177,8 @@ def malloc_shared_memory(var_name, shape, data_type):
     if res[0] != 0:
         raise RuntimeError('{} malloc shared memory failed'.format(var_name))
     return res[1], res[2]
+
+def get_rdma_cache(data_type, shape, name="rdma_w"):
+    with npu_scope.npu_mem_type_scope():
+        return variable_scope.get_variable(name=name, shape=shape, dtype=data_type,
+                                           initializer=init_ops.zeros_initializer())

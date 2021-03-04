@@ -791,7 +791,7 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
     this->need_iteration_ = true;
     ADP_LOG(INFO) << "subgraph  has iteration op.";
   }
-  if (node->name() == "var_in_host") {
+  if (node->name().find("var_in_host") != std::string::npos) {
     is_host_graph_ = true;
     ADP_LOG(INFO) << "[GEOP] variable subgraph is initialized in host.";
   }
