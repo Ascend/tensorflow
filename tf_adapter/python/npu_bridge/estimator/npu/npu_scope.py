@@ -55,3 +55,14 @@ def npu_stage_scope(stage):
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield
+
+@contextlib.contextmanager
+def npu_mem_type_scope():
+    """
+    Enable the node in the scope adding _output_memory_type attr.
+    """
+    attrs = {
+        "_output_memory_type": attr_value_pb2.AttrValue(i=1)
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield
