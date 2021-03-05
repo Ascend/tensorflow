@@ -72,6 +72,9 @@
                                 ["",                        "",         "from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook"],
 "import os":                    ["",                        "",         "import os"],
 "Session()":                    ["",                        "*.Session()",                  "*.Session(config=npu_session_config_init())"],
+"ConfigProto()":                ["",                        "*.ConfigProto()",              "npu_config_proto(config_proto=*.ConfigProto())"],
+"GraphOptions()":               ["",                        "*.GraphOptions()",             "npu_graph_options(graph_options=*.GraphOptions())"],
+"OptimizerOptions()":           ["",                        "*.OptimizerOptions()",         "npu_optimizer_options(optimizer_options=*.OptimizerOptions())"],
 
 "hvd":                          ["init","rank",             "local_rank","size"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],

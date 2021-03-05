@@ -84,9 +84,6 @@ class ConverByAst(ast.NodeTransformer):
             if (isinstance(target, ast.Name) and target.id == 'global_jit_level') or (isinstance(target, ast.Attribute) and target.attr == 'global_jit_level'):
                 return ast_assign(node)
 
-        if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute):
-            if (node.value.func.attr == 'ConfigProto') or (node.value.func.attr == 'GraphOptions') or (node.value.func.attr == 'OptimizerOptions'):
-                return ast_assign(node)
         ast_assign(node)
         self.generic_visit(node)
         return node
