@@ -14,7 +14,6 @@ import tensorflow as tf
 
 from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.python.client import timeline
-#import npu ops
 from npu_bridge.estimator import npu_ops
 
 FLAGS = None
@@ -35,8 +34,6 @@ def main(_):
 
   # The raw formulation of cross-entropy,
   #
-  #   tf.reduce_mean(-tf.reduce_sum(y_ * tf.math.log(tf.nn.softmax(y)),
-  #                                 reduction_indices=[1]))
   #
   # can be numerically unstable.
   #

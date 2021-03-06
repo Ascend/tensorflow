@@ -58,8 +58,8 @@ class ThreadPool {
   std::queue< std::function<void()> > tasks_;
   std::mutex queue_mutex_;
   std::condition_variable condition_;
-  std::atomic<bool> init_flag_;
   bool stop_;
+  std::atomic<bool> init_flag_;
 };
 
 // launch some amount of workers_

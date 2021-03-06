@@ -326,7 +326,7 @@ bool IsNpuSupportingNode(Node *node, bool mix_compile_mode, FunctionLibraryDefin
 
 bool IsUnSupportedResource(bool mix_compile_mode, Node* node) {
   if (!mix_compile_mode) { return false; }
-  for (size_t i = 0; i < node->num_inputs(); i++) {
+  for (int32 i = 0; i < node->num_inputs(); i++) {
     const Edge *edge = nullptr;
     if (!node->input_edge(i, &edge).ok()) {
       continue;
@@ -336,7 +336,7 @@ bool IsUnSupportedResource(bool mix_compile_mode, Node* node) {
       return edge->src()->type_string() != "VarHandleOp";
     }
   }
-  for (size_t i = 0; i < node->num_outputs(); i++) {
+  for (int32 i = 0; i < node->num_outputs(); i++) {
     auto dtype = node->output_type(i);
     if (dtype == DT_RESOURCE) {
       return node->type_string() != "VarHandleOp";

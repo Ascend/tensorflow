@@ -42,5 +42,3 @@ def _gelu_grad(op, grad):
   return [npu_unary_ops.gelu_grad(grad, op.inputs[0], op.outputs[0])]  # List of one Tensor, since we have one input
 
 # go/tf-wildcard-import
-#from tensorflow.python.util.tf_export import tf_export
-

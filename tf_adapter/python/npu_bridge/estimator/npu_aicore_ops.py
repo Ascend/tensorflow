@@ -60,4 +60,3 @@ def prelu(x, weight):
     return npu_aicore_ops.p_relu(x, weight)
 
 # go/tf-wildcard-import
-#from tensorflow.python.util.tf_export import tf_export
