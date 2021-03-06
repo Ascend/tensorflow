@@ -41,6 +41,7 @@ from ast_impl import ast_import
 from ast_impl import ast_function_def
 from ast_impl import ast_call
 from ast_impl import ast_assign
+from ast_impl import ast_if
 from visit_by_ast import get_tf_api
 
 class ConverByAst(ast.NodeTransformer):
@@ -49,6 +50,8 @@ class ConverByAst(ast.NodeTransformer):
         return node
     def visit_Attribute(self, node):
         self.generic_visit(node)
+        if node.attr == "keras":
+            util_global.set_value('is_keras_net', True)
         if node.attr in util_global.get_value('hvd'):
             if isinstance(node.value, ast.Name):
                 if 'hvd' in str(node.value.id):
@@ -91,6 +94,11 @@ class ConverByAst(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_If(self, node):
+        self.generic_visit(node)
+        ast_if(node)
+        return node
+
 def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
     util_global.set_value('import_config_pb2', False)
@@ -105,6 +113,8 @@ def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('insert_npu_keras_opt_func', False)
     util_global.set_value('insert_empty_hook', False)
     util_global.set_value('import_os', False)
+    util_global.set_value('is_keras_net', False)
+    util_global.set_value('is_hvd_net', False)
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
     try:

@@ -29,8 +29,10 @@ from npu_bridge.estimator.npu_unary_ops import npu_unary_ops
 
 from npu_bridge.hccl import hccl_ops
 
+from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
+from tensorflow.python.client import session
 
 from hccl.manage.api import create_group
 from hccl.manage.api import destroy_group
@@ -44,3 +46,29 @@ from hccl.manage.api import get_group_rank_from_world_rank
 from hccl.split.api import set_split_strategy_by_idx
 from hccl.split.api import set_split_strategy_by_size
 
+def set_keras_session_npu_config():
+    from tensorflow.python.keras import backend
+    config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
+    custom_op.name = "NpuOptimizer"
+    config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    sess = session.Session(config=config)
+    backend.set_session(sess)
+    return sess
+
+def init_resource():
+    npu_init = npu_ops.initialize_system()
+    npu_shutdown = npu_ops.shutdown_system()
+    config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
+    custom_op.name = "NpuOptimizer"
+    config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    sess = session.Session(config=config)
+    sess.run(npu_init)
+    return sess, npu_shutdown
+
+def shutdown_resource(sess, npu_shutdown):
+    sess.run(npu_shutdown)
+
+def close_session(sess):
+    sess.close()
