@@ -105,8 +105,8 @@ struct DequantInputParam {
   std::string data_format;
 };
 
-const int const SUCCESS = 0;
-const int const NULL_PTR_ERROR = 1;
+const int SUCCESS = 0;
+const int NULL_PTR_ERROR = 1;
 
 #define NULLPTR_CHECK(ptr)                                                                          \
     do {                                                                                            \
