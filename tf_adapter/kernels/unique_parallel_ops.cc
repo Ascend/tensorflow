@@ -67,7 +67,8 @@ class UniqueParallelOp : public OpKernel {
       for (TIndex i = 0, j = 0; i < total; i++) {
         unsigned long long temp_input = input_vec(i);
         unsigned long long temp_cpu = CPU_NUMS - 1;
-        if ((temp_input & temp_cpu) == cur) {
+        unsigned long long temp_cur = cur;
+        if ((temp_input & temp_cpu) == temp_cur) {
           if (unique_map.find(input_vec(i)) == unique_map.end()) {
             j = count_num++;
             unique_map[input_vec(i)] = j;

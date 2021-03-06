@@ -171,15 +171,11 @@ def main(unused_argv):
     eval_data = mnist.test.images # Returns np.array
     eval_labels = np.asarray(mnist.test.labels, dtype=np.int32)
 
-    # profiling_config = ProfilingConfig(enable_profiling=True,
-    #            enable_options=["training_trace","task_trace"])
-
     npu_config = NPURunConfig(
         iterations_per_loop = 100,
         save_checkpoints_steps=10,
         model_dir = FLAGS.model_dir,
         session_config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-       #,profiling_config=profiling_config
     )
 
     mnist_classifier = NPUEstimator(
@@ -195,7 +191,6 @@ def main(unused_argv):
     logging_hook = tf.train.LoggingTensorHook(
     tensors=tensors_to_log, every_n_iter=50)  # Train the model
 
-    # print("Train the model...")
     mnist_classifier.train(
         input_fn=train_input_fn(train_data,train_labels),
         steps=FLAGS.train_steps, hooks=[logging_hook])

@@ -699,7 +699,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (need_compile_graph_first_) {
       std::vector<ge::InputTensorInfo> inputs;
       OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, inputs)), done);
-      int64 compile_start_time = InferShapeUtil::GetCurrentTimestap();
       ge::Status status = ge_session_->BuildGraph(cache_graph_id, inputs);
       OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS,
                         errors::Unavailable("[GEOP] GE session build graph failed, domi_ret : ",
@@ -963,12 +962,12 @@ Status GeOp::ChangeInputsShapeDesc() {
 
   if (dynamic_shape_nodes_.size() == 1 && dynamic_shape_nodes_[0]->type_string() == "IteratorGetNext") {
     ADP_LOG(INFO) << "[GEOP] change " << dynamic_shape_nodes_[0]->name() << " shape desc.";
-    if (dynamic_shape_nodes_[0]->num_outputs() != result.size()) {
+    if (dynamic_shape_nodes_[0]->num_outputs() != static_cast<int32>(result.size())) {
       return errors::InvalidArgument("input_shape is not match inputs num in graph");
     }
     NodeDef &node_def = const_cast<NodeDef &>(dynamic_shape_nodes_[0]->def());
     AttrValue &output_tensor_descs = (*node_def.mutable_attr())[OUTPUT_DESC];
-    for (size_t i = 0; i < dynamic_shape_nodes_[0]->num_outputs(); ++i) {
+    for (int32 i = 0; i < dynamic_shape_nodes_[0]->num_outputs(); ++i) {
       AttrValue attr_shape_value;
       SetShapesToOutputDesc(result, i, attr_shape_value);
       (*output_tensor_descs.mutable_list()->mutable_func(i)->mutable_attr())[SERIALIZE_SHAPE] = attr_shape_value;

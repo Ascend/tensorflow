@@ -138,10 +138,6 @@ class NPULossScaleOptimizer(optimizer.Optimizer):
       if g is not None:
         grads.append(g)
 
-    #is_finite_grad = []
-    #for g in grads:
-     # is_finite_grad.append(math_ops.reduce_all(gen_math_ops.is_finite(g)))
-    #is_overall_finite = math_ops.reduce_all(is_finite_grad)
     with tf.get_default_graph().control_dependencies(grads):
       local_float_status = gen_npu_ops.npu_get_float_status(self._float_status)
       cleared_float_status = gen_npu_ops.npu_clear_float_status(local_float_status)
