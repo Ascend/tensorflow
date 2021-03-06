@@ -46,7 +46,8 @@ int AscendDequantInternelCpu(struct DequantInputParam<T> input_param) {
     }
     unsigned int deqscale_int = (input_param.deqscale[channel_index] << DEQ_SCALE_BINS) >> DEQ_SCALE_BINS;
     unsigned int shift_n_int = (input_param.deqscale[channel_index] << N_LFET_BINS) >> N_RIGHT_BINS;
-    float deqscale = *reinterpret_cast<float*>(&(deqscale_int));
+    float* deqscale = reinterpret_cast<float*>(&(deqscale_int));
+    NULLPTR_CHECK(deqscale);
     input_param.out[i] = input_param.input[i] * input_param.area_factor;
     if (shift_n_int > 0) {
       input_param.out[i] = floor(input_param.out[i] / pow(BASE, shift_n_int));
@@ -56,7 +57,7 @@ int AscendDequantInternelCpu(struct DequantInputParam<T> input_param) {
         input_param.out[i] = -bound;
       }
     }
-    input_param.out[i] = input_param.out[i] * deqscale * pow(BASE, shift_n_int) / input_param.area_factor;
+    input_param.out[i] = input_param.out[i] * (*deqscale) * pow(BASE, shift_n_int) / input_param.area_factor;
   }
   return 0;
 }
@@ -131,7 +132,8 @@ class AscendDequantOp : public OpKernel {
     if (input_param.size == 0) {
       OP_REQUIRES(context, false, errors::InvalidArgument("AscendDequantOp: input_tensor is empty!"));
     }
-    AscendDequantInternelCpu(input_param);
+    int errorCode = AscendDequantInternelCpu(input_param);
+    ERROR_CHECK(errorCode);
   }
 
  private:

@@ -105,4 +105,25 @@ struct DequantInputParam {
   std::string data_format;
 };
 
+const int const SUCCESS = 0;
+const int const NULL_PTR_ERROR = 1;
+
+#define NULLPTR_CHECK(ptr)                                                                          \
+    do {                                                                                            \
+        if (ptr == nullptr) {                                                                       \
+            return NULL_PTR_ERROR;                                                                  \
+        }                                                                                           \
+    } while (0)
+
+#define ERROR_CHECK(errorCode)                                                                      \
+    do {                                                                                            \
+        switch (errorCode) {                                                                        \
+            case 1:                                                                                 \
+                OP_REQUIRES(context, false, errors::InvalidArgument("Null Ptr ERROR!"));            \
+                break;                                                                              \
+            default:                                                                                \
+                break;                                                                              \
+        }                                                                                           \
+    } while (0)
+
 #endif
