@@ -14,6 +14,7 @@
 # ============================================================================
 import ast
 import util_global
+import copy
 from util import log_success_report
 from util import log_migration_report
 from util import log_msg
@@ -87,8 +88,38 @@ def ast_if(node):
                 return node
 
 def ast_call(node):
-    if (isinstance(node.func, ast.Name) and node.func.id == 'Session') \
-        or (isinstance(node.func, ast.Attribute) and node.func.attr == 'Session'):
+    if (isinstance(node.func, ast.Name) and node.func.id == 'ConfigProto') or \
+       (isinstance(node.func, ast.Attribute) and node.func.attr == 'ConfigProto'):
+        log_success_report(getattr(node, 'lineno', 'None'), 'ConfigProto()')
+        src = copy.deepcopy(node)
+        node.func = ast.Name(id='npu_config_proto', ctx=ast.Load())
+        node.args = []
+        node.keywords = []
+        node.keywords.append(ast.keyword(arg='config_proto', value=src))
+        util_global.set_value('need_conver', True)
+        return node
+    if (isinstance(node.func, ast.Name) and node.func.id == 'GraphOptions') or \
+       (isinstance(node.func, ast.Attribute) and node.func.attr == 'GraphOptions'):
+        log_success_report(getattr(node, 'lineno', 'None'), 'GraphOptions()')
+        src = copy.deepcopy(node)
+        node.func = ast.Name(id='npu_graph_options', ctx=ast.Load())
+        node.args = []
+        node.keywords = []
+        node.keywords.append(ast.keyword(arg='graph_options', value=src))
+        util_global.set_value('need_conver', True)
+        return node
+    if (isinstance(node.func, ast.Name) and node.func.id == 'OptimizerOptions') or \
+       (isinstance(node.func, ast.Attribute) and node.func.attr == 'OptimizerOptions'):
+        log_success_report(getattr(node, 'lineno', 'None'), 'OptimizerOptions()')
+        src = copy.deepcopy(node)
+        node.func = ast.Name(id='npu_optimizer_options', ctx=ast.Load())
+        node.args = []
+        node.keywords = []
+        node.keywords.append(ast.keyword(arg='optimizer_options', value=src))
+        util_global.set_value('need_conver', True)
+        return node
+    if (isinstance(node.func, ast.Name) and node.func.id == 'Session') or \
+       (isinstance(node.func, ast.Attribute) and node.func.attr == 'Session'):
         log_success_report(getattr(node, 'lineno', 'None'), 'Session()')
         config = None
         for index, _ in enumerate(node.args):
@@ -1147,64 +1178,6 @@ def ast_assign(node):
                     node.targets.append(ast.Name(id='argmax', ctx=ast.Store()))
                     node.targets = [ast.Tuple(elts=node.targets, ctx=ast.Store())]
                     return node
-                elif node.value.func.attr == 'OptimizerOptions':
-                    log_success_report(getattr(node, 'lineno', 'None'), 'OptimizerOptions.global_jit_level')
-                    util_global.set_value('import_config_pb2', True)
-                    target_list = []
-                    for target in node.targets:
-                        target.ctx = ast.Load()
-                        target_list.append(target)
-                    global_jit_level_assign_node_targets = []
-                    for target in target_list:
-                        global_jit_level_assign_node_targets.append(ast.Attribute(value=target, attr='global_jit_level', ctx=ast.Store()))
-                    global_jit_level_assign_node = ast.Assign(
-                        targets=global_jit_level_assign_node_targets,
-                        value=ast.Attribute(attr='OFF', ctx=ast.Load(),
-                            value=ast.Attribute(attr='OptimizerOptions', ctx=ast.Load(),
-                                value=ast.Name(id='config_pb2', ctx=ast.Load()))))
-                    node = ast.If(test=ast.NameConstant(value=True), body=[node, global_jit_level_assign_node], orelse=[])
-                    util_global.set_value('need_conver', True)
-                elif node.value.func.attr == 'GraphOptions':
-                    log_success_report(getattr(node, 'lineno', 'None'), 'GraphOptions.global_jit_level')
-                    util_global.set_value('import_config_pb2', True)
-                    target_list = []
-                    for target in node.targets:
-                        target.ctx = ast.Load()
-                        target_list.append(target)
-                    global_jit_level_assign_node_targets = []
-
-                    for target in target_list:
-                        global_jit_level_assign_node_targets.append(ast.Attribute(attr='global_jit_level', ctx=ast.Store(),
-                            value=ast.Attribute(attr='optimizer_options', ctx=ast.Load(),
-                                value=target)))
-                    global_jit_level_assign_node = ast.Assign(
-                        targets=global_jit_level_assign_node_targets,
-                        value=ast.Attribute(attr='OFF', ctx=ast.Load(),
-                            value=ast.Attribute(attr='OptimizerOptions', ctx=ast.Load(),
-                                value=ast.Name(id='config_pb2', ctx=ast.Load()))))
-                    node = ast.If(test=ast.NameConstant(value=True), body=[node, global_jit_level_assign_node], orelse=[])
-                    util_global.set_value('need_conver', True)
-                elif node.value.func.attr == 'ConfigProto':
-                    log_success_report(getattr(node, 'lineno', 'None'), 'ConfigProto.global_jit_level')
-                    util_global.set_value('import_config_pb2', True)
-                    target_list = []
-                    for target in node.targets:
-                        target.ctx = ast.Load()
-                        target_list.append(target)
-                    global_jit_level_assign_node_targets = []
-
-                    for target in target_list:
-                        global_jit_level_assign_node_targets.append(ast.Attribute(attr='global_jit_level', ctx=ast.Store(),
-                            value=ast.Attribute(attr='optimizer_options', ctx=ast.Load(),
-                                value=ast.Attribute(attr='graph_options', ctx=ast.Load(),
-                                    value=target))))
-                    global_jit_level_assign_node = ast.Assign(
-                        targets=global_jit_level_assign_node_targets,
-                        value=ast.Attribute(attr='OFF', ctx=ast.Load(),
-                            value=ast.Attribute(attr='OptimizerOptions', ctx=ast.Load(),
-                                value=ast.Name(id='config_pb2', ctx=ast.Load()))))
-                    node = ast.If(test=ast.NameConstant(value=True), body=[node, global_jit_level_assign_node], orelse=[])
-                    util_global.set_value('need_conver', True)
     return node
 
 # Format printing for locate
