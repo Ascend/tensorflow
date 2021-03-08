@@ -7,6 +7,7 @@ from npu_bridge.estimator.npu.npu_estimator import NPUEstimatorSpec
 from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
 from npu_bridge.estimator.npu.npu_hook import NPUCheckpointSaverHook
 from npu_bridge.estimator.npu.npu_hook import NPUOutputTensorHook
+from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook
 from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
 from npu_bridge.estimator.npu.npu_optimizer import NPUOptimizer
 from npu_bridge.estimator.npu.npu_optimizer import KerasDistributeOptimizer
@@ -37,6 +38,14 @@ from hccl.manage.api import get_world_rank_from_group_rank
 from hccl.manage.api import get_group_rank_from_world_rank
 from hccl.split.api import set_split_strategy_by_idx
 from hccl.split.api import set_split_strategy_by_size
+
+import os
+
+def npu_hooks_append(hooks_list=[]):
+    if (not isinstance(hooks_list, list)):
+        hooks_list = []
+    hooks_list.append(NPUBroadcastGlobalVariablesHook(0, int(os.getenv('RANK_ID', '0'))))
+    return hooks_list
 
 def npu_config_proto(config_proto = None):
     if (not isinstance(config_proto, config_pb2.ConfigProto)) or (not issubclass(type(config_proto), config_pb2.ConfigProto)):
