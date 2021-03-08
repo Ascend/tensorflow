@@ -204,7 +204,11 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   if (status != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
     ADP_LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
-    LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
+    std::string error_message = ge::GEGetErrorMsg();
+    std::string warning_message = ge::GEGetWarningMsg();
+    LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status) << std::endl
+               << "Error Message is : " << std::endl
+               << error_message << warning_message;
   }
   domi::GetContext().train_flag = true;
   ADP_LOG(INFO) << "[GePlugin] Initialize ge success.";
@@ -227,7 +231,7 @@ std::map<std::string, std::string> GePlugin::GetInitOptions() {
 
 uint64_t GePlugin::GetFusionTensorSize() {
   const char *env_fusion_tensor_size = getenv("FUSION_TENSOR_SIZE");
-  
+
   // default (50KBytes)
   const uint64_t default_fusion_tensor_size = 524288000;
   if (env_fusion_tensor_size == nullptr || strlen(env_fusion_tensor_size) >= ADAPTER_ENV_MAX_LENTH) {
@@ -253,7 +257,11 @@ void GePlugin::Finalize() {
   ge::Status status = ge::GEFinalize();
   if (status != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status);
-    LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status);
+    std::string error_message = ge::GEGetErrorMsg();
+    std::string warning_message = ge::GEGetWarningMsg();
+    LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status) << std::endl
+               << "Error Message is : " << std::endl
+               << error_message << warning_message;
   }
 
   // parser finalize
