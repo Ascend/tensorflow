@@ -45,11 +45,12 @@ def ast_import(node):
 
 def ast_function_def(node):
     log_success_report(getattr(node, "lineno", "None"), node.name)
+    arg_name = node.args.args[0].arg
     node.body = [ast.Return(value=ast.Call(
                                             func=ast.Attribute(value=ast.Name(id=util_global.get_value(node.name)[0],
                                                                ctx=ast.Load()), attr='gelu',
                                                                ctx=ast.Load()),
-                                            args=[ast.Name(id='x', ctx=ast.Load())],
+                                            args=[ast.Name(id=arg_name, ctx=ast.Load())],
                                             keywords=[]))]
 
     util_global.set_value('need_conver', True)
