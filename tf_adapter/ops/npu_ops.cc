@@ -214,6 +214,38 @@ REGISTER_OP("DropOutGenMask")
       return Status::OK();
     });
 
+REGISTER_OP("DropOutGenMaskV3")
+    .Input("shape: T")
+    .Attr("T: {int64, int32}")
+    .Input("prob: S")
+    .Attr("S: {float, half}")
+    .Output("output: uint8")
+    .Attr("seed: int = 0")
+    .Attr("seed2: int = 0")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      ShapeHandle unused;
+      TF_RETURN_IF_ERROR(c->WithRankAtMost(c->input(1), 0, &unused));  // prob must be 0-d
+      ShapeHandle input_shape_handle;
+      TF_RETURN_IF_ERROR(c->MakeShapeFromShapeTensor(0, &input_shape_handle));
+      if(!c->FulllyDefined(input_shape_handle)) {
+        ShapeHandle out = c->UnknowShapeOfRank();
+        c->set_output(0, out);
+        return Status::OK();
+      }
+      DimensionHandle input_dim_handle = c->NumElement(&input_shape_handle);
+      uint64 random_count = static_cast<uint64>(c->Value(input_dim_handle));
+      if(random_count > (INT64 - 15)) {
+        return errors::InvalidArgument("Required random count[", random_count,
+          "] exceed INT64 - 15");
+      }
+      // align to 16
+      random_count = (random_count + 15) & (~15);
+      ShapeHandle out = c->Vector(static_cast<int64>(random_count));
+      c->set_output(0, out);
+      return Status::OK();     
+    });
+
 REGISTER_OP("BasicLSTMCell")
     .Input("x: T")
     .Input("h: T")
