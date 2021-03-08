@@ -390,6 +390,11 @@ def ast_call(node):
         if isinstance(node.func, ast.Attribute) and (node.func.attr == estimator_func):
             input_fn = None
             hooks = None
+            for index, _ in enumerate(node.args):
+                if index == 0:
+                    input_fn = node.args[0]
+                elif index == 1:
+                    hooks = node.args.pop(1)
             for keyword in node.keywords:
                 if keyword.arg == 'input_fn':
                     input_fn = keyword
@@ -400,10 +405,12 @@ def ast_call(node):
             if not hooks:
                 node.keywords.append(
                     ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[])))
-            else:
+            elif isinstance(hooks, ast.keyword):
                 hooks.value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[
                     ast.keyword(arg='hooks_list', value=hooks.value)])
-            util_global.set_value('insert_npu_hooks_append', True)
+            else:
+                node.keywords.append(
+                    ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
             util_global.set_value('need_conver', True)
             return node
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'compile'):
@@ -429,7 +436,7 @@ def ast_call(node):
                 util_global.set_value('insert_npu_keras_opt_func', True)
                 return node
     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
-        if node.func.attr.find("Optimizer") != -1:
+        if (node.func.attr.find("Optimizer") != -1) and (node.func.attr != 'ScipyOptimizerInterface'):
             log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
             node = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node], keywords=[])
             util_global.set_value('need_conver', True)
@@ -443,6 +450,29 @@ def ast_call(node):
             util_global.set_value('need_conver', True)
             util_global.set_value('insert_npu_keras_opt_func', True)
             return node
+    if (isinstance(node.func, ast.Attribute) and (node.func.attr == 'MonitoredTrainingSession')) or \
+       (isinstance(node.func, ast.Name) and (node.func.id == 'MonitoredTrainingSession')):
+        log_success_report(getattr(node, "lineno", "None"), 'MonitoredTrainingSession')
+        hooks = None
+        for index, _ in enumerate(node.args):
+            if index == 4:
+                hooks = node.args.pop(4)
+                break
+        for keyword in node.keywords:
+            if keyword.arg == 'hooks':
+                hooks = keyword
+                break
+        if not hooks:
+            node.keywords.append(
+                ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[])))
+        elif isinstance(hooks, ast.keyword):
+            hooks.value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[
+                ast.keyword(arg='hooks_list', value=hooks.value)])
+        else:
+            node.keywords.append(
+                ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
+        util_global.set_value('need_conver', True)
+        return node
     return node
 
 def insert_npu_import(r_node):
@@ -528,99 +558,7 @@ def insert_npu_init_func(r_node):
             ],
             decorator_list=[],
             returns=None))
-def insert_NPUBroadcastGlobalVariablesHook_import(r_node):
-    n = 0
-    lenline = len(r_node.body)
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
-            break
-        n += 1
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == '__future__'):
-            n += 1
-            continue
-        elif isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == 'npu_bridge.npu_init'):
-            n += 1
-            continue
-        else:
-            break
-    if n < lenline:
-        log_success_report(n, 'import NPUBroadcastGlobalVariablesHook')
-        r_node.body.insert(n, ast.ImportFrom(module='npu_bridge.estimator.npu.npu_hook', names=[ast.alias(name='NPUBroadcastGlobalVariablesHook', asname=None)], level=0))
-def insert_npu_hooks_append_func(r_node):
-    n = 0
-    lenline = len(r_node.body)
-    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
-        n += 1
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
-        n += 1
-    if_not_list_node = ast.If(
-        test=ast.UnaryOp(
-            op=ast.Not(),
-            operand=ast.Call(
-                func=ast.Name(id='isinstance', ctx=ast.Load()),
-                args=[ast.Name(id='hooks_list', ctx=ast.Load()), ast.Name(id='list', ctx=ast.Load())],
-                keywords=[]
-            )
-        ),
-        body=[ast.Assign(targets=[ast.Name(id='hooks_list', ctx=ast.Store())], value=ast.List(elts=[], ctx=ast.Load()))],
-        orelse=[]
-    )
-    list_add_node = ast.Expr(
-        value=ast.Call(
-            func=ast.Attribute(
-                value=ast.Name('hooks_list', ctx=ast.Load()),
-                attr='append',
-                ctx=ast.Load()
-            ),
-            args=[
-                ast.Call(
-                    func=ast.Name(id='NPUBroadcastGlobalVariablesHook', ctx=ast.Load()),
-                    args=[
-                        ast.Num(n=0),
-                        ast.Call(
-                            func=ast.Name(id='int', ctx=ast.Load()),
-                            args=[
-                                ast.Call(
-                                    func=ast.Attribute(
-                                        value=ast.Name(id='os', ctx=ast.Load()),
-                                        attr='getenv',
-                                        ctx=ast.Load()
-                                    ),
-                                    args=[
-                                        ast.Str(s='RANK_ID'), ast.Str(s='0')
-                                    ],
-                                    keywords=[]
-                                )
-                            ],
-                            keywords=[]
-                        )
-                    ],
-                    keywords=[]
-                )
-            ],
-            keywords=[]
-        )
-    )
-    return_node = ast.Return(value=ast.Name(id='hooks_list', ctx=ast.Load()))
-    util_global.set_value('import_NPUBroadcastGlobalVariablesHook', True)
-    util_global.set_value('import_os', True)
-    r_node.body.insert(n, ast.FunctionDef(
-        name='npu_hooks_append',
-        args=ast.arguments(
-            args=[
-                ast.arg(arg='hooks_list', annotation=None)
-            ],
-            vararg=None,
-            kwonlyargs=[],
-            kw_defaults=[],
-            kwarg=None,
-            defaults=[ast.List(elts=[], ctx=ast.Load())]
-        ),
-        body=[if_not_list_node, list_add_node, return_node],
-        decorator_list=[],
-        returns=None
-    ))
+
 def insert_npu_session_config_func(r_node):
     n = 0
     lenline = len(r_node.body)
@@ -1084,26 +1022,6 @@ def insert_empty_hook(r_node):
         class_def = ast.ClassDef(name="NpuEmptyHook", bases=[hook_attr], keywords=[],
                                  body=[ast.Pass()], decorator_list=[])
         r_node.body.insert(n, class_def)
-
-def insert_os_import(r_node):
-    n = 0
-    lenline = len(r_node.body)
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
-            break
-        n += 1
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == '__future__'):
-            n += 1
-            continue
-        elif isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == 'npu_bridge.npu_init'):
-            n += 1
-            continue
-        else:
-            break
-    if n < lenline:
-        log_success_report(n, 'import os')
-        r_node.body.insert(n, ast.Import(names=[ast.alias(name='os', asname=None)]))
 
 def ast_assign(node):
     for target in node.targets:
