@@ -1,0 +1,1 @@
+from npu_device.npu_device_register import *

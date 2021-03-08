@@ -1,0 +1,99 @@
+# Ascend Adapter for TF2.X
+## 安装
+
+### 从源码安装
+
+您可以从源代码构建 Ascend Adapter 软件包并将其安装在昇腾AI处理器环境上。
+> Ascend Adapter 与 Tensorflow 有严格的匹配关系，从源码构建前，您需要确保已经正确安装了[Tensorflow v2.4.0版本](https://www.tensorflow.org/install) 。
+
+
+同时系统满足以下要求：
+- Linux OS
+- GCC >= 7.3.0
+- CMake >= 3.14.0
+
+#### 下载源码
+
+```
+git clone ssh://git@10.95.128.221:2222/x00373192/AscendTF2.git
+cd AscendTF2
+```
+
+#### 配置安装环境
+```BASH
+./configure
+```
+默认情况下，执行上述命会弹出如下的交互式会话窗口
+> 您的会话可能有所不同。
+
+```BASH
+Please specify the location of python with available tensorflow v2.4.0 installed. [Default is /usr/bin/python3]
+(You can make this quiet by set env [ADAPTER_TARGET_PYTHON_PATH]):
+```
+此时，要求您输入安装了 Tensorflow v2.4.0 版本的python解释器路径，如果默认路径是正确的，直接回车，否则请输入正确的 python
+解释器路径。
+> 您可以通过设置 ADAPTER_TARGET_PYTHON_PATH的环境变量，来抑制交互式窗口弹出，但是要确保路径是有效的，否则，仍然会要求您输入正确的 python 解释器路径。
+
+键入后，会耗费几秒钟以确保您的输入是有效的，接着，会弹出下面的交互式窗口
+```
+Please specify the location of ascend. [Default is /usr/local/Ascend]
+(You can make this quiet by set env [ASCEND_INSTALLED_PATH]):
+```
+此时，要求您输入昇腾处理器开发套件的安装路径，如果默认路径是正确的，直接回车，否则请输入正确的昇腾处理器开发套件安装路径。
+
+> 您可以通过设置ASCEND_INSTALLED_PATH的环境变量，来抑制交互式窗口弹出，但是要确保路径是有效的，否则，仍然会要求您输入正确的昇腾处理器开发套件安装路径。
+
+键入后，等待配置完成。
+#### 配置cmake
+> 根据您的网络状况，可能需要数分钟来下载Ascend Adapter的依赖项目以完成配置。
+
+```
+mkdir build
+cd build
+cmake ..
+```
+
+#### 执行编译
+> 您应当根据实际编译环境，设置合适的并发编译数以提升编译速度。
+
+```BASH
+make -j8
+```
+
+编译结束后，安装包会生成在
+```
+./dist/python/dist/npu_device-0.1-py3-none-any.whl
+```
+
+#### 安装
+您可以继续执行
+```BASH
+make install
+```
+将Ascend Adapter安装到配置时指定的 python 解释器包目录下，或者使用 pip3 安装 Ascend Adapter 到您期望的位置。
+```
+pip3 install ./dist/python/dist/npu_device-0.1-py3-none-any.whl --upgrade
+```
+需要注意的是， 您应当保证安装路径与您编译时指定的 python 解释器搜索路径是一致的。
+
+#### 基础功能测试
+在执行脚本前，您应当将昇腾处理器开发套件的库目录加入搜索目录，如您的安装目录是/usr/local/Ascend，则应当执行如下命令
+```
+export LD_LIBRARY_PATH=/usr/local/Ascend/fwkacllib/lib64/
+```
+之后，可以执行示例脚本检测您的安装
+```
+python3 examples/basic_tests.py
+```
+
+## 贡献
+
+psuh代码前，请务必保证已经完成了基础功能测试和网络测试！
+
+## Release Notes
+
+Release Notes请参考[RELEASE](RELEASE.md).
+
+## License
+
+[Apache License 2.0](LICENSE)
