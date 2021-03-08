@@ -17,6 +17,7 @@ import util_global
 import copy
 from util import log_success_report
 from util import log_migration_report
+from util import log_msg
 
 def attribute(node):
     log_success_report(getattr(node, "lineno", "None"), node.attr)
@@ -28,16 +29,19 @@ def import_from(node):
     if node.module != None:
         values = node.module.split(".")
         if "keras" in values:
-            log_migration_report(getattr(node, "lineno", "None"), "keras")
-            util_global.set_value('need_conver', True)
+            util_global.set_value('is_keras_net', True)
+        if "horovod" in values:
+            util_global.set_value('is_hvd_net', True)
+
 
 def ast_import(node):
     for value in node.names:
         if isinstance(value, ast.alias):
             values = value.name.split(".")
             if "keras" in values:
-                log_migration_report(getattr(node, "lineno", "None"), "keras")
-                util_global.set_value('need_conver', True)
+                util_global.set_value('is_keras_net', True)
+            if "horovod" in values:
+                util_global.set_value('is_hvd_net', True)
 
 def ast_function_def(node):
     log_success_report(getattr(node, "lineno", "None"), node.name)
@@ -50,6 +54,38 @@ def ast_function_def(node):
 
     util_global.set_value('need_conver', True)
     return node
+
+def ast_if(node):
+    if isinstance(node.test, ast.Compare):
+        if len(node.test.comparators) == 1 and isinstance(node.test.comparators[0], ast.Str):
+            if node.test.comparators[0].s == "__main__":
+                if util_global.get_value("is_keras_net", False):
+                    log_msg(getattr(node, "lineno", "None"), " add keras session npu config")
+                    close_sess_call = ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
+                                               args=[ast.Name(id="npu_keras_sess", ctx=ast.Load())], keywords=[])
+                    keras_sess_assign = ast.Assign(targets=[ast.Name(id="npu_keras_sess", ctx=ast.Store())],
+                                                   value=ast.Call(func=ast.Name(id="set_keras_session_npu_config", ctx=ast.Load()),
+                                                                  args=[], keywords=[]))
+                    try_node = ast.Try(body=[keras_sess_assign, node.body], handlers=[], orelse=[],
+                                       finalbody=[ast.Expr(value=close_sess_call)])
+                    node.body = [try_node]
+                    util_global.set_value('need_conver', True)
+                if util_global.get_value("is_hvd_net", False):
+                    log_msg(getattr(node, "lineno", "None"), " add npu resource init api")
+                    close_sess_call = ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
+                                               args=[ast.Name(id="npu_sess", ctx=ast.Load())], keywords=[])
+                    init_assign = ast.Assign(targets=[ast.Tuple(elts=[ast.Name(id="npu_sess", ctx=ast.Store()),
+                                                                      ast.Name(id="npu_shutdown", ctx=ast.Store())],
+                                                                ctx=ast.Store())],
+                                             value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[], keywords=[]))
+                    shutdown_call = ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
+                                             args=[ast.Name(id="npu_sess", ctx=ast.Load()), ast.Name(id="npu_shutdown", ctx=ast.Load())],
+                                             keywords=[])
+                    try_node = ast.Try(body=[init_assign, node.body], handlers=[], orelse=[],
+                                       finalbody=[ast.Expr(value=shutdown_call), ast.Expr(value=close_sess_call)])
+                    node.body = [try_node]
+                    util_global.set_value('need_conver', True)
+                return node
 
 def ast_call(node):
     if (isinstance(node.func, ast.Name) and node.func.id == 'ConfigProto') or \
@@ -87,7 +123,7 @@ def ast_call(node):
         log_success_report(getattr(node, 'lineno', 'None'), 'Session()')
         config = None
         for index, _ in enumerate(node.args):
-            if index == 2: 
+            if index == 2:
                 config = node.args.pop(2)
                 break
         for keyword in node.keywords:

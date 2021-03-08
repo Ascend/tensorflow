@@ -72,7 +72,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     ADP_LOG(INFO) << "Get local rank id:" << tmp_rank_id << ", local device list:" << tmp_device_list;
     // local rank id range 0-7
     local_rank_id_ = std::atoi(tmp_rank_id.c_str());
-    for (int i = 0; i < tmp_device_list.size(); i += 2) {
+    for (size_t i = 0; i < tmp_device_list.size(); i += 2) {
       int device_id = std::atoi(&tmp_device_list[i]);
       OP_REQUIRES(ctx, device_id >= 0, errors::InvalidArgument("device id should be >= 0."));
       local_device_list_.push_back(device_id);
@@ -152,9 +152,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes,
             const int &local_rank_id, const std::vector<uint32_t> &local_device_list,
             const uint32_t &device_id, std::shared_ptr<ThreadPool> pools)
-        : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName), output_types_(outputTypes),
+        : DatasetBase(DatasetContext(ctx)), pools_(pools), inputs_(inputs), channel_name_(channelName), output_types_(outputTypes),
           output_shapes_(outputShapes), local_rank_id_(local_rank_id), local_device_list_(local_device_list),
-          device_id_(device_id), pools_(pools) {
+          device_id_(device_id) {
       for (const auto &input : inputs_) { input->Ref(); }
     }
 

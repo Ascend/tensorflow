@@ -47,7 +47,6 @@ setup(
     author='HuaWei Inc.',
     # Contained modules and scripts.
     packages=find_packages(),
-    #install_requires=REQUIRED_PACKAGES,
     # Add in any packaged data.
     include_package_data=True,
     keywords='tensorflow tensor machine learning',

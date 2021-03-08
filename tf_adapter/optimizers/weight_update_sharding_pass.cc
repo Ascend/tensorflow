@@ -105,8 +105,6 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
           op_type == "ReadVariableOp") {
         Node *var_node = nullptr;
         Node *broadcast_node = nullptr;
-        Node *forward_node = nullptr;
-        int forward_input_idx = -1;
         std::vector<const Edge *> remove_edges;
         for (auto in_edge : node->in_edges()) {
           REQUIRES_NOT_NULL(in_edge);

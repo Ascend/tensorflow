@@ -25,6 +25,7 @@ from npu_bridge.hccl import hccl_ops
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
+from tensorflow.python.client import session
 
 from hccl.manage.api import create_group
 from hccl.manage.api import destroy_group
@@ -44,13 +45,42 @@ def npu_config_proto(config_proto = None):
     config_proto.log_device_placement = False
     config_proto.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return config_proto
+
 def npu_graph_options(graph_options = None):
     if (not isinstance(graph_options, config_pb2.GraphOptions)) or (not issubclass(type(graph_options), config_pb2.GraphOptions)):
         graph_options = config_pb2.GraphOptions()
     graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return graph_options
+
 def npu_optimizer_options(optimizer_options = None):
     if (not isinstance(optimizer_options, config_pb2.OptimizerOptions)) or (not issubclass(type(optimizer_options), config_pb2.OptimizerOptions)):
         optimizer_options = config_pb2.OptimizerOptions()
     optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return optimizer_options
+
+def set_keras_session_npu_config():
+    from tensorflow.python.keras import backend
+    config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
+    custom_op.name = "NpuOptimizer"
+    config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    sess = session.Session(config=config)
+    backend.set_session(sess)
+    return sess
+
+def init_resource():
+    npu_init = npu_ops.initialize_system()
+    npu_shutdown = npu_ops.shutdown_system()
+    config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
+    custom_op.name = "NpuOptimizer"
+    config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    sess = session.Session(config=config)
+    sess.run(npu_init)
+    return sess, npu_shutdown
+
+def shutdown_resource(sess, npu_shutdown):
+    sess.run(npu_shutdown)
+
+def close_session(sess):
+    sess.close()

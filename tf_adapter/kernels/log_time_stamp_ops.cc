@@ -27,7 +27,7 @@ limitations under the License.
 
 #ifndef TENSORFLOW_CORE_KERNELS_LogTimeStamp_OP_H_
 #define TENSORFLOW_CORE_KERNELS_LogTimeStamp_OP_H_
-#if HISI_OFFLINE
+#ifdef HISI_OFFLINE
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/tensor_types.h"

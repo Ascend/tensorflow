@@ -66,11 +66,9 @@ REGISTER_OP("DynamicGruV2")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext* c) {
       auto input_shape = c->input(0);
-      auto weight_input_shape = c->input(1);
       auto weight_hidden_shape = c->input(2);
       auto num_step = c->Dim(input_shape, 0);
       auto batch_size = c->Dim(input_shape, 1);
-      auto input_size = c->Dim(input_shape, 2);
       auto hidden_size = c->Dim(weight_hidden_shape, 0);
       int num_proj = 0;
       TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
