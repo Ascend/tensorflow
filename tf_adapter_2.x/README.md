@@ -15,8 +15,8 @@
 #### 下载源码
 
 ```
-git clone ssh://git@10.95.128.221:2222/x00373192/AscendTF2.git
-cd AscendTF2
+git clone https://gitee.com/ascend/tensorflow.git
+cd tensorflow/tf_adapter_2.x
 ```
 
 #### 配置安装环境
