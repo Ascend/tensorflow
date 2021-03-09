@@ -39,7 +39,30 @@ from hccl.manage.api import get_group_rank_from_world_rank
 from hccl.split.api import set_split_strategy_by_idx
 from hccl.split.api import set_split_strategy_by_size
 
+import tensorflow as tf
 import os
+
+def _npu_config_proto(config_proto):
+    config_proto.allow_soft_placement = True
+    config_proto.log_device_placement = False
+    config_proto.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    config_proto.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
+
+def npu_session_config_init(session_config=None):
+    if ((not isinstance(session_config, config_pb2.ConfigProto)) and (not issubclass(type(session_config), config_pb2.ConfigProto))):
+        session_config = config_pb2.ConfigProto()
+    if (isinstance(session_config, config_pb2.ConfigProto) or issubclass(type(session_config), config_pb2.ConfigProto)):
+        custom_op = session_config.graph_options.rewrite_options.custom_optimizers.add()
+        custom_op.name = 'NpuOptimizer'
+        _npu_config_proto(session_config)
+    return session_config
+
+def npu_run_config_init(run_config=None):
+    if ((not isinstance(run_config, tf.estimator.RunConfig)) and (not issubclass(type(run_config), tf.estimator.RunConfig))):
+        run_config = tf.estimator.RunConfig()
+    if (isinstance(run_config, tf.estimator.RunConfig) or issubclass(type(run_config), tf.estimator.RunConfig)):
+        run_config.__dict__['_session_config'] = npu_session_config_init(run_config.session_config)
+    return run_config
 
 def npu_hooks_append(hooks_list=[]):
     if (not isinstance(hooks_list, list)):
@@ -50,9 +73,7 @@ def npu_hooks_append(hooks_list=[]):
 def npu_config_proto(config_proto = None):
     if (not isinstance(config_proto, config_pb2.ConfigProto)) or (not issubclass(type(config_proto), config_pb2.ConfigProto)):
         config_proto = config_pb2.ConfigProto()
-    config_proto.allow_soft_placement = True
-    config_proto.log_device_placement = False
-    config_proto.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
+    _npu_config_proto(config_proto)
     return config_proto
 
 def npu_graph_options(graph_options = None):
