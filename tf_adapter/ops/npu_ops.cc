@@ -229,7 +229,7 @@ REGISTER_OP("DropOutGenMaskV3")
       ShapeHandle input_shape_handle;
       TF_RETURN_IF_ERROR(c->MakeShapeFromShapeTensor(0, &input_shape_handle));
       if(!c->FullyDefined(input_shape_handle)) {
-        ShapeHandle out = c->UnknownShapeOfRank();
+        ShapeHandle out = c->UnknownShapeOfRank(1);
         c->set_output(0, out);
         return Status::OK();
       }
