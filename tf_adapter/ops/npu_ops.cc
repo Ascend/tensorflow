@@ -233,11 +233,11 @@ REGISTER_OP("DropOutGenMaskV3")
         c->set_output(0, out);
         return Status::OK();
       }
-      DimensionHandle input_dim_handle = c->NumElement(&input_shape_handle);
+      DimensionHandle input_dim_handle = c->NumElements(input_shape_handle);
       uint64 random_count = static_cast<uint64>(c->Value(input_dim_handle));
-      if(random_count > (INT64 - 15)) {
+      if(random_count > (INT64_MAX - 15)) {
         return errors::InvalidArgument("Required random count[", random_count,
-          "] exceed INT64 - 15");
+          "] exceed INT64_MAX - 15");
       }
       // align to 16
       random_count = (random_count + 15) & (~15);
