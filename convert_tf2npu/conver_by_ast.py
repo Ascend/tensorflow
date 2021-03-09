@@ -121,7 +121,7 @@ def conver_ast(path, out_path_dst, file_name):
     (api, lineno) = get_tf_api(os.path.join(path, file_name))
     if len(api) == 0:
         print("No Tensorflow module is imported in script {}.".format(file_name))
-    scan_file(file_name, api, lineno)
+    scan_file(path, file_name, api, lineno)
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)

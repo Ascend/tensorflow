@@ -16,6 +16,7 @@ import os
 import shutil
 import util_global
 import pandas as pd
+from visit_by_ast import get_tf_enume
 
 def before_clear():
     exit_folder = os.path.exists(util_global.get_value('output'))
@@ -89,8 +90,8 @@ def abs_join(abs1, abs2):
     abs2 = abs2.strip('\\/') or abs2
     return os.path.join(abs1, abs2)
 
-def scan_file(file_name, api, lineno):
-    api_list = pd.read_excel(util_global.get_value('list'))
+def scan_file(path, file_name, api, lineno):
+    api_list = pd.read_excel(util_global.get_value('list'), sheet_name=0)
     api_module = api_list['模块名'].values.tolist()
     api_name = api_list['API名'].values.tolist()
     api_support = api_list['工具迁移API支持度'].values.tolist()
@@ -102,6 +103,7 @@ def scan_file(file_name, api, lineno):
     code_api = []
     support_type = []
     migrate_advice = []
+
     for i in range(len(api)):
         name = api[i]
         if name in api_name:
@@ -111,6 +113,23 @@ def scan_file(file_name, api, lineno):
             code_module.append(api_module[api_name.index(name)])
             support_type.append(api_support[api_name.index(name)])
             migrate_advice.append(api_advice[api_name.index(name)])
+
+    # search for tf enumeration
+    enume_list = pd.read_excel(util_global.get_value('list'), sheet_name=1)
+    enume_name = enume_list['API名'].values.tolist()
+    (enume, lineno) = get_tf_enume(os.path.join(path, file_name), enume_name)
+
+    for i in range(len(enume)):
+        name = enume[i]
+        class_name = '.'.join(name.split('.')[:-1])
+        if name not in code_api and class_name not in code_api:
+            if class_name in api_name:
+                script_name.append(file_name)
+                code_api.append(class_name)
+                code_line.append(lineno[i])
+                code_module.append(api_module[api_name.index(class_name)])
+                support_type.append(api_support[api_name.index(class_name)])
+                migrate_advice.append(api_advice[api_name.index(class_name)])
 
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
