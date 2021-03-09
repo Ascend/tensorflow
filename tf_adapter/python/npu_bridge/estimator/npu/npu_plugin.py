@@ -30,7 +30,9 @@ def npu_resource_init(graph_run_mode = 1,
                       op_compiler_cache_mode=None,
                       op_compiler_cache_dir=None,
                       debug_dir=None,
-                      hcom_multi_mode=False):
+                      hcom_multi_mode=False,
+                      distribute_config=None,
+                      op_tune_mode=None):
 
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
     if graph_run_mode > 1:
@@ -66,14 +68,17 @@ def npu_resource_init(graph_run_mode = 1,
         init[__option_exec_enable_scope_fusion_passes] = str(enable_scope_fusion_passes)
 
     init["ge.exec.enable_exception_dump"] = str(enable_exception_dump)
-    rank_size = os.getenv('RANK_SIZE')
-    if int(rank_size) > 1 and mstune_mode is not None:
+    if mstune_mode is not None:
         util.check_mstune_mode(mstune_mode)
-        init["ge.buildMode"] = str(mstune_mode)
+        init["ge.jobType"] = str(mstune_mode)
         if work_path is not None:
             init["ge.tuningPath"] = str(util.check_path(work_path))
         else:
             raise ValueError('work_path must be set when use mstune_mode')
+        if distribute_config is not None:
+            init["distribute_config"] = str(distribute_config)
+        if op_tune_mode is not None:
+            init["op_tune_mode"] = str(op_tune_mode)
 
     if op_compiler_cache_mode is not None:
         init["ge.op_compiler_cache_mode"] = op_compiler_cache_mode

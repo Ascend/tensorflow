@@ -374,9 +374,10 @@ def get_all_grad_item():
     global _GRADIENTS_AND_VARS
     return _GRADIENTS_AND_VARS
 
-def set_graph_exec_config(fetch, dynamic_input = False,
-                                  dynamic_graph_execute_mode = "dynamic_execute",
-                                  dynamic_inputs_shape_range = None):
+def set_graph_exec_config(fetch, dynamic_input=False,
+                          dynamic_graph_execute_mode="dynamic_execute",
+                          dynamic_inputs_shape_range=None,
+                          is_train_graph=False):
   """
   add dynamic exec config to operation or tensor.
   Args:
@@ -384,37 +385,42 @@ def set_graph_exec_config(fetch, dynamic_input = False,
     dynamic_input:Whether Input is dynamic.
     dynamic_graph_execute_mode: Dynamic graph execute mode.
     dynamic_inputs_shape_range: Inputs shape range. In dynamic_execute mode, should be set.
+    is_train_graph: mark the graph is train graph.
   Returns:
   An fetch that includes dynamic exec config.
   """
   def _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
-                  dynamic_inputs_shape_range_attr):
+                  dynamic_inputs_shape_range_attr, is_train_graph_attr):
     if isinstance(fetch, ops.Operation):
       fetch._set_attr("_graph_dynamic_input", dynamic_input_attr)
       fetch._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
       fetch._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
+      fetch._set_attr("_is_train_graph", is_train_graph_attr)
     else:
       fetch.op._set_attr("_graph_dynamic_input", dynamic_input_attr)
       fetch.op._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
       fetch.op._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
+      fetch.op._set_attr("_is_train_graph", is_train_graph_attr)
 
   if dynamic_graph_execute_mode != "lazy_recompile" and dynamic_graph_execute_mode != "dynamic_execute":
     raise ValueError("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute")
-  dynamic_input_attr = attr_value_pb2.AttrValue(b = dynamic_input)
-  dynamic_graph_execute_mode_attr = attr_value_pb2.AttrValue(s = compat.as_bytes(dynamic_graph_execute_mode))
+  dynamic_input_attr = attr_value_pb2.AttrValue(b=dynamic_input)
+  dynamic_graph_execute_mode_attr = attr_value_pb2.AttrValue(s=compat.as_bytes(dynamic_graph_execute_mode))
   if dynamic_inputs_shape_range is None:
     dynamic_inputs_shape_range = ""
-  dynamic_inputs_shape_range_attr = attr_value_pb2.AttrValue(s = compat.as_bytes(dynamic_inputs_shape_range))
+  dynamic_inputs_shape_range_attr = attr_value_pb2.AttrValue(s=compat.as_bytes(dynamic_inputs_shape_range))
+  is_train_graph_attr = attr_value_pb2.AttrValue(b=is_train_graph)
   if isinstance(fetch, (ops.Operation, ops.Tensor)):
     _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
-                 dynamic_inputs_shape_range_attr)
+                 dynamic_inputs_shape_range_attr, is_train_graph_attr)
   elif isinstance(fetch, (tuple, list)):
     for tensor in fetch:
       tensor = set_graph_exec_config(tensor, dynamic_input, dynamic_graph_execute_mode,
-                                             dynamic_inputs_shape_range)
+                                     dynamic_inputs_shape_range, is_train_graph)
   elif isinstance(fetch, str):
     tensor = set_graph_exec_config(ops.get_default_graph().get_tensor_by_name(fetch),
-                dynamic_input, dynamic_graph_execute_mode, dynamic_inputs_shape_range)
+                dynamic_input, dynamic_graph_execute_mode, dynamic_inputs_shape_range,
+                is_train_graph)
     return tensor
   else:
     raise ValueError("fetch is invalid, should be op, tensor, list, tuple or tensor name.")

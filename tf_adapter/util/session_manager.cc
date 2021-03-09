@@ -179,8 +179,8 @@ bool SessionManager::GetGeGraphs(ge::Session *ge_session, std::vector<ge::Graph>
     ge_graphs = it->second;
     ADP_LOG(INFO) << " get ge session nontraining graphs success.";
     return true;
+  } else {
+    ADP_LOG(WARNING) << "ge session can not get nontraining graphs.";
   }
-  ADP_LOG(ERROR) << "ge session get nontraining graphs failed.";
-  LOG(ERROR) << "ge session get nontraining graphs failed.";
-  return false;
+  return true;
 }

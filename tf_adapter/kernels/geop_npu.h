@@ -128,13 +128,10 @@ class GeOp : public AsyncOpKernel {
   uint32_t iteration_per_loop_;
   bool is_host_graph_;
   std::map<std::string, std::string> graph_options_;
-  string work_path_;
-  string mstune_mode_;
   std::map<int, TensorShape> outputs_shape_;
-  bool is_train_graph_;
+  std::string is_train_graph_;
   void *handle_;
   MsTuningFunc tuning_api_;
-  string auto_tune_mode_;
   std::vector<Node*> dynamic_shape_nodes_;
   std::string dynamic_input_;
   std::string dynamic_graph_execute_mode_;

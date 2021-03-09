@@ -155,9 +155,6 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] precision_mode : " << init_options[ge::PRECISION_MODE];
 
   // auto tune configuration
-  if (!init_options["ge.buildMode"].empty() && !init_options["ge.tuningPath"].empty()) {
-    init_options[ge::AUTO_TUNE_MODE] = "";
-  }
   ADP_LOG(INFO) << "[GePlugin] auto_tune_mode : " << init_options[ge::AUTO_TUNE_MODE];
 
   // debug configuration
@@ -184,11 +181,18 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] fusionTensorSize : " << init_options["ge.fusionTensorSize"];
 
   // mstune mode and work path
-  if (!init_options["ge.buildMode"].empty()) {
-    init_options["ge.buildMode"] = "tuning";
+  if (!init_options["ge.jobType"].empty()) {
+    if (init_options["ge.jobType"] == "2" && !init_options[ge::AUTO_TUNE_MODE].empty()) {
+      init_options["ge.jobType"] = "";
+      init_options["ge.tuningPath"] = "";
+      init_options["distribute_config"] = "";
+    } else {
+      init_options["ge.buildMode"] = "tuning";
+    }
   }
-  ADP_LOG(INFO) << "[GePlugin] mstune mode : " << init_options["ge.buildMode"]
-            << ", work path : " << init_options["ge.tuningPath"];
+  ADP_LOG(INFO) << "[GePlugin] mstune mode : " << init_options["ge.jobType"]
+            << ", work path : " << init_options["ge.tuningPath"]
+            << ", distribute_config : " << init_options["distribute_config"];
 
   // Open TsdClient first, then call GEInitialize
   ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";

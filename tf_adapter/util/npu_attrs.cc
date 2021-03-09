@@ -335,7 +335,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = "";
   init_options[ge::OPTION_EXEC_PROFILING_FPPONIT_OPTIONS] = "";
   init_options[ge::OPTION_EXEC_PROFILING_BPPONIT_OPTIONS] = "";
-  init_options["ge.buildMode"] = "";
+  init_options["ge.jobType"] = "";
   init_options["ge.tuningPath"] = "";
   return init_options;
 }
@@ -350,13 +350,15 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string op_debug_level = "0";
   std::string enable_scope_fusion_passes;
   std::string enable_exception_dump;
-  string npuOptimizer;
-  string mstune_mode;
-  string work_path;
   std::string op_compiler_cache_mode;
   std::string op_compiler_cache_dir;
   std::string debug_dir;
   std::string hcom_multi_mode;
+  std::string npuOptimizer;
+  std::string mstune_mode;
+  std::string work_path;
+  std::string distribute_config;
+  std::string op_tune_mode;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -373,6 +375,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_compiler_cache_dir", &op_compiler_cache_dir);
     ctx->GetAttr("_debug_dir", &debug_dir);
     ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
+    ctx->GetAttr("_distribute_config", &distribute_config);
+    ctx->GetAttr("_op_tune_mode", &op_tune_mode);
   }
 
 
@@ -388,8 +392,10 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options[ge::OP_DEBUG_LEVEL] = op_debug_level;
   init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
   init_options["ge.exec.enable_exception_dump"] = enable_exception_dump;
-  init_options["ge.buildMode"] = mstune_mode;
+  init_options["ge.jobType"] = mstune_mode;
   init_options["ge.tuningPath"] = work_path;
+  init_options["distribute_config"] = distribute_config;
+  init_options["op_tune_mode"] = op_tune_mode;
   init_options["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
   init_options["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["ge.debugDir"] = debug_dir;
@@ -638,14 +644,16 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string op_debug_level = "0";
   std::string enable_scope_fusion_passes;
   std::string enable_exception_dump;
-  string npuOptimizer;
+  std::string npuOptimizer;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string input_shape;
   std::string dynamic_dims;
   std::string dynamic_node_type;
-  string mstune_mode;
-  string work_path;
+  std::string mstune_mode;
+  std::string work_path;
+  std::string distribute_config;
+  std::string op_tune_mode;
   std::string buffer_optimize = "l2_optimize";
   std::string enable_small_channel = "0";
   std::string fusion_switch_file;
@@ -758,6 +766,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     }
     if (attrs.Find("_mstune_mode") != nullptr) { mstune_mode = attrs.Find("_mstune_mode")->s(); }
     if (attrs.Find("_work_path") != nullptr) { work_path = attrs.Find("_work_path")->s(); }
+    if (attrs.Find("_distribute_config") != nullptr) { distribute_config = attrs.Find("_distribute_config")->s(); }
+    if (attrs.Find("_op_tune_mode") != nullptr) { op_tune_mode = attrs.Find("_op_tune_mode")->s(); }
     if (attrs.Find("_buffer_optimize") != nullptr) { buffer_optimize = attrs.Find("_buffer_optimize")->s(); }
     if (attrs.Find("_enable_small_channel") != nullptr) {
       enable_small_channel = attrs.Find("_enable_small_channel")->s();
@@ -828,6 +838,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["dynamic_node_type"] = dynamic_node_type;
   all_options["mstune_mode"] = mstune_mode;
   all_options["work_path"] = work_path;
+  all_options["distribute_config"] = distribute_config;
+  all_options["op_tune_mode"] = op_tune_mode;
   all_options["buffer_optimize"] = buffer_optimize;
   all_options["enable_small_channel"] = enable_small_channel;
   all_options["fusion_switch_file"] = fusion_switch_file;
@@ -894,13 +906,15 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   int local_rank_id = -1;
   std::string local_device_list;
   int enable_exception_dump = 0;
-  string op_select_implmode;
-  string optypelist_for_implmode;
+  std::string op_select_implmode;
+  std::string optypelist_for_implmode;
   std::string input_shape;
   std::string dynamic_dims;
   int dynamic_node_type = -1;
-  string mstune_mode;
-  string work_path;
+  std::string mstune_mode;
+  std::string work_path;
+  std::string distribute_config;
+  std::string op_tune_mode;
   std::string buffer_optimize = "l2_optimize";
   int enable_small_channel = 0;
   std::string fusion_switch_file;
@@ -995,9 +1009,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_scope_fusion_passes")) {
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
-      int64 rank_size = 1;
-      (void) ReadInt64FromEnvVar("RANK_SIZE", 1, &rank_size);
-      if (rank_size > 1 && params.count("mstune_mode")) {
+      if (params.count("mstune_mode")) {
         mstune_mode = params.at("mstune_mode").s();
         Status s  = CheckMstuneMode(mstune_mode);
         if (!s.ok()) {
@@ -1014,6 +1026,16 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         } else {
           ADP_LOG(FATAL) << "work_path must be set when use mstune_mode.";
           LOG(FATAL) << "work_path must be set when use mstune_mode.";
+        }
+        if (params.count("distribute_config")) {
+          distribute_config = params.at("distribute_config").s();
+        }
+        if (mstune_mode == "2" || mstune_mode == "3") {
+          if (params.count("op_tune_mode")) {
+            op_tune_mode = params.at("op_tune_mode").s();
+          } else {
+            LOG(FATAL) << "mstune_mode: op_tune_mode must be set when use optune.";
+          }
         }
       }
       if (params.count("precision_mode")) {
@@ -1191,6 +1213,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options["enable_exception_dump"] = std::to_string(enable_exception_dump);
   init_options["mstune_mode"] = mstune_mode;
   init_options["work_path"] = work_path;
+  init_options["distribute_config"] = distribute_config;
+  init_options["op_tune_mode"] = op_tune_mode;
   init_options["op_compiler_cache_mode"] = op_compiler_cache_mode;
   init_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["debug_dir"] = debug_dir;

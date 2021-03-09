@@ -191,7 +191,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false),
       sess_init_flag_(false), compute_graph_empty_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr),
-      job_type_(""), is_host_graph_(false), is_train_graph_(false), handle_(nullptr), tuning_api_(nullptr),
+      job_type_(""), is_host_graph_(false), handle_(nullptr), tuning_api_(nullptr),
       need_compile_graph_first_(false) {
   Initialize(ctx);
 }
@@ -224,10 +224,12 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
     ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
   }
+  ctx->GetAttr("_train_graph", &is_train_graph_);
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
-                << ", data_inputs_shape_range: " << data_inputs_shape_range_;
+                << ", data_inputs_shape_range: " << data_inputs_shape_range_
+                << ", is_train_graph: " << is_train_graph_;
 
   // global environment Initialize, invoke once for each process
   string sess_config = "";
@@ -237,16 +239,14 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   job_type_ = pass_options["job"];
   if (GePlugin::GetInstance()->IsGlobal()) {
     ADP_LOG(INFO) << "[GEOP] GePlugin global, skip GePlugin init";
-    std::map<std::string, std::string> global_init_options = GePlugin::GetInstance()->GetInitOptions();
-    GetMsTuneConfig(global_init_options);
+    init_options_ = GePlugin::GetInstance()->GetInitOptions();
   } else {
-    std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions(ctx);
-    GetMsTuneConfig(init_options);
+    init_options_ = NpuAttrs::GetInitOptions(ctx);
     GePlugin::GetInstance()->Init(init_options_);
     ADP_LOG(INFO) << "[GEOP] GePlugin init success";
   }
 
-  if (!mstune_mode_.empty() && !work_path_.empty()) {
+  if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
     handle_ = mmDlopen("libmstune_train.so", MMPA_RTLD_NOW);
     OP_REQUIRES(ctx, handle_ != nullptr, errors::InvalidArgument("libmstune_train.so dlopen failed, ", mmDlerror()));
     tuning_api_ = (MsTuningFunc)mmDlsym(handle_, const_cast<char*>("MsTrainTuning"));
@@ -302,16 +302,6 @@ void GeOp::Finalize() {
   init_flag_ = false;
   ADP_LOG(INFO) << "[GEOP] GeOp Finalize success, tf session: " << tf_session_ << ", graph_id_: " << graph_id_;
   return;
-}
-
-void GeOp::GetMsTuneConfig(std::map<std::string, std::string> init_options) {
-  mstune_mode_ = init_options["ge.buildMode"];
-  work_path_ = init_options["ge.tuningPath"];
-  auto_tune_mode_ = init_options[ge::AUTO_TUNE_MODE];
-  if (!mstune_mode_.empty() && !work_path_.empty()) {
-    init_options[ge::AUTO_TUNE_MODE] = "";
-  }
-  init_options_ = init_options;
 }
 
 int GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
@@ -475,7 +465,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   // if input shapes changed, cache graphs
   uint32_t cache_graph_id = graph_id_;
   bool is_set_dynamic_config = !sess_options_["ge.inputShape"].empty() && !sess_options_["ge.dynamicDims"].empty();
-  bool is_tuning = !mstune_mode_.empty() && !work_path_.empty();
+  bool is_tuning = !init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty();
   bool is_lazy_recompile_mode = dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile";
   if (is_set_dynamic_config && is_tuning) {
     ADP_LOG(FATAL) << "dynamic input config can not use with mstuning.";
@@ -654,7 +644,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options_["ge.exec.dataInputsShapeRange"] = data_inputs_shape_range_;
     }
     if (is_tuning) {
-      if (!is_train_graph_) {
+      if (is_train_graph_ != "1") {
         ADP_LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
         OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().CacheGeGraphs(ge_session_, ge_graph),
           errors::Internal("[GEOP] cache ge session failed."), done);
@@ -666,12 +656,15 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         ADP_LOG(INFO) << "[GEOP] in tune mode, training graph handled by tools.";
         uint32_t device_id = 0;
         OP_REQUIRES_OK_ASYNC(ctx, GetEnvDeviceID(device_id), done);
-        ADP_LOG(INFO) << "[GEOP] in tuning func, mstune_mode_:" << mstune_mode_
-                      << " auto_tune_mode_:" << auto_tune_mode_;
-        std::map<string, string> tune_options = {{"work_path", work_path_},
-                                                 {"job_type", mstune_mode_},
+        ADP_LOG(INFO) << "[GEOP] in tuning func, mstune_mode:" << init_options_["ge.jobType"]
+                      << ", work_path:" << init_options_["ge.tuningPath"]
+                      << ", op_tune_mode:" << init_options_["op_tune_mode"]
+                      << ", distribute_config:" << init_options_["distribute_config"];
+        std::map<string, string> tune_options = {{"work_path", init_options_["ge.tuningPath"]},
+                                                 {"job_type", init_options_["ge.jobType"]},
                                                  {"devices", std::to_string(device_id)},
-                                                 {"auto_tune_mode", auto_tune_mode_}};
+                                                 {"op_tune_mode", init_options_["op_tune_mode"]},
+                                                 {"distribute_config", init_options_["distribute_config"]}};
         std::map<std::string, std::map<std::string, std::string>> options;
         options["mstune"] = tune_options;
         options["initialize"] = init_options_;
@@ -831,9 +824,6 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
     is_host_graph_ = true;
     ADP_LOG(INFO) << "[GEOP] variable subgraph is initialized in host.";
   }
-  if (node->name().find("_Allreduce") != std::string::npos) {
-    is_train_graph_ = true;
-  }
   if (!need_compile_graph_first_) {
     if (node->name().find("NpuCompile") != std::string::npos) {
       need_compile_graph_first_ = true;
@@ -869,7 +859,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
                                !sess_options_["ge.dynamicNodeType"].empty();
   if (is_set_dynamic_config) { BuildShapeNodeAndCacheArgNodes(graph); }
 
-  bool is_tuning = !mstune_mode_.empty() && !work_path_.empty();
+  bool is_tuning = !init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty();
   for (Node *node : graph.nodes()) {
     AddNodeAttrs(node, is_initialize);
     // Add Input&Output Desc into NodeDef
