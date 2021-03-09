@@ -16,7 +16,7 @@ import util_global
 from file_op import write_conver_report
 
 def log_msg(lineno, msg):
-    content = util_global.get_value('path') + ':' + str(lineno) + msg
+    content = util_global.get_value('path') + ':' + str(lineno) + ' ' + msg
     print(content)
     write_conver_report(content, util_global.get_value('report_file')[0])
 

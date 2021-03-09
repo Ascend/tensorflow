@@ -24,7 +24,7 @@ from file_op import get_api_statistic
 from file_op import adjust_index
 
 def conver():
-    print("Begin conver, input file: " + util_global.get_value('input'))
+    print("Begin conver, input file: " + util_global.get_value('input') + '\n')
     out_path = util_global.get_value('output')
     dst_path = os.path.split(util_global.get_value('input').rstrip('\\/'))[-1]
     dst_path_new = dst_path + util_global.get_value('timestap')
@@ -37,12 +37,15 @@ def conver():
     for path, dir_list, file_list in conver_path:
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(dst_path)[1])
+            file_path = os.path.join(path, file_name).replace('\\', '/')
+            content = "Begin conver file: " + file_path
+            print(content)
             if file_name.endswith(".py"):
-                util_global.set_value('path', os.path.join(path, file_name))
+                util_global.set_value('path', file_path)
                 mkdir(os.path.join(out_path, out_path_dst))
                 conver_ast(path, out_path_dst, file_name)
                 if util_global.get_value('need_conver', False):
-                    content = "Finish conver file: " + os.path.join(path, file_name)
+                    content = "Finish conver file: " + file_path + '\n'
                     print(content)
                     write_report_terminator(content)
                 else:

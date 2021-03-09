@@ -61,7 +61,7 @@
 "set_virtual_device_configuration":
                                 ["",                        "*.set_virtual_device_configuration()",         "None"],
 "*.xla.experimental.jit_scope": ["",                        "",                             "set/add compile_ops=False"],
-"Estimators":                   ["Estimator",               
+"Estimators":                   ["Estimator",                           "TPUEstimator",
                                  "BaselineClassifier",                  "BaselineEstimator",                            "BaselineRegressor",
                                  "BoostedTreesClassifier",              "BoostedTreesEstimator",                        "BoostedTreesRegressor",
                                  "DNNClassifier",                       "DNNEstimator",                                 "DNNRegressor",

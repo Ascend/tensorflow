@@ -24,11 +24,6 @@ from util import log_success_report
 from util import log_migration_report
 from ast_impl import attribute
 from ast_impl import node_tree
-from ast_impl import insert_config_pb2_import
-from ast_impl import insert_npu_init_func
-from ast_impl import insert_npu_run_config_func
-from ast_impl import insert_npu_session_config_func
-from ast_impl import insert_RewriterConfig_import
 from ast_impl import insert_npu_import
 from ast_impl import insert_npu_tf_opt_func
 from ast_impl import insert_npu_keras_opt_func
@@ -95,12 +90,7 @@ class ConverByAst(ast.NodeTransformer):
 
 def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
-    util_global.set_value('import_config_pb2', False)
-    util_global.set_value('insert_npu_init_func', False)
     util_global.set_value('insert_estimator_add_hook_func', False)
-    util_global.set_value('insert_npu_run_config_func', False)
-    util_global.set_value('insert_npu_session_config_func', False)
-    util_global.set_value('import_RewriterConfig', False)
     util_global.set_value('insert_npu_tf_opt_func', False)
     util_global.set_value('insert_npu_keras_opt_func', False)
     util_global.set_value('insert_empty_hook', False)
@@ -126,16 +116,6 @@ def conver_ast(path, out_path_dst, file_name):
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)
-        if util_global.get_value('insert_npu_run_config_func', False):
-            insert_npu_run_config_func(r_node)
-        if util_global.get_value('insert_npu_session_config_func', False):
-            insert_npu_session_config_func(r_node)
-        if util_global.get_value('import_config_pb2', False):
-            insert_config_pb2_import(r_node)
-        if util_global.get_value('insert_npu_init_func', False):
-            insert_npu_init_func(r_node)
-        if util_global.get_value('import_RewriterConfig', False):
-            insert_RewriterConfig_import(r_node)
         if util_global.get_value('insert_npu_tf_opt_func', False):
             insert_npu_tf_opt_func(r_node)
         if util_global.get_value('insert_npu_keras_opt_func', False):

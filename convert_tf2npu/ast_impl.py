@@ -148,7 +148,6 @@ def ast_call(node):
                 args=[],
                 keywords=[])))
         util_global.set_value('need_conver', True)
-        util_global.set_value('insert_npu_session_config_func', True)
         return node
     if isinstance(node.func, ast.Attribute) and node.func.attr == "BroadcastGlobalVariablesHook":
         log_success_report(getattr(node, "lineno", "None"), 'BroadcastGlobalVariablesHook')
@@ -265,7 +264,9 @@ def ast_call(node):
         util_global.set_value('need_conver', True)
         node = ast.NameConstant(value=None)
         return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator' and (node.func.value.attr == 'tpu')):
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator') and \
+        ((isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'tpu')) or \
+        (isinstance(node.func.value, ast.Name) and (node.func.value.id == 'tpu'))):
         add_eval_on_tpu = True
         add_use_tpu = True
         add_export_to_tpu = True
@@ -293,30 +294,6 @@ def ast_call(node):
             log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(export_to_tpu=*)')
             node.keywords.append(ast.keyword(arg='export_to_tpu', value=ast.NameConstant(value=False)))
             util_global.set_value('need_conver', True)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'RunConfig') \
-        and ((isinstance(node.func.value, ast.Name) and node.func.value.id == 'tpu') \
-            or (isinstance(node.func.value, ast.Attribute) and node.func.value.attr == 'tpu')):
-        for keyword in node.keywords:
-            if keyword.arg == 'session_config':
-                log_success_report(getattr(node, 'lineno', 'None'), 'add_npu_config')
-                keyword.value = ast.Call(func=ast.Name(id='npu_init', ctx=ast.Load()), args=[keyword.value], keywords=[])
-                util_global.set_value('insert_npu_init_func', True)
-                util_global.set_value('need_conver', True)
-                return node
-
-        node.keywords.append(ast.keyword(
-            arg='session_config',
-            value = ast.Call(keywords=[],
-                args=[
-                    ast.Call(args=[], keywords=[], func=ast.Attribute(value=ast.Name(id='config_pb2', ctx=ast.Load()), attr='ConfigProto', ctx=ast.Load()))
-                ],
-                func=ast.Name(id='npu_init', ctx=ast.Load()))))
-        log_success_report(getattr(node, 'lineno', 'None'), 'add_npu_config')
-        util_global.set_value('insert_npu_init_func', True)
-        util_global.set_value('import_config_pb2', True)
-        util_global.set_value('need_conver', True)
-        return node
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'VirtualDeviceConfiguration'):
         log_success_report(getattr(node, 'lineno', 'None'), 'VirtualDeviceConfiguration')
         util_global.set_value('need_conver', True)
@@ -364,6 +341,7 @@ def ast_call(node):
     for estimator in util_global.get_value('Estimators', []):
         if (isinstance(node.func, ast.Attribute) and (node.func.attr == estimator)) \
             or (isinstance(node.func, ast.Name) and (node.func.id == estimator)):
+            log_msg(getattr(node, 'lineno'), estimator + '() add config=npu_run_config_init()')
             config = None
             for keyword in node.keywords:
                 if keyword.arg == 'config':
@@ -384,7 +362,6 @@ def ast_call(node):
                         value=ast.Call(func=ast.Name(id='npu_run_config_init', ctx=ast.Load()), args=[], keywords=[])
                     )
                 )
-            util_global.set_value('insert_npu_run_config_func', True)
             util_global.set_value('need_conver', True)
             return node
     for estimator_func in util_global.get_value('EstimatorFunc', []):
@@ -438,7 +415,7 @@ def ast_call(node):
                 return node
     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
         if (node.func.attr.find("Optimizer") != -1) and (node.func.attr != 'ScipyOptimizerInterface'):
-            log_success_report(getattr(node, "lineno", "None"), "NPUDistributedOptimizer")
+            log_msg(getattr(node, "lineno", "None"), "add NPUDistributedOptimizer()")
             node = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node], keywords=[])
             util_global.set_value('need_conver', True)
             util_global.set_value('insert_npu_tf_opt_func', True)
@@ -485,457 +462,20 @@ def insert_npu_import(r_node):
     for i in range(0, num):
         if isinstance(r_node.body[i], ast.Import):
             r_node.body.insert(i, npu_import)
-            log_success_report(i, "import")
+            log_msg(i, "from npu_bridge.npu_init import *")
             is_insert = True
             break
         elif isinstance(r_node.body[i], ast.ImportFrom):
             if r_node.body[i].module != "__future__":
                 r_node.body.insert(i, npu_import)
-                log_success_report(i, "import")
+                log_msg(i, "from npu_bridge.npu_init import *")
                 is_insert = True
                 break
             else:
                 import_index = i + 1
     if not is_insert:
         r_node.body.insert(import_index, npu_import)
-        log_success_report(import_index, "import")
-
-def insert_npu_init_func(r_node):
-    n = 0
-    lenline = len(r_node.body)
-
-    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
-        n += 1
-
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
-        n += 1
-
-    if n < lenline:
-        custom_op_assign_node = ast.Assign(
-            targets=[
-                ast.Name(id='custom_op', ctx=ast.Store())
-            ],
-            value=ast.Call(args=[], keywords=[],
-                func=ast.Attribute(attr='add', ctx=ast.Load(),
-                    value=ast.Attribute(attr='custom_optimizers', ctx=ast.Load(),
-                        value=ast.Attribute(attr='rewrite_options', ctx=ast.Load(),
-                            value=ast.Attribute(attr='graph_options', ctx=ast.Load(),
-                                value=ast.Name(id='config', ctx=ast.Load())))))))
-
-        custom_op_name_assign_node = ast.Assign(
-            targets=[
-                ast.Attribute(value=ast.Name(id='custom_op', ctx=ast.Load()), attr='name', ctx=ast.Store())
-            ],
-            value=ast.Str(s='NpuOptimizer'))
-
-        util_global.set_value('import_RewriterConfig', True)
-        remapping_assign_node = ast.Assign(
-            targets=[
-                ast.Attribute(attr='remapping', ctx=ast.Store(),
-                    value=ast.Attribute(attr='rewrite_options', ctx=ast.Load(),
-                        value=ast.Attribute(attr='graph_options', ctx=ast.Load(),
-                            value=ast.Name(id='config', ctx=ast.Load()))))
-            ],
-            value=ast.Attribute(attr='OFF', ctx=ast.Load(), value=ast.Name(id='RewriterConfig')))
-
-        return_node = ast.Return(value=ast.Name(id='config', ctx=ast.Load()))
-
-        r_node.body.insert(n, ast.FunctionDef(
-            name='npu_init',
-            args=ast.arguments(
-                args=[
-                    ast.arg(arg='config', annotation=None)
-                ],
-                vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=None,
-                defaults=[]),
-            body=[
-                custom_op_assign_node,
-                custom_op_name_assign_node,
-                remapping_assign_node,
-                return_node
-            ],
-            decorator_list=[],
-            returns=None))
-
-def insert_npu_session_config_func(r_node):
-    n = 0
-    lenline = len(r_node.body)
-
-    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
-        n += 1
-
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
-        n += 1
-    if_not_session_config_node = ast.If(
-        test=ast.BoolOp(
-            op=ast.And(),
-            values=[
-                ast.UnaryOp(
-                    op=ast.Not(),
-                    operand=ast.Call(
-                        func=ast.Name(id='isinstance', ctx=ast.Load()),
-                        args=[
-                            ast.Name(id='session_config'),
-                            ast.Attribute(value=ast.Name(id='config_pb2', ctx=ast.Load()), attr='ConfigProto', ctx=ast.Load())
-                        ],
-                        keywords=[]
-                    )
-                ),
-                ast.UnaryOp(
-                    op=ast.Not(),
-                    operand=ast.Call(
-                        func=ast.Name(id='issubclass', ctx=ast.Load()),
-                        args=[
-                            ast.Call(
-                                func=ast.Name(id='type', ctx=ast.Load()),
-                                args=[ast.Name(id='session_config', ctx=ast.Load())],
-                                keywords=[]
-                            ),
-                            ast.Attribute(value=ast.Name(id='config_pb2', ctx=ast.Load()), attr='ConfigProto', ctx=ast.Load())
-                        ],
-                        keywords=[]
-                    )
-                )
-            ]
-        ),
-        body=[
-            ast.Assign(
-                targets=[ast.Name(id='session_config', ctx=ast.Store())],
-                value=ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Name(id='config_pb2', ctx=ast.Load()),
-                        attr='ConfigProto',
-                        ctx=ast.Load()
-                    ),
-                    args=[],
-                    keywords=[]
-                )
-            )
-        ],
-        orelse=[]
-    )
-    if_session_config_node = ast.If(
-        test=ast.BoolOp(
-            op=ast.Or(),
-            values=[
-                ast.Call(
-                    func=ast.Name(id='isinstance', ctx=ast.Load()),
-                    args=[
-                        ast.Name(id='session_config', ctx=ast.Load()),
-                        ast.Attribute(
-                            value=ast.Name(id='config_pb2', ctx=ast.Load()),
-                            attr='ConfigProto',
-                            ctx=ast.Load()
-                        )
-                    ],
-                    keywords=[]
-                ),
-                ast.Call(
-                    func=ast.Name(id='issubclass', ctx=ast.Load()),
-                    args=[
-                        ast.Call(
-                            func=ast.Name(id='type', ctx=ast.Load()),
-                            args=[ast.Name(id='session_config', ctx=ast.Load())],
-                            keywords=[]
-                        ),
-                        ast.Attribute(
-                            value=ast.Name(id='config_pb2', ctx=ast.Load()),
-                            attr='ConfigProto',
-                            ctx=ast.Load()
-                        )
-                    ],
-                    keywords=[]
-                )
-            ]
-        ),
-        body=[
-            ast.Assign(
-                targets=[ast.Name(id='custom_op', ctx=ast.Store())],
-                value=ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Attribute(
-                            value=ast.Attribute(
-                                value=ast.Attribute(
-                                    value=ast.Name(id='session_config', ctx=ast.Load()),
-                                    attr='graph_options',
-                                    ctx=ast.Load()
-                                ),
-                                attr='rewrite_options',
-                                ctx=ast.Load()
-                            ),
-                            attr='custom_optimizers',
-                            ctx=ast.Load()
-                        ),
-                        attr='add',
-                        ctx=ast.Load()
-                    ),
-                    args=[],
-                    keywords=[]
-                )
-            ),
-            ast.Assign(
-                targets=[ast.Attribute(value=ast.Name(id='custom_op', ctx=ast.Load()), attr='name', ctx=ast.Store())],
-                value=ast.Str(s='NpuOptimizer')
-            ),
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Attribute(
-                            value=ast.Attribute(
-                                value=ast.Name(
-                                    id='session_config',
-                                    ctx=ast.Load()
-                                ),
-                                attr='graph_options',
-                                ctx=ast.Load()
-                            ),
-                            attr='rewrite_options',
-                            ctx=ast.Load()
-                        ),
-                        attr='remapping',
-                        ctx=ast.Store()
-                    )
-                ],
-                value=ast.Attribute(
-                    value=ast.Name(id='RewriterConfig', ctx=ast.Load()),
-                    attr='OFF',
-                    ctx=ast.Load()
-                )
-            )
-        ],
-        orelse=[]
-    )
-    return_node = ast.Return(value=ast.Name(id='session_config', ctx=ast.Load()))
-    util_global.set_value('import_RewriterConfig', True)
-    util_global.set_value('import_config_pb2', True)
-    r_node.body.insert(n, ast.FunctionDef(
-        name='npu_session_config_init',
-        args=ast.arguments(
-            args=[
-                ast.arg(arg='session_config', annotation=None)
-            ],
-            vararg=None,
-            kwonlyargs=[],
-            kw_defaults=[],
-            kwarg=None,
-            defaults=[ast.NameConstant(value=None)]
-        ),
-        body=[if_not_session_config_node, if_session_config_node, return_node],
-        decorator_list=[],
-        returns=None
-    ))
-
-def insert_npu_run_config_func(r_node):
-    n = 0
-    lenline = len(r_node.body)
-
-    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
-        n += 1
-
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
-        n += 1
-    if_not_run_config_node = ast.If(
-        test=ast.BoolOp(
-            op=ast.And(),
-            values=[
-                ast.UnaryOp(
-                    op=ast.Not(),
-                    operand=ast.Call(
-                        func=ast.Name(id='isinstance', ctx=ast.Load()),
-                        args=[
-                            ast.Name(id='run_config', ctx=ast.Load()),
-                            ast.Attribute(
-                                value=ast.Attribute(
-                                    value=ast.Name(id='tf', ctx=ast.Load()),
-                                    attr='estimator',
-                                    ctx=ast.Load()
-                                ),
-                                attr='RunConfig',
-                                ctx=ast.Load()
-                            )
-                        ],
-                        keywords=[]
-                    )
-                ),
-                ast.UnaryOp(
-                    op=ast.Not(),
-                    operand=ast.Call(
-                        func=ast.Name(id='issubclass', ctx=ast.Load()),
-                        args=[
-                            ast.Call(
-                                func=ast.Name(id='type', ctx=ast.Load()),
-                                args=[ast.Name(id='run_config', ctx=ast.Load())],
-                                keywords=[]
-                            ),
-                            ast.Attribute(
-                                value=ast.Attribute(
-                                    value=ast.Name(id='tf', ctx=ast.Load()),
-                                    attr='estimator',
-                                    ctx=ast.Load()
-                                ),
-                                attr='RunConfig',
-                                ctx=ast.Load()
-                            )
-                        ],
-                        keywords=[]
-                    )
-                )
-            ]
-        ),
-        body=[
-            ast.Assign(
-                targets=[ast.Name(id='run_config', ctx=ast.Store())],
-                value=ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Attribute(
-                            value=ast.Name(id='tf', ctx=ast.Load()),
-                            attr='estimator',
-                            ctx=ast.Load()
-                        ),
-                        attr='RunConfig',
-                        ctx=ast.Load()
-                    ),
-                    args=[],
-                    keywords=[]
-                )
-            )
-        ],
-        orelse=[]
-    )
-    if_run_config_node = ast.If(
-        test=ast.BoolOp(
-            op=ast.Or(),
-            values=[
-                ast.Call(
-                    func=ast.Name(id='isinstance', ctx=ast.Load()),
-                    args=[
-                        ast.Name(id='run_config', ctx=ast.Load()),
-                        ast.Attribute(
-                            value=ast.Attribute(
-                                value=ast.Name(id='tf', ctx=ast.Load()),
-                                attr='estimator',
-                                ctx=ast.Load()
-                            ),
-                            attr='RunConfig',
-                            ctx=ast.Load()
-                        )
-                    ],
-                    keywords=[]
-                ),
-                ast.Call(
-                    func=ast.Name(id='issubclass', ctx=ast.Load()),
-                    args=[
-                        ast.Call(
-                            func=ast.Name(id='type', ctx=ast.Load()),
-                            args=[
-                                ast.Name(id='run_config', ctx=ast.Load())
-                            ],
-                            keywords=[]
-                        ),
-                        ast.Attribute(
-                            value=ast.Attribute(
-                                value=ast.Name(id='tf', ctx=ast.Load()),
-                                attr='estimator',
-                                ctx=ast.Load()
-                            ),
-                            attr='RunConfig',
-                            ctx=ast.Load()
-                        )
-                    ],
-                    keywords=[]
-                )
-            ]
-        ),
-        body=[
-            ast.Assign(
-                targets=[
-                    ast.Subscript(
-                        value=ast.Attribute(
-                            value=ast.Name(id='run_config', ctx=ast.Load()),
-                            attr='__dict__',
-                            ctx=ast.Load()
-                        ),
-                        slice=ast.Index(
-                            value=ast.Str(s='_session_config')
-                        ),
-                        ctx=ast.Store()
-                    )
-                ],
-                value=ast.Call(
-                    func=ast.Name(id='npu_session_config_init', ctx=ast.Load()),
-                    args=[
-                        ast.Attribute(
-                            value=ast.Name(id='run_config', ctx=ast.Load()),
-                            attr='session_config',
-                            ctx=ast.Load()
-                        )
-                    ],
-                    keywords=[]
-                )
-            )
-        ],
-        orelse=[]
-    )
-    return_node = ast.Return(value=ast.Name(id='run_config', ctx=ast.Load()))
-    util_global.set_value('insert_npu_session_config_func', True)
-    r_node.body.insert(n, ast.FunctionDef(
-        name='npu_run_config_init',
-        args=ast.arguments(
-            args=[
-                ast.arg(arg='run_config', annotation=None)
-            ],
-            vararg=None,
-            kwonlyargs=[],
-            kw_defaults=[],
-            kwarg=None,
-            defaults=[ast.NameConstant(value=None)]
-        ),
-        body=[if_not_run_config_node, if_run_config_node, return_node],
-        decorator_list=[],
-        returns=None
-    ))
-def insert_config_pb2_import(r_node):
-    n = 0
-    lenline = len(r_node.body)
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
-            break
-        n += 1
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == '__future__'):
-            n += 1
-            continue
-        elif isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == 'npu_bridge.npu_init'):
-            n += 1
-            continue
-        else:
-            break
-    if n < lenline:
-        log_success_report(n, 'import config_pb2')
-        r_node.body.insert(n, ast.ImportFrom(module='tensorflow.core.protobuf', names=[ast.alias(name='config_pb2', asname=None)], level=0))
-
-def insert_RewriterConfig_import(r_node):
-    n = 0
-    lenline = len(r_node.body)
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
-            break
-        n += 1
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == '__future__'):
-            n += 1
-            continue
-        elif isinstance(r_node.body[n], ast.ImportFrom) and (r_node.body[n].module == 'npu_bridge.npu_init'):
-            n += 1
-            continue
-        else:
-            break
-    if n < lenline:
-        log_success_report(n, 'import RewriterConfig')
-        r_node.body.insert(n, ast.ImportFrom(module='tensorflow.core.protobuf.rewriter_config_pb2', names=[ast.alias(name='RewriterConfig', asname=None)], level=0))
+        log_msg(import_index, "from npu_bridge.npu_init import *")
 
 def insert_npu_tf_opt_func(r_node):
     n = 0
@@ -1027,8 +567,7 @@ def insert_empty_hook(r_node):
 def ast_assign(node):
     for target in node.targets:
         if (isinstance(target, ast.Name) and target.id == 'global_jit_level') or (isinstance(target, ast.Attribute) and target.attr == 'global_jit_level'):
-            log_success_report(getattr(node, 'lineno', 'None'), '*.global_jit_level')
-            util_global.set_value('import_config_pb2', True)
+            log_msg(getattr(node, 'lineno', 'None'), 'set global_jit_level=config_pb2.OptimizerOptions.OFF')
             util_global.set_value('need_conver', True)
             global_jit_level_assign_node = ast.Assign(
                 targets=node.targets,
