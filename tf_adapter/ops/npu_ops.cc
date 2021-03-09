@@ -228,8 +228,8 @@ REGISTER_OP("DropOutGenMaskV3")
       TF_RETURN_IF_ERROR(c->WithRankAtMost(c->input(1), 0, &unused));  // prob must be 0-d
       ShapeHandle input_shape_handle;
       TF_RETURN_IF_ERROR(c->MakeShapeFromShapeTensor(0, &input_shape_handle));
-      if(!c->FulllyDefined(input_shape_handle)) {
-        ShapeHandle out = c->UnknowShapeOfRank();
+      if(!c->FullyDefined(input_shape_handle)) {
+        ShapeHandle out = c->UnknownShapeOfRank();
         c->set_output(0, out);
         return Status::OK();
       }
