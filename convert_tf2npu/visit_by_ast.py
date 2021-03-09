@@ -15,7 +15,7 @@
 import ast
 import re
 
-class VisitByAst(ast.NodeVisitor):
+class VisitCall(ast.NodeVisitor):
     def __init__(self):
         self.calls = []
         self.linenos = []
@@ -42,11 +42,33 @@ class VisitByAst(ast.NodeVisitor):
             self._in_call = False
         self.generic_visit(node)
 
+class VisitAttr(ast.NodeVisitor):
+    def __init__(self):
+        self.attrs = []
+        self.linenos = []
+        self._current = []
+        self._in_attr = False
+
+    def visit_Attribute(self, node):
+        self._in_attr = True
+        self._current.append(node.attr)
+        self.generic_visit(node)
+
+    def visit_Name(self, node):
+        if self._in_attr:
+            self._current.append(node.id)
+            self.attrs.append('.'.join(self._current[::-1]))
+            self.linenos.append(getattr(node, "lineno", "None"))
+            # Reset the state
+            self._current = []
+            self._in_attr = False
+        self.generic_visit(node)
+
 def get_tf_api(file_name):
     with open(file_name, 'r', encoding='utf-8') as file:
         source = file.read()
     tree = ast.parse(source)
-    visitor = VisitByAst()
+    visitor = VisitCall()
     visitor.visit(tree)
 
     # get tensorflow related api
@@ -58,6 +80,22 @@ def get_tf_api(file_name):
             if module + '.' in visitor.calls[i] and visitor.calls[i].split('.')[0] == module:
                 api.append(visitor.calls[i])
                 lineno.append(visitor.linenos[i])
+    return api, lineno
+
+def get_tf_enume(file_name, enume_list):
+    with open(file_name, 'r', encoding='utf-8') as file:
+        source = file.read()
+    tree = ast.parse(source)
+    visitor = VisitAttr()
+    visitor.visit(tree)
+
+    # get tensorflow enume api
+    api = []
+    lineno = []
+    for i in range(len(visitor.attrs)):
+        if visitor.attrs[i] in enume_list:
+            api.append(visitor.attrs[i])
+            lineno.append(visitor.linenos[i])
     return api, lineno
 
 

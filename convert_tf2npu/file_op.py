@@ -16,6 +16,7 @@ import os
 import shutil
 import util_global
 import pandas as pd
+from visit_by_ast import get_tf_enume
 
 def before_clear():
     exit_folder = os.path.exists(util_global.get_value('output'))
@@ -89,8 +90,8 @@ def abs_join(abs1, abs2):
     abs2 = abs2.strip('\\/') or abs2
     return os.path.join(abs1, abs2)
 
-def scan_file(file_name, api, lineno):
-    api_list = pd.read_excel(util_global.get_value('list'))
+def scan_file(path, file_name, api, lineno):
+    api_list = pd.read_excel(util_global.get_value('list'), sheet_name=0)
     api_module = api_list['模块名'].values.tolist()
     api_name = api_list['API名'].values.tolist()
     api_support = api_list['工具迁移API支持度'].values.tolist()
@@ -102,24 +103,34 @@ def scan_file(file_name, api, lineno):
     code_api = []
     support_type = []
     migrate_advice = []
+
     for i in range(len(api)):
         name = api[i]
-        class_name = '.'.join(name.split('.')[:-1])
-        script_name.append(file_name)
-        code_api.append(name)
-        code_line.append(lineno[i])
         if name in api_name:
+            script_name.append(file_name)
+            code_api.append(name)
+            code_line.append(lineno[i])
             code_module.append(api_module[api_name.index(name)])
             support_type.append(api_support[api_name.index(name)])
             migrate_advice.append(api_advice[api_name.index(name)])
-        elif class_name in api_name:
-            code_module.append(api_module[api_name.index(class_name)])
-            support_type.append(api_support[api_name.index(class_name)])
-            migrate_advice.append(api_advice[api_name.index(class_name)])
-        else:
-            code_module.append('Unknown')
-            support_type.append('NA')
-            migrate_advice.append('Unknown')
+
+    # search for tf enumeration
+    enume_list = pd.read_excel(util_global.get_value('list'), sheet_name=1)
+    enume_name = enume_list['API名'].values.tolist()
+    (enume, lineno) = get_tf_enume(os.path.join(path, file_name), enume_name)
+
+    for i in range(len(enume)):
+        name = enume[i]
+        class_name = '.'.join(name.split('.')[:-1])
+        if name not in code_api and class_name not in code_api:
+            if class_name in api_name:
+                script_name.append(file_name)
+                code_api.append(class_name)
+                code_line.append(lineno[i])
+                code_module.append(api_module[api_name.index(class_name)])
+                support_type.append(api_support[api_name.index(class_name)])
+                migrate_advice.append(api_advice[api_name.index(class_name)])
+
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
                                    '工具迁移API支持度': support_type, '说明': migrate_advice})
@@ -153,19 +164,38 @@ def get_api_statistic(analysis_report):
 
     # api statistics
     api_analysis = "1.In brief: Total API: {}, in which Support: {}, " \
-                   "Support after migrated by tool: {}, Support after migrated manually: {}, " \
-                   "Analysing: {}, Unsupport: {}, Deprecated: {}, NA: {}".format(len(code_api),
-                   support_type.count('支持'), support_type.count('支持但需工具迁移'),
-                   support_type.count('支持但需手工迁移'), support_type.count('分析中'),
-                   support_type.count('不支持'), support_type.count('废弃'), support_type.count('NA'))
+                   "API support after migration: {}, " \
+                   "Network training support after migration: {}, " \
+                   "Not support but no impact on migration: {}, " \
+                   "Not support or recommended: {}, " \
+                   "Compatible: {}, " \
+                   "Deprecated: {}, " \
+                   "Analysing: {}".format(len(code_api),
+                   support_type.count('支持（无需迁移）'),
+                   support_type.count('工具迁移后API功能支持'),
+                   support_type.count('工具迁移后训练功能打通'),
+                   support_type.count('不支持（不影响迁移，用户无需干预）'),
+                   support_type.count('不支持（无迁移方案，建议用户不使用）'),
+                   support_type.count('兼容类'),
+                   support_type.count('废弃类'),
+                   support_type.count('分析中（特性商用时不应该存在）'))
 
     api_eliminate_dup = "2.After eliminate duplicate: Total API: {}, in which Support: {}, " \
-                        "Support after migrated by tool: {}, Support after migrated manually: {}, " \
-                        "Analysing: {}, Unsupport: {}, Deprecated: {}, NA: {}".format(len(eliminate_dup_api),
-                        eliminate_dup_type.count('支持'), eliminate_dup_type.count('支持但需工具迁移'),
-                        eliminate_dup_type.count('支持但需手工迁移'), eliminate_dup_type.count('分析中'),
-                        eliminate_dup_type.count('不支持'), eliminate_dup_type.count('废弃'),
-                        eliminate_dup_type.count('NA'))
+                        "API support after migration: {}, " \
+                        "Network training support after migration: {}, " \
+                        "Not support but no impact on migration: {}, " \
+                        "Not support or recommended: {}, " \
+                        "Compatible: {}, " \
+                        "Deprecated: {}, " \
+                        "Analysing: {}".format(len(eliminate_dup_api),
+                        eliminate_dup_type.count('支持（无需迁移）'),
+                        eliminate_dup_type.count('工具迁移后API功能支持'),
+                        eliminate_dup_type.count('工具迁移后训练功能打通'),
+                        eliminate_dup_type.count('不支持（不影响迁移，用户无需干预）'),
+                        eliminate_dup_type.count('不支持（无迁移方案，建议用户不使用）'),
+                        eliminate_dup_type.count('兼容类'),
+                        eliminate_dup_type.count('废弃类'),
+                        eliminate_dup_type.count('分析中（特性商用时不应该存在）'))
     content = (api_analysis + '\n' + api_eliminate_dup)
     print(content)
     write_analysis_report(content, 'api_brief_report.txt')
