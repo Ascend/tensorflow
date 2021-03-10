@@ -225,7 +225,7 @@ else()
         LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR}
     )
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl OPTIONAL
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl OPTIONAL
         DESTINATION ${INSTALL_LIBRARY_DIR}
     )
 endif()
