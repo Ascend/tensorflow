@@ -64,6 +64,8 @@ extern void PluginInit(std::map<std::string, std::string>& init_options);
 
 extern void PluginFinalize();
 
+extern void NpuClose();
+
 namespace ge{
   struct HostVarInfo {
     uint64_t base_addr;

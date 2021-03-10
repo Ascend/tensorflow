@@ -46,6 +46,25 @@ using namespace tdt;
 constexpr int kFatalSleepTime = 3000;
 namespace {
 inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
+void GeFinalize() {
+  // ge finalize
+  ge::Status status = ge::GEFinalize();
+  if (status != ge::SUCCESS) {
+    ADP_LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status);
+    std::string error_message = ge::GEGetErrorMsg();
+    std::string warning_message = ge::GEGetWarningMsg();
+    LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status) << std::endl
+               << "Error Message is : " << std::endl
+               << error_message << warning_message;
+  }
+
+  // parser finalize
+  ge::Status status_parser = ge::ParserFinalize();
+  if (status_parser != ge::SUCCESS) {
+    ADP_LOG(ERROR) << "[GePlugin] Parser finalize failed, ret : " << ToString(status_parser);
+    LOG(ERROR) << "[GePlugin] Parser finalize failed, ret : " << ToString(status_parser);
+  }
+}
 }  // namespace
 
 GePlugin::GePlugin()
@@ -254,22 +273,7 @@ void GePlugin::Finalize() {
   }
 
   // ge finalize
-  ge::Status status = ge::GEFinalize();
-  if (status != ge::SUCCESS) {
-    ADP_LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status);
-    std::string error_message = ge::GEGetErrorMsg();
-    std::string warning_message = ge::GEGetWarningMsg();
-    LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status) << std::endl
-               << "Error Message is : " << std::endl
-               << error_message << warning_message;
-  }
-
-  // parser finalize
-  ge::Status status_parser = ge::ParserFinalize();
-  if (status_parser != ge::SUCCESS) {
-    ADP_LOG(ERROR) << "[GePlugin] Parser finalize failed, ret : " << ToString(status);
-    LOG(ERROR) << "[GePlugin] Parser finalize failed, ret : " << ToString(status);
-  }
+  GeFinalize();
 
   ADP_LOG(INFO) << "[GePlugin] Close TsdClient and destroy tdt.";
   int32_t ret = tdt::TdtOutFeedDestroy();
@@ -293,6 +297,11 @@ void PluginInit(std::map<std::string, std::string> &init_options) {
 void PluginFinalize() {
   GePlugin::GetInstance()->Finalize();
   ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success";
+}
+
+void NpuClose() {
+  GeFinalize();
+  ADP_LOG(INFO) << "[GePlugin] npu finalize resource success";
 }
 
 int32_t InitRdmaPool(size_t size) {

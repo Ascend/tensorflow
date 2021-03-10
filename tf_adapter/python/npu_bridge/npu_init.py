@@ -20,6 +20,7 @@ from npu_bridge.estimator.npu import npu_scope
 from npu_bridge.estimator.npu import util
 from npu_bridge.estimator.npu import keras_to_npu
 from npu_bridge.estimator.npu import npu_strategy
+from npu_bridge.estimator.npu import util
 from npu_bridge.estimator.npu_unary_ops import npu_unary_ops
 from npu_bridge.hccl import hccl_ops
 
@@ -41,6 +42,9 @@ from hccl.split.api import set_split_strategy_by_size
 
 import tensorflow as tf
 import os
+from npu_bridge.estimator.npu.npu_plugin import npu_close
+import atexit
+atexit.register(npu_close)
 
 def _npu_config_proto(config_proto):
     config_proto.allow_soft_placement = True
@@ -99,6 +103,7 @@ def set_keras_session_npu_config():
     return sess
 
 def init_resource():
+    util.global_dict_init()
     npu_init = npu_ops.initialize_system()
     npu_shutdown = npu_ops.shutdown_system()
     config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
@@ -107,6 +112,12 @@ def init_resource():
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
     sess = session.Session(config=config)
     sess.run(npu_init)
+    npu_rank_id = get_rank_id()
+    npu_local_rank_id = get_local_rank_id()
+    npu_rank_size = get_rank_size()
+    util.set_value("npu_rank_id", npu_rank_id)
+    util.set_value("npu_local_rank_id", npu_local_rank_id)
+    util.set_value("npu_rank_size", npu_rank_size)
     return sess, npu_shutdown
 
 def shutdown_resource(sess, npu_shutdown):
@@ -114,3 +125,12 @@ def shutdown_resource(sess, npu_shutdown):
 
 def close_session(sess):
     sess.close()
+
+def get_npu_rank_id():
+    return util.get_value("npu_rank_id", 0)
+
+def get_npu_local_rank_id():
+    return util.get_value("npu_local_rank_id", 0)
+
+def get_npu_rank_size():
+    return util.get_value("npu_rank_size", 1)
