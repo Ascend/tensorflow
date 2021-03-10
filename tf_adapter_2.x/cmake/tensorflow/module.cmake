@@ -1,7 +1,7 @@
 add_library(tensorflow_libs INTERFACE)
 
 if(DEFINED TF_INSTALLED_PATH)
-    SET(TF_INCLUDE_DIR ${TF_INSTALLED_PATH})
+    SET(TF_INCLUDE_DIR ${TF_INSTALLED_PATH}/include)
     target_link_libraries(tensorflow_libs INTERFACE
             ${TF_INSTALLED_PATH}/python/_pywrap_tensorflow_internal.so
             ${TF_INSTALLED_PATH}/libtensorflow_framework.so.2)
@@ -19,12 +19,12 @@ else()
     add_library(pywrap_tensorflow_internal SHARED ${fake_sources})
     set_target_properties(pywrap_tensorflow_internal PROPERTIES PREFIX _)
 
-    SET(TF_INCLUDE_DIR ${ASCEND_CI_BUILD_DIR}/third_party/tensorflow/compile_deps/tf-2.4.0)
+    SET(TF_INCLUDE_DIR ${ASCEND_CI_BUILD_DIR}/third_party/tensorflow/compile_deps/tf-2.4.0/include/org)
     target_link_libraries(tensorflow_libs INTERFACE
             tensorflow_framework
             pywrap_tensorflow_internal)
 endif()
 
-include_directories(${TF_INCLUDE_DIR}/include)
-include_directories(${TF_INCLUDE_DIR}/include/external/farmhash_archive/src)
-include_directories(${TF_INCLUDE_DIR}/include/external/pybind11/_virtual_includes/pybind11)
+include_directories(${TF_INCLUDE_DIR})
+include_directories(${TF_INCLUDE_DIR}/external/farmhash_archive/src)
+include_directories(${TF_INCLUDE_DIR}/external/pybind11/_virtual_includes/pybind11)
