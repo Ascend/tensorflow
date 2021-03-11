@@ -70,7 +70,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                  eval_distribute=None,
                  local_rank_id=None,
                  local_device_list=None,
-                 session_device_id=None
+                 session_device_id=None,
+                 distribute_config=None,
+                 op_tune_mode=None
                  ):
         """
         Constructs a NPUConfig.
@@ -136,6 +138,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         dynamic_inputs_shape_range:Inputs shape range.
         local_rank_id: Local sequence number of the device in a group.
         local_device_list: Available devices.
+        distribute_config: Specify the NCA configuration file path
+        op_tune_mode: None, or `GA` ,or `RL` or `GA|RL`, use with mstune_mode.
         """
 
         # Check iterations_per_loop.
@@ -215,6 +219,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._local_rank_id = local_rank_id
         self._local_device_list = local_device_list
         self._session_device_id = session_device_id
+        self._distribute_config = distribute_config
+        self._op_tune_mode = op_tune_mode
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

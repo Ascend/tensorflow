@@ -677,6 +677,10 @@ class NPUEstimator(estimator_lib.Estimator):
                 custom_op.parameter_map["work_path"].s = tf.compat.as_bytes(config._work_path)
             else:
                 raise ValueError('work_path must be set when use mstune_mode')
+            if config._distribute_config is not None:
+                custom_op.parameter_map["distribute_config"].s = tf.compat.as_bytes(config._distribute_config)
+            if config._op_tune_mode is not None:
+                custom_op.parameter_map["op_tune_mode"].s = tf.compat.as_bytes(config._op_tune_mode)
 
     def __load_graph_optimizers(self, config):
         """Change the session config and load the graph optimizers:
