@@ -89,6 +89,10 @@ def ast_if(node):
                 return node
 
 def ast_call(node):
+    if isinstance(node.func, ast.Name) and node.func.id == 'check_available_gpus':
+        log_msg(getattr(node, 'lineno', 'None'), "change check_available_gpus() to ['/device:CPU:0']")
+        util_global.set_value('need_conver', True)
+        return ast.List(elts=[ast.Str(s="/device:CPU:0")], ctx=ast.Load())
     if (isinstance(node.func, ast.Name) and node.func.id == 'ConfigProto') or \
        (isinstance(node.func, ast.Attribute) and node.func.attr == 'ConfigProto'):
         log_success_report(getattr(node, 'lineno', 'None'), 'ConfigProto()')
