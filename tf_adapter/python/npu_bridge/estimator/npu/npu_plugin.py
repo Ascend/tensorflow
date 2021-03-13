@@ -97,6 +97,8 @@ def npu_resource_init(graph_run_mode = 1,
 def npu_resource_shutdown():
     tf_adapter.PluginFinalize()
 
+def npu_close():
+    tf_adapter.NpuClose()
 
 def init_rdma_pool(mem_size):
     """

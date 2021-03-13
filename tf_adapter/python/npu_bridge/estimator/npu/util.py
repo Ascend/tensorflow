@@ -428,3 +428,16 @@ def set_graph_exec_config(fetch, dynamic_input=False,
 
 def npu_compile(sess, *fetches):
   sess.run(fetches)
+
+def global_dict_init():
+    global _global_dict
+    _global_dict = {}
+
+def set_value(key, value):
+    _global_dict[key] = value
+
+def get_value(key, def_value = None):
+    try:
+        return _global_dict[key]
+    except KeyError:
+        return def_value

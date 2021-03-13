@@ -48,6 +48,8 @@ void PluginInit(std::map<std::string, std::string> &init_options);
 
 void PluginFinalize();
 
+void NpuClose();
+
 int32_t InitRdmaPool(size_t size);
 
 int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info);
