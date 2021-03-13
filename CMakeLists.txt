@@ -174,7 +174,7 @@ else()
     ###################################################################################################
     add_custom_target(
         hw_npu_bridge_1.15.0 ALL
-        DEPENDS tensorflow_framework pywrap_tensorflow_internal tf_adapter SoftDp ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl
+        DEPENDS tensorflow_framework pywrap_tensorflow_internal tf_adapter SoftDp ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl
     )
 
     # package _tf_adapter.so and libSoftDp.so in npu_bridge-xxx.whl
@@ -198,17 +198,6 @@ else()
         && rm -rf ${BASE_DIR}/libtensorflow_framework.so
         && echo "package whl end"
     )
-    ###################################### Tensorflow 2.x ###########################################
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl
-        COMMAND echo "package ascend adapter for tensorflow 2.x start"
-        && cd ${CMAKE_CURRENT_LIST_DIR}/tf_adapter_2.x/
-        && mkdir build && cd build
-        && cmake .. -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DPYTHON_BIN_PATH=${HI_PYTHON_PATH} -DPYTHON_INCLUDE_DIR=${HI_PYTHON_INC} -DASCEND_CI_BUILD_DIR=${TOP_DIR}
-        && make -j32
-        && cp -f dist/python/dist/npu_device-0.1-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
-        && echo "package ascend adapter for tensorflow 2.x end"
-    )
     ###################################################################################################
     set(INSTALL_BASE_DIR "")
     set(INSTALL_LIBRARY_DIR lib)
@@ -220,7 +209,7 @@ else()
         LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR}
     )
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl OPTIONAL
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl OPTIONAL
         DESTINATION ${INSTALL_LIBRARY_DIR}
     )
 endif()
