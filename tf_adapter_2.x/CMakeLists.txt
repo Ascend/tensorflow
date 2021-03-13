@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.14)
-project(NpuDevice)
+project(AscendAdapter2)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_FLAGS "-O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -pipe ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -pipe ${CMAKE_CXX_FLAGS}")
 
+IF (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+    add_definitions(-Wno-builtin-macro-redefined)
+ENDIF ()
 
 if (DEFINED ASCEND_CI_BUILD_DIR)
     set(CMAKE_C_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0 ${CMAKE_C_FLAGS}")
@@ -33,33 +36,15 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/acl/module.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/tensorflow/module.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/graph_engine/module.cmake)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR}/npu_device/core)
-
-file(COPY ${CMAKE_CURRENT_LIST_DIR}/npu_device/python DESTINATION ${CMAKE_BINARY_DIR}/dist)
-
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_LIST_DIR}/npu_device/*.cpp)
-
-IF (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
-    add_definitions(-Wno-builtin-macro-redefined)
-ENDIF ()
-
-foreach (CPP_SOURCE ${SOURCES})
-    file(RELATIVE_PATH RELATIVE_CPP_SOURCE ${CMAKE_CURRENT_LIST_DIR} ${CPP_SOURCE})
-    set_property(SOURCE ${CPP_SOURCE} PROPERTY COMPILE_DEFINITIONS __FILE__=\"${RELATIVE_CPP_SOURCE}\")
-endforeach (CPP_SOURCE)
-
-add_library(_npu_device_backends SHARED ${SOURCES})
-set_target_properties(_npu_device_backends PROPERTIES PREFIX "")
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/python DESTINATION ${CMAKE_BINARY_DIR}/dist)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/dist/python/npu_device)
 
-target_link_libraries(_npu_device_backends PRIVATE
-        tensorflow_libs
-        ge_libs
-        acl_libs)
+add_subdirectory(npu_device)
+add_subdirectory(npu_ops)
 
-add_custom_command(TARGET _npu_device_backends
-        POST_BUILD
+add_custom_target(ascend_adapter2 ALL
         COMMAND cd ${CMAKE_BINARY_DIR}/dist/python/ && ${PYTHON_BIN_PATH} setup.py bdist_wheel
+        DEPENDS _npu_ops _npu_device_backends
         VERBATIM)
 
 install(CODE "execute_process(COMMAND ${PYTHON_BIN_PATH} -m pip install ${CMAKE_BINARY_DIR}/dist/python/dist/npu_device-0.1-py3-none-any.whl --upgrade)")

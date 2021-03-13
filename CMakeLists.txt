@@ -203,7 +203,7 @@ else()
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl
         COMMAND echo "package ascend adapter for tensorflow 2.x start"
         && cd ${CMAKE_CURRENT_LIST_DIR}/tf_adapter_2.x/
-        && mkdir build && cd build
+        && rm -rf build && mkdir build && cd build
         && cmake .. -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DPYTHON_BIN_PATH=${HI_PYTHON_PATH} -DPYTHON_INCLUDE_DIR=${HI_PYTHON_INC} -DASCEND_CI_BUILD_DIR=${TOP_DIR}
         && make -j32
         && cp -f dist/python/dist/npu_device-0.1-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/

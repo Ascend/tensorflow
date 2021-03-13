@@ -868,10 +868,11 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     // 因为parser当前约定的附加属性不是匿名属性（非下划线开头，所以这里当前需要拷贝一份新图用于标记parser所需属性）
     tensorflow::GraphDef function_graph_def;
     mark_shape_graph->ToGraphDef(&function_graph_def);
-    uint64_t graph_id =
-        kCustomKernelEnabled ? AddGeGraph(context, std::string("tf_function_") + op_name, function_graph_def, s) : 0;
-    if (TF_GetCode(s) != TF_OK) return;
-
+    uint64_t graph_id = 0;
+    if (kCustomKernelEnabled) {
+      graph_id = AddGeGraph(context, std::string("tf_function_") + op_name, function_graph_def, s);
+      if (TF_GetCode(s) != TF_OK) return;
+    }
     std::vector<int> remain_indexes;
     std::vector<TFE_TensorHandle *> pruned_inputs;
     for (auto node : optimize_graph->nodes()) {
@@ -1200,8 +1201,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
 
   if (kCustomKernelEnabled) {
     // TODO:这里根据小循环策略修改值
-    int64_t iterations_per_loop = kGlobalLoopSize;
-    size_t num_dependent_resources = spec->DependentHostResources().size();
+    int64_t iterations_per_loop = spec->DependentHostResources().size() ? kGlobalLoopSize : 1;
     for (const auto &resource : spec->DependentHostResources()) {
       LOG(INFO) << "Start consume iterator resource " << resource.name() << " " << iterations_per_loop << " times";
       // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
