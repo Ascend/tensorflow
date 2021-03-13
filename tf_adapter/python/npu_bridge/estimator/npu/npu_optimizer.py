@@ -15,7 +15,7 @@ from tensorflow.python.ops.cond_v2 import cond_v2
 from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer
-from tensorflow.python.keras import optimizers
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from npu_bridge.hccl import hccl_ops
 from npu_bridge.estimator import npu_ops
 
@@ -370,12 +370,12 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         """Calls this same method on the underlying optimizer."""
         return self._optimizer.variables(*args, **kwargs)
 
-class KerasDistributeOptimizer(optimizers.Optimizer):
+class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
     """
     An optimizer that wraps another keras Optimizer, using an allreduce to
     average gradient values before applying gradients to model weights.
     """
-    def __init__(self, optimizer, **kwargs):
+    def __init__(self, optimizer, name="NpuKerasOptimizer", **kwargs):
         """
         Construct a new KerasDistributeOptimizer, which uses another optimizer
         under the hood for computing single-process gradient values and
@@ -385,7 +385,7 @@ class KerasDistributeOptimizer(optimizers.Optimizer):
         Args:
             optimizer: Optimizer to use for get_updates gradients.
         """
-        super(KerasDistributeOptimizer, self).__init__(**kwargs)
+        super(KerasDistributeOptimizer, self).__init__(name, **kwargs)
         self._optimizer = optimizer
         old_get_gradient = self._optimizer.get_gradients
         def new_get_gradient(loss, params):
@@ -394,7 +394,7 @@ class KerasDistributeOptimizer(optimizers.Optimizer):
             if rank_size == None or int(rank_size) <= 1:
                 return grads
             averaged_grads = []
-            with tf.name_scope("KerasDistributeOptimizer_Allreduce"):
+            with tf.name_scope(name + "_Allreduce"):
                 for grad in grads:
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_grads.append(avg_grad)
@@ -403,6 +403,22 @@ class KerasDistributeOptimizer(optimizers.Optimizer):
 
     def get_updates(self, loss, params):
         return self._optimizer.get_updates(loss, params)
+
+
+    def _compute_gradients(self, loss, var_list, grad_loss=None):
+        gradients = self._optimizer._compute_gradients(loss, var_list, grad_loss)
+        rank_size = os.getenv('RANK_SIZE', '1')
+        if rank_size == None or int(rank_size) <= 1:
+            return gradients
+        averaged_grads = []
+        with tf.name_scope(self._name + "_Allreduce"):
+            for grad, var in gradients:
+                avg_grad = allreduce(grad, True) if grad is not None else None
+                averaged_grads.append((avg_grad, var))
+        return averaged_grads
+
+    def apply_gradients(self, grads_and_vars, name=None):
+        return self._optimizer.apply_gradients(grads_and_vars, name)
 
     def get_config(self):
         config = {
