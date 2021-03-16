@@ -138,17 +138,17 @@ def ast_call(node):
         if config:
             if isinstance(config, ast.keyword):
                 config.value = ast.Call(
-                    func=ast.Name(id='npu_session_config_init', ctx=ast.Load()),
+                    func=ast.Name(id='npu_config_proto', ctx=ast.Load()),
                     args=[],
-                    keywords=[ast.keyword(arg='session_config', value=config.value)])
+                    keywords=[ast.keyword(arg='config_proto', value=config.value)])
             else:
                 node.keywords.append(ast.keyword(arg='config', value=ast.Call(
-                    func=ast.Name(id='npu_session_config_init', ctx=ast.Load()),
+                    func=ast.Name(id='npu_config_proto', ctx=ast.Load()),
                     args=[],
-                    keywords=[ast.keyword(arg='session_config', value=config)])))
+                    keywords=[ast.keyword(arg='config_proto', value=config)])))
         else:
             node.keywords.append(ast.keyword(arg='config', value=ast.Call(
-                func=ast.Name(id='npu_session_config_init', ctx=ast.Load()),
+                func=ast.Name(id='npu_config_proto', ctx=ast.Load()),
                 args=[],
                 keywords=[])))
         util_global.set_value('need_conver', True)
@@ -455,7 +455,34 @@ def ast_call(node):
                 ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
         util_global.set_value('need_conver', True)
         return node
+    specs = {'TrainSpec': 2, 'EvalSpec': 3}
+    for spec, hooks_index in specs.items():
+        if _call_name_match(node.func, spec):
+            log_success_report(getattr(node, "lineno", "None"), spec)
+            hooks = None
+            for index, _ in enumerate(node.args):
+                if index == hooks_index:
+                    hooks = node.args.pop(hooks_index)
+                    break
+            for keyword in node.keywords:
+                if keyword.arg == 'hooks':
+                    hooks = keyword
+                    break
+            if not hooks:
+                node.keywords.append(
+                    ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[])))
+            elif isinstance(hooks, ast.keyword):
+                hooks.value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[
+                    ast.keyword(arg='hooks_list', value=hooks.value)])
+            else:
+                node.keywords.append(
+                    ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
+            util_global.set_value('need_conver', True)
     return node
+
+def _call_name_match(call_func, call_name):
+    return (isinstance(call_func, ast.Attribute) and (call_func.attr == call_name)) or \
+           (isinstance(call_func, ast.Name) and (call_func.id) == call_name)
 
 def insert_npu_import(r_node):
     npu_alias = ast.alias(name='*', asname=None)
@@ -581,65 +608,6 @@ def ast_assign(node):
                         value=ast.Name(id='config_pb2', ctx=ast.Load()))))
             node = ast.If(test=ast.NameConstant(value=True), body=[global_jit_level_assign_node], orelse=[])
             return node
-
-    if isinstance(node.value, ast.Call):
-        if isinstance(node.value.func, ast.Attribute):
-            if isinstance(node.value.func, ast.Attribute):
-                if node.value.func.attr == 'max_pooling2d':
-                    log_success_report(getattr(node, "lineno", "None"), node.value.func.attr)
-                    util_global.set_value('need_conver', True)
-                    inputs = None
-                    pool_size = None
-                    strides = None
-                    padding = None
-                    data_format = None
-                    name = None
-                    for index, arg in enumerate(node.value.args):
-                        if index == 0: inputs = arg
-                        elif index == 1: pool_size = arg
-                        elif index == 2: strides = arg
-                        elif index == 3: padding = arg
-                        elif index == 4: data_format = arg
-                        elif index == 5: name = arg
-                    for keyword in node.value.keywords:
-                        if keyword.arg == 'inputs': inputs = keyword.value
-                        elif keyword.arg == 'pool_size': pool_size = keyword.value
-                        elif keyword.arg == 'strides': strides = keyword.value
-                        elif keyword.arg == 'padding': padding = keyword.value
-                        elif keyword.arg == 'data_format': data_format = keyword.value
-                        elif keyword.arg == 'name': name = keyword.value
-                    node.value.func = ast.Attribute(value=ast.Attribute(
-                        value=ast.Name(id='tf', ctx=ast.Load()), attr='nn', ctx=ast.Load()), attr='max_pool_with_argmax', ctx=ast.Load())
-                    node.value.args=[]
-                    node.value.keywords=[]
-                    if inputs:
-                        node.value.keywords.append(ast.keyword(arg='input', value=inputs))
-                    if pool_size:
-                        if isinstance(pool_size, ast.Num):
-                            node.value.keywords.append(ast.keyword(
-                                arg='ksize', value=ast.List(elts=[ast.Num(n=1), pool_size, pool_size, ast.Num(n=1)], ctx=ast.Load())))
-                        elif (isinstance(pool_size, ast.List) or isinstance(pool_size, ast.Tuple)) and len(pool_size.elts) >= 2:
-                            node.value.keywords.append(ast.keyword(
-                                arg='ksize', value=ast.List(elts=[ast.Num(n=1), pool_size.elts[0], pool_size.elts[1], ast.Num(n=1)], ctx=ast.Load())))
-                    if strides:
-                        if isinstance(pool_size, ast.Num):
-                            node.value.keywords.append(ast.keyword(
-                                arg='strides', value=ast.List(elts=[ast.Num(n=1), strides, strides, ast.Num(n=1)], ctx=ast.Load())))
-                        elif (isinstance(strides, ast.List) or isinstance(strides, ast.Tuple)) and len(strides.elts) >= 2:
-                            node.value.keywords.append(ast.keyword(
-                                arg='strides', value=ast.List(elts=[ast.Num(n=1), strides.elts[0], strides.elts[1], ast.Num(n=1)], ctx=ast.Load())))
-                    if padding:
-                        padding.s = padding.s.upper()
-                        node.value.keywords.append(ast.keyword(arg='padding', value=padding))
-                    else:
-                        node.value.keywords.append(ast.keyword(arg='padding', value=ast.Str(s='SAME')))
-                    if data_format:
-                        node.value.keywords.append(ast.keyword(arg='data_format', value=data_format))
-                    if name:
-                        node.value.keywords.append(ast.keyword(arg='name', value=name))
-                    node.targets.append(ast.Name(id='argmax', ctx=ast.Store()))
-                    node.targets = [ast.Tuple(elts=node.targets, ctx=ast.Store())]
-                    return node
     return node
 
 # Format printing for locate
