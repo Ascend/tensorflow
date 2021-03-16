@@ -65,11 +65,13 @@ def prelu_grad(op, grad):
 def prelu(x, weight):
     return npu_aicore_ops.p_relu(x, weight)
 
+# go/tf-wildcard-import
 def get_seed(op_seed):
   global_seed = ops.get_default_graph().seed
 
   if global_seed is not None:
     if op_seed is None:
+      # pylint: disable-protected-access
       op_seed = ops.get_default_graph()._last_id
 
     seeds = _truncate_seed(global_seed), _truncate_seed(op_seed)
@@ -138,7 +140,7 @@ def dropout_v3(x, keep_prob, noise_shape=None, seed=None, name=None):
     return result
 
 @ops.RegisterGradient("DropOutDoMaskV3")
-def _DropOutDoMaskGrad(op, grad):
+def _DropOutDoMaskV3Grad(op, grad):
     result = npu_aicore_ops.drop_out_do_mask_v3(grad, op.inputs[1],  op.inputs[2])
     return [result, None, None]
 
