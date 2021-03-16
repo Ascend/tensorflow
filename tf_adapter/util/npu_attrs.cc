@@ -217,6 +217,21 @@ inline Status CheckDeviceList(std::string local_device_list) {
   return Status::OK();
 }
 
+inline Status checkEnableDp(bool enable_dp) {
+  const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
+  bool tdt_init = true;
+  if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
+    tdt_init = false;
+  }
+
+  if (enable_dp && !tdt_init) {
+    return errors::InvalidArgument("In the environment, "
+            "'ASCEND_TDT_UNINIT' must be 0 when parameter 'enable_data_pre_proc' is set to true");
+  } else {
+    return Status::OK();
+  }
+}
+
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
   std::string variable_format_optimize = std::to_string(true);
@@ -424,7 +439,14 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
     if (custom_optimizer.name() == "NpuOptimizer") {
       do_npu_optimizer = true;
       const auto &params = custom_optimizer.parameter_map();
-      if (params.count("enable_data_pre_proc")) { enable_dp = params.at("enable_data_pre_proc").b(); }
+      if (params.count("enable_data_pre_proc")) {
+        enable_dp = params.at("enable_data_pre_proc").b();
+        Status s = checkEnableDp(enable_dp);
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
+      }
       if (params.count("use_off_line")) { use_off_line = params.at("use_off_line").b(); }
       if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
       if (params.count("iterations_per_loop")) { iterations_per_loop = params.at("iterations_per_loop").i(); }
