@@ -47,6 +47,7 @@ class DropOutGenMaskOp : public OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("DropOutGenMask").Device(DEVICE_CPU), DropOutGenMaskOp);
+REGISTER_KERNEL_BUILDER(Name("DropOutGenMaskV3").Device(DEVICE_CPU), DropOutGenMaskOp);
 REGISTER_KERNEL_BUILDER(Name("DropOutDoMask").Device(DEVICE_CPU), DropOutDoMaskOp);
 REGISTER_KERNEL_BUILDER(Name("DropOutDoMaskV3").Device(DEVICE_CPU), DropOutDoMaskOp);
 }  // namespace tensorflow
