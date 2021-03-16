@@ -303,6 +303,18 @@ REGISTER_OP("PRelu")
         return Status::OK();
     });
 
+REGISTER_OP("DropOutDoMaskV3")
+    .Input("x: T")
+    .Input("mask: uint8")
+    .Input("keep_prob: T")
+    .Output("y: T")
+    .Attr("T: {float16, float32}")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      c->set_output(0, c->input(0));
+      return Status::OK();
+    });
+
 REGISTER_OP("PReluGrad")
     .Input("grads: T")
     .Input("features: T")
