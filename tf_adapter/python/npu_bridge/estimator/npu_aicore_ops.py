@@ -71,7 +71,7 @@ def get_seed(op_seed):
 
   if global_seed is not None:
     if op_seed is None:
-      # pylint: disable-protected-access
+      # pylint: disable=protected-access
       op_seed = ops.get_default_graph()._last_id
 
     seeds = _truncate_seed(global_seed), _truncate_seed(op_seed)
