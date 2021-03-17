@@ -1,0 +1,1 @@
+from npu_device._api.distribute.hccl import *

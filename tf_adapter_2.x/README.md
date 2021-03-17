@@ -1,4 +1,9 @@
 # Ascend Adapter for TF2.X
+
+Ascend Adapter for TF2.X 致力于将昇腾AI处理器卓越的运算能力，便捷地提供给使用Tensorflow 2.x框架的开发者。开发者只需安装Ascend Adapter for TF2.X插件，并在现有Tensorflow 2.x脚本中添加少量配置，即可实现在昇腾AI处理器上加速自己的训练任务。
+
+![framework](docs/framework.png)
+
 ## 安装
 
 ### 从源码安装
