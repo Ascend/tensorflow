@@ -49,7 +49,7 @@ std::string GetDumpPath() {
       if (mmAccess2(base_path_str.c_str(), M_F_OK) != EN_OK) {
         int32_t ret = mmMkdir(base_path_str.c_str(), M_IRUSR | M_IWUSR | M_IXUSR);
         if (ret != 0) {
-          ADP_LOG(WARNING) << "create dump graph dir failed, path:" << stream_file_name.str().c_str();
+          ADP_LOG(WARNING) << "create dump graph dir failed, path:" << base_path_str;
           dump_path = "./";
         } else {
           dump_path = base_path_str;
