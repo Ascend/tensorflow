@@ -516,7 +516,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     char *need_print = getenv("PRINT_MODEL");
     if (need_print != nullptr && strcmp("1", need_print) == 0) {
-      string tmpmodel_path = "TF_";
+      string tmpmodel_path = GetDumpPath() + "TF_";
       string tmodel_path = tmpmodel_path + geop_name.c_str() + ".pbtxt";
       Status status_out = WriteTextProto(Env::Default(), tmodel_path, ori_graph_def);
     }
@@ -591,7 +591,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
       char *need_print = getenv("PRINT_MODEL");
       if (need_print != nullptr && strcmp("1", need_print) == 0) {
-        string tmpmodel_path = "TF_Subgraph_";
+        string tmpmodel_path = GetDumpPath() + "TF_Subgraph_";
         string tmodel_path = tmpmodel_path + graph.c_str() + ".pbtxt";
         Status status_out = WriteTextProto(Env::Default(), tmodel_path, *graph_def_out.get());
       }

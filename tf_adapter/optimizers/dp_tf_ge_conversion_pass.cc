@@ -557,7 +557,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
   if (nullptr != need_print && strcmp("1", need_print) == 0) {
     GraphDef before_graphdef;
     (*g)->ToGraphDef(&before_graphdef);
-    string pre_model_path = "BeforeSubGraph_dp_";
+    string pre_model_path = GetDumpPath() + "BeforeSubGraph_dp_";
     string pmodel_path = pre_model_path + std::to_string(graph_run_num_) + ".pbtxt";
     TF_DO_CHECK_OK(WriteTextProto(Env::Default(), pmodel_path, before_graphdef), ERROR);
   }
