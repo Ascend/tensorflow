@@ -80,13 +80,16 @@ build_tfadapter() {
   cd "${CMAKE_PATH}" && cmake ${CMAKE_ARGS} ../..
   make ${VERBOSE} -j${THREAD_NUM}
   logging "tfadapter build success!"
+
+  chmod +x "${BASE_PATH}/tf_adapter_2.x/CI_Build"
+  sh "${BASE_PATH}/tf_adapter_2.x/CI_Build"
 }
 
 release_tfadapter() {
   logging "Create output directory"
   mk_dir "${RELEASE_PATH}"
   RELEASE_TARGET="tfadapter.tar"
-  cd ${CMAKE_PATH}/dist/python/dist && mkdir -p tfplugin/bin && mv npu_bridge-*.whl tfplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
+  cd ${CMAKE_PATH}/dist/python/dist && mkdir -p tfplugin/bin && mv npu_bridge-*.whl tfplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" tfplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
 }
 
 main() {
