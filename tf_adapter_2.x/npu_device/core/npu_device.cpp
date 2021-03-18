@@ -1201,7 +1201,15 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
 
   if (kCustomKernelEnabled) {
     // TODO:这里根据小循环策略修改值
-    int64_t iterations_per_loop = spec->DependentHostResources().size() ? kGlobalLoopSize : 1;
+    int64_t iterations_per_loop = 1;
+    if (spec->DependentHostResources().size() > 0) {
+      for (auto node : spec->Graph()->op_nodes()) {
+        if (node->IsWhileNode()) {
+          iterations_per_loop = kGlobalLoopSize;
+          break;
+        }
+      }
+    }
     for (const auto &resource : spec->DependentHostResources()) {
       LOG(INFO) << "Start consume iterator resource " << resource.name() << " " << iterations_per_loop << " times";
       // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
