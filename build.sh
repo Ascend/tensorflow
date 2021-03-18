@@ -89,7 +89,7 @@ release_tfadapter() {
   logging "Create output directory"
   mk_dir "${RELEASE_PATH}"
   RELEASE_TARGET="tfadapter.tar"
-  cd ${CMAKE_PATH}/dist/python/dist && mkdir -p tfplugin/bin && mv npu_bridge-*.whl tfplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" tfplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
+  cd ${CMAKE_PATH}/dist/python/dist && mkdir -p tfplugin/bin && cp -r "${BASE_PATH}/script" tfplugin/ && mv npu_bridge-*.whl tfplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" tfplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
 }
 
 main() {
