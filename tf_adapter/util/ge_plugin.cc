@@ -212,14 +212,21 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] mstune mode : " << init_options["ge.jobType"]
             << ", work path : " << init_options["ge.tuningPath"]
             << ", distribute_config : " << init_options["distribute_config"];
-
-  // Open TsdClient first, then call GEInitialize
-  ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";
-  int32_t ret = tdt::TdtOutFeedInit(static_cast<uint32_t>(device_id_));
-  if (ret != 0) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-    ADP_LOG(FATAL) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
-    LOG(FATAL) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
+  
+  const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
+  bool tdt_init = true;
+  if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
+    tdt_init = false;
+  }
+  if (tdt_init) {
+    // Open TsdClient first, then call GEInitialize
+    ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";
+    int32_t ret = tdt::TdtOutFeedInit(static_cast<uint32_t>(device_id_));
+    if (ret != 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
+      ADP_LOG(FATAL) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
+      LOG(FATAL) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
+    }
   }
 
   // ge Initialize
@@ -279,13 +286,21 @@ void GePlugin::Finalize() {
   // ge finalize
   GeFinalize();
 
-  ADP_LOG(INFO) << "[GePlugin] Close TsdClient and destroy tdt.";
-  int32_t ret = tdt::TdtOutFeedDestroy();
-  if (ret != 0) {
-    LOG(ERROR) << "[GePlugin] Close tdt host failed.";
-    ADP_LOG(ERROR) << "[GePlugin] Close tdt host failed.";
+  const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
+  bool tdt_init = true;
+  if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
+    tdt_init = false;
+  }
+  if (tdt_init) {
+    ADP_LOG(INFO) << "[GePlugin] Close TsdClient and destroy tdt.";
+    int32_t ret = tdt::TdtOutFeedDestroy();
+    if (ret != 0) {
+      LOG(ERROR) << "[GePlugin] Close tdt host failed.";
+      ADP_LOG(ERROR) << "[GePlugin] Close tdt host failed.";
+    }
   }
   isInit_ = false;
+
 }
 
 bool GePlugin::IsGlobal() {
