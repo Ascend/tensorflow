@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+CONFIGURE_DIR=$(dirname "$0")
+cd "${CONFIGURE_DIR}"
+
+if [ "$(arch)" != "x86_64" ];then
+  mkdir -p build/dist/python/dist/
+  touch build/dist/python/dist/npu_device-0.1-py3-none-any.whl
+  exit 0
+fi
+
+source /home/jenkins/tensorflow24/.env/bin/activate
+
+PYTHON_BIN_PATH=$(which python3.7)
+
+export ADAPTER_TARGET_PYTHON_PATH="$PYTHON_BIN_PATH"
+export ASCEND_INSTALLED_PATH="$ASCEND_CUSTOM_PATH"
+
+"$PYTHON_BIN_PATH" "configure.py" "$@"
+
+echo "Configuration finished"
+
+chmod +x compile
+./compile
+
+deactivate
