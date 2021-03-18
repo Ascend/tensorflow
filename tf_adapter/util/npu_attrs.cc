@@ -36,6 +36,34 @@ limitations under the License.
 #include <regex>
 
 namespace tensorflow {
+
+std::string GetDumpPath() {
+  static std::string dump_path = "";
+  if (dump_path == "") {
+    char *npu_collect_path = std::getenv("NPU_COLLECT_PATH");
+    if (npu_collect_path != nullptr) {
+      std::string base_path_str(npu_collect_path);
+      uint32_t device_id = 0;
+      GetEnvDeviceID(device_id);
+      base_path_str += "/graph/" + std::to_string(mmGetPid()) + "_" + std::to_string(device_id) + "/";
+      if (mmAccess2(base_path_str.c_str(), M_F_OK) != EN_OK) {
+        int32_t ret = mmMkdir(base_path_str.c_str(), M_IRUSR | M_IWUSR | M_IXUSR);
+        if (ret != 0) {
+          ADP_LOG(WARNING) << "create dump graph dir failed, path:" << base_path_str;
+          dump_path = "./";
+        } else {
+          dump_path = base_path_str;
+        }
+      } else {
+        dump_path = base_path_str;
+      }
+    } else {
+      dump_path = "./";
+    }
+  }
+  return dump_path;
+}
+
 Status GetEnvDeviceID(uint32_t &device_id) {
   int64 phy_device_id = -1;
   int64 logic_device_id = -1;

@@ -39,6 +39,7 @@ limitations under the License.
 
 // single load all npu mode
 namespace tensorflow {
+std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
 class NpuAttrs {
