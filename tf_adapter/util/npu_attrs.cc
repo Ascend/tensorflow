@@ -60,9 +60,8 @@ std::string GetDumpPath() {
     } else {
       dump_path = "./";
     }
-  } else {
-    return dump_path;
   }
+  return dump_path;
 }
 
 Status GetEnvDeviceID(uint32_t &device_id) {
