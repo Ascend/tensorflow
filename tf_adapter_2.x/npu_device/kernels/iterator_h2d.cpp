@@ -39,6 +39,19 @@ class IteratorH2D : public OpKernel {
                 << ss.str().substr(0, ss.str().size() - 1) << "] created";
     }
 
+    CancellationManager *cm = ctx->cancellation_manager();
+    CancellationToken token = cm->get_cancellation_token();
+    bool cancelled = !cm->RegisterCallback(token, [this]() {
+      for (const auto& channel : channels_) {
+        channel->Destroy();
+      }
+    });
+
+    if (cancelled) {
+      ctx->SetStatus(tensorflow::errors::Internal("Iterator resource ", channel_name_, " consume after destroyed"));
+      return;
+    }
+
     data::IteratorResource *iterator;
     OP_REQUIRES_OK(ctx, LookupResource(ctx, HandleFromInput(ctx, 0), &iterator));
     core::ScopedUnref unref_iterator(iterator);
@@ -58,6 +71,8 @@ class IteratorH2D : public OpKernel {
     }
 
     for (auto channel : channels_) { OP_REQUIRES_OK(ctx, channel->SendTensors(components)); }
+
+    cm->DeregisterCallback(token);
   }
 
  private:

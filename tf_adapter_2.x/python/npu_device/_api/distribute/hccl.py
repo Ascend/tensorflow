@@ -32,7 +32,7 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
 
 def all_reduce(values, reduction, fusion=1, fusion_id=-1, group="hccl_world_group"):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
-        print("Skip all-reduce value as current process is not npu cluster worker")
+        tf.get_logger().info("Skip all-reduce value as current process is not npu cluster worker")
         return values
 
     return tf.function(_all_reduce)(values, reduction, fusion, fusion_id, group)
@@ -48,7 +48,7 @@ def _broadcast(values, root_rank, fusion, fusion_id, group):
 
 def broadcast(values, root_rank, fusion=2, fusion_id=0, group="hccl_world_group"):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
-        print("Skip broadcast value as current process is not npu cluster worker")
+        tf.get_logger().info("Skip broadcast value as current process is not npu cluster worker")
         return
 
     tf.function(_broadcast)(values, root_rank, fusion, fusion_id, group)

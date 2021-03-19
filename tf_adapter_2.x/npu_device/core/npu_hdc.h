@@ -25,12 +25,15 @@ class HdcChannel {
 
   tensorflow::Status NotifyAbnormal();
 
+  void Destroy();
+
  private:
   HdcChannel(uint32_t device_id, std::string name);
   tensorflow::Status Init();
   acltdtChannelHandle *handle_;
   int32_t device_id_;
   std::string name_;
+  std::atomic_bool destroyed_{false};
 };
 
 #endif  //TENSORFLOW_NPU_HDC_H

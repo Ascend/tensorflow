@@ -243,11 +243,7 @@ tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string& nam
 }
 
 HdcChannel::~HdcChannel() {
-  if (acltdtDestroyChannel(handle_) != ACL_ERROR_NONE) {
-    LOG(ERROR) << "Failed close hdc channel " << name_;
-  } else {
-    LOG(INFO) << "Hdc channel " << name_ << " closed";
-  }
+  Destroy();
 }
 
 tensorflow::Status HdcChannel::SendTensors(const std::vector<tensorflow::Tensor> &tensors) {
@@ -257,6 +253,16 @@ tensorflow::Status HdcChannel::SendTensors(const std::vector<tensorflow::Tensor>
 tensorflow::Status HdcChannel::NotifyFinish() { return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_END_OF_SEQUENCE, {}); }
 
 tensorflow::Status HdcChannel::NotifyAbnormal() { return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_ABNORMAL, {}); }
+
+void HdcChannel::Destroy() {
+  if (!destroyed_.exchange(true)) {
+    if (acltdtDestroyChannel(handle_) != ACL_ERROR_NONE) {
+      LOG(ERROR) << "Failed close hdc channel " << name_;
+    } else {
+      LOG(INFO) << "Hdc channel " << name_ << " closed";
+    }
+  }
+}
 
 HdcChannel::HdcChannel(uint32_t device_id, std::string name)
     : handle_(nullptr), device_id_(device_id), name_(std::move(name)) {}

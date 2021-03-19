@@ -178,6 +178,8 @@ class NpuDevice {
 
   ge::Session *GeSession() { return ge_session_; }
 
+  tensorflow::CancellationManager *CancellationManager() { return cancellation_manager_.get(); }
+
   int device_id;
   tensorflow::string device_name;
   tensorflow::string underlying_device;
@@ -217,6 +219,7 @@ class NpuDevice {
 
   ge::Session *ge_session_;
   std::atomic<uint64_t> uuid{0};
+  std::unique_ptr<tensorflow::CancellationManager> cancellation_manager_;
   CachedOpSpecs cached_op_specs_;
   CachedFuncSpecs cached_func_specs_;
   std::map<tensorflow::ResourceHandle, std::pair<TensorPartialShapes, TensorDataTypes>, ResourceCompare>
