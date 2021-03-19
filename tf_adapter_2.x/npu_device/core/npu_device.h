@@ -57,7 +57,7 @@ class NpuDevice {
 
   tensorflow::Status TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
                                                   TFE_TensorHandle **inputs,
-                                                  std::vector<tensorflow::ResourceHandle> &dependent_host_resources);
+                                                  std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources);
 
   tensorflow::Status MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
                                             TFE_TensorHandle **inputs);
@@ -147,7 +147,7 @@ class NpuDevice {
   CacheFuncSpec(const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
                 uint64_t ge_graph_id, std::unique_ptr<const tensorflow::Graph> graph,
                 const npu::FuncSpec::PruneInputsFunc &prune_func,
-                const std::vector<tensorflow::ResourceHandle> &dependent_host_resources, const std::string &reason);
+                const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources, const std::string &reason);
 
   std::shared_ptr<const npu::TaskSpec> CacheOpSpec(const char *op, const tensorflow::OpRegistrationData *op_spec,
                                                    const tensorflow::NodeDef &ndef, const TensorShapes &input_shapes,
@@ -168,11 +168,6 @@ class NpuDevice {
 
   void CreateIteratorProvider(TFE_Context *context, const tensorflow::Tensor *tensor, std::vector<int> device_ids,
                               TF_Status *status);
-
-  tensorflow::Status ConsumeIteratorSync(const tensorflow::ResourceHandle &resource, int64_t nums);
-
-  tensorflow::Status ConsumeIteratorAsync(const tensorflow::ResourceHandle &resource, int64_t nums,
-                                          const DoneCallback &done);
 
   bool Mirrored(const tensorflow::ResourceHandle &src);
 

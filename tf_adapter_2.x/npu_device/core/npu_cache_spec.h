@@ -22,6 +22,7 @@
 #include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/eager/c_api_internal.h"
 
+#include "npu_dp.h"
 #include "npu_logger.h"
 #include "npu_parser.h"
 #include "npu_types.h"
@@ -145,7 +146,7 @@ class FuncSpec : public TaskSpec {
       std::function<void(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &)>;
   FuncSpec(const tensorflow::OpRegistrationData *op_spec, tensorflow::NodeDef ndef, uint64_t ge_graph_id,
            std::unique_ptr<const tensorflow::Graph> graph, PruneInputsFunc prune_func,
-           std::vector<tensorflow::ResourceHandle> dependent_host_resources, std::string reason = "")
+           std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources, std::string reason = "")
       : ge_graph_id_(ge_graph_id), graph_(std::move(graph)), prune_func_(std::move(prune_func)),
         dependent_host_resources_(std::move(dependent_host_resources)) {
 
@@ -164,7 +165,7 @@ class FuncSpec : public TaskSpec {
 
   uint64_t GeGraphId() const { return ge_graph_id_; }
 
-  const std::vector<tensorflow::ResourceHandle>& DependentHostResources() const { return dependent_host_resources_; }
+  const std::map<int, std::shared_ptr<IteratorResourceProvider>>& DependentHostResources() const { return dependent_host_resources_; }
 
   const tensorflow::Graph *Graph() const { return graph_.get(); }
 
@@ -187,7 +188,7 @@ class FuncSpec : public TaskSpec {
   uint64_t ge_graph_id_;
   std::unique_ptr<const tensorflow::Graph> graph_;
   PruneInputsFunc prune_func_;
-  const std::vector<tensorflow::ResourceHandle> dependent_host_resources_;
+  const std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources_;
 };
 }  // namespace npu
 

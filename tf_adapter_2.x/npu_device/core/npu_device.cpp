@@ -58,27 +58,6 @@ class NpuHostFixedAllocator : public tensorflow::Allocator {
 };
 }  // namespace
 
-tensorflow::Status NpuDevice::ConsumeIteratorAsync(const tensorflow::ResourceHandle &resource, int64_t nums,
-                                                   const DoneCallback &done) {
-  auto iter = iterator_providers_.find(resource);
-  if (iter == iterator_providers_.end()) {
-    return tensorflow::errors::Internal("Iterator resource provider not found for resource ", resource.name());
-  }
-  auto provider = iter->second;
-  return provider->Consume(nums, done);
-}
-
-tensorflow::Status NpuDevice::ConsumeIteratorSync(const tensorflow::ResourceHandle &resource, int64_t nums) {
-  tensorflow::Notification done;
-  auto status = tensorflow::Status::OK();
-  ConsumeIteratorAsync(resource, nums, [&status, &done](tensorflow::Status s) {
-    status = std::move(s);
-    done.Notify();
-  });
-  done.WaitForNotification();
-  return status;
-}
-
 void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::Tensor *tensor,
                                        std::vector<int> device_ids, TF_Status *status) {
   auto resource = tensor->scalar<tensorflow::ResourceHandle>()();
@@ -96,10 +75,9 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   tensorflow::FunctionLibraryRuntime::Handle f_handle;
   NPU_CTX_REQUIRES_OK(status, flr->Instantiate(dp_provider.signature().name(), tensorflow::AttrSlice{}, &f_handle));
 
-  tensorflow::Tensor captured_tensor = *tensor;
-  auto consume_func = [flr, f_handle, captured_tensor]() -> tensorflow::Status {
+  auto consume_func = [flr, f_handle](tensorflow::Tensor tensor) -> tensorflow::Status {
     std::vector<tensorflow::Tensor> get_next_outputs;
-    return flr->RunSync(tensorflow::FunctionLibraryRuntime::Options{}, f_handle, {captured_tensor}, &get_next_outputs);
+    return flr->RunSync(tensorflow::FunctionLibraryRuntime::Options{}, f_handle, {std::move(tensor)}, &get_next_outputs);
   };
   auto destroy_func = [resource, flr, f_handle]() -> tensorflow::Status {
     LOG(INFO) << "Stopping iterator resource provider for " << resource.name();
@@ -272,7 +250,7 @@ void NpuDevice::FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
 tensorflow::Status
 NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
                                         TFE_TensorHandle **inputs,
-                                        std::vector<tensorflow::ResourceHandle> &dependent_host_resources) {
+                                        std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources) {
   std::set<int> arg_is_variable;
   std::set<int> arg_is_iterator;
 
@@ -333,7 +311,6 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
   // 这里需要把涉及的function的resource输入也一并替换了
   std::vector<tensorflow::Node *> nodes_to_remove;
   std::vector<tensorflow::Node *> control_flow_nodes;
-  std::set<tensorflow::ResourceHandle, ResourceCompare> unique_dependent_resources;
   for (auto node : graph->op_nodes()) {
     if (node->IsRetval() && node->input_type(0) == tensorflow::DT_RESOURCE) {
       nodes_to_remove.push_back(node);
@@ -387,7 +364,7 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
           const tensorflow::FunctionDef *fdef = lib_def->Find(attr.second.func().name());
           std::unique_ptr<tensorflow::FunctionBody> fbody;
           FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
-          std::vector<tensorflow::ResourceHandle> unused_host_resources;
+          std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
           TransResourceInput2GraphNode(context, fbody->graph, func_inputs.size(), func_inputs.data(),
                                        unused_host_resources);
 
@@ -423,15 +400,18 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
         auto iter = arg_substitutes.find(edge->src());
         if (iter != arg_substitutes.end()) {
           int index = edge->src()->attrs().Find("index")->i();
-          if (arg_is_iterator.count(index)) { unique_dependent_resources.insert(arg_resource_handles[index]); }
+          if (arg_is_iterator.count(index)) {
+            auto provider = iterator_providers_.find(arg_resource_handles[index]);
+            NPU_REQUIRES(provider != iterator_providers_.end(),
+                         tensorflow::errors::Internal("Resource provider for ", arg_resource_handles[index].name(), " not found"));
+            dependent_host_resources[index] = provider->second;
+          }
           graph->AddEdge(iter->second, 0, node, edge->dst_input());
           graph->RemoveEdge(edge);
         }
       }
     }
   }
-
-  for (const auto &resource : unique_dependent_resources) { dependent_host_resources.push_back(resource); }
 
   for (auto node : control_flow_nodes) {
     if (node->IsWhileNode() || node->IsIfNode() || node->IsCaseNode() || node->IsFunctionCall()) {
@@ -840,7 +820,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
                      optimize_graph->ToGraphDefDebug());
     }
 
-    std::vector<tensorflow::ResourceHandle> dependent_host_resources;
+    std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources;
     NPU_CTX_REQUIRES_OK(
         s, TransResourceInput2GraphNode(context, optimize_graph.get(), num_inputs, inputs, dependent_host_resources));
 
@@ -1200,7 +1180,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   if (kCustomKernelEnabled) {
     // TODO:这里根据小循环策略修改值
     int64_t iterations_per_loop = 1;
-    if (spec->DependentHostResources().size() > 0) {
+    if (!spec->DependentHostResources().empty()) {
       for (auto node : spec->Graph()->op_nodes()) {
         if (node->IsWhileNode()) {
           iterations_per_loop = kGlobalLoopSize;
@@ -1209,13 +1189,15 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
       }
     }
     for (const auto &resource : spec->DependentHostResources()) {
-      LOG(INFO) << "Start consume iterator resource " << resource.name() << " " << iterations_per_loop << " times";
+      LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop << " times";
+      const tensorflow::Tensor *tensor;
+      NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(tf_inputs[resource.first], &tensor));
       // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
       auto done = [resource, iterations_per_loop](const tensorflow::Status &s) {
-        LOG(INFO) << "Iterator resource " << resource.name() << " consume " << iterations_per_loop
+        LOG(INFO) << "Iterator resource " << resource.second->Name() << " consume " << iterations_per_loop
                   << " times done with status " << s.ToString();
       };
-      NPU_CTX_REQUIRES_OK(status, ConsumeIteratorAsync(resource, iterations_per_loop, done));
+      NPU_CTX_REQUIRES_OK(status, resource.second->ConsumeAsync(*tensor, iterations_per_loop, done));
     }
 
     MaybeRebuildFuncSpecGraph(context, spec, status);
@@ -1590,7 +1572,7 @@ std::shared_ptr<const npu::TaskSpec>
 NpuDevice::CacheFuncSpec(const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
                          uint64_t ge_graph_id, std::unique_ptr<const tensorflow::Graph> graph,
                          const npu::FuncSpec::PruneInputsFunc &prune_func,
-                         const std::vector<tensorflow::ResourceHandle> &dependent_host_resources,
+                         const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources,
                          const std::string &reason) {
   auto spec = std::make_shared<npu::FuncSpec>(op_spec, ndef, ge_graph_id, std::move(graph), prune_func,
                                               dependent_host_resources, reason);

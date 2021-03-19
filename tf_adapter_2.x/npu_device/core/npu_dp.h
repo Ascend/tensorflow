@@ -24,20 +24,28 @@
 #include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 #include "tensorflow/core/framework/graph_to_functiondef.h"
 
+#include "npu_micros.h"
 #include "npu_types.h"
 
 class IteratorResourceProvider {
-  using ConsumeFunc = std::function<tensorflow::Status()>;
+  using ConsumeFunc = std::function<tensorflow::Status(tensorflow::Tensor)>;
   using DestroyFunc = std::function<tensorflow::Status()>;
   using DoneCallback = std::function<void(tensorflow::Status)>;
 
+  struct Request {
+    Request(tensorflow::Tensor t, int64_t n, DoneCallback d) : resource(std::move(t)), nums(n), done(std::move(d)) {}
+    tensorflow::Tensor resource;
+    int64_t nums;
+    DoneCallback done;
+  };
+
  public:
-  tensorflow::Status Consume(int64_t nums, const DoneCallback &done) {
+  tensorflow::Status ConsumeAsync(tensorflow::Tensor resource, int64_t nums, const DoneCallback &done) {
     {
       if (stopped_) { return tensorflow::errors::Internal("Iterator resource provider ", name_, " has stopped"); }
       std::unique_lock<std::mutex> lk(mu_);
       if (request_stop_) { return tensorflow::errors::Internal("Iterator resource provider ", name_, " is stopping"); }
-      requests_.emplace(nums, done);
+      requests_.emplace(Request(std::move(resource), nums, done));
     }
     cv_.notify_one();
     return tensorflow::Status::OK();
@@ -51,6 +59,8 @@ class IteratorResourceProvider {
     while (!stopped_) {}
     return destroy_func_();
   }
+
+  std::string Name() const { return name_; }
 
   IteratorResourceProvider(std::string name, ConsumeFunc cf, DestroyFunc df)
       : name_(std::move(name)), consume_func_(std::move(cf)), destroy_func_(std::move(df)), request_stop_(false),
@@ -67,11 +77,10 @@ class IteratorResourceProvider {
             auto task = requests_.front();
             requests_.pop();
             lk.unlock();
-            int64_t nums = task.first;
-            auto done = task.second;
+            int64_t nums = task.nums;
             tensorflow::Status status = tensorflow::Status::OK();
-            while (nums-- > 0 && status.ok()) { status = consume_func_(); }
-            done(status);
+            while (nums-- > 0 && status.ok()) { status = consume_func_(task.resource); }
+            task.done(status);
           }
         }));
   }
@@ -119,7 +128,7 @@ class IteratorResourceProvider {
   std::atomic_bool stopped_{false};
   std::mutex mu_;
   std::condition_variable cv_;
-  std::queue<std::pair<int64_t, DoneCallback>> requests_;
+  std::queue<Request> requests_;
   std::unique_ptr<tensorflow::Thread> worker_;
 };
 
