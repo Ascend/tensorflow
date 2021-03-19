@@ -843,6 +843,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     std::vector<tensorflow::ResourceHandle> dependent_host_resources;
     NPU_CTX_REQUIRES_OK(
         s, TransResourceInput2GraphNode(context, optimize_graph.get(), num_inputs, inputs, dependent_host_resources));
+
     if (kDumpExecutionDetail || kDumpGraph) {
       WriteTextProto(tensorflow::Env::Default(), "step_2_after_assemble_resource_node_" + file_name_suffix,
                      optimize_graph->ToGraphDefDebug());
@@ -850,29 +851,8 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
 
     PruneFunction(*fdef, optimize_graph.get());
 
-    // TODO:因为Parser要求打上的属性不是下划线开头，直接标记后，会导致无法回到TF执行，当前先复制一份图用于标记
-    std::unique_ptr<tensorflow::Graph> mark_shape_graph = std::make_unique<tensorflow::Graph>(lib_def);
-    CopyGraph(*optimize_graph, mark_shape_graph.get());
     DLOG() << "NPU Start inferring shape for function node " << op_name;
-    MarkGraphNodeInOutDesc(context, mark_shape_graph.get(), num_inputs, inputs);
-    FixGraphArgRetvalIndex(mark_shape_graph.get());  // Arg节点可能会被优化掉，因而需要重新排列index，并且prune输入
 
-    if (kDumpExecutionDetail || kDumpGraph) {
-      tensorflow::GraphDef gdef;
-      mark_shape_graph->ToGraphDef(&gdef);
-      tensorflow::FunctionDefLibrary fdef_lib;
-      for (const auto &fn : lib_def->ListFunctionNames()) { *fdef_lib.add_function() = *lib_def->Find(fn); }
-      *gdef.mutable_library() = fdef_lib;
-      WriteTextProto(tensorflow::Env::Default(), "step_3_after_mark_shape_" + file_name_suffix, gdef);
-    }
-    // 因为parser当前约定的附加属性不是匿名属性（非下划线开头，所以这里当前需要拷贝一份新图用于标记parser所需属性）
-    tensorflow::GraphDef function_graph_def;
-    mark_shape_graph->ToGraphDef(&function_graph_def);
-    uint64_t graph_id = 0;
-    if (kCustomKernelEnabled) {
-      graph_id = AddGeGraph(context, std::string("tf_function_") + op_name, function_graph_def, s);
-      if (TF_GetCode(s) != TF_OK) return;
-    }
     std::vector<int> remain_indexes;
     std::vector<TFE_TensorHandle *> pruned_inputs;
     for (auto node : optimize_graph->nodes()) {
@@ -882,7 +862,25 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
         pruned_inputs.push_back(inputs[index]);
       }
     }
-    FixGraphArgRetvalIndex(optimize_graph.get());  // 必须在保存完remain index后fix arg index
+
+    MarkGraphNodeInOutDesc(context, optimize_graph.get(), num_inputs, inputs);
+    FixGraphArgRetvalIndex(optimize_graph.get());  // Arg节点可能会被优化掉，因而需要重新排列index，并且prune输入
+
+    if (kDumpExecutionDetail || kDumpGraph) {
+      tensorflow::GraphDef gdef;
+      optimize_graph->ToGraphDef(&gdef);
+      tensorflow::FunctionDefLibrary fdef_lib;
+      for (const auto &fn : lib_def->ListFunctionNames()) { *fdef_lib.add_function() = *lib_def->Find(fn); }
+      *gdef.mutable_library() = fdef_lib;
+      WriteTextProto(tensorflow::Env::Default(), "step_3_after_mark_shape_" + file_name_suffix, gdef);
+    }
+    // 因为parser当前约定的附加属性不是匿名属性（非下划线开头，所以这里当前需要拷贝一份新图用于标记parser所需属性）
+    uint64_t graph_id = 0;
+    if (kCustomKernelEnabled) {
+      graph_id = AddGeGraph(context, std::string("tf_function_") + op_name, optimize_graph->ToGraphDefDebug(), s);
+      if (TF_GetCode(s) != TF_OK) return;
+    }
+
     DLOG() << std::string("tf_function_") + op_name << " remained input index (0-" << num_inputs - 1 << ") -> "
            << VecToString(remain_indexes);
     auto lambda = [remain_indexes](int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) {
@@ -1219,6 +1217,10 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
       };
       NPU_CTX_REQUIRES_OK(status, ConsumeIteratorAsync(resource, iterations_per_loop, done));
     }
+
+    MaybeRebuildFuncSpecGraph(context, spec, status);
+    if (TF_GetCode(status) != TF_OK) return;
+
     LOG(INFO) << "Start run ge graph " << spec->GeGraphId() << " pin to cpu, loop size " << iterations_per_loop;
     npu::Timer timer("Graph engine run ", iterations_per_loop, " times for graph ", spec->GeGraphId());
     timer.Start();
@@ -1410,9 +1412,8 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                          ge_session_->RunGraphAsync(graph_id, ge_inputs, ge_callback));
 }
 
-uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &def,
+uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name, const tensorflow::GraphDef &def,
                                TF_Status *status) {
-  uint64_t graph_id = NextUUID();
   auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
   std::shared_ptr<domi::ModelParser> parser =
       domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -1459,6 +1460,12 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, co
   ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
   NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph), graph_id);
   return graph_id;
+}
+
+uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &def,
+                               TF_Status *status) {
+  uint64_t graph_id = NextUUID();
+  return AddGeGraph(context, graph_id, name, def, status);
 }
 
 void NpuDevice::RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status) {
@@ -1540,6 +1547,15 @@ void NpuDevice::RunGeGraphPin2NpuAnonymous(TFE_Context *context, const std::stri
                                            const tensorflow::GraphDef &gdef, int num_inputs, TFE_TensorHandle **inputs,
                                            int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   RunGeGraphAnonymous(context, name, gdef, num_inputs, inputs, true, num_outputs, outputs, status);
+}
+
+void NpuDevice::MaybeRebuildFuncSpecGraph(TFE_Context *context, const npu::FuncSpec *spec, TF_Status *status) {
+  if (GeSession()->IsGraphNeedRebuild(spec->GeGraphId())) {
+    LOG(INFO) << "Start rebuild ge graph " << spec->GeGraphId();
+    RemoveGeGraph(context, spec->GeGraphId(), status);
+    if (TF_GetCode(status) != TF_OK) return;
+    AddGeGraph(context, spec->GeGraphId(), std::string("tf_function_") + spec->Op(), spec->Graph()->ToGraphDefDebug(), status);
+  }
 }
 
 void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_ptr<const npu::TaskSpec> *spec,
