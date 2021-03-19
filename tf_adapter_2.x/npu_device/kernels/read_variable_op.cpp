@@ -85,10 +85,12 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec 
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   const tensorflow::Tensor *handle = nullptr;
   NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(inputs[0], &handle));
+
   auto resource = handle->scalar<tensorflow::ResourceHandle>()();
   NPU_CTX_REQUIRES(status, resource.dtypes_and_shapes().size() == 1,
                    tensorflow::errors::Internal(resource.DebugString(), " type and shape size invalid ",
                                                 resource.dtypes_and_shapes().size(), " expect 1"));
+
   auto var_read_graph = ReadVariableGraphBuilder::GetGraph(resource, status);
   if (TF_GetCode(status) != TF_OK) {
     return;

@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <utility>
+#include <future>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -132,9 +133,13 @@ std::string NpuDevice::CreateDevice(const char *name, int device_index,
 }
 
 void NpuDevice::ReleaseResource() {
+  DLOG() << "Start cancel all uncompleted async call";
   CancellationManager()->StartCancel();
+
+  std::vector<std::future<void>> thread_guarder;
   for (auto &iterator_provider : iterator_providers_) {
-    iterator_provider.second->Destroy();
+    auto provider = iterator_provider.second;
+    thread_guarder.emplace_back(std::async([provider]() { provider->Destroy(); }));
   }
 }
 

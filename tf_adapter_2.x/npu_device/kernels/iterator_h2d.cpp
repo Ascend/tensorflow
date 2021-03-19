@@ -76,8 +76,12 @@ class IteratorH2D : public OpKernel {
       return;
     }
 
-    for (auto channel : channels_) {
-      OP_REQUIRES_OK(ctx, channel->SendTensors(components));
+    for (const auto &channel : channels_) {
+      auto status = channel->SendTensors(components);
+      if (!status.ok()) {
+        ctx->SetStatus(status);
+        return;
+      }
     }
 
     cm->DeregisterCallback(token);

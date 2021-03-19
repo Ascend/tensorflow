@@ -90,7 +90,11 @@ class IteratorResourceProvider {
           while (nums-- > 0 && status.ok()) {
             status = consume_func_(task.resource);
           }
-          task.done(status);
+          if (request_stop_) {
+            task.done(tensorflow::Status::OK());
+          } else {
+            task.done(status);
+          }
         }
       }));
   }
