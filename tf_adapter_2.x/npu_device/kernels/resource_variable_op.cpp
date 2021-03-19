@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include <memory>
 #include <utility>
@@ -37,24 +37,24 @@ class AssignVariableGraphBuilder {
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder(WrapResourceName(shared_name), "VarHandleOp")
-                                   .Attr("container", container_name)
-                                   .Attr("shared_name", shared_name)
-                                   .Attr("dtype", tensor.dtype())
-                                   .Attr("shape", tensor.shape())
-                                   .Finalize(&graph, &variable),
+                                 .Attr("container", container_name)
+                                 .Attr("shared_name", shared_name)
+                                 .Attr("dtype", tensor.dtype())
+                                 .Attr("shape", tensor.shape())
+                                 .Finalize(&graph, &variable),
                                gdef);
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder(op_name + "_Value_" + shared_name, "Const")
-                                   .Attr("value", tensor)
-                                   .Attr("dtype", tensor.dtype())
-                                   .Finalize(&graph, &value),
+                                 .Attr("value", tensor)
+                                 .Attr("dtype", tensor.dtype())
+                                 .Finalize(&graph, &value),
                                gdef);
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder(op_name + "_" + shared_name, op_name)
-                                   .Input(variable, 0)
-                                   .Input(value, 0)
-                                   .Attr("dtype", tensor.dtype())
-                                   .Finalize(&graph, &assign_variable),
+                                 .Input(variable, 0)
+                                 .Input(value, 0)
+                                 .Attr("dtype", tensor.dtype())
+                                 .Finalize(&graph, &assign_variable),
                                gdef);
 
     AssembleOpDef(variable);
@@ -93,8 +93,10 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
   DLOG() << "Start run " << op_name << " for resource " << resource.DebugString() << " with value "
          << value->DebugString();
   auto var_init_graph =
-      AssignVariableGraphBuilder::GetGraph(op_name, resource.container(), resource.name(), *value, status);
-  if (TF_GetCode(status) != TF_OK) { return; }
+    AssignVariableGraphBuilder::GetGraph(op_name, resource.container(), resource.name(), *value, status);
+  if (TF_GetCode(status) != TF_OK) {
+    return;
+  }
   std::string graph_name = op_name + "_" + resource.name();
   if (kDumpExecutionDetail && kDumpGraph) {
     std::string file_name = graph_name + ".pbtxt";
@@ -102,7 +104,9 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
     LOG(INFO) << "NPU Dump variable resource init graph to: " << file_name;
   }
 
-  for (auto copied_tensor_handle : copied_tensor_handles) { TFE_DeleteTensorHandle(copied_tensor_handle); }
+  for (auto copied_tensor_handle : copied_tensor_handles) {
+    TFE_DeleteTensorHandle(copied_tensor_handle);
+  }
   dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_init_graph, num_inputs, inputs, num_outputs, outputs,
                                   status);
 }

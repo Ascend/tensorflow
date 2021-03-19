@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
@@ -29,7 +29,9 @@ class SendH2D : public OpKernel {
   void Compute(OpKernelContext *ctx) override {
     if (!initialized_.exchange(true)) {
       std::stringstream ss;
-      for (auto device_id : device_ids_) { ss << device_id << " "; }
+      for (auto device_id : device_ids_) {
+        ss << device_id << " ";
+      }
       channels_.resize(device_ids_.size());
       for (size_t i = 0; i < device_ids_.size(); i++) {
         OP_REQUIRES_OK(ctx, HdcChannel::Create(device_ids_[i], channel_name_, &channels_[i]));
@@ -40,8 +42,12 @@ class SendH2D : public OpKernel {
     OpInputList inputs;
     OP_REQUIRES_OK(ctx, ctx->input_list("inputs", &inputs));
     std::vector<Tensor> tensors;
-    for (int64 i = 0; i < inputs.size(); i++) { tensors.push_back(inputs[i]); }
-    for (auto channel : channels_) { OP_REQUIRES_OK(ctx, channel->SendTensors(tensors)); }
+    for (int64 i = 0; i < inputs.size(); i++) {
+      tensors.push_back(inputs[i]);
+    }
+    for (auto channel : channels_) {
+      OP_REQUIRES_OK(ctx, channel->SendTensors(tensors));
+    }
   }
 
  private:

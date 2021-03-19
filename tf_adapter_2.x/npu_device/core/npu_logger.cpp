@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include "npu_logger.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -94,8 +94,12 @@ class ProfManager {
   void RecordOpInner(const std::string &op, std::string detail, bool is_stateful, bool is_unknown) {
     std::lock_guard<std::mutex> lk(mu_);
     op_records_[op]++;
-    if (is_unknown) { unknown_shape_op_records_[op]++; }
-    if (is_stateful) { stateful_shape_op_records_[op]++; }
+    if (is_unknown) {
+      unknown_shape_op_records_[op]++;
+    }
+    if (is_stateful) {
+      stateful_shape_op_records_[op]++;
+    }
     op_shape_records_[op].insert(detail);
   }
   ~ProfManager() {
@@ -119,7 +123,9 @@ class ProfManager {
     for (auto iter = op_shape_records_.begin(); iter != op_shape_records_.end(); iter++) {
       std::stringstream ss;
       ss << std::endl << iter->first << ":";
-      for (auto status : iter->second) { ss << std::endl << status; }
+      for (auto status : iter->second) {
+        ss << std::endl << status;
+      }
       LOG(INFO) << ss.str();
     }
   }

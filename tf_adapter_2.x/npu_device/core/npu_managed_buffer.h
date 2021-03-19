@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_MANAGED_BUFFER_H
 #define TENSORFLOW_NPU_MANAGED_BUFFER_H
@@ -35,10 +35,12 @@ class NpuManagedBuffer {
                                    size_t size, void *arg, void (*deallocator)(void *, size_t, void *),
                                    NpuManagedBuffer **buf);
 
-  // 将输入的CPU Tensor的数据填充到当前buffer管理的NPU内存上，CPU Tensor的格式和type与buffer的成员origin_data_type_和origin_format_一致
+  // 将输入的CPU Tensor的数据填充到当前buffer管理的NPU内存上，CPU
+  // Tensor的格式和type与buffer的成员origin_data_type_和origin_format_一致
   tensorflow::Status AssembleFrom(const tensorflow::Tensor *tensor);
 
-  // 将当前buffer管理的NPU内存上的数据填充到输入的CPU Tensor的数据地址上，CPU Tensor的格式和type与buffer的成员origin_data_type_和origin_format_一致
+  // 将当前buffer管理的NPU内存上的数据填充到输入的CPU Tensor的数据地址上，CPU
+  // Tensor的格式和type与buffer的成员origin_data_type_和origin_format_一致
   tensorflow::Status AssembleTo(const tensorflow::Tensor *tensor);
 
   bool SameRepresentation() { return origin_format_ == format_ && origin_data_type_ == data_type_; }
@@ -79,4 +81,4 @@ static void NpuManagedBufferDeallocator(void *data, size_t len, void *arg) {
   NpuManagedBuffer::Destroy(reinterpret_cast<NpuManagedBuffer *>(data));
 }
 
-#endif  //TENSORFLOW_NPU_TENSOR_H
+#endif  // TENSORFLOW_NPU_TENSOR_H

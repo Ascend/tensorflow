@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_PARSER_H
 #define TENSORFLOW_NPU_PARSER_H
@@ -36,7 +36,9 @@ static tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes types) {
     desc->set_name(std::to_string(i));
 
     tensorflow::AttrValue shape_value;
-    for (int j = 0; j < shapes[i].dims(); j++) { shape_value.mutable_list()->add_i(shapes[i].dim_size(j)); }
+    for (int j = 0; j < shapes[i].dims(); j++) {
+      shape_value.mutable_list()->add_i(shapes[i].dim_size(j));
+    }
     desc->mutable_attr()->insert({kShape, shape_value});
 
     tensorflow::AttrValue type_value;
@@ -120,4 +122,4 @@ static void AssembleOpDef(tensorflow::NodeDef *ndef) {
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
 
-#endif  //TENSORFLOW_NPU_PARSER_H
+#endif  // TENSORFLOW_NPU_PARSER_H

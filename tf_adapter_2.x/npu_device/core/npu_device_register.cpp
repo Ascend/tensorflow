@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include "tensorflow/core/platform/logging.h"
 
@@ -64,7 +64,9 @@ std::string CreateDevice(TFE_Context *context, const char *name, int device_inde
 
   NpuDevice *device = nullptr;
   auto create_status = NpuDevice::CreateDevice(name, device_index, session_options, &device);
-  if (create_status != kSucceed) { return create_status; }
+  if (create_status != kSucceed) {
+    return create_status;
+  }
   devices_instances.push_back(device);
 
   std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)> status(TF_NewStatus(), TF_DeleteStatus);
@@ -78,5 +80,7 @@ std::string CreateDevice(TFE_Context *context, const char *name, int device_inde
 }
 
 void ReleaseDeviceResource() {
-  for (auto device : devices_instances) { device->ReleaseResource(); }
+  for (auto device : devices_instances) {
+    device->ReleaseResource();
+  }
 }

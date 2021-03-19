@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include <memory>
 #include <utility>
@@ -37,7 +37,7 @@
 using Format = ge::Format;
 
 namespace {
-template<typename T>
+template <typename T>
 class NpuHostFixedAllocator : public tensorflow::Allocator {
  public:
   static tensorflow::Allocator *Create(std::unique_ptr<T> ptr) {
@@ -65,7 +65,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   TensorDataTypes types;
   NPU_CTX_REQUIRES_OK(status, GetMirroredIteratorShapesAndTypes(resource, shapes, types));
   auto dp_provider =
-      IteratorResourceProvider::GetFunctionDef(resource.name(), std::move(device_ids), shapes, types, status);
+    IteratorResourceProvider::GetFunctionDef(resource.name(), std::move(device_ids), shapes, types, status);
   if (TF_GetCode(status) != TF_OK) return;
 
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
@@ -107,16 +107,22 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
 std::string NpuDevice::CreateDevice(const char *name, int device_index,
                                     const std::map<std::string, std::string> &session_options, NpuDevice **device) {
   auto *ge_session = new (std::nothrow) ge::Session(session_options);
-  if (ge_session == nullptr) { return "Failed init graph engine: create new session failed"; }
+  if (ge_session == nullptr) {
+    return "Failed init graph engine: create new session failed";
+  }
 
   std::shared_ptr<domi::ModelParser> parser =
-      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
-  if (parser == nullptr) { return "Failed init graph engine: create tensorflow model parser failed"; }
+    domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+  if (parser == nullptr) {
+    return "Failed init graph engine: create tensorflow model parser failed";
+  }
 
   std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)> status(TF_NewStatus(), TF_DeleteStatus);
 
   *device = new (std::nothrow) NpuDevice();
-  if (*device == nullptr) { return "Failed create new npu device instance"; }
+  if (*device == nullptr) {
+    return "Failed create new npu device instance";
+  }
   (*device)->device_id = device_index;
   (*device)->device_name = name;
   (*device)->underlying_device = "/job:localhost/replica:0/task:0/device:CPU:0";
@@ -127,12 +133,16 @@ std::string NpuDevice::CreateDevice(const char *name, int device_index,
 
 void NpuDevice::ReleaseResource() {
   CancellationManager()->StartCancel();
-  for (auto &iterator_provider : iterator_providers_) { iterator_provider.second->Destroy(); }
+  for (auto &iterator_provider : iterator_providers_) {
+    iterator_provider.second->Destroy();
+  }
 }
 
 void NpuDevice::DeleteDevice(void *device) {
   DLOG() << "Start destroy npu device instance";
-  if (device == nullptr) { return; }
+  if (device == nullptr) {
+    return;
+  }
   auto npu_device = reinterpret_cast<NpuDevice *>(device);
   delete npu_device->ge_session_;
   delete npu_device;
@@ -148,28 +158,28 @@ tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int
     auto data_type = npu::UnwrapHandle(inputs[i])->DataType();
     if (data_type == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      (void) npu::UnwrapTensor(inputs[i], &tensor);
+      (void)npu::UnwrapTensor(inputs[i], &tensor);
       if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[i]))) {
         has_npu = true;
         npu_index = i;
         if (has_cpu) {
           const tensorflow::Tensor *cpu_tensor;
-          (void) npu::UnwrapTensor(inputs[cpu_index], &cpu_tensor);
+          (void)npu::UnwrapTensor(inputs[cpu_index], &cpu_tensor);
           return tensorflow::errors::InvalidArgument(
-              op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
-              " on NPU but resource input ", cpu_index, " ", cpu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
-              " on CPU");
+            op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
+            " on NPU but resource input ", cpu_index, " ", cpu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
+            " on CPU");
         }
       } else if (!Mirrored(tensor->scalar<tensorflow::ResourceHandle>()())) {
         has_cpu = true;
         cpu_index = i;
         if (has_npu) {
           const tensorflow::Tensor *npu_tensor;
-          (void) npu::UnwrapTensor(inputs[npu_index], &npu_tensor);
+          (void)npu::UnwrapTensor(inputs[npu_index], &npu_tensor);
           return tensorflow::errors::InvalidArgument(
-              op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
-              " on CPU but resource input ", npu_index, " ", npu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
-              " on NPU");
+            op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
+            " on CPU but resource input ", npu_index, " ", npu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
+            " on NPU");
         }
       }
     }
@@ -188,7 +198,9 @@ tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs,
         if (!Mirrored(tensor->scalar<tensorflow::ResourceHandle>()())) {
           tensorflow::Status status;
           std::string src_name = npu::UnwrapHandle(inputs[i])->DeviceName(&status);
-          if (!status.ok()) { src_name = status.ToString(); }
+          if (!status.ok()) {
+            src_name = status.ToString();
+          }
           return tensorflow::errors::Unimplemented("Op ", op_name, " input ", i, " resource from ", src_name);
         } else {
           DLOG() << "Op" << op_name << " input " << i << " resource mirrored from "
@@ -220,42 +232,59 @@ tensorflow::Status NpuDevice::ValidateOutput(const char *op_name, const TensorDa
 
 void NpuDevice::PruneFunction(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature) {
   std::unordered_set<tensorflow::StringPiece, tensorflow::StringPieceHasher> control_ret_nodes;
-  for (const auto &control_ret : fdef.control_ret()) { control_ret_nodes.insert(control_ret.second); }
+  for (const auto &control_ret : fdef.control_ret()) {
+    control_ret_nodes.insert(control_ret.second);
+  }
 
   std::unordered_set<const tensorflow::Node *> nodes;
   for (auto n : g->nodes()) {
-    if (n->IsControlFlow() || n->op_def().is_stateful()
-        || (control_ret_nodes.find(n->name()) != control_ret_nodes.end())) {
-      if (n->type_string() == "VarHandleOp" || n->type_string() == "IteratorV2") { continue; }
+    if (n->IsControlFlow() || n->op_def().is_stateful() ||
+        (control_ret_nodes.find(n->name()) != control_ret_nodes.end())) {
+      if (n->type_string() == "VarHandleOp" || n->type_string() == "IteratorV2") {
+        continue;
+      }
       if (!keep_signature) {
-        if (n->IsArg()) { continue; }
-        if (n->IsRetval() && n->attrs().Find("T")->type() == tensorflow::DT_RESOURCE) { continue; }
+        if (n->IsArg()) {
+          continue;
+        }
+        if (n->IsRetval() && n->attrs().Find("T")->type() == tensorflow::DT_RESOURCE) {
+          continue;
+        }
       }
       nodes.insert(n);
     }
   }
   bool changed = PruneForReverseReachability(g, std::move(nodes));
-  if (changed) { FixupSourceAndSinkEdges(g); }
+  if (changed) {
+    FixupSourceAndSinkEdges(g);
+  }
 }
 
 void NpuDevice::FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
   std::map<int, tensorflow::Node *> indexed_args;
   std::map<int, tensorflow::Node *> indexed_retvals;
   for (auto node : graph->nodes()) {
-    if (node->IsArg()) { indexed_args[node->attrs().Find("index")->i()] = node; }
-    if (node->IsRetval()) { indexed_retvals[node->attrs().Find("index")->i()] = node; }
+    if (node->IsArg()) {
+      indexed_args[node->attrs().Find("index")->i()] = node;
+    }
+    if (node->IsRetval()) {
+      indexed_retvals[node->attrs().Find("index")->i()] = node;
+    }
   }
   int current_arg_index = 0;
-  for (auto indexed_arg : indexed_args) { indexed_arg.second->AddAttr("index", current_arg_index++); }
+  for (auto indexed_arg : indexed_args) {
+    indexed_arg.second->AddAttr("index", current_arg_index++);
+  }
 
   int current_retval_index = 0;
-  for (auto indexed_retval : indexed_retvals) { indexed_retval.second->AddAttr("index", current_retval_index++); }
+  for (auto indexed_retval : indexed_retvals) {
+    indexed_retval.second->AddAttr("index", current_retval_index++);
+  }
 }
 
-tensorflow::Status
-NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
-                                        TFE_TensorHandle **inputs,
-                                        std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources) {
+tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
+  TFE_Context *context, tensorflow::Graph *graph, int num_inputs, TFE_TensorHandle **inputs,
+  std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources) {
   std::set<int> arg_is_variable;
   std::set<int> arg_is_iterator;
 
@@ -265,7 +294,9 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
   VecTensorPartialShapes arg_handle_shapes(num_inputs);
 
   for (int i = 0; i < num_inputs; i++) {
-    if (inputs[i] == nullptr) { continue; };
+    if (inputs[i] == nullptr) {
+      continue;
+    };
     const tensorflow::Tensor *tensor;
     NPU_REQUIRES_OK(npu::UnwrapTensor(inputs[i], &tensor));
     if (tensor->dtype() == tensorflow::DT_RESOURCE) {
@@ -291,24 +322,24 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
       auto index = node->attrs().Find("index")->i();
       if (arg_is_iterator.count(index)) {
         NPU_REQUIRES_OK(tensorflow::NodeBuilder(WrapResourceName(arg_resource_handles[index].name()), "IteratorV2")
-                            .Attr("container", arg_resource_handles[index].container())
-                            .Attr("shared_name", arg_resource_handles[index].name())
-                            .Attr("output_types", arg_handle_dtyes[index])
-                            .Attr("output_shapes", arg_handle_shapes[index])
-                            .Attr("_arg_name", node->name())
-                            .Attr("_arg_index", int(index))
-                            .Finalize(graph, &arg_substitutes[node]));
+                          .Attr("container", arg_resource_handles[index].container())
+                          .Attr("shared_name", arg_resource_handles[index].name())
+                          .Attr("output_types", arg_handle_dtyes[index])
+                          .Attr("output_shapes", arg_handle_shapes[index])
+                          .Attr("_arg_name", node->name())
+                          .Attr("_arg_index", int(index))
+                          .Finalize(graph, &arg_substitutes[node]));
 
       } else if (arg_is_variable.count(index)) {
         tensorflow::Node *variable = nullptr;
         NPU_REQUIRES_OK(tensorflow::NodeBuilder(WrapResourceName(arg_resource_handles[index].name()), "VarHandleOp")
-                            .Attr("container", arg_resource_handles[index].container())
-                            .Attr("shared_name", arg_resource_handles[index].name())
-                            .Attr("dtype", arg_handle_dtyes[index][0])
-                            .Attr("shape", arg_handle_shapes[index][0])
-                            .Attr("_arg_name", node->name())
-                            .Attr("_arg_index", int(index))
-                            .Finalize(graph, &arg_substitutes[node]));
+                          .Attr("container", arg_resource_handles[index].container())
+                          .Attr("shared_name", arg_resource_handles[index].name())
+                          .Attr("dtype", arg_handle_dtyes[index][0])
+                          .Attr("shape", arg_handle_shapes[index][0])
+                          .Attr("_arg_name", node->name())
+                          .Attr("_arg_index", int(index))
+                          .Finalize(graph, &arg_substitutes[node]));
       }
     }
   }
@@ -347,7 +378,9 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
         }
         DLOG() << node->name() << " input arg " << in_arg.name() << " range [" << func_input_start << ", "
                << func_input_end << ")";
-        if (in_arg.name() == func_input_name) { break; }
+        if (in_arg.name() == func_input_name) {
+          break;
+        }
       }
 
       std::vector<TFE_TensorHandle *> func_inputs;
@@ -364,8 +397,8 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
       for (auto &attr : node->attrs()) {
         if (attr.second.has_func()) {
           static std::atomic<uint64_t> uuid{0};
-          std::string func_name = node->type_string() + "_" + attr.first + "_" + attr.second.func().name() + "_"
-              + std::to_string(uuid.fetch_add(1));
+          std::string func_name = node->type_string() + "_" + attr.first + "_" + attr.second.func().name() + "_" +
+                                  std::to_string(uuid.fetch_add(1));
           const tensorflow::FunctionDef *fdef = lib_def->Find(attr.second.func().name());
           std::unique_ptr<tensorflow::FunctionBody> fbody;
           FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
@@ -376,7 +409,9 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
           // Arg节点可能会被优化掉，因而需要重新排列index
           std::vector<int> remain_indexes;
           for (auto n : fbody->graph->nodes()) {
-            if (n->IsArg()) { remain_indexes.push_back(n->attrs().Find("index")->i()); }
+            if (n->IsArg()) {
+              remain_indexes.push_back(n->attrs().Find("index")->i());
+            }
           }
           FixGraphArgRetvalIndex(fbody->graph);
           DLOG() << func_name << " remained input index (0-" << func_inputs.size() - 1 << ") -> "
@@ -385,7 +420,9 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
           tensorflow::FunctionDef optimized_fdef;
           auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
             for (const auto &control_ret : fdef->control_ret()) {
-              if (control_ret.second == node->name()) { return absl::make_optional(node->name()); }
+              if (control_ret.second == node->name()) {
+                return absl::make_optional(node->name());
+              }
             }
             return absl::nullopt;
           };
@@ -399,7 +436,9 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
     }
 
     std::vector<const tensorflow::Edge *> edges;
-    for (auto edge : node->in_edges()) { edges.emplace_back(edge); }  // You can never modify and iterator an EdgeSet
+    for (auto edge : node->in_edges()) {
+      edges.emplace_back(edge);
+    }  // You can never modify and iterator an EdgeSet
     for (auto edge : edges) {
       if (edge->src()->IsArg()) {
         auto iter = arg_substitutes.find(edge->src());
@@ -407,8 +446,9 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
           int index = edge->src()->attrs().Find("index")->i();
           if (arg_is_iterator.count(index)) {
             auto provider = iterator_providers_.find(arg_resource_handles[index]);
-            NPU_REQUIRES(provider != iterator_providers_.end(),
-                         tensorflow::errors::Internal("Resource provider for ", arg_resource_handles[index].name(), " not found"));
+            NPU_REQUIRES(
+              provider != iterator_providers_.end(),
+              tensorflow::errors::Internal("Resource provider for ", arg_resource_handles[index].name(), " not found"));
             dependent_host_resources[index] = provider->second;
           }
           graph->AddEdge(iter->second, 0, node, edge->dst_input());
@@ -471,20 +511,25 @@ NpuDevice::TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph 
       }
       for (auto n : graph->op_nodes()) {
         for (auto edge : n->in_edges()) {
-          if (edge->src() == node) { graph->AddEdge(pruned_node, edge->src_output(), edge->dst(), edge->dst_input()); }
+          if (edge->src() == node) {
+            graph->AddEdge(pruned_node, edge->src_output(), edge->dst(), edge->dst_input());
+          }
         }
       }
       graph->RemoveNode(node);
     }
   }
-  for (auto node : nodes_to_remove) { graph->RemoveNode(node); }
-  for (auto arg_substitute : arg_substitutes) { graph->RemoveNode(arg_substitute.first); }
+  for (auto node : nodes_to_remove) {
+    graph->RemoveNode(node);
+  }
+  for (auto arg_substitute : arg_substitutes) {
+    graph->RemoveNode(arg_substitute.first);
+  }
   return tensorflow::Status::OK();
 }
 
 tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
                                                      TFE_TensorHandle **inputs) {
-
   tensorflow::ShapeRefiner shape_refiner(graph->versions(), npu::UnwrapCtx(context)->FuncLibDef());
   VecTensorShapes arg_shapes;
   VecTensorDataTypes arg_handle_dtyes;
@@ -516,8 +561,12 @@ tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tenso
         node->AddAttr("_output_shapes", arg_shapes[index]);
       }
       if (index < num_inputs && npu::UnwrapHandle(inputs[index])->DataType() == tensorflow::DT_RESOURCE) {
-        if (!node->attrs().Find("_handle_shapes")) { node->AddAttr("_handle_shapes", arg_handle_shapes[index]); }
-        if (!node->attrs().Find("_handle_dtypes")) { node->AddAttr("_handle_dtypes", arg_handle_dtyes[index]); }
+        if (!node->attrs().Find("_handle_shapes")) {
+          node->AddAttr("_handle_shapes", arg_handle_shapes[index]);
+        }
+        if (!node->attrs().Find("_handle_dtypes")) {
+          node->AddAttr("_handle_dtypes", arg_handle_dtyes[index]);
+        }
       }
     }
     auto status = shape_refiner.AddNode(node);
@@ -558,7 +607,7 @@ tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tenso
             break;
           }
           *input_desc_attrs.mutable_list()->add_func() =
-              edge->src()->attrs().Find(kOutputDesc)->list().func(edge->src_output());
+            edge->src()->attrs().Find(kOutputDesc)->list().func(edge->src_output());
         }
       }
       if (!input_desc_incomplete) {
@@ -596,7 +645,9 @@ TFE_TensorHandle *NpuDevice::NewDeviceTensorHandle(TFE_Context *context, Format 
   NpuManagedBuffer *npu_managed_buffer;
   NPU_CTX_REQUIRES_OK_RETURN(status, NpuManagedBuffer::Create(fmt, shape, type, &npu_managed_buffer), nullptr);
   std::vector<int64_t> dims;
-  for (auto dim_size : shape.dim_sizes()) { dims.emplace_back(dim_size); }
+  for (auto dim_size : shape.dim_sizes()) {
+    dims.emplace_back(dim_size);
+  }
   return TFE_NewTensorHandleFromDeviceMemory(context, device_name.c_str(), static_cast<TF_DataType>(type), dims.data(),
                                              dims.size(), npu_managed_buffer, sizeof(npu_managed_buffer),
                                              &NpuManagedBufferDeallocator, nullptr, status);
@@ -609,7 +660,7 @@ TFE_TensorHandle *NpuDevice::NewDeviceResourceHandle(TFE_Context *context, const
   NPU_CTX_REQUIRES_RETURN(status, npu::UnwrapCtx(context)->FindCustomDeviceFromName(device_name, &custom_device),
                           tensorflow::errors::Internal("No custom device registered with name ", device_name), nullptr);
   return tensorflow::wrap(
-      tensorflow::TensorHandle::CreateLocalHandle(std::move(tensor), custom_device, npu::UnwrapCtx(context)));
+    tensorflow::TensorHandle::CreateLocalHandle(std::move(tensor), custom_device, npu::UnwrapCtx(context)));
 }
 
 TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status) {
@@ -619,13 +670,13 @@ TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandl
   if (npu_tensor->dtype() == tensorflow::DT_RESOURCE) {
     tensorflow::ResourceHandle handle = npu_tensor->scalar<tensorflow::ResourceHandle>()();
     status->status =
-        tensorflow::errors::Internal("Resources ", handle.DebugString(), " cannot be copied across devices[NPU->CPU]");
+      tensorflow::errors::Internal("Resources ", handle.DebugString(), " cannot be copied across devices[NPU->CPU]");
     return nullptr;
   }
 
   const tensorflow::Tensor *local_tensor;
   TFE_TensorHandle *local_handle = tensorflow::wrap(
-      tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(npu_tensor->dtype(), npu_tensor->shape())));
+    tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(npu_tensor->dtype(), npu_tensor->shape())));
   NPU_CTX_REQUIRES_RETURN(status, local_handle != nullptr, tensorflow::errors::Internal("Failed create local handle"),
                           nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(local_handle, &local_tensor), nullptr);
@@ -652,18 +703,20 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
   if (local_tensor->dtype() == tensorflow::DT_RESOURCE) {
     tensorflow::ResourceHandle handle = local_tensor->scalar<tensorflow::ResourceHandle>()();
     status->status =
-        tensorflow::errors::Internal("Resources ", handle.DebugString(), " cannot be copied across devices[CPU->NPU]");
+      tensorflow::errors::Internal("Resources ", handle.DebugString(), " cannot be copied across devices[CPU->NPU]");
     return nullptr;
   }
 
   TFE_TensorHandle *npu_handle =
-      NewDeviceTensorHandle(context, fmt, local_tensor->shape(), local_tensor->dtype(), status);
+    NewDeviceTensorHandle(context, fmt, local_tensor->shape(), local_tensor->dtype(), status);
   if (TF_GetCode(status) != TF_OK) return nullptr;
   const tensorflow::Tensor *npu_tensor = nullptr;
 
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(npu_handle, &npu_tensor), nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleFrom(local_tensor), npu_handle);
-  for (auto handle : copied_tensor_handles) { TFE_DeleteTensorHandle(handle); }
+  for (auto handle : copied_tensor_handles) {
+    TFE_DeleteTensorHandle(handle);
+  }
   return npu_handle;
 }
 
@@ -718,7 +771,9 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
     if (ic.requested_input_tensor(i)) {  // If requested, this must be a normal tensor
       if (IsNpuTensorHandle(npu::UnwrapHandle(input))) {
         auto s = TF_NewStatus();
-        if (s == nullptr) { continue; }
+        if (s == nullptr) {
+          continue;
+        }
         input = CopyTensorD2H(context, input, s);
         if (TF_GetCode(s) != TF_OK) {
           TF_DeleteStatus(s);
@@ -739,15 +794,21 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
     NPU_REQUIRES_OK(ic.Run(op_reg_data->shape_inference_fn));
   }
 
-  for (auto handle : copied_tensor_handles) { TFE_DeleteTensorHandle(handle); }
+  for (auto handle : copied_tensor_handles) {
+    TFE_DeleteTensorHandle(handle);
+  }
 
   for (int i = 0; i < ic.num_outputs(); i++) {
     shapes.emplace_back(tensorflow::PartialTensorShape());
     tensorflow::shape_inference::ShapeHandle shape_handle = ic.output(i);
     auto num_dims = ic.Rank(shape_handle);
     std::vector<tensorflow::int64> dims;
-    if (num_dims == tensorflow::shape_inference::InferenceContext::kUnknownRank) { continue; }
-    for (auto j = 0; j < num_dims; ++j) { dims.emplace_back(ic.Value(ic.Dim(shape_handle, j))); }
+    if (num_dims == tensorflow::shape_inference::InferenceContext::kUnknownRank) {
+      continue;
+    }
+    for (auto j = 0; j < num_dims; ++j) {
+      dims.emplace_back(ic.Value(ic.Dim(shape_handle, j)));
+    }
     NPU_REQUIRES_OK(tensorflow::PartialTensorShape::MakePartialShape(dims.data(), num_dims, &shapes[i]));
   }
   return tensorflow::Status::OK();
@@ -827,7 +888,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
 
     std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources;
     NPU_CTX_REQUIRES_OK(
-        s, TransResourceInput2GraphNode(context, optimize_graph.get(), num_inputs, inputs, dependent_host_resources));
+      s, TransResourceInput2GraphNode(context, optimize_graph.get(), num_inputs, inputs, dependent_host_resources));
 
     if (kDumpExecutionDetail || kDumpGraph) {
       WriteTextProto(tensorflow::Env::Default(), "step_2_after_assemble_resource_node_" + file_name_suffix,
@@ -855,7 +916,9 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       tensorflow::GraphDef gdef;
       optimize_graph->ToGraphDef(&gdef);
       tensorflow::FunctionDefLibrary fdef_lib;
-      for (const auto &fn : lib_def->ListFunctionNames()) { *fdef_lib.add_function() = *lib_def->Find(fn); }
+      for (const auto &fn : lib_def->ListFunctionNames()) {
+        *fdef_lib.add_function() = *lib_def->Find(fn);
+      }
       *gdef.mutable_library() = fdef_lib;
       WriteTextProto(tensorflow::Env::Default(), "step_3_after_mark_shape_" + file_name_suffix, gdef);
     }
@@ -869,13 +932,15 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     DLOG() << std::string("tf_function_") + op_name << " remained input index (0-" << num_inputs - 1 << ") -> "
            << VecToString(remain_indexes);
     auto lambda = [remain_indexes](int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) {
-      for (auto index : remain_indexes) { pruned.push_back(inputs[index]); }
+      for (auto index : remain_indexes) {
+        pruned.push_back(inputs[index]);
+      }
     };
     // 对于function节点，可以将resource的输入NPU兼容性作为缓存项目，校验输入是否被NPU支持，如果类型不支持，或者是CPU的Resouce类型，则不支持
     // 如果是单算子，则不能缓存，需要在每次dev->Run的时候，校验单算子资源输入的兼容性
     *spec =
-        CacheFuncSpec(op_name, op_reg_data, ndef, graph_id, std::move(optimize_graph), lambda, dependent_host_resources,
-                      ValidateInput(op_name, pruned_inputs.size(), pruned_inputs.data()).error_message());
+      CacheFuncSpec(op_name, op_reg_data, ndef, graph_id, std::move(optimize_graph), lambda, dependent_host_resources,
+                    ValidateInput(op_name, pruned_inputs.size(), pruned_inputs.data()).error_message());
     return;
   } else {
     // 进行inferShape，输出可能是unknown shape，所以使用partial shape
@@ -889,7 +954,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     if (!data_types.empty()) {
       DLOG() << "Infer shape for op " << op_name;
       tensorflow::Status infer_status =
-          InferShape(context, op_reg_data, ndef, num_inputs, inputs, partial_shapes, requested_input_value);
+        InferShape(context, op_reg_data, ndef, num_inputs, inputs, partial_shapes, requested_input_value);
       // 如果inferShape失败，或者期望输出数量不对，则fallback回CPU，因为CPU的计算并不依赖inferShape
       if (!infer_status.ok()) {
         *spec = CacheOpSpec(op_name, op_reg_data, ndef, input_shapes, partial_shapes, infer_status.error_message());
@@ -936,9 +1001,13 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   std::vector<TFE_TensorHandle *> op_outputs(*num_outputs);
   TFE_Execute(op, op_outputs.data(), num_outputs, status);
   TFE_DeleteOp(op);
-  for (auto handle : copied_tensor_handles) { TFE_DeleteTensorHandle(handle); }
+  for (auto handle : copied_tensor_handles) {
+    TFE_DeleteTensorHandle(handle);
+  }
   if (TF_GetCode(status) != TF_OK) return;
-  for (int i = 0; i < *num_outputs; ++i) { outputs[i] = op_outputs[i]; }
+  for (int i = 0; i < *num_outputs; ++i) {
+    outputs[i] = op_outputs[i];
+  }
 
   NpuFallbackHookFunc *hook = nullptr;
   if (CustomKernelRegistry::Instance().GetFallbackHookFunc(op_name, &hook)) {
@@ -949,16 +1018,24 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
 
 void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s) {
   auto context = TFE_OpGetContext(op, s);
-  if (TF_GetCode(s) != TF_OK) { return; }
+  if (TF_GetCode(s) != TF_OK) {
+    return;
+  }
   auto num_inputs = TFE_OpGetFlatInputCount(op, s);
-  if (TF_GetCode(s) != TF_OK) { return; }
+  if (TF_GetCode(s) != TF_OK) {
+    return;
+  }
   std::vector<TFE_TensorHandle *> inputs;
   for (int i = 0; i < num_inputs; i++) {
     inputs.push_back(TFE_OpGetFlatInput(op, i, s));
-    if (TF_GetCode(s) != TF_OK) { return; }
+    if (TF_GetCode(s) != TF_OK) {
+      return;
+    }
   }
   auto op_name = TFE_OpGetName(op, s);
-  if (TF_GetCode(s) != TF_OK) { return; }
+  if (TF_GetCode(s) != TF_OK) {
+    return;
+  }
   auto attributes = TFE_OpGetAttrs(op);
   DLOG() << "NPU Start executing " << op_name;
   // 如果存在一个算子的输入来自多个设备的情况，需要直接报错
@@ -972,7 +1049,9 @@ void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **o
   }
   std::shared_ptr<const npu::TaskSpec> spec;
   GetOrCreateSpec(context, op_name, attributes, inputs.size(), inputs.data(), &spec, s);
-  if (TF_GetCode(s) != TF_OK) { return; }
+  if (TF_GetCode(s) != TF_OK) {
+    return;
+  }
   DLOG() << "NPU Executing " << op_name << " found cached spec " << spec->DebugString();
   if (spec->ShouldFallback()) {
     DLOG() << "NPU Executing " << op_name << " fallback[" << spec->FallbackReason() << "]";
@@ -1018,8 +1097,8 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     TensorPartialShapes partial_shapes;
     bool unused = false;
     bool should_fallback =
-        !InferShape(context, spec->OpRegistrationData(), spec->NodeDef(), num_inputs, inputs, partial_shapes, unused)
-             .ok();
+      !InferShape(context, spec->OpRegistrationData(), spec->NodeDef(), num_inputs, inputs, partial_shapes, unused)
+         .ok();
     if (!should_fallback) {
       output_shapes.resize(partial_shapes.size());
       for (size_t i = 0; i < partial_shapes.size(); i++) {
@@ -1037,7 +1116,9 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
       attr_builder.Reset(spec->Op().c_str());
       attr_builder.BuildNodeDef();
       auto attrs = spec->NodeDef().attr();
-      for (auto &attr : attrs) { attr_builder.Set(attr.first, attr.second); }
+      for (auto &attr : attrs) {
+        attr_builder.Set(attr.first, attr.second);
+      }
       FallbackCPU(context, spec->Op().c_str(), tensorflow::wrap(&attr_builder), num_inputs, inputs, num_outputs,
                   outputs, status);
       return;
@@ -1062,8 +1143,8 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (!IsNpuTensorHandle(npu::UnwrapHandle(input))
-        && npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
+    if (!IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
+        npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
       tensorflow::Status s;
       auto src_name = npu::UnwrapHandle(input)->DeviceName(&s);
       NPU_CTX_REQUIRES_OK(status, s);
@@ -1081,10 +1162,14 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   for (size_t i = 0; i < output_types.size(); ++i) {
     if (output_types[i] == tensorflow::DT_RESOURCE) {
       outputs[i] = NewDeviceResourceHandle(context, output_shapes[i], status);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      if (TF_GetCode(status) != TF_OK) {
+        return;
+      }
     } else {
       outputs[i] = NewDeviceTensorHandle(context, Format::FORMAT_ND, output_shapes[i], output_types[i], status);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      if (TF_GetCode(status) != TF_OK) {
+        return;
+      }
     }
   }
   /******************************************模拟NPU执行Start************************************/
@@ -1094,7 +1179,8 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   // parser_ndef 打了输入输出描述的ndef，需要优化，后续直接存储ACL的结构体
   // copied_tensor_handles 存储临时申请的TFE_TensorHandle对象，除输入输出外，必须在最后显式释放
   // output_shapes 临时变量，算子的输出shape
-  // spec 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes()，不一定包含OutputShapes()(因为有的算子inferShape依赖输入的值（如reshape），输出shape需要使用上面的output_shapes临时变量)
+  // spec
+  // 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes()，不一定包含OutputShapes()(因为有的算子inferShape依赖输入的值（如reshape），输出shape需要使用上面的output_shapes临时变量)
 
   /*
    从TFE_TensorHandle*获取NpuManagedBuffer:
@@ -1110,7 +1196,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     if (npu_tensor->dtype() == tensorflow::DT_RESOURCE) {
       for (int j = 0; j < npu_tensor->NumElements(); j++) {
         cpu_tensor.flat<tensorflow::ResourceHandle>()(j) =
-            const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j);
+          const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j);
       }
     } else {
       NPU_CTX_REQUIRES_OK(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleTo(&cpu_tensor));
@@ -1125,7 +1211,9 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   attr_builder.Reset(spec->Op().c_str());
   attr_builder.BuildNodeDef();
   auto attrs = spec->NodeDef().attr();
-  for (auto &attr : attrs) { attr_builder.Set(attr.first, attr.second); }
+  for (auto &attr : attrs) {
+    attr_builder.Set(attr.first, attr.second);
+  }
 
   FallbackCPU(context, spec->Op().c_str(), tensorflow::wrap(&attr_builder), num_inputs, acl_inputs.data(), num_outputs,
               acl_outputs.data(), status);
@@ -1139,7 +1227,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     if (spec->OutputTypes()[i] == tensorflow::DT_RESOURCE) {
       for (int j = 0; j < npu_tensor->NumElements(); j++) {
         const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j) =
-            acl_tensor->flat<tensorflow::ResourceHandle>()(j);
+          acl_tensor->flat<tensorflow::ResourceHandle>()(j);
       }
     } else {
       NPU_CTX_REQUIRES_OK(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleFrom(acl_tensor));
@@ -1149,7 +1237,9 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   }
   /******************************************模拟NPU执行End************************************/
   DLOG() << "NPU Executing op " << spec->Op() << " succeed by npu excutor";
-  for (auto handle : copied_tensor_handles) { TFE_DeleteTensorHandle(handle); }  // 计数-2
+  for (auto handle : copied_tensor_handles) {
+    TFE_DeleteTensorHandle(handle);
+  }  // 计数-2
 }
 
 void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf_num_inputs,
@@ -1166,8 +1256,8 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (IsNpuTensorHandle(npu::UnwrapHandle(input))
-        && npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
+    if (IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
+        npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
       tensorflow::Status tf_status;
       auto src_name = npu::UnwrapHandle(input)->DeviceName(&tf_status);
       NPU_CTX_REQUIRES_OK(status, tf_status);
@@ -1194,7 +1284,8 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
       }
     }
     for (const auto &resource : spec->DependentHostResources()) {
-      LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop << " times";
+      LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop
+                << " times";
       const tensorflow::Tensor *tensor;
       NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(tf_inputs[resource.first], &tensor));
       // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
@@ -1221,18 +1312,19 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   // inputs 指向CPU内存的TFE_TensorHandle**
   // copied_tensor_handles 存储临时申请的TFE_TensorHandle对象，除输入输出外，必须在最后显式释放
   // output_shapes 临时变量，算子的输出shape
-  // spec 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes(),Graph(),GeGraphId()，不包含OutputShapes()
+  // spec
+  // 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes(),Graph(),GeGraphId()，不包含OutputShapes()
 
   std::vector<TFE_TensorHandle *> acl_inputs(num_inputs);
   for (int i = 0; i < num_inputs; ++i) {
-    if (IsNpuTensorHandle(npu::UnwrapHandle(npu_inputs[i]))
-        && npu::UnwrapHandle(npu_inputs[i])->DataType() == tensorflow::DT_RESOURCE) {
+    if (IsNpuTensorHandle(npu::UnwrapHandle(npu_inputs[i])) &&
+        npu::UnwrapHandle(npu_inputs[i])->DataType() == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *npu_tensor = nullptr;
       NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(npu_inputs[i], &npu_tensor));
       tensorflow::Tensor cpu_tensor(npu_tensor->dtype(), npu_tensor->shape());
       for (int j = 0; j < npu_tensor->NumElements(); j++) {
         cpu_tensor.flat<tensorflow::ResourceHandle>()(j) =
-            const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j);
+          const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j);
       }
       acl_inputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
       copied_tensor_handles.push_back(acl_inputs[i]);
@@ -1247,7 +1339,9 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   auto fdef = lib_def->Find(spec->Op());
   auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
     for (const auto &control_ret : fdef->control_ret()) {
-      if (control_ret.second == node->name()) { return absl::make_optional(node->name()); }
+      if (control_ret.second == node->name()) {
+        return absl::make_optional(node->name());
+      }
     }
     return absl::nullopt;
   };
@@ -1260,7 +1354,9 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   attr_builder.Reset(spec->Op().c_str());
   attr_builder.BuildNodeDef();
   auto attrs = spec->NodeDef().attr();
-  for (auto &attr : attrs) { attr_builder.Set(attr.first, attr.second); }
+  for (auto &attr : attrs) {
+    attr_builder.Set(attr.first, attr.second);
+  }
 
   FallbackCPU(context, acl_op_name.c_str(), tensorflow::wrap(&attr_builder), num_inputs, acl_inputs.data(), num_outputs,
               acl_outputs.data(), status);
@@ -1272,10 +1368,14 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
     /**********回调Start*********/
     if (acl_tensor->dtype() == tensorflow::DT_RESOURCE) {
       outputs[i] = NewDeviceResourceHandle(context, acl_tensor->shape(), status);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      if (TF_GetCode(status) != TF_OK) {
+        return;
+      }
     } else {
       outputs[i] = NewDeviceTensorHandle(context, Format::FORMAT_ND, acl_tensor->shape(), acl_tensor->dtype(), status);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      if (TF_GetCode(status) != TF_OK) {
+        return;
+      }
     }
     /**********回调End*********/
     const tensorflow::Tensor *npu_tensor = nullptr;
@@ -1283,7 +1383,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
     if (acl_tensor->dtype() == tensorflow::DT_RESOURCE) {
       for (int j = 0; j < npu_tensor->NumElements(); j++) {
         const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j) =
-            acl_tensor->flat<tensorflow::ResourceHandle>()(j);
+          acl_tensor->flat<tensorflow::ResourceHandle>()(j);
       }
     } else {
       NPU_CTX_REQUIRES_OK(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleFrom(acl_tensor));
@@ -1293,7 +1393,9 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   }
   /******************************************模拟NPU执行End************************************/
   DLOG() << "NPU Executing function op " << spec->Op() << " succeed by npu executor";
-  for (auto handle : copied_tensor_handles) { TFE_DeleteTensorHandle(handle); }  // 计数-2
+  for (auto handle : copied_tensor_handles) {
+    TFE_DeleteTensorHandle(handle);
+  }  // 计数-2
 }
 
 void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs,
@@ -1307,19 +1409,21 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
     npu::UnwrapTensor(inputs[i], &tensor);
 
     const static std::shared_ptr<domi::ModelParser> parser =
-        domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
     if (parser == nullptr) {
       status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
       return;
     }
     ge::DataType ge_type = parser->ConvertToGeDataType(static_cast<uint32_t>(tensor->dtype()));
-    NPU_CTX_REQUIRES(status, ge_type != ge::DT_UNDEFINED,
-                     tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
-                                                         tensorflow::DataTypeString(tensor->dtype()),
-                                                         " to ge data type"));
+    NPU_CTX_REQUIRES(
+      status, ge_type != ge::DT_UNDEFINED,
+      tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
+                                          tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
     ge::InputTensorInfo input;
     input.data_type = static_cast<uint32_t>(ge_type);
-    for (auto dim_size : tensor->shape().dim_sizes()) { input.dims.emplace_back(dim_size); }
+    for (auto dim_size : tensor->shape().dim_sizes()) {
+      input.dims.emplace_back(dim_size);
+    }
     input.data = const_cast<char *>(tensor->tensor_data().data());
     input.length = tensor->TotalBytes();
     ge_inputs.emplace_back(input);
@@ -1332,7 +1436,9 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       return;
     } else if (s != ge::SUCCESS) {
       std::string err_msg = ge::StatusFactory::Instance()->GetErrDesc(s);
-      if (err_msg.empty()) { err_msg = "<unknown error> code:" + std::to_string(s); }
+      if (err_msg.empty()) {
+        err_msg = "<unknown error> code:" + std::to_string(s);
+      }
       done(tensorflow::errors::Internal("Graph engine process graph failed: ", err_msg));
       return;
     } else if (ge_outputs.size() != num_outputs) {
@@ -1345,7 +1451,9 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
     for (size_t i = 0; i < ge_outputs.size(); i++) {
       auto &ge_tensor = ge_outputs[i];
       std::vector<tensorflow::int64> dims;
-      for (auto dim_size : ge_tensor.dims) { dims.push_back(dim_size); }
+      for (auto dim_size : ge_tensor.dims) {
+        dims.push_back(dim_size);
+      }
       tensorflow::TensorShape shape;
       tensorflow::Status tf_status = tensorflow::TensorShapeUtils::MakeShape(dims.data(), dims.size(), &shape);
       if (!tf_status.ok()) {
@@ -1387,8 +1495,8 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
         TFE_DeleteTensorHandle(handle);
         if (TF_GetCode(status) != TF_OK) {
           done(tensorflow::Status(status->status.code(),
-                                  std::string("Graph engine process graph succeed but copy output ") + std::to_string(i)
-                                      + " to npu failed " + status->status.error_message()));
+                                  std::string("Graph engine process graph succeed but copy output ") +
+                                    std::to_string(i) + " to npu failed " + status->status.error_message()));
           return;
         }
       }
@@ -1399,11 +1507,11 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                          ge_session_->RunGraphAsync(graph_id, ge_inputs, ge_callback));
 }
 
-uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name, const tensorflow::GraphDef &def,
-                               TF_Status *status) {
+uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name,
+                               const tensorflow::GraphDef &def, TF_Status *status) {
   auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
   std::shared_ptr<domi::ModelParser> parser =
-      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+    domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
   if (parser == nullptr) {
     status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
     return graph_id;
@@ -1414,7 +1522,9 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const st
     DLOG() << "Tensorflow model parser requesting subgraph " << fn << " for ge graph " << name;
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     const tensorflow::FunctionDef *fdef = lib_def->Find(fn);
-    if (fdef == nullptr) { return nullptr; }
+    if (fdef == nullptr) {
+      return nullptr;
+    }
     std::unique_ptr<tensorflow::FunctionBody> fbody;
     auto status = FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
     if (!status.ok()) {
@@ -1434,7 +1544,9 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const st
     MarkGraphNodeInOutDesc(context, graph.get(), 0, nullptr);
     std::unique_ptr<google::protobuf::Message> subgraph;
     subgraph.reset(new (std::nothrow) tensorflow::GraphDef());
-    if (subgraph != nullptr) { graph->ToGraphDef(reinterpret_cast<tensorflow::GraphDef *>(subgraph.get())); }
+    if (subgraph != nullptr) {
+      graph->ToGraphDef(reinterpret_cast<tensorflow::GraphDef *>(subgraph.get()));
+    }
     if (kDumpExecutionDetail || kDumpGraph) {
       WriteTextProto(tensorflow::Env::Default(), name + "_subgraph_" + fn + ".pbtxt", *subgraph);
     }
@@ -1515,7 +1627,9 @@ void NpuDevice::RunGeGraphAnonymous(TFE_Context *context, const std::string &nam
     }
   }
   TensorDataTypes types;
-  for (auto indexed_type : indexed_types) { types.emplace_back(indexed_type.second); }
+  for (auto indexed_type : indexed_types) {
+    types.emplace_back(indexed_type.second);
+  }
 
   RunGeGraph(context, graph_id, num_inputs, inputs, pin_to_npu, types, num_outputs, outputs, status);
   if (TF_GetCode(status) != TF_OK) return;
@@ -1541,7 +1655,8 @@ void NpuDevice::MaybeRebuildFuncSpecGraph(TFE_Context *context, const npu::FuncS
     LOG(INFO) << "Start rebuild ge graph " << spec->GeGraphId();
     RemoveGeGraph(context, spec->GeGraphId(), status);
     if (TF_GetCode(status) != TF_OK) return;
-    AddGeGraph(context, spec->GeGraphId(), std::string("tf_function_") + spec->Op(), spec->Graph()->ToGraphDefDebug(), status);
+    AddGeGraph(context, spec->GeGraphId(), std::string("tf_function_") + spec->Op(), spec->Graph()->ToGraphDefDebug(),
+               status);
   }
 }
 
@@ -1562,23 +1677,25 @@ void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, const TensorS
   *spec = nullptr;
   bool request_shape = false;
   GetCachedTaskSpec(ndef, spec, request_shape);
-  if (*spec != nullptr) { return; }
-  if (!request_shape) { return; }
+  if (*spec != nullptr) {
+    return;
+  }
+  if (!request_shape) {
+    return;
+  }
   HashKey attr_hash = Hash(ndef);
   HashKey shape_hash = Hash(shapes);
   const auto &op = ndef.op();
-  if (cached_op_specs_.count(op) && cached_op_specs_[op].count(attr_hash)
-      && cached_op_specs_[op][attr_hash].count(shape_hash)) {
+  if (cached_op_specs_.count(op) && cached_op_specs_[op].count(attr_hash) &&
+      cached_op_specs_[op][attr_hash].count(shape_hash)) {
     *spec = cached_op_specs_[op][attr_hash][shape_hash];
   }
 }
 
-std::shared_ptr<const npu::TaskSpec>
-NpuDevice::CacheFuncSpec(const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-                         uint64_t ge_graph_id, std::unique_ptr<const tensorflow::Graph> graph,
-                         const npu::FuncSpec::PruneInputsFunc &prune_func,
-                         const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources,
-                         const std::string &reason) {
+std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheFuncSpec(
+  const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef, uint64_t ge_graph_id,
+  std::unique_ptr<const tensorflow::Graph> graph, const npu::FuncSpec::PruneInputsFunc &prune_func,
+  const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources, const std::string &reason) {
   auto spec = std::make_shared<npu::FuncSpec>(op_spec, ndef, ge_graph_id, std::move(graph), prune_func,
                                               dependent_host_resources, reason);
   cached_func_specs_[op] = spec;
@@ -1586,19 +1703,20 @@ NpuDevice::CacheFuncSpec(const char *op, const tensorflow::OpRegistrationData *o
   return spec;
 }
 
-std::shared_ptr<const npu::TaskSpec>
-NpuDevice::CacheOpSpec(const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-                       const TensorShapes &input_shapes, const TensorPartialShapes &output_shapes,
-                       const std::string &reason) {
+std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheOpSpec(
+  const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
+  const TensorShapes &input_shapes, const TensorPartialShapes &output_shapes, const std::string &reason) {
   auto spec = std::make_shared<npu::OpSpec>(op_spec, ndef, input_shapes, output_shapes, reason);
   cached_op_specs_[op][Hash(ndef)][Hash(input_shapes)] = spec;
   DLOG() << "Cache op spec " << spec->DebugString();
   return spec;
 }
 
-std::shared_ptr<const npu::TaskSpec>
-NpuDevice::CacheOpSpec(const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-                       const TensorShapes &input_shapes, const std::string &reason) {
+std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheOpSpec(const char *op,
+                                                            const tensorflow::OpRegistrationData *op_spec,
+                                                            const tensorflow::NodeDef &ndef,
+                                                            const TensorShapes &input_shapes,
+                                                            const std::string &reason) {
   auto spec = std::make_shared<npu::OpSpec>(op_spec, ndef, input_shapes, reason);
   cached_op_specs_[op][Hash(ndef)][Hash(input_shapes)] = spec;
   DLOG() << "Cache op spec " << spec->DebugString();

@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include <memory>
 
@@ -59,7 +59,9 @@ PYBIND11_MODULE(_npu_device_backends, m) {
               global_options[ge::PRECISION_MODE] = "allow_mix_precision";
             }
             LOG(INFO) << "Start graph engine with options:";
-            for (const auto &option : global_options) { LOG(INFO) << "  " << option.first << ":" << option.second; }
+            for (const auto &option : global_options) {
+              LOG(INFO) << "  " << option.first << ":" << option.second;
+            }
             auto ge_status = ge::GEInitialize(global_options);
             if (ge_status != ge::SUCCESS) {
               return "Failed start graph engine:" + ge::StatusFactory::Instance()->GetErrDesc(ge_status);
@@ -78,7 +80,9 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             return "Invalid npu device name " + full_name;
           }
           LOG(INFO) << "Create device instance " << full_name << " with options:";
-          for (const auto &option : session_options) { LOG(INFO) << "  " << option.first << ":" << option.second; }
+          for (const auto &option : session_options) {
+            LOG(INFO) << "  " << option.first << ":" << option.second;
+          }
           auto status = CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, session_options);
           pybind11::gil_scoped_acquire acquire;
           return status;
@@ -105,6 +109,8 @@ PYBIND11_MODULE(_npu_device_backends, m) {
   });
 
   m.def("StupidRepeat", [](const char *device_name, int times) {
-    for (int i = 0; i < times; i++) { LOG(INFO) << device_name; }
+    for (int i = 0; i < times; i++) {
+      LOG(INFO) << device_name;
+    }
   });
 };
