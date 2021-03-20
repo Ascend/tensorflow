@@ -1304,6 +1304,8 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
   static std::uint64_t loop_var_graph_id = 0;
   const static std::string kLoopVarName = "npu_runconfig/iterations_per_loop";
 
+  if (current_loop_size == loop) return;
+
   if (!initialized.exchange(true)) {
     tensorflow::Graph graph(tensorflow::OpRegistry::Global());
     AddVarInitToGraph(context, "npu_runconfig/iterations_per_loop", tensorflow::Tensor(int64_t(1)), &graph, status);
@@ -1362,6 +1364,9 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
 
   RunGeGraphPin2Cpu(context, loop_var_graph_id, inputs.size(), inputs.data(), {}, 0, nullptr, status);
 
+  if (TF_GetCode(status) == TF_OK) {
+    current_loop_size = loop;
+  }
   for (auto handle : inputs) {
     TFE_DeleteTensorHandle(handle);
   }
@@ -1404,6 +1409,8 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
       for (auto node : spec->Graph()->op_nodes()) {
         if (node->IsWhileNode()) {
           iterations_per_loop = kGlobalLoopSize;
+          SetNpuLoopSize(context, iterations_per_loop, status);
+          if (TF_GetCode(status) != TF_OK) return;
           break;
         }
       }
