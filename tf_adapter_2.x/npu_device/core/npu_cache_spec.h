@@ -178,6 +178,9 @@ class FuncSpec : public TaskSpec {
 
   const tensorflow::Graph *Graph() const { return graph_.get(); }
 
+  void SetBuilt() const { built_.store(true); }
+  bool Built() const { return built_; }
+
   void PruneInputs(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) const {
     prune_func_(num_inputs, inputs, pruned);
   }
@@ -200,6 +203,7 @@ class FuncSpec : public TaskSpec {
   std::unique_ptr<const tensorflow::Graph> graph_;
   PruneInputsFunc prune_func_;
   const std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources_;
+  std::atomic_bool mutable built_{false};
 };
 }  // namespace npu
 

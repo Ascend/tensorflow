@@ -1307,6 +1307,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
     LOG(INFO) << "Start run ge graph " << spec->GeGraphId() << " pin to cpu, loop size " << iterations_per_loop;
     npu::Timer timer("Graph engine run ", iterations_per_loop, " times for graph ", spec->GeGraphId());
     timer.Start();
+    spec->SetBuilt();
     RunGeGraphPin2Cpu(context, spec->GeGraphId(), num_inputs, inputs, spec->OutputTypes(), *num_outputs, outputs,
                       status);
     timer.Stop();
@@ -1656,7 +1657,7 @@ void NpuDevice::RunGeGraphPin2NpuAnonymous(TFE_Context *context, const std::stri
 }
 
 void NpuDevice::MaybeRebuildFuncSpecGraph(TFE_Context *context, const npu::FuncSpec *spec, TF_Status *status) {
-  if (GeSession()->IsGraphNeedRebuild(spec->GeGraphId())) {
+  if (spec->Built() && GeSession()->IsGraphNeedRebuild(spec->GeGraphId())) {
     LOG(INFO) << "Start rebuild ge graph " << spec->GeGraphId();
     RemoveGeGraph(context, spec->GeGraphId(), status);
     if (TF_GetCode(status) != TF_OK) return;
