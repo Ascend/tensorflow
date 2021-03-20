@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include <memory>
 #include <utility>
@@ -47,25 +47,25 @@ class ReadVariableGraphBuilder {
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder(WrapResourceName(shared_name), "VarHandleOp")
-                                   .Attr("container", container_name)
-                                   .Attr("shared_name", shared_name)
-                                   .Attr("dtype", handle_dtyes.front())
-                                   .Attr("shape", handle_shapes.front())
-                                   .Finalize(&graph, &variable),
+                                 .Attr("container", container_name)
+                                 .Attr("shared_name", shared_name)
+                                 .Attr("dtype", handle_dtyes.front())
+                                 .Attr("shape", handle_shapes.front())
+                                 .Finalize(&graph, &variable),
                                gdef);
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder("Read_" + shared_name, "ReadVariableOp")
-                                   .Input(variable, 0)
-                                   .Attr("dtype", handle_dtyes.front())
-                                   .Finalize(&graph, &read_variable),
+                                 .Input(variable, 0)
+                                 .Attr("dtype", handle_dtyes.front())
+                                 .Finalize(&graph, &read_variable),
                                gdef);
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder("Read_" + shared_name + "_Retval", "_Retval")
-                                   .Input(read_variable, 0)
-                                   .Attr("index", 0)
-                                   .Finalize(&graph, &retval),
+                                 .Input(read_variable, 0)
+                                 .Attr("index", 0)
+                                 .Finalize(&graph, &retval),
                                gdef);
 
     AssembleOpDef(variable);
@@ -85,12 +85,16 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec 
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   const tensorflow::Tensor *handle = nullptr;
   NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(inputs[0], &handle));
+
   auto resource = handle->scalar<tensorflow::ResourceHandle>()();
   NPU_CTX_REQUIRES(status, resource.dtypes_and_shapes().size() == 1,
                    tensorflow::errors::Internal(resource.DebugString(), " type and shape size invalid ",
                                                 resource.dtypes_and_shapes().size(), " expect 1"));
+
   auto var_read_graph = ReadVariableGraphBuilder::GetGraph(resource, status);
-  if (TF_GetCode(status) != TF_OK) { return; }
+  if (TF_GetCode(status) != TF_OK) {
+    return;
+  }
   std::string graph_name = "ReadVariableOp_" + resource.name();
   if (kDumpExecutionDetail && kDumpGraph) {
     std::string file_name = graph_name + ".pbtxt";

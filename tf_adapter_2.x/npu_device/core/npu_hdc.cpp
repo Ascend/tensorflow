@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include "npu_hdc.h"
 #include "npu_micros.h"
@@ -31,11 +31,11 @@ tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTenso
 
 tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) {
   const static std::map<aclDataType, tensorflow::DataType> type_mapping = {
-      {ACL_FLOAT, tensorflow::DT_FLOAT},   {ACL_FLOAT16, tensorflow::DT_HALF},  {ACL_INT8, tensorflow::DT_INT8},
-      {ACL_INT32, tensorflow::DT_INT32},   {ACL_UINT8, tensorflow::DT_UINT8},   {ACL_INT16, tensorflow::DT_INT16},
-      {ACL_UINT16, tensorflow::DT_UINT16}, {ACL_UINT32, tensorflow::DT_UINT32}, {ACL_INT64, tensorflow::DT_INT64},
-      {ACL_UINT64, tensorflow::DT_UINT64}, {ACL_DOUBLE, tensorflow::DT_DOUBLE}, {ACL_BOOL, tensorflow::DT_BOOL},
-      {ACL_STRING, tensorflow::DT_STRING}};
+    {ACL_FLOAT, tensorflow::DT_FLOAT},   {ACL_FLOAT16, tensorflow::DT_HALF},  {ACL_INT8, tensorflow::DT_INT8},
+    {ACL_INT32, tensorflow::DT_INT32},   {ACL_UINT8, tensorflow::DT_UINT8},   {ACL_INT16, tensorflow::DT_INT16},
+    {ACL_UINT16, tensorflow::DT_UINT16}, {ACL_UINT32, tensorflow::DT_UINT32}, {ACL_INT64, tensorflow::DT_INT64},
+    {ACL_UINT64, tensorflow::DT_UINT64}, {ACL_DOUBLE, tensorflow::DT_DOUBLE}, {ACL_BOOL, tensorflow::DT_BOOL},
+    {ACL_STRING, tensorflow::DT_STRING}};
   auto found = type_mapping.find(acl_type);
   if (found == type_mapping.end()) {
     return tensorflow::errors::Internal("Hdc channel receive unsupported data type", acl_type);
@@ -62,9 +62,13 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
   size_t dim_num = acltdtGetDimNumFromItem(item);
   size_t acl_data_len = acltdtGetDataSizeFromItem(item);
   char *acl_data = reinterpret_cast<char *>(acltdtGetDataAddrFromItem(item));
-  if (call_by_channel_receive) { acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str()); }
+  if (call_by_channel_receive) {
+    acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str());
+  }
   if (tf_type == tensorflow::DT_STRING) {
-    if (dim_num != 0) { return tensorflow::errors::Internal("Hdc channel receive unsupported non-scalar string type"); }
+    if (dim_num != 0) {
+      return tensorflow::errors::Internal("Hdc channel receive unsupported non-scalar string type");
+    }
     tensorflow::Tensor tensor(tf_type, tensorflow::TensorShape({}));
     tensor.scalar<tensorflow::tstring>()() = std::string(acl_data, acl_data_len);
     tensors.emplace_back(std::move(tensor));
@@ -75,7 +79,9 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
       return tensorflow::errors::Internal("Failed get dim-size from hdc channel data");
     }
     tensorflow::TensorShape tf_shape;
-    for (auto dim : dims) { tf_shape.AddDim(dim); }
+    for (auto dim : dims) {
+      tf_shape.AddDim(dim);
+    }
     tensorflow::Tensor tensor = tensorflow::Tensor(tf_type, tf_shape);
     auto tensor_data = const_cast<char *>(tensor.tensor_data().data());
     auto tensor_size = tensor.tensor_data().size();
@@ -120,7 +126,9 @@ tensorflow::Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_da
 
 tensorflow::Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<tensorflow::Tensor> &tensors) {
   auto acl_dataset = acltdtCreateDataset();
-  if (acl_dataset == nullptr) { return tensorflow::errors::Internal("Failed create hdc channel."); }
+  if (acl_dataset == nullptr) {
+    return tensorflow::errors::Internal("Failed create hdc channel.");
+  }
   auto acl_status = acltdtReceiveTensor(acl_handle, acl_dataset, -1 /* no timeout */);
 
   if (acl_status != ACL_ERROR_NONE) {
@@ -139,11 +147,11 @@ tensorflow::Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<
 
 tensorflow::Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
-      {tensorflow::DT_FLOAT, ACL_FLOAT},   {tensorflow::DT_HALF, ACL_FLOAT16},  {tensorflow::DT_INT8, ACL_INT8},
-      {tensorflow::DT_INT32, ACL_INT32},   {tensorflow::DT_UINT8, ACL_UINT8},   {tensorflow::DT_INT16, ACL_INT16},
-      {tensorflow::DT_UINT16, ACL_UINT16}, {tensorflow::DT_UINT32, ACL_UINT32}, {tensorflow::DT_INT64, ACL_INT64},
-      {tensorflow::DT_UINT64, ACL_UINT64}, {tensorflow::DT_DOUBLE, ACL_DOUBLE}, {tensorflow::DT_BOOL, ACL_BOOL},
-      {tensorflow::DT_STRING, ACL_STRING}};
+    {tensorflow::DT_FLOAT, ACL_FLOAT},   {tensorflow::DT_HALF, ACL_FLOAT16},  {tensorflow::DT_INT8, ACL_INT8},
+    {tensorflow::DT_INT32, ACL_INT32},   {tensorflow::DT_UINT8, ACL_UINT8},   {tensorflow::DT_INT16, ACL_INT16},
+    {tensorflow::DT_UINT16, ACL_UINT16}, {tensorflow::DT_UINT32, ACL_UINT32}, {tensorflow::DT_INT64, ACL_INT64},
+    {tensorflow::DT_UINT64, ACL_UINT64}, {tensorflow::DT_DOUBLE, ACL_DOUBLE}, {tensorflow::DT_BOOL, ACL_BOOL},
+    {tensorflow::DT_STRING, ACL_STRING}};
   auto found = type_mapping.find(tf_type);
   if (found == type_mapping.end()) {
     return tensorflow::errors::Internal("Unsupported tensorflow data type ", DataTypeString(tf_type), " by acl.");
@@ -176,8 +184,8 @@ tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const s
     if (DataTypeCanUseMemcpy(tensor.dtype())) {
       auto dims = tensor.shape().dim_sizes();
       acl_data = acltdtCreateDataItem(
-          ACL_TENSOR_DATA_TENSOR, (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())),
-          dims.size(), acl_data_type, const_cast<char *>(tensor.tensor_data().data()), tensor.tensor_data().size());
+        ACL_TENSOR_DATA_TENSOR, (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())), dims.size(),
+        acl_data_type, const_cast<char *>(tensor.tensor_data().data()), tensor.tensor_data().size());
     } else if (tensor.dtype() == tensorflow::DT_STRING) {
       if (tensor.dims() != 0) {
         return tensorflow::errors::Internal("Acl send got unexpected non-scalar string tensor with dim ",
@@ -206,7 +214,9 @@ tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const s
 tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
                                               acltdtDataset **output_acl_dataset) {
   auto acl_dataset = acltdtCreateDataset();
-  if (acl_dataset == nullptr) { return tensorflow::errors::Internal("Acl create tensor dataset failed"); }
+  if (acl_dataset == nullptr) {
+    return tensorflow::errors::Internal("Acl create tensor dataset failed");
+  }
   auto status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset);
   if (!status.ok()) {
     NPU_LOG_IF_ERROR(DestroyAclDataset(acl_dataset));
@@ -232,7 +242,7 @@ tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTenso
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string& name,
+tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string &name,
                                       std::shared_ptr<HdcChannel> *guarded_channel) {
   auto channel = new (std::nothrow) HdcChannel(device_id, name);
   NPU_REQUIRES(channel,
@@ -242,13 +252,7 @@ tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string& nam
   return tensorflow::Status::OK();
 }
 
-HdcChannel::~HdcChannel() {
-  if (acltdtDestroyChannel(handle_) != ACL_ERROR_NONE) {
-    LOG(ERROR) << "Failed close hdc channel " << name_;
-  } else {
-    LOG(INFO) << "Hdc channel " << name_ << " closed";
-  }
-}
+HdcChannel::~HdcChannel() { Destroy(); }
 
 tensorflow::Status HdcChannel::SendTensors(const std::vector<tensorflow::Tensor> &tensors) {
   return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_TENSOR, tensors);
@@ -258,10 +262,22 @@ tensorflow::Status HdcChannel::NotifyFinish() { return SendTensorsByAcl(handle_,
 
 tensorflow::Status HdcChannel::NotifyAbnormal() { return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_ABNORMAL, {}); }
 
+void HdcChannel::Destroy() {
+  if (!destroyed_.exchange(true)) {
+    if (acltdtDestroyChannel(handle_) != ACL_ERROR_NONE) {
+      LOG(ERROR) << "Failed close hdc channel " << name_;
+    } else {
+      LOG(INFO) << "Hdc channel " << name_ << " closed";
+    }
+  }
+}
+
 HdcChannel::HdcChannel(uint32_t device_id, std::string name)
     : handle_(nullptr), device_id_(device_id), name_(std::move(name)) {}
 tensorflow::Status HdcChannel::Init() {
   handle_ = acltdtCreateChannel(device_id_, name_.c_str());
-  if (handle_ == nullptr) { return tensorflow::errors::Internal("Failed create hdc channel by acl"); }
+  if (handle_ == nullptr) {
+    return tensorflow::errors::Internal("Failed create hdc channel by acl");
+  }
   return tensorflow::Status::OK();
 }

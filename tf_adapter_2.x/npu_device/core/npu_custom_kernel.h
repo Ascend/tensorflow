@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_CUSTOM_KERNEL_H
 #define TENSORFLOW_NPU_CUSTOM_KERNEL_H
@@ -28,8 +28,8 @@
 #include "npu_utils.h"
 
 using NpuCustomKernelFunc =
-    std::function<void(TFE_Context *, NpuDevice *, const npu::OpSpec *, const TensorShapes &,
-                       const tensorflow::NodeDef &, int, TFE_TensorHandle **, int, TFE_TensorHandle **, TF_Status *)>;
+  std::function<void(TFE_Context *, NpuDevice *, const npu::OpSpec *, const TensorShapes &, const tensorflow::NodeDef &,
+                     int, TFE_TensorHandle **, int, TFE_TensorHandle **, TF_Status *)>;
 
 using NpuFallbackHookFunc = std::function<void(TFE_Context *, NpuDevice *, const char *, const TFE_OpAttrs *, int,
                                                TFE_TensorHandle **, int, TFE_TensorHandle **, TF_Status *)>;
@@ -111,12 +111,12 @@ class CustomKernelReceiver {
 
 #define NPU_REGISTER_CUSTOM_KERNEL(name, func) NPU_REGISTER_CUSTOM_KERNEL_1(__COUNTER__, name, func)
 #define NPU_REGISTER_CUSTOM_KERNEL_1(ctr, name, func) NPU_REGISTER_CUSTOM_KERNEL_2(ctr, name, func)
-#define NPU_REGISTER_CUSTOM_KERNEL_2(ctr, name, func)                                                                  \
+#define NPU_REGISTER_CUSTOM_KERNEL_2(ctr, name, func) \
   static CustomKernelReceiver __preserved_op##ctr = CustomKernelSpec(name, func)
 
 #define NPU_REGISTER_FALLBACK_HOOK(name, func) NPU_REGISTER_FALLBACK_HOOK_1(__COUNTER__, name, func)
 #define NPU_REGISTER_FALLBACK_HOOK_1(ctr, name, func) NPU_REGISTER_FALLBACK_HOOK_2(ctr, name, func)
-#define NPU_REGISTER_FALLBACK_HOOK_2(ctr, name, func)                                                                  \
+#define NPU_REGISTER_FALLBACK_HOOK_2(ctr, name, func) \
   static CustomKernelReceiver __preserved_op##ctr = FallbackHookSpec(name, func)
 
-#endif  //TENSORFLOW_NPU_CUSTOM_KERNEL_H
+#endif  // TENSORFLOW_NPU_CUSTOM_KERNEL_H

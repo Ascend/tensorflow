@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_UNWRAP_H
 #define TENSORFLOW_NPU_UNWRAP_H
@@ -61,7 +61,7 @@
 #include "npu_managed_buffer.h"
 
 namespace npu {
-template<typename T>
+template <typename T>
 static NpuManagedBuffer *Unwrap(const tensorflow::Tensor *tensor) {
   return reinterpret_cast<T *>(const_cast<char *>(tensor->tensor_data().data()));
 }
@@ -84,4 +84,4 @@ static tensorflow::Status UnwrapTensor(TFE_TensorHandle *tensor_handle, const te
 
 }  // namespace npu
 
-#endif  //TENSORFLOW_NPU_UNWRAP_H
+#endif  // TENSORFLOW_NPU_UNWRAP_H

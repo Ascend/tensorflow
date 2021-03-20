@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2020. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2020. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_LOGGER_H
 #define TENSORFLOW_NPU_LOGGER_H
@@ -17,7 +17,7 @@
 
 #include "npu_env.h"
 
-#define DLOG()                                                                                                         \
+#define DLOG() \
   if (kDumpExecutionDetail) LOG(INFO)
 
 namespace npu {
@@ -30,12 +30,14 @@ class Logger : public std::basic_ostringstream<char> {
 
 class Timer : public std::basic_ostringstream<char> {
  public:
-  template<typename... Args>
+  template <typename... Args>
   explicit Timer(Args... args) {
     *this << tensorflow::strings::StrCat(args...) << " cost ";
   };
   void Start() {
-    if (TF_PREDICT_FALSE(kPerfEnabled)) { start_ = tensorflow::Env::Default()->NowMicros(); }
+    if (TF_PREDICT_FALSE(kPerfEnabled)) {
+      start_ = tensorflow::Env::Default()->NowMicros();
+    }
     started_ = true;
   }
   void Stop() {
@@ -52,4 +54,4 @@ class Timer : public std::basic_ostringstream<char> {
 };
 }  // namespace npu
 
-#endif  //TENSORFLOW_NPU_DEVICE_ACL_BACKENDS_H
+#endif  // TENSORFLOW_NPU_DEVICE_ACL_BACKENDS_H

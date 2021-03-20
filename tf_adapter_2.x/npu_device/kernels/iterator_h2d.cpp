@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
@@ -30,13 +30,28 @@ class IteratorH2D : public OpKernel {
   void Compute(OpKernelContext *ctx) override {
     if (!initialized_.exchange(true)) {
       std::stringstream ss;
-      for (auto device_id : device_ids_) { ss << device_id << " "; }
+      for (auto device_id : device_ids_) {
+        ss << device_id << " ";
+      }
       channels_.resize(device_ids_.size());
       for (size_t i = 0; i < device_ids_.size(); i++) {
         OP_REQUIRES_OK(ctx, HdcChannel::Create(device_ids_[i], channel_name_, &channels_[i]));
       }
       LOG(INFO) << "Hdc channel for iterator resource " << channel_name_ << " to device ["
                 << ss.str().substr(0, ss.str().size() - 1) << "] created";
+    }
+
+    CancellationManager *cm = ctx->cancellation_manager();
+    CancellationToken token = cm->get_cancellation_token();
+    bool cancelled = !cm->RegisterCallback(token, [this]() {
+      for (const auto &channel : channels_) {
+        channel->Destroy();
+      }
+    });
+
+    if (cancelled) {
+      ctx->SetStatus(tensorflow::errors::Internal("Iterator resource ", channel_name_, " consume after destroyed"));
+      return;
     }
 
     data::IteratorResource *iterator;
@@ -48,16 +63,28 @@ class IteratorH2D : public OpKernel {
     Status status = iterator->GetNext(ctx, &components, &end_of_sequence);
 
     if (!status.ok()) {
-      for (auto channel : channels_) { OP_REQUIRES_OK(ctx, channel->NotifyAbnormal()); }
+      for (auto channel : channels_) {
+        OP_REQUIRES_OK(ctx, channel->NotifyAbnormal());
+      }
       ctx->SetStatus(status);
       return;
     } else if (end_of_sequence) {
-      for (auto channel : channels_) { OP_REQUIRES_OK(ctx, channel->NotifyFinish()); }
+      for (auto channel : channels_) {
+        OP_REQUIRES_OK(ctx, channel->NotifyFinish());
+      }
       ctx->SetStatus(errors::OutOfRange("Iterator resource ", channel_name_, " reach end of sequence"));
       return;
     }
 
-    for (auto channel : channels_) { OP_REQUIRES_OK(ctx, channel->SendTensors(components)); }
+    for (const auto &channel : channels_) {
+      auto status = channel->SendTensors(components);
+      if (!status.ok()) {
+        ctx->SetStatus(status);
+        return;
+      }
+    }
+
+    cm->DeregisterCallback(token);
   }
 
  private:

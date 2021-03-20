@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_CACHE_SPEC_H
 #define TENSORFLOW_NPU_CACHE_SPEC_H
@@ -22,6 +22,7 @@
 #include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/eager/c_api_internal.h"
 
+#include "npu_dp.h"
 #include "npu_logger.h"
 #include "npu_parser.h"
 #include "npu_types.h"
@@ -67,7 +68,9 @@ class OpSpec : public TaskSpec {
     output_dtypes_ = std::move(output_dtypes);
 
     fallback_reason_ = std::move(reason);
-    if (ShouldFallback()) { return; }
+    if (ShouldFallback()) {
+      return;
+    }
     TensorShapes shapes;
     shapes.resize(output_shapes.size());
     for (size_t i = 0; i < output_shapes.size(); i++) {
@@ -99,7 +102,9 @@ class OpSpec : public TaskSpec {
     output_dtypes_ = std::move(output_dtypes);
     fallback_reason_ = std::move(reason);
 
-    if (!ShouldFallback()) { AssembleInputDesc(input_shapes_, input_dtypes_, &attached_attrs_); }
+    if (!ShouldFallback()) {
+      AssembleInputDesc(input_shapes_, input_dtypes_, &attached_attrs_);
+    }
   }
 
   ~OpSpec() = default;
@@ -126,7 +131,9 @@ class OpSpec : public TaskSpec {
            << partial_output_shapes_[i].DebugString() << std::endl;
       }
     }
-    if (ShouldFallback()) { ss << "Fallback reason " << fallback_reason_; }
+    if (ShouldFallback()) {
+      ss << "Fallback reason " << fallback_reason_;
+    }
     return ss.str();
   }
 
@@ -142,13 +149,14 @@ class FuncSpec : public TaskSpec {
 
  public:
   using PruneInputsFunc =
-      std::function<void(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &)>;
+    std::function<void(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &)>;
   FuncSpec(const tensorflow::OpRegistrationData *op_spec, tensorflow::NodeDef ndef, uint64_t ge_graph_id,
            std::unique_ptr<const tensorflow::Graph> graph, PruneInputsFunc prune_func,
-           std::vector<tensorflow::ResourceHandle> dependent_host_resources, std::string reason = "")
-      : ge_graph_id_(ge_graph_id), graph_(std::move(graph)), prune_func_(std::move(prune_func)),
+           std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources, std::string reason = "")
+      : ge_graph_id_(ge_graph_id),
+        graph_(std::move(graph)),
+        prune_func_(std::move(prune_func)),
         dependent_host_resources_(std::move(dependent_host_resources)) {
-
     TensorDataTypes input_dtypes;
     TensorDataTypes output_dtypes;
     tensorflow::InOutTypesForNode(ndef, op_spec->op_def, &input_dtypes, &output_dtypes);
@@ -164,9 +172,14 @@ class FuncSpec : public TaskSpec {
 
   uint64_t GeGraphId() const { return ge_graph_id_; }
 
-  const std::vector<tensorflow::ResourceHandle>& DependentHostResources() const { return dependent_host_resources_; }
+  const std::map<int, std::shared_ptr<IteratorResourceProvider>> &DependentHostResources() const {
+    return dependent_host_resources_;
+  }
 
   const tensorflow::Graph *Graph() const { return graph_.get(); }
+
+  void SetBuilt() const { built_.store(true); }
+  bool Built() const { return built_; }
 
   void PruneInputs(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) const {
     prune_func_(num_inputs, inputs, pruned);
@@ -179,7 +192,9 @@ class FuncSpec : public TaskSpec {
     for (size_t i = 0; i < output_dtypes_.size(); i++) {
       ss << "output " << i << " " << tensorflow::DataTypeString(output_dtypes_[i]) << std::endl;
     }
-    if (ShouldFallback()) { ss << "Fallback reason " << fallback_reason_; }
+    if (ShouldFallback()) {
+      ss << "Fallback reason " << fallback_reason_;
+    }
     return ss.str();
   }
 
@@ -187,8 +202,9 @@ class FuncSpec : public TaskSpec {
   uint64_t ge_graph_id_;
   std::unique_ptr<const tensorflow::Graph> graph_;
   PruneInputsFunc prune_func_;
-  const std::vector<tensorflow::ResourceHandle> dependent_host_resources_;
+  const std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources_;
+  std::atomic_bool mutable built_{false};
 };
 }  // namespace npu
 
-#endif  //TENSORFLOW_NPU_CACHE_SPEC_H
+#endif  // TENSORFLOW_NPU_CACHE_SPEC_H

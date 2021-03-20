@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include <memory>
 #include <utility>
@@ -35,27 +35,27 @@ class MakeIteratorGraphBuilder {
     tensorflow::Node *iterator_v2;
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder("DeviceQueue_" + shared_name, "DeviceQueueDataset")
-                                   .Attr("channel_name", shared_name)
-                                   .Attr("output_types", types)
-                                   .Attr("output_shapes", shapes)
-                                   .Attr("_iterator_name", shared_name)
-                                   .Finalize(&graph, &device_queue),
+                                 .Attr("channel_name", shared_name)
+                                 .Attr("output_types", types)
+                                 .Attr("output_shapes", shapes)
+                                 .Attr("_iterator_name", shared_name)
+                                 .Finalize(&graph, &device_queue),
                                gdef);
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder(WrapResourceName(shared_name), "IteratorV2")
-                                   .Attr("container", container_name)
-                                   .Attr("shared_name", shared_name)
-                                   .Attr("output_types", types)
-                                   .Attr("output_shapes", shapes)
-                                   .Finalize(&graph, &iterator_v2),
+                                 .Attr("container", container_name)
+                                 .Attr("shared_name", shared_name)
+                                 .Attr("output_types", types)
+                                 .Attr("output_shapes", shapes)
+                                 .Finalize(&graph, &iterator_v2),
                                gdef);
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder("InitMakeIterator_" + shared_name, "MakeIterator")
-                                   .Attr("_kernel", "dp")
-                                   .Attr("_iterator_name", shared_name)
-                                   .Input(device_queue, 0)
-                                   .Input(iterator_v2, 0)
-                                   .Finalize(&graph, &make_iterator),
+                                 .Attr("_kernel", "dp")
+                                 .Attr("_iterator_name", shared_name)
+                                 .Input(device_queue, 0)
+                                 .Input(iterator_v2, 0)
+                                 .Finalize(&graph, &make_iterator),
                                gdef);
 
     // TODO:Tensorflow model parser bug，如果名字不是dpop开头的，则会被remove掉
@@ -72,11 +72,11 @@ class MakeIteratorGraphBuilder {
     tensorflow::Node *dpop_node;
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder(func_name, "DPOP")
-                                   .Input(std::vector<tensorflow::NodeBuilder::NodeOut>{})
-                                   .Attr("Tin", tensorflow::DataTypeVector{})
-                                   .Attr("Tout", tensorflow::DataTypeVector{})
-                                   .Attr("function", function_attr)
-                                   .Finalize(&dpop_graph, &dpop_node),
+                                 .Input(std::vector<tensorflow::NodeBuilder::NodeOut>{})
+                                 .Attr("Tin", tensorflow::DataTypeVector{})
+                                 .Attr("Tout", tensorflow::DataTypeVector{})
+                                 .Attr("function", function_attr)
+                                 .Finalize(&dpop_graph, &dpop_node),
                                gdef);
     AssembleOpDef(dpop_node);
     dpop_node->AddAttr("func_def", fdef_lib.SerializeAsString());

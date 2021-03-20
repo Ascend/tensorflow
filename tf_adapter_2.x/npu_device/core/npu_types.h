@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_TYPES_H
 #define TENSORFLOW_NPU_TYPES_H
@@ -21,4 +21,4 @@ using VecTensorDataTypes = tensorflow::gtl::InlinedVector<TensorDataTypes, 4>;
 
 const static tensorflow::TensorShape kScalarShape;
 
-#endif  //TENSORFLOW_NPU_TYPES_H
+#endif  // TENSORFLOW_NPU_TYPES_H

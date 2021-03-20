@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #include <memory>
 #include <utility>
@@ -37,7 +37,9 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
       tensorflow::unwrap(attributes)->FillAttrValueMap(ndef.mutable_attr());
       NPU_CTX_REQUIRES_OK(status, tensorflow::GetNodeAttr(ndef, "output_shapes", &vec_shapes));
       NPU_CTX_REQUIRES_OK(status, tensorflow::GetNodeAttr(ndef, "output_types", &types));
-      for (const auto &shape : vec_shapes) { shapes.push_back(shape); }
+      for (const auto &shape : vec_shapes) {
+        shapes.push_back(shape);
+      }
       auto resource = tensor->scalar<tensorflow::ResourceHandle>()();
       DLOG() << "Record mirrored host resource " << resource.DebugString();
       dev->RecordIteratorMirror(resource, shapes, types);

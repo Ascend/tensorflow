@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_OPS_H
 #define TENSORFLOW_NPU_OPS_H
@@ -19,16 +19,16 @@
 
 namespace tensorflow {
 namespace {
- class FakeOp : public AsyncOpKernel {
+class FakeOp : public AsyncOpKernel {
  public:
   explicit FakeOp(OpKernelConstruction *context) : AsyncOpKernel(context) {}
 
   void ComputeAsync(OpKernelContext *context, DoneCallback done) override {
     OP_REQUIRES_OK_ASYNC(
-        context, errors::Internal(context->op_kernel().name(), " registered as fake op and should never run on cpu"),
-        done);
+      context, errors::Internal(context->op_kernel().name(), " registered as fake op and should never run on cpu"),
+      done);
   }
 };
-}
-}
-#endif//TENSORFLOW_NPU_OPS_H
+}  // namespace
+}  // namespace tensorflow
+#endif  // TENSORFLOW_NPU_OPS_H

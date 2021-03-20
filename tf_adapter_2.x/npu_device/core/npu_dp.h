@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_DP_H
 #define TENSORFLOW_NPU_DP_H
@@ -24,20 +24,32 @@
 #include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 #include "tensorflow/core/framework/graph_to_functiondef.h"
 
+#include "npu_micros.h"
 #include "npu_types.h"
 
 class IteratorResourceProvider {
-  using ConsumeFunc = std::function<tensorflow::Status()>;
+  using ConsumeFunc = std::function<tensorflow::Status(tensorflow::Tensor)>;
   using DestroyFunc = std::function<tensorflow::Status()>;
   using DoneCallback = std::function<void(tensorflow::Status)>;
 
+  struct Request {
+    Request(tensorflow::Tensor t, int64_t n, DoneCallback d) : resource(std::move(t)), nums(n), done(std::move(d)) {}
+    tensorflow::Tensor resource;
+    int64_t nums;
+    DoneCallback done;
+  };
+
  public:
-  tensorflow::Status Consume(int64_t nums, const DoneCallback &done) {
+  tensorflow::Status ConsumeAsync(tensorflow::Tensor resource, int64_t nums, const DoneCallback &done) {
     {
-      if (stopped_) { return tensorflow::errors::Internal("Iterator resource provider ", name_, " has stopped"); }
+      if (stopped_) {
+        return tensorflow::errors::Internal("Iterator resource provider ", name_, " has stopped");
+      }
       std::unique_lock<std::mutex> lk(mu_);
-      if (request_stop_) { return tensorflow::errors::Internal("Iterator resource provider ", name_, " is stopping"); }
-      requests_.emplace(nums, done);
+      if (request_stop_) {
+        return tensorflow::errors::Internal("Iterator resource provider ", name_, " is stopping");
+      }
+      requests_.emplace(Request(std::move(resource), nums, done));
     }
     cv_.notify_one();
     return tensorflow::Status::OK();
@@ -48,32 +60,43 @@ class IteratorResourceProvider {
       request_stop_ = true;
     }
     cv_.notify_one();
-    while (!stopped_) {}
+    while (!stopped_) {
+    }
     return destroy_func_();
   }
 
+  std::string Name() const { return name_; }
+
   IteratorResourceProvider(std::string name, ConsumeFunc cf, DestroyFunc df)
-      : name_(std::move(name)), consume_func_(std::move(cf)), destroy_func_(std::move(df)), request_stop_(false),
+      : name_(std::move(name)),
+        consume_func_(std::move(cf)),
+        destroy_func_(std::move(df)),
+        request_stop_(false),
         stopped_(false) {
     worker_.reset(
-        tensorflow::Env::Default()->StartThread(tensorflow::ThreadOptions{}, name_ + "_hdc_provider", [this]() {
-          while (true) {
-            std::unique_lock<std::mutex> lk(mu_);
-            cv_.wait(lk, [this]() -> bool { return !requests_.empty() || request_stop_; });
-            if (request_stop_) {
-              stopped_.store(true);
-              return;
-            }
-            auto task = requests_.front();
-            requests_.pop();
-            lk.unlock();
-            int64_t nums = task.first;
-            auto done = task.second;
-            tensorflow::Status status = tensorflow::Status::OK();
-            while (nums-- > 0 && status.ok()) { status = consume_func_(); }
-            done(status);
+      tensorflow::Env::Default()->StartThread(tensorflow::ThreadOptions{}, name_ + "_hdc_provider", [this]() {
+        while (true) {
+          std::unique_lock<std::mutex> lk(mu_);
+          cv_.wait(lk, [this]() -> bool { return !requests_.empty() || request_stop_; });
+          if (request_stop_) {
+            stopped_.store(true);
+            return;
           }
-        }));
+          auto task = requests_.front();
+          requests_.pop();
+          lk.unlock();
+          int64_t nums = task.nums;
+          tensorflow::Status status = tensorflow::Status::OK();
+          while (nums-- > 0 && status.ok()) {
+            status = consume_func_(task.resource);
+          }
+          if (request_stop_) {
+            task.done(tensorflow::Status::OK());
+          } else {
+            task.done(status);
+          }
+        }
+      }));
   }
   ~IteratorResourceProvider() {
     {
@@ -93,17 +116,17 @@ class IteratorResourceProvider {
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder("arg_iterator", "_Arg")
-                                   .Attr("index", 0)
-                                   .Attr("T", tensorflow::DT_RESOURCE)
-                                   .Finalize(graph.get(), &arg_iterator),
+                                 .Attr("index", 0)
+                                 .Attr("T", tensorflow::DT_RESOURCE)
+                                 .Finalize(graph.get(), &arg_iterator),
                                fdef);
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder("iterator_h2d", "IteratorH2D")
-                                   .Input(arg_iterator, 0)
-                                   .Attr("device_ids", device_ids)
-                                   .Attr("channel_name", channel_name)
-                                   .Finalize(graph.get(), &iterator_h2d),
+                                 .Input(arg_iterator, 0)
+                                 .Attr("device_ids", device_ids)
+                                 .Attr("channel_name", channel_name)
+                                 .Finalize(graph.get(), &iterator_h2d),
                                fdef);
 
     NPU_CTX_REQUIRES_OK_RETURN(status, tensorflow::GraphToFunctionDef(*graph, "dp_provider_" + channel_name, &fdef),
@@ -119,8 +142,8 @@ class IteratorResourceProvider {
   std::atomic_bool stopped_{false};
   std::mutex mu_;
   std::condition_variable cv_;
-  std::queue<std::pair<int64_t, DoneCallback>> requests_;
+  std::queue<Request> requests_;
   std::unique_ptr<tensorflow::Thread> worker_;
 };
 
-#endif  //TENSORFLOW_NPU_DP_H
+#endif  // TENSORFLOW_NPU_DP_H

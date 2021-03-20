@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_DEVICE_H
 #define TENSORFLOW_NPU_DEVICE_H
@@ -55,9 +55,9 @@ class NpuDevice {
 
   void FixGraphArgRetvalIndex(tensorflow::Graph *graph);
 
-  tensorflow::Status TransResourceInput2GraphNode(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
-                                                  TFE_TensorHandle **inputs,
-                                                  std::vector<tensorflow::ResourceHandle> &dependent_host_resources);
+  tensorflow::Status TransResourceInput2GraphNode(
+    TFE_Context *context, tensorflow::Graph *graph, int num_inputs, TFE_TensorHandle **inputs,
+    std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources);
 
   tensorflow::Status MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
                                             TFE_TensorHandle **inputs);
@@ -107,6 +107,9 @@ class NpuDevice {
   uint64_t AddGeGraph(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &def,
                       TF_Status *status);
 
+  uint64_t AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name, const tensorflow::GraphDef &def,
+                      TF_Status *status);
+
   void RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status);
 
   void RunGeGraph(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs, bool pin_to_npu,
@@ -132,17 +135,20 @@ class NpuDevice {
                               const TensorDataTypes &output_types, int num_outputs, TFE_TensorHandle **outputs,
                               DoneCallback done, TF_Status *status);
 
+  void MaybeRebuildFuncSpecGraph(TFE_Context *context, const npu::FuncSpec *spec, TF_Status *status);
+
   void GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_ptr<const npu::TaskSpec> *spec,
                          bool &request_shape);
 
   void GetCachedTaskSpec(const tensorflow::NodeDef &ndef, const TensorShapes &shapes,
                          std::shared_ptr<const npu::TaskSpec> *spec);
 
-  std::shared_ptr<const npu::TaskSpec>
-  CacheFuncSpec(const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-                uint64_t ge_graph_id, std::unique_ptr<const tensorflow::Graph> graph,
-                const npu::FuncSpec::PruneInputsFunc &prune_func,
-                const std::vector<tensorflow::ResourceHandle> &dependent_host_resources, const std::string &reason);
+  std::shared_ptr<const npu::TaskSpec> CacheFuncSpec(
+    const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
+    uint64_t ge_graph_id, std::unique_ptr<const tensorflow::Graph> graph,
+    const npu::FuncSpec::PruneInputsFunc &prune_func,
+    const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources,
+    const std::string &reason);
 
   std::shared_ptr<const npu::TaskSpec> CacheOpSpec(const char *op, const tensorflow::OpRegistrationData *op_spec,
                                                    const tensorflow::NodeDef &ndef, const TensorShapes &input_shapes,
@@ -164,11 +170,6 @@ class NpuDevice {
   void CreateIteratorProvider(TFE_Context *context, const tensorflow::Tensor *tensor, std::vector<int> device_ids,
                               TF_Status *status);
 
-  tensorflow::Status ConsumeIteratorSync(const tensorflow::ResourceHandle &resource, int64_t nums);
-
-  tensorflow::Status ConsumeIteratorAsync(const tensorflow::ResourceHandle &resource, int64_t nums,
-                                          const DoneCallback &done);
-
   bool Mirrored(const tensorflow::ResourceHandle &src);
 
   tensorflow::Status GetMirroredIteratorShapesAndTypes(const tensorflow::ResourceHandle &src,
@@ -178,13 +179,17 @@ class NpuDevice {
 
   ge::Session *GeSession() { return ge_session_; }
 
+  tensorflow::CancellationManager *CancellationManager() { return cancellation_manager_.get(); }
+
   int device_id;
   tensorflow::string device_name;
   tensorflow::string underlying_device;
 
  private:
   static HashKey Hash(const TensorDataTypes &types) {
-    if (types.empty()) { return 0; }
+    if (types.empty()) {
+      return 0;
+    }
     HashKey hash = tensorflow::Hash64(tensorflow::DataTypeString(types[0]));
     for (size_t i = 1; i < types.size(); i++) {
       hash = tensorflow::Hash64Combine(hash, tensorflow::Hash64(tensorflow::DataTypeString(types[i])));
@@ -192,7 +197,9 @@ class NpuDevice {
     return hash;
   }
   static HashKey Hash(const TensorShapes &shapes) {
-    if (shapes.empty()) { return 0; }
+    if (shapes.empty()) {
+      return 0;
+    }
     HashKey hash = tensorflow::Hash64(shapes[0].DebugString());
     for (size_t i = 1; i < shapes.size(); i++) {
       hash = tensorflow::Hash64Combine(hash, tensorflow::Hash64(shapes[i].DebugString()));
@@ -202,7 +209,9 @@ class NpuDevice {
   static HashKey Hash(const TFE_OpAttrs *attributes) {
     tensorflow::AttrValueMap attrs;
     tensorflow::unwrap(attributes)->FillAttrValueMapWithoutDefaults(&attrs);
-    if (attrs.empty()) { return 0; }
+    if (attrs.empty()) {
+      return 0;
+    }
     auto iter = attrs.begin();
     HashKey hash = tensorflow::Hash64(iter->second.DebugString());
     iter++;
@@ -217,10 +226,11 @@ class NpuDevice {
 
   ge::Session *ge_session_;
   std::atomic<uint64_t> uuid{0};
+  std::unique_ptr<tensorflow::CancellationManager> cancellation_manager_;
   CachedOpSpecs cached_op_specs_;
   CachedFuncSpecs cached_func_specs_;
   std::map<tensorflow::ResourceHandle, std::pair<TensorPartialShapes, TensorDataTypes>, ResourceCompare>
-      iterator_mirrors_;
+    iterator_mirrors_;
   std::map<tensorflow::ResourceHandle, std::shared_ptr<IteratorResourceProvider>, ResourceCompare> iterator_providers_;
 };
 

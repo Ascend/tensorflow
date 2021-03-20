@@ -1,7 +1,7 @@
 /**
-* Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
-* Description: Common depends and micro defines for and only for data preprocess module
-*/
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ * Description: Common depends and micro defines for and only for data preprocess module
+ */
 
 #ifndef TENSORFLOW_NPU_ENV_H
 #define TENSORFLOW_NPU_ENV_H
@@ -44,4 +44,4 @@ const static bool kPerfEnabled = []() -> bool {
   return perf_enabled;
 }();
 
-#endif  //TENSORFLOW_NPU_ENV_H
+#endif  // TENSORFLOW_NPU_ENV_H
