@@ -1256,6 +1256,117 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   }  // 计数-2
 }
 
+namespace {
+tensorflow::Node *AddVarInitToGraph(TFE_Context *context, std::string name, tensorflow::Tensor tensor,
+                                    tensorflow::Graph *graph, TF_Status *status) {
+  tensorflow::Node *variable;
+  tensorflow::Node *value;
+  tensorflow::Node *assign_variable;
+
+  NPU_CTX_REQUIRES_OK_RETURN(status,
+                             tensorflow::NodeBuilder(name, "VarHandleOp")
+                               .Attr("container", "")
+                               .Attr("shared_name", name)
+                               .Attr("dtype", tensor.dtype())
+                               .Attr("shape", tensor.shape())
+                               .Finalize(graph, &variable),
+                             assign_variable);
+  NPU_CTX_REQUIRES_OK_RETURN(status,
+                             tensorflow::NodeBuilder(name + "_v", "Const")
+                               .Attr("value", tensor)
+                               .Attr("dtype", tensor.dtype())
+                               .Finalize(graph, &value),
+                             assign_variable);
+  NPU_CTX_REQUIRES_OK_RETURN(status,
+                             tensorflow::NodeBuilder(name + "_op", "AssignVariableOp")
+                               .Input(variable, 0)
+                               .Input(value, 0)
+                               .Attr("dtype", tensor.dtype())
+                               .Finalize(graph, &assign_variable),
+                             assign_variable);
+
+  AssembleOpDef(variable);
+  AssembleOpDef(value);
+  AssembleOpDef(assign_variable);
+
+  AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_RESOURCE}, variable);
+  AssembleOutputDesc(TensorShapes({tensor.shape()}), {tensor.dtype()}, value);
+  AssembleInputDesc(TensorShapes({kScalarShape, tensor.shape()}), {tensorflow::DT_RESOURCE, tensor.dtype()},
+                    assign_variable);
+  return assign_variable;
+}
+}  // namespace
+
+void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *status) {
+  static std::atomic_bool initialized{false};
+  static std::atomic_int64_t current_loop_size{1};
+  static tensorflow::Status init_status = tensorflow::Status::OK();
+  static std::uint64_t loop_var_graph_id = 0;
+  const static std::string kLoopVarName = "npu_runconfig/iterations_per_loop";
+
+  if (!initialized.exchange(true)) {
+    tensorflow::Graph graph(tensorflow::OpRegistry::Global());
+    AddVarInitToGraph(context, "npu_runconfig/iterations_per_loop", tensorflow::Tensor(int64_t(1)), &graph, status);
+    if (TF_GetCode(status) != TF_OK) return;
+    AddVarInitToGraph(context, "npu_runconfig/loop_cond", tensorflow::Tensor(int64_t(1)), &graph, status);
+    if (TF_GetCode(status) != TF_OK) return;
+    AddVarInitToGraph(context, "npu_runconfig/one", tensorflow::Tensor(int64_t(1)), &graph, status);
+    if (TF_GetCode(status) != TF_OK) return;
+    AddVarInitToGraph(context, "npu_runconfig/zero", tensorflow::Tensor(int64_t(0)), &graph, status);
+    if (TF_GetCode(status) != TF_OK) return;
+
+    RunGeGraphPin2CpuAnonymous(context, "set_npu_loop_size", graph.ToGraphDefDebug(), 0, nullptr, 0, nullptr, status);
+    if (TF_GetCode(status) != TF_OK) return;
+
+    tensorflow::Node *variable;
+    tensorflow::Node *arg;
+    tensorflow::Node *assign_variable;
+
+    tensorflow::Graph graph2(tensorflow::OpRegistry::Global());
+
+    NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder(kLoopVarName, "VarHandleOp")
+                                  .Attr("container", "")
+                                  .Attr("shared_name", kLoopVarName)
+                                  .Attr("dtype", tensorflow::DT_INT64)
+                                  .Attr("shape", kScalarShape)
+                                  .Finalize(&graph2, &variable));
+    NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder(kLoopVarName + "_v", "Const")
+                                  .Attr("index", 0)
+                                  .Attr("dtype", tensorflow::DT_INT64)
+                                  .Finalize(&graph2, &arg));
+    NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder(kLoopVarName + "_op", "AssignVariableOp")
+                                  .Input(variable, 0)
+                                  .Input(arg, 0)
+                                  .Attr("dtype", tensorflow::DT_INT64)
+                                  .Finalize(&graph2, &assign_variable));
+
+    AssembleOpDef(variable);
+    AssembleOpDef(arg);
+    AssembleOpDef(assign_variable);
+
+    AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_RESOURCE}, variable);
+    AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_INT64}, arg);
+    AssembleInputDesc(TensorShapes({kScalarShape, kScalarShape}), {tensorflow::DT_RESOURCE, tensorflow::DT_INT64},
+                      assign_variable);
+
+    loop_var_graph_id = AddGeGraph(context, "set_loop_var", graph2.ToGraphDefDebug(), status);
+    init_status = status->status;
+    if (TF_GetCode(status) != TF_OK) return;
+  }
+
+  status->status = init_status;
+  if (TF_GetCode(status) != TF_OK) return;
+
+  std::vector<TFE_TensorHandle *> inputs(1);
+  inputs[0] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(loop)));
+
+  RunGeGraphPin2Cpu(context, loop_var_graph_id, inputs.size(), inputs.data(), {}, 0, nullptr, status);
+
+  for (auto handle : inputs) {
+    TFE_DeleteTensorHandle(handle);
+  }
+}
+
 void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf_num_inputs,
                          TFE_TensorHandle **tf_inputs, int *num_outputs, TFE_TensorHandle **outputs,
                          TF_Status *status) {

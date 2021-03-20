@@ -89,6 +89,8 @@ class NpuDevice {
   void RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs, int *num_outputs,
              TFE_TensorHandle **outputs, TF_Status *status);
 
+  void SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *status);
+
   void RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
                 int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
 
