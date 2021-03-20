@@ -127,14 +127,6 @@ std::string NpuDevice::CreateDevice(const char *name, int device_index,
     return "Failed init graph engine: create new session failed";
   }
 
-  std::shared_ptr<domi::ModelParser> parser =
-    domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
-  if (parser == nullptr) {
-    return "Failed init graph engine: create tensorflow model parser failed";
-  }
-
-  std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)> status(TF_NewStatus(), TF_DeleteStatus);
-
   *device = new (std::nothrow) NpuDevice();
   if (*device == nullptr) {
     return "Failed create new npu device instance";
