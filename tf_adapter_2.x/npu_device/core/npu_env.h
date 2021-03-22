@@ -44,4 +44,10 @@ const static bool kPerfEnabled = []() -> bool {
   return perf_enabled;
 }();
 
+const static bool kAutoLoopEnabled = []() -> bool {
+  bool loop_enabled = false;
+  tensorflow::ReadBoolFromEnvVar("NPU_EXPERIMENTAL_AUTO_LOOP", false, &loop_enabled);
+  return loop_enabled;
+}();
+
 #endif  // TENSORFLOW_NPU_ENV_H

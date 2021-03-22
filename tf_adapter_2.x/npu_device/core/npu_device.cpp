@@ -1308,13 +1308,14 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
 
   if (!initialized.exchange(true)) {
     tensorflow::Graph graph(tensorflow::OpRegistry::Global());
-    AddVarInitToGraph(context, "npu_runconfig/iterations_per_loop", tensorflow::Tensor(int64_t(1)), &graph, status);
+    AddVarInitToGraph(context, "npu_runconfig/iterations_per_loop", tensorflow::Tensor(tensorflow::int64(1)), &graph,
+                      status);
     if (TF_GetCode(status) != TF_OK) return;
-    AddVarInitToGraph(context, "npu_runconfig/loop_cond", tensorflow::Tensor(int64_t(1)), &graph, status);
+    AddVarInitToGraph(context, "npu_runconfig/loop_cond", tensorflow::Tensor(tensorflow::int64(1)), &graph, status);
     if (TF_GetCode(status) != TF_OK) return;
-    AddVarInitToGraph(context, "npu_runconfig/one", tensorflow::Tensor(int64_t(1)), &graph, status);
+    AddVarInitToGraph(context, "npu_runconfig/one", tensorflow::Tensor(tensorflow::int64(1)), &graph, status);
     if (TF_GetCode(status) != TF_OK) return;
-    AddVarInitToGraph(context, "npu_runconfig/zero", tensorflow::Tensor(int64_t(0)), &graph, status);
+    AddVarInitToGraph(context, "npu_runconfig/zero", tensorflow::Tensor(tensorflow::int64(0)), &graph, status);
     if (TF_GetCode(status) != TF_OK) return;
 
     RunGeGraphPin2CpuAnonymous(context, "set_npu_loop_size", graph.ToGraphDefDebug(), 0, nullptr, 0, nullptr, status);
@@ -1360,7 +1361,8 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
   if (TF_GetCode(status) != TF_OK) return;
 
   std::vector<TFE_TensorHandle *> inputs(1);
-  inputs[0] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(loop)));
+  inputs[0] =
+    tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(tensorflow::int64(loop))));
 
   RunGeGraphPin2Cpu(context, loop_var_graph_id, inputs.size(), inputs.data(), {}, 0, nullptr, status);
 
@@ -1404,17 +1406,12 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
 
   if (kCustomKernelEnabled) {
     // TODO:这里根据小循环策略修改值
-    int64_t iterations_per_loop = 1;
-    if (!spec->DependentHostResources().empty()) {
-      for (auto node : spec->Graph()->op_nodes()) {
-        if (node->IsWhileNode()) {
-          iterations_per_loop = kGlobalLoopSize;
-          SetNpuLoopSize(context, iterations_per_loop, status);
-          if (TF_GetCode(status) != TF_OK) return;
-          break;
-        }
-      }
+    int64_t iterations_per_loop = spec->NeedLoop() ? kGlobalLoopSize : 1;
+    if (iterations_per_loop > 1) {
+      SetNpuLoopSize(context, iterations_per_loop, status);
+      if (TF_GetCode(status) != TF_OK) return;
     }
+
     for (const auto &resource : spec->DependentHostResources()) {
       LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop
                 << " times";
@@ -1686,6 +1683,25 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const st
     return subgraph;
   };
 
+  if (kAutoLoopEnabled) {
+    tensorflow::Graph graph(npu::UnwrapCtx(context)->FuncLibDef());
+    tensorflow::ConvertGraphDefToGraph(tensorflow::GraphConstructorOptions{}, def, &graph);
+    for (auto node : graph.op_nodes()) {
+      if (node->IsWhileNode()) {
+        auto loop_graph = request_subgraph(nullptr, node->attrs().Find("body")->func().name());
+        NPU_CTX_REQUIRES_GE_OK_RETURN(
+          status, "NPU Parse tensorflow model",
+          parser->ParseProtoWithSubgraph(loop_graph.get(), request_subgraph, ge_compute_graph), graph_id);
+
+        ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
+        ge_graph.SetNeedIteration(true);
+        NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph),
+                                      graph_id);
+        return graph_id;
+      }
+    }
+  }
+
   NPU_CTX_REQUIRES_GE_OK_RETURN(status, "NPU Parse tensorflow model",
                                 parser->ParseProtoWithSubgraph(&def, request_subgraph, ge_compute_graph), graph_id);
 
@@ -1831,6 +1847,7 @@ std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheFuncSpec(
   const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources, const std::string &reason) {
   auto spec = std::make_shared<npu::FuncSpec>(op_spec, ndef, ge_graph_id, std::move(graph), prune_func,
                                               dependent_host_resources, reason);
+  spec->SetNeedLoop();
   cached_func_specs_[op] = spec;
   DLOG() << "Cache function op spec " << spec->DebugString();
   return spec;

@@ -181,6 +181,9 @@ class FuncSpec : public TaskSpec {
   void SetBuilt() const { built_.store(true); }
   bool Built() const { return built_; }
 
+  void SetNeedLoop() const { need_loop_.store(true); }
+  bool NeedLoop() const { return need_loop_; }
+
   void PruneInputs(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) const {
     prune_func_(num_inputs, inputs, pruned);
   }
@@ -204,6 +207,7 @@ class FuncSpec : public TaskSpec {
   PruneInputsFunc prune_func_;
   const std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources_;
   std::atomic_bool mutable built_{false};
+  std::atomic_bool mutable need_loop_{false};
 };
 }  // namespace npu
 
