@@ -31,7 +31,8 @@ def import_from(node):
         if "keras" in values:
             util_global.set_value('is_keras_net', True)
         if "horovod" in values:
-            util_global.set_value('is_hvd_net', True)
+            util_global.set_value('has_hccl_api', True)
+        util_global.set_value('need_conver', True)
 
 
 def ast_import(node):
@@ -41,7 +42,8 @@ def ast_import(node):
             if "keras" in values:
                 util_global.set_value('is_keras_net', True)
             if "horovod" in values:
-                util_global.set_value('is_hvd_net', True)
+                util_global.set_value('has_hccl_api', True)
+            util_global.set_value('need_conver', True)
 
 def ast_function_def(node):
     log_success_report(getattr(node, "lineno", "None"), node.name)
@@ -60,6 +62,8 @@ def ast_if(node):
     if isinstance(node.test, ast.Compare):
         if len(node.test.comparators) == 1 and isinstance(node.test.comparators[0], ast.Str):
             if node.test.comparators[0].s == "__main__":
+                util_global.set_value("is_main_file", False)
+                util_global.set_value("has_main_func", True)
                 if util_global.get_value("is_keras_net", False):
                     log_msg(getattr(node, "lineno", "None"), " add keras session npu config")
                     close_sess_call = ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
@@ -71,7 +75,7 @@ def ast_if(node):
                                        finalbody=[ast.Expr(value=close_sess_call)])
                     node.body = [try_node]
                     util_global.set_value('need_conver', True)
-                if util_global.get_value("is_hvd_net", False):
+                if util_global.get_value("has_hccl_api", False):
                     log_msg(getattr(node, "lineno", "None"), " add npu resource init api")
                     close_sess_call = ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
                                                args=[ast.Name(id="npu_sess", ctx=ast.Load())], keywords=[])
@@ -159,7 +163,6 @@ def ast_call(node):
         node.args = []
         node.keywords = []
         util_global.set_value('need_conver', True)
-        util_global.set_value('insert_empty_hook', True)
         return node
     if isinstance(node.func, ast.Attribute) and node.func.attr == "DistributedOptimizer":
         log_success_report(getattr(node, "lineno", "None"), 'DistributedOptimizer')
@@ -168,6 +171,7 @@ def ast_call(node):
         log_success_report(getattr(node, "lineno", "None"), 'shard')
         node.args = [ast.Call(func=ast.Name(id='get_rank_size', ctx=ast.Load()), args=[], keywords=[]),
                      ast.Call(func=ast.Name(id='get_rank_id', ctx=ast.Load()), args=[], keywords=[])]
+        util_global.set_value("has_hccl_api", True)
         util_global.set_value('need_conver', True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == 'dropout':
         if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == 'nn':
@@ -415,14 +419,12 @@ def ast_call(node):
                                                 attr=keras_opt[3], ctx=ast.Load())
                     keyword.value = ast.Call(func=opt_func_name, args=[ast.Call(func=tf_opt_func, args=[], keywords=[])], keywords=[])
                 util_global.set_value('need_conver', True)
-                util_global.set_value('insert_npu_keras_opt_func', True)
                 return node
     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
         if (node.func.attr.find("Optimizer") != -1) and (node.func.attr != 'ScipyOptimizerInterface'):
             log_msg(getattr(node, "lineno", "None"), "add NPUDistributedOptimizer()")
             node = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node], keywords=[])
             util_global.set_value('need_conver', True)
-            util_global.set_value('insert_npu_tf_opt_func', True)
             return node
     if isinstance(node.func, ast.Attribute):
         opt_list = ["Adadelta", "Adagrad", "Adam", "Adamax", "Ftrl", "Nadam", "RMSprop", "SGD"]
@@ -430,7 +432,6 @@ def ast_call(node):
             log_success_report(getattr(node, "lineno", "None"), "KerasDistributeOptimizer")
             node = ast.Call(func=ast.Name(id="npu_keras_optimizer", ctx=ast.Load()), args=[node], keywords=[])
             util_global.set_value('need_conver', True)
-            util_global.set_value('insert_npu_keras_opt_func', True)
             return node
     if (isinstance(node.func, ast.Attribute) and (node.func.attr == 'MonitoredTrainingSession')) or \
        (isinstance(node.func, ast.Name) and (node.func.id == 'MonitoredTrainingSession')):
@@ -508,7 +509,7 @@ def insert_npu_import(r_node):
         r_node.body.insert(import_index, npu_import)
         log_msg(import_index, "from npu_bridge.npu_init import *")
 
-def insert_npu_tf_opt_func(r_node):
+def insert_npu_resource_init(r_node):
     n = 0
     lenline = len(r_node.body)
 
@@ -519,31 +520,22 @@ def insert_npu_tf_opt_func(r_node):
         n += 1
 
     if n < lenline:
-        npu_func = ast.Name(id="NPUDistributedOptimizer", ctx=ast.Load())
-        assign_target = ast.Name(id="npu_opt", ctx=ast.Store())
-        assign_args = ast.Name(id="opt", ctx=ast.Load())
-        npu_opt = ast.Assign(targets=[assign_target], value=ast.Call(func=npu_func, args=[assign_args], keywords=[]))
-        return_node = ast.Return(value=ast.Name(id='npu_opt', ctx=ast.Load()))
+        init_assign = ast.Assign(targets=[ast.Tuple(elts=[ast.Name(id="npu_sess", ctx=ast.Store()),
+                                                          ast.Name(id="npu_shutdown", ctx=ast.Store())],
+                                                    ctx=ast.Store())],
+                                 value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[], keywords=[]))
+        r_node.body.insert(n, init_assign)
 
-        r_node.body.insert(n, ast.FunctionDef(
-            name='npu_tf_optimizer',
-            args=ast.arguments(
-                args=[
-                    ast.arg(arg='opt', annotation=None)
-                ],
-                vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=None,
-                defaults=[]),
-            body=[
-                npu_opt,
-                return_node
-            ],
-            decorator_list=[],
-            returns=None))
+def insert_npu_resource_shutdown(r_node):
+    shutdown_call = ast.Expr(value=ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
+                                            args=[ast.Name(id="npu_sess", ctx=ast.Load()), ast.Name(id="npu_shutdown", ctx=ast.Load())],
+                                            keywords=[]))
+    close_sess_call = ast.Expr(value=ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
+                                              args=[ast.Name(id="npu_sess", ctx=ast.Load())], keywords=[]))
+    r_node.body.append(shutdown_call)
+    r_node.body.append(close_sess_call)
 
-def insert_npu_keras_opt_func(r_node):
+def insert_keras_sess_npu_config(r_node):
     n = 0
     lenline = len(r_node.body)
 
@@ -554,61 +546,15 @@ def insert_npu_keras_opt_func(r_node):
         n += 1
 
     if n < lenline:
-        npu_func = ast.Name(id="KerasDistributeOptimizer", ctx=ast.Load())
-        assign_target = ast.Name(id="npu_opt", ctx=ast.Store())
-        assign_args = ast.Name(id="opt", ctx=ast.Load())
-        npu_opt = ast.Assign(targets=[assign_target], value=ast.Call(func=npu_func, args=[assign_args], keywords=[]))
-        return_node = ast.Return(value=ast.Name(id='npu_opt', ctx=ast.Load()))
+        keras_sess_assign = ast.Assign(targets=[ast.Name(id="npu_keras_sess", ctx=ast.Store())],
+                                       value=ast.Call(func=ast.Name(id="set_keras_session_npu_config", ctx=ast.Load()),
+                                                      args=[], keywords=[]))
+        r_node.body.insert(n, keras_sess_assign)
 
-        r_node.body.insert(n, ast.FunctionDef(
-            name='npu_keras_optimizer',
-            args=ast.arguments(
-                args=[
-                    ast.arg(arg='opt', annotation=None)
-                ],
-                vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=None,
-                defaults=[]),
-            body=[
-                npu_opt,
-                return_node
-            ],
-            decorator_list=[],
-            returns=None))
-
-def insert_empty_hook(r_node):
-    n = 0
-    lenline = len(r_node.body)
-
-    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
-        n += 1
-
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
-        n += 1
-
-    if n < lenline:
-        hook_attr = ast.Attribute(value=ast.Attribute(value=ast.Name(id="tf", ctx=ast.Load()), attr="train", ctx=ast.Load()),
-                                  attr="SessionRunHook", ctx=ast.Load())
-        class_def = ast.ClassDef(name="NpuEmptyHook", bases=[hook_attr], keywords=[],
-                                 body=[ast.Pass()], decorator_list=[])
-        r_node.body.insert(n, class_def)
-
-def ast_assign(node):
-    for target in node.targets:
-        if (isinstance(target, ast.Name) and target.id == 'global_jit_level') or (isinstance(target, ast.Attribute) and target.attr == 'global_jit_level'):
-            log_msg(getattr(node, 'lineno', 'None'), 'set global_jit_level=config_pb2.OptimizerOptions.OFF')
-            util_global.set_value('need_conver', True)
-            global_jit_level_assign_node = ast.Assign(
-                targets=node.targets,
-                ctx=ast.Load(),
-                value=ast.Attribute(attr='OFF', ctx=ast.Load(),
-                    value=ast.Attribute(attr='OptimizerOptions', ctx=ast.Load(),
-                        value=ast.Name(id='config_pb2', ctx=ast.Load()))))
-            node = ast.If(test=ast.NameConstant(value=True), body=[global_jit_level_assign_node], orelse=[])
-            return node
-    return node
+def insert_keras_sess_close(r_node):
+    close_sess_call = ast.Expr(value=ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
+                                              args=[ast.Name(id="npu_keras_sess", ctx=ast.Load())], keywords=[]))
+    r_node.body.append(close_sess_call)
 
 # Format printing for locate
 def node_tree(node:str):

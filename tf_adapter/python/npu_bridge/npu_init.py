@@ -28,6 +28,7 @@ from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
 from tensorflow.python.client import session
+from tensorflow.python.training import session_run_hook
 
 from hccl.manage.api import create_group
 from hccl.manage.api import destroy_group
@@ -90,9 +91,13 @@ def npu_run_config_init(run_config=None):
         run_config.__dict__['_session_config'] = npu_config_proto(run_config.session_config)
     return run_config
 
-def set_keras_session_npu_config():
+def set_keras_session_npu_config(config=None):
     from tensorflow.python.keras import backend
-    config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    if config is None:
+        config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    else:
+        if not isinstance(config, config_pb2.ConfigProto):
+            raise ValueError("config must be config_pb2.ConfigProto type")
     custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
     custom_op.name = "NpuOptimizer"
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
@@ -132,3 +137,14 @@ def get_npu_local_rank_id():
 
 def get_npu_rank_size():
     return util.get_value("npu_rank_size", 1)
+
+class NpuEmptyHook(session_run_hook.SessionRunHook):
+    pass
+
+def npu_keras_optimizer(opt):
+    npu_opt = KerasDistributeOptimizer(opt)
+    return npu_opt
+
+def npu_tf_optimizer(opt):
+    npu_opt = NPUDistributedOptimizer(opt)
+    return npu_opt

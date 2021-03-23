@@ -29,20 +29,20 @@ class Analyse(object):
         tk.Entry(self.root, textvariable=self.script_path, width=30).grid(row=0, column=1, padx=10, pady=10)
         tk.Button(self.root, text="路径选择", command=self.select_script_path).grid(row=0, column=2)
 
-        self.api_list = tk.StringVar()
-        tk.Label(self.root, text="API支持度清单：").grid(row=1, stick=tk.E)
-        tk.Entry(self.root, textvariable=self.api_list, width=30).grid(row=1, column=1, padx=10, pady=10)
-        tk.Button(self.root, text="文件选择", command=self.select_api_file).grid(row=1, column=2)
-
         self.output_path = tk.StringVar()
-        tk.Label(self.root, text="输出迁移脚本路径：").grid(row=2, stick=tk.W)
-        tk.Entry(self.root, textvariable=self.output_path, width=30).grid(row=2, column=1, padx=10, pady=10)
-        tk.Button(self.root, text="路径选择", command=self.select_output_path).grid(row=2, column=2)
+        tk.Label(self.root, text="输出迁移脚本路径：").grid(row=1, stick=tk.W)
+        tk.Entry(self.root, textvariable=self.output_path, width=30).grid(row=1, column=1, padx=10, pady=10)
+        tk.Button(self.root, text="路径选择", command=self.select_output_path).grid(row=1, column=2)
 
         self.report_path = tk.StringVar()
-        tk.Label(self.root, text="输出分析报告路径：").grid(row=3, stick=tk.W)
-        tk.Entry(self.root, textvariable=self.report_path, width=30).grid(row=3, column=1, padx=10, pady=10)
-        tk.Button(self.root, text="路径选择", command=self.select_report_path).grid(row=3, column=2)
+        tk.Label(self.root, text="输出分析报告路径：").grid(row=2, stick=tk.W)
+        tk.Entry(self.root, textvariable=self.report_path, width=30).grid(row=2, column=1, padx=10, pady=10)
+        tk.Button(self.root, text="路径选择", command=self.select_report_path).grid(row=2, column=2)
+
+        self.main_file = tk.StringVar()
+        tk.Label(self.root, text="执行入口脚本：").grid(row=3, stick=tk.E)
+        tk.Entry(self.root, textvariable=self.main_file, width=30).grid(row=3, column=1, padx=10, pady=10)
+        tk.Button(self.root, text="文件选择", command=self.select_main_file).grid(row=3, column=2)
 
         tk.Button(self.root, text="开始分析", command=self.analyse).grid(row=5, column=2, padx=10, pady=10)
         tk.Button(self.root, text="退出", command=exit).grid(row=5, column=1, padx=10, pady=10, stick=tk.E)
@@ -70,36 +70,58 @@ class Analyse(object):
         path_ = askdirectory()
         self.output_path.set(path_)
 
-    def select_api_file(self):
-        file_ = askopenfilename()
-        self.api_list.set(file_)
+    def select_main_file(self):
+        main_file_ = askopenfilename()
+        self.main_file.set(main_file_)
 
     def analyse(self):
         # verify input arguments
         if self.script_path.get() == '':
             print('Parameter error, please select the folder of source script to be converted.')
             return
-        if self.api_list.get() == '':
-            print('Parameter error, please select the list of supported api.')
-            return
 
         # generate command
-        if self.output_path.get() == '' and self.report_path.get() == '':
-            call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                                         ' -l ' + self.api_list.get()
-        elif self.output_path.get() == '':
-            call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                                         ' -l ' + self.api_list.get() + \
-                                         ' -r ' + self.report_path.get()
-        elif self.report_path.get() == '':
-            call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                                         ' -l ' + self.api_list.get() + \
-                                         ' -o ' + self.output_path.get()
+        support_list = "tf1.15_api_support_list.xlsx"
+
+        if self.main_file.get() == '':
+            if self.output_path.get() == '' and self.report_path.get() == '':
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list
+            elif self.output_path.get() == '':
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list + \
+                               ' -r ' + self.report_path.get()
+            elif self.report_path.get() == '':
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list + \
+                               ' -o ' + self.output_path.get()
+            else:
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list + \
+                               ' -o ' + self.output_path.get() + \
+                               ' -r ' + self.report_path.get()
         else:
-            call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                                         ' -l ' + self.api_list.get() + \
-                                         ' -o ' + self.output_path.get() + \
-                                         ' -r ' + self.report_path.get()
+            if self.output_path.get() == '' and self.report_path.get() == '':
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list + \
+                               ' -m ' + self.main_file.get()
+            elif self.output_path.get() == '':
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list + \
+                               ' -r ' + self.report_path.get() + \
+                               ' -m ' + self.main_file.get()
+            elif self.report_path.get() == '':
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list + \
+                               ' -o ' + self.output_path.get() + \
+                               ' -m ' + self.main_file.get()
+            else:
+                call_main_py = 'python main.py -i ' + self.script_path.get() + \
+                               ' -l ' + support_list + \
+                               ' -o ' + self.output_path.get() + \
+                               ' -r ' + self.report_path.get() + \
+                               ' -m ' + self.main_file.get()
+
         os.system(call_main_py)
         self.hide()
 
@@ -113,14 +135,14 @@ class Analyse(object):
         if self.report_path.get() == '':
             self.report_path.set(os.getcwd())
 
-        report_root_dir = self.report_path.get()
-        report_dir = []
-        for item in os.listdir(report_root_dir):
+        report_dir = self.report_path.get()
+        lateset = []
+        for item in os.listdir(report_dir):
             if 'report_npu' in item:
-                report_dir.append(item)
-        report_dir.sort()
+                lateset.append(item)
+        lateset.sort()
 
-        report_path = os.path.join(report_root_dir, report_dir[-1], 'api_analysis_report.xlsx')
+        report_path = os.path.join(report_dir, lateset[-1], 'api_analysis_report.xlsx')
         if not os.path.exists(report_path):
             print("No api analysis report generated.")
             return
@@ -164,9 +186,3 @@ if __name__ == '__main__':
     root.geometry('425x210')
     app = Analyse(root)
     root.mainloop()
-
-
-
-
-
-
