@@ -122,6 +122,8 @@ class NpuDeviceHandle(object):
                 tf_decorated_func = self._hacked_tensorflow_function(*args, **kwargs)(func)
 
                 def wrapper(*func_args, **func_kwargs):
+                    if not hasattr(self._thread_local, "_entrance_function"):
+                        self._thread_local._entrance_function = None
                     if self._thread_local._entrance_function is not None:
                         return func(*func_args, **func_kwargs)
                     self._thread_local._entrance_function = func.__name__
