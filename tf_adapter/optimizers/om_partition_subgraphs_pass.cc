@@ -1912,8 +1912,8 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       include_getnext = true;
       for (auto output_type: node->output_types()) {
         if (output_type == DT_STRING && pass_options["enable_dp"] == "0") {
-          ADP_LOG(ERROR) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
-          LOG(FATAL) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
+          ADP_LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
+          LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
         }
       }
       if (is_set_dynamic_config) { getnext_node_count++; }
