@@ -13,8 +13,9 @@
 # limitations under the License.
 # ============================================================================
 import ast
-import util_global
 import copy
+import pasta
+import util_global
 from util import log_success_report
 from util import log_migration_report
 from util import log_msg
@@ -71,9 +72,7 @@ def ast_if(node):
                     keras_sess_assign = ast.Assign(targets=[ast.Name(id="npu_keras_sess", ctx=ast.Store())],
                                                    value=ast.Call(func=ast.Name(id="set_keras_session_npu_config", ctx=ast.Load()),
                                                                   args=[], keywords=[]))
-                    try_node = ast.Try(body=[keras_sess_assign, node.body], handlers=[], orelse=[],
-                                       finalbody=[ast.Expr(value=close_sess_call)])
-                    node.body = [try_node]
+                    node.body = [keras_sess_assign] + node.body + [ast.Expr(value=close_sess_call)]
                     util_global.set_value('need_conver', True)
                 if util_global.get_value("has_hccl_api", False):
                     log_msg(getattr(node, "lineno", "None"), " add npu resource init api")
@@ -86,9 +85,7 @@ def ast_if(node):
                     shutdown_call = ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
                                              args=[ast.Name(id="npu_sess", ctx=ast.Load()), ast.Name(id="npu_shutdown", ctx=ast.Load())],
                                              keywords=[])
-                    try_node = ast.Try(body=[init_assign, node.body], handlers=[], orelse=[],
-                                       finalbody=[ast.Expr(value=shutdown_call), ast.Expr(value=close_sess_call)])
-                    node.body = [try_node]
+                    node.body = [init_assign] + node.body + [ast.Expr(value=shutdown_call), ast.Expr(value=close_sess_call)]
                     util_global.set_value('need_conver', True)
                 return node
 
@@ -192,11 +189,11 @@ def ast_call(node):
                 if ((isinstance(keyword.value, ast.NameConstant) and keyword.value.value != True) or
                    (not isinstance(keyword.value, ast.NameConstant))):
                     log_success_report(getattr(node, "lineno", "None"), node.func.attr)
-                    keyword.value = ast.NameConstant(value=True)
+                    keyword.value = pasta.parse('True')
                     util_global.set_value('need_conver', True)
         if not exist:
             log_success_report(getattr(node, "lineno", "None"), node.func.attr)
-            keyword = ast.keyword(arg='drop_remainder', value=ast.NameConstant(value=True))
+            keyword = ast.keyword(arg='drop_remainder', value=pasta.parse('True'))
             node.keywords.insert(0, keyword)
             util_global.set_value('need_conver', True)
     if (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and
@@ -207,8 +204,10 @@ def ast_call(node):
     if isinstance(node.func, ast.Attribute) and (node.func.attr == "get_distribution_strategy" or
         node.func.attr == "MirroredStrategy" or node.func.attr == "MultiWorkerMirroredStrategy"):
         log_success_report(getattr(node, "lineno", "None"), node.func.attr)
-        node.func = ast.Attribute(value=ast.Name(id="npu_strategy", ctx=ast.Load()),
+        new_func = ast.Attribute(value=ast.Name(id="npu_strategy", ctx=ast.Load()),
                                   attr="NPUStrategy", ctx=ast.Load())
+        ast.copy_location(new_func, node.func)
+        node.func = new_func
         node.keywords = []
         node.args = []
         util_global.set_value('need_conver', True)
@@ -282,7 +281,7 @@ def ast_call(node):
             if (keyword.arg == 'eval_on_tpu') or (keyword.arg == 'use_tpu') or (keyword.arg == 'export_to_tpu'):
                 if (not isinstance(keyword.value, ast.NameConstant)) or (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value != False)):
                     log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(' + keyword.arg + '=*)')
-                    keyword.value = ast.NameConstant(value=False)
+                    keyword.value = pasta.parse('False')
                     util_global.set_value('need_conver', True)
                 if add_eval_on_tpu and (keyword.arg == 'eval_on_tpu'):
                     add_eval_on_tpu = False
@@ -292,15 +291,15 @@ def ast_call(node):
                     add_export_to_tpu = False
         if add_eval_on_tpu:
             log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(eval_on_tpu=*)')
-            node.keywords.append(ast.keyword(arg='eval_on_tpu', value=ast.NameConstant(value=False)))
+            node.keywords.append(ast.keyword(arg='eval_on_tpu', value=pasta.parse('False')))
             util_global.set_value('need_conver', True)
         if add_use_tpu:
             log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(use_tpu=*)')
-            node.keywords.append(ast.keyword(arg='use_tpu', value=ast.NameConstant(value=False)))
+            node.keywords.append(ast.keyword(arg='use_tpu', value=pasta.parse('False')))
             util_global.set_value('need_conver', True)
         if add_export_to_tpu:
             log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(export_to_tpu=*)')
-            node.keywords.append(ast.keyword(arg='export_to_tpu', value=ast.NameConstant(value=False)))
+            node.keywords.append(ast.keyword(arg='export_to_tpu', value=pasta.parse('False')))
             util_global.set_value('need_conver', True)
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'VirtualDeviceConfiguration'):
         log_success_report(getattr(node, 'lineno', 'None'), 'VirtualDeviceConfiguration')
@@ -342,9 +341,9 @@ def ast_call(node):
                         compile_ops = keyword
                         break
                 if compile_ops:
-                    compile_ops.value = ast.NameConstant(value=False)
+                    compile_ops.value = pasta.parse('False')
                 else:
-                    node.keywords.append(ast.keyword(arg='compile_ops', value=ast.NameConstant(value=False)))
+                    node.keywords.append(ast.keyword(arg='compile_ops', value=pasta.parse('False')))
                 return node
     for estimator in util_global.get_value('Estimators', []):
         if (isinstance(node.func, ast.Attribute) and (node.func.attr == estimator)) \
@@ -356,20 +355,14 @@ def ast_call(node):
                     config = keyword
                     break
             if config:
-                config.value = ast.Call(
-                    func=ast.Name(id='npu_run_config_init', ctx=ast.Load()),
-                    args=[],
-                    keywords=[
-                        ast.keyword(arg='run_config', value=config.value)
-                    ]
-                )
+                new_value = ast.Call(func=ast.Name(id='npu_run_config_init', ctx=ast.Load()),
+                                     args=[],
+                                     keywords=[ast.keyword(arg='run_config', value=config.value)])
+                ast.copy_location(new_value, config.value)
+                config.value = new_value
             else:
-                node.keywords.append(
-                    ast.keyword(
-                        arg='config',
-                        value=ast.Call(func=ast.Name(id='npu_run_config_init', ctx=ast.Load()), args=[], keywords=[])
-                    )
-                )
+                node.keywords.append(ast.keyword(arg='config',
+                                                 value=pasta.parse('npu_run_config_init()')))
             util_global.set_value('need_conver', True)
             return node
     for estimator_func in util_global.get_value('EstimatorFunc', []):
@@ -389,50 +382,51 @@ def ast_call(node):
             if not input_fn:
                 break
             if not hooks:
-                node.keywords.append(
-                    ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[])))
+                node.keywords.append(ast.keyword(arg='hooks', value=pasta.parse('npu_hooks_append()')))
             elif isinstance(hooks, ast.keyword):
-                hooks.value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[
-                    ast.keyword(arg='hooks_list', value=hooks.value)])
+                new_value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[],
+                                     keywords=[ast.keyword(arg='hooks_list', value=hooks.value)])
+                ast.copy_location(new_value, hooks.value)
+                hooks.value = new_value
             else:
-                node.keywords.append(
-                    ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
+                node.keywords.append(ast.keyword(arg='hooks',
+                                                 value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()),
+                                                                args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
             util_global.set_value('need_conver', True)
             return node
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'compile'):
-        opt_map = {"adadelta": "tf.keras.optimizers.Adadelta",
-                   "adagrad": "tf.keras.optimizers.Adagrad",
-                   "adam": "tf.keras.optimizers.Adam",
-                   "adamax": "tf.keras.optimizers.Adamax",
-                   "ftrl": "tf.keras.optimizers.Ftrl",
-                   "nadam": "tf.keras.optimizers.Nadam",
-                   "rmsprop": "tf.keras.optimizers.RMSprop",
-                   "sgd": "tf.keras.optimizers.SGD"}
+        opt_map = {"adadelta": "tf.keras.optimizers.Adadelta()",
+                   "adagrad": "tf.keras.optimizers.Adagrad()",
+                   "adam": "tf.keras.optimizers.Adam()",
+                   "adamax": "tf.keras.optimizers.Adamax()",
+                   "ftrl": "tf.keras.optimizers.Ftrl()",
+                   "nadam": "tf.keras.optimizers.Nadam()",
+                   "rmsprop": "tf.keras.optimizers.RMSprop()",
+                   "sgd": "tf.keras.optimizers.SGD()"}
         for keyword in node.keywords:
             if keyword.arg == "optimizer":
                 log_success_report(getattr(node, 'lineno', 'None'), 'KerasDistributeOptimizer')
-                opt_func_name = ast.Name(id="npu_keras_optimizer", ctx=ast.Load())
                 if isinstance(keyword.value, ast.Str):
-                    keras_opt = opt_map[keyword.value.s].split(".")
-                    tf_opt_func = ast.Attribute(value=ast.Attribute(value=ast.Attribute(value=ast.Name(id=keras_opt[0], ctx=ast.Load()),
-                                                attr=keras_opt[1], ctx=ast.Load()), attr=keras_opt[2], ctx=ast.Load()),
-                                                attr=keras_opt[3], ctx=ast.Load())
-                    keyword.value = ast.Call(func=opt_func_name, args=[ast.Call(func=tf_opt_func, args=[], keywords=[])], keywords=[])
+                    keras_opt = opt_map[keyword.value.s]
+                    npu_keras_opt = "npu_keras_optimizer(" + keras_opt + ")"
+                    keyword.value = pasta.parse(npu_keras_opt)
                 util_global.set_value('need_conver', True)
                 return node
     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
         if (node.func.attr.find("Optimizer") != -1) and (node.func.attr != 'ScipyOptimizerInterface'):
             log_msg(getattr(node, "lineno", "None"), "add NPUDistributedOptimizer()")
-            node = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node], keywords=[])
+            new_node = ast.Call(func=ast.Name(id="npu_tf_optimizer", ctx=ast.Load()), args=[node], keywords=[])
+            ast.copy_location(new_node, node)
             util_global.set_value('need_conver', True)
-            return node
+            return new_node
     if isinstance(node.func, ast.Attribute):
         opt_list = ["Adadelta", "Adagrad", "Adam", "Adamax", "Ftrl", "Nadam", "RMSprop", "SGD"]
         if node.func.attr in opt_list:
             log_success_report(getattr(node, "lineno", "None"), "KerasDistributeOptimizer")
-            node = ast.Call(func=ast.Name(id="npu_keras_optimizer", ctx=ast.Load()), args=[node], keywords=[])
+            new_node = ast.Call(func=ast.Name(id="npu_keras_optimizer", ctx=ast.Load()), args=[node], keywords=[])
+            ast.copy_location(new_node, node)
             util_global.set_value('need_conver', True)
-            return node
+            return new_node
     if (isinstance(node.func, ast.Attribute) and (node.func.attr == 'MonitoredTrainingSession')) or \
        (isinstance(node.func, ast.Name) and (node.func.id == 'MonitoredTrainingSession')):
         log_success_report(getattr(node, "lineno", "None"), 'MonitoredTrainingSession')
@@ -446,14 +440,15 @@ def ast_call(node):
                 hooks = keyword
                 break
         if not hooks:
-            node.keywords.append(
-                ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[])))
+            node.keywords.append(ast.keyword(arg='hooks', value=pasta.parse('npu_hooks_append()')))
         elif isinstance(hooks, ast.keyword):
-            hooks.value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[
-                ast.keyword(arg='hooks_list', value=hooks.value)])
+            new_value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[],
+                                 keywords=[ast.keyword(arg='hooks_list', value=hooks.value)])
+            ast.copy_location(new_value, hooks.value)
+            hooks.value = new_value
         else:
-            node.keywords.append(
-                ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
+            node.keywords.append(ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()),
+                                                                         args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
         util_global.set_value('need_conver', True)
         return node
     specs = {'TrainSpec': 2, 'EvalSpec': 3}
@@ -470,14 +465,15 @@ def ast_call(node):
                     hooks = keyword
                     break
             if not hooks:
-                node.keywords.append(
-                    ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[])))
+                node.keywords.append(ast.keyword(arg='hooks', value=pasta.parse('npu_hooks_append()')))
             elif isinstance(hooks, ast.keyword):
-                hooks.value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[
+                new_value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[
                     ast.keyword(arg='hooks_list', value=hooks.value)])
+                ast.copy_location(new_value, hooks.value)
+                hooks.value = new_value
             else:
-                node.keywords.append(
-                    ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
+                node.keywords.append(ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()),
+                                                                             args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
             util_global.set_value('need_conver', True)
     return node
 
