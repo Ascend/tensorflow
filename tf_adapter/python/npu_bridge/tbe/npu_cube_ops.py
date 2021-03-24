@@ -117,7 +117,7 @@ def deformable_conv2d(  # pylint: disable=redefined-builtin
             modulated=True,
             name=name)
 
-        strides_conv = strides
+        strides_conv = list(strides)
         pos_h, pos_w = data_format.find('H'), data_format.find('W')
         strides_conv[pos_h] = kh
         strides_conv[pos_w] = kw
