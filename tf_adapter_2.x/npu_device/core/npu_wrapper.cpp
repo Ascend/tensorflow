@@ -6,6 +6,8 @@
 #include <memory>
 
 #include "Python.h"
+#define PY_MAJOR_VERSION 3
+#define PY_MINOR_VERSION 7
 #include "pybind11/chrono.h"
 #include "pybind11/complex.h"
 #include "pybind11/functional.h"
