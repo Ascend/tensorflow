@@ -57,6 +57,21 @@ class NpuHostFixedAllocator : public tensorflow::Allocator {
   void DeallocateRaw(void *ptr) override { delete this; }
   std::unique_ptr<T> ptr_;
 };
+
+size_t RemoveRedundantHcomControlEdges(tensorflow::Graph *graph) {
+  const static std::string kHcomType = "HcomAllReduce";
+  std::vector<tensorflow::Edge *> edges_to_remove;
+  for (auto edge : graph->edges()) {
+    if (edge->IsControlEdge() && (edge->src()->type_string() == kHcomType || edge->dst()->type_string() == kHcomType)) {
+      edges_to_remove.push_back(edge);
+    }
+  }
+  for (auto edge : edges_to_remove) {
+    graph->RemoveEdge(edge);
+  }
+  return edges_to_remove.size();
+}
+
 }  // namespace
 
 void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::Tensor *tensor,
@@ -290,6 +305,8 @@ void NpuDevice::FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
 tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
   TFE_Context *context, tensorflow::Graph *graph, int num_inputs, TFE_TensorHandle **inputs,
   std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources) {
+  (void)RemoveRedundantHcomControlEdges(graph);
+
   std::set<int> arg_is_variable;
   std::set<int> arg_is_iterator;
 

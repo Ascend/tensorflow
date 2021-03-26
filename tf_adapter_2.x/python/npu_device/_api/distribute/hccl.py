@@ -13,21 +13,26 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
         mean_reduce = True
         reduction = 'sum'
 
+    topo_guarder = tf.group(values)
     if isinstance(values, Iterable):
         reduced_values = []
         for value in values:
             reduced_value = hccl_ops.allreduce(value, reduction, fusion, fusion_id, group)
-            if mean_reduce:
-                reduced_values.append(tf.divide(reduced_value, tf.cast(workers_num, reduced_value.dtype)))
-            else:
-                reduced_values.append(reduced_value)
+            typed_workers_num = tf.cast(workers_num, reduced_value.dtype)
+            with tf.control_dependencies([topo_guarder]):
+                if mean_reduce:
+                    reduced_values.append(tf.divide(reduced_value, typed_workers_num))
+                else:
+                    reduced_values.append(tf.identity(reduced_value))
         return reduced_values
     else:
         reduced_value = hccl_ops.allreduce(values, reduction, fusion, fusion_id, group)
-        if mean_reduce:
-            return tf.divide(reduced_value, tf.cast(workers_num, reduced_value.dtype))
-        else:
-            return reduced_value
+        typed_workers_num = tf.cast(workers_num, reduced_value.dtype)
+        with tf.control_dependencies([topo_guarder]):
+            if mean_reduce:
+                return tf.divide(reduced_value, typed_workers_num)
+            else:
+                return tf.identity(reduced_value)
 
 
 def all_reduce(values, reduction, fusion=1, fusion_id=-1, group="hccl_world_group"):
