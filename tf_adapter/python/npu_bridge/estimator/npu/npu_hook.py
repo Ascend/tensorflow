@@ -1,14 +1,17 @@
-import tensorflow as tf
+import os
 from six.moves import queue as Queue
+import time
 import threading
+
+import tensorflow as tf
+from tensorflow.core.protobuf import config_pb2
+from tensorflow.python.ops import summary_ops_v2 as contrib_summary
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import basic_session_run_hooks
-from tensorflow.python.platform import tf_logging as logging
+
 from npu_bridge.estimator import npu_ops
 from npu_bridge.hccl import hccl_ops
-from tensorflow.python.ops import summary_ops_v2 as contrib_summary
-from tensorflow.core.protobuf import config_pb2
-import time
 from npu_bridge.estimator.npu import util
 
 # Constant
@@ -63,14 +66,20 @@ class NPUBroadcastGlobalVariablesHook(session_run_hook.SessionRunHook):
         self._root_rank = root_rank
         self._index = index
         self._bcast_op = None
+        rank_size = os.getenv('RANK_SIZE', "1")
+        if rank_size.isdigit():
+            self._rank_size = int(rank_size)
+        else:
+            self._rank_size = 1
 
     def begin(self):
-        if not self._bcast_op or self._bcast_op.graph != tf.get_default_graph():
+        if not self._bcast_op or self._bcast_op.graph != tf.get_default_graph() and self._rank_size > 1:
             self._bcast_op = broadcast_global_variables(self._root_rank, self._index)
 
     def after_create_session(self, session, coord):
-        logging.info("NPUBroadcastGlobalVariablesHook run...")
-        session.run(self._bcast_op)
+        if self._rank_size > 1:
+            logging.info("NPUBroadcastGlobalVariablesHook run...")
+            session.run(self._bcast_op)
 
 
 class NPUCheckpointSaverHook(basic_session_run_hooks.CheckpointSaverHook):

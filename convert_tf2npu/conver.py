@@ -36,7 +36,7 @@ def conver():
 
     for path, dir_list, file_list in conver_path:
         for file_name in file_list:
-            out_path_dst = abs_join(dst_path_new, path.split(dst_path)[1])
+            out_path_dst = abs_join(dst_path_new, path.split(util_global.get_value('input'))[1])
             file_path = os.path.join(path, file_name).replace('\\', '/')
             content = "Begin conver file: " + file_path
             print(content)

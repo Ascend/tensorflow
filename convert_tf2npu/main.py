@@ -32,20 +32,20 @@ def para_check_and_set(argv):
     except getopt.GetoptError:
         print('Parameter error, please check.')
         print('    this tool just support to convert tf-1.15 scripts.')
-        print('    main.py -i <input> -l <list> -o <output> -r <report>')
-        print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
+        print('    main.py -i <input> -l <list> -o <output> -r <report> -m <main>')
+        print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report> --main=<main>')
         print('-i or --input:  The source script to be converted.')
         print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
-        print('-o or --output: The destination script after converted, Default value: output/')
-        print('-r or --report: Conversion report, Default value: report/')
+        print('-o or --output: The destination script after converted, Default value: output_npu_***/')
+        print('-r or --report: Conversion report, Default value: report_npu_***/')
         print('-m or --main: the executed entry *.py file, default:None')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print('    this tool just support to convert tf-1.15 scripts.')
-            print('    main.py -i <input> -l <list> -o <output> -r <report>')
-            print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
+            print('    main.py -i <input> -l <list> -o <output> -r <report> -m <main>')
+            print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report> --main=<main>')
             print('-i or --input:  The source script to be converted')
             print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
             print('-o or --output: The destination script after converted, Default value: output_npu_***/')
@@ -84,7 +84,7 @@ def para_check_and_set(argv):
         raise ValueError("Please check -i or --input.")
 
 
-    if input_dir + '/' in output+ '/' or input_dir + '/' in report+ '/':
+    if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
         print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
         sys.exit(2)
 
