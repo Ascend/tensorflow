@@ -17,6 +17,7 @@ import shutil
 import util_global
 import pandas as pd
 from visit_by_ast import get_tf_enume
+from visit_by_ast import get_unsupport_api
 
 def before_clear():
     exit_folder = os.path.exists(util_global.get_value('output'))
@@ -130,6 +131,18 @@ def scan_file(path, file_name, api, lineno):
                 code_module.append(api_module[api_name.index(class_name)])
                 support_type.append(api_support[api_name.index(class_name)])
                 migrate_advice.append(api_advice[api_name.index(class_name)])
+
+    # record unsupported api
+    (unsupport, lineno) = get_unsupport_api(os.path.join(path, file_name))
+    for i in range(len(unsupport)):
+        name = unsupport[i]
+        module = name.split('.')[0]
+        script_name.append(file_name)
+        code_api.append(name)
+        code_line.append(lineno[i])
+        code_module.append(module)
+        support_type.append('不支持（无迁移方案，建议用户不使用）')
+        migrate_advice.append('第三方非TF官网API，暂不支持')
 
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
