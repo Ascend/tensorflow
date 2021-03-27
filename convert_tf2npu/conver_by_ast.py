@@ -15,7 +15,7 @@
 import os
 import sys
 import ast
-import astunparse
+import pasta
 import util_global
 from file_op import write_output_after_conver
 from file_op import write_report_after_conver
@@ -82,7 +82,7 @@ def conver_ast(path, out_path_dst, file_name):
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
     try:
-        r_node = ast.parse(source)
+        r_node = pasta.parse(source)
     except Exception as e:
         print(repr(e))
         return
@@ -109,7 +109,7 @@ def conver_ast(path, out_path_dst, file_name):
         if util_global.get_value('is_main_file', False) and util_global.get_value('is_keras_net', False):
             insert_keras_sess_npu_config(r_node)
             insert_keras_sess_close(r_node)
-        dst_content = astunparse.unparse(r_node)
+        dst_content = pasta.dump(r_node)
         write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
 
     if file_name.endswith("a.py"):
