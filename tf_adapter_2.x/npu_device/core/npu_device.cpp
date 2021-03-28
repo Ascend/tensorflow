@@ -36,6 +36,7 @@
 #include "framework/omg/parser/parser_factory.h"
 
 using Format = ge::Format;
+const static uint64_t kInvalidGeGraphId = -1;
 
 namespace {
 template <typename T>
@@ -70,6 +71,34 @@ size_t RemoveRedundantHcomControlEdges(tensorflow::Graph *graph) {
     graph->RemoveEdge(edge);
   }
   return edges_to_remove.size();
+}
+
+bool IsGraphNeedLoop(const std::string &name, const tensorflow::GraphDef &def) {
+  const static std::unordered_set<std::string> kNecessaryOps{"IteratorV2"};
+  const static std::unordered_set<std::string> kTrainKeyOps{"ResourceApplyKerasMomentum"};
+
+  bool contain_necessary_op = false;
+  bool contain_train_key_op = false;
+
+  for (const auto &ndef : def.node()) {
+    if (!contain_train_key_op && kTrainKeyOps.count(ndef.op())) {
+      if (contain_necessary_op) {
+        return true;
+      }
+      contain_train_key_op = true;
+    }
+    if (!contain_necessary_op && kNecessaryOps.count(ndef.op())) {
+      if (contain_train_key_op) {
+        return true;
+      }
+      contain_necessary_op = true;
+    }
+  }
+  return false;
+}
+
+bool IsGraphNeedLoop(const std::string &name, const tensorflow::Graph *graph) {
+  return IsGraphNeedLoop(name, graph->ToGraphDefDebug());
 }
 
 }  // namespace
@@ -140,14 +169,14 @@ std::string NpuDevice::CreateDevice(const char *name, int device_index,
 }
 
 void NpuDevice::ReleaseResource() {
-  DLOG() << "Start cancel all uncompleted async call";
-  CancellationManager()->StartCancel();
-
   std::vector<std::future<void>> thread_guarder;
   for (auto &iterator_provider : iterator_providers_) {
     auto provider = iterator_provider.second;
     thread_guarder.emplace_back(std::async([provider]() { provider->Destroy(); }));
   }
+
+  DLOG() << "Start cancel all uncompleted async call";
+  CancellationManager()->StartCancel();
 }
 
 void NpuDevice::DeleteDevice(void *device) {
@@ -870,7 +899,6 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
   tensorflow::Status compat_status = ValidateOutput(op_name, data_types);
   if (!compat_status.ok()) {
     if (is_function_op) {
-      const static uint64_t kInvalidGeGraphId = -1;
       *spec = CacheFuncSpec(op_name, op_reg_data, ndef, kInvalidGeGraphId, {}, {}, {}, compat_status.error_message());
       return;
     } else {
@@ -936,25 +964,34 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       *gdef.mutable_library() = fdef_lib;
       WriteTextProto(tensorflow::Env::Default(), "step_3_after_mark_shape_" + file_name_suffix, gdef);
     }
-    // 因为parser当前约定的附加属性不是匿名属性（非下划线开头，所以这里当前需要拷贝一份新图用于标记parser所需属性）
-    uint64_t graph_id = 0;
-    if (kCustomKernelEnabled) {
-      graph_id = AddGeGraph(context, std::string("tf_function_") + op_name, optimize_graph->ToGraphDefDebug(), s);
-      if (TF_GetCode(s) != TF_OK) return;
-    }
 
-    DLOG() << std::string("tf_function_") + op_name << " remained input index (0-" << num_inputs - 1 << ") -> "
-           << VecToString(remain_indexes);
+    DLOG() << op_name << " remained input index (0-" << num_inputs - 1 << ") -> " << VecToString(remain_indexes);
     auto lambda = [remain_indexes](int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) {
       for (auto index : remain_indexes) {
         pruned.push_back(inputs[index]);
       }
     };
+
     // 对于function节点，可以将resource的输入NPU兼容性作为缓存项目，校验输入是否被NPU支持，如果类型不支持，或者是CPU的Resouce类型，则不支持
     // 如果是单算子，则不能缓存，需要在每次dev->Run的时候，校验单算子资源输入的兼容性
-    *spec =
-      CacheFuncSpec(op_name, op_reg_data, ndef, graph_id, std::move(optimize_graph), lambda, dependent_host_resources,
-                    ValidateInput(op_name, pruned_inputs.size(), pruned_inputs.data()).error_message());
+    auto status = ValidateInput(op_name, pruned_inputs.size(), pruned_inputs.data());
+    if (!status.ok()) {
+      *spec = CacheFuncSpec(op_name, op_reg_data, ndef, kInvalidGeGraphId, {}, {}, {}, status.error_message());
+    } else {
+      uint64_t graph_id = kInvalidGeGraphId;
+      bool need_loop = false;
+      if (kCustomKernelEnabled) {
+        if (!dependent_host_resources.empty()) {
+          graph_id = AddMaybeAutoLoopGeGraph(context, op_name, optimize_graph->ToGraphDefDebug(), need_loop, s);
+        } else {
+          graph_id = AddGeGraph(context, op_name, optimize_graph->ToGraphDefDebug(), s);
+        }
+        if (TF_GetCode(s) != TF_OK) return;
+      }
+      *spec = CacheFuncSpec(op_name, op_reg_data, ndef, graph_id, std::move(optimize_graph), lambda,
+                            dependent_host_resources, "");
+      reinterpret_cast<const npu::FuncSpec *>(spec->get())->SetNeedLoop(need_loop);
+    }
     return;
   } else {
     // 进行inferShape，输出可能是unknown shape，所以使用partial shape
@@ -1306,19 +1343,19 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
 
   if (current_loop_size == loop) return;
 
+  LOG(INFO) << "Set npu loop size to " << loop;
+
   if (!initialized.exchange(true)) {
     tensorflow::Graph graph(tensorflow::OpRegistry::Global());
-    AddVarInitToGraph(context, "npu_runconfig/iterations_per_loop", tensorflow::Tensor(tensorflow::int64(1)), &graph,
-                      status);
-    if (TF_GetCode(status) != TF_OK) return;
-    AddVarInitToGraph(context, "npu_runconfig/loop_cond", tensorflow::Tensor(tensorflow::int64(1)), &graph, status);
+    AddVarInitToGraph(context, "npu_runconfig/loop_cond", tensorflow::Tensor(tensorflow::int64(0)), &graph, status);
     if (TF_GetCode(status) != TF_OK) return;
     AddVarInitToGraph(context, "npu_runconfig/one", tensorflow::Tensor(tensorflow::int64(1)), &graph, status);
     if (TF_GetCode(status) != TF_OK) return;
     AddVarInitToGraph(context, "npu_runconfig/zero", tensorflow::Tensor(tensorflow::int64(0)), &graph, status);
     if (TF_GetCode(status) != TF_OK) return;
 
-    RunGeGraphPin2CpuAnonymous(context, "set_npu_loop_size", graph.ToGraphDefDebug(), 0, nullptr, 0, nullptr, status);
+    RunGeGraphPin2CpuAnonymous(context, "set_npu_loop_conditions", graph.ToGraphDefDebug(), 0, nullptr, 0, nullptr,
+                               status);
     if (TF_GetCode(status) != TF_OK) return;
 
     tensorflow::Node *variable;
@@ -1333,9 +1370,9 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
                                   .Attr("dtype", tensorflow::DT_INT64)
                                   .Attr("shape", kScalarShape)
                                   .Finalize(&graph2, &variable));
-    NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder(kLoopVarName + "_v", "Const")
+    NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder(kLoopVarName + "_v", "_Arg")
+                                  .Attr("T", tensorflow::DT_INT64)
                                   .Attr("index", 0)
-                                  .Attr("dtype", tensorflow::DT_INT64)
                                   .Finalize(&graph2, &arg));
     NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder(kLoopVarName + "_op", "AssignVariableOp")
                                   .Input(variable, 0)
@@ -1362,7 +1399,7 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
 
   std::vector<TFE_TensorHandle *> inputs(1);
   inputs[0] =
-    tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(tensorflow::int64(loop))));
+    tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(tensorflow::int64(loop - 1))));
 
   RunGeGraphPin2Cpu(context, loop_var_graph_id, inputs.size(), inputs.data(), {}, 0, nullptr, status);
 
@@ -1637,8 +1674,8 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                          ge_session_->RunGraphAsync(graph_id, ge_inputs, ge_callback));
 }
 
-uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name,
-                               const tensorflow::GraphDef &def, TF_Status *status) {
+uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
+                                    const tensorflow::GraphDef &def, bool loop, TF_Status *status) {
   auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
   std::shared_ptr<domi::ModelParser> parser =
     domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -1683,37 +1720,37 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const st
     return subgraph;
   };
 
-  if (kAutoLoopEnabled) {
-    tensorflow::Graph graph(npu::UnwrapCtx(context)->FuncLibDef());
-    tensorflow::ConvertGraphDefToGraph(tensorflow::GraphConstructorOptions{}, def, &graph);
-    for (auto node : graph.op_nodes()) {
-      if (node->IsWhileNode()) {
-        auto loop_graph = request_subgraph(nullptr, node->attrs().Find("body")->func().name());
-        NPU_CTX_REQUIRES_GE_OK_RETURN(
-          status, "NPU Parse tensorflow model",
-          parser->ParseProtoWithSubgraph(loop_graph.get(), request_subgraph, ge_compute_graph), graph_id);
-
-        ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
-        ge_graph.SetNeedIteration(true);
-        NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph),
-                                      graph_id);
-        return graph_id;
-      }
-    }
-  }
-
   NPU_CTX_REQUIRES_GE_OK_RETURN(status, "NPU Parse tensorflow model",
                                 parser->ParseProtoWithSubgraph(&def, request_subgraph, ge_compute_graph), graph_id);
 
   ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
+
+  ge_graph.SetNeedIteration(loop);
+
   NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph), graph_id);
   return graph_id;
+}
+
+uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name,
+                               const tensorflow::GraphDef &def, TF_Status *status) {
+  return AddGeGraphInner(context, graph_id, name, def, false, status);
 }
 
 uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &def,
                                TF_Status *status) {
   uint64_t graph_id = NextUUID();
   return AddGeGraph(context, graph_id, name, def, status);
+}
+
+uint64_t NpuDevice::AddMaybeAutoLoopGeGraph(TFE_Context *context, const std::string &name,
+                                            const tensorflow::GraphDef &def, bool &loop, TF_Status *status) {
+  if (kAutoLoopEnabled && kGlobalLoopSize > 1) {
+    loop = false;
+  } else {
+    loop = false;
+  }
+  uint64_t graph_id = NextUUID();
+  return AddGeGraphInner(context, graph_id, name, def, loop, status);
 }
 
 void NpuDevice::RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status) {
@@ -1804,8 +1841,7 @@ void NpuDevice::MaybeRebuildFuncSpecGraph(TFE_Context *context, const npu::FuncS
     LOG(INFO) << "Start rebuild ge graph " << spec->GeGraphId();
     RemoveGeGraph(context, spec->GeGraphId(), status);
     if (TF_GetCode(status) != TF_OK) return;
-    AddGeGraph(context, spec->GeGraphId(), std::string("tf_function_") + spec->Op(), spec->Graph()->ToGraphDefDebug(),
-               status);
+    AddGeGraph(context, spec->GeGraphId(), spec->Op(), spec->Graph()->ToGraphDefDebug(), status);
   }
 }
 
@@ -1847,7 +1883,6 @@ std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheFuncSpec(
   const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources, const std::string &reason) {
   auto spec = std::make_shared<npu::FuncSpec>(op_spec, ndef, ge_graph_id, std::move(graph), prune_func,
                                               dependent_host_resources, reason);
-  spec->SetNeedLoop();
   cached_func_specs_[op] = spec;
   DLOG() << "Cache function op spec " << spec->DebugString();
   return spec;

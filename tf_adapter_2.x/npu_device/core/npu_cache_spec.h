@@ -181,7 +181,7 @@ class FuncSpec : public TaskSpec {
   void SetBuilt() const { built_.store(true); }
   bool Built() const { return built_; }
 
-  void SetNeedLoop() const { need_loop_.store(true); }
+  void SetNeedLoop(bool loop) const { need_loop_.store(loop); }
   bool NeedLoop() const { return need_loop_; }
 
   void PruneInputs(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) const {
