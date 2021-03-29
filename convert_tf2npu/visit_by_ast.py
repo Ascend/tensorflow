@@ -68,7 +68,7 @@ class VisitUnsupportImport(ast.NodeVisitor):
     def __init__(self):
         self.imports = []
         self.modules = []
-        self.unsupport = ['cupy']
+        self.unsupport = ['cupy', 'pynvml']
 
     def visit_ImportFrom(self, node):
         if node.module != None:
