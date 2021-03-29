@@ -97,6 +97,11 @@ def ast_if(node):
                 return node
 
 def ast_call(node):
+    if _call_name_match(node.func, "set_experimental_options"):
+        log_msg(getattr(node, 'lineno', 'None'), 'change set_experimental_options(*) to set_experimental_options(experimental_options)')
+        node.args = [ast.Name(id='experimental_options', ctx=ast.Load())]
+        node.keywords = []
+        util_global.set_value('need_conver', True)
     if isinstance(node.func, ast.Name) and node.func.id == 'check_available_gpus':
         log_msg(getattr(node, 'lineno', 'None'), "change check_available_gpus() to ['/device:CPU:0']")
         util_global.set_value('need_conver', True)

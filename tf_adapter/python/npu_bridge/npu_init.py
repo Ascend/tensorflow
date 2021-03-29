@@ -47,6 +47,18 @@ from npu_bridge.estimator.npu.npu_plugin import npu_close
 import atexit
 atexit.register(npu_close)
 
+experimental_options = {
+    "disable_model_pruning": True,
+    "function_optimization": RewriterConfig.OFF,
+    "constant_folding": RewriterConfig.OFF,
+    "shape_optimization": RewriterConfig.OFF,
+    "arithmetic_optimization": RewriterConfig.OFF,
+    "loop_optimization": RewriterConfig.OFF,
+    "dependency_optimization": RewriterConfig.OFF,
+    "layout_optimizer": RewriterConfig.OFF,
+    "memory_optimization": RewriterConfig.OFF
+}
+
 def npu_hooks_append(hooks_list=[]):
     if (not isinstance(hooks_list, list)):
         hooks_list = []
