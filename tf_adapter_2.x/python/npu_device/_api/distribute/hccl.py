@@ -5,6 +5,18 @@ from npu_device.npu_device import global_npu_ctx
 import tensorflow as tf
 
 
+def shard_and_rebatch_dataset(dataset, global_bs):
+    if global_npu_ctx() is None or global_npu_ctx().workers_num <= 1:
+        return dataset, global_bs
+    if global_bs % global_npu_ctx().workers_num != 0:
+        raise ValueError('Batch size must be divisible by num npus: {}'.format(global_npu_ctx().workers_num))
+
+    batch_size = int(global_bs) / global_npu_ctx().workers_num
+    dataset = dataset.shard(global_npu_ctx().workers_num, global_npu_ctx().worker_id)
+
+    return dataset, int(batch_size)
+
+
 def _all_reduce(values, reduction, fusion, fusion_id, group):
     workers_num = global_npu_ctx().workers_num
 
