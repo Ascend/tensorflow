@@ -85,42 +85,43 @@ class Analyse(object):
 
         if self.main_file.get() == '':
             if self.output_path.get() == '' and self.report_path.get() == '':
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list
+                call_main_py = 'python main.py -i {} -l {}'.format('\"' + self.script_path.get() + '\"',
+                                                                   support_list)
             elif self.output_path.get() == '':
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list + \
-                               ' -r ' + self.report_path.get()
+                call_main_py = 'python main.py -i {} -l {} -r {}'.format('\"' + self.script_path.get() + '\"',
+                                                                         support_list,
+                                                                         '\"' + self.report_path.get() + '\"')
             elif self.report_path.get() == '':
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list + \
-                               ' -o ' + self.output_path.get()
+                call_main_py = 'python main.py -i {} -l {} -o {}'.format('\"' + self.script_path.get() + '\"',
+                                                                         support_list,
+                                                                         '\"' + self.output_path.get() + '\"')
             else:
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list + \
-                               ' -o ' + self.output_path.get() + \
-                               ' -r ' + self.report_path.get()
+                call_main_py = 'python main.py -i {} -l {} -o {} -r {}'.format('\"' + self.script_path.get() + '\"',
+                                                                               support_list,
+                                                                               '\"' + self.output_path.get() + '\"',
+                                                                               '\"' + self.report_path.get() + '\"')
         else:
             if self.output_path.get() == '' and self.report_path.get() == '':
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list + \
-                               ' -m ' + self.main_file.get()
+                call_main_py = 'python main.py -i {} -l {} -m {}'.format('\"' + self.script_path.get() + '\"',
+                                                                         support_list,
+                                                                         '\"' + self.main_file.get() + '\"')
             elif self.output_path.get() == '':
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list + \
-                               ' -r ' + self.report_path.get() + \
-                               ' -m ' + self.main_file.get()
+                call_main_py = 'python main.py -i {} -l {} -r {} -m {}'.format('\"' + self.script_path.get() + '\"',
+                                                                               support_list,
+                                                                               '\"' + self.report_path.get() + '\"',
+                                                                               '\"' + self.main_file.get() + '\"')
             elif self.report_path.get() == '':
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list + \
-                               ' -o ' + self.output_path.get() + \
-                               ' -m ' + self.main_file.get()
+                call_main_py = 'python main.py -i {} -l {} -o {} -m {}'.format('\"' + self.script_path.get() + '\"',
+                                                                               support_list,
+                                                                               '\"' + self.output_path.get() + '\"',
+                                                                               '\"' + self.main_file.get() + '\"')
             else:
-                call_main_py = 'python main.py -i ' + self.script_path.get() + \
-                               ' -l ' + support_list + \
-                               ' -o ' + self.output_path.get() + \
-                               ' -r ' + self.report_path.get() + \
-                               ' -m ' + self.main_file.get()
+                call_main_py = 'python main.py -i {} -l {} ' \
+                               '-o {} -r {} -m {}'.format('\"' + self.script_path.get() + '\"',
+                                                          support_list,
+                                                          '\"' + self.output_path.get() + '\"',
+                                                          '\"' + self.report_path.get() + '\"',
+                                                          '\"' + self.main_file.get() + '\"')
 
         os.system(call_main_py)
         self.hide()
