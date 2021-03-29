@@ -33,7 +33,14 @@ def import_from(node):
             util_global.set_value('is_keras_net', True)
         if "horovod" in values:
             util_global.set_value('has_hccl_api', True)
-        util_global.set_value('need_conver', True)
+    for value in node.names:
+        if isinstance(value, ast.alias):
+            values = value.name.split(".")
+            if "keras" in values:
+                util_global.set_value('is_keras_net', True)
+            if "horovod" in values:
+                util_global.set_value('has_hccl_api', True)
+    util_global.set_value('need_conver', True)
 
 
 def ast_import(node):
@@ -367,6 +374,8 @@ def ast_call(node):
             return node
     for estimator_func in util_global.get_value('EstimatorFunc', []):
         if isinstance(node.func, ast.Attribute) and (node.func.attr == estimator_func):
+            if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == "learning":
+                return node
             input_fn = None
             hooks = None
             for index, _ in enumerate(node.args):

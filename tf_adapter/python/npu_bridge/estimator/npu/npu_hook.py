@@ -73,7 +73,7 @@ class NPUBroadcastGlobalVariablesHook(session_run_hook.SessionRunHook):
             self._rank_size = 1
 
     def begin(self):
-        if not self._bcast_op or self._bcast_op.graph != tf.get_default_graph() and self._rank_size > 1:
+        if (not self._bcast_op or self._bcast_op.graph != tf.get_default_graph()) and self._rank_size > 1:
             self._bcast_op = broadcast_global_variables(self._root_rank, self._index)
 
     def after_create_session(self, session, coord):
