@@ -15,25 +15,13 @@
 import os
 import sys
 import ast
-import astunparse
+import pasta
 import util_global
 from file_op import write_output_after_conver
 from file_op import write_report_after_conver
 from file_op import scan_file
-from util import log_success_report
-from util import log_migration_report
-from ast_impl import attribute
-from ast_impl import node_tree
-from ast_impl import insert_npu_import
-from ast_impl import insert_npu_tf_opt_func
-from ast_impl import insert_npu_keras_opt_func
-from ast_impl import insert_empty_hook
-from ast_impl import import_from
-from ast_impl import ast_import
-from ast_impl import ast_function_def
-from ast_impl import ast_call
-from ast_impl import ast_assign
-from ast_impl import ast_if
+from util import *
+from ast_impl import *
 from visit_by_ast import get_tf_api
 
 class ConverByAst(ast.NodeTransformer):
@@ -75,11 +63,6 @@ class ConverByAst(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node):
-        for target in node.targets:
-            if (isinstance(target, ast.Name) and target.id == 'global_jit_level') or (isinstance(target, ast.Attribute) and target.attr == 'global_jit_level'):
-                return ast_assign(node)
-
-        ast_assign(node)
         self.generic_visit(node)
         return node
 
@@ -90,16 +73,16 @@ class ConverByAst(ast.NodeTransformer):
 
 def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
-    util_global.set_value('insert_estimator_add_hook_func', False)
-    util_global.set_value('insert_npu_tf_opt_func', False)
-    util_global.set_value('insert_npu_keras_opt_func', False)
-    util_global.set_value('insert_empty_hook', False)
     util_global.set_value('is_keras_net', False)
-    util_global.set_value('is_hvd_net', False)
+    util_global.set_value('has_hccl_api', False)
+    util_global.set_value('is_main_file', False)
+    util_global.set_value('has_main_func', False)
+    if os.path.join(path, file_name) == util_global.get_value('main', ""):
+        util_global.set_value('is_main_file', True)
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
         source = file.read()
     try:
-        r_node = ast.parse(source)
+        r_node = pasta.parse(source)
     except Exception as e:
         print(repr(e))
         return
@@ -116,13 +99,17 @@ def conver_ast(path, out_path_dst, file_name):
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)
-        if util_global.get_value('insert_npu_tf_opt_func', False):
-            insert_npu_tf_opt_func(r_node)
-        if util_global.get_value('insert_npu_keras_opt_func', False):
-            insert_npu_keras_opt_func(r_node)
-        if util_global.get_value('insert_empty_hook', False):
-            insert_empty_hook(r_node)
-        dst_content = astunparse.unparse(r_node)
+        if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hccl_api', False)
+            or util_global.get_value('is_keras_net', False)):
+            log_warning('the network of keras and horovod, or using dataset.shard script do not have main func, '
+                        'should set -m or --main parameter')
+        if util_global.get_value('is_main_file', False) and util_global.get_value('has_hccl_api', False):
+            insert_npu_resource_init(r_node)
+            insert_npu_resource_shutdown(r_node)
+        if util_global.get_value('is_main_file', False) and util_global.get_value('is_keras_net', False):
+            insert_keras_sess_npu_config(r_node)
+            insert_keras_sess_close(r_node)
+        dst_content = pasta.dump(r_node)
         write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
 
     if file_name.endswith("a.py"):

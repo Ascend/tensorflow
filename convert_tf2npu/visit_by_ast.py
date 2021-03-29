@@ -64,6 +64,36 @@ class VisitAttr(ast.NodeVisitor):
             self._in_attr = False
         self.generic_visit(node)
 
+class VisitUnsupportImport(ast.NodeVisitor):
+    def __init__(self):
+        self.imports = []
+        self.modules = []
+        self.unsupport = ['cupy', 'pynvml']
+
+    def visit_ImportFrom(self, node):
+        if node.module != None:
+            self.modules = node.module.split('.')
+        for value in node.names:
+            if isinstance(value, ast.alias):
+                classes = value.name.split('.')
+                # from module import unsupported classes
+                if self.modules[0] in self.unsupport:
+                    self.imports.append(classes[0])
+        self.generic_visit(node)
+
+    def visit_Import(self, node):
+        for value in node.names:
+            if isinstance(value, ast.alias):
+                self.modules = value.name.split('.')
+                if self.modules[0] in self.unsupport:
+                    # import unsupported module as alias:
+                    if value.asname != None:
+                        self.imports.append(value.asname)
+                    # import unsupported module
+                    else:
+                        self.imports.append(self.modules[0])
+        self.generic_visit(node)
+
 def get_tf_api(file_name):
     with open(file_name, 'r', encoding='utf-8') as file:
         source = file.read()
@@ -98,6 +128,20 @@ def get_tf_enume(file_name, enume_list):
             lineno.append(visitor.linenos[i])
     return api, lineno
 
+def get_unsupport_api(file_name):
+    with open(file_name, 'r', encoding='utf-8') as file:
+        source = file.read()
+    tree = ast.parse(source)
+    visitor = VisitCall()
+    visitor.visit(tree)
+    unsupportor = VisitUnsupportImport()
+    unsupportor.visit(tree)
 
-
-
+    #get unsupport api
+    api = []
+    lineno = []
+    for i in range(len(visitor.calls)):
+        if visitor.calls[i].split('.')[0] in unsupportor.imports:
+            api.append(visitor.calls[i])
+            lineno.append(visitor.linenos[i])
+    return api, lineno

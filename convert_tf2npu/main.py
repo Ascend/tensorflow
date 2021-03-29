@@ -20,40 +20,45 @@ from file_op import before_clear
 from conver import conver
 
 def para_check_and_set(argv):
-    input  = "input"
-    list = "tf1.15_api_support_list.xlsx"
+    input_dir  = "npu_input"
+    support_list = "tf1.15_api_support_list.xlsx"
     output = "output" + util_global.get_value('timestap')
     report = "report" + util_global.get_value('timestap')
     report_suffix = report
+    main_file = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hi:l:o:r:", ["help", "input=", "list=", "output=", "report="])
+        opts, args = getopt.getopt(argv, "hi:l:o:r:m:", ["help", "input=", "list=", "output=", "report=", "main="])
     except getopt.GetoptError:
         print('Parameter error, please check.')
-        print('    main.py -i <input> -l <list> -o <output> -r <report>')
-        print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
-        print('-i or --input:  The source script to be converted, Default value: input/')
+        print('    this tool just support to convert tf-1.15 scripts.')
+        print('    main.py -i <input> -l <list> -o <output> -r <report> -m <main>')
+        print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report> --main=<main>')
+        print('-i or --input:  The source script to be converted.')
         print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
-        print('-o or --output: The destination script after converted, Default value: output/')
-        print('-r or --report: Conversion report, Default value: report/')
+        print('-o or --output: The destination script after converted, Default value: output_npu_***/')
+        print('-r or --report: Conversion report, Default value: report_npu_***/')
+        print('-m or --main: the executed entry *.py file, default:None')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
-            print('    main.py -i <input> -l <list> -o <output> -r <report>')
-            print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report>')
-            print('-i or --input:  The source script to be converted, Default value: input/')
+            print('    this tool just support to convert tf-1.15 scripts.')
+            print('    main.py -i <input> -l <list> -o <output> -r <report> -m <main>')
+            print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report> --main=<main>')
+            print('-i or --input:  The source script to be converted')
             print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
-            print('-o or --output: The destination script after converted, Default value: output/')
-            print('-r or --report: Conversion report, Default value: report/')
+            print('-o or --output: The destination script after converted, Default value: output_npu_***/')
+            print('-r or --report: Conversion report, Default value: report_npu_***/')
+            print('-m or --main: the executed entry *.py file, default:None')
             sys.exit()
         elif opt in ("-i", "--input"):
-            input = os.path.abspath(arg)
-            if str(input).endswith('/'):
-                input = input[0:len(input)-1]
-            input = input.replace('\\', '/')
+            input_dir = os.path.abspath(arg)
+            if str(input_dir).endswith('/'):
+                input_dir = input_dir[0:len(input_dir)-1]
+            input_dir = input_dir.replace('\\', '/')
         elif opt in ("-l", "--list"):
-            list = arg
+            support_list = arg
         elif opt in ("-o", "--output"):
             output = os.path.abspath(arg)
             if str(output).endswith('/'):
@@ -65,15 +70,30 @@ def para_check_and_set(argv):
                 report = report[0:len(report)-1]
             report = os.path.join(report, report_suffix)
             report = report.replace('\\', '/')
+        elif opt in ("-m", "--main"):
+            if os.path.isfile(arg):
+                main_file = os.path.abspath(arg)
+                main_path = os.path.dirname(main_file)
+                file = os.path.basename(main_file)
+                main_path = main_path.replace('\\', '/')
+                main_file = os.path.join(main_path, file)
+            else:
+                raise ValueError("--main args must be exited files")
 
-    if input+'/' in output+'/' or input+'/' in report+'/':
+    if input_dir == "npu_input":
+        raise ValueError("Please check -i or --input.")
+
+
+    if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
         print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
         sys.exit(2)
 
-    util_global.set_value('input', input)
-    util_global.set_value('list', list)
+    util_global.set_value('input', input_dir)
+    util_global.set_value('list', support_list)
     util_global.set_value('output', output)
     util_global.set_value('report', report)
+    util_global.set_value('main', main_file)
+
 
 if __name__ == "__main__":
     util_global._init()
