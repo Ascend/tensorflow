@@ -214,15 +214,16 @@ bool EndsWith(const std::string &str, const std::string &suffix) {
   return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-bool IsWhiteListSupport(const string &op_name, bool mix_compile_mode, const string &node_name) {
+bool IsWhiteListSupport(const string &op_name, bool mix_compile_mode, const string &node_name,
+                        bool support_const = false) {
   static const std::string suffix_op = "Dataset";
   static const std::string suffix_op_v2 = "DatasetV2";
 
   auto identifier = NpuOpsIdentifier::GetInstance(mix_compile_mode);
 
   bool ans = (identifier->IsNpuSupported(op_name, node_name)) && !EndsWith(op_name, suffix_op) &&
-             !EndsWith(op_name, suffix_op_v2) && !(op_name == "Const") && !(op_name == "_Arg") &&
-             !(op_name == "_Retval") && !(op_name == "StringJoin");
+             !EndsWith(op_name, suffix_op_v2) && (support_const || !(op_name == "Const")) &&
+             !(op_name == "_Arg") && !(op_name == "_Retval") && !(op_name == "StringJoin");
   if (!ans) {
     auto ret = not_support_nodes.insert(op_name);
     if (ret.second) {
@@ -313,15 +314,17 @@ bool IsNpuSupportingFunc(Node *node, FunctionLibraryDefinition *func_lib, int de
   return true;
 }
 
-bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode, FunctionLibraryDefinition *func_lib) {
+bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode,
+                         FunctionLibraryDefinition *func_lib, bool support_const) {
   if (IsWithoutNpuScope(node_def)) { return false; }
-  if (IsWhiteListSupport(node_def.op(), mix_compile_mode, node_def.name())) { return true; }
+  if (IsWhiteListSupport(node_def.op(), mix_compile_mode, node_def.name(), support_const)) { return true; }
   if (IsNpuSupportingFunc(node_def.op(), func_lib, 0)) { return true; }
   return false;
 }
 
-bool IsNpuSupportingNode(Node *node, bool mix_compile_mode, FunctionLibraryDefinition *func_lib) {
-  return IsNpuSupportingNode(node->def(), mix_compile_mode, func_lib);
+bool IsNpuSupportingNode(Node *node, bool mix_compile_mode, FunctionLibraryDefinition *func_lib,
+                         bool support_const) {
+  return IsNpuSupportingNode(node->def(), mix_compile_mode, func_lib, support_const);
 }
 
 bool IsUnSupportedResource(bool mix_compile_mode, Node* node) {
@@ -343,6 +346,150 @@ bool IsUnSupportedResource(bool mix_compile_mode, Node* node) {
     }
   }
   return false;
+}
+using NodeSet = std::set<Node *>;
+using NodeMap = std::map<Node *, NodeSet>;
+using NodeStack = std::vector<Node *>;
+using GraphPath = std::vector<Node *>;
+using GraphPaths = std::vector<GraphPath>;
+
+int FindNodesInPaths(Node *op_head, Node *op_tail, NodeSet &ops_save) {
+  if (!op_head || !op_tail || op_head == op_tail) { return ops_save.size(); }
+
+  NodeMap seen;
+  NodeStack stack;
+  GraphPath path;
+
+  NodeSet empty;
+  seen.insert(NodeMap::value_type(op_head, empty));
+  stack.push_back(op_head);
+
+  while (!stack.empty()) {
+    Node *cur_node = stack.back();
+    stack.pop_back();
+
+    if (!cur_node) {
+      seen.erase(path.back());
+      if (path.size() >= 2) { seen[path[path.size() - 2]].erase(path.back()); }
+      path.pop_back();
+      continue;
+    }
+
+    path.push_back(cur_node);
+    if (path.size() >= 2) { seen[path[path.size() - 2]].insert(path.back()); }
+    stack.push_back(nullptr);
+
+    if (cur_node == op_tail || ops_save.count(cur_node) > 0) {
+      for (auto node : path) { ops_save.insert(node); }
+      continue;
+    }
+
+    for (auto out_node : cur_node->out_nodes()) {
+      unsigned int n = 0;
+      for (auto out_out_node : out_node->out_nodes()) { ++n; }
+      if (seen.insert(NodeMap::value_type(out_node, empty)).second) {
+        stack.push_back(out_node);
+      } else if (seen[out_node].size() < n) {
+        stack.push_back(out_node);
+      }
+    }
+  }
+  return ops_save.size();
+}
+
+using IOP = std::pair<std::string, std::string>;
+using OneGraphIOP = std::vector<IOP>;
+using AllGraphIOP = std::vector<OneGraphIOP>;
+
+int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
+  using Nodes = std::vector<std::string>;
+  using Pair = std::vector<Nodes>;
+  using Pairs = std::vector<Pair>;
+
+  int model = 0;
+  std::string s;
+  Nodes nodes;
+  Pair pair;
+  Pairs pairs;
+  for (char c : in_out_pair) {
+      switch (c) {
+      case '[':
+          ++model;
+          break;
+      case ']':
+      case ',':
+          if (1 == model && !pair.empty()) { pairs.emplace_back(std::move(pair)); }
+          else if (2 == model && !nodes.empty()) { pair.emplace_back(std::move(nodes)); }
+          else if (3 == model && !s.empty()) { nodes.emplace_back(std::move(s)); }
+          if (']' == c) { --model; }
+          break;
+      case ' ':
+      case '\t':
+      case '\'':
+          break;
+      default:
+          s += c;
+      }
+  }
+
+  int size = 0;
+  for (auto &pair : pairs) {
+    OneGraphIOP one_graph_iop;
+    if (pair.size() < 2) { continue; }
+    for (auto &in : pair[0]) {
+      for (auto &out : pair[1]) {
+        ++size;
+        one_graph_iop.push_back(IOP(in, out));
+      }
+    }
+    all_graph_iop.push_back(one_graph_iop);
+  }
+  return size;
+}
+
+Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
+                                 FunctionLibraryDefinition *func_lib, const std::string &in_out_pair) {
+  AllGraphIOP all_graph_iop;
+  if (0 >= ParseInOutPair(in_out_pair, all_graph_iop)) {
+    return errors::Internal("in_out_pair: ", in_out_pair, " is invalid.");
+  }
+  for (auto &one_graph_iop : all_graph_iop) {
+    for (auto &iop : one_graph_iop) {
+      LOG(INFO) << iop.first << " -> " << iop.second;
+
+      Node *op_head = nullptr;
+      Node *op_tail = nullptr;
+      for (auto node : graph.nodes()) {
+        if (node->name() == iop.first) { op_head = node; }
+        if (node->name() == iop.second) { op_tail = node; }
+        if (op_head && op_tail) {
+          break;
+        }
+      }
+      if (!op_head && op_tail) {
+        ADP_LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.first << " is not find.";
+        LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.first << " is not find.";
+      }
+      if (op_head && !op_tail) {
+        ADP_LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.second << " is not find.";
+        LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.second << " is not find.";
+      }
+      if (op_head && op_tail) {
+        NodeSet ops_save;
+        if (0 < FindNodesInPaths(op_head, op_tail, ops_save)) {
+          for (auto node : ops_save) {
+            candidates->insert(node);
+          }
+        }
+      }
+    }
+  }
+  for (auto node : *candidates) {
+    if (!IsNpuSupportingNode(node, true, func_lib, true)) {
+      return errors::Internal(node->name(), " is not supported npu node.");
+    }
+  }
+  return Status::OK();
 }
 
 Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, FunctionLibraryDefinition *func_lib,
@@ -686,8 +833,13 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
   Graph *graph = graphIn->get();
   bool enableDP = pass_options["enable_dp"] == "1";
   OrderedNodeSet npuSupportCandidates;
-  TF_RETURN_IF_ERROR(FindNpuSupportCandidates(*graph, &npuSupportCandidates, func_lib, enableDP, mix_compile_mode));
-  TF_RETURN_IF_ERROR(AddRelationalConst(*graph, &npuSupportCandidates));
+  if (!pass_options["in_out_pair"].empty()) {
+    TF_RETURN_IF_ERROR(FindCandidatesByInOutPair(*graph, &npuSupportCandidates, func_lib, pass_options["in_out_pair"]));
+  }
+  if (npuSupportCandidates.empty()) {
+    TF_RETURN_IF_ERROR(FindNpuSupportCandidates(*graph, &npuSupportCandidates, func_lib, enableDP, mix_compile_mode));
+    TF_RETURN_IF_ERROR(AddRelationalConst(*graph, &npuSupportCandidates));
+  }
 
   std::map<Node *, std::shared_ptr<Cluster>> cluster_map;
   tensorflow::GraphCycles cycles;

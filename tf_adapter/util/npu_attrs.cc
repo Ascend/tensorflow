@@ -463,6 +463,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   std::string dynamic_inputs_shape_range;
   int local_rank_id = -1;
   std::string local_device_list;
+  std::string in_out_pair;
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
       do_npu_optimizer = true;
@@ -514,6 +515,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
           LOG(FATAL) << s.error_message();
         }
       }
+      if (params.count("in_out_pair")) { in_out_pair = params.at("in_out_pair").s(); }
     }
   }
   if (!do_npu_optimizer) {
@@ -537,6 +539,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
   pass_options["local_rank_id"] = std::to_string(local_rank_id);
   pass_options["local_device_list"] = local_device_list;
+  pass_options["in_out_pair"] = in_out_pair;
 
   return pass_options;
 }
@@ -556,6 +559,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   std::string dynamic_inputs_shape_range;
   std::string local_rank_id = "-1";
   std::string local_device_list;
+  std::string in_out_pair;
   Status s = Status::OK();
   string npuOptimizer;
 
@@ -574,6 +578,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
       ctx->GetAttr("_local_rank_id", &local_rank_id);
       ctx->GetAttr("_local_device_list", &local_device_list);
     }
+    ctx->GetAttr("_in_out_pair", &in_out_pair);
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -589,6 +594,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
   pass_options["local_rank_id"] = local_rank_id;
   pass_options["local_device_list"] = local_device_list;
+  pass_options["in_out_pair"] = in_out_pair;
 
   return pass_options;
 }
@@ -608,6 +614,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string dynamic_inputs_shape_range;
   std::string local_rank_id = "-1";
   std::string local_device_list;
+  std::string in_out_pair;
   Status s = Status::OK();
 
   if (attrs.Find("_NpuOptimizer") != nullptr) {
@@ -640,6 +647,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
     if (attrs.Find("_local_device_list") != nullptr) {
       local_device_list = attrs.Find("_local_device_list")->s();
     }
+    if (attrs.Find("_in_out_pair") != nullptr) { in_out_pair = attrs.Find("_in_out_pair")->s(); }
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -655,6 +663,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
   pass_options["local_rank_id"] = local_rank_id;
   pass_options["local_device_list"] = local_device_list;
+  pass_options["in_out_pair"] = in_out_pair;
 
   return pass_options;
 }
@@ -671,6 +680,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string task_index = "0";
   std::string local_rank_id = "-1";
   std::string local_device_list;
+  std::string in_out_pair;
   Status s = Status::OK();
 
   std::string variable_format_optimize = std::to_string(true);
@@ -738,6 +748,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (attrs.Find("_local_device_list") != nullptr) {
       local_device_list = attrs.Find("_local_device_list")->s();
     }
+    if (attrs.Find("_in_out_pair") != nullptr) { in_out_pair = attrs.Find("_in_out_pair")->s(); }
 
     if (attrs.Find("_variable_format_optimize") != nullptr) {
       variable_format_optimize = attrs.Find("_variable_format_optimize")->s();
@@ -881,6 +892,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["task_index"] = task_index;
   all_options["local_rank_id"] = local_rank_id;
   all_options["local_device_list"] = local_device_list;
+  all_options["in_out_pair"] = in_out_pair;
   all_options["op_select_implmode"] = op_select_implmode;
   all_options["optypelist_for_implmode"] = optypelist_for_implmode;
   all_options["input_shape"] = input_shape;
@@ -955,6 +967,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string dynamic_inputs_shape_range;
   int local_rank_id = -1;
   std::string local_device_list;
+  std::string in_out_pair;
   int enable_exception_dump = 0;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
@@ -1139,6 +1152,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           LOG(FATAL) << s.error_message();
         }
       }
+      if (params.count("in_out_pair")) { in_out_pair = params.at("in_out_pair").s(); }
 
       if (params.count("enable_exception_dump")) { enable_exception_dump = params.at("enable_exception_dump").i(); }
       if (!params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
@@ -1282,6 +1296,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
   pass_options["local_rank_id"] = std::to_string(local_rank_id);
   pass_options["local_device_list"] = local_device_list;
+  pass_options["in_out_pair"] = in_out_pair;
 
   std::string attr_name;
   for (const auto &option : sess_options) {
