@@ -96,7 +96,66 @@ def ast_if(node):
                     util_global.set_value('need_conver', True)
                 return node
 
+def convert_loss_scale_api(node):
+    if isinstance(node.func, ast.Attribute):
+        if node.func.attr == "FixedLossScale":
+            log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.FixedLossScale"
+                    " to FixedLossScaleManager")
+            node.func = ast.Name(id="FixedLossScaleManager", ctx=ast.Load())
+            if len(node.keywords) == 1:
+                node.keywords[0].arg = "loss_scale"
+            util_global.set_value('need_conver', True)
+            return node
+        if node.func.attr == "DynamicLossScale":
+            log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.DynamicLossScale"
+                    " to ExponentialUpdateLossScaleManager")
+            node.func = ast.Name(id="ExponentialUpdateLossScaleManager", ctx=ast.Load())
+            initial_loss_scale = None
+            increment_period = None
+            multiplier = None
+            for index, arg in enumerate(node.args):
+                if index == 0: initial_loss_scale = arg
+                if index == 1: increment_period = arg
+                if index == 2: multiplier = arg
+            for keyword in node.keywords:
+                if keyword.arg == "initial_loss_scale":
+                    keyword.arg = "init_loss_scale"
+                    initial_loss_scale = keyword
+                if keyword.arg == "increment_period":
+                    keyword.arg = "incr_every_n_steps"
+                    increment_period = keyword
+                if keyword.arg == "multiplier":
+                    keyword.arg = "incr_ratio"
+                    multiplier = keyword
+            if initial_loss_scale:
+                if not isinstance(initial_loss_scale, ast.keyword):
+                    node.keywords.append(ast.keyword(arg="init_loss_scale", value=initial_loss_scale))
+            else:
+                node.keywords.append(ast.keyword(arg="init_loss_scale", value=pasta.parse("2**15")))
+            if increment_period:
+                if not isinstance(increment_period, ast.keyword):
+                    node.keywords.append(ast.keyword(arg="incr_every_n_steps", value=increment_period))
+            else:
+                node.keywords.append(ast.keyword(arg="incr_every_n_steps", value=pasta.parse("2000")))
+            if multiplier:
+                if not isinstance(multiplier, ast.keyword):
+                    node.keywords.append(ast.keyword(arg="incr_ratio", value=multiplier))
+            else:
+                node.keywords.append(ast.keyword(arg="incr_ratio", value=pasta.parse("2")))
+            node.args = []
+            util_global.set_value('need_conver', True)
+            return node
+        if node.func.attr == "MixedPrecisionLossScaleOptimizer":
+            log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.MixedPrecisionLossScaleOptimizer"
+                    " to NPULossScaleOptimizer")
+            node.func = ast.Name(id="NPULossScaleOptimizer", ctx=ast.Load())
+            for keyword in node.keywords:
+                if keyword.arg == "loss_scale": keyword.arg = "loss_scale_manager"
+            util_global.set_value('need_conver', True)
+            return node
+
 def ast_call(node):
+    convert_loss_scale_api(node)
     if _call_name_match(node.func, "set_experimental_options"):
         log_msg(getattr(node, 'lineno', 'None'), 'change set_experimental_options(*) to set_experimental_options(experimental_options)')
         node.args = [ast.Name(id='experimental_options', ctx=ast.Load())]
