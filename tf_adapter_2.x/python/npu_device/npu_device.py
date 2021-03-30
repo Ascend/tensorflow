@@ -50,6 +50,7 @@ def open(ctx=None, device_index=None, global_options=None, session_options=None)
             global_options['ge.exec.deployMode'] = "0"
             global_options['ge.exec.isUseHcom'] = "1"
             global_options['ge.exec.hcclFlag'] = "1"
+            global_options['ge.exec.hccl_tailing_optimize'] = '1'
             global_options['ge.exec.hcomParallel'] = "1"
             global_options['ge.exec.rankId'] = str(worker_id)
 
