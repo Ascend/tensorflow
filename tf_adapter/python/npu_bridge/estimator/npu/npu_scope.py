@@ -66,3 +66,31 @@ def npu_mem_type_scope():
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield
+
+
+@contextlib.contextmanager
+def npu_weight_prefetch_scope(buffer_pool_id=0, buffer_pool_size=536870912):
+    """
+    Enable the PREFETCH node in the scope to use buffer pool memory.
+    buffer_pool_id: Specifies the id of buffer pool to enable,
+                    it is a integer, default is 0;
+    buffer_pool_size: Specifies the size of this buffer pool in bytes,
+                      default is 512MB.
+
+    Use constraints:
+    1. BufferPoolMemory is only supported for PREFETCH node with single
+       input and single output;
+    2. Buffer pool size of the same ID must be the same;
+    3. The size of the buffer pool should be able to meet the requirements
+       of the PREFETCH node with the largest memory (note that alignment
+       and complement are included, for example, 512 bytes alignment of
+       the HCOM node with an additional 512 bytes before and after each);
+    4. Prefetch is not supported if it is located in a subgraph or
+       in a control flow branch.
+    """
+    attrs = {
+        "_buffer_pool_id": attr_value_pb2.AttrValue(i=buffer_pool_id),
+        "_buffer_pool_size": attr_value_pb2.AttrValue(i=buffer_pool_size)
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield
