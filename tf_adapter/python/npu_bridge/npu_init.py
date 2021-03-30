@@ -28,6 +28,7 @@ from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
 from tensorflow.python.client import session
+from tensorflow.python.training import session_run_hook
 
 from hccl.manage.api import create_group
 from hccl.manage.api import destroy_group
@@ -46,27 +47,17 @@ from npu_bridge.estimator.npu.npu_plugin import npu_close
 import atexit
 atexit.register(npu_close)
 
-def _npu_config_proto(config_proto):
-    config_proto.allow_soft_placement = True
-    config_proto.log_device_placement = False
-    config_proto.graph_options.rewrite_options.remapping = RewriterConfig.OFF
-    config_proto.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
-
-def npu_session_config_init(session_config=None):
-    if ((not isinstance(session_config, config_pb2.ConfigProto)) and (not issubclass(type(session_config), config_pb2.ConfigProto))):
-        session_config = config_pb2.ConfigProto()
-    if (isinstance(session_config, config_pb2.ConfigProto) or issubclass(type(session_config), config_pb2.ConfigProto)):
-        custom_op = session_config.graph_options.rewrite_options.custom_optimizers.add()
-        custom_op.name = 'NpuOptimizer'
-        _npu_config_proto(session_config)
-    return session_config
-
-def npu_run_config_init(run_config=None):
-    if ((not isinstance(run_config, tf.estimator.RunConfig)) and (not issubclass(type(run_config), tf.estimator.RunConfig))):
-        run_config = tf.estimator.RunConfig()
-    if (isinstance(run_config, tf.estimator.RunConfig) or issubclass(type(run_config), tf.estimator.RunConfig)):
-        run_config.__dict__['_session_config'] = npu_session_config_init(run_config.session_config)
-    return run_config
+experimental_options = {
+    "disable_model_pruning": True,
+    "function_optimization": RewriterConfig.OFF,
+    "constant_folding": RewriterConfig.OFF,
+    "shape_optimization": RewriterConfig.OFF,
+    "arithmetic_optimization": RewriterConfig.OFF,
+    "loop_optimization": RewriterConfig.OFF,
+    "dependency_optimization": RewriterConfig.OFF,
+    "layout_optimizer": RewriterConfig.OFF,
+    "memory_optimization": RewriterConfig.OFF
+}
 
 def npu_hooks_append(hooks_list=[]):
     if (not isinstance(hooks_list, list)):
@@ -77,7 +68,20 @@ def npu_hooks_append(hooks_list=[]):
 def npu_config_proto(config_proto = None):
     if (not isinstance(config_proto, config_pb2.ConfigProto)) or (not issubclass(type(config_proto), config_pb2.ConfigProto)):
         config_proto = config_pb2.ConfigProto()
-    _npu_config_proto(config_proto)
+
+    npu_optimizer = None
+    for custom_optimizer in config_proto.graph_options.rewrite_options.custom_optimizers:
+        if custom_optimizer.name == 'NpuOptimizer':
+            npu_optimizer = custom_optimizer
+            break
+    if not npu_optimizer:
+        npu_optimizer = config_proto.graph_options.rewrite_options.custom_optimizers.add()
+        npu_optimizer.name = 'NpuOptimizer'
+
+    config_proto.allow_soft_placement = True
+    config_proto.log_device_placement = False
+    config_proto.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    config_proto.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return config_proto
 
 def npu_graph_options(graph_options = None):
@@ -92,9 +96,20 @@ def npu_optimizer_options(optimizer_options = None):
     optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return optimizer_options
 
-def set_keras_session_npu_config():
+def npu_run_config_init(run_config=None):
+    if ((not isinstance(run_config, tf.estimator.RunConfig)) and (not issubclass(type(run_config), tf.estimator.RunConfig))):
+        run_config = tf.estimator.RunConfig()
+    if (isinstance(run_config, tf.estimator.RunConfig) or issubclass(type(run_config), tf.estimator.RunConfig)):
+        run_config.__dict__['_session_config'] = npu_config_proto(run_config.session_config)
+    return run_config
+
+def set_keras_session_npu_config(config=None):
     from tensorflow.python.keras import backend
-    config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    if config is None:
+        config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    else:
+        if not isinstance(config, config_pb2.ConfigProto):
+            raise ValueError("config must be config_pb2.ConfigProto type")
     custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
     custom_op.name = "NpuOptimizer"
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
@@ -134,3 +149,14 @@ def get_npu_local_rank_id():
 
 def get_npu_rank_size():
     return util.get_value("npu_rank_size", 1)
+
+class NpuEmptyHook(session_run_hook.SessionRunHook):
+    pass
+
+def npu_keras_optimizer(opt):
+    npu_opt = KerasDistributeOptimizer(opt)
+    return npu_opt
+
+def npu_tf_optimizer(opt):
+    npu_opt = NPUDistributedOptimizer(opt)
+    return npu_opt

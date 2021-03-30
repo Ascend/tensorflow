@@ -73,6 +73,8 @@
 "GraphOptions()":               ["",                        "*.GraphOptions()",             "npu_graph_options(graph_options=*.GraphOptions())"],
 "OptimizerOptions()":           ["",                        "*.OptimizerOptions()",         "npu_optimizer_options(optimizer_options=*.OptimizerOptions())"],
 "MonitoredTrainingSession":     ["",                        "*.MonitoredTrainingSession()", "*.MonitoredTrainingSession(hooks=npu_hooks_append())"],
+"TrainSpec":                    ["",                        "*.TrainSpec()",                "*.TrainSpec(hooks=npu_hooks_append())"],
+"EvalSpec":                     ["",                        "*.EvalSpec()",                 "*.EvalSpec(hooks=npu_hooks_append())"],
 
 "hvd":                          ["init", "rank", "local_rank", "size"],
 "estimator":                    ["Estimator",               "RunConfig",                    "EstimatorSpec"],
