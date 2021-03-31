@@ -1284,8 +1284,8 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
       auto src_name = npu::UnwrapHandle(input)->DeviceName(&tf_status);
       NPU_CTX_REQUIRES_OK(status, tf_status);
       DLOG() << "Copying " << spec->Op() << " input:" << i
-             << " type:" << tensorflow::DataTypeString(npu::UnwrapHandle(input)->DataType()) << " to " << src_name
-             << " from NPU for graph engine executing";
+             << " type:" << tensorflow::DataTypeString(npu::UnwrapHandle(input)->DataType()) << " from " << src_name
+             << " to CPU for graph engine executing";
       // 这里需要根据算子选择输入格式了
       input = CopyTensorD2H(context, input, status);
       copied_tensor_handles.emplace_back(input);
@@ -1325,8 +1325,8 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
     npu::Timer timer("Graph engine run ", iterations_per_loop, " times for graph ", spec->GeGraphId());
     timer.Start();
     spec->SetBuilt();
-    RunGeGraphPin2Cpu(context, spec->GeGraphId(), num_inputs, inputs, spec->OutputTypes(), *num_outputs, outputs,
-                      status);
+    RunGeGraphPin2Cpu(context, spec->GeGraphId(), num_inputs, npu_inputs.data(), spec->OutputTypes(), *num_outputs,
+                      outputs, status);
     timer.Stop();
     return;
   }
