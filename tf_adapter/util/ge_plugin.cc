@@ -52,10 +52,9 @@ void GeFinalize() {
   if (status != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status);
     std::string error_message = ge::GEGetErrorMsg();
-    std::string warning_message = ge::GEGetWarningMsg();
     LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status) << std::endl
                << "Error Message is : " << std::endl
-               << error_message << warning_message;
+               << error_message;
   }
 
   // parser finalize
@@ -212,7 +211,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] mstune mode : " << init_options["ge.jobType"]
             << ", work path : " << init_options["ge.tuningPath"]
             << ", distribute_config : " << init_options["distribute_config"];
-  
+
   const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
   bool tdt_init = true;
   if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
@@ -235,10 +234,9 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
     ADP_LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
     std::string error_message = ge::GEGetErrorMsg();
-    std::string warning_message = ge::GEGetWarningMsg();
     LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status) << std::endl
                << "Error Message is : " << std::endl
-               << error_message << warning_message;
+               << error_message;
   }
   domi::GetContext().train_flag = true;
   ADP_LOG(INFO) << "[GePlugin] Initialize ge success.";
