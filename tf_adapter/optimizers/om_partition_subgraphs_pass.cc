@@ -1872,7 +1872,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     return Status::OK();
   }
 
-  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " begin.";
+  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " begin.";
   ADP_LOG(INFO) << "mix_compile_mode is " << (mix_compile_mode ? "True" : "False");
   ADP_LOG(INFO) << "iterations_per_loop is " << iterations_per_loop;
   ADP_LOG(INFO) << "input_shape: " << all_options["input_shape"]
@@ -2004,7 +2004,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   int subgraphNum = 0;
   TF_RETURN_IF_ERROR(
       OMSplitter::MarkForPartition(graph, subgraphNum, mix_compile_mode, graph_num, func_lib, pass_options));
-  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
+  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
   if (subgraphNum < 1) {
     ADP_LOG(INFO) << "subgraphNum is " << subgraphNum;
     return Status::OK();
@@ -2096,7 +2096,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   }
   TF_RETURN_IF_ERROR(OMSplitter::OMPartitionSubgraphsInFunctions(
       OMSplitter::PARTITION_SUB_GRAPH_ATTR, graph, graph_format_value, func_lib, all_options, pass_options, graph_options));
-  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions success.";
+  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions success.";
   FixupSourceAndSinkEdges(graph->get());
 
   if (need_print != nullptr && strcmp("1", need_print) == 0) {
@@ -2107,8 +2107,8 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(INFO) << "OMPartition subgraph_" << std::to_string(graph_num) << " success. ["
-            << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " success. ["
+                 << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return Status::OK();
 }
 
