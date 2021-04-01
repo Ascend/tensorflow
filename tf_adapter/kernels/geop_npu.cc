@@ -257,8 +257,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
 
   init_flag_ = true;
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(INFO) << "[GEOP] GeOp Initialize success, cost:"
-                << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(EVENT) << "[GEOP] GeOp Initialize success, cost:"
+                 << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;
 }
 
@@ -520,8 +520,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       Status status_out = WriteTextProto(Env::Default(), tmodel_path, ori_graph_def);
     }
     int64 endTime = InferShapeUtil::GetCurrentTimestap();
-    ADP_LOG(INFO) << "[GEOP] In GEOP computeAsync, kernel_name:" << geop_name << " ,TFadapter cost time: ["
-              << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+    ADP_LOG(EVENT) << "[GEOP] In GEOP computeAsync, kernel_name:" << geop_name << " ,TFadapter cost time: ["
+                   << ((endTime - startTime) / kMicrosToMillis) << " ms]";
     ADP_LOG(INFO) << "[GEOP] TFadpter process graph success, GE parser begin, kernel_name:" << geop_name
               << " ,tf session: " << tf_session_ << " ,graph id :" << cache_graph_id;
     // parser,  tensorflow graph to ge graph
