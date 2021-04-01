@@ -387,6 +387,9 @@ int FindNodesInPaths(Node *op_head, Node *op_tail, NodeSet &ops_save) {
     for (auto out_node : cur_node->out_nodes()) {
       unsigned int n = 0;
       for (auto out_out_node : out_node->out_nodes()) { ++n; }
+      if (ops_save.count(out_node) > 0) {
+        for (auto node : path) { ops_save.insert(node); }
+      }
       if (seen.insert(NodeMap::value_type(out_node, empty)).second) {
         stack.push_back(out_node);
       } else if (seen[out_node].size() < n) {
