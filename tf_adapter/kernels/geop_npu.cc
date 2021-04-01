@@ -328,10 +328,9 @@ int GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
   if (ret != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret;
     std::string error_message = ge::GEGetErrorMsg();
-    std::string warning_message = ge::GEGetWarningMsg();
     LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret << std::endl
                << "Error Message is : " << std::endl
-               <<error_message << warning_message;
+               <<error_message;
     return -1;
   }
 
@@ -603,11 +602,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         reinterpret_cast<google::protobuf::Message *>(&ori_graph_def), build_sub_graph, compute_graph);
     if (status != ge::SUCCESS) {
       std::string error_message = ge::GEGetErrorMsg();
-      std::string warning_message = ge::GEGetWarningMsg();
       std::stringstream ss;
       ss << "graph parse failed. ret : " << status << std::endl
          << "Error Message is : " << std::endl
-         << error_message << warning_message;
+         << error_message;
       OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Internal(ss.str()), done);
     }
 
@@ -690,13 +688,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                      << tf_session_ << ", graph id: " << cache_graph_id;
 
       std::string error_message = ge::GEGetErrorMsg();
-      std::string warning_message = ge::GEGetWarningMsg();
       std::stringstream ss;
       ss << "[GEOP] call ge session add graph failed, kernel: " << geop_name
          << ", tf session: " << tf_session_
          << ", graph id: " << cache_graph_id << std::endl
          << "Error Message is : " << std::endl
-         << error_message << warning_message;
+         << error_message;
       LOG(FATAL) << ss.str();
       OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
     } else {
@@ -715,11 +712,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       ge::Status status = ge_session_->BuildGraph(cache_graph_id, inputs);
       if (status != ge::SUCCESS) {
         std::string error_message = ge::GEGetErrorMsg();
-        std::string warning_message = ge::GEGetWarningMsg();
         std::stringstream ss;
         ss << "[GEOP] GE session build graph failed, domi_ret : " << status << std::endl
            << "Error Message is : " << std::endl
-           << error_message << warning_message;
+           << error_message;
         OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
       }
 
@@ -762,10 +758,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
       std::string error_message = ge::GEGetErrorMsg();
-      std::string warning_message = ge::GEGetWarningMsg();
       LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed" << std::endl
                  << "Error Message is : " << std::endl
-                 << error_message << warning_message;
+                 << error_message;
     }
     int64 run_end_time = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "[GEOP] RunGraphAsync callback, status:" << ge_status << ", kernel_name:"
@@ -784,13 +779,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     ADP_LOG(FATAL) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: "
                    << tf_session_ << " ,graph id: " << cache_graph_id;
     std::string error_message = ge::GEGetErrorMsg();
-    std::string warning_message = ge::GEGetWarningMsg();
     std::stringstream ss;
     ss << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name
        << ", tf session: " << tf_session_
        << ", graph id: " << cache_graph_id << std::endl
        << "Error Message is : " << std::endl
-       << error_message << warning_message;
+       << error_message;
     LOG(FATAL) << ss.str();
     OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
   }
