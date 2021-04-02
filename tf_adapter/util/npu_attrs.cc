@@ -517,7 +517,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
           LOG(FATAL) << s.error_message();
         }
       }
-      if (params.count("in_out_pair_dump")) { in_out_pair_dump = params.at("in_out_pair_dump").b();
+      if (params.count("in_out_pair_dump")) { in_out_pair_dump = params.at("in_out_pair_dump").b(); }
       if (params.count("in_out_pair")) { in_out_pair = params.at("in_out_pair").s(); }
     }
   }

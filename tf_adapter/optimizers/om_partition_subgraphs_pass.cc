@@ -353,8 +353,8 @@ using NodeStack = std::vector<Node *>;
 using GraphPath = std::vector<Node *>;
 using GraphPaths = std::vector<GraphPath>;
 
-int FindNodesInPaths(Node *op_head, Node *op_tail, NodeSet &ops_save) {
-  if (!op_head || !op_tail || op_head == op_tail) { return 0; }
+int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
+  if (!op_head) { return 0; }
 
   int insert_num = 0;
   NodeMap seen;
@@ -380,7 +380,7 @@ int FindNodesInPaths(Node *op_head, Node *op_tail, NodeSet &ops_save) {
     if (path.size() >= 2) { seen[path[path.size() - 2]].insert(path.back()); }
     stack.push_back(nullptr);
 
-    if (cur_node == op_tail || ops_save.count(cur_node) > 0) {
+    if (ops_tail.count(cur_node) > 0 || ops_save.count(cur_node) > 0) {
       for (auto node : path) {
         if (ops_save.insert(node).second) { ++insert_num; }
       }
@@ -405,7 +405,7 @@ int FindNodesInPaths(Node *op_head, Node *op_tail, NodeSet &ops_save) {
   return insert_num;
 }
 
-using IOP = std::pair<std::string, std::string>;
+using IOP = std::pair<std::string, std::set<std::string>>;
 using OneGraphIOP = std::vector<IOP>;
 using AllGraphIOP = std::vector<OneGraphIOP>;
 
@@ -441,14 +441,17 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
   }
 
   int size = 0;
+  std::set<std::string> empty;
   for (auto &pair : pairs) {
     OneGraphIOP one_graph_iop;
     if (pair.size() < 2) { continue; }
     for (auto &in : pair[0]) {
+      IOP iop(in, empty);
       for (auto &out : pair[1]) {
-        ++size;
-        one_graph_iop.push_back(IOP(in, out));
+        in.second.insert(out);
       }
+      ++size;
+      one_graph_iop.push_back(IOP(in, empty));
     }
     all_graph_iop.push_back(one_graph_iop);
   }
@@ -464,17 +467,14 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
   NodeSet ops_save;
   for (auto &one_graph_iop : all_graph_iop) {
     for (auto &iop : one_graph_iop) {
-      LOG(INFO) << iop.first << " -> " << iop.second;
+      LOG(INFO) << iop.first;
 
       Node *op_head = nullptr;
-      Node *op_tail = nullptr;
+      NodeSet ops_tail;
       for (auto node : graph.nodes()) {
         if (node->name() == iop.first) { op_head = node; }
-        if (node->name() == iop.second) { op_tail = node; }
-        if (op_head && op_tail) {
-          break;
-        }
-      }
+        if (iop.second.count(node->name()) > 0) { ops_tail.insert(node); }
+      }/*
       if (!op_head && op_tail) {
         ADP_LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.first << " is not find.";
         LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.first << " is not find.";
@@ -482,9 +482,9 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
       if (op_head && !op_tail) {
         ADP_LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.second << " is not find.";
         LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.second << " is not find.";
-      }
-      if (op_head && op_tail) {
-        int insert_num = FindNodesInPaths(op_head, op_tail, ops_save);
+      }*/
+      if (op_head && ops_tail.size() > 0) {
+        int insert_num = FindNodesInPaths(op_head, ops_tail, ops_save);
         ADP_LOG(INFO) << "candidates insert " << insert_num << " nodes.";
         LOG(INFO) << "candidates insert " << insert_num << " nodes.";
       }
@@ -504,7 +504,7 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
         candidates->insert(node);
       } else {
         ADP_LOG(INFO) << node->name() << " is not supported npu node.";
-        LOG(INFO) << node->name() << " is not supported npu node."
+        LOG(INFO) << node->name() << " is not supported npu node.";
       }
     }
   }
@@ -854,7 +854,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
   OrderedNodeSet npuSupportCandidates;
   if (!pass_options["in_out_pair"].empty()) {
     TF_RETURN_IF_ERROR(FindCandidatesByInOutPair(*graph, &npuSupportCandidates, func_lib,
-                                                 pass_options["in_out_pair"]), pass_options["in_out_pair_dump"]);
+                                                 pass_options["in_out_pair"], pass_options["in_out_pair_dump"]));
   }
   if (npuSupportCandidates.empty()) {
     TF_RETURN_IF_ERROR(FindNpuSupportCandidates(*graph, &npuSupportCandidates, func_lib, enableDP, mix_compile_mode));
