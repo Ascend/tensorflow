@@ -441,3 +441,17 @@ def get_value(key, def_value = None):
     return _global_dict[key]
   except KeyError:
     return def_value
+
+def keep_tensors_dtypes(graph, input_tensors):
+  """
+  Specify tensors retain the original precision.
+  """
+  if not isinstance(graph, ops.Graph):
+    raise ValueError("graph param must be ops.Graph class.")
+
+  if isinstance(input_tensors, (tuple, list)):
+    for tensor_name in input_tensors:
+      tensor = graph.get_tensor_by_name(tensor_name)
+      tensor.op._set_attr("_keep_dtype", attr_value_pb2.AttrValue(i=1))
+  else:
+    raise ValueError("input_tensors must be list or tuple.")
