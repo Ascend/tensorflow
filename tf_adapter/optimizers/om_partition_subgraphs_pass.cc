@@ -448,10 +448,10 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
     for (auto &in : pair[0]) {
       IOP iop(in, empty);
       for (auto &out : pair[1]) {
-        in.second.insert(out);
+        iop.second.insert(out);
       }
       ++size;
-      one_graph_iop.push_back(IOP(in, empty));
+      one_graph_iop.push_back(iop);
     }
     all_graph_iop.push_back(one_graph_iop);
   }
