@@ -75,18 +75,8 @@ REGISTER_OP("HcomAllGather")
 
       int32 inputRank = c->Rank(c->input(0));
       if (InferenceContext::kUnknownRank == inputRank) {
-        ShapeHandle out = c->UnknownShapeOfRank(1);
-        c->set_output(0, out);
+        c->set_output(0, c->input(0));
         return Status::OK();
-      }
-      for (int32 i = 0; i < inputRank; i++) {
-        DimensionHandle dimHandle = c->Dim(c->input(0), i);
-        int64 value = c->Value(dimHandle);
-        if (InferenceContext::kUnknownDim == value) {
-          ShapeHandle out = c->UnknownShapeOfRank(1);
-          c->set_output(0, out);
-          return Status::OK();
-        }
       }
 
       shape_inference::ShapeHandle unused;
@@ -96,6 +86,11 @@ REGISTER_OP("HcomAllGather")
       TF_RETURN_IF_ERROR(c->Subshape(c->input(0), 1, &inSubshape));
 
       auto inputFirstDimValue = c->Value(c->Dim(c->input(0), 0));
+      if (InferenceContext::kUnknownDim == inputFirstDimValue) {
+        c->set_output(0, c->input(0));
+        return Status::OK();
+      }
+
       shape_inference::ShapeHandle outputFirstDimAsShape;
       std::vector<shape_inference::DimensionHandle> outputFirstDim;
       outputFirstDim.push_back(c->MakeDim(rankSize * inputFirstDimValue));
@@ -176,18 +171,8 @@ REGISTER_OP("HcomReduceScatter")
 
       int32 inputRank = c->Rank(c->input(0));
       if (InferenceContext::kUnknownRank == inputRank) {
-        ShapeHandle out = c->UnknownShapeOfRank(1);
-        c->set_output(0, out);
+        c->set_output(0, c->input(0));
         return Status::OK();
-      }
-      for (int32 i = 0; i < inputRank; i++) {
-        DimensionHandle dimHandle = c->Dim(c->input(0), i);
-        int64 value = c->Value(dimHandle);
-        if (InferenceContext::kUnknownDim == value) {
-          ShapeHandle out = c->UnknownShapeOfRank(1);
-          c->set_output(0, out);
-          return Status::OK();
-        }
       }
 
       shape_inference::ShapeHandle unused;
@@ -197,6 +182,11 @@ REGISTER_OP("HcomReduceScatter")
       TF_RETURN_IF_ERROR(c->Subshape(c->input(0), 1, &inSubshape));
 
       auto inputFirstDimValue = c->Value(c->Dim(c->input(0), 0));
+      if (InferenceContext::kUnknownDim == inputFirstDimValue) {
+        c->set_output(0, c->input(0));
+        return Status::OK();
+      }
+
       shape_inference::ShapeHandle outputFirstDimAsShape;
       Status outputFirstDimStatus = ((inputFirstDimValue % rankSize) == 0)
           ? (Status::OK())
