@@ -355,9 +355,8 @@ using GraphPath = std::vector<Node *>;
 using GraphPaths = std::vector<GraphPath>;
 
 int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
-  if (!op_head) { return 0; }
+  if (!op_head || ops_tail.count(nullptr) > 0) { return 0; }
 
-  int insert_num = 0;
   NodeMap seen;
   NodeStack stack;
   GraphPath path;
@@ -382,9 +381,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
     stack.push_back(nullptr);
 
     if (ops_tail.count(cur_node) > 0 || ops_save.count(cur_node) > 0) {
-      for (auto node : path) {
-        if (ops_save.insert(node).second) { ++insert_num; }
-      }
+      for (auto node : path) { ops_save.insert(node); }
       continue;
     }
 
@@ -392,9 +389,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
       unsigned int n = 0;
       for (auto out_out_node : out_node->out_nodes()) { ++n; }
       if (ops_save.count(out_node) > 0) {
-        for (auto node : path) {
-          if (ops_save.insert(node).second) { ++insert_num; }
-        }
+        for (auto node : path) { ops_save.insert(node); }
       }
       if (seen.insert(NodeMap::value_type(out_node, empty)).second) {
         stack.push_back(out_node);
@@ -403,7 +398,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
       }
     }
   }
-  return insert_num;
+  return ops_save.size();
 }
 
 using IOP = std::pair<std::string, std::set<std::string>>;
