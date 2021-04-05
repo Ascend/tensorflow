@@ -357,10 +357,10 @@ using GraphPaths = std::vector<GraphPath>;
 int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
   if (!op_head || ops_tail.count(nullptr) > 0) { return 0; }
 
+  NodeSet empty;
   NodeMap seen;
   NodeStack stack;
   GraphPath path;
-  NodeSet empty;
 
   seen.insert(NodeMap::value_type(op_head, empty));
   stack.push_back(op_head);
@@ -852,6 +852,9 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
   bool enableDP = pass_options["enable_dp"] == "1";
   OrderedNodeSet npuSupportCandidates;
   if (!pass_options["in_out_pair"].empty()) {
+    if (!mix_compile_mode) {
+      return errors::Internal("mix_compile_mode must be True when use in_out_pair.");
+    }
     TF_RETURN_IF_ERROR(FindCandidatesByInOutPair(*graph, &npuSupportCandidates, func_lib,
                                                  pass_options["in_out_pair"], pass_options["in_out_pair_flag"]));
   }
