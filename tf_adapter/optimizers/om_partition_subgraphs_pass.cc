@@ -471,6 +471,9 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
       for (auto &out : iop.second) {
         log_out += out + ", ";
       }
+      if (log_out.size() > 2) {
+        log_out = log_out.substr(0, log_out.size() - 2);
+      }
       ADP_LOG(INFO) << iop.first << " -> " << log_out;
 
       Node *op_head = nullptr;
@@ -478,18 +481,14 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
       for (auto node : graph.nodes()) {
         if (node->name() == iop.first) { op_head = node; }
         if (iop.second.count(node->name()) > 0) { ops_tail.insert(node); }
-      }/*
-      if (!op_head && op_tail) {
-        ADP_LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.first << " is not find.";
-        LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.first << " is not find.";
       }
-      if (op_head && !op_tail) {
-        ADP_LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.second << " is not find.";
-        LOG(WARNING) << iop.first << " -> " << iop.second << ", but " << iop.second << " is not find.";
-      }*/
-      if (op_head && ops_tail.size() > 0) {
-        int insert_num = FindNodesInPaths(op_head, ops_tail, ops_save);
-        ADP_LOG(INFO) << "candidates insert " << insert_num << " nodes.";
+
+      if (!op_head) {
+        ADP_LOG(ERROR) << iop.first " is not in graph.";
+      } else if (ops_tail.size() != iop.second.size()) {
+        ADP_LOG(ERROR) << log_out << " is not all in graph.";
+      } else (op_head && ops_tail.size() == iop.second.size()) {
+        ADP_LOG(INFO) << "find " << FindNodesInPaths(op_head, ops_tail, ops_save) << " nodes in paths.";
       }
     }
   }
