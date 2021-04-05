@@ -347,6 +347,7 @@ bool IsUnSupportedResource(bool mix_compile_mode, Node* node) {
   }
   return false;
 }
+
 using NodeSet = std::set<Node *>;
 using NodeMap = std::map<Node *, NodeSet>;
 using NodeStack = std::vector<Node *>;
@@ -484,10 +485,10 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
       }
 
       if (!op_head) {
-        ADP_LOG(ERROR) << iop.first " is not in graph.";
+        ADP_LOG(ERROR) << iop.first << " is not in graph.";
       } else if (ops_tail.size() != iop.second.size()) {
         ADP_LOG(ERROR) << log_out << " is not all in graph.";
-      } else (op_head && ops_tail.size() == iop.second.size()) {
+      } else {
         ADP_LOG(INFO) << "find " << FindNodesInPaths(op_head, ops_tail, ops_save) << " nodes in paths.";
       }
     }
