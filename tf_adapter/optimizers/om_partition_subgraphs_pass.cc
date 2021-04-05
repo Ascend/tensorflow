@@ -360,11 +360,10 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
   NodeMap seen;
   NodeStack stack;
   GraphPath path;
-
   NodeSet empty;
+
   seen.insert(NodeMap::value_type(op_head, empty));
   stack.push_back(op_head);
-
   while (!stack.empty()) {
     Node *cur_node = stack.back();
     stack.pop_back();
@@ -375,7 +374,6 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
       path.pop_back();
       continue;
     }
-
     path.push_back(cur_node);
     if (path.size() >= 2) { seen[path[path.size() - 2]].insert(path.back()); }
     stack.push_back(nullptr);
@@ -386,14 +384,16 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
     }
 
     for (auto out_node : cur_node->out_nodes()) {
-      unsigned int n = 0;
-      for (auto out_out_node : out_node->out_nodes()) { ++n; }
+      auto num_outputs = [](Node *node) {
+        unsigned int n = 0;
+        for (auto out_node : node->out_nodes()) { ++n; }
+        return n;
+      };
       if (ops_save.count(out_node) > 0) {
         for (auto node : path) { ops_save.insert(node); }
       }
-      if (seen.insert(NodeMap::value_type(out_node, empty)).second) {
-        stack.push_back(out_node);
-      } else if (seen[out_node].size() < n) {
+      if (seen.insert(NodeMap::value_type(out_node, empty)).second ||
+        seen[out_node].size() < num_outputs(out_node)) {
         stack.push_back(out_node);
       }
     }
