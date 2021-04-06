@@ -60,27 +60,29 @@ class IteratorH2D : public OpKernel {
     std::vector<Tensor> components;
     bool end_of_sequence = false;
 
-    Status status = iterator->GetNext(ctx, &components, &end_of_sequence);
+    int64_t nums = ctx->input(1).flat<int64>()(0);
+    OP_REQUIRES(ctx, nums >= 0, tensorflow::errors::InvalidArgument(channel_name_, " invalid consume nums ", nums));
 
-    if (!status.ok()) {
-      for (auto channel : channels_) {
-        OP_REQUIRES_OK(ctx, channel->NotifyAbnormal());
-      }
-      ctx->SetStatus(status);
-      return;
-    } else if (end_of_sequence) {
-      for (auto channel : channels_) {
-        OP_REQUIRES_OK(ctx, channel->NotifyFinish());
-      }
-      ctx->SetStatus(errors::OutOfRange("Iterator resource ", channel_name_, " reach end of sequence"));
-      return;
-    }
+    int64_t consumed = 0;
+    while (nums == 0 || consumed++ < nums) {
+      Status status = iterator->GetNext(ctx, &components, &end_of_sequence);
 
-    for (const auto &channel : channels_) {
-      auto status = channel->SendTensors(components);
       if (!status.ok()) {
+        for (const auto &channel : channels_) {
+          OP_REQUIRES_OK(ctx, channel->NotifyAbnormal());
+        }
         ctx->SetStatus(status);
         return;
+      } else if (end_of_sequence) {
+        for (const auto &channel : channels_) {
+          OP_REQUIRES_OK(ctx, channel->NotifyFinish());
+        }
+        ctx->SetStatus(errors::OutOfRange("Iterator resource ", channel_name_, " reach end of sequence"));
+        return;
+      }
+
+      for (const auto &channel : channels_) {
+        OP_REQUIRES_OK(ctx, channel->SendTensors(components));
       }
     }
 
