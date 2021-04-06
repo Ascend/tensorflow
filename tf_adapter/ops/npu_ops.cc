@@ -225,19 +225,50 @@ REGISTER_OP("DropOutGenMaskV3")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
       ShapeHandle unused;
-      TF_RETURN_IF_ERROR(c->WithRankAtMost(c->input(1), 0, &unused));  // prob must be 0-d
+      // prob must be 0-d
+      TF_RETURN_IF_ERROR(c->WithRankAtMost(c->input(1), 0, &unused));
       ShapeHandle input_shape_handle;
       TF_RETURN_IF_ERROR(c->MakeShapeFromShapeTensor(0, &input_shape_handle));
       if(!c->FullyDefined(input_shape_handle)) {
-        ShapeHandle out = c->UnknownShapeOfRank(1);
+        ShapeHandle out = c->UnknownShape();
         c->set_output(0, out);
         return Status::OK();
       }
+      int32 rank = c->Rank(input_shape_handle);
+      if (rank >= 2) {
+        DimensionHandle tmp_dim_handle = c->Dim(input_shape_handle, -1);
+        int64 last_dim = c->Value(tmp_dim_handle);
+        tmp_dim_handle = c->Dim(input_shape_handle, -2);
+        int64 second_last_dim = c->Value(tmp_dim_handle);
+        const int64 align = 16;
+        if (last_dim % align == 0 && second_last_dim % align ==0) {
+          last_dim /= align;
+          second_last_dim /= align;
+          tmp_dim_handle = c->MakeDim(last_dim);
+          ShapeHandle out_shape_handle;
+          TF_RETURN_IF_ERROR(c->ReplaceDim(input_shape_handle,
+                                           -2,
+                                           tmp_dim_handle,
+                                           &out_shape_handle));
+          tmp_dim_handle = c->MakeDim(second_last_dim);
+          TF_RETURN_IF_ERROR(c->ReplaceDim(out_shape_handle,
+                                           -1,
+                                           tmp_dim_handle,
+                                           &out_shape_handle));
+          ShapeHandle tmp_shape_handle = c->Matrix(align , align);
+          TF_RETURN_IF_ERROR(c->Concatenate(out_shape_handle,
+                                            tmp_shape_handle,
+                                            &out_shape_handle));
+          c->set_output(0, out_shape_handle);
+          return Status::OK();
+        } 
+      }
+
       DimensionHandle input_dim_handle = c->NumElements(input_shape_handle);
       uint64 random_count = static_cast<uint64>(c->Value(input_dim_handle));
       if(random_count > (INT64_MAX - 15)) {
         return errors::InvalidArgument("Required random count[", random_count,
-          "] exceed INT64_MAX - 15");
+            "] exceed INT64_MAX - 15");
       }
       // align to 16
       random_count = (random_count + 15) & (~15);
