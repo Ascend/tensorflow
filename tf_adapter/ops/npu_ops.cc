@@ -274,7 +274,7 @@ REGISTER_OP("DropOutGenMaskV3")
       random_count = (random_count + 15) & (~15);
       ShapeHandle out = c->Vector(static_cast<int64>(random_count));
       c->set_output(0, out);
-      return Status::OK();     
+      return Status::OK();
     });
 
 REGISTER_OP("BasicLSTMCell")
