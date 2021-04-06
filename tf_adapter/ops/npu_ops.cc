@@ -235,6 +235,7 @@ REGISTER_OP("DropOutGenMaskV3")
         return Status::OK();
       }
       int32 rank = c->Rank(input_shape_handle);
+      // [*batch, M, N] -> [*batch, N/16, M/16, 16, 16]
       if (rank >= 2) {
         DimensionHandle tmp_dim_handle = c->Dim(input_shape_handle, -1);
         int64 last_dim = c->Value(tmp_dim_handle);
