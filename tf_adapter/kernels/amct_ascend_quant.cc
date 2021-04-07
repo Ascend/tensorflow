@@ -59,9 +59,9 @@ class AscendQuantOp : public OpKernel {
     input_param.out = NULL;
     input_param.scale = scale;
     input_param.offset = offset;
-    if (dst_type == 'INT4') {
+    if (dst_type == "INT4") {
       input_param.quant_bits = 4;
-    } else if (dst_type == 'INT8') {
+    } else if (dst_type == "INT8") {
       input_param.quant_bits = 8;
     }
   }
