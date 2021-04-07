@@ -51,7 +51,7 @@ template <typename T>
 class AscendQuantOp : public OpKernel {
  public:
   explicit AscendQuantOp(OpKernelConstruction* context) : OpKernel(context) {
-    OP_REQUIRES_OK(context, context->GetAttr("quant_bits", &(quant_bits)));
+    OP_REQUIRES_OK(context, context->GetAttr("dst_type", &(dst_type)));
     OP_REQUIRES_OK(context, context->GetAttr("scale", &(scale)));
     OP_REQUIRES_OK(context, context->GetAttr("offset", &(offset)));
     input_param.size = 0;
@@ -59,7 +59,11 @@ class AscendQuantOp : public OpKernel {
     input_param.out = NULL;
     input_param.scale = scale;
     input_param.offset = offset;
-    input_param.quant_bits = quant_bits;
+    if (dst_type == 'INT4') {
+      input_param.quant_bits = 4;
+    } else if (dst_type == 'INT8') {
+      input_param.quant_bits = 8;
+    }
   }
 
   ~AscendQuantOp(){}
@@ -88,7 +92,7 @@ class AscendQuantOp : public OpKernel {
 
  private:
   struct QuantInputParam<T> input_param;
-  int quant_bits;
+  std::string dst_type;
   float scale;
   float offset;
 };

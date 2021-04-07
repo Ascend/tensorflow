@@ -59,6 +59,7 @@ template <typename T>
 class AscendWeightQuantOp : public OpKernel {
  public:
   explicit AscendWeightQuantOp(OpKernelConstruction* context) : OpKernel(context) {
+    OP_REQUIRES_OK(context, context->GetAttr("dst_type", &(dst_type)));
     input_param.size = 0;
     input_param.weight = NULL;
     input_param.offset = NULL;
@@ -129,6 +130,7 @@ class AscendWeightQuantOp : public OpKernel {
 
  private:
   struct WeightQuantInputParam<T> input_param;
+  std::string dst_type;
 };
 
 REGISTER_KERNEL_BUILDER(
