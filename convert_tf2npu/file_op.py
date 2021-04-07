@@ -133,14 +133,12 @@ def scan_file(path, file_name, api, lineno):
                 migrate_advice.append(api_advice[api_name.index(class_name)])
 
     # record unsupported api
-    (unsupport, lineno) = get_unsupport_api(os.path.join(path, file_name))
+    (unsupport, unsupport_module, lineno) = get_unsupport_api(os.path.join(path, file_name))
     for i in range(len(unsupport)):
-        name = unsupport[i]
-        module = name.split('.')[0]
         script_name.append(file_name)
-        code_api.append(name)
+        code_api.append(unsupport[i])
         code_line.append(lineno[i])
-        code_module.append(module)
+        code_module.append(unsupport_module[i])
         support_type.append('不支持（无迁移方案，建议用户不使用）')
         migrate_advice.append('第三方非TF官网API，暂不支持')
 
