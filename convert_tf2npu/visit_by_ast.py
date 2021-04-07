@@ -13,7 +13,6 @@
 # limitations under the License.
 # ============================================================================
 import ast
-import re
 
 class VisitCall(ast.NodeVisitor):
     def __init__(self):
@@ -67,8 +66,9 @@ class VisitAttr(ast.NodeVisitor):
 class VisitUnsupportImport(ast.NodeVisitor):
     def __init__(self):
         self.imports = []
+        self.import_modules = []
         self.modules = []
-        self.unsupport = ['cupy', 'pynvml']
+        self.unsupport = ['cupy', 'cupyx', 'pynvml']
 
     def visit_ImportFrom(self, node):
         if node.module != None:
@@ -76,16 +76,23 @@ class VisitUnsupportImport(ast.NodeVisitor):
         for value in node.names:
             if isinstance(value, ast.alias):
                 classes = value.name.split('.')
+                # from . import file
+                if len(self.modules) == 0:
+                    break
                 # from module import unsupported classes
                 if self.modules[0] in self.unsupport:
                     self.imports.append(classes[0])
+                    self.import_modules.append(self.modules[0])
         self.generic_visit(node)
 
     def visit_Import(self, node):
         for value in node.names:
             if isinstance(value, ast.alias):
                 self.modules = value.name.split('.')
+                if len(self.modules) == 0:
+                    break
                 if self.modules[0] in self.unsupport:
+                    self.import_modules.append(self.modules[0])
                     # import unsupported module as alias:
                     if value.asname != None:
                         self.imports.append(value.asname)
@@ -140,8 +147,15 @@ def get_unsupport_api(file_name):
     #get unsupport api
     api = []
     lineno = []
+    module = []
     for i in range(len(visitor.calls)):
-        if visitor.calls[i].split('.')[0] in unsupportor.imports:
+        imports = visitor.calls[i].split('.')[0]
+        if imports in unsupportor.imports or visitor.calls[i].startswith('nvml'):
+            if visitor.calls[i].startswith('nvml'):
+                module.append('pynvml')
+            else:
+                index = unsupportor.imports.index(imports)
+                module.append(unsupportor.import_modules[index])
             api.append(visitor.calls[i])
             lineno.append(visitor.linenos[i])
-    return api, lineno
+    return api, module, lineno
