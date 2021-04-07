@@ -25,25 +25,23 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
         reduction = 'sum'
 
     topo_guarder = tf.group(values)
-    if isinstance(values, (list, tuple,)):
-        reduced_values = []
-        for value in values:
-            reduced_value = hccl_ops.allreduce(value, reduction, fusion, fusion_id, group)
+    reduced_values = []
+    for value in values:
+        reduced_value = hccl_ops.allreduce(value, reduction, fusion, fusion_id, group)
+        is_float = reduced_value.dtype in (tf.float16, tf.float32, tf.float64)
+        if is_float:
+            typed_workers_num = tf.cast(1.0 / float(workers_num), reduced_value.dtype)
+        else:
             typed_workers_num = tf.cast(workers_num, reduced_value.dtype)
-            with tf.control_dependencies([topo_guarder]):
-                if mean_reduce:
-                    reduced_values.append(tf.divide(reduced_value, typed_workers_num))
-                else:
-                    reduced_values.append(tf.identity(reduced_value))
-        return reduced_values
-    else:
-        reduced_value = hccl_ops.allreduce(values, reduction, fusion, fusion_id, group)
-        typed_workers_num = tf.cast(workers_num, reduced_value.dtype)
         with tf.control_dependencies([topo_guarder]):
             if mean_reduce:
-                return tf.divide(reduced_value, typed_workers_num)
+                if is_float:
+                    reduced_values.append(tf.multiply(reduced_value, typed_workers_num))
+                else:
+                    reduced_values.append(tf.divide(reduced_value, typed_workers_num))
             else:
-                return tf.identity(reduced_value)
+                reduced_values.append(tf.identity(reduced_value))
+    return reduced_values
 
 
 def all_reduce(values, reduction, fusion=1, fusion_id=-1, group="hccl_world_group"):
@@ -51,20 +49,22 @@ def all_reduce(values, reduction, fusion=1, fusion_id=-1, group="hccl_world_grou
         tf.get_logger().info("Skip all-reduce value as current process is not npu cluster worker")
         return values
 
-    return tf.function(_all_reduce)(values, reduction, fusion, fusion_id, group)
+    if isinstance(values, (list, tuple,)):
+        return tf.function(_all_reduce)(values, reduction, fusion, fusion_id, group)
+    else:
+        return tf.function(_all_reduce)([values], reduction, fusion, fusion_id, group)[0]
 
 
 def _broadcast(values, root_rank, fusion, fusion_id, group):
-    if isinstance(values, (list, tuple,)):
-        for value in values:
-            value.assign(hccl_ops.broadcast([value], root_rank, fusion, fusion_id, group)[0])
-    else:
-        values.assign(hccl_ops.broadcast([values], root_rank, fusion, fusion_id, group)[0])
+    for value in values:
+        value.assign(hccl_ops.broadcast([value], root_rank, fusion, fusion_id, group)[0])
 
 
 def broadcast(values, root_rank, fusion=2, fusion_id=0, group="hccl_world_group"):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         tf.get_logger().info("Skip broadcast value as current process is not npu cluster worker")
         return
-
-    tf.function(_broadcast)(values, root_rank, fusion, fusion_id, group)
+    if isinstance(values, (list, tuple,)):
+        tf.function(_broadcast)(values, root_rank, fusion, fusion_id, group)
+    else:
+        tf.function(_broadcast)([values], root_rank, fusion, fusion_id, group)
