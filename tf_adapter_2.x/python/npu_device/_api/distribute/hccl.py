@@ -24,7 +24,6 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
         mean_reduce = True
         reduction = 'sum'
 
-    topo_guarder = tf.group(values)
     reduced_values = []
     for value in values:
         reduced_value = hccl_ops.allreduce(value, reduction, fusion, fusion_id, group)
@@ -33,7 +32,7 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
             typed_workers_num = tf.cast(1.0 / float(workers_num), reduced_value.dtype)
         else:
             typed_workers_num = tf.cast(workers_num, reduced_value.dtype)
-        with tf.control_dependencies([topo_guarder]):
+        with tf.control_dependencies(values):
             if mean_reduce:
                 if is_float:
                     reduced_values.append(tf.multiply(reduced_value, typed_workers_num))
