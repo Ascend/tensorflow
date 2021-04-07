@@ -153,7 +153,7 @@ class NpuDevice {
 
   std::shared_ptr<const npu::TaskSpec> CacheFuncSpec(
     const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-    uint64_t ge_graph_id, std::unique_ptr<const tensorflow::Graph> graph,
+    uint64_t ge_graph_id, std::unique_ptr<const tensorflow::GraphDef> graph,
     const npu::FuncSpec::PruneInputsFunc &prune_func,
     const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources,
     const std::string &reason);
