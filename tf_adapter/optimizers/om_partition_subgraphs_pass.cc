@@ -386,7 +386,11 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
     for (auto out_node : cur_node->out_nodes()) {
       auto num_outputs = [](Node *node) {
         unsigned int n = 0;
-        for (auto out_node : node->out_nodes()) { ++n; }
+        int tmp_id = 0;
+        for (auto out_node : node->out_nodes()) {
+          ++n;
+          tmp_id = out_node->id();
+        }
         return n;
       };
       if (ops_save.count(out_node) > 0) {
