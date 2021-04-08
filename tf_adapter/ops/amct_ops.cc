@@ -32,6 +32,7 @@ limitations under the License.
 namespace tensorflow {
 REGISTER_OP("AscendQuant")
     .Attr("T: {float16, float32, float64}")
+    .Attr("dst_type: {'INT4', 'INT8'} = 'INT8'")
     .Attr("quant_bits: int = 8")
     .Attr("scale: float")
     .Attr("offset: float")
@@ -44,6 +45,7 @@ REGISTER_OP("AscendQuant")
 
 REGISTER_OP("AscendWeightQuant")
     .Attr("T: {float16, float32, float64}")
+    .Attr("dst_type: {'INT4', 'INT8'} = 'INT8'")
     .Input("x: int8")
     .Input("offset_w: int8")
     .Output("y: T")
