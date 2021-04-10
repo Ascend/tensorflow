@@ -3,6 +3,7 @@
  * Description: Common depends and micro defines for and only for data preprocess module
  */
 
+#include "npu_global.h"
 #include "npu_managed_buffer.h"
 #include "npu_logger.h"
 #include "npu_micros.h"
@@ -25,7 +26,13 @@ class NpuMemory {
                         aclrtMalloc(memory, size, ACL_MEM_MALLOC_HUGE_FIRST));
     return tensorflow::Status::OK();
   }
-  static void Free(void *memory, size_t size, void *arg) { aclrtFree(memory); }
+  static void Free(void *memory, size_t size, void *arg) {
+    npu::global::dev_memory_shared_lock.lock_shared();
+    if (!npu::global::dev_memory_released) {
+      aclrtFree(memory);
+    }
+    npu::global::dev_memory_shared_lock.unlock_shared();
+  }
 };
 
 class RtsStreamGuard {
