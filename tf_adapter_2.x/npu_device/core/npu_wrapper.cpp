@@ -35,6 +35,7 @@
 #include "ge/ge_api.h"
 
 #include "npu_device_register.h"
+#include "npu_global.h"
 
 namespace py = pybind11;
 
@@ -100,6 +101,9 @@ PYBIND11_MODULE(_npu_device_backends, m) {
       } else {
         LOG(INFO) << "Stop tensorflow model parser succeed";
       }
+      npu::global::dev_memory_shared_lock.lock();
+      npu::global::dev_memory_released = true;
+      npu::global::dev_memory_shared_lock.unlock();
       ge_status = ge::GEFinalize();
       if (ge_status != ge::SUCCESS) {
         LOG(ERROR) << "Failed stop graph engine:" << ge::StatusFactory::Instance()->GetErrDesc(ge_status);
