@@ -43,5 +43,4 @@ const static bool kPerfEnabled = []() -> bool {
   tensorflow::ReadBoolFromEnvVar("NPU_ENABLE_PERF", false, &perf_enabled);
   return perf_enabled;
 }();
-
 #endif  // TENSORFLOW_NPU_ENV_H

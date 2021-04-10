@@ -151,7 +151,7 @@ class FuncSpec : public TaskSpec {
   using PruneInputsFunc =
     std::function<void(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &)>;
   FuncSpec(const tensorflow::OpRegistrationData *op_spec, tensorflow::NodeDef ndef, uint64_t ge_graph_id,
-           std::unique_ptr<const tensorflow::Graph> graph, PruneInputsFunc prune_func,
+           std::unique_ptr<const tensorflow::GraphDef> graph, PruneInputsFunc prune_func,
            std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources, std::string reason = "")
       : ge_graph_id_(ge_graph_id),
         graph_(std::move(graph)),
@@ -176,10 +176,13 @@ class FuncSpec : public TaskSpec {
     return dependent_host_resources_;
   }
 
-  const tensorflow::Graph *Graph() const { return graph_.get(); }
+  const tensorflow::GraphDef *GraphDef() const { return graph_.get(); }
 
   void SetBuilt() const { built_.store(true); }
   bool Built() const { return built_; }
+
+  void SetNeedLoop(bool loop) const { need_loop_.store(loop); }
+  bool NeedLoop() const { return need_loop_; }
 
   void PruneInputs(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) const {
     prune_func_(num_inputs, inputs, pruned);
@@ -200,10 +203,11 @@ class FuncSpec : public TaskSpec {
 
  private:
   uint64_t ge_graph_id_;
-  std::unique_ptr<const tensorflow::Graph> graph_;
+  std::unique_ptr<const tensorflow::GraphDef> graph_;
   PruneInputsFunc prune_func_;
   const std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources_;
   std::atomic_bool mutable built_{false};
+  std::atomic_bool mutable need_loop_{false};
 };
 }  // namespace npu
 

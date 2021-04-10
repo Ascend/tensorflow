@@ -89,6 +89,8 @@ class NpuDevice {
   void RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs, int *num_outputs,
              TFE_TensorHandle **outputs, TF_Status *status);
 
+  void SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *status);
+
   void RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
                 int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
 
@@ -109,6 +111,12 @@ class NpuDevice {
 
   uint64_t AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name, const tensorflow::GraphDef &def,
                       TF_Status *status);
+
+  tensorflow::Status GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
+                                      TFE_TensorHandle **inputs, bool &loop, tensorflow::GraphDef *def);
+
+  uint64_t AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
+                           const tensorflow::GraphDef &def, bool loop, TF_Status *status);
 
   void RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status);
 
@@ -145,7 +153,7 @@ class NpuDevice {
 
   std::shared_ptr<const npu::TaskSpec> CacheFuncSpec(
     const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-    uint64_t ge_graph_id, std::unique_ptr<const tensorflow::Graph> graph,
+    uint64_t ge_graph_id, std::unique_ptr<const tensorflow::GraphDef> graph,
     const npu::FuncSpec::PruneInputsFunc &prune_func,
     const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources,
     const std::string &reason);

@@ -56,6 +56,7 @@ REGISTER_OP("SendH2D")
 
 REGISTER_OP("IteratorH2D")
   .Input("input: resource")
+  .Input("nums: int64")
   .Attr("channel_name: string")
   .Attr("device_ids: list(int)")
   .SetIsStateful();

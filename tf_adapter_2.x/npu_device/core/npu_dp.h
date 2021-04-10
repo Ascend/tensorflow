@@ -28,7 +28,7 @@
 #include "npu_types.h"
 
 class IteratorResourceProvider {
-  using ConsumeFunc = std::function<tensorflow::Status(tensorflow::Tensor)>;
+  using ConsumeFunc = std::function<tensorflow::Status(tensorflow::Tensor, int64_t nums)>;
   using DestroyFunc = std::function<tensorflow::Status()>;
   using DoneCallback = std::function<void(tensorflow::Status)>;
 
@@ -85,11 +85,7 @@ class IteratorResourceProvider {
           auto task = requests_.front();
           requests_.pop();
           lk.unlock();
-          int64_t nums = task.nums;
-          tensorflow::Status status = tensorflow::Status::OK();
-          while (nums-- > 0 && status.ok()) {
-            status = consume_func_(task.resource);
-          }
+          tensorflow::Status status = consume_func_(task.resource, task.nums);
           if (request_stop_) {
             task.done(tensorflow::Status::OK());
           } else {
@@ -112,6 +108,7 @@ class IteratorResourceProvider {
     std::unique_ptr<tensorflow::Graph> graph = std::make_unique<tensorflow::Graph>(tensorflow::OpRegistry::Global());
 
     tensorflow::Node *arg_iterator = nullptr;
+    tensorflow::Node *arg_nums = nullptr;
     tensorflow::Node *iterator_h2d = nullptr;
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
@@ -122,8 +119,16 @@ class IteratorResourceProvider {
                                fdef);
 
     NPU_CTX_REQUIRES_OK_RETURN(status,
+                               tensorflow::NodeBuilder("arg_nums", "_Arg")
+                                 .Attr("index", 1)
+                                 .Attr("T", tensorflow::DT_INT64)
+                                 .Finalize(graph.get(), &arg_nums),
+                               fdef);
+
+    NPU_CTX_REQUIRES_OK_RETURN(status,
                                tensorflow::NodeBuilder("iterator_h2d", "IteratorH2D")
                                  .Input(arg_iterator, 0)
+                                 .Input(arg_nums, 0)
                                  .Attr("device_ids", device_ids)
                                  .Attr("channel_name", channel_name)
                                  .Finalize(graph.get(), &iterator_h2d),
