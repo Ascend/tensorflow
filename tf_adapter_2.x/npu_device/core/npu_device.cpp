@@ -1448,8 +1448,10 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   }
 
   for (const auto &resource : spec->DependentHostResources()) {
-    LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop
-              << " times";
+    if (iterations_per_loop > 1 || kDumpExecutionDetail) {
+      LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop
+                << " times";
+    }
     const tensorflow::Tensor *tensor;
     NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(tf_inputs[resource.first], &tensor));
     // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
