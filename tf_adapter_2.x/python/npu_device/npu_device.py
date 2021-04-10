@@ -77,15 +77,41 @@ def global_npu_ctx():
     return _global_npu_ctx
 
 
+_hacked_tensorflow_function = tf.function
+_thread_local = threading.local()
+
+
+def never_nested_function(func=None, *args, **kwargs):
+    if not hasattr(_thread_local, "_entrance_function"):
+        _thread_local._entrance_function = None
+
+    def never_nested_decorator(func):
+        tf_decorated_func = _hacked_tensorflow_function(*args, **kwargs)(func)
+
+        def wrapper(*func_args, **func_kwargs):
+            if not hasattr(_thread_local, "_entrance_function"):
+                _thread_local._entrance_function = None
+            if _thread_local._entrance_function is not None:
+                return func(*func_args, **func_kwargs)
+            _thread_local._entrance_function = func.__name__
+            result = tf_decorated_func(*func_args, **func_kwargs)
+            _thread_local._entrance_function = None
+            return result
+
+        return wrapper
+
+    if func is not None:
+        return never_nested_decorator(func)
+    else:
+        return never_nested_decorator
+
+
 class NpuDeviceHandle(object):
     def __init__(self, ctx, device_index, workers_num, worker_id):
         self._ctx = ctx
         self._device_name = NPU + ":" + str(device_index)
         self.workers_num = workers_num
         self.worker_id = worker_id
-        self._hacked_tensorflow_function = tf.function
-        self._thread_local = threading.local()
-        self._thread_local._entrance_function = None
 
     def name(self):
         return self._device_name
@@ -115,30 +141,6 @@ class NpuDeviceHandle(object):
 
         ops.device = _f
         self._ctx._set_device(self._device_name, pydev.DeviceSpec.from_string(self._device_name))
-
-        def never_nested_function(func=None, *args, **kwargs):
-            if not hasattr(self._thread_local, "_entrance_function"):
-                self._thread_local._entrance_function = None
-
-            def never_nested_decorator(func):
-                tf_decorated_func = self._hacked_tensorflow_function(*args, **kwargs)(func)
-
-                def wrapper(*func_args, **func_kwargs):
-                    if not hasattr(self._thread_local, "_entrance_function"):
-                        self._thread_local._entrance_function = None
-                    if self._thread_local._entrance_function is not None:
-                        return func(*func_args, **func_kwargs)
-                    self._thread_local._entrance_function = func.__name__
-                    result = tf_decorated_func(*func_args, **func_kwargs)
-                    self._thread_local._entrance_function = None
-                    return result
-
-                return wrapper
-
-            if func is not None:
-                return never_nested_decorator(func)
-            else:
-                return never_nested_decorator
 
         tf.function = never_nested_function
 
