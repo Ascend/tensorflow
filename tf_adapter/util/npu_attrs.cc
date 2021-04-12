@@ -36,6 +36,7 @@ limitations under the License.
 #include <regex>
 
 namespace tensorflow {
+std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 
 std::string GetDumpPath() {
   static std::string dump_path = "";
@@ -258,6 +259,20 @@ inline Status checkEnableDp(bool enable_dp) {
   } else {
     return Status::OK();
   }
+}
+
+bool NpuAttrs::GetUseTdtStatus(int32_t device_id) {
+  if (turn_on_tdt_info_.count(device_id) > 0) {
+    ADP_LOG(INFO) << "get device: " << device_id << " turn_on_tdt_info_: " << turn_on_tdt_info_[device_id];
+    return turn_on_tdt_info_[device_id];
+  } else {
+    return false;
+  }
+}
+
+void NpuAttrs::SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt) {
+  turn_on_tdt_info_[device_id] = is_turn_on_tdt;
+  ADP_LOG(INFO) << "set device: " << device_id << " turn_on_tdt_info_: " << turn_on_tdt_info_[device_id];
 }
 
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {

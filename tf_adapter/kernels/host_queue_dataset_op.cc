@@ -83,6 +83,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       pools_->InitThreadPool(local_device_list_.size());
       std::vector<std::future<int32_t>> tdt_status;
       for (auto device_id : local_device_list_) {
+        NpuAttrs::SetUseTdtStatus(device_id, true);
         tdt_status.emplace_back(pools_->Enqueue(TdtInFeedInit, device_id));
       }
       for (auto && result : tdt_status) {
@@ -93,6 +94,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       ADP_LOG(INFO) << "Start to init tdt.";
       uint32_t device_id = 0;
       OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
+      NpuAttrs::SetUseTdtStatus(device_id, true);
       device_id_ = device_id;
       int32_t tdt_status = TdtInFeedInit(device_id_);
       OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
@@ -107,6 +109,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       std::vector<std::future<int32_t>> tdt_status;
       for (auto device_id : local_device_list_) {
         tdt_status.emplace_back(pools_->Enqueue(TdtInFeedDestroy, device_id));
+        NpuAttrs::SetUseTdtStatus(device_id, false);
       }
       for (auto &&result : tdt_status) {
         if (result.get() != 0) {
@@ -125,6 +128,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       } else {
         ADP_LOG(INFO) << "Tdt client close success.";
         tdt_release = true;
+        NpuAttrs::SetUseTdtStatus(device_id_, false);
       }
     } else {
       ADP_LOG(INFO) << "Tdt client do not destroy in slave.";

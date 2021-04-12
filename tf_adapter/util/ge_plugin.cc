@@ -318,6 +318,19 @@ void PluginFinalize() {
 
 void NpuClose() {
   GeFinalize();
+  uint32_t device_id = 0;
+  (void)GetEnvDeviceID(device_id);
+  if (NpuAttrs::GetUseTdtStatus(device_id)) {
+    ADP_LOG(INFO) << "[GePlugin] the process has turned on TDT resource, finalize resource at exit.";
+    int32_t tdt_status = TdtInFeedDestroy(device_id);
+    if (tdt_status != 0) {
+      ADP_LOG(ERROR) << "[GePlugin] Tdt client close failed.";
+      LOG(ERROR) << "[GePlugin] Tdt client close failed.";
+    } else {
+      ADP_LOG(INFO) << "[GePlugin] Tdt client close success.";
+      NpuAttrs::SetUseTdtStatus(device_id, false);
+    }
+  }
   ADP_LOG(INFO) << "[GePlugin] npu finalize resource success";
 }
 
