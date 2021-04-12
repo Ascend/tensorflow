@@ -61,9 +61,6 @@ from hccl.split.api import set_split_strategy_by_size
 
 import tensorflow as tf
 import os
-from npu_bridge.estimator.npu.npu_plugin import npu_close
-import atexit
-atexit.register(npu_close)
 
 experimental_options = {
     "disable_model_pruning": False,
