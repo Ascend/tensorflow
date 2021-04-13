@@ -422,19 +422,19 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   // ctx is not nullptr
   OP_REQUIRES_ASYNC(ctx, init_flag_, errors::InvalidArgument("GeOp not Initialize success."), done);
   // ge ge session
-  if (!sess_init_flag_) {
-    if (job_type_ != "localhost") {  // in ps mode : ctx->session_handle() is empty
-      tf_session_ = "ps_worker_session";
-      ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " when in ps mode.";
-    }
+  {
+    mutex_lock lock{mu_};
+    if (!sess_init_flag_) {
+      if (job_type_ != "localhost") {  // in ps mode : ctx->session_handle() is empty
+        tf_session_ = "ps_worker_session";
+        ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " when in ps mode.";
+      }
 
-    if (tf_session_.empty()) {
-      tf_session_ = ctx->session_handle();
-      ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " from session handle.";
-    }
+      if (tf_session_.empty()) {
+        tf_session_ = ctx->session_handle();
+        ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " from session handle.";
+      }
 
-    {
-      mutex_lock lock{mu_};
       bool res = IncrementGraphIdCount(tf_session_, graph_id_);
       if (!res || graph_id_ < kInvalidGraphId) {
         OP_REQUIRES_ASYNC(ctx, false, errors::Unavailable("Get ge session failed."), done);
