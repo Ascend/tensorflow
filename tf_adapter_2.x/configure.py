@@ -25,9 +25,10 @@ try:
 except ImportError:
     from distutils.spawn import find_executable as which
 
-_COMPAT_TENSORFLOW_VERSION = "2.4.0"
+_COMPAT_TENSORFLOW_VERSION = "2.4"
 _PYTHON_BIN_PATH_ENV = "ADAPTER_TARGET_PYTHON_PATH"
 _ASCEND_INSTALLED_PATH_ENV = "ASCEND_INSTALLED_PATH"
+
 
 def run_command(cmd):
     output = subprocess.check_output(cmd)
@@ -53,7 +54,7 @@ def setup_python(env_path):
     """Get python install path."""
     default_python_bin_path = sys.executable
     ask_python_bin_path = ('Please specify the location of python with valid '
-                           'tensorflow 2.4.0 site-packages installed. [Default '
+                           'tensorflow 2.4 site-packages installed. [Default '
                            'is %s]\n(You can make this quiet by set env [ADAPTER_TARGET_PYTHON_PATH]): ') % default_python_bin_path
     custom_python_bin_path = env_path
     while True:

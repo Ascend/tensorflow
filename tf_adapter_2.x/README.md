@@ -9,7 +9,7 @@ Ascend Adapter for TF2.X 致力于将昇腾AI处理器卓越的运算能力，�
 ### 从源码安装
 
 您可以从源代码构建 Ascend Adapter 软件包并将其安装在昇腾AI处理器环境上。
-> Ascend Adapter 与 Tensorflow 有严格的匹配关系，从源码构建前，您需要确保已经正确安装了[Tensorflow v2.4.0版本](https://www.tensorflow.org/install) 。
+> Ascend Adapter 与 Tensorflow 有严格的匹配关系，从源码构建前，您需要确保已经正确安装了[Tensorflow v2.4 版本](https://www.tensorflow.org/install) 。
 
 
 同时系统满足以下要求：
@@ -32,10 +32,10 @@ cd tensorflow/tf_adapter_2.x
 > 您的会话可能有所不同。
 
 ```BASH
-Please specify the location of python with available tensorflow v2.4.0 installed. [Default is /usr/bin/python3]
+Please specify the location of python with available tensorflow v2.4 installed. [Default is /usr/bin/python3]
 (You can make this quiet by set env [ADAPTER_TARGET_PYTHON_PATH]):
 ```
-此时，要求您输入安装了 Tensorflow v2.4.0 版本的python解释器路径，如果默认路径是正确的，直接回车，否则请输入正确的 python
+此时，要求您输入安装了 Tensorflow v2.4 版本的python解释器路径，如果默认路径是正确的，直接回车，否则请输入正确的 python
 解释器路径。
 > 您可以通过设置 ADAPTER_TARGET_PYTHON_PATH的环境变量，来抑制交互式窗口弹出，但是要确保路径是有效的，否则，仍然会要求您输入正确的 python 解释器路径。
 
