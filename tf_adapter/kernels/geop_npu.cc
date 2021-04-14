@@ -642,7 +642,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options_["ge.exec.dataInputsShapeRange"] = data_inputs_shape_range_;
     }
     if (is_tuning) {
-      if (is_train_graph_ != "1") {
+      if (is_train_graph_ != "1" && init_options_["ge.jobType"] != "2") {
         ADP_LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
         OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().CacheGeGraphs(ge_session_, ge_graph),
           errors::Internal("[GEOP] cache ge session failed."), done);
@@ -667,6 +667,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         options["mstune"] = tune_options;
         options["initialize"] = init_options_;
         options["session"] = sess_options_;
+        options["graph"] = graph_options_;
         std::vector<ge::Graph> ge_graphs;
         OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().GetGeGraphs(ge_session_, ge_graphs),
           errors::Internal("[GEOP] ge ge session nontraining graphs failed."), done);
