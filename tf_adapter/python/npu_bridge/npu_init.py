@@ -139,6 +139,7 @@ def set_keras_session_npu_config(config=None):
     sess = session.Session(config=config)
     backend.set_session(sess)
     return sess
+    print("test")
 
 def init_resource():
     util.global_dict_init()
