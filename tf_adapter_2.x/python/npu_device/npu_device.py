@@ -2,12 +2,16 @@
 # Description: Common depends and micro defines for and only for data preprocess module
 
 import os
+import atexit
+import threading
+import absl.logging as logging
+
 import tensorflow as tf
 from tensorflow.python.eager import context
 from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import ops
 from tensorflow.python.distribute import distribute_lib
-import threading
+from tensorflow.python.util import tf_contextlib
 
 NPU = "/job:localhost/replica:0/task:0/device:NPU"
 
@@ -64,10 +68,7 @@ def close():
     _npu_device_backends.Close()
 
 
-import atexit
-
 atexit.register(close)
-from tensorflow.python.util import tf_contextlib
 
 _global_npu_ctx = None
 
@@ -82,20 +83,18 @@ _thread_local = threading.local()
 
 
 def never_nested_function(func=None, *args, **kwargs):
-    if not hasattr(_thread_local, "_entrance_function"):
-        _thread_local._entrance_function = None
-
-    def never_nested_decorator(func):
-        tf_decorated_func = _hacked_tensorflow_function(*args, **kwargs)(func)
+    def never_nested_decorator(f):
+        tf_decorated_func = _hacked_tensorflow_function(*args, **kwargs)(f)
 
         def wrapper(*func_args, **func_kwargs):
-            if not hasattr(_thread_local, "_entrance_function"):
-                _thread_local._entrance_function = None
-            if _thread_local._entrance_function is not None:
-                return func(*func_args, **func_kwargs)
-            _thread_local._entrance_function = func.__name__
+            if not hasattr(_thread_local, "entrance_function"):
+                _thread_local.entrance_function = None
+            if _thread_local.entrance_function is not None:
+                logging.info("Flat nested tf function %s", f.__name__)
+                return f(*func_args, **func_kwargs)
+            _thread_local.entrance_function = f.__name__
             result = tf_decorated_func(*func_args, **func_kwargs)
-            _thread_local._entrance_function = None
+            _thread_local.entrance_function = None
             return result
 
         return wrapper
