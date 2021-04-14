@@ -70,8 +70,7 @@ experimental_options = {
     "arithmetic_optimization": RewriterConfig.ON,
     "loop_optimization": RewriterConfig.ON,
     "dependency_optimization": RewriterConfig.ON,
-    "layout_optimizer": RewriterConfig.ON,
-    "memory_optimization": RewriterConfig.ON
+    "layout_optimizer": RewriterConfig.ON
 }
 
 def npu_hooks_append(hooks_list=[]):
