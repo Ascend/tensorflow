@@ -2,7 +2,7 @@
 # Description: Common depends and micro defines for and only for data preprocess module
 
 from tensorflow.python.framework import ops
-from npu_device import npu_ops as gen_hccl_ops
+from npu_device import gen_npu_ops as gen_hccl_ops
 
 
 ## 提供group内的集合通信allreduce功能
