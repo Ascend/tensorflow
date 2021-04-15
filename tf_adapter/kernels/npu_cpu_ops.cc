@@ -57,6 +57,7 @@ class CacheAddOp : public OpKernel {
  public:
   explicit CacheAddOp(OpKernelConstruction *context) : OpKernel(context) {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheAddOp Compute"; }
+  ~CacheAddOp() override {}
 };
 
 class CacheRemoteIndexToLocalOp : public OpKernel {

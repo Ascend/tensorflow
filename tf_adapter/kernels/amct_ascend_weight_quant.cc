@@ -62,6 +62,7 @@ class AscendWeightQuantOp : public OpKernel {
     input_param.size = 0;
     input_param.weight = NULL;
     input_param.offset = NULL;
+    input_param.out = NULL;
     input_param.channel_in_num = 1;
     input_param.channel_out_num = 1;
     input_param.channel_wise = false;
