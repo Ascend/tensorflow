@@ -117,7 +117,6 @@ def npu_run_config_init(run_config=None):
         run_config.__dict__['_session_config'] = npu_config_proto(run_config.session_config)
     return run_config
 
-
 def set_keras_session_npu_config(config=None):
     from tensorflow.python.keras import backend
     if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
