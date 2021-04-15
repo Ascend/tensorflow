@@ -116,13 +116,20 @@ def npu_run_config_init(run_config=None):
 
 def set_keras_session_npu_config(config=None):
     from tensorflow.python.keras import backend
-    if config is None:
-        config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-    else:
-        if not isinstance(config, config_pb2.ConfigProto):
-            raise ValueError("config must be config_pb2.ConfigProto type")
-    custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
-    custom_op.name = "NpuOptimizer"
+    if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
+        config = config_pb2.ConfigProto()
+    
+    npu_optimizer = None
+    for custom_optimizer in config.graph_options.rewrite_options.custom_optimizers:
+        if custom_optimizer.name == 'NpuOptimizer':
+            npu_optimizer = custom_optimizer
+            break
+    if not npu_optimizer:
+        npu_optimizer = config.graph_options.rewrite_options.custom_optimizers.add()
+        npu_optimizer.name = 'NpuOptimizer'
+    
+    config.allow_soft_placement = True
+    config.log_device_placement = False
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
     sess = session.Session(config=config)
     backend.set_session(sess)
