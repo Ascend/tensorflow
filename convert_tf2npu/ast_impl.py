@@ -165,16 +165,6 @@ def ast_call(node):
         log_msg(getattr(node, 'lineno', 'None'), "change check_available_gpus() to ['/device:CPU:0']")
         util_global.set_value('need_conver', True)
         return ast.List(elts=[ast.Str(s="/device:CPU:0")], ctx=ast.Load())
-    if (isinstance(node.func, ast.Name) and node.func.id == 'ConfigProto') or \
-       (isinstance(node.func, ast.Attribute) and node.func.attr == 'ConfigProto'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'ConfigProto()')
-        src = copy.deepcopy(node)
-        node.func = ast.Name(id='npu_config_proto', ctx=ast.Load())
-        node.args = []
-        node.keywords = []
-        node.keywords.append(ast.keyword(arg='config_proto', value=src))
-        util_global.set_value('need_conver', True)
-        return node
     if (isinstance(node.func, ast.Name) and node.func.id == 'GraphOptions') or \
        (isinstance(node.func, ast.Attribute) and node.func.attr == 'GraphOptions'):
         log_success_report(getattr(node, 'lineno', 'None'), 'GraphOptions()')
