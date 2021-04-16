@@ -15,35 +15,7 @@
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/util/env_var.h"
 
-using namespace tensorflow;
-
-class FakeOp : public AsyncOpKernel {
- public:
-  explicit FakeOp(OpKernelConstruction *context) : AsyncOpKernel(context) {}
-
-  void ComputeAsync(OpKernelContext *context, DoneCallback done) override {
-    OP_REQUIRES_OK_ASYNC(
-      context, errors::Internal(context->op_kernel().name(), " registered as fake op and should never run on cpu"),
-      done);
-  }
-};
-
-REGISTER_OP("DPOP")
-  .Input("inputs: Tin")
-  .Output("outputs: Tout")
-  .Attr("Tin: list(type) >= 0")
-  .Attr("Tout: list(type) >= 0")
-  .Attr("function: func")
-  .Attr("data_format: { 'NHWC', 'NCHW'} = 'NHWC'")
-  .SetIsStateful();
-
-REGISTER_OP("DeviceQueueDataset")
-  .Output("handle: variant")
-  .Attr("channel_name: string")
-  .Attr("output_types: list(type) >= 1")
-  .Attr("output_shapes: list(shape) >= 1")
-  .SetIsStateful()
-  .SetShapeFn(tensorflow::shape_inference::ScalarShape);
+namespace tensorflow {
 
 REGISTER_OP("SendH2D")
   .Input("inputs: Tin")
@@ -60,6 +32,4 @@ REGISTER_OP("IteratorH2D")
   .Attr("channel_name: string")
   .Attr("device_ids: list(int)")
   .SetIsStateful();
-
-REGISTER_KERNEL_BUILDER(Name("DPOP").Device(DEVICE_CPU).Priority(3), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("DeviceQueueDataset").Device(DEVICE_CPU).Priority(3), FakeOp);
+}  // namespace tensorflow

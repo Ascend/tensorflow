@@ -2,13 +2,18 @@
 # Description: Common depends and micro defines for and only for data preprocess module
 
 import os
+import atexit
+import threading
+import absl.logging as logging
+
 import tensorflow as tf
 from tensorflow.python.eager import context
 from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import ops
 from tensorflow.python.distribute import distribute_lib
-import threading
+from tensorflow.python.util import tf_contextlib
 
+gen_npu_ops = tf.load_op_library(os.path.dirname(__file__) + "/_npu_ops.so")
 NPU = "/job:localhost/replica:0/task:0/device:NPU"
 
 # Import the low-level C/C++ module
@@ -64,10 +69,7 @@ def close():
     _npu_device_backends.Close()
 
 
-import atexit
-
 atexit.register(close)
-from tensorflow.python.util import tf_contextlib
 
 _global_npu_ctx = None
 
@@ -77,15 +79,39 @@ def global_npu_ctx():
     return _global_npu_ctx
 
 
+_hacked_tensorflow_function = tf.function
+_thread_local = threading.local()
+
+
+def never_nested_function(func=None, *args, **kwargs):
+    def never_nested_decorator(f):
+        tf_decorated_func = _hacked_tensorflow_function(*args, **kwargs)(f)
+
+        def wrapper(*func_args, **func_kwargs):
+            if not hasattr(_thread_local, "entrance_function"):
+                _thread_local.entrance_function = None
+            if _thread_local.entrance_function is not None:
+                logging.info("Inlining nested tf function %s in %s", f.__name__, _thread_local.entrance_function)
+                return f(*func_args, **func_kwargs)
+            _thread_local.entrance_function = f.__name__
+            result = tf_decorated_func(*func_args, **func_kwargs)
+            _thread_local.entrance_function = None
+            return result
+
+        return wrapper
+
+    if func is not None:
+        return never_nested_decorator(func)
+    else:
+        return never_nested_decorator
+
+
 class NpuDeviceHandle(object):
     def __init__(self, ctx, device_index, workers_num, worker_id):
         self._ctx = ctx
         self._device_name = NPU + ":" + str(device_index)
         self.workers_num = workers_num
         self.worker_id = worker_id
-        self._hacked_tensorflow_function = tf.function
-        self._thread_local = threading.local()
-        self._thread_local._entrance_function = None
 
     def name(self):
         return self._device_name
@@ -115,30 +141,6 @@ class NpuDeviceHandle(object):
 
         ops.device = _f
         self._ctx._set_device(self._device_name, pydev.DeviceSpec.from_string(self._device_name))
-
-        def never_nested_function(func=None, *args, **kwargs):
-            if not hasattr(self._thread_local, "_entrance_function"):
-                self._thread_local._entrance_function = None
-
-            def never_nested_decorator(func):
-                tf_decorated_func = self._hacked_tensorflow_function(*args, **kwargs)(func)
-
-                def wrapper(*func_args, **func_kwargs):
-                    if not hasattr(self._thread_local, "_entrance_function"):
-                        self._thread_local._entrance_function = None
-                    if self._thread_local._entrance_function is not None:
-                        return func(*func_args, **func_kwargs)
-                    self._thread_local._entrance_function = func.__name__
-                    result = tf_decorated_func(*func_args, **func_kwargs)
-                    self._thread_local._entrance_function = None
-                    return result
-
-                return wrapper
-
-            if func is not None:
-                return never_nested_decorator(func)
-            else:
-                return never_nested_decorator
 
         tf.function = never_nested_function
 

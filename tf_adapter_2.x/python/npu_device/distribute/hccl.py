@@ -1,7 +1,9 @@
-from npu_device._api.distribute import hccl_ops
+from npu_device.distribute import hccl_ops
 from npu_device.npu_device import global_npu_ctx
+from npu_device.npu_device import never_nested_function
 
 import tensorflow as tf
+from absl import logging
 
 
 def shard_and_rebatch_dataset(dataset, global_bs):
@@ -16,6 +18,7 @@ def shard_and_rebatch_dataset(dataset, global_bs):
     return dataset, int(batch_size)
 
 
+@never_nested_function
 def _all_reduce(values, reduction, fusion, fusion_id, group):
     workers_num = global_npu_ctx().workers_num
 
@@ -45,15 +48,16 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
 
 def all_reduce(values, reduction, fusion=1, fusion_id=-1, group="hccl_world_group"):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
-        tf.get_logger().info("Skip all-reduce value as current process is not npu cluster worker")
+        logging.info("Skip all reduce as current process is not npu cluster worker")
         return values
 
     if isinstance(values, (list, tuple,)):
-        return tf.function(_all_reduce)(values, reduction, fusion, fusion_id, group)
+        return _all_reduce(values, reduction, fusion, fusion_id, group)
     else:
-        return tf.function(_all_reduce)([values], reduction, fusion, fusion_id, group)[0]
+        return _all_reduce([values], reduction, fusion, fusion_id, group)[0]
 
 
+@never_nested_function
 def _broadcast(values, root_rank, fusion, fusion_id, group):
     for value in values:
         value.assign(hccl_ops.broadcast([value], root_rank, fusion, fusion_id, group)[0])
@@ -61,9 +65,9 @@ def _broadcast(values, root_rank, fusion, fusion_id, group):
 
 def broadcast(values, root_rank, fusion=2, fusion_id=0, group="hccl_world_group"):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
-        tf.get_logger().info("Skip broadcast value as current process is not npu cluster worker")
+        logging.info("Skip broadcast as current process is not npu cluster worker")
         return
     if isinstance(values, (list, tuple,)):
-        tf.function(_broadcast)(values, root_rank, fusion, fusion_id, group)
+        _broadcast(values, root_rank, fusion, fusion_id, group)
     else:
-        tf.function(_broadcast)([values], root_rank, fusion, fusion_id, group)
+        _broadcast([values], root_rank, fusion, fusion_id, group)
