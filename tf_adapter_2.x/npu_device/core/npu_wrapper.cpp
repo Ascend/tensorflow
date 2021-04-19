@@ -44,23 +44,67 @@ TFE_Context *InputTFE_Context(const py::handle &ctx) {
   return static_cast<TFE_Context *>(PyCapsule_GetPointer(ctx.ptr(), nullptr));
 }
 std::atomic_bool graph_engine_started{false};
-const std::string kTrain = "1";
-const std::string kOpen = "1";
+
+const std::map<std::string, std::string> kConfigurableOptions = {
+  {"graph_run_mode", ge::OPTION_GRAPH_RUN_MODE},
+  {"graph_memory_max_size", ge::GRAPH_MEMORY_MAX_SIZE},
+  {"variable_memory_max_size", ge::VARIABLE_MEMORY_MAX_SIZE},
+  {"variable_format_optimize", "ge.exec.variable_acc"},
+  {"enable_scope_fusion_passes", ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES},
+  {"fusion_switch_file", ge::FUSION_SWITCH_FILE},
+  {"precision_mode", ge::PRECISION_MODE},
+  {"auto_tune_mode", ge::AUTO_TUNE_MODE},
+  {"op_select_implmode", ge::OP_SELECT_IMPL_MODE},
+  {"optypelist_for_implmode", ge::OPTYPELIST_FOR_IMPLMODE},
+  {"op_compiler_cache_mode", ge::OP_COMPILER_CACHE_MODE},
+  {"op_compiler_cache_dir", ge::OP_COMPILER_CACHE_DIR},
+  {"stream_max_parallel_num", ge::STREAM_MAX_PARALLEL_NUM},
+  {"hcom_parallel", ge::HCOM_PARALLEL},
+  {"hcom_multi_mode", ge::HCOM_MULTI_MODE},
+  {"is_tailing_optimization", ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION},
+  {"op_debug_level", ge::OP_DEBUG_LEVEL},
+  {"debug_dir", ge::DEBUG_DIR},
+  {"enable_exception_dump", ge::OPTION_EXEC_ENABLE_EXCEPTION_DUMP},
+  {"enable_dump", ge::OPTION_EXEC_ENABLE_DUMP},
+  {"dump_path", ge::OPTION_EXEC_DUMP_PATH},
+  {"dump_step", ge::OPTION_EXEC_DUMP_STEP},
+  {"dump_mode", ge::OPTION_EXEC_DUMP_MODE},
+  {"enable_dump_debug", ge::OPTION_EXEC_ENABLE_DUMP_DEBUG},
+  {"dump_debug_mode", ge::OPTION_EXEC_DUMP_DEBUG_MODE},
+  {"enable_profiling", ge::OPTION_EXEC_PROFILING_MODE},
+  {"profiling_options", ge::OPTION_EXEC_PROFILING_OPTIONS},
+  // private options
+  {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
+  {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE}};
 }  // namespace
 
 PYBIND11_MODULE(_npu_device_backends, m) {
   m.def("Open",
         [](const py::handle &context, const char *device_name, int device_index,
-           std::map<std::string, std::string> global_options,
+           std::map<std::string, std::string> user_options,
            std::map<std::string, std::string> session_options) -> std::string {
           pybind11::gil_scoped_release release;
           if (!graph_engine_started.exchange(true)) {
-            // 只允许在train模式下工作
-            global_options[ge::OPTION_GRAPH_RUN_MODE] = kTrain;
-            global_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_index);
-            if (global_options.find(ge::PRECISION_MODE) == global_options.end()) {
-              global_options[ge::PRECISION_MODE] = "allow_mix_precision";
+            std::map<std::string, std::string> global_options;
+            for (const auto &option : user_options) {
+              auto iter = kConfigurableOptions.find(option.first);
+              if (iter != kConfigurableOptions.end()) {
+                global_options[iter->second] = option.second;
+              } else {
+                LOG(WARNING) << "Unrecognized graph engine option " << option.first << ":" << option.second;
+              }
             }
+
+            if (global_options.find(ge::OPTION_EXEC_RANK_TABLE_FILE) != global_options.end() &&
+                global_options.find(ge::OPTION_EXEC_RANK_ID) != global_options.end()) {
+              const static std::string kTrue = "1";
+              global_options[ge::OPTION_EXEC_DEPLOY_MODE] = "0";
+              global_options[ge::OPTION_EXEC_IS_USEHCOM] = kTrue;
+              global_options[ge::OPTION_EXEC_HCCL_FLAG] = kTrue;
+              global_options["ge.exec.hccl_tailing_optimize"] = kTrue;
+            }
+
+            global_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_index);
             LOG(INFO) << "Start graph engine with options:";
             for (const auto &option : global_options) {
               LOG(INFO) << "  " << option.first << ":" << option.second;

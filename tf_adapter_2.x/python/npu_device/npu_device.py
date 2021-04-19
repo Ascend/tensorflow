@@ -13,6 +13,8 @@ from tensorflow.python.framework import ops
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.util import tf_contextlib
 
+from npu_device.configs.npu_config import NpuConfig
+
 gen_npu_ops = tf.load_op_library(os.path.dirname(__file__) + "/_npu_ops.so")
 NPU = "/job:localhost/replica:0/task:0/device:NPU"
 
@@ -28,10 +30,17 @@ def stupid_repeat(word, times):
 
 
 def open(ctx=None, device_index=None, global_options=None, session_options=None):
+    if session_options is not None:
+        logging.warning('session_options is currently unsupported')
+    session_options = {}
+
     if global_options is None:
-        global_options = {}
-    if session_options is None:
-        session_options = {}
+        global_options = NpuConfig().as_dict()
+    elif isinstance(global_options, NpuConfig):
+        global_options = global_options.as_dict()
+    else:
+        raise ValueError("global options must be instance of NpuConfig which you can access by npu.Config()")
+
     if ctx is None:
         ctx = context.context()
     ctx.ensure_initialized()
@@ -51,13 +60,8 @@ def open(ctx=None, device_index=None, global_options=None, session_options=None)
         if not (workers_num > worker_id >= 0):
             raise RuntimeError('RANK_TABLE_FILE is set, but RANK_SIZE and RANK_ID are not set correctly')
         if workers_num > 1:
-            global_options['ge.exec.rankTableFile'] = str(rank_table)
-            global_options['ge.exec.deployMode'] = "0"
-            global_options['ge.exec.isUseHcom'] = "1"
-            global_options['ge.exec.hcclFlag'] = "1"
-            global_options['ge.exec.hccl_tailing_optimize'] = '1'
-            global_options['ge.exec.hcomParallel'] = "1"
-            global_options['ge.exec.rankId'] = str(worker_id)
+            global_options['_distribute.rank_id'] = str(worker_id)
+            global_options['_distribute.rank_table'] = str(rank_table)
 
     error_message = _npu_device_backends.Open(ctx._handle, NPU, device_index, global_options, session_options)
     if len(error_message):
