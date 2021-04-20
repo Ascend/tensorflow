@@ -46,7 +46,7 @@ std::string GetDumpPath() {
       std::string base_path_str(npu_collect_path);
       uint32_t device_id = 0;
       GetEnvDeviceID(device_id);
-      base_path_str += "/graph/" + std::to_string(mmGetPid()) + "_" + std::to_string(device_id) + "/";
+      base_path_str += "/extra-info/graph/" + std::to_string(mmGetPid()) + "_" + std::to_string(device_id) + "/";
       if (mmAccess2(base_path_str.c_str(), M_F_OK) != EN_OK) {
         int32_t ret = mmMkdir(base_path_str.c_str(), M_IRUSR | M_IWUSR | M_IXUSR);
         if (ret != 0) {
