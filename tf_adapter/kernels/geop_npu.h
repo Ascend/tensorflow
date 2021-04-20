@@ -66,7 +66,7 @@ class GeOp : public AsyncOpKernel {
                        GraphDef &graph_def, bool &is_initialize);
 
   // prepare input tensor
-  Status BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::InputTensorInfo> &inputs);
+  Status BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &inputs);
 
   // prepare output tensor
   Status BuildOutTensorInfo(OpKernelContext *ctx);

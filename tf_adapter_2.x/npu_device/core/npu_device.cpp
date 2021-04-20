@@ -40,15 +40,15 @@ using Format = ge::Format;
 const static uint64_t kInvalidGeGraphId = -1;
 
 namespace {
-template <typename T>
+template <typename T, typename DT>
 class NpuHostFixedAllocator : public tensorflow::Allocator {
  public:
-  static tensorflow::Allocator *Create(std::unique_ptr<T> ptr) {
+  static tensorflow::Allocator *Create(std::unique_ptr<T, DT> ptr) {
     return new (std::nothrow) NpuHostFixedAllocator(std::move(ptr));
   }
 
  private:
-  explicit NpuHostFixedAllocator(std::unique_ptr<T> ptr) : ptr_(std::move(ptr)) {
+  explicit NpuHostFixedAllocator(std::unique_ptr<T, DT> ptr) : ptr_(std::move(ptr)) {
     DLOG() << "Zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
   }
   ~NpuHostFixedAllocator() override {
@@ -57,7 +57,7 @@ class NpuHostFixedAllocator : public tensorflow::Allocator {
   std::string Name() override { return "NpuHostFixedAllocator"; }
   void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
   void DeallocateRaw(void *ptr) override { delete this; }
-  std::unique_ptr<T> ptr_;
+  std::unique_ptr<T, DT> ptr_;
 };
 
 size_t RemoveRedundantHcomControlEdges(tensorflow::Graph *graph) {
@@ -1543,7 +1543,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
 void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs,
                                 bool pin_to_npu, const TensorDataTypes &output_types, int num_outputs,
                                 TFE_TensorHandle **outputs, DoneCallback done, TF_Status *status) {
-  std::vector<ge::InputTensorInfo> ge_inputs;
+  std::vector<ge::Tensor> ge_inputs;
 
   DLOG() << "Ge graph " << graph_id << " input info";
   for (int i = 0; i < num_inputs; i++) {
@@ -1561,18 +1561,18 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       status, ge_type != ge::DT_UNDEFINED,
       tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
                                           tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
-    ge::InputTensorInfo input;
-    input.data_type = static_cast<uint32_t>(ge_type);
+    ge::Tensor input;
+    std::vector<int64_t> dims;
     for (auto dim_size : tensor->shape().dim_sizes()) {
-      input.dims.emplace_back(dim_size);
+      dims.emplace_back(dim_size);
     }
-    input.data = const_cast<char *>(tensor->tensor_data().data());
-    input.length = tensor->TotalBytes();
+    input.SetTensorDesc(ge::TensorDesc(ge::Shape(dims), ge::FORMAT_ND, ge_type));
+    input.SetData(reinterpret_cast<const uint8_t *>(tensor->tensor_data().data()), tensor->TotalBytes());
     ge_inputs.emplace_back(input);
-    DLOG() << "    input " << i << " ge enum " << input.data_type << " tf type "
-           << tensorflow::DataTypeString(tensor->dtype()) << VecToString(input.dims);
+    DLOG() << "    input " << i << " ge enum " << ge_type << " tf type "
+           << tensorflow::DataTypeString(tensor->dtype()) << VecToString(dims);
   }
-  auto ge_callback = [&, graph_id](ge::Status s, std::vector<ge::OutputTensorInfo> &ge_outputs) {
+  auto ge_callback = [&, graph_id](ge::Status s, std::vector<ge::Tensor> &ge_outputs) {
     if (s == ge::END_OF_SEQUENCE) {
       done(tensorflow::errors::OutOfRange("Graph engine process graph ", graph_id, " reach end of sequence"));
       return;
@@ -1593,41 +1593,45 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
     for (size_t i = 0; i < ge_outputs.size(); i++) {
       auto &ge_tensor = ge_outputs[i];
       std::vector<tensorflow::int64> dims;
-      for (auto dim_size : ge_tensor.dims) {
+      for (auto dim_size : ge_tensor.GetTensorDesc().GetShape().GetDims()) {
         dims.push_back(dim_size);
       }
       tensorflow::TensorShape shape;
       tensorflow::Status tf_status = tensorflow::TensorShapeUtils::MakeShape(dims.data(), dims.size(), &shape);
       if (!tf_status.ok()) {
         done(tensorflow::errors::Internal("Graph engine process graph succeed but output ", i, " dims invalid ",
-                                          VecToString(ge_tensor.dims), " ", tf_status.error_message()));
+                                          VecToString(ge_tensor.GetTensorDesc().GetShape().GetDims()), " ",
+                                          tf_status.error_message()));
         return;
       }
-      DLOG() << "    output " << i << " ge type enum " << ge_tensor.data_type << " tf type "
+      DLOG() << "    output " << i << " ge type enum " << ge_tensor.GetTensorDesc().GetDataType() << " tf type "
              << tensorflow::DataTypeString(output_types[i]) << shape.DebugString();
 
       const static int64_t kTensorAlignBytes = 64;
-      if (reinterpret_cast<uintptr_t>(ge_tensor.data.get()) % kTensorAlignBytes == 0) {
-        DLOG() << "Zero copy ge tensor " << reinterpret_cast<uintptr_t>(ge_tensor.data.get()) << " as aligned with "
+      if (reinterpret_cast<uintptr_t>(ge_tensor.GetData()) % kTensorAlignBytes == 0) {
+        DLOG() << "Zero copy ge tensor " << reinterpret_cast<uintptr_t>(ge_tensor.GetData()) << " as aligned with "
                << kTensorAlignBytes << " bytes";
-        tensorflow::Allocator *allocator = NpuHostFixedAllocator<uint8_t[]>::Create(std::move(ge_tensor.data));
+        size_t ge_tensor_total_bytes = ge_tensor.GetSize();
+        tensorflow::Allocator *allocator = NpuHostFixedAllocator<uint8_t[], std::function<void(uint8_t *)>>::Create(
+          std::move(ge_tensor.ResetData()));
         tensorflow::Tensor cpu_tensor(allocator, output_types[i], shape);
-        if (ge_tensor.length != cpu_tensor.TotalBytes()) {
+        if (ge_tensor_total_bytes != cpu_tensor.TotalBytes()) {
           done(tensorflow::errors::Internal("Graph engine process graph succeed but output ", i, " total bytes ",
-                                            ge_tensor.length, " mismatch with expected ", cpu_tensor.TotalBytes()));
+                                            ge_tensor_total_bytes, " mismatch with expected ",
+                                            cpu_tensor.TotalBytes()));
           return;
         }
         outputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
       } else {
-        DLOG() << "Skip zero copy as ge tensor " << reinterpret_cast<uintptr_t>(ge_tensor.data.get())
+        DLOG() << "Skip zero copy as ge tensor " << reinterpret_cast<uintptr_t>(ge_tensor.GetData())
                << " not aligned with " << kTensorAlignBytes << " bytes";
         tensorflow::Tensor cpu_tensor(output_types[i], shape);
-        if (ge_tensor.length != cpu_tensor.TotalBytes()) {
+        if (ge_tensor.GetSize() != cpu_tensor.TotalBytes()) {
           done(tensorflow::errors::Internal("Graph engine process graph succeed but output ", i, " total bytes ",
-                                            ge_tensor.length, " mismatch with expected ", cpu_tensor.TotalBytes()));
+                                            ge_tensor.GetSize(), " mismatch with expected ", cpu_tensor.TotalBytes()));
           return;
         }
-        memcpy(const_cast<char *>(cpu_tensor.tensor_data().data()), ge_tensor.data.get(), ge_tensor.length);
+        memcpy(const_cast<char *>(cpu_tensor.tensor_data().data()), ge_tensor.GetData(), ge_tensor.GetSize());
         outputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
       }
 
