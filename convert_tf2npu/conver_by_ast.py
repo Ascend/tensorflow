@@ -80,7 +80,7 @@ def conver_ast(path, out_path_dst, file_name):
     if os.path.join(path, file_name) == util_global.get_value('main', ""):
         util_global.set_value('is_main_file', True)
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
-        source = file.read()
+        source = file.read() + "\n"
     try:
         r_node = pasta.parse(source)
     except Exception as e:
