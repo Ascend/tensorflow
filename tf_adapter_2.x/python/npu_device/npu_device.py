@@ -29,24 +29,27 @@ def stupid_repeat(word, times):
     return _npu_device_backends.StupidRepeat(word, times)
 
 
-def open(ctx=None, device_index=None, global_options=None, session_options=None):
-    if session_options is not None:
-        logging.warning('session_options is currently unsupported')
-    session_options = {}
+_global_options = None
+_global_options_lock = threading.Lock()
 
-    if global_options is None:
-        global_options = NpuConfig().as_dict()
-    elif isinstance(global_options, NpuConfig):
-        global_options = global_options.as_dict()
-    else:
-        raise ValueError("global options must be instance of NpuConfig which you can access by npu.Config()")
 
-    if ctx is None:
-        ctx = context.context()
+def global_options():
+    global _global_options
+    if _global_options is None:
+        with _global_options_lock:
+            if _global_options is None:
+                _global_options = NpuConfig()
+    return _global_options
+
+
+def open(device_id=None):
+    global_kw_options = global_options().as_dict()
+
+    ctx = context.context()
     ctx.ensure_initialized()
 
-    if device_index is None:
-        device_index = int(os.getenv("ASCEND_DEVICE_ID", 0))
+    if device_id is None:
+        device_id = int(os.getenv("ASCEND_DEVICE_ID", 0))
 
     workers_num = 1
     worker_id = 0
@@ -60,13 +63,14 @@ def open(ctx=None, device_index=None, global_options=None, session_options=None)
         if not (workers_num > worker_id >= 0):
             raise RuntimeError('RANK_TABLE_FILE is set, but RANK_SIZE and RANK_ID are not set correctly')
         if workers_num > 1:
-            global_options['_distribute.rank_id'] = str(worker_id)
-            global_options['_distribute.rank_table'] = str(rank_table)
+            global_kw_options['_distribute.rank_id'] = str(worker_id)
+            global_kw_options['_distribute.rank_table'] = str(rank_table)
 
-    error_message = _npu_device_backends.Open(ctx._handle, NPU, device_index, global_options, session_options)
+    device_options = {}
+    error_message = _npu_device_backends.Open(ctx._handle, NPU, device_id, global_kw_options, device_options)
     if len(error_message):
-        raise RuntimeError("Failed open npu device " + str(device_index) + ":" + error_message)
-    return NpuDeviceHandle(ctx, device_index, workers_num, worker_id)
+        raise RuntimeError("Failed open npu device " + str(device_id) + ":" + error_message)
+    return NpuDeviceHandle(ctx, device_id, workers_num, worker_id)
 
 
 def close():
@@ -111,9 +115,9 @@ def never_nested_function(func=None, *args, **kwargs):
 
 
 class NpuDeviceHandle(object):
-    def __init__(self, ctx, device_index, workers_num, worker_id):
+    def __init__(self, ctx, device_id, workers_num, worker_id):
         self._ctx = ctx
-        self._device_name = NPU + ":" + str(device_index)
+        self._device_name = NPU + ":" + str(device_id)
         self.workers_num = workers_num
         self.worker_id = worker_id
 
