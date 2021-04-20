@@ -42,7 +42,7 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
                 else:
                     reduced_values.append(tf.divide(reduced_value, typed_workers_num))
             else:
-                reduced_values.append(tf.identity(reduced_value))
+                reduced_values.append(tf.multiply(reduced_value, tf.cast(1, reduced_value.dtype)))
     return reduced_values
 
 
