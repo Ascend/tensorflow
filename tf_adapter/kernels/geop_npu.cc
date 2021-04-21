@@ -191,8 +191,8 @@ GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false),
       sess_init_flag_(false), compute_graph_empty_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr),
-      job_type_(""), is_host_graph_(false), handle_(nullptr), tuning_api_(nullptr),
-      need_compile_graph_first_(false) {
+      job_type_(""), is_host_graph_(false), handle_(nullptr), aoe_tuning_(nullptr),
+      need_compile_graph_first_(false), aoe_init_(nullptr), aoe_finalize_(nullptr) {
   Initialize(ctx);
 }
 
@@ -247,10 +247,14 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   }
 
   if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
-    handle_ = mmDlopen("libmstune_train.so", MMPA_RTLD_NOW);
-    OP_REQUIRES(ctx, handle_ != nullptr, errors::InvalidArgument("libmstune_train.so dlopen failed, ", mmDlerror()));
-    tuning_api_ = (MsTuningFunc)mmDlsym(handle_, const_cast<char*>("MsTrainTuning"));
-    OP_REQUIRES(ctx, tuning_api_ != nullptr, errors::InvalidArgument("dlsym MsGradientTuning API failed, ", mmDlerror()));
+    handle_ = mmDlopen("libaoe_tuning.so", MMPA_RTLD_NOW);
+    OP_REQUIRES(ctx, handle_ != nullptr,
+      errors::InvalidArgument("libaoe_tuning.so dlopen failed, ", mmDlerror()));
+    aoe_tuning_ = (AoeTuningFunc)mmDlsym(handle_, const_cast<char *>("AoeOnlineTuning"));
+    aoe_init_ = (AoeInitFunc)mmDlsym(handle_, const_cast<char *>("AoeOnlineInitialize"));
+    aoe_finalize_ = (AoeFinalizeFunc)mmDlsym(handle_, const_cast<char *>("AoeOnlineFinalize"));
+    OP_REQUIRES(ctx, aoe_tuning_ != nullptr && aoe_init_ != nullptr && aoe_finalize_ != nullptr,
+      errors::InvalidArgument("dlsym Aoe API failed, ", mmDlerror()));
   }
 
   sess_options_ = NpuAttrs::GetSessOptions(ctx);
@@ -284,6 +288,14 @@ void GeOp::Finalize() {
 
       if (!SessionManager::GetInstance().IsGeSessionExist()) {
         if (!GePlugin::GetInstance()->IsGlobal()) {
+          if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
+            AoeStatus tune_ret = (*aoe_finalize_)();
+            if (tune_ret != AOE_SUCCESS) {
+              ADP_LOG(ERROR) << "[GEOP] exec aoe finalize func failed.";
+              LOG(ERROR) << "[GEOP] exec aoe finalize func failed.";
+              return;
+            }
+          }
           GePlugin::GetInstance()->Finalize();
           ADP_LOG(INFO) << "[GEOP] GePlugin Finalize success";
         } else {
@@ -446,6 +458,21 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       if (!res || tf_session_.empty() || ge_session_ == nullptr) {
         OP_REQUIRES_ASYNC(ctx, false, errors::Unavailable("Get ge session failed."), done);
         return;
+      }
+      if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
+        uint32_t device_id = 0;
+        OP_REQUIRES_OK_ASYNC(ctx, GetEnvDeviceID(device_id), done);
+        ADP_LOG(INFO) << "[GEOP] in tuning func, mstune_mode:" << init_options_["ge.jobType"]
+                      << ", work_path:" << init_options_["ge.tuningPath"]
+                      << ", op_tune_mode:" << init_options_["op_tune_mode"]
+                      << ", distribute_config:" << init_options_["distribute_config"];
+        tune_options_.insert(init_options_.begin(), init_options_.end());
+        tune_options_.insert({"devices", std::to_string(device_id)});
+        tune_options_.insert(sess_options_.begin(), sess_options_.end());
+        tune_options_.insert({"work_path", init_options_["ge.tuningPath"]});
+        tune_options_.insert({"job_type", init_options_["ge.jobType"]});
+        AoeStatus tune_ret = (*aoe_init_)(ge_session_, tune_options_);
+        OP_REQUIRES_ASYNC(ctx, tune_ret == AOE_SUCCESS, errors::Internal("[GEOP] exec aoe init func failed."), done);
       }
       ADP_LOG(INFO) << "[GEOP] tf session: " << tf_session_ << " get ge session success.";
       sess_init_flag_ = true;
@@ -652,27 +679,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         return;
       } else {
         ADP_LOG(INFO) << "[GEOP] in tune mode, training graph handled by tools.";
-        uint32_t device_id = 0;
-        OP_REQUIRES_OK_ASYNC(ctx, GetEnvDeviceID(device_id), done);
-        ADP_LOG(INFO) << "[GEOP] in tuning func, mstune_mode:" << init_options_["ge.jobType"]
-                      << ", work_path:" << init_options_["ge.tuningPath"]
-                      << ", op_tune_mode:" << init_options_["op_tune_mode"]
-                      << ", distribute_config:" << init_options_["distribute_config"];
-        std::map<string, string> tune_options = {{"work_path", init_options_["ge.tuningPath"]},
-                                                 {"job_type", init_options_["ge.jobType"]},
-                                                 {"devices", std::to_string(device_id)},
-                                                 {"op_tune_mode", init_options_["op_tune_mode"]},
-                                                 {"distribute_config", init_options_["distribute_config"]}};
-        std::map<std::string, std::map<std::string, std::string>> options;
-        options["mstune"] = tune_options;
-        options["initialize"] = init_options_;
-        options["session"] = sess_options_;
-        options["graph"] = graph_options_;
         std::vector<ge::Graph> ge_graphs;
         OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().GetGeGraphs(ge_session_, ge_graphs),
           errors::Internal("[GEOP] ge ge session nontraining graphs failed."), done);
-        MsTuneStatus tune_ret = (*tuning_api_)(ge_graph, ge_graphs, ge_session_, options);
-        OP_REQUIRES_ASYNC(ctx, tune_ret == MSTUNE_SUCCESS, errors::Internal("[GEOP] exec msTuning func failed."), done);
+        tune_options_.insert(graph_options_.begin(), graph_options_.end());
+        AoeStatus tune_ret = (*aoe_tuning_)(ge_graph, ge_graphs, ge_session_, tune_options_);
+        OP_REQUIRES_ASYNC(ctx, tune_ret == AOE_SUCCESS, errors::Internal("[GEOP] exec aoe tuning func failed."), done);
         ADP_LOG(INFO) << "[GEOP] msTuning success.";
         build_flag_ = true;
         BuildOutTensorInfo(ctx);

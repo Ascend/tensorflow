@@ -42,8 +42,11 @@ limitations under the License.
 #include <unordered_map>
 
 namespace tensorflow {
-using MsTuningFunc = MsTuneStatus (*)(ge::Graph &, std::vector<ge::Graph> &, ge::Session *,
-                      const std::map<std::string, std::map<std::string, std::string>> &);
+using AoeTuningFunc = AoeStatus (*)(ge::Graph &, std::vector<ge::Graph> &, ge::Session *,
+                      const std::map<std::string, std::string> &);
+using AoeInitFunc = AoeStatus (*)(ge::Session *, const std::map<std::string, std::string> &);
+using AoeFinalizeFunc = AoeStatus (*)();
+
 class GeOp : public AsyncOpKernel {
  public:
   explicit GeOp(OpKernelConstruction *ctx);
@@ -131,13 +134,16 @@ class GeOp : public AsyncOpKernel {
   std::map<int, TensorShape> outputs_shape_;
   std::string is_train_graph_;
   void *handle_;
-  MsTuningFunc tuning_api_;
+  AoeTuningFunc aoe_tuning_;
   std::vector<Node*> dynamic_shape_nodes_;
   std::string dynamic_input_;
   std::string dynamic_graph_execute_mode_;
   std::string data_inputs_shape_range_;
   std::string getnext_inputs_shape_range_;
   bool need_compile_graph_first_;
+  AoeInitFunc aoe_init_;
+  AoeFinalizeFunc aoe_finalize_;
+  std::map<string, string> tune_options_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_
