@@ -112,6 +112,7 @@ class GeOp : public AsyncOpKernel {
   bool sess_init_flag_;
   bool compute_graph_empty_;
 
+  std::string inputs_shape_;
   NameAttrList function_;
   std::string data_format_;
   uint32_t graph_id_;
