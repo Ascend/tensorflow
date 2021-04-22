@@ -390,14 +390,23 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
   std::vector<tensorflow::Node *> control_flow_nodes;
   for (auto node : graph->op_nodes()) {
     if (node->IsRetval() && node->input_type(0) == tensorflow::DT_RESOURCE) {
+      if (kDumpExecutionDetail) {
+        const tensorflow::Edge *edge;
+        NPU_REQUIRES_OK(node->input_edge(0, &edge));
+        LOG(INFO) << "Retval " << node->def().DebugString() << " from " << edge->src()->name() << ":"
+                  << edge->src_output() << " will be removed";
+      }
+
       nodes_to_remove.push_back(node);
       continue;
     }
     if (node->IsIfNode() || node->IsCaseNode() || node->IsWhileNode() || node->IsFunctionCall()) {
+      DLOG() << "Start pruning control flow op " << node->def().DebugString();
       std::string func_input_name = node->IsFunctionCall() ? "args" : "input";
       bool need_trans_resource = false;
       for (auto edge : node->in_edges()) {
         if (edge->src()->IsArg() && arg_substitutes.find(edge->src()) != arg_substitutes.end()) {
+          DLOG() << node->name() << " input " << edge->src()->attrs().Find("index")->i() << " is resource arg";
           need_trans_resource = true;
         }
       }
@@ -444,8 +453,8 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
           std::unique_ptr<tensorflow::FunctionBody> fbody;
           FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
           std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
-          TransResourceInput2GraphNode(context, fbody->graph, func_inputs.size(), func_inputs.data(),
-                                       unused_host_resources);
+          NPU_REQUIRES_OK(TransResourceInput2GraphNode(context, fbody->graph, func_inputs.size(), func_inputs.data(),
+                                                       unused_host_resources));
 
           // Arg节点可能会被优化掉，因而需要重新排列index
           std::vector<int> remain_indexes;
@@ -455,7 +464,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
             }
           }
           FixGraphArgRetvalIndex(fbody->graph);
-          DLOG() << func_name << " remained input index (0-" << func_inputs.size() - 1 << ") -> "
+          DLOG() << func_name << " remained input index [0-" << func_inputs.size() << ") -> "
                  << VecToString(remain_indexes);
 
           tensorflow::FunctionDef optimized_fdef;
@@ -541,6 +550,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
       for (auto edge : node->in_edges()) {
         if (edge->IsControlEdge()) {
           graph->AddControlEdge(edge->src(), pruned_node);
+          DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
         }
       }
       for (int i = 0; i < node->num_inputs(); i++) {
@@ -548,14 +558,14 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
         NPU_REQUIRES_OK(node->input_edge(i, &edge));
         if (node->input_type(i) != tensorflow::DT_RESOURCE) {
           graph->AddEdge(edge->src(), edge->src_output(), pruned_node, pruned_input_index++);
+          DLOG() << "Add edge from " << edge->src()->name() << ":" << edge->src_output() << " to "
+                 << pruned_node->name() << ":" << pruned_input_index - 1;
         }
       }
-      for (auto n : graph->op_nodes()) {
-        for (auto edge : n->in_edges()) {
-          if (edge->src() == node) {
-            graph->AddEdge(pruned_node, edge->src_output(), edge->dst(), edge->dst_input());
-          }
-        }
+      for (auto edge : node->out_edges()) {
+        graph->AddEdge(pruned_node, edge->src_output(), edge->dst(), edge->dst_input());
+        DLOG() << "Add edge from " << pruned_node->name() << ":" << edge->src_output() << " to " << edge->dst()->name()
+               << ":" << edge->dst_input();
       }
       graph->RemoveNode(node);
     }
