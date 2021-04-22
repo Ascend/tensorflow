@@ -57,8 +57,11 @@ class NpuAttrs {
   static void LogOptions(const std::map<std::string, std::string>& options);
   static bool GetUseTdtStatus(int32_t device_id);
   static void SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt);
+  static bool GetUseAdpStatus(std::string iterator_name);
+  static void SetUseAdpStatus(std::string iterator_name, bool is_use_adp);
  private:
   static std::map<int32_t, bool> turn_on_tdt_info_;
+  static std::map<std::string, bool> use_adp_info_;
 };
 }  // namespace tensorflow
 

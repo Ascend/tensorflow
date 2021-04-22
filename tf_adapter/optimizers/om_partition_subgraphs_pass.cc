@@ -571,7 +571,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
     }
     if (enableDP
         && (node->type_string() == "Iterator" || node->type_string() == "IteratorV2"
-            || node->type_string() == "IteratorGetNext")) {
+            || node->type_string() == "IteratorGetNext" || node->type_string() == "AdpGetNext")) {
       if (node->type_string() == "IteratorGetNext") {
         for (Node *n : node->in_nodes()) {
           REQUIRES_NOT_NULL(n);
@@ -586,6 +586,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
           if (n->type_string() == "IteratorGetNext") { candidates->insert(node); }
         }
       }
+      if (node->type_string() == "AdpGetNext") { candidates->insert(node); }
     } else {
       // Const down when it need down
       if (node->type_string() == "Const") {
@@ -2023,6 +2024,47 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(Node *node, bool enable
   }
 }
 
+Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, std::string enable_dp,
+        std::vector<Node*> &remove_nodes, Graph *graphIn) {
+  for (auto output_type: node->output_types()) {
+    if (output_type == DT_STRING && enable_dp == "0") {
+      ADP_LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
+      LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
+    }
+  }
+  // fuse Iterator and IteratorGetNext, build new node AdpGetNext.
+  if (enable_dp == "1") {
+    std::string queue_name;
+    Node *iterator_node = nullptr;
+    for (const Edge *e : node->in_edges()) {
+      if (e->src()->type_string() == "Iterator" || e->src()->type_string() == "IteratorV2") {
+        queue_name = e->src()->name();
+        iterator_node = e->src();
+      }
+    }
+    if (NpuAttrs::GetUseAdpStatus(queue_name)) {
+      Node *adp_getnext_node = nullptr;
+      std::string adp_getnext_name = "AdpGetNext_fuse_" + node->name();
+      auto getnext_attrs = node->def().attr();
+      uint32_t device_id = 0;
+      (void)GetEnvDeviceID(device_id);
+      TF_CHECK_OK(NodeBuilder(adp_getnext_name, "AdpGetNext")
+                              .Device(node->def().device())
+                              .Attr("queue_name", "device" + std::to_string(device_id) + "_" + queue_name)
+                              .Attr("output_types", getnext_attrs["output_types"])
+                              .Attr("output_shapes", getnext_attrs["output_shapes"])
+                              .Finalize(&*graphIn, &adp_getnext_node));
+      for (const Edge *e : node->out_edges()) {
+        graphIn->AddEdge(adp_getnext_node, e->src_output(), e->dst(), e->dst_input());
+      }
+      remove_nodes.push_back(node);
+      remove_nodes.push_back(iterator_node);
+      ADP_LOG(INFO) << "Build AdpGetNext success.";
+    }
+  }
+  return Status::OK();
+}
+
 Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                                               const OptimizationPassRegistry::Grouping pass_group_value) {
   int graph_num;
@@ -2114,6 +2156,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   Graph *graphIn = graph->get();
   int getnext_node_count = 0;
   bool include_getnext = false;
+  std::vector<Node*> remove_nodes;
   for (Node *node : graphIn->op_nodes()) {
     if (node->type_string() == "NPUInit") {
       std::string attr_name;
@@ -2126,13 +2169,9 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
 
     if (node->type_string() == "IteratorGetNext") {
       include_getnext = true;
-      for (auto output_type: node->output_types()) {
-        if (output_type == DT_STRING && pass_options["enable_dp"] == "0") {
-          ADP_LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
-          LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";
-        }
-      }
       if (is_set_dynamic_config) { getnext_node_count++; }
+      // fuse Iterator and IteratorGetNext, build new node AdpGetNext.
+      TF_CHECK_OK(ProcessGetNext(node, pass_options["enable_dp"], remove_nodes, graphIn));
     } else if (node->type_string() == "_UnaryOpsComposition") {
       ADP_LOG(INFO) << "begin split _UnaryOpsComposition.";
       Node *pre_node = nullptr;
@@ -2164,6 +2203,10 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     } else if (node->type_string() == "DestroyTemporaryVariable" && node->name().find("AccumulateNV2") != std::string::npos) {
       TF_RETURN_IF_ERROR(AccumulateNFusion(graphIn, node));
     }
+  }
+  for (Node *node : remove_nodes) {
+    ADP_LOG(INFO) << "Remove node: " << node->name();
+    graphIn->RemoveNode(node);
   }
   if (getnext_node_count > 1) {
     ADP_LOG(FATAL) << "dynamic dims func can not support graph with "
