@@ -93,14 +93,19 @@ _thread_local = threading.local()
 
 def never_nested_function(func=None, *args, **kwargs):
     def never_nested_decorator(f):
+        if kwargs.get('experimental_compile'):
+            logging.info("Skip xla compile tf function %s on npu", f.__name__)
+        kwargs['experimental_compile'] = False
         tf_decorated_func = _hacked_tensorflow_function(*args, **kwargs)(f)
 
         def wrapper(*func_args, **func_kwargs):
             if not hasattr(_thread_local, "entrance_function"):
                 _thread_local.entrance_function = None
             if _thread_local.entrance_function is not None:
-                logging.info("Inlining nested tf function %s in %s", f.__name__, _thread_local.entrance_function)
+                logging.info("Inlining nested tf function %s under %s on npu", f.__name__, _thread_local.entrance_function)
                 return f(*func_args, **func_kwargs)
+            logging.info("Compiling tf function %s in thread %s:%d for npu", f.__name__, threading.currentThread().name,
+                         threading.currentThread().ident)
             _thread_local.entrance_function = f.__name__
             result = tf_decorated_func(*func_args, **func_kwargs)
             _thread_local.entrance_function = None
