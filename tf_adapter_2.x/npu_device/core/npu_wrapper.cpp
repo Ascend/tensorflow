@@ -36,6 +36,7 @@
 
 #include "npu_device_register.h"
 #include "npu_global.h"
+#include "npu_micros.h"
 
 namespace py = pybind11;
 
@@ -119,6 +120,19 @@ PYBIND11_MODULE(_npu_device_backends, m) {
               return "Failed start tensorflow model parser:" + ge::StatusFactory::Instance()->GetErrDesc(ge_status);
             }
             LOG(INFO) << "Start tensorflow model parser succeed";
+            aclrtContext global_rt_ctx = nullptr;
+            auto status = [&global_rt_ctx, device_index]() -> tensorflow::Status {
+              NPU_REQUIRES_ACL_OK("Acl create rts ctx failed", aclrtCreateContext(&global_rt_ctx, device_index));
+              return tensorflow::Status::OK();
+            }();
+            if (!status.ok()) {
+              return status.error_message();
+            }
+            npu::global::RtsCtx::SetGlobalCtx(global_rt_ctx);
+            status = npu::global::RtsCtx::EnsureInitialized();
+            if (!status.ok()) {
+              return status.error_message();
+            }
           }
 
           std::string full_name = tensorflow::strings::StrCat(device_name, ":", device_index);

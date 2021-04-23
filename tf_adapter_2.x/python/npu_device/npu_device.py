@@ -104,8 +104,6 @@ def never_nested_function(func=None, *args, **kwargs):
             if _thread_local.entrance_function is not None:
                 logging.info("Inlining nested tf function %s under %s on npu", f.__name__, _thread_local.entrance_function)
                 return f(*func_args, **func_kwargs)
-            logging.info("Compiling tf function %s in thread %s:%d for npu", f.__name__, threading.currentThread().name,
-                         threading.currentThread().ident)
             _thread_local.entrance_function = f.__name__
             result = tf_decorated_func(*func_args, **func_kwargs)
             _thread_local.entrance_function = None

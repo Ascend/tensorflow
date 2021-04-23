@@ -173,6 +173,7 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
 tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
                                             ge::DataType data_type, ge::Format origin_format,
                                             const std::vector<int64_t> &origin_shape, NpuManagedBuffer **buf) {
+  NPU_REQUIRES_OK(npu::global::RtsCtx::EnsureInitialized());
   size_t total_bytes;
   int dtype_size = ge::GetSizeByDataType(data_type);
   NPU_REQUIRES(dtype_size > 0,
@@ -225,6 +226,7 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
 void NpuManagedBuffer::Destroy(NpuManagedBuffer *buf) { delete buf; }
 
 tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor) {
+  NPU_REQUIRES_OK(npu::global::RtsCtx::EnsureInitialized());
   NPU_REQUIRES(tensor != nullptr,
                tensorflow::errors::InvalidArgument("Failed assemble npu buffer to cpu as dst cpu tensor is nullptr"));
   DLOG() << "Npu buffer " << DebugString() << " assemble to " << tensor->DebugString();
@@ -250,6 +252,7 @@ tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor
 }
 
 tensorflow::Status NpuManagedBuffer::AssembleFrom(const tensorflow::Tensor *tensor) {
+  NPU_REQUIRES_OK(npu::global::RtsCtx::EnsureInitialized());
   NPU_REQUIRES(tensor != nullptr,
                tensorflow::errors::InvalidArgument("Failed assemble npu buffer from cpu as dst cpu tensor is nullptr"));
   DLOG() << "Npu buffer " << DebugString() << " assemble from " << tensor->DebugString();
