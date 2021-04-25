@@ -82,7 +82,11 @@ class IteratorH2D : public OpKernel {
       }
 
       for (const auto &channel : channels_) {
-        OP_REQUIRES_OK(ctx, channel->SendTensors(components));
+        status = channel->SendTensors(components);
+        if (!status.ok()) {  // suppress warning message for OP_REQUIRES_OK
+          ctx->SetStatus(status);
+          return;
+        }
       }
     }
 

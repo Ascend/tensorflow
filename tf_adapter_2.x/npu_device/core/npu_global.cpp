@@ -24,8 +24,10 @@ void RtsCtx::SetGlobalCtx(aclrtContext global_ctx) {
 
 // 存在rtMalloc和rtFree在不同线程操作的情况，这里保证全局唯一的ctx，因而不保证任何在NPU初始化完成前对rts的接口调用成功
 tensorflow::Status RtsCtx::EnsureInitialized() {
-  if (global_ctx_set_) {
+  static thread_local bool already_set{false};
+  if (!already_set && global_ctx_set_) {
     NPU_REQUIRES_ACL_OK("Acl set current thread ctx failed", aclrtSetCurrentContext(global_ctx_));
+    already_set = true;
   }
   return tensorflow::Status::OK();
 }
