@@ -400,9 +400,9 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
       nodes_to_remove.push_back(node);
       continue;
     }
-    if (node->IsIfNode() || node->IsCaseNode() || node->IsWhileNode() || node->IsFunctionCall()) {
+    if (node->IsIfNode() || node->IsCaseNode() || node->IsWhileNode() || node->IsPartitionedCall()) {
       DLOG() << "Start pruning control flow op " << node->def().DebugString();
-      std::string func_input_name = node->IsFunctionCall() ? "args" : "input";
+      std::string func_input_name = node->IsPartitionedCall() ? "args" : "input";
       bool need_trans_resource = false;
       for (auto edge : node->in_edges()) {
         if (edge->src()->IsArg() && arg_substitutes.find(edge->src()) != arg_substitutes.end()) {
@@ -509,7 +509,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
   }
 
   for (auto node : control_flow_nodes) {
-    if (node->IsWhileNode() || node->IsIfNode() || node->IsCaseNode() || node->IsFunctionCall()) {
+    if (node->IsWhileNode() || node->IsIfNode() || node->IsCaseNode() || node->IsPartitionedCall()) {
       tensorflow::NodeDef ndef = node->def();
       if (node->IsWhileNode()) {
         int removed_nums = 0;
@@ -527,9 +527,9 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
             shape->erase(shape->begin() + index);
           }
         }
-      } else if (node->IsIfNode() || node->IsCaseNode() || node->IsFunctionCall()) {
+      } else if (node->IsIfNode() || node->IsCaseNode() || node->IsPartitionedCall()) {
         int removed_nums = 0;
-        int arg_start_index = node->IsFunctionCall() ? 0 : 1;
+        int arg_start_index = node->IsPartitionedCall() ? 0 : 1;
         for (int i = arg_start_index; i < node->num_inputs(); i++) {
           if (node->input_type(i) == tensorflow::DT_RESOURCE) {
             int index = i - removed_nums;
