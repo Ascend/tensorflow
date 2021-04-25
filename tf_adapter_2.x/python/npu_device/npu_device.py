@@ -42,10 +42,37 @@ def global_options():
     return _global_options
 
 
+class _ContextWithDefaultDevice(context.Context):
+    def __init__(self, device=''):
+        self.__default_device = device
+        self.__default_device_spec = pydev.DeviceSpec.from_string(device)  # Must set before super init
+        super().__init__()
+
+    @property
+    def _thread_local_data(self):
+        if not self.__thread_local_data.device_name:
+            self.__thread_local_data.device_name = self.__default_device
+            self.__thread_local_data.device_spec = self.__default_device_spec
+        return self.__thread_local_data
+
+    @_thread_local_data.setter
+    def _thread_local_data(self, value):
+        self.__thread_local_data = value
+
+    @property
+    def default_device(self):
+        return self.__default_device
+
+    @default_device.setter
+    def default_device(self, value):
+        self.__default_device = value
+        self.__default_device_spec = pydev.DeviceSpec.from_string(value)
+
+
 def open(device_id=None):
     global_kw_options = global_options().as_dict()
 
-    ctx = context.context()
+    ctx = _ContextWithDefaultDevice()
     ctx.ensure_initialized()
 
     if device_id is None:
@@ -70,7 +97,9 @@ def open(device_id=None):
     error_message = _npu_device_backends.Open(ctx._handle, NPU, device_id, global_kw_options, device_options)
     if len(error_message):
         raise RuntimeError("Failed open npu device " + str(device_id) + ":" + error_message)
-    return NpuDeviceHandle(ctx, device_id, workers_num, worker_id)
+
+    context._set_context(ctx)
+    return NpuDeviceHandle(ctx, device_id, device_options, workers_num, worker_id)
 
 
 def close():
@@ -102,7 +131,8 @@ def never_nested_function(func=None, *args, **kwargs):
             if not hasattr(_thread_local, "entrance_function"):
                 _thread_local.entrance_function = None
             if _thread_local.entrance_function is not None:
-                logging.info("Inlining nested tf function %s under %s on npu", f.__name__, _thread_local.entrance_function)
+                logging.info("Inlining nested tf function %s under %s on npu", f.__name__,
+                             _thread_local.entrance_function)
                 return f(*func_args, **func_kwargs)
             _thread_local.entrance_function = f.__name__
             result = tf_decorated_func(*func_args, **func_kwargs)
@@ -118,9 +148,11 @@ def never_nested_function(func=None, *args, **kwargs):
 
 
 class NpuDeviceHandle(object):
-    def __init__(self, ctx, device_id, workers_num, worker_id):
+    def __init__(self, ctx, device_id, device_options, workers_num, worker_id):
         self._ctx = ctx
+        self._device_id = device_id
         self._device_name = NPU + ":" + str(device_id)
+        self._device_options = device_options
         self.workers_num = workers_num
         self.worker_id = worker_id
 
@@ -151,9 +183,9 @@ class NpuDeviceHandle(object):
             return combined()
 
         ops.device = _f
-        self._ctx._set_device(self._device_name, pydev.DeviceSpec.from_string(self._device_name))
-
         tf.function = never_nested_function
+
+        self._ctx.default_device = self._device_name
 
         global _global_npu_ctx
         _global_npu_ctx = self
