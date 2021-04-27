@@ -44,9 +44,9 @@ class AssignVariableGraphBuilder {
                                  .Finalize(&graph, &variable),
                                gdef);
     NPU_CTX_REQUIRES_OK_RETURN(status,
-                               tensorflow::NodeBuilder(op_name + "_Value_" + shared_name, "Const")
-                                 .Attr("value", tensor)
-                                 .Attr("dtype", tensor.dtype())
+                               tensorflow::NodeBuilder(op_name + "_Value_" + shared_name, "_Arg")
+                                 .Attr("T", tensor.dtype())
+                                 .Attr("index", 0)
                                  .Finalize(&graph, &value),
                                gdef);
     NPU_CTX_REQUIRES_OK_RETURN(status,
@@ -104,11 +104,10 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
     LOG(INFO) << "NPU Dump variable resource init graph to: " << file_name;
   }
 
+  dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_init_graph, 1, &value_handle, num_outputs, outputs, status);
   for (auto copied_tensor_handle : copied_tensor_handles) {
     TFE_DeleteTensorHandle(copied_tensor_handle);
   }
-  dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_init_graph, num_inputs, inputs, num_outputs, outputs,
-                                  status);
 }
 
 }  // namespace
