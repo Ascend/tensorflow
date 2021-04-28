@@ -1119,7 +1119,7 @@ void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **o
     DLOG() << "NPU Executing " << op_name << " fallback[" << spec->FallbackReason() << "]";
     FallbackCPU(context, op_name, attributes, inputs.size(), inputs.data(), num_outputs, outputs, s);
     if (TF_GetCode(s) != TF_OK) {
-      LOG(ERROR) << "NPU Executing " << op_name << " fallback failed";
+      LOG(ERROR) << "NPU Executing " << op_name << " fallback failed" << s->status.ToString();
       std::stringstream ss;
       ss << spec->DebugString() << std::endl;
       for (int i = 0; i < num_inputs; i++) {
