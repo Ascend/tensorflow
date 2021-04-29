@@ -148,7 +148,7 @@ class OptimizeStageGraphDumper {
   }
 
   void DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
-                              tensorflow::FunctionLibraryDefinition *lib_def) {
+                         tensorflow::FunctionLibraryDefinition *lib_def) {
     tensorflow::GraphDef copied_graph_def = graph_def;
     *copied_graph_def.mutable_library() = CollectGraphSubGraphs(graph_def, lib_def);
     Dump(stage, copied_graph_def);
@@ -1170,8 +1170,8 @@ void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **o
   if (spec->ShouldFallback()) {
     DLOG() << "NPU Executing " << op_name << " fallback[" << spec->FallbackReason() << "]";
     FallbackCPU(context, op_name, attributes, inputs.size(), inputs.data(), num_outputs, outputs, s);
-    if (TF_GetCode(s) != TF_OK) {
-      LOG(ERROR) << "NPU Executing " << op_name << " fallback failed" << s->status.ToString();
+    if (TF_GetCode(s) != TF_OK && kDumpExecutionDetail) {
+      LOG(INFO) << "NPU Executing " << op_name << " fallback status: " << s->status.ToString();
       std::stringstream ss;
       ss << spec->DebugString() << std::endl;
       for (int i = 0; i < num_inputs; i++) {
@@ -1182,7 +1182,7 @@ void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **o
         ss << "input " << i << " " << tensorflow::DataTypeString(tensor->dtype()) << " device "
            << npu::UnwrapHandle(inputs[i])->DeviceName(&status) << std::endl;
       }
-      LOG(ERROR) << ss.str();
+      LOG(INFO) << ss.str();
     }
   } else {
     DLOG() << "NPU Executing " << op_name << " dispatched to npu executor";
