@@ -1577,7 +1577,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       done(tensorflow::errors::OutOfRange("Graph engine process graph ", graph_id, " reach end of sequence"));
       return;
     } else if (s != ge::SUCCESS) {
-      std::string err_msg = ge::StatusFactory::Instance()->GetErrDesc(s);
+      std::string err_msg = ge::GEGetErrorMsg();
       if (err_msg.empty()) {
         err_msg = "<unknown error> code:" + std::to_string(s);
       }

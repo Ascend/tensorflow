@@ -112,12 +112,12 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             }
             auto ge_status = ge::GEInitialize(global_options);
             if (ge_status != ge::SUCCESS) {
-              return "Failed start graph engine:" + ge::StatusFactory::Instance()->GetErrDesc(ge_status);
+              return "Failed start graph engine:" + ge::GEGetErrorMsg();
             }
             LOG(INFO) << "Start graph engine succeed";
             ge_status = ge::ParserInitialize(global_options);
             if (ge_status != ge::SUCCESS) {
-              return "Failed start tensorflow model parser:" + ge::StatusFactory::Instance()->GetErrDesc(ge_status);
+              return "Failed start tensorflow model parser:" + ge::GEGetErrorMsg();
             }
             LOG(INFO) << "Start tensorflow model parser succeed";
             aclrtContext global_rt_ctx = nullptr;
@@ -155,7 +155,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     if (graph_engine_started.exchange(false)) {
       auto ge_status = ge::ParserFinalize();
       if (ge_status != ge::SUCCESS) {
-        LOG(ERROR) << "Failed stop tensorflow model parser:" << ge::StatusFactory::Instance()->GetErrDesc(ge_status);
+        LOG(ERROR) << "Failed stop tensorflow model parser:" << ge::GEGetErrorMsg();
       } else {
         LOG(INFO) << "Stop tensorflow model parser succeed";
       }
@@ -164,7 +164,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
       npu::global::dev_memory_shared_lock.unlock();
       ge_status = ge::GEFinalize();
       if (ge_status != ge::SUCCESS) {
-        LOG(ERROR) << "Failed stop graph engine:" << ge::StatusFactory::Instance()->GetErrDesc(ge_status);
+        LOG(ERROR) << "Failed stop graph engine:" << ge::GEGetErrorMsg();
       } else {
         LOG(INFO) << "Stop graph engine succeed";
       }
