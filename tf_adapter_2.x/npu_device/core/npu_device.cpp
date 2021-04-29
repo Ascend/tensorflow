@@ -98,6 +98,67 @@ bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
   DLOG() << "Reserved nodes " << reserved_nums << " vs. totally " << graph->num_op_nodes();
   return reserved_nums == graph->num_op_nodes();
 }
+
+tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef &gdef,
+                                                     tensorflow::FunctionLibraryDefinition *lib_def) {
+  tensorflow::FunctionDefLibrary fdef_lib;
+
+  std::unordered_set<std::string> related_function_names;
+  std::queue<const tensorflow::FunctionDef *> related_functions;
+  for (const auto &n : gdef.node()) {
+    for (const auto &attr : n.attr()) {
+      if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
+        const auto *f = lib_def->Find(attr.second.func().name());
+        if (f != nullptr) {
+          *fdef_lib.add_function() = *f;
+          related_functions.push(f);
+        } else {
+          LOG(ERROR) << "Function " << attr.second.func().name() << " not found";
+        }
+      }
+    }
+  }
+
+  while (!related_functions.empty()) {
+    const auto *f = related_functions.front();
+    related_functions.pop();
+    for (const auto &n : f->node_def()) {
+      for (const auto &attr : n.attr()) {
+        if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
+          const auto *f_inner = lib_def->Find(attr.second.func().name());
+          if (f_inner != nullptr) {
+            *fdef_lib.add_function() = *f_inner;
+            related_functions.push(f_inner);
+          } else {
+            LOG(ERROR) << "Function " << attr.second.func().name() << " not found";
+          }
+        }
+      }
+    }
+  }
+  return fdef_lib;
+}
+
+class OptimizeStageGraphDumper {
+ public:
+  explicit OptimizeStageGraphDumper(const std::string &graph) : graph_(graph), counter_(0) {}
+  void Dump(const std::string &stage, const tensorflow::GraphDef &graph_def) {
+    WriteTextProto(tensorflow::Env::Default(), graph_ + "." + std::to_string(counter_++) + "." + stage + ".pbtxt",
+                   graph_def);
+  }
+
+  void DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
+                              tensorflow::FunctionLibraryDefinition *lib_def) {
+    tensorflow::GraphDef copied_graph_def = graph_def;
+    *copied_graph_def.mutable_library() = CollectGraphSubGraphs(graph_def, lib_def);
+    Dump(stage, copied_graph_def);
+  }
+
+ private:
+  std::string graph_;
+  int counter_;
+};
+
 }  // namespace
 
 void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::Tensor *tensor,
@@ -923,17 +984,17 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
     FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice(&ndef.attr()), lib_def, &fbody);
     CopyGraph(*fbody->graph, optimize_graph.get());
-    std::string file_name_suffix = std::string(op_name) + ".pbtxt";
+
+    OptimizeStageGraphDumper graph_dumper(op_name);
+
     if (kDumpExecutionDetail || kDumpGraph) {
-      WriteTextProto(tensorflow::Env::Default(), "step_0_before_optimize_" + file_name_suffix,
-                     optimize_graph->ToGraphDefDebug());
+      graph_dumper.DumpWithSubGraphs("before_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
     }
 
     tensorflow::OptimizeGraph(flr, &optimize_graph);
 
     if (kDumpExecutionDetail || kDumpGraph) {
-      WriteTextProto(tensorflow::Env::Default(), "step_1_after_optimize_" + file_name_suffix,
-                     optimize_graph->ToGraphDefDebug());
+      graph_dumper.DumpWithSubGraphs("after_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
     }
 
     std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources;
@@ -941,8 +1002,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       s, TransResourceInput2GraphNode(context, optimize_graph.get(), num_inputs, inputs, dependent_host_resources));
 
     if (kDumpExecutionDetail || kDumpGraph) {
-      WriteTextProto(tensorflow::Env::Default(), "step_2_after_assemble_resource_node_" + file_name_suffix,
-                     optimize_graph->ToGraphDefDebug());
+      graph_dumper.DumpWithSubGraphs("after_replace_resource_inputs", optimize_graph->ToGraphDefDebug(), lib_def);
     }
 
     PruneFunction(*fdef, optimize_graph.get());
@@ -963,14 +1023,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     FixGraphArgRetvalIndex(optimize_graph.get());  // Arg节点可能会被优化掉，因而需要重新排列index，并且prune输入
 
     if (kDumpExecutionDetail || kDumpGraph) {
-      tensorflow::GraphDef gdef;
-      optimize_graph->ToGraphDef(&gdef);
-      tensorflow::FunctionDefLibrary fdef_lib;
-      for (const auto &fn : lib_def->ListFunctionNames()) {
-        *fdef_lib.add_function() = *lib_def->Find(fn);
-      }
-      *gdef.mutable_library() = fdef_lib;
-      WriteTextProto(tensorflow::Env::Default(), "step_3_after_mark_shape_" + file_name_suffix, gdef);
+      graph_dumper.DumpWithSubGraphs("after_mark_node_shape", optimize_graph->ToGraphDefDebug(), lib_def);
     }
 
     DLOG() << op_name << " remained input index (0-" << num_inputs - 1 << ") -> " << VecToString(remain_indexes);
@@ -991,11 +1044,10 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       auto loop_graph = std::make_unique<tensorflow::GraphDef>();
       NPU_CTX_REQUIRES_OK(s, GetAutoLoopGraph(context, optimize_graph.get(), pruned_inputs.size(), pruned_inputs.data(),
                                               loop, loop_graph.get()));
-      if (loop) {
-        LOG(INFO) << "Trans graph " << op_name << " to auto loop graph succeed";
-        if (kDumpExecutionDetail || kDumpGraph) {
-          WriteTextProto(tensorflow::Env::Default(), "LOOP." + std::string(op_name) + ".pbtxt", *loop_graph);
-        }
+
+      LOG(INFO) << "Graph " << op_name << " can loop: " << (loop ? "true" : "false");
+      if (kDumpExecutionDetail || kDumpGraph) {
+        graph_dumper.DumpWithSubGraphs((loop ? "LOOP" : "NON-LOOP"), *loop_graph, lib_def);
       }
       graph_id = AddGeGraphInner(context, NextUUID(), op_name, *loop_graph, loop, s);
       if (TF_GetCode(s) != TF_OK) return;
