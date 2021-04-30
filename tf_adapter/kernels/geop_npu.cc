@@ -484,8 +484,18 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
             << ", kernel_name:" << geop_name << ", num_inputs:" << num_inputs << ", num_outputs:" << ctx->num_outputs();
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   std::vector<std::string> input_shapes;
+  std::string cur_inputs_shape;
   for (int i = 0; i < ctx->num_inputs(); i++) {
-    input_shapes.push_back(ctx->input(i).shape().DebugString());
+    std::string input_shape = ctx->input(i).shape().DebugString();
+    input_shapes.push_back(input_shape);
+    cur_inputs_shape += input_shape;
+  }
+  if (inputs_shape_.empty()) {
+    inputs_shape_ = cur_inputs_shape;
+  } else if ((inputs_shape_ != cur_inputs_shape) && ("1" != dynamic_input_)) {
+    OP_REQUIRES_ASYNC(ctx, false, errors::Internal("The input shape of ", ctx->op_kernel().name(),
+                      " is dynamic, please set dynamic_input=True."), done);
+    return;
   }
 
   // if input shapes changed, cache graphs
