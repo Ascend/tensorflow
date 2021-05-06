@@ -12,6 +12,10 @@ if [ "$(arch)" != "x86_64" ];then
   exit 0
 fi
 
+if [ ! -f "/home/jenkins/tensorflow24/.env/bin/activate" ];then
+  exit 0
+fi
+
 source /home/jenkins/tensorflow24/.env/bin/activate
 
 PYTHON_BIN_PATH=$(which python3.7)
