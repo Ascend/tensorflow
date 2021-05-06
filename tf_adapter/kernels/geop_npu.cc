@@ -76,8 +76,28 @@ using namespace tdt;
 namespace tensorflow {
 Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library);
 namespace {
+using geDataUniquePtr = std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>>;
+
+class NpuHostFixedAllocator : public tensorflow::Allocator {
+ public:
+  static tensorflow::Allocator *Create(geDataUniquePtr ptr) {
+    return new (std::nothrow) NpuHostFixedAllocator(std::move(ptr));
+  }
+ private:
+  explicit NpuHostFixedAllocator(geDataUniquePtr ptr) : ptr_(std::move(ptr)) {
+    ADP_LOG(INFO) << "[GEOP] Zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
+  }
+  ~NpuHostFixedAllocator() override {
+    ADP_LOG(INFO) << "[GEOP] Release zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
+  }
+  std::string Name() override { return "NpuHostFixedAllocator"; }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
+  void DeallocateRaw(void *ptr) override { delete this; }
+  geDataUniquePtr ptr_;
+};
+
 inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
-Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::OutputTensorInfo> &outputs) {
+Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outputs) {
   // ctx is not nullptr
   int num_outputs = ctx->num_outputs();
   ADP_LOG(INFO) << "BuildOutputTensorInfo, num_outputs:" << num_outputs;
@@ -89,70 +109,41 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::OutputTensorI
 
   // populate outputs
   for (int i = 0; i < num_outputs; ++i) {
-    ge::OutputTensorInfo &output = outputs[i];
+    ge::Tensor &output = outputs[i];
+    std::vector<int64_t> ge_output_dims = output.GetTensorDesc().GetShape().GetDims();
     std::vector<int64> dims;
-    std::string dim_string;
-    for (int64_t dim : output.dims) {
+    for (int64_t dim : ge_output_dims) {
       dims.push_back(dim);
-      dim_string = dim_string + " " + std::to_string(dim);
     }
     TensorShape out_shape(dims);
-    Tensor *tensor = nullptr;
-    TF_RETURN_IF_ERROR(ctx->allocate_output(i, out_shape, &tensor));
-    REQUIRES_NOT_NULL(tensor);
-    size_t total_bytes = tensor->TotalBytes();
-    void *tensor_ptr = DMAHelper::base(tensor);
-    if (total_bytes != static_cast<size_t>(output.length)) {
-      ADP_LOG(ERROR) << "[GEOP] Outputs len mismatched, index:" << i << ", alloc output:" << total_bytes
-                     << ", while GE return:" << output.length;
-      LOG(ERROR) << "[GEOP] Outputs len mismatched, index:" << i << ", alloc output:" << total_bytes
-                 << ", while GE return:" << output.length;
-      return errors::InvalidArgument("Outputs num mismatched, index:", i, ", alloc output:", total_bytes,
-                                     ", while GE return:", outputs[i].length);
-    }
-    ADP_LOG(INFO) << "BuildOutputTensorInfo, output index:" << i << ", total_bytes:" << total_bytes
-              << ", shape:" << dim_string << ", tensor_ptr:" << reinterpret_cast<uintptr_t>(tensor_ptr) << ", output"
-              << reinterpret_cast<uintptr_t>(output.data.get());
-    if (total_bytes == 0) {
-      ADP_LOG(INFO) << "BuildOutputTensorInfo, output index:" << i << ", total_bytes is 0, continue do next. ";
-      continue;
-    }
+    ADP_LOG(INFO) << "[GEOP] Get ge output tensor shape is: " << out_shape.DebugString();
+    const DataType out_type = ctx->op_kernel().output_type(i);
 
-    if (output.data != nullptr) {
-      void *dst_ptr = tensor_ptr;
-      void *src_ptr = static_cast<void *>(output.data.get());
-      size_t left_size = total_bytes;
-      while (left_size > SECUREC_MEM_MAX_LEN) {
-        REQUIRES_NOT_NULL(dst_ptr);
-        auto err = memcpy_s(dst_ptr, SECUREC_MEM_MAX_LEN, src_ptr, SECUREC_MEM_MAX_LEN);
-        if (err != EOK) {
-          ADP_LOG(ERROR) << "[GEOP] Outputs mem copy failed, index:" << i << ", errret:" << err
-                         << ", dst_ptr:" << (uintptr_t) dst_ptr << ", dst_size:" << SECUREC_MEM_MAX_LEN
-                         << ", src_ptr:" << (uintptr_t) src_ptr << ", src_size:" << SECUREC_MEM_MAX_LEN;
-          LOG(ERROR) << "[GEOP] Outputs mem copy failed, index:" << i << ", errret:" << err
-                     << ", dst_ptr:" << (uintptr_t) dst_ptr << ", dst_size:" << SECUREC_MEM_MAX_LEN
-                     << ", src_ptr:" << (uintptr_t) src_ptr << ", src_size:" << SECUREC_MEM_MAX_LEN;
-          return errors::InvalidArgument("Outputs mem copy failed, index:", i);
-        }
-        left_size -= SECUREC_MEM_MAX_LEN;
-
-        dst_ptr = static_cast<void *>(static_cast<char *>(dst_ptr) + SECUREC_MEM_MAX_LEN);
-        src_ptr = static_cast<void *>(static_cast<char *>(src_ptr) + SECUREC_MEM_MAX_LEN);
+    geDataUniquePtr data_ptr = std::move(output.ResetData());
+    if (data_ptr == nullptr) {
+      ADP_LOG(ERROR) << "[GEOP] Get ge output data ptr failed, data ptr is null.";
+      return errors::Internal("[GEOP] Get ge output data ptr failed, data ptr is null.");
+    }
+    const static int64_t kTensorAlignBytes = 64;
+    if (reinterpret_cast<uintptr_t>(data_ptr.get()) % kTensorAlignBytes == 0) {
+      ADP_LOG(INFO) << "[GEOP] Zero copy ge tensor " << reinterpret_cast<uintptr_t>(data_ptr.get())
+                    << " as aligned with " << kTensorAlignBytes << " bytes";
+      Allocator *allocator = NpuHostFixedAllocator::Create(std::move(data_ptr));
+      Tensor cpu_tensor(allocator, out_type, out_shape);
+      size_t output_size = output.GetSize();
+      if (output_size != cpu_tensor.TotalBytes()) {
+        LOG(ERROR) << "[GEOP] Graph engine process graph success but output " << i << " total bytes "
+                   << output_size << " mismatched with expected " << cpu_tensor.TotalBytes();
+        return errors::Internal("Graph engine process graph success but output length mismatched with expected.");
       }
-      REQUIRES_NOT_NULL(dst_ptr);
-      REQUIRES_NOT_NULL(src_ptr);
-      auto err = memcpy_s(dst_ptr, left_size, src_ptr, left_size);
-      if (err != EOK) {
-        ADP_LOG(ERROR) << "[GEOP] Outputs mem copy failed, index:" << i << ", errret:" << err
-                       << ", dst_ptr:" << (uintptr_t)dst_ptr << ", dst_size:" << left_size
-                       << ", src_ptr:" << (uintptr_t)src_ptr << ", src_size:" << left_size;
-        LOG(ERROR) << "[GEOP] Outputs mem copy failed, index:" << i << ", errret:" << err
-                   << ", dst_ptr:" << (uintptr_t)dst_ptr << ", dst_size:" << left_size
-                   << ", src_ptr:" << (uintptr_t)src_ptr << ", src_size:" << left_size;
-        return errors::InvalidArgument("Outputs mem copy failed, index:", i);
-      }
+      ctx->set_output(i, cpu_tensor);
+    } else {
+      ADP_LOG(ERROR) << "[GEOP] Skip zero copy as ge tensor, " << reinterpret_cast<uintptr_t>(data_ptr.get())
+                     << " not aligned with " << kTensorAlignBytes << " bytes";
+      return errors::Internal("[GEOP] Skip zero copy ge tensor, bytes not aligned with expected.");
     }
   }
+  ADP_LOG(INFO) << "[GEOP] Build output tensor info success.";
   return Status::OK();
 }
 
@@ -730,7 +721,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_counts_.push_back(std::make_pair(input_shapes, 1));
     }
     if (need_compile_graph_first_) {
-      std::vector<ge::InputTensorInfo> inputs;
+      std::vector<ge::Tensor> inputs;
       OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, inputs)), done);
       ge::Status status = ge_session_->BuildGraph(cache_graph_id, inputs);
       if (status != ge::SUCCESS) {
@@ -765,7 +756,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   int64 run_start_time = InferShapeUtil::GetCurrentTimestap();
-  auto callback = [done, ctx, run_start_time](ge::Status ge_status, std::vector<ge::OutputTensorInfo> &outputs) {
+  auto callback = [done, ctx, run_start_time](ge::Status ge_status, std::vector<ge::Tensor> &outputs) {
     if (ge_status == ge::SUCCESS) {
       if (BuildOutputTensorInfo(ctx, outputs) != Status::OK()) {
         ADP_LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
@@ -790,7 +781,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                   << ctx->op_kernel().name() << "[ " << (run_end_time - run_start_time) << "us]";
     done();
   };
-  std::vector<ge::InputTensorInfo> inputs;
+  std::vector<ge::Tensor> inputs;
   OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, inputs)), done);
 
   ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name:" << geop_name << " ,tf session: " << tf_session_
@@ -1041,7 +1032,7 @@ void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
   }
 }
 
-Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::InputTensorInfo> &inputs) {
+Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &inputs) {
   // ctx is not nullptr
   int num_inputs = ctx->num_inputs();
 
@@ -1053,7 +1044,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::InputTen
     size_t total_bytes = tensor.TotalBytes();
     void *tensor_ptr = DMAHelper::base(&tensor);
 
-    ge::InputTensorInfo input;
+    ge::Tensor input;
     std::shared_ptr<domi::ModelParser> model_parser =
         domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
     REQUIRES_NOT_NULL(model_parser);
@@ -1063,12 +1054,13 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::InputTen
       LOG(ERROR) << "[GEOP] No Supported datatype : " << data_type;
       return errors::InvalidArgument("No Supported datatype : ", data_type);
     }
-    input.data_type = static_cast<uint32_t>(type);
-    input.dims.clear();
-    for (uint32_t dim : tensor.shape().dim_sizes()) { input.dims.push_back(static_cast<int64_t>(dim)); }
-    input.data = tensor_ptr;
-    input.length = static_cast<int64_t>(total_bytes);
-
+    std::vector<int64_t> dims;
+    for (uint32_t dim : tensor.shape().dim_sizes()) { dims.push_back(static_cast<int64_t>(dim)); }
+    ge::Shape ge_shape(dims);
+    ge::TensorDesc ge_tensor_desc(ge_shape);
+    ge_tensor_desc.SetDataType(type);
+    input.SetTensorDesc(ge_tensor_desc);
+    input.SetData(static_cast<uint8_t*>(tensor_ptr), total_bytes);
     inputs.push_back(input);
   }
   return Status::OK();

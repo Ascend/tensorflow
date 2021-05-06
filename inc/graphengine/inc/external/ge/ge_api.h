@@ -128,7 +128,7 @@ class GE_FUNC_VISIBILITY Session {
   /// @param [in] inputs: input data
   /// @return Status result of function
   ///
-  Status BuildGraph(uint32_t graphId, const std::vector<InputTensorInfo> &inputs);
+  Status BuildGraph(uint32_t graphId, const std::vector<ge::Tensor> &inputs);
 
   ///
   /// @ingroup ge_graph
@@ -140,7 +140,7 @@ class GE_FUNC_VISIBILITY Session {
   ///                        Please ensure that the implementation of the function is trusted.
   /// @return Status result of function
   ///
-  Status RunGraphAsync(uint32_t graphId, const std::vector<ge::InputTensorInfo> &inputs, RunAsyncCallback callback);
+  Status RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &inputs, RunAsyncCallback callback);
 
   ///
   /// @ingroup ge_graph

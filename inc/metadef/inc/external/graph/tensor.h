@@ -104,6 +104,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY TensorDesc {
 class TensorImpl;
 class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Tensor {
  public:
+  using DeleteFunc = std::function<void(uint8_t *)>;
   Tensor();
   ~Tensor() = default;
   explicit Tensor(const TensorDesc &tensorDesc);
@@ -117,6 +118,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Tensor {
   const uint8_t *GetData() const;
   uint8_t *GetData();
   size_t GetSize() const;
+  std::unique_ptr<uint8_t[], Tensor::DeleteFunc> ResetData();
 
   graphStatus SetData(std::vector<uint8_t> &&data);
   graphStatus SetData(const std::vector<uint8_t> &data);
