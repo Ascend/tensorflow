@@ -78,25 +78,29 @@ def open(device_id=None):
     if device_id is None:
         device_id = int(os.getenv("ASCEND_DEVICE_ID", 0))
 
-    workers_num = 1
-    worker_id = 0
-    rank_table = os.getenv("RANK_TABLE_FILE")
-    if rank_table is not None and len(rank_table.strip()) > 0:
-        try:
-            workers_num = int(os.getenv('RANK_SIZE'))
-            worker_id = int(os.getenv('RANK_ID'))
-        except:
-            raise RuntimeError('RANK_TABLE_FILE is set, but RANK_SIZE and RANK_ID are not set correctly')
-        if not (workers_num > worker_id >= 0):
-            raise RuntimeError('RANK_TABLE_FILE is set, but RANK_SIZE and RANK_ID are not set correctly')
-        if workers_num > 1:
-            global_kw_options['_distribute.rank_id'] = str(worker_id)
-            global_kw_options['_distribute.rank_table'] = str(rank_table)
+    workers_num = int(os.getenv('RANK_SIZE', 1))
+    if workers_num > 1:
+        env_rank_table = os.getenv("RANK_TABLE_FILE")
+        env_worker_id = os.getenv('RANK_ID')
+        if not env_rank_table:
+            raise RuntimeError('You must specify a rank table file by set env RANK_TABLE_FILE in distribution mode')
+
+        if not env_worker_id:
+            raise RuntimeError('You must specify rank id by set env RANK_ID in distribution mode')
+
+        global_kw_options['_distribute.rank_table'] = env_rank_table
+        global_kw_options['_distribute.rank_id'] = env_worker_id
 
     device_options = {}
     error_message = _npu_device_backends.Open(ctx._handle, NPU, device_id, global_kw_options, device_options)
     if len(error_message):
-        raise RuntimeError("Failed open npu device " + str(device_id) + ":" + error_message)
+        raise RuntimeError("Failed open npu device %s : %s" % (str(device_id), error_message))
+
+    if workers_num > 1:
+        from hccl.manage.api import get_local_rank_id
+        worker_id = get_local_rank_id()
+    else:
+        worker_id = 0
 
     context._set_context(ctx)
     return NpuDeviceHandle(ctx, device_id, device_options, workers_num, worker_id)
