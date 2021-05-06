@@ -179,3 +179,35 @@ def remote_scatter_write(tensorRemote, tensorLocal, offset):
         local=tensorLocal,
         local_offset=offset)
     return result
+
+##提供alltoallreadv功能
+#  @param read_addr_info 需要读取的地址信息，shape(index_num, 2)：[u64 remoteAddr, u64 dataLength];
+#  @param read_addr_split 从每个rank上读取的数据地址信息数，shape(rank_size, 1);
+#  @param dtype 读取对象的数据类型;
+#  @param row_memory uint32 类型，从每个地址信息读取的字节数;
+#  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group";
+def all_to_all_read_v(read_addr_info, read_addr_split, dtype, row_memory, group="hccl_world_group"):
+    result = gen_hccl_ops.hcom_all_to_all_read_v(
+        read_addr_info=read_addr_info,
+        read_addr_split=read_addr_split,
+        dtype=dtype,
+        row_memory=row_memory,
+        group=group)
+    return result
+
+##提供alltoallv功能
+#  @param send_data 需要发送的数据;
+#  @param send_counts 给每个rank发送的数据size，shape(rank_size, 1);
+#  @param send_displacements 给每个rank发送数据起始位置相对于send_data起始的偏移，shape(rank_size, 1);
+#  @param recv_counts 从每个rank上接收的数据size，shape(rank_size, 1);
+#  @param recv_displacements 从每个rank接收数据起始位置相对于output起始的偏移，shape(rank_size, 1);
+#  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group";
+def all_to_all_v(send_data, send_counts, send_displacements, recv_counts, recv_displacements, group="hccl_world_group"):
+    result = gen_hccl_ops.hcom_all_to_all_read_v(
+        send_data=send_data,
+        send_counts=send_counts,
+        send_displacements=send_displacements,
+        recv_counts=recv_counts,
+        recv_displacements=recv_displacements,
+        group=group)
+    return result

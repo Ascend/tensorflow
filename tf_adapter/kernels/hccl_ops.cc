@@ -140,4 +140,28 @@ public:
 
 REGISTER_KERNEL_BUILDER(Name("HcomRemoteScatterWrite").Device(DEVICE_CPU), HcomRemoteScatterWriteOpKernel);
 
+class HcomAllToAllReadVOpKernel : public OpKernel {
+public:
+    explicit HcomAllToAllReadVOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
+    ~HcomAllToAllReadVOpKernel() {}
+    void Compute(OpKernelContext* context) override
+    {
+        ADP_LOG(INFO) << "HcomAllToAllReadV Compute.";
+    }
+};
+
+REGISTER_KERNEL_BUILDER(Name("HcomAllToAllReadV").Device(DEVICE_CPU), HcomAllToAllReadVOpKernel);
+
+class HcomAllToAllVOpKernel : public OpKernel {
+public:
+    explicit HcomAllToAllVOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
+    ~HcomAllToAllVOpKernel() {}
+    void Compute(OpKernelContext* context) override
+    {
+        ADP_LOG(INFO) << "HcomAllToAllV Compute.";
+    }
+};
+
+REGISTER_KERNEL_BUILDER(Name("HcomAllToAllV").Device(DEVICE_CPU), HcomAllToAllVOpKernel);
+
 } // namespace tensorflow
