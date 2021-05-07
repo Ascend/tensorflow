@@ -481,12 +481,16 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     input_shapes.push_back(input_shape);
     cur_inputs_shape += input_shape;
   }
-  if (inputs_shape_.empty()) {
-    inputs_shape_ = cur_inputs_shape;
-  } else if ((inputs_shape_ != cur_inputs_shape) && ("1" != dynamic_input_)) {
-    OP_REQUIRES_ASYNC(ctx, false, errors::Internal("The input shape of ", ctx->op_kernel().name(),
-                      " is dynamic, please set dynamic_input=True."), done);
-    return;
+  if (sess_options_["ge.inputShape"].empty() &&
+      sess_options_["ge.dynamicDims"].empty() &&
+      sess_options_["ge.dynamicNodeType"].empty()) {
+    if (inputs_shape_.empty()) {
+      inputs_shape_ = cur_inputs_shape;
+    } else if ((inputs_shape_ != cur_inputs_shape) && (dynamic_input_ != "1")) {
+      OP_REQUIRES_ASYNC(ctx, false, errors::Internal("The input shape of ", ctx->op_kernel().name(),
+                        " is dynamic, please set dynamic_input=True."), done);
+      return;
+    }
   }
 
   // if input shapes changed, cache graphs
