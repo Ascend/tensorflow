@@ -602,72 +602,26 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
     }
   }
 
-  std::vector<Edge *> cycleEdges;
-  for (auto edge : graph.edges()) {
-    REQUIRES_NOT_NULL(edge);
-    Node *src = edge->src();
-    Node *dst = edge->dst();
-    REQUIRES_NOT_NULL(src);
-    REQUIRES_NOT_NULL(dst);
-    // Skip source/sink
-    if (!src->IsOp() || !dst->IsOp()) { continue; }
-    if (src->IsNextIteration()) {
-      cycleEdges.push_back(edge);
-    }
-  }
-
-  std::vector<std::pair<Node *, Node *>> while_loop_nodes;
-  for (auto edge : cycleEdges) {
-    REQUIRES_NOT_NULL(edge);
-    Node *src = edge->src();
-    Node *dst = edge->dst();
-    REQUIRES_NOT_NULL(src);
-    REQUIRES_NOT_NULL(dst);
-    Node *enter_node = nullptr;
-    Node *exit_node = nullptr;
-    if (src->IsNextIteration() && dst->IsMerge()) {
-      for (auto edge : dst->in_edges()) {
-        REQUIRES_NOT_NULL(edge);
-        REQUIRES_NOT_NULL(edge->src());
-        REQUIRES_NOT_NULL(edge->dst());
-        if (edge->src()->IsEnter()) {
-          enter_node = edge->src();
-          break;
-        }
-      }
-      for (auto edge : dst->out_edges()) {
-        REQUIRES_NOT_NULL(edge);
-        REQUIRES_NOT_NULL(edge->src());
-        REQUIRES_NOT_NULL(edge->dst());
-        if (edge->dst()->IsSwitch()) {
-          for (auto switch_edge : edge->dst()->out_edges()) {
-            REQUIRES_NOT_NULL(switch_edge);
-            REQUIRES_NOT_NULL(switch_edge->src());
-            REQUIRES_NOT_NULL(switch_edge->dst());
-            if (switch_edge->dst()->IsExit()) {
-              exit_node = switch_edge->dst();
-            }
-          }
-        }
-      }
-    }
-    if (enter_node != nullptr && exit_node != nullptr) {
-      while_loop_nodes.push_back({enter_node, exit_node});
-    }
-  }
-  for (auto pair_node : while_loop_nodes) {
-    Node *op_head = pair_node.first;
-    NodeSet ops_tail;
-    NodeSet ops_save;
-    ops_tail.insert(pair_node.second);
-    FindNodesInPaths(op_head, ops_tail, ops_save);
+  if (mix_compile_mode) {
+    std::vector<ControlFlowInfo> cfInfos;
+    Status status = BuildControlFlowInfo(&graph, &cfInfos);
+    if (!status.ok()) return status;
+    std::set<std::string> unsupportedFrames;
     for (auto it : outSet) {
-      if (ops_save.count(it) > 0) {
-        for (auto tmp : ops_save) {
-          outSet.insert(tmp);
-          candidates->erase(tmp);
-        }
-        break;
+      auto cfInfo = cfInfos[it->id()];
+      if (!cfInfo.frame_name.empty()) { unsupportedFrames.insert(cfInfo.frame_name); }
+      while (!cfInfos[cfInfo.parent_frame->id()].frame_name.empty()) {
+        unsupportedFrames.insert(cfInfos[cfInfo.parent_frame->id()].frame_name);
+        cfInfo = cfInfos[cfInfo.parent_frame->id()];
+      }
+    }
+    for (auto it = candidates->begin(); it != candidates->end();) {
+      auto cfInfo = cfInfos[(*it)->id()];
+      if (unsupportedFrames.find(cfInfo.frame_name) != unsupportedFrames.end()) {
+        outSet.insert(*it);
+        it = candidates->erase(it);
+      } else {
+        ++it;
       }
     }
   }
