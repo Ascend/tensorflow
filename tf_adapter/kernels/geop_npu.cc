@@ -121,26 +121,35 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outp
 
     geDataUniquePtr data_ptr = std::move(output.ResetData());
     if (data_ptr == nullptr) {
-      ADP_LOG(ERROR) << "[GEOP] Get ge output data ptr failed, data ptr is null.";
-      return errors::Internal("[GEOP] Get ge output data ptr failed, data ptr is null.");
-    }
-    const static int64_t kTensorAlignBytes = 64;
-    if (reinterpret_cast<uintptr_t>(data_ptr.get()) % kTensorAlignBytes == 0) {
-      ADP_LOG(INFO) << "[GEOP] Zero copy ge tensor " << reinterpret_cast<uintptr_t>(data_ptr.get())
-                    << " as aligned with " << kTensorAlignBytes << " bytes";
-      Allocator *allocator = NpuHostFixedAllocator::Create(std::move(data_ptr));
-      Tensor cpu_tensor(allocator, out_type, out_shape);
+      ADP_LOG(INFO) << "[GEOP] Get ge output data ptr is null.";
+      Tensor *cpu_tensor = nullptr;
+      TF_RETURN_IF_ERROR(ctx->allocate_output(i, out_shape, &cpu_tensor));
+      REQUIRES_NOT_NULL(cpu_tensor);
       size_t output_size = output.GetSize();
-      if (output_size != cpu_tensor.TotalBytes()) {
+      if (output_size != cpu_tensor->TotalBytes()) {
         LOG(ERROR) << "[GEOP] Graph engine process graph success but output " << i << " total bytes "
-                   << output_size << " mismatched with expected " << cpu_tensor.TotalBytes();
+                   << output_size << " mismatched with expected " << cpu_tensor->TotalBytes();
         return errors::Internal("Graph engine process graph success but output length mismatched with expected.");
       }
-      ctx->set_output(i, cpu_tensor);
     } else {
-      ADP_LOG(ERROR) << "[GEOP] Skip zero copy as ge tensor, " << reinterpret_cast<uintptr_t>(data_ptr.get())
-                     << " not aligned with " << kTensorAlignBytes << " bytes";
-      return errors::Internal("[GEOP] Skip zero copy ge tensor, bytes not aligned with expected.");
+      const static int64_t kTensorAlignBytes = 64;
+      if (reinterpret_cast<uintptr_t>(data_ptr.get()) % kTensorAlignBytes == 0) {
+        ADP_LOG(INFO) << "[GEOP] Zero copy ge tensor " << reinterpret_cast<uintptr_t>(data_ptr.get())
+                      << " as aligned with " << kTensorAlignBytes << " bytes";
+        Allocator *allocator = NpuHostFixedAllocator::Create(std::move(data_ptr));
+        Tensor cpu_tensor(allocator, out_type, out_shape);
+        size_t output_size = output.GetSize();
+        if (output_size != cpu_tensor.TotalBytes()) {
+          LOG(ERROR) << "[GEOP] Graph engine process graph success but output " << i << " total bytes "
+                     << output_size << " mismatched with expected " << cpu_tensor.TotalBytes();
+          return errors::Internal("Graph engine process graph success but output length mismatched with expected.");
+        }
+        ctx->set_output(i, cpu_tensor);
+      } else {
+        ADP_LOG(ERROR) << "[GEOP] Skip zero copy as ge tensor, " << reinterpret_cast<uintptr_t>(data_ptr.get())
+                       << " not aligned with " << kTensorAlignBytes << " bytes";
+        return errors::Internal("[GEOP] Skip zero copy ge tensor, bytes not aligned with expected.");
+      }
     }
   }
   ADP_LOG(INFO) << "[GEOP] Build output tensor info success.";
