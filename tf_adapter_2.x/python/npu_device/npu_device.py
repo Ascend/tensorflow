@@ -143,6 +143,7 @@ def never_nested_function(func=None, *args, **kwargs):
             _thread_local.entrance_function = None
             return result
 
+        wrapper.__name__ = f.__name__  # We should never change origin function name in decorator
         return wrapper
 
     if func is not None:
