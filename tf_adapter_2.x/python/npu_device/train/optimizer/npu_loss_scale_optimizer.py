@@ -2,6 +2,9 @@ import tensorflow as tf
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
 
+from tensorflow.python.keras.mixed_precision.loss_scale_optimizer import _UnwrapPreventer
+from tensorflow.python.keras.mixed_precision.loss_scale_optimizer import _op_in_graph_mode
+
 from npu_device.npu_device import global_npu_ctx
 from npu_device import gen_npu_ops
 from npu_device.npu_device import never_nested_function
@@ -10,7 +13,9 @@ from npu_device.distribute.hccl import all_reduce
 
 @never_nested_function
 def _npu_finite_status_after_executed(executed_ops):
-    with tf.control_dependencies([executed_ops]):
+    if not isinstance(executed_ops, (tuple, dict)):
+        executed_ops = [executed_ops]
+    with tf.control_dependencies(executed_ops):
         current_status = gen_npu_ops.npu_alloc_float_status()
         assign_float_status = gen_npu_ops.npu_get_float_status(current_status)
         finite_status = gen_npu_ops.npu_clear_float_status(assign_float_status)
@@ -27,13 +32,14 @@ def _npu_compat_loss_scale_update(m, grads):
         def incr_loss_scale():
             incr_result_finite = tf.less(m.current_loss_scale, 4e+38 / m.multiplier)
             update_if_finite_fn = tf.cond(incr_result_finite,
-                                          m.current_loss_scale.assign(m.current_loss_scale * m.multiplier),
-                                          tf.no_op())
+                                          lambda: _op_in_graph_mode(
+                                              m.current_loss_scale.assign(m.current_loss_scale * m.multiplier)),
+                                          tf.no_op)
             return tf.group(update_if_finite_fn, m.counter.assign(0))
 
         return tf.cond(m.counter + 1 >= m.growth_steps,
                        incr_loss_scale,
-                       lambda: m.counter.assign_add(1))
+                       lambda: _op_in_graph_mode(m.counter.assign_add(1)))
 
     def update_if_not_finite_grads():
         new_loss_scale = tf.maximum(m.current_loss_scale / m.multiplier, 1)
@@ -71,13 +77,15 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
         if global_npu_ctx() is None:
             super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
 
+        grads = [g for g, _ in grads_and_vars]
+        wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
+
         def apply_fn():
-            self._apply_gradients(grads, vars, name, experimental_aggregate_gradients)
+            return self._apply_gradients(grads, wrapped_vars, name, experimental_aggregate_gradients)
 
         def do_not_apply_fn():
-            self._optimizer.iterations.assign_add(1, read_value=False)
+            return self._optimizer.iterations.assign_add(1, read_value=False)
 
-        grads, vars = list(zip(*grads_and_vars))
         if self.dynamic:
             loss_scale_update_op, should_apply_grads = _npu_compat_loss_scale_update(self._loss_scale, grads)
         else:
