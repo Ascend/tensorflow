@@ -27,6 +27,10 @@ class NPUExtended(one_device_strategy.OneDeviceExtended):
   def _experimental_distribute_dataset(self, dataset):
     return dataset.shard(get_rank_size(), get_rank_id())
 
+  @property
+  def _num_replicas_in_sync(self):
+    return get_rank_size()
+
 class NPUStrategy(distribute_lib.StrategyV1):
   def __init__(self, device="/cpu:0"):
     super(NPUStrategy, self).__init__(NPUExtended(self, device))
