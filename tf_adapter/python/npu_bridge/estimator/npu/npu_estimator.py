@@ -712,7 +712,6 @@ class NPUEstimator(estimator_lib.Estimator):
                                                                                "loop",
                                                                                "dependency",
                                                                                "layout",
-                                                                               "memory",
                                                                                "GradFusionOptimizer"])
         # config set
         custom_op = config.session_config.graph_options.rewrite_options.custom_optimizers.add()
