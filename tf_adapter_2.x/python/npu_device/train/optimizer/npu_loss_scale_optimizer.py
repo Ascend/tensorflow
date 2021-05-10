@@ -13,7 +13,7 @@ from npu_device.distribute.hccl import all_reduce
 
 @never_nested_function
 def _npu_finite_status_after_executed(executed_ops):
-    if not isinstance(executed_ops, (tuple, dict)):
+    if not isinstance(executed_ops, (tuple, list)):
         executed_ops = [executed_ops]
     with tf.control_dependencies(executed_ops):
         current_status = gen_npu_ops.npu_alloc_float_status()
