@@ -1513,21 +1513,22 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
 
   // TODO:这里根据小循环策略修改值
   int64_t iterations_per_loop = spec->NeedLoop() ? kGlobalLoopSize : 1;
-  if (iterations_per_loop > 1) {
+  if (spec->NeedLoop()) {
     SetNpuLoopSize(context, iterations_per_loop, status);
     if (TF_GetCode(status) != TF_OK) return;
   }
 
   for (const auto &resource : spec->DependentHostResources()) {
-    if (iterations_per_loop > 1 || kDumpExecutionDetail) {
+    if (spec->NeedLoop() || kDumpExecutionDetail) {
       LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop
                 << " times";
     }
     const tensorflow::Tensor *tensor;
     NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(tf_inputs[resource.first], &tensor));
     // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
-    auto done = [resource, iterations_per_loop](const tensorflow::Status &s) {
-      if (iterations_per_loop > 1 || !s.ok() || kDumpExecutionDetail) {
+    bool need_loop = spec->NeedLoop();
+    auto done = [resource, iterations_per_loop, need_loop](const tensorflow::Status &s) {
+      if (need_loop || !s.ok() || kDumpExecutionDetail) {
         LOG(INFO) << "Iterator resource " << resource.second->Name() << " consume " << iterations_per_loop
                   << " times done with status " << s.ToString();
       }
@@ -1538,7 +1539,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   MaybeRebuildFuncSpecGraph(context, spec, status);
   if (TF_GetCode(status) != TF_OK) return;
 
-  if (iterations_per_loop > 1 || kDumpExecutionDetail) {
+  if (spec->NeedLoop() || kDumpExecutionDetail) {
     LOG(INFO) << "Start run ge graph " << spec->GeGraphId() << " pin to cpu, loop size " << iterations_per_loop;
   }
   npu::Timer timer("Graph engine run ", iterations_per_loop, " times for graph ", spec->GeGraphId());
@@ -1578,8 +1579,8 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
     input.SetTensorDesc(ge::TensorDesc(ge::Shape(dims), ge::FORMAT_ND, ge_type));
     input.SetData(reinterpret_cast<const uint8_t *>(tensor->tensor_data().data()), tensor->TotalBytes());
     ge_inputs.emplace_back(input);
-    DLOG() << "    input " << i << " ge enum " << ge_type << " tf type "
-           << tensorflow::DataTypeString(tensor->dtype()) << VecToString(dims);
+    DLOG() << "    input " << i << " ge enum " << ge_type << " tf type " << tensorflow::DataTypeString(tensor->dtype())
+           << VecToString(dims);
   }
   auto ge_callback = [&, graph_id](ge::Status s, std::vector<ge::Tensor> &ge_outputs) {
     if (s == ge::END_OF_SEQUENCE) {
@@ -1621,8 +1622,8 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
         DLOG() << "Zero copy ge tensor " << reinterpret_cast<uintptr_t>(ge_tensor.GetData()) << " as aligned with "
                << kTensorAlignBytes << " bytes";
         size_t ge_tensor_total_bytes = ge_tensor.GetSize();
-        tensorflow::Allocator *allocator = NpuHostFixedAllocator<uint8_t[], std::function<void(uint8_t *)>>::Create(
-          std::move(ge_tensor.ResetData()));
+        tensorflow::Allocator *allocator =
+          NpuHostFixedAllocator<uint8_t[], std::function<void(uint8_t *)>>::Create(std::move(ge_tensor.ResetData()));
         tensorflow::Tensor cpu_tensor(allocator, output_types[i], shape);
         if (ge_tensor_total_bytes != cpu_tensor.TotalBytes()) {
           done(tensorflow::errors::Internal("Graph engine process graph succeed but output ", i, " total bytes ",
