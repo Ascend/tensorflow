@@ -490,9 +490,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     input_shapes.push_back(input_shape);
     cur_inputs_shape += input_shape;
   }
-  if (sess_options_["ge.inputShape"].empty() &&
-      sess_options_["ge.dynamicDims"].empty() &&
-      sess_options_["ge.dynamicNodeType"].empty()) {
+  if (sess_options_["ge.inputShape"].empty()) {
     if (inputs_shape_.empty()) {
       inputs_shape_ = cur_inputs_shape;
     } else if ((inputs_shape_ != cur_inputs_shape) && (dynamic_input_ != "1")) {
