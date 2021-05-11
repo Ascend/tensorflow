@@ -164,6 +164,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY TensorData {
   graphStatus SetData(const Buffer &data);
   graphStatus SetData(const TensorData &data);
   graphStatus SetData(const uint8_t *data, size_t size);
+  graphStatus SetData(const uint8_t *data, size_t size, const AlignedPtr::Deleter &delete_func);
   // zero copy SetData
   void SetData(std::shared_ptr<AlignedPtr> aligned_ptr, size_t size);
 
@@ -228,6 +229,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY GeTensor {
   graphStatus SetData(const Buffer &data);
   graphStatus SetData(const uint8_t *data, size_t size);
   graphStatus SetData(const TensorData &data);
+  graphStatus SetData(const uint8_t *data, size_t size, const AlignedPtr::Deleter &delete_func);
 
   // zero copy SetData
   void SetData(std::shared_ptr<AlignedPtr> aligned_ptr, size_t size) {

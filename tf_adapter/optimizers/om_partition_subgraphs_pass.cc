@@ -852,9 +852,12 @@ std::vector<string> string_split(const string &str, const string &pattern) {
 }
 
 Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool mix_compile_mode, int graph_num,
-                        FunctionLibraryDefinition *func_lib, std::map<std::string, std::string> pass_options) {
+                        FunctionLibraryDefinition *func_lib, std::map<std::string, std::string> pass_options,
+                        std::map<std::string, std::string> &graph_options) {
   Graph *graph = graphIn->get();
-  bool enableDP = pass_options["enable_dp"] == "1";
+  bool enable_dp = pass_options["enable_dp"] == "1";
+  bool is_set_lazy_recompile = graph_options["dynamic_input"] == "1" &&
+                               graph_options["dynamic_graph_execute_mode"] == "lazy_recompile";
   OrderedNodeSet npuSupportCandidates;
   if (!pass_options["in_out_pair"].empty()) {
     if (!mix_compile_mode) {
@@ -864,7 +867,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
                                                  pass_options["in_out_pair"], pass_options["in_out_pair_flag"]));
   }
   if (npuSupportCandidates.empty()) {
-    TF_RETURN_IF_ERROR(FindNpuSupportCandidates(*graph, &npuSupportCandidates, func_lib, enableDP, mix_compile_mode));
+    TF_RETURN_IF_ERROR(FindNpuSupportCandidates(*graph, &npuSupportCandidates, func_lib, enable_dp, mix_compile_mode));
     TF_RETURN_IF_ERROR(AddRelationalConst(*graph, &npuSupportCandidates));
   }
 
@@ -934,6 +937,11 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
 
       if (!NodeIsCandidateForClustering(src, &npuSupportCandidates)
           || !NodeIsCandidateForClustering(dst, &npuSupportCandidates)) {
+        continue;
+      }
+
+      if (is_set_lazy_recompile && src->type_string() == "IteratorGetNext" && enable_dp) {
+        graph_options["is_dynamic_getnext"] = "1";
         continue;
       }
 
@@ -1118,7 +1126,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
       }
     }
     if (clusterNum > 1) {
-      if (mix_compile_mode) {
+      if (mix_compile_mode || is_set_lazy_recompile) {
         TF_RETURN_IF_ERROR(MergeSubgraphsInNewWay(sortedCluster, npuSupportCandidates, clusterToMerge));
       } else {
         TF_RETURN_IF_ERROR(MergeSubgraphs(sortedCluster, npuSupportCandidates, clusterToMerge));
@@ -1463,6 +1471,9 @@ Status OMSplitter::Subgraph::RecordArg(const Edge *edge, const std::unordered_ma
     srcArgPairs->push_back({srcNode, arg});
     args_.push_back(arg);
     argDatetypes_.push_back(dtype);
+  }
+  if (srcNode->name().find("_arg_") != std::string::npos) {
+    graph_options_["placeholder_index"] += std::to_string(argIndex);
   }
   Node *dstNode = edge->dst();
   Node *dstImage = nodeImages.at(dstNode);
@@ -2195,7 +2206,8 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
 
   int subgraphNum = 0;
   TF_RETURN_IF_ERROR(
-      OMSplitter::MarkForPartition(graph, subgraphNum, mix_compile_mode, graph_num, func_lib, pass_options));
+      OMSplitter::MarkForPartition(graph, subgraphNum, mix_compile_mode, graph_num,
+                                   func_lib, pass_options, graph_options));
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
   if (subgraphNum < 1) {
     ADP_LOG(INFO) << "subgraphNum is " << subgraphNum;

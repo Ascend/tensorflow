@@ -96,6 +96,36 @@ class NpuHostFixedAllocator : public tensorflow::Allocator {
   geDataUniquePtr ptr_;
 };
 
+class NpuGetNextOutputInfo {
+public:
+  NpuGetNextOutputInfo(ge::Placement placement, std::vector<int64_t> dims,
+     size_t output_size, geDataUniquePtr data)
+    : placement_(placement), dims_(dims), output_size_(output_size), data_(std::move(data)) {}
+  ~NpuGetNextOutputInfo() { ADP_LOG(INFO) << "[GEOP] Release NpuGetNextOutputInfo."; }
+  ge::Placement placement_;
+  std::vector<int64_t> dims_;
+  size_t output_size_;
+  geDataUniquePtr data_;
+};
+
+class NpuHostGetNextAllocator : public tensorflow::Allocator {
+ public:
+  static tensorflow::Allocator *Create(std::unique_ptr<NpuGetNextOutputInfo> output) {
+    return new (std::nothrow) NpuHostGetNextAllocator(std::move(output));
+  }
+ private:
+  explicit NpuHostGetNextAllocator(std::unique_ptr<NpuGetNextOutputInfo> output) : output_(std::move(output)) {
+    ADP_LOG(INFO) << "[GEOP] getnext data addr:" << reinterpret_cast<uintptr_t>(output_->data_.get());
+  }
+  ~NpuHostGetNextAllocator() override {
+    ADP_LOG(INFO) << "[GEOP] Release getnext data addr:" << reinterpret_cast<uintptr_t>(output_->data_.get());
+  }
+  std::string Name() override { return "NpuHostGetNextAllocator"; }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return output_.get(); }
+  void DeallocateRaw(void *ptr) override { delete this; }
+  std::unique_ptr<NpuGetNextOutputInfo> output_;
+};
+
 inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
 Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outputs) {
   // ctx is not nullptr
@@ -111,34 +141,26 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outp
   for (int i = 0; i < num_outputs; ++i) {
     ge::Tensor &output = outputs[i];
     std::vector<int64_t> ge_output_dims = output.GetTensorDesc().GetShape().GetDims();
+    ge::Placement data_placement = output.GetTensorDesc().GetPlacement();
     std::vector<int64> dims;
     for (int64_t dim : ge_output_dims) {
       dims.push_back(dim);
     }
     TensorShape out_shape(dims);
-    ADP_LOG(INFO) << "[GEOP] Get ge output tensor shape is: " << out_shape.DebugString();
     const DataType out_type = ctx->op_kernel().output_type(i);
-
+    size_t output_size = output.GetSize();
     geDataUniquePtr data_ptr = std::move(output.ResetData());
-    if (data_ptr == nullptr) {
-      ADP_LOG(INFO) << "[GEOP] Get ge output data ptr is null.";
-      Tensor *cpu_tensor = nullptr;
-      TF_RETURN_IF_ERROR(ctx->allocate_output(i, out_shape, &cpu_tensor));
-      REQUIRES_NOT_NULL(cpu_tensor);
-      size_t output_size = output.GetSize();
-      if (output_size != cpu_tensor->TotalBytes()) {
-        LOG(ERROR) << "[GEOP] Graph engine process graph success but output " << i << " total bytes "
-                   << output_size << " mismatched with expected " << cpu_tensor->TotalBytes();
-        return errors::Internal("Graph engine process graph success but output length mismatched with expected.");
-      }
-    } else {
+    ADP_LOG(INFO) << "[GEOP] Get ge output: " << i << " tensor shape is: " << out_shape.DebugString()
+                  << ", data placement is: " << data_placement << ", output_size is: "
+                  << output_size << ", data addr is: " << reinterpret_cast<uintptr_t>(data_ptr.get());
+
+    if (data_placement != ge::kPlacementDevice) {
       const static int64_t kTensorAlignBytes = 64;
       if (reinterpret_cast<uintptr_t>(data_ptr.get()) % kTensorAlignBytes == 0) {
         ADP_LOG(INFO) << "[GEOP] Zero copy ge tensor " << reinterpret_cast<uintptr_t>(data_ptr.get())
                       << " as aligned with " << kTensorAlignBytes << " bytes";
         Allocator *allocator = NpuHostFixedAllocator::Create(std::move(data_ptr));
         Tensor cpu_tensor(allocator, out_type, out_shape);
-        size_t output_size = output.GetSize();
         if (output_size != cpu_tensor.TotalBytes()) {
           LOG(ERROR) << "[GEOP] Graph engine process graph success but output " << i << " total bytes "
                      << output_size << " mismatched with expected " << cpu_tensor.TotalBytes();
@@ -150,6 +172,13 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outp
                        << " not aligned with " << kTensorAlignBytes << " bytes";
         return errors::Internal("[GEOP] Skip zero copy ge tensor, bytes not aligned with expected.");
       }
+    } else {
+      ADP_LOG(INFO) << "[GEOP] GE output data placement is device, construct output info tensor.";
+      auto getnext_output_info = std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(
+                                   data_placement, ge_output_dims, output_size, std::move(data_ptr)));
+      Allocator *allocator = NpuHostGetNextAllocator::Create(std::move(getnext_output_info));
+      Tensor cpu_tensor(allocator, out_type, out_shape);
+      ctx->set_output(i, cpu_tensor);
     }
   }
   ADP_LOG(INFO) << "[GEOP] Build output tensor info success.";
@@ -223,13 +252,17 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
     ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
     ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
+    ctx->GetAttr("_is_dynamic_getnext", &is_dynamic_getnext_);
+    ctx->GetAttr("_placeholder_index", &placeholder_index_);
   }
   ctx->GetAttr("_train_graph", &is_train_graph_);
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_
-                << ", is_train_graph: " << is_train_graph_;
+                << ", is_train_graph: " << is_train_graph_
+                << ", is_dynamic_getnext: " << is_dynamic_getnext_
+                << ", placeholder_index: " << placeholder_index_;
 
   // global environment Initialize, invoke once for each process
   string sess_config = "";
@@ -483,22 +516,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   ADP_LOG(INFO) << "[GEOP] Begin GeOp::ComputeAsync"
             << ", kernel_name:" << geop_name << ", num_inputs:" << num_inputs << ", num_outputs:" << ctx->num_outputs();
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
+  std::vector<Tensor> input_vec;
   std::vector<std::string> input_shapes;
-  std::string cur_inputs_shape;
-  for (int i = 0; i < ctx->num_inputs(); i++) {
-    std::string input_shape = ctx->input(i).shape().DebugString();
-    input_shapes.push_back(input_shape);
-    cur_inputs_shape += input_shape;
-  }
-  if (sess_options_["ge.inputShape"].empty()) {
-    if (inputs_shape_.empty()) {
-      inputs_shape_ = cur_inputs_shape;
-    } else if ((inputs_shape_ != cur_inputs_shape) && (dynamic_input_ != "1")) {
-      OP_REQUIRES_ASYNC(ctx, false, errors::Internal("The input shape of ", ctx->op_kernel().name(),
-                        " is dynamic, please set dynamic_input=True."), done);
-      return;
-    }
-  }
+  std::vector<ge::Tensor> inputs;
+  OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, input_vec, input_shapes, inputs)), done);
 
   // if input shapes changed, cache graphs
   uint32_t cache_graph_id = graph_id_;
@@ -533,12 +554,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     OP_REQUIRES_ASYNC(ctx, flib_def != nullptr, errors::Internal("flib_def is nullptr"), done);
     std::shared_ptr<Graph> graph = std::make_shared<Graph>(OpRegistry::Global());
     OP_REQUIRES_ASYNC(ctx, graph != nullptr, errors::Internal("create tensorflow graph failed"), done);
-
-    std::vector<Tensor> input_vec;
-    for (uint32_t i = 0; i < num_inputs; i++) {
-      Tensor input(ctx->input(i));
-      input_vec.push_back(input);
-    }
 
     // Build GraphDef from FunctionDef
     GraphDef ori_graph_def;
@@ -732,8 +747,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_counts_.push_back(std::make_pair(input_shapes, 1));
     }
     if (need_compile_graph_first_) {
-      std::vector<ge::Tensor> inputs;
-      OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, inputs)), done);
       ge::Status status = ge_session_->BuildGraph(cache_graph_id, inputs);
       if (status != ge::SUCCESS) {
         std::string error_message = ge::GEGetErrorMsg();
@@ -792,8 +805,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                   << ctx->op_kernel().name() << "[ " << (run_end_time - run_start_time) << "us]";
     done();
   };
-  std::vector<ge::Tensor> inputs;
-  OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, inputs)), done);
 
   ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name:" << geop_name << " ,tf session: " << tf_session_
                 << " ,graph id: " << cache_graph_id;
@@ -1043,9 +1054,39 @@ void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
   }
 }
 
-Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &inputs) {
+void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
+                            std::vector<std::string> &input_shapes) {
+  ADP_LOG(INFO) << "[GEOP] Start analyze input tensor.";
+  NpuGetNextOutputInfo *output_info = static_cast<NpuGetNextOutputInfo *>(tensor_ptr);
+  std::vector<int64> tmp_dims;
+  for (int64_t dim : output_info->dims_) {
+    tmp_dims.push_back(dim);
+  }
+
+  TensorShape input_shape(tmp_dims);
+  input_shapes.push_back(input_shape.DebugString());
+
+  ge::Shape ge_shape(output_info->dims_);
+  ge::TensorDesc ge_tensor_desc(ge_shape);
+  ge_tensor_desc.SetDataType(type);
+  ge_tensor_desc.SetPlacement(output_info->placement_);
+  input.SetTensorDesc(ge_tensor_desc);
+
+  uint8_t* data = output_info->data_.get();
+  input.SetData(output_info->data_.get(), output_info->output_size_, output_info->data_.get_deleter());
+  ADP_LOG(INFO) << "[GEOP] Get input shape:" << input_shape.DebugString()
+                << ", input placement:" << output_info->placement_
+                << ", input length:" << output_info->output_size_
+                << ", input data addr:" << reinterpret_cast<uintptr_t>(data);
+}
+
+Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
+                                  std::vector<Tensor> &input_vec,
+                                  std::vector<std::string> &input_shapes,
+                                  std::vector<ge::Tensor> &inputs) {
   // ctx is not nullptr
   int num_inputs = ctx->num_inputs();
+  std::string cur_input_shapes;
 
   // populate inputs
   for (int i = 0; i < num_inputs; i++) {
@@ -1065,14 +1106,31 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> 
       LOG(ERROR) << "[GEOP] No Supported datatype : " << data_type;
       return errors::InvalidArgument("No Supported datatype : ", data_type);
     }
-    std::vector<int64_t> dims;
-    for (uint32_t dim : tensor.shape().dim_sizes()) { dims.push_back(static_cast<int64_t>(dim)); }
-    ge::Shape ge_shape(dims);
-    ge::TensorDesc ge_tensor_desc(ge_shape);
-    ge_tensor_desc.SetDataType(type);
-    input.SetTensorDesc(ge_tensor_desc);
-    input.SetData(static_cast<uint8_t*>(tensor_ptr), total_bytes);
+    if (is_dynamic_getnext_ == "1" && (placeholder_index_.find(std::to_string(i)) == std::string::npos)) {
+      REQUIRES_NOT_NULL(tensor_ptr);
+      AnalyzeInputDesc(tensor_ptr, input, type, input_shapes);
+    } else {
+      std::vector<int64_t> dims;
+      std::string input_shape = tensor.shape().DebugString();
+      for (uint32_t dim : tensor.shape().dim_sizes()) { dims.push_back(static_cast<int64_t>(dim)); }
+      ge::Shape ge_shape(dims);
+      ge::TensorDesc ge_tensor_desc(ge_shape);
+      ge_tensor_desc.SetDataType(type);
+      input.SetTensorDesc(ge_tensor_desc);
+      input.SetData(static_cast<uint8_t *>(tensor_ptr), total_bytes);
+      input_shapes.push_back(input_shape);
+      cur_input_shapes += input_shape;
+    }
     inputs.push_back(input);
+    input_vec.push_back(tensor);
+  }
+  if (sess_options_["ge.inputShape"].empty()) {
+    if (!cur_input_shapes.empty() && input_shapes_.empty()) {
+      input_shapes_ = cur_input_shapes;
+    } else if (input_shapes_ != cur_input_shapes && dynamic_input_ != "1") {
+      return errors::Internal("The input shape of ", ctx->op_kernel().name(),
+                              " is dynamic, please set dynamic_input=True.");
+    }
   }
   return Status::OK();
 }

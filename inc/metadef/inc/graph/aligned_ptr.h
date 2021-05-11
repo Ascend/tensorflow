@@ -28,6 +28,8 @@ using allocator = std::function<void(std::unique_ptr<uint8_t[], deleter> &base_a
 }
 class AlignedPtr {
  public:
+  using Deleter = std::function<void(uint8_t *)>;
+  using Allocator = std::function<void(std::unique_ptr<uint8_t[], Deleter> &base_addr)>;
   explicit AlignedPtr(size_t buffer_size, size_t alignment = kAlignmentBytes);
   AlignedPtr() = default;
   ~AlignedPtr() = default;
