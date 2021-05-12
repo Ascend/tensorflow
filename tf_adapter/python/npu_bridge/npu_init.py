@@ -131,18 +131,33 @@ def set_keras_session_npu_config(config=None):
     config.allow_soft_placement = True
     config.log_device_placement = False
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    config.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     sess = session.Session(config=config)
     backend.set_session(sess)
     return sess
 
-def init_resource():
+def init_resource(config=None):
+    if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
+        config = config_pb2.ConfigProto()
+
+    npu_optimizer = None
+    for custom_optimizer in config.graph_options.rewrite_options.custom_optimizers:
+        if custom_optimizer.name == 'NpuOptimizer':
+            npu_optimizer = custom_optimizer
+            break
+    if not npu_optimizer:
+        npu_optimizer = config.graph_options.rewrite_options.custom_optimizers.add()
+        npu_optimizer.name = 'NpuOptimizer'
+
+    config.allow_soft_placement = True
+    config.log_device_placement = False
+    config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    config.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
+
     util.global_dict_init()
     npu_init = npu_ops.initialize_system()
     npu_shutdown = npu_ops.shutdown_system()
-    config = config_pb2.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-    custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
-    custom_op.name = "NpuOptimizer"
-    config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+
     sess = session.Session(config=config)
     sess.run(npu_init)
     npu_rank_id = get_rank_id()
