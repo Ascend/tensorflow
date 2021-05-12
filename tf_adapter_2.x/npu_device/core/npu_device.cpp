@@ -1583,6 +1583,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
            << VecToString(dims);
   }
   auto ge_callback = [&, graph_id](ge::Status s, std::vector<ge::Tensor> &ge_outputs) {
+    DLOG() << "Graph engine callback with status:" << s;
     if (s == ge::END_OF_SEQUENCE) {
       done(tensorflow::errors::OutOfRange("Graph engine process graph ", graph_id, " reach end of sequence"));
       return;
