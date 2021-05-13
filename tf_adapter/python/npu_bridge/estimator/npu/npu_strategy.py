@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
 import tensorflow as tf
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import one_device_strategy
@@ -29,7 +30,8 @@ class NPUExtended(one_device_strategy.OneDeviceExtended):
 
   @property
   def _num_replicas_in_sync(self):
-    return get_rank_size()
+    rank_size  = os.getenv("RANK_SIZE", "1")
+    return int(rank_size)
 
 class NPUStrategy(distribute_lib.StrategyV1):
   def __init__(self, device="/cpu:0"):
