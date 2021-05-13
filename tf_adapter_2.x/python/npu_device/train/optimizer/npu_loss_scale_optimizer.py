@@ -56,9 +56,9 @@ def _npu_compat_loss_scale_update(m, grads):
 class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
     def __init__(self, inner_optimizer, dynamic=True, initial_scale=None, dynamic_growth_steps=None):
         super().__init__(inner_optimizer, dynamic, initial_scale, dynamic_growth_steps)
-        self._last_step_infinite = variable_scope.variable(
+        self._last_step_finite = variable_scope.variable(
             initial_value=False,
-            name="npu_last_step_infinite",
+            name="npu_last_step_finite",
             dtype=tf.bool,
             trainable=False,
             use_resource=True,
@@ -67,8 +67,8 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
         )
 
     @property
-    def last_step_infinite(self):
-        return self._last_step_infinite
+    def last_step_finite(self):
+        return self._last_step_finite
 
     def apply_gradients(self,
                         grads_and_vars,
@@ -92,6 +92,6 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
             loss_scale_update_op = tf.no_op()
             should_apply_grads = _npu_finite_status_after_executed(grads)
 
-        self._last_step_infinite.assign(should_apply_grads)
+        self._last_step_finite.assign(should_apply_grads)
         maybe_apply_op = tf.cond(should_apply_grads, apply_fn, do_not_apply_fn)
         return tf.group(maybe_apply_op, loss_scale_update_op)

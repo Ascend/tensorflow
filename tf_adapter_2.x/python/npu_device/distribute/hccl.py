@@ -35,7 +35,7 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
             typed_workers_num = tf.cast(1.0 / float(workers_num), reduced_value.dtype)
         else:
             typed_workers_num = tf.cast(workers_num, reduced_value.dtype)
-        with tf.control_dependencies(values):
+        with tf.control_dependencies([tf.group(*values)]):
             if mean_reduce:
                 if is_float:
                     reduced_values.append(tf.multiply(reduced_value, typed_workers_num))
