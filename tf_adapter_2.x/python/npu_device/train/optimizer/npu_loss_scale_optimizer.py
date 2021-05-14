@@ -30,7 +30,7 @@ def _npu_finite_status_after_executed(executed_ops):
 def _npu_compat_loss_scale_update(m, grads):
     def update_if_finite_grads():
         def incr_loss_scale():
-            incr_result_finite = tf.less(m.current_loss_scale, 4e+38 / m.multiplier)
+            incr_result_finite = tf.less(m.current_loss_scale, 3.4e+38 / m.multiplier)
             update_if_finite_fn = tf.cond(incr_result_finite,
                                           lambda: _op_in_graph_mode(
                                               m.current_loss_scale.assign(m.current_loss_scale * m.multiplier)),
