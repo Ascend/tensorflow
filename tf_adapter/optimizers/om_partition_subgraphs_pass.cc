@@ -358,6 +358,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
   if (!op_head || ops_tail.count(nullptr) > 0) { return 0; }
 
   NodeSet empty;
+  NodeSet noagain;
   NodeMap seen;
   NodeStack stack;
   GraphPath path;
@@ -383,6 +384,10 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
       continue;
     }
 
+    if (noagain.count(cur_node) > 0) {
+      continue;
+    }
+
     for (auto out_node : cur_node->out_nodes()) {
       auto num_outputs = [](Node *node) {
         unsigned int n = 0;
@@ -396,9 +401,13 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
       if (ops_save.count(out_node) > 0) {
         for (auto node : path) { ops_save.insert(node); }
       }
+      auto outputs_size = num_outputs(out_node);
       if (seen.insert(NodeMap::value_type(out_node, empty)).second ||
-        seen[out_node].size() < num_outputs(out_node)) {
+        seen[out_node].size() < outputs_size) {
         stack.push_back(out_node);
+      }
+      if (seen[out_node].size() >= outputs_size) {
+        noagain.insert(out_node);
       }
     }
   }
