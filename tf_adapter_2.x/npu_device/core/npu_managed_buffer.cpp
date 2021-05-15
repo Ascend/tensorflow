@@ -33,16 +33,34 @@ class NpuMemory {
     }
     NPU_REQUIRES_ACL_OK("Malloc npu memory failed for size " + std::to_string(size),
                         aclrtMalloc(memory, size, ACL_MEM_MALLOC_HUGE_FIRST));
+    npu_memory_usage_ += size;
+    DLOG() << "Malloced npu memory " << reinterpret_cast<uintptr_t>(*memory) << ", size " << size << ", usage "
+           << npu_memory_usage_;
     return tensorflow::Status::OK();
   }
   static void Free(void *memory, size_t size, void *arg) {
     npu::global::dev_memory_shared_lock.lock_shared();
     if (!npu::global::dev_memory_released) {
-      aclrtFree(memory);
+      if (aclrtFree(memory) == ACL_ERROR_NONE) {
+        npu_memory_usage_ -= size;
+        DLOG() << "Freed npu memory " << reinterpret_cast<uintptr_t>(memory) << ", size " << size << ", usage "
+               << npu_memory_usage_;
+      } else {
+        LOG(ERROR) << "Failed to free npu memory " << reinterpret_cast<uintptr_t>(memory) << ", size " << size
+                   << ", usage " << npu_memory_usage_;
+      }
+    } else {
+      DLOG() << "Skipped free npu memory " << reinterpret_cast<uintptr_t>(memory) << " as device reset, size " << size
+             << ", usage " << npu_memory_usage_;
     }
     npu::global::dev_memory_shared_lock.unlock_shared();
   }
+
+ private:
+  static std::atomic_int64_t npu_memory_usage_;
 };
+
+std::atomic_int64_t NpuMemory::npu_memory_usage_{0};
 
 class RtsStreamGuard {
  public:
