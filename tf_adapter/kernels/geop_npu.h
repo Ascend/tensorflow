@@ -66,7 +66,10 @@ class GeOp : public AsyncOpKernel {
                        GraphDef &graph_def, bool &is_initialize);
 
   // prepare input tensor
-  Status BuildInputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &inputs);
+  Status BuildInputTensorInfo(OpKernelContext *ctx,
+                              std::vector<Tensor> &input_vec,
+                              std::vector<std::string> &input_shapes,
+                              std::vector<ge::Tensor> &inputs);
 
   // prepare output tensor
   Status BuildOutTensorInfo(OpKernelContext *ctx);
@@ -99,6 +102,9 @@ class GeOp : public AsyncOpKernel {
 
   Status ChangeInputsShapeDesc();
 
+  void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
+                        std::vector<std::string> &input_shapes);
+
  private:
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;
@@ -115,7 +121,7 @@ class GeOp : public AsyncOpKernel {
   bool sess_init_flag_;
   bool compute_graph_empty_;
 
-  std::string inputs_shape_;
+  std::string input_shapes_;
   NameAttrList function_;
   std::string data_format_;
   uint32_t graph_id_;
@@ -145,6 +151,8 @@ class GeOp : public AsyncOpKernel {
   AoeInitFunc aoe_init_;
   AoeFinalizeFunc aoe_finalize_;
   std::map<string, string> tune_options_;
+  std::string is_dynamic_getnext_;
+  std::string placeholder_index_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_

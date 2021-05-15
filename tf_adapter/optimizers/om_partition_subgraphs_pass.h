@@ -37,7 +37,8 @@ namespace tensorflow {
 namespace OMSplitter {
 Status MarkForPartition(const GraphOptimizationPassOptions &options, int &clusterNum, bool mix_compile_mode,
                         int graph_num, FunctionLibraryDefinition *func_lib,
-                        std::map<std::string, std::string> pass_options);
+                        std::map<std::string, std::string> pass_options,
+                        std::map<std::string, std::string> &graph_options);
 
 // Transformation that finds subgraphs whose nodes are marked with
 // 'groupAttribute', splits those subgraphs into functions, and replaces

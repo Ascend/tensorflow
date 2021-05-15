@@ -97,6 +97,9 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY TensorDesc {
   int64_t GetRealDimCnt() const;
   void SetRealDimCnt(const int64_t realDimCnt);
 
+  void SetPlacement(Placement placement);
+  Placement GetPlacement() const;
+
  private:
   std::shared_ptr<TensorDescImpl> impl;
 };
@@ -129,6 +132,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Tensor {
   ATTRIBUTED_DEPRECATED(graphStatus SetData(const std::vector<AscendString> &))
   graphStatus SetData(const std::vector<std::string> &data);
   graphStatus SetData(const std::vector<AscendString> &datas);
+  graphStatus SetData(uint8_t *data, size_t size, const Tensor::DeleteFunc &deleter_func);
   graphStatus IsValid();
 
   Tensor Clone() const;
