@@ -953,7 +953,6 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
   }
   if (*spec != nullptr) {
     DLOG() << "Found cached task spec for " << op_name;
-    DLOG() << (*spec)->DebugString();
     return;
   }
   DLOG() << "No cached task spec for " << op_name << ", start create and cache";
@@ -1175,7 +1174,7 @@ void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **o
   if (TF_GetCode(s) != TF_OK) {
     return;
   }
-  DLOG() << "NPU Executing " << op_name << " found cached spec " << spec->DebugString();
+  DLOG() << "NPU Executing " << op_name << " found cached spec";
   if (spec->ShouldFallback()) {
     DLOG() << "NPU Executing " << op_name << " fallback[" << spec->FallbackReason() << "]";
     FallbackCPU(context, op_name, attributes, inputs.size(), inputs.data(), num_outputs, outputs, s);

@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
+from tensorflow.python.util import nest
+from tensorflow.python.framework import smart_cond
 
 from tensorflow.python.keras.mixed_precision.loss_scale_optimizer import _UnwrapPreventer
 from tensorflow.python.keras.mixed_precision.loss_scale_optimizer import _op_in_graph_mode
@@ -28,9 +30,12 @@ def _npu_finite_status_after_executed(executed_ops):
 
 
 def _npu_compat_loss_scale_update(m, grads):
+    grads = nest.flatten(grads)
+    is_finite = _npu_finite_status_after_executed(grads)
+
     def update_if_finite_grads():
         def incr_loss_scale():
-            incr_result_finite = tf.less(m.current_loss_scale, 4e+38 / m.multiplier)
+            incr_result_finite = tf.less(m.current_loss_scale, 3.4e+38 / m.multiplier)
             update_if_finite_fn = tf.cond(incr_result_finite,
                                           lambda: _op_in_graph_mode(
                                               m.current_loss_scale.assign(m.current_loss_scale * m.multiplier)),
@@ -45,7 +50,6 @@ def _npu_compat_loss_scale_update(m, grads):
         new_loss_scale = tf.maximum(m.current_loss_scale / m.multiplier, 1)
         return tf.group(m.counter.assign(0), m.current_loss_scale.assign(new_loss_scale))
 
-    is_finite = _npu_finite_status_after_executed(grads)
     update_op = tf.cond(is_finite,
                         update_if_finite_grads,
                         update_if_not_finite_grads)
@@ -93,5 +97,5 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
             should_apply_grads = _npu_finite_status_after_executed(grads)
 
         self._last_step_finite.assign(should_apply_grads)
-        maybe_apply_op = tf.cond(should_apply_grads, apply_fn, do_not_apply_fn)
+        maybe_apply_op = smart_cond.smart_cond(should_apply_grads, apply_fn, do_not_apply_fn)
         return tf.group(maybe_apply_op, loss_scale_update_op)
