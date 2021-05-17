@@ -282,12 +282,14 @@ REGISTER_OP("HcomRemoteScatterWrite")
 
 )doc");
 
-REGISTER_OP("HcomAllToAllReadV")
-    .Input("read_addr_info: uint64")
-    .Input("read_addr_split: uint32")
-    .Output("recv: dtype")
-    .Attr("dtype: {int8, int16, int32, float16, float32, int64, uint64}")
-    .Attr("row_memory: uint32")
+REGISTER_OP("HcomAllToAllVDynamic")
+    .Input("send_data: T")
+    .Input("send_counts: uint32")
+    .Input("send_displacements: uint32")
+    .Input("recv_counts: uint32")
+    .Input("recv_displacements: uint32")
+    .Output("recv_data: T")
+    .Attr("T: {int8, int16, int32, float16, float32, int64, uint64}")
     .Attr("group: string")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext* c) {
@@ -298,14 +300,15 @@ REGISTER_OP("HcomAllToAllReadV")
 
 )doc");
 
-REGISTER_OP("HcomAllToAllV")
-    .Input("send_data: T")
-    .Input("send_counts: uint32")
-    .Input("send_displacements: uint32")
+REGISTER_OP("HcomGatherAllToAllV")
+    .Input("addrinfo: uint64")
+    .Input("addrinfo_count_per_rank: uint32")
     .Input("recv_counts: uint32")
     .Input("recv_displacements: uint32")
-    .Output("recv_data: T")
-    .Attr("T: {int8, int16, int32, float16, float32, int64, uint64}")
+    .Output("recv_data: dtype")
+    .Output("gathered: dtype")
+    .Attr("dtype: {int8, int16, int32, float16, float32, int64, uint64}")
+    .Attr("addr_length: int")
     .Attr("group: string")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext* c) {

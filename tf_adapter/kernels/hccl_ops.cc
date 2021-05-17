@@ -140,28 +140,28 @@ public:
 
 REGISTER_KERNEL_BUILDER(Name("HcomRemoteScatterWrite").Device(DEVICE_CPU), HcomRemoteScatterWriteOpKernel);
 
-class HcomAllToAllReadVOpKernel : public OpKernel {
+class HcomGatherAllToAllVOpKernel : public OpKernel {
 public:
-    explicit HcomAllToAllReadVOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
-    ~HcomAllToAllReadVOpKernel() {}
+    explicit HcomGatherAllToAllVOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
+    ~HcomGatherAllToAllVOpKernel() {}
     void Compute(OpKernelContext* context) override
     {
-        ADP_LOG(INFO) << "HcomAllToAllReadV Compute.";
+        ADP_LOG(INFO) << "HcomGatherAllToAllV Compute.";
     }
 };
 
-REGISTER_KERNEL_BUILDER(Name("HcomAllToAllReadV").Device(DEVICE_CPU), HcomAllToAllReadVOpKernel);
+REGISTER_KERNEL_BUILDER(Name("HcomGatherAllToAllV").Device(DEVICE_CPU), HcomGatherAllToAllVOpKernel);
 
-class HcomAllToAllVOpKernel : public OpKernel {
+class HcomAllToAllVDynamicOpKernel : public OpKernel {
 public:
-    explicit HcomAllToAllVOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
-    ~HcomAllToAllVOpKernel() {}
+    explicit HcomAllToAllVDynamicOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
+    ~HcomAllToAllVDynamicOpKernel() {}
     void Compute(OpKernelContext* context) override
     {
-        ADP_LOG(INFO) << "HcomAllToAllV Compute.";
+        ADP_LOG(INFO) << "HcomAllToAllVDynamic Compute.";
     }
 };
 
-REGISTER_KERNEL_BUILDER(Name("HcomAllToAllV").Device(DEVICE_CPU), HcomAllToAllVOpKernel);
+REGISTER_KERNEL_BUILDER(Name("HcomAllToAllVDynamic").Device(DEVICE_CPU), HcomAllToAllVDynamicOpKernel);
 
 } // namespace tensorflow
