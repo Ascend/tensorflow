@@ -88,12 +88,12 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
   const tensorflow::Tensor *handle = nullptr;
   const tensorflow::Tensor *value = nullptr;
 
-  std::vector<TFE_TensorHandle *> copied_tensor_handles;
+  ScopeTensorHandleDeleter scope_handle_deleter;
   TFE_TensorHandle *value_handle = inputs[1];
   if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[1]))) {
     value_handle = dev->CopyTensorD2H(context, inputs[1], status);
     if (TF_GetCode(status) != TF_OK) return;
-    copied_tensor_handles.emplace_back(value_handle);
+    scope_handle_deleter.Guard(value_handle);
   }
 
   NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(inputs[0], &handle));
@@ -114,9 +114,6 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
   }
 
   dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_init_graph, 1, &value_handle, num_outputs, outputs, status);
-  for (auto copied_tensor_handle : copied_tensor_handles) {
-    TFE_DeleteTensorHandle(copied_tensor_handle);
-  }
 }
 
 }  // namespace

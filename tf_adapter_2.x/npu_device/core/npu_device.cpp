@@ -812,10 +812,10 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
 TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandle *tensor, Format fmt,
                                            TF_Status *status) {
   TFE_TensorHandle *local_handle = tensor;
-  std::vector<TFE_TensorHandle *> copied_tensor_handles;
+  ScopeTensorHandleDeleter scope_handle_deleter;
   if (!IsCpuTensorHandle(npu::UnwrapHandle(tensor))) {
     local_handle = TFE_TensorHandleCopyToDevice(tensor, context, underlying_device.c_str(), status);
-    copied_tensor_handles.push_back(local_handle);
+    scope_handle_deleter.Guard(local_handle);
   }
 
   if (TF_GetCode(status) != TF_OK) return nullptr;
@@ -835,9 +835,6 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
 
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(npu_handle, &npu_tensor), nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleFrom(local_tensor), npu_handle);
-  for (auto handle : copied_tensor_handles) {
-    TFE_DeleteTensorHandle(handle);
-  }
   return npu_handle;
 }
 
@@ -885,7 +882,7 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
 
   std::vector<const tensorflow::Tensor *> input_tensors;
   input_tensors.resize(num_inputs);
-  std::vector<TFE_TensorHandle *> copied_tensor_handles;
+  ScopeTensorHandleDeleter scope_handle_deleter;
   bool input_requested = false;
   for (int i = 0; i < num_inputs; i++) {
     auto input = inputs[i];
@@ -901,7 +898,7 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
           continue;
         }
         DLOG() << "Copying " << ndef.op() << " input:" << i << " from NPU to CPU for infer shape";
-        copied_tensor_handles.push_back(input);
+        scope_handle_deleter.Guard(input);
       }
       const tensorflow::Tensor *tensor;
       NPU_REQUIRES_OK(npu::UnwrapTensor(input, &tensor));
@@ -913,10 +910,6 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
   if (input_requested) {
     ic.set_input_tensors(input_tensors);
     NPU_REQUIRES_OK(ic.Run(op_reg_data->shape_inference_fn));
-  }
-
-  for (auto handle : copied_tensor_handles) {
-    TFE_DeleteTensorHandle(handle);
   }
 
   for (int i = 0; i < ic.num_outputs(); i++) {
@@ -1103,12 +1096,12 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   if (TF_GetCode(status) != TF_OK) return;
   TFE_OpAddAttrs(op, attributes);
   TFE_OpSetDevice(op, underlying_device.c_str(), status);
-  std::vector<TFE_TensorHandle *> copied_tensor_handles;  //最后需要释放掉临时拷贝而来的输入cpu handle
+  ScopeTensorHandleDeleter scope_handle_deleter;
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
     if (IsNpuTensorHandle(npu::UnwrapHandle(input))) {
       input = CopyTensorD2H(context, input, status);  // 创建完成计数为1
-      copied_tensor_handles.emplace_back(input);
+      scope_handle_deleter.Guard(input);
       if (TF_GetCode(status) != TF_OK) return;
     }
     if (kDumpExecutionDetail) {
@@ -1123,9 +1116,6 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   std::vector<TFE_TensorHandle *> op_outputs(*num_outputs);
   TFE_Execute(op, op_outputs.data(), num_outputs, status);
   TFE_DeleteOp(op);
-  for (auto handle : copied_tensor_handles) {
-    TFE_DeleteTensorHandle(handle);
-  }
   if (TF_GetCode(status) != TF_OK) return;
   for (int i = 0; i < *num_outputs; ++i) {
     outputs[i] = op_outputs[i];
@@ -1259,7 +1249,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
 
   // 输入如果是CPU,此时要转换成NPU
   std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
-  std::vector<TFE_TensorHandle *> copied_tensor_handles;
+  ScopeTensorHandleDeleter scope_handle_deleter;
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
@@ -1273,7 +1263,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
              << src_name << " for acl executing";
       // 这里需要根据算子选择输入格式了
       input = CopyTensorH2D(context, input, Format::FORMAT_ND, status);
-      copied_tensor_handles.emplace_back(input);
+      scope_handle_deleter.Guard(input);
       if (TF_GetCode(status) != TF_OK) return;
     }
     npu_inputs[i] = input;
@@ -1297,7 +1287,6 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   // npu_inputs 指向NPU内存的TFE_TensorHandle**
   // outputs 指向NPU内存的TFE_TensorHandle**
   // parser_ndef 打了输入输出描述的ndef，需要优化，后续直接存储ACL的结构体
-  // copied_tensor_handles 存储临时申请的TFE_TensorHandle对象，除输入输出外，必须在最后显式释放
   // output_shapes 临时变量，算子的输出shape
   // spec
   // 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes()，不一定包含OutputShapes()(因为有的算子inferShape依赖输入的值（如reshape），输出shape需要使用上面的output_shapes临时变量)
@@ -1322,7 +1311,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
       NPU_CTX_REQUIRES_OK(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleTo(&cpu_tensor));
     }
     acl_inputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
-    copied_tensor_handles.push_back(acl_inputs[i]);
+    scope_handle_deleter.Guard(acl_inputs[i]);
     if (TF_GetCode(status) != TF_OK) return;
   }
   /**********调用CPU模拟NPU Start*************/
@@ -1357,9 +1346,6 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   }
   /******************************************模拟NPU执行End************************************/
   DLOG() << "NPU Executing op " << spec->Op() << " succeed by npu excutor";
-  for (auto handle : copied_tensor_handles) {
-    TFE_DeleteTensorHandle(handle);
-  }  // 计数-2
 }
 
 namespace {
@@ -1490,7 +1476,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   // 注意，因为GE当前执行图的时候，输入输出内存都是Host的，所以这里和ACL执行相反，如果输入是NPU，则需要转回CPU，特别的，对于资源类，当前采取的策略是资源入图
   // 输入如果是NPU,此时要转换成CPU
   std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
-  std::vector<TFE_TensorHandle *> copied_tensor_handles;
+  ScopeTensorHandleDeleter scope_handle_deleter;
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
@@ -1504,7 +1490,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
              << " to CPU for graph engine executing";
       // 这里需要根据算子选择输入格式了
       input = CopyTensorD2H(context, input, status);
-      copied_tensor_handles.emplace_back(input);
+      scope_handle_deleter.Guard(input);
       if (TF_GetCode(status) != TF_OK) return;
     }
     npu_inputs[i] = input;
@@ -1547,9 +1533,6 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   RunGeGraphPin2Cpu(context, spec->GeGraphId(), num_inputs, npu_inputs.data(), spec->OutputTypes(), *num_outputs,
                     outputs, status);
   timer.Stop();
-  for (auto handle : copied_tensor_handles) {
-    TFE_DeleteTensorHandle(handle);
-  }
 }
 
 void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs,

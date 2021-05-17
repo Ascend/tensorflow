@@ -104,6 +104,24 @@ static bool IsCpuTensorHandle(tensorflow::TensorHandle *handle) {
          parsed_name.type == "CPU";
 }
 
+class ScopeTensorHandleDeleter {
+ public:
+  ScopeTensorHandleDeleter() = default;
+  ~ScopeTensorHandleDeleter() {
+    for (auto handle : handles_) {
+      TFE_DeleteTensorHandle(handle);
+    }
+  }
+  void Guard(TFE_TensorHandle *handle) {
+    if (handle != nullptr) {
+      handles_.insert(handle);
+    }
+  }
+
+ private:
+  std::unordered_set<TFE_TensorHandle *> handles_;
+};
+
 static tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType *tf_type) {
   static std::map<ge::DataType, tensorflow::DataType> kGeType2Tf = {
     {ge::DT_FLOAT, tensorflow::DT_FLOAT},           {ge::DT_DOUBLE, tensorflow::DT_DOUBLE},
