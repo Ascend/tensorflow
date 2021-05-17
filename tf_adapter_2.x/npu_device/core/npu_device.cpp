@@ -1547,6 +1547,9 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   RunGeGraphPin2Cpu(context, spec->GeGraphId(), num_inputs, npu_inputs.data(), spec->OutputTypes(), *num_outputs,
                     outputs, status);
   timer.Stop();
+  for (auto handle : copied_tensor_handles) {
+    TFE_DeleteTensorHandle(handle);
+  }
 }
 
 void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs,

@@ -69,6 +69,11 @@ class _ContextWithDefaultDevice(context.Context):
         self.__default_device_spec = pydev.DeviceSpec.from_string(value)
 
 
+@tf.function
+def __graph_engine_warmup():
+    return tf.constant(0)
+
+
 def open(device_id=None):
     global_kw_options = global_options().as_dict()
 
@@ -103,6 +108,10 @@ def open(device_id=None):
         worker_id = 0
 
     context._set_context(ctx)
+
+    if os.getenv('GE_USE_STATIC_MEMORY') == '1':  # Warmup graph engine for malloc npu memory in static memory mode
+        __graph_engine_warmup()
+
     return NpuDeviceHandle(ctx, device_id, device_options, workers_num, worker_id)
 
 
