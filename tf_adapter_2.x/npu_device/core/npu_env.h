@@ -52,4 +52,11 @@ const static bool kPerfEnabled = []() -> bool {
   tensorflow::ReadBoolFromEnvVar("NPU_ENABLE_PERF", false, &perf_enabled);
   return perf_enabled;
 }();
+
+const static bool kExecuteOpByAcl = []() -> bool {
+  bool execute_op_by_acl = true;
+  tensorflow::ReadBoolFromEnvVar("NPU_EXECUTE_OP_BY_ACL", true, &execute_op_by_acl);
+  return execute_op_by_acl;
+}();
+
 #endif  // TENSORFLOW_NPU_ENV_H

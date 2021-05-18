@@ -1128,6 +1128,19 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   }
 }
 
+void NpuDevice::FallbackCPU(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
+                            int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  tensorflow::AttrBuilder attr_builder;
+  attr_builder.Reset(spec->Op().c_str());
+  attr_builder.BuildNodeDef();
+  auto attrs = spec->NodeDef().attr();
+  for (auto &attr : attrs) {
+    attr_builder.Set(attr.first, attr.second);
+  }
+  FallbackCPU(context, spec->Op().c_str(), tensorflow::wrap(&attr_builder), num_inputs, inputs, num_outputs, outputs,
+              status);
+}
+
 void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s) {
   auto context = TFE_OpGetContext(op, s);
   if (TF_GetCode(s) != TF_OK) {
@@ -1224,15 +1237,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     }
     if (should_fallback) {
       DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu after re-infer shape";
-      tensorflow::AttrBuilder attr_builder;
-      attr_builder.Reset(spec->Op().c_str());
-      attr_builder.BuildNodeDef();
-      auto attrs = spec->NodeDef().attr();
-      for (auto &attr : attrs) {
-        attr_builder.Set(attr.first, attr.second);
-      }
-      FallbackCPU(context, spec->Op().c_str(), tensorflow::wrap(&attr_builder), num_inputs, inputs, num_outputs,
-                  outputs, status);
+      FallbackCPU(context, spec, num_inputs, inputs, num_outputs, outputs, status);
       return;
     }
     AssembleOutputDesc(output_shapes, spec->OutputTypes(), &parser_ndef);
@@ -1247,6 +1252,11 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     return;
   }
 
+  if (!kExecuteOpByAcl && !SupportedResourceGenerator(spec->Op())) {  // Should never fallback npu resource generator
+    DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu as acl engine not enabled";
+    FallbackCPU(context, spec, num_inputs, inputs, num_outputs, outputs, status);
+    return;
+  }
   // 输入如果是CPU,此时要转换成NPU
   std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
   ScopeTensorHandleDeleter scope_handle_deleter;
@@ -1316,16 +1326,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   }
   /**********调用CPU模拟NPU Start*************/
   std::vector<TFE_TensorHandle *> acl_outputs(*num_outputs);
-  tensorflow::AttrBuilder attr_builder;
-  attr_builder.Reset(spec->Op().c_str());
-  attr_builder.BuildNodeDef();
-  auto attrs = spec->NodeDef().attr();
-  for (auto &attr : attrs) {
-    attr_builder.Set(attr.first, attr.second);
-  }
-
-  FallbackCPU(context, spec->Op().c_str(), tensorflow::wrap(&attr_builder), num_inputs, acl_inputs.data(), num_outputs,
-              acl_outputs.data(), status);
+  FallbackCPU(context, spec, num_inputs, acl_inputs.data(), num_outputs, acl_outputs.data(), status);
   if (TF_GetCode(status) != TF_OK) return;
   /**********调用CPU模拟NPU End*************/
   for (int i = 0; i < *num_outputs; ++i) {
