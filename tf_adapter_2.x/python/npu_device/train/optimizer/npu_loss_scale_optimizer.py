@@ -24,7 +24,7 @@ def _npu_finite_status_after_executed(executed_ops):
         if global_npu_ctx() and global_npu_ctx().workers_num > 1:
             with tf.control_dependencies([assign_float_status]):
                 reduced_status = all_reduce(current_status, 'sum', fusion=0)
-            return tf.reduce_all(tf.equal(reduced_status, finite_status))
+                return tf.reduce_all(tf.equal(reduced_status, finite_status))
         else:
             return tf.reduce_all(tf.equal(current_status, finite_status))
 
@@ -35,12 +35,10 @@ def _npu_compat_loss_scale_update(m, grads):
 
     def update_if_finite_grads():
         def incr_loss_scale():
-            incr_result_finite = tf.less(m.current_loss_scale, 3.4e+38 / m.multiplier)
-            update_if_finite_fn = tf.cond(incr_result_finite,
-                                          lambda: _op_in_graph_mode(
-                                              m.current_loss_scale.assign(m.current_loss_scale * m.multiplier)),
-                                          tf.no_op)
-            return tf.group(update_if_finite_fn, m.counter.assign(0))
+            return tf.group(tf.cond(tf.less(m.current_loss_scale, 3.4e+38 / m.multiplier),
+                                    lambda: _op_in_graph_mode(
+                                        m.current_loss_scale.assign(m.current_loss_scale * m.multiplier)),
+                                    tf.no_op), m.counter.assign(0))
 
         return tf.cond(m.counter + 1 >= m.growth_steps,
                        incr_loss_scale,
