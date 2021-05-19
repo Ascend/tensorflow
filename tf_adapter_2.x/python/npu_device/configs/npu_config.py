@@ -14,7 +14,7 @@ class NpuConfig(NpuBaseConfig):
         self.enable_scope_fusion_passes = OptionValue(None, None)
         self.fusion_switch_file = OptionValue(None, None)
         self.precision_mode = OptionValue('allow_mix_precision',
-                                          ['allow_fp32_to_fp16', 'force_fp16', 'must_keep_origin_dtype',
+                                          ['force_fp32', 'allow_fp32_to_fp16', 'force_fp16', 'must_keep_origin_dtype',
                                            'allow_mix_precision'])
         self.auto_tune_mode = OptionValue(None, None)
         self.op_select_implmode = OptionValue('high_performance', ['high_performance', 'high_precision'])
