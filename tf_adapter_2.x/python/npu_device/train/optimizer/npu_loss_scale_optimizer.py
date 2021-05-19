@@ -58,6 +58,8 @@ def _npu_compat_loss_scale_update(m, grads):
 
 
 class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
+    _HAS_AGGREGATE_GRAD = True
+
     def __init__(self, inner_optimizer, dynamic=True, initial_scale=None, dynamic_growth_steps=None):
         super().__init__(inner_optimizer, dynamic, initial_scale, dynamic_growth_steps)
         self._last_step_finite = variable_scope.variable(
@@ -81,10 +83,11 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
         if global_npu_ctx() is None:
             super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
 
+        grads_and_vars = tuple(grads_and_vars)
         grads = [g for g, _ in grads_and_vars]
-        wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
 
         def apply_fn():
+            wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
             return self._apply_gradients(grads, wrapped_vars, name, experimental_aggregate_gradients)
 
         def do_not_apply_fn():
