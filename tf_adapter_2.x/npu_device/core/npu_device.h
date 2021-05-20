@@ -89,6 +89,9 @@ class NpuDevice {
   void FallbackCPU(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes, int num_inputs,
                    TFE_TensorHandle **inputs, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
 
+  void FallbackCPU(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
+                   int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
+
   // NPU Device对外的顶层方法
   void Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s);
 
