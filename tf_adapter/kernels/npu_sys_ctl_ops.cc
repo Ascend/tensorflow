@@ -92,6 +92,8 @@ NPUInit::NPUInit(OpKernelConstruction *ctx) : OpKernel(ctx) {
     ADP_LOG(INFO) << "[NPUInit] NPUInit can not get _NpuOptimizer attr, use default init options";
     init_options_ = NpuAttrs::GetDefaultInitOptions();
   }
+  ADP_LOG(INFO) << "init option:";
+  NpuAttrs::LogOptions(init_options_);
 }
 void NPUInit::Compute(OpKernelContext *ctx) {
   if (GePlugin::GetInstance()->IsGlobal()) {
