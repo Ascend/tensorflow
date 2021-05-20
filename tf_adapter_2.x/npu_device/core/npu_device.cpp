@@ -1252,10 +1252,26 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     return;
   }
 
-  if (!kExecuteOpByAcl && !SupportedResourceGenerator(spec->Op())) {  // Should never fallback npu resource generator
-    DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu as acl engine not enabled";
-    FallbackCPU(context, spec, num_inputs, inputs, num_outputs, outputs, status);
-    return;
+  if (!kExecuteOpByAcl) {
+    bool op_can_fallback = true;
+    if (SupportedResourceGenerator(spec->Op())) {  // Should never fallback npu resource generator
+      DLOG() << "Op " << spec->Op() << " not fallback cpu as it is resource generator";
+      op_can_fallback = false;
+    } else {
+      for (int i = 0; i < num_inputs; ++i) {  // Should never fallback if op has npu resource input
+        if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[i])) &&
+            npu::UnwrapHandle(inputs[i])->DataType() == tensorflow::DT_RESOURCE) {
+          DLOG() << "Op " << spec->Op() << " not fallback cpu as it has resource input from NPU";
+          op_can_fallback = false;
+          break;
+        }
+      }
+    }
+    if (op_can_fallback) {
+      DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu as acl engine not enabled";
+      FallbackCPU(context, spec, num_inputs, inputs, num_outputs, outputs, status);
+      return;
+    }
   }
   // 输入如果是CPU,此时要转换成NPU
   std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
