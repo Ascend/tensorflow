@@ -68,7 +68,6 @@ if (ENABLE_OPEN_SRC)
             VERBATIM
             )
 else()
-    get_filename_component(TOP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
     set(BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
     set(CMAKE_VERBOSE_MAKEFILE ON)
 
