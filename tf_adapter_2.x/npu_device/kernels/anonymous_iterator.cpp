@@ -59,3 +59,6 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
 NPU_REGISTER_FALLBACK_HOOK("AnonymousIteratorV2", kernel);
 NPU_REGISTER_FALLBACK_HOOK("AnonymousIterator", kernel);
 NPU_REGISTER_FALLBACK_HOOK("AnonymousMultiDeviceIterator", kernel);
+NPU_REGISTER_FALLBACK_HOOK("IteratorV2", kernel);
+NPU_REGISTER_FALLBACK_HOOK("Iterator", kernel);
+NPU_REGISTER_FALLBACK_HOOK("MultiDeviceIterator", kernel);

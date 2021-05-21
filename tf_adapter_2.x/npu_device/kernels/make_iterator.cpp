@@ -51,7 +51,7 @@ class MakeIteratorGraphBuilder {
                                  .Finalize(&graph, &device_queue),
                                gdef);
     NPU_CTX_REQUIRES_OK_RETURN(status,
-                               tensorflow::NodeBuilder(WrapResourceName(shared_name), "IteratorV2")
+                               tensorflow::NodeBuilder("IteratorV2_" + shared_name, "IteratorV2")
                                  .Attr("container", container_name)
                                  .Attr("shared_name", shared_name)
                                  .Attr("output_types", types)
@@ -66,6 +66,12 @@ class MakeIteratorGraphBuilder {
                                  .Input(iterator_v2, 0)
                                  .Finalize(&graph, &make_iterator),
                                gdef);
+
+    if (kDumpExecutionDetail || kDumpGraph) {
+      std::string file_name = "dp_init_" + shared_name + ".inner.pbtxt";
+      LOG(INFO) << "NPU Dump mirrored resource init graph inner graph to: " << file_name;
+      WriteTextProto(tensorflow::Env::Default(), file_name, graph.ToGraphDefDebug());
+    }
 
     // TODO:Tensorflow model parser bug，如果名字不是dpop开头的，则会被remove掉
     std::string func_name = "dpop_init_func_" + shared_name;
@@ -109,7 +115,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
       NPU_CTX_REQUIRES_OK(status, dev->GetMirroredIteratorShapesAndTypes(handle, shapes, types));
       auto dp_init_graph = MakeIteratorGraphBuilder::GetGraph(handle.container(), handle.name(), shapes, types, status);
       if (TF_GetCode(status) != TF_OK) return;
-      if (kDumpExecutionDetail && kDumpGraph) {
+      if (kDumpExecutionDetail || kDumpGraph) {
         std::string file_name = "dp_init_" + handle.name() + ".pbtxt";
         LOG(INFO) << "NPU Dump mirrored resource init graph to: " << file_name;
         WriteTextProto(tensorflow::Env::Default(), file_name, dp_init_graph);
