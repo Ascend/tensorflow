@@ -144,6 +144,7 @@ class GraphCycles {
 
  private:
   Rep *rep_;  // opaque representation
+  bool has_cycle_;
   TF_DISALLOW_COPY_AND_ASSIGN(GraphCycles);
 };
 
