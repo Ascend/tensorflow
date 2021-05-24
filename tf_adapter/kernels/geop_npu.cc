@@ -1129,7 +1129,8 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
       input_shapes_ = cur_input_shapes;
     } else if (input_shapes_ != cur_input_shapes && dynamic_input_ != "1") {
       return errors::Internal("The input shape of ", ctx->op_kernel().name(),
-                              " is dynamic, please set dynamic_input=True.");
+                              " is dynamic, please ensure that npu option[dynamic_input] is set"
+                              " correctly, for more details please refer to the migration guide.");
     }
   }
   return Status::OK();
