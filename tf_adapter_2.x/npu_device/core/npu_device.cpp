@@ -718,18 +718,23 @@ tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tenso
     if (!input_types.empty()) {
       tensorflow::AttrValue input_desc_attrs;
       bool input_desc_incomplete = false;
-      for (auto edge : node->in_edges()) {
-        if (!edge->IsControlEdge()) {
-          auto input_attr = edge->src()->attrs().Find(kOutputDesc);
-          if (input_attr == nullptr) {
-            input_desc_incomplete = true;
-            LOG(WARNING) << node->DebugString() << " input node " << edge->src()->DebugString()
-                         << " has no desc for output " << edge->src_output();
-            break;
-          }
-          *input_desc_attrs.mutable_list()->add_func() =
-            edge->src()->attrs().Find(kOutputDesc)->list().func(edge->src_output());
+      for (int i = 0; i < node->num_inputs(); i++) {
+        const tensorflow::Edge *edge = nullptr;
+        status = node->input_edge(i, &edge);
+        if (!status.ok()) {
+          LOG(ERROR) << status.ToString();
+          return;
         }
+
+        auto input_attr = edge->src()->attrs().Find(kOutputDesc);
+        if (input_attr == nullptr) {
+          input_desc_incomplete = true;
+          LOG(WARNING) << node->DebugString() << " input node " << edge->src()->DebugString()
+                       << " has no desc for output " << edge->src_output();
+          break;
+        }
+        *input_desc_attrs.mutable_list()->add_func() =
+          edge->src()->attrs().Find(kOutputDesc)->list().func(edge->src_output());
       }
       if (!input_desc_incomplete) {
         node->AddAttr(kInputDesc, input_desc_attrs);
