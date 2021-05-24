@@ -1117,7 +1117,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
       ge::TensorDesc ge_tensor_desc(ge_shape);
       ge_tensor_desc.SetDataType(type);
       input.SetTensorDesc(ge_tensor_desc);
-      input.SetData(static_cast<uint8_t *>(tensor_ptr), total_bytes);
+      input.SetData(static_cast<uint8_t *>(tensor_ptr), total_bytes, [](uint8_t *) {});
       input_shapes.push_back(input_shape);
       cur_input_shapes += input_shape;
     }
