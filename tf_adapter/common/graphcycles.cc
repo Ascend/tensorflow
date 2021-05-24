@@ -77,13 +77,14 @@ struct GraphCycles::Rep {
   Vec<int32> stack_;   // Emulates recursion stack when doing depth first search
 };
 
-GraphCycles::GraphCycles() : rep_(new Rep) {}
+GraphCycles::GraphCycles() : rep_(new Rep), has_cycle_(false) {}
 
 GraphCycles::~GraphCycles() {
   for (Vec<Node*>::size_type i = 0; i < rep_->nodes_.size(); i++) {
     delete rep_->nodes_[i];
   }
   delete rep_;
+  has_cycle_ = false;
 }
 
 bool GraphCycles::CheckInvariants() const {
@@ -158,7 +159,7 @@ void GraphCycles::RemoveEdge(int32 x, int32 y) {
   // rank assignment remains valid after an edge deletion.
 }
 
-static bool ForwardDFS(GraphCycles::Rep* r, int32 n, int32 upper_bound, bool ignore_cycle);
+static bool ForwardDFS(GraphCycles::Rep* r, int32 n, int32 upper_bound, bool ignore_cycle, bool& has_cycle);
 static bool ForwardDFSUnlimitRank(GraphCycles::Rep* r, int32 n, int32 upper_bound);
 static void BackwardDFS(GraphCycles::Rep* r, int32 n, int32 lower_bound);
 static void Reorder(GraphCycles::Rep* r);
@@ -185,7 +186,7 @@ bool GraphCycles::InsertEdge(int32 x, int32 y, bool ignore_cycle) {
 
   // Current rank assignments are incompatible with the new edge.  Recompute.
   // We only need to consider nodes that fall in the range [ny->rank,nx->rank].
-  if (!ForwardDFS(r, y, nx->rank, ignore_cycle)) {
+  if (!ForwardDFS(r, y, nx->rank, ignore_cycle, has_cycle_)) {
     // Found a cycle.  Undo the insertion and tell caller.
     nx->out.Erase(y);
     ny->in.Erase(x);
@@ -199,7 +200,7 @@ bool GraphCycles::InsertEdge(int32 x, int32 y, bool ignore_cycle) {
   return true;
 }
 
-static bool ForwardDFS(GraphCycles::Rep* r, int32 n, int32 upper_bound, bool ignore_cycle) {
+static bool ForwardDFS(GraphCycles::Rep* r, int32 n, int32 upper_bound, bool ignore_cycle, bool& has_cycle) {
   // Avoid recursion since stack space might be limited.
   // We instead keep a stack of nodes to visit.
   r->deltaf_.clear();
@@ -218,6 +219,9 @@ static bool ForwardDFS(GraphCycles::Rep* r, int32 n, int32 upper_bound, bool ign
       Node* nw = r->nodes_[w];
       if (nw->rank == upper_bound && !ignore_cycle) {
         return false;  // Cycle
+      }
+      if (nw->rank == upper_bound && ignore_cycle) {
+        has_cycle = true;
       }
       if (!nw->visited && nw->rank < upper_bound) {
         r->stack_.push_back(w);
@@ -374,8 +378,20 @@ bool GraphCycles::IsReachableNonConst(int32 x, int32 y) {
   Node* nx = r->nodes_[x];
   Node* ny = r->nodes_[y];
 
-  // See if x can reach y using a DFS search that is limited to y's rank
-  bool reachable = !ForwardDFSUnlimitRank(r, x, ny->rank);
+  bool reachable = false;
+  if (has_cycle_) {
+    // See if x can reach y using a DFS search that is limited to y's rank
+    reachable = !ForwardDFSUnlimitRank(r, x, ny->rank);
+  } else {
+    if (nx->rank >= ny->rank) {
+      // x cannot reach y since it is after it in the topological ordering
+      return false;
+    }
+
+    bool has_cycle = false;
+    // See if x can reach y using a DFS search that is limited to y's rank
+    reachable = !ForwardDFS(r, x, ny->rank, false, has_cycle);
+  }
 
   // Clear any visited markers left by ForwardDFS.
   ClearVisitedBits(r, r->deltaf_);
