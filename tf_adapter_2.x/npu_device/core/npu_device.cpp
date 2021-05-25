@@ -516,9 +516,8 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
 
       for (auto &attr : node->attrs()) {
         if (attr.second.has_func()) {
-          static std::atomic<uint64_t> uuid{0};
-          std::string func_name = node->type_string() + "_" + attr.first + "_" + attr.second.func().name() + "_" +
-                                  std::to_string(uuid.fetch_add(1));
+          std::string func_name =
+            node->type_string() + "_" + attr.first + "_" + attr.second.func().name() + "_" + std::to_string(node->id());
           const tensorflow::FunctionDef *fdef = lib_def->Find(attr.second.func().name());
           std::unique_ptr<tensorflow::FunctionBody> fbody;
           FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
