@@ -321,7 +321,8 @@ void GeOp::Finalize() {
 
       if (!SessionManager::GetInstance().IsGeSessionExist()) {
         if (!GePlugin::GetInstance()->IsGlobal()) {
-          if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
+          if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty() &&
+              aoe_finalize_ != nullptr) {
             AoeStatus tune_ret = (*aoe_finalize_)();
             if (tune_ret != AOE_SUCCESS) {
               ADP_LOG(ERROR) << "[GEOP] exec aoe finalize func failed.";
