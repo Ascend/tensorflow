@@ -25,25 +25,6 @@
 "map_and_batch":                ["",                        "map_and_batch(xxx)",           "map_and_batch(xxx, drop_remainder=True)"],
 "device":                       ["",                        "tf.device(xxx)",               "tf.device('/cpu:0')"],
 "max_pooling2d":                ["",                        "max_pooling2d",                "max_pool_with_argmax"],
-
-"tf.profiler.AdviceProto":      ["",                        "tf.profiler.AdviceProto",                      "None"],
-"tf.profiler.AdviceProto.Checker":
-                                ["",                        "tf.profiler.AdviceProto.Checker",              "None"],
-"tf.profiler.AdviceProto.CheckersEntry":
-                                ["",                        "tf.profiler.AdviceProto.CheckersEntry",        "None"],
-"tf.profiler.GraphNodeProto":   ["",                        "tf.profiler.GraphNodeProto",      "None"],
-"tf.profiler.GraphNodeProto.InputShapesEntry":
-                                ["",                        "tf.profiler.GraphNodeProto.InputShapesEntry",  "None"],
-"tf.profiler.MultiGraphNodeProto":
-                                ["",                        "tf.profiler.MultiGraphNodeProto",              "None"],
-"tf.profiler.OpLogProto":       ["",                        "tf.profiler.OpLogProto",                       "None"],
-"tf.profiler.OpLogProto.IdToStringEntry":
-                                ["",                        "tf.profiler.OpLogProto.IdToStringEntry",       "None"],
-"tf.profiler.ProfileOptionBuilder":
-                                ["",                        "tf.profiler.ProfileOptionBuilder",             "None"],
-"tf.profiler.advise":           ["",                        "tf.profiler.advise",                           "None"],
-"tf.profiler.profile":          ["",                        "tf.profiler.profile",                          "None"],
-"tf.profiler.write_op_log":     ["",                        "tf.profiler.write_op_log",                     "None"],
 "TPUEstimator(use_tpu=*)":      ["",                        "TPUEstimator(use_tpu=*)",                      "TPUEstimator(use_tpu=False)"],
 "TPUEstimator(eval_on_tpu=*)":  ["",                        "TPUEstimator(eval_on_tpu=*)",                  "TPUEstimator(eval_on_tpu=False)"],
 "TPUEstimator(export_to_tpu=*)":["",                        "TPUEstimator(export_to_tpu=*)",                "TPUEstimator(export_to_tpu=False)"],

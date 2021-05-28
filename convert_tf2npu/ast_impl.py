@@ -272,66 +272,6 @@ def ast_call(node):
         node.keywords = []
         node.args = []
         util_global.set_value('need_conver', True)
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'AdviceProto'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.AdviceProto')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'Checker'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.AdviceProto.Checker')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'CheckersEntry'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.AdviceProto.CheckersEntry')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'GraphNodeProto'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.GraphNodeProto')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'InputShapesEntry'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.GraphNodeProto.InputShapesEntry')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'MultiGraphNodeProto'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.MultiGraphNodeProto')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'OpLogProto'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.OpLogProto')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'IdToStringEntry'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.OpLogProto.IdToStringEntry')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'ProfileOptionBuilder'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.ProfileOptionBuilder')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'advise'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.advise')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'profile'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.profile')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'write_op_log'):
-        log_success_report(getattr(node, 'lineno', 'None'), 'tf.profiler.write_op_log')
-        util_global.set_value('need_conver', True)
-        node = ast.NameConstant(value=None)
-        return node
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator') and \
         ((isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'tpu')) or \
         (isinstance(node.func.value, ast.Name) and (node.func.value.id == 'tpu'))):
@@ -543,6 +483,38 @@ def ast_call(node):
 def _call_name_match(call_func, call_name):
     return (isinstance(call_func, ast.Attribute) and (call_func.attr == call_name)) or \
            (isinstance(call_func, ast.Name) and (call_func.id) == call_name)
+
+def remove_hvd_import(r_node):
+    n = 0
+    lenline = len(r_node.body)
+
+    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
+        n += 1
+
+    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
+        if isinstance(r_node.body[n], ast.ImportFrom):
+            if r_node.body[n].module != None:
+                values = r_node.body[n].module.split(".")
+                if "horovod" in values:
+                    log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
+                    r_node.body.pop(n)
+                    lenline -= 1
+            for value in r_node.body[n].names:
+                if isinstance(value, ast.alias):
+                    values = value.name.split(".")
+                    if "horovod" in values:
+                        log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
+                        r_node.body.pop(n)
+                        lenline -= 1
+        elif isinstance(r_node.body[n], ast.Import):
+            for value in r_node.body[n].names:
+                if isinstance(value, ast.alias):
+                    values = value.name.split(".")
+                    if "horovod" in values:
+                        log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
+                        r_node.body.pop(n)
+                        lenline -= 1
+        n += 1
 
 def insert_npu_import(r_node):
     npu_alias = ast.alias(name='*', asname=None)

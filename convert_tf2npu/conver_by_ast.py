@@ -103,7 +103,10 @@ def conver_ast(path, out_path_dst, file_name):
             or util_global.get_value('is_keras_net', False)):
             log_warning('the network of keras and horovod, or using dataset.shard script do not have main func, '
                         'should set -m or --main parameter')
+        if util_global.get_value('has_main_func', False) and util_global.get_value('has_hccl_api', False):
+            remove_hvd_import(r_node)
         if util_global.get_value('is_main_file', False) and util_global.get_value('has_hccl_api', False):
+            remove_hvd_import(r_node)
             insert_npu_resource_init(r_node)
             insert_npu_resource_shutdown(r_node)
         if util_global.get_value('is_main_file', False) and util_global.get_value('is_keras_net', False):
