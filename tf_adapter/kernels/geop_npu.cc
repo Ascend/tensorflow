@@ -594,15 +594,14 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
-    auto build_sub_graph = [this, flib_def](const google::protobuf::Message *root_proto,
-                                            const std::string &graph) -> std::unique_ptr<google::protobuf::Message> {
+    auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
       // const tensorflow::GraphDef *graph_def_in = reinterpret_cast<const tensorflow::GraphDef *>(root_proto);
       ADP_LOG(INFO) << "[GEOP] build_sub_graph enter, sub graph name is " << graph;
       const FunctionDef *func_def = flib_def->Find(graph);
       if (func_def == nullptr) {
         ADP_LOG(ERROR) << "[GEOP] Sub graph not found in library, sub graph name is " << graph;
         LOG(ERROR) << "[GEOP] Sub graph not found in library, sub graph name is " << graph;
-        return nullptr;
+        return "";
       }
       // get infershape
       Graph subgraph(flib_def);
@@ -610,7 +609,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       if (status != Status::OK()) {
         ADP_LOG(ERROR) << "[GEOP] Get subgraph from functiondef fail:" << status.error_message();
         LOG(ERROR) << "[GEOP] Get subgraph from functiondef fail:" << status.error_message();
-        return nullptr;
+        return "";
       }
       ADP_LOG(INFO) << "[GEOP] Get subgraph from functiondef success.";
       char *enable_force_v2_control = getenv("ENABLE_FORCE_V2_CONTROL");
@@ -637,7 +636,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       if (sub_graph_def == nullptr) {
         ADP_LOG(ERROR) << "[GEOP] Malloc memory for subgraph def fail.";
         LOG(ERROR) << "[GEOP] Malloc memory for subgraph def fail.";
-        return nullptr;
+        return "";
       }
       subgraph.ToGraphDef(sub_graph_def.get());
       if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
@@ -645,20 +644,18 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         sub_graph_def->mutable_versions()->clear_min_consumer();
       }
 
-      unique_ptr<google::protobuf::Message> graph_def_out(std::move(sub_graph_def));
-
       char *need_print = getenv("PRINT_MODEL");
       if (need_print != nullptr && strcmp("1", need_print) == 0) {
         string tmpmodel_path = GetDumpPath() + "TF_Subgraph_";
         string tmodel_path = tmpmodel_path + graph.c_str() + ".pbtxt";
-        Status status_out = WriteTextProto(Env::Default(), tmodel_path, *graph_def_out.get());
+        Status status_out = WriteTextProto(Env::Default(), tmodel_path, *sub_graph_def);
       }
       ADP_LOG(INFO) << "[GEOP] build_sub_graph exit, sub graph name is " << graph;
-      return graph_def_out;
+      return sub_graph_def->SerializeAsString();
     };
 
-    ge::Status status = model_parser->ParseProtoWithSubgraph(
-        reinterpret_cast<google::protobuf::Message *>(&ori_graph_def), build_sub_graph, compute_graph);
+    ge::Status status = model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(),
+                                                             build_sub_graph, compute_graph);
     if (status != ge::SUCCESS) {
       std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
