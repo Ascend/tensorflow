@@ -5,6 +5,6 @@ def npu_resource_init(graph_run_mode = 1, op_debug_level = 0, enable_profiling =
                       precision_mode = None, enable_scope_fusion_passes = None,
                       enable_exception_dump = 0, mstune_mode = None, work_path = None,
                       op_compiler_cache_mode=None, op_compiler_cache_dir=None, debug_dir=None,
-                      hcom_multi_mode=False, distribute_config=None, op_tune_mode=None):
+                      hcom_multi_mode=False, distribute_config=None):
 
 def npu_resource_shutdown():

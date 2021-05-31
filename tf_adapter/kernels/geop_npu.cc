@@ -502,7 +502,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         OP_REQUIRES_OK_ASYNC(ctx, GetEnvDeviceID(device_id), done);
         ADP_LOG(INFO) << "[GEOP] in tuning func, mstune_mode:" << init_options_["ge.jobType"]
                       << ", work_path:" << init_options_["ge.tuningPath"]
-                      << ", op_tune_mode:" << init_options_["op_tune_mode"]
                       << ", distribute_config:" << init_options_["distribute_config"];
         tune_options_.insert(init_options_.begin(), init_options_.end());
         tune_options_.insert({"devices", std::to_string(device_id)});
