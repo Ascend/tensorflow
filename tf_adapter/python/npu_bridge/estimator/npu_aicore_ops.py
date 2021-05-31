@@ -65,6 +65,9 @@ def prelu_grad(op, grad):
 def prelu(x, weight):
     return npu_aicore_ops.p_relu(x, weight)
 
+def _truncate_seed(seed):
+      return seed % _MAXINT32  # Truncate to fit into 32-bit integer
+
 # go/tf-wildcard-import
 def get_seed(op_seed):
   global_seed = ops.get_default_graph().seed
