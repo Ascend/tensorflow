@@ -54,6 +54,7 @@ class NpuAttrs {
   static std::map<std::string, std::string> GetAllAttrOptions(AttrSlice attrs);
   static std::map<std::string, std::string> GetDefaultPassOptions();
   static Status SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node);
+  static void LogOptions(const std::map<std::string, std::string>& options);
   static bool GetUseTdtStatus(int32_t device_id);
   static void SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt);
  private:

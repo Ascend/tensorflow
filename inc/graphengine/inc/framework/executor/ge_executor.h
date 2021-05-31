@@ -153,6 +153,10 @@ class GE_FUNC_VISIBILITY GeExecutor {
                                 const kAippDynamicPara &aippParms);
 
   ge::Status GetAIPPInfo(uint32_t model_id, uint32_t index, AippConfigInfo &aipp_info);
+
+  ge::Status GetOpAttr(uint32_t model_id, const std::string &op_name, const std::string &attr_name,
+                       std::string &attr_value);
+
   ge::Status GetModelAttr(uint32_t model_id, std::vector<std::string> &dynamic_output_shape_info);
 
   ge::Status GetAippType(uint32_t model_id, uint32_t index, InputAippType &type, size_t &aipp_index);
@@ -260,11 +264,17 @@ class GE_FUNC_VISIBILITY GeExecutor {
   static ge::Status LoadSingleOp(const std::string &modelName, const ge::ModelData &modelData, void *stream,
                                  SingleOp **single_op);
 
+  static ge::Status LoadSingleOpV2(const std::string &modelName, const ge::ModelData &modelData, void *stream,
+                                   SingleOp **single_op, const uint64_t model_id);
+
   static ge::Status ExecuteAsync(SingleOp *executor, const std::vector<DataBuffer> &inputs,
                                  std::vector<DataBuffer> &outputs);
 
   static ge::Status LoadDynamicSingleOp(const std::string &model_name, const ge::ModelData &modelData, void *stream,
                                         DynamicSingleOp **single_op);
+
+  static ge::Status LoadDynamicSingleOpV2(const std::string &model_name, const ge::ModelData &modelData, void *stream,
+                                          DynamicSingleOp **single_op, const uint64_t model_id);
 
   static ge::Status ExecuteAsync(DynamicSingleOp *executor, const std::vector<GeTensorDesc> &input_desc,
                                  const std::vector<DataBuffer> &inputs, std::vector<GeTensorDesc> &output_desc,

@@ -278,6 +278,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     GePlugin::GetInstance()->Init(init_options_);
     ADP_LOG(INFO) << "[GEOP] GePlugin init success";
   }
+  ADP_LOG(INFO) << "init options:";
+  NpuAttrs::LogOptions(init_options_);
 
   if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
     handle_ = mmDlopen("libaoe_tuning.so", MMPA_RTLD_NOW);
@@ -291,6 +293,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   }
 
   sess_options_ = NpuAttrs::GetSessOptions(ctx);
+  ADP_LOG(INFO) << "session options:";
+  NpuAttrs::LogOptions(sess_options_);
 
   init_flag_ = true;
   int64 endTime = InferShapeUtil::GetCurrentTimestap();

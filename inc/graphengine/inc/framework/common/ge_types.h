@@ -57,9 +57,12 @@ const char *const GE_ENGINE_ATTR_MEM_TYPE_HBM = "HBM";
 const char *const GE_OPTION_EXEC_PLACEMENT = "ge.exec.placement";
 
 // profiling data
-const uint32_t kTaskTypeAicore = 0;
-const uint32_t kTaskTypeAicpu = 1;
-const uint32_t kTaskTypeInvalid = 0xFFFF;
+const std::string kTaskTypeAicore = "AI_CORE";
+const std::string kTaskTypeAicpu = "AI_CPU";
+const std::string kTaskTypeInvalid = "TASK_TYPE_INVALID";
+
+// dynamic execute mode
+const char *const kLazyRecompile = "lazy_recompile";
 
 // Data cache, including data address and length
 struct DataBuffer {
@@ -67,8 +70,9 @@ struct DataBuffer {
   void *data;       // Data address
   uint64_t length;  // Data length
   bool isDataSupportMemShare = false;
-  DataBuffer(void *dataIn, uint64_t len, bool isSupportMemShare)
-      : data(dataIn), length(len), isDataSupportMemShare(isSupportMemShare) {}
+  uint32_t placement = 0;
+  DataBuffer(void *dataIn, uint64_t len, bool isSupportMemShare, uint32_t placement = 0)
+      : data(dataIn), length(len), isDataSupportMemShare(isSupportMemShare), placement(placement) {}
 
   DataBuffer() : data(nullptr), length(0), isDataSupportMemShare(false) {}
 };
@@ -225,7 +229,7 @@ class GE_FUNC_VISIBILITY ModelListener {
   /// @param [in] resultCode Execution results
   ///
   virtual Status OnComputeDone(uint32_t model_id, uint32_t data_index, uint32_t result_code,
-                               std::vector<ge::OutputTensorInfo> &outputs) = 0;
+                               std::vector<ge::Tensor> &outputs) = 0;
 };
 
 // OMM configuration item
@@ -251,27 +255,19 @@ struct Options {
 struct TaskDescInfo {
   std::string model_name;
   std::string op_name;
+  std::string op_type;
   uint32_t block_dim;
   uint32_t task_id;
   uint32_t stream_id;
   std::string shape_type;
   int64_t cur_iter_num;
-  uint32_t task_type;
-};
-
-// Profiling info of graph
-struct ComputeGraphDescInfo {
-  std::string model_name;
-  std::string op_name;
-  std::string op_type;
+  std::string task_type;
   std::vector<Format> input_format;
   std::vector<std::vector<int64_t>> input_shape;
   std::vector<DataType> input_data_type;
   std::vector<Format> output_format;
   std::vector<std::vector<int64_t>> output_shape;
   std::vector<DataType> output_data_type;
-  uint32_t task_id;
-  uint32_t stream_id;
 };
 
 struct OpDescInfo {
@@ -300,6 +296,7 @@ struct DumpConfig {
   std::string dump_mode;
   std::string dump_status;
   std::string dump_op_switch;
+  std::string dump_debug;
   std::vector<ModelDumpConfig> dump_list;
 };
 }  // namespace ge
