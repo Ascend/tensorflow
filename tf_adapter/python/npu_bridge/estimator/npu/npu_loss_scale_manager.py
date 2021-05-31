@@ -77,7 +77,7 @@ class FixedLossScaleManager(LossScaleManager):
   The loss scale is not updated for the lifetime of the class.
   """
 
-  def __init__(self, loss_scale):
+  def __init__(self, loss_scale, enable_overflow_check=True):
     """Creates the fixed loss scale manager.
 
     Args:
@@ -86,13 +86,15 @@ class FixedLossScaleManager(LossScaleManager):
             big loss_scale might cause inf or nan. There is no single right
             loss_scale to apply. There is no harm choosing a relatively big number
             as long as no nan or inf is encountered in training.
-
+        enable_overflow_check: A Python bool indicating if the overflow check will
+            be executed or not(True: executed, False: not executed).
     Raises:
         ValueError: If loss_scale is less than 1.
     """
     if loss_scale < 1:
       raise ValueError("loss scale must be at least 1.")
     self._loss_scale = ops.convert_to_tensor(loss_scale, dtype=dtypes.float32, name="loss_scale")
+    self._enable_overflow_check = enable_overflow_check
 
   def get_loss_scale(self):
     return self._loss_scale
@@ -101,6 +103,8 @@ class FixedLossScaleManager(LossScaleManager):
     del finite_grads
     return gen_control_flow_ops.no_op()
 
+  def get_enable_overflow_check(self):
+    return self._enable_overflow_check
 
 class ExponentialUpdateLossScaleManager(LossScaleManager):
   """Loss scale manager uses an exponential update strategy.
