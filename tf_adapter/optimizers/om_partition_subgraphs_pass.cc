@@ -235,14 +235,6 @@ bool IsWhiteListSupport(const string &op_name, bool mix_compile_mode, const stri
   return ans;
 }
 
-bool IsOptimizerOp(Node *node) {
-  static const std::unordered_set<std::string> Optimizer_Names = {
-      "GradientDescent",         "Momentum", "Adam", "Adadelta", "Adagrad", "AdagradDA", "ProximalAdagrad",
-      "ProximalGradientDescent", "RMSProp",  "Ftrl",
-  };
-  return (Optimizer_Names.count(node->name()) > 0);
-}
-
 Status SetIteratorShardName(Node *node) {
   if (node->type_string() != "Iterator" && node->type_string() != "IteratorV2") {
     return errors::InvalidArgument("Node op type is not Iterator.");

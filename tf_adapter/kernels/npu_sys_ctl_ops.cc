@@ -39,8 +39,6 @@ limitations under the License.
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
 #include "hccl/hcom.h"
-#include "tdt/tdt_host_interface.h"
-#include "tdt/tsd_client.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tf_adapter/common/adp_logger.h"
@@ -48,8 +46,6 @@ limitations under the License.
 #include "tf_adapter/kernels/geop_npu.h"
 #include "tf_adapter/util/ge_plugin.h"
 #include "tf_adapter/util/npu_attrs.h"
-
-using namespace tdt;
 
 namespace tensorflow {
 inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }

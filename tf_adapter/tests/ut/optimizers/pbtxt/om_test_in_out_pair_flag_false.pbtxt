@@ -1,0 +1,168 @@
+node {
+  name: "Const_1"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_task_index"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_in_out_pair"
+    value {
+      s: "[[['Variable', 'Const_1'],['Add']]]"
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\000\000 A\000\000 A"
+      }
+    }
+  }
+}
+node {
+  name: "Variable"
+  op: "VariableV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_class"
+    value {
+      list {
+        s: "loc:@Variable/read"
+      }
+    }
+  }
+  attr {
+    key: "_var_format"
+    value {
+      s: "4D"
+    }
+  }
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 2
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "Variable/read"
+  op: "Identity"
+  input: "Variable"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "_var_format"
+    value {
+      s: "4D"
+    }
+  }
+}
+node {
+  name: "Add"
+  op: "Add"
+  input: "Const_1"
+  input: "Variable/read"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "retval_Add_0_0"
+  op: "_Retval"
+  input: "Add"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+library {
+}
+versions {
+  producer: 134
+}

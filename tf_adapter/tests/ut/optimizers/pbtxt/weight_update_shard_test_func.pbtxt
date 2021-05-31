@@ -1,0 +1,178 @@
+node {
+  name: "apply_grads/DistributedAdamWeightDecayOptimizer_Broadcast_Weight_Update_Sharding/HcomBroadcast"
+  op: "HcomBroadcast"
+  input: "bert/embeddings/word_embeddings/read"
+  input: "^apply_grads/Assign"
+  input: "^apply_grads/apply_one_adam/AdamApplyOneWithDecayAssign"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      list {
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "FUSION"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "fusion_id"
+    value {
+      i: -1
+    }
+  }
+  attr {
+    key: "group"
+    value {
+      s: "hccl_world_group"
+    }
+  }
+  attr {
+    key: "root_rank"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "bert/embeddings/word_embeddings/read"
+  op: "Identity"
+  input: "bert/embeddings/word_embeddings"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type:DT_FLOAT
+    }
+  }
+  attr {
+    key: "_value_format"
+    value {
+      s: "4D"
+    }
+  }
+}
+node {
+  name: "bert/embeddings/word_embeddings"
+  op: "VariableV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_class"
+    value {
+      list {
+        s: "loc:@bert/embeddings/word_embeddings/read"
+      }
+    }
+  }
+  attr {
+    key: "_value_format"
+    value {
+      s: "4D"
+    }
+  }
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 81216
+        }
+        dim {
+          size: 8
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "cls/predictions/ArithmeticOptimizer/RecorderCastLikeAndValuePreserving_float_Cast_1"
+  op: "Cast"
+  input: "bert/embeddings/word_embeddings"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_HALF
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "apply_grads/Assign"
+  op: "Assign"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "_grappler_relax_allocator_constraints"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "_var_format"
+    value {
+      s: "4D"
+    }
+  }
+  attr {
+    key: "use_locking"
+    value {
+      b: false
+    }
+  }
+  attr {
+    key: "validate_shape"
+    value {
+      b: true
+    }
+  }
+}
+node {
+  name: "apply_grads/apply_one_adam/AdamApplyOneWithDecayAssign"
+  op: "AdamApplyOneWithDecayAssign"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}

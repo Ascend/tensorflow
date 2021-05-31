@@ -83,7 +83,7 @@ extern "C" AoeStatus AoeOnlineInitialize(ge::Session *session, const std::map<st
  * @see 无
  * @since
  */
-extern "C" AoeStatus AoeOlineFinalize();
+extern "C" AoeStatus AoeOnlineFinalize();
 
 /**
  * @ingroup aoe
@@ -102,6 +102,6 @@ extern "C" AoeStatus AoeOlineFinalize();
  * @see 无
  * @since
  */
-extern "C" MsTuneStatus AoeOnlineTuning(ge::Graph &tuningGraph, std::vector<ge::Graph> &dependGraph,
+extern "C" AoeStatus AoeOnlineTuning(ge::Graph &tuningGraph, std::vector<ge::Graph> &dependGraph,
     ge::Session *session, const std::map<std::string, std::string> &option);
 #endif

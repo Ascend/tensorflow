@@ -1,4 +1,7 @@
 option(ENABLE_OPEN_SRC "Enable graphengine compile in opensource." FALSE)
+
+set(TFADAPTER_DIR ${CMAKE_CURRENT_LIST_DIR})
+
 if (ENABLE_OPEN_SRC)
     cmake_minimum_required(VERSION 3.14)
     project(TFAdapter)
@@ -6,12 +9,15 @@ if (ENABLE_OPEN_SRC)
     set(CMAKE_CXX_STANDARD 11)
     set(CMAKE_C_FLAGS "-O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,-z,relro,-z,now,-z,noexecstack -s -pipe ${CMAKE_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,-z,relro,-z,now,-z,noexecstack -s -pipe ${CMAKE_CXX_FLAGS}")
+
     add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+
     # build external prjects
     if(DEFINED ENV{D_PKG_SERVER})
         set(TF_PKG_SERVER $ENV{D_PKG_SERVER})
         message("Download packages from PKG server")
     endif()
+
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/nlohmann_json.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/secure_c.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/tensorflow.cmake)
@@ -35,6 +41,11 @@ if (ENABLE_OPEN_SRC)
     file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/LINK_FLAGS" LINK_FLAGS)
     file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/PYTHON_BIN_PATH" PYTHON_BIN_PATH)
     file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/SWIG_BIN_PATH" SWIG_BIN_PATH)
+    file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/UT_LINK_FLAGS" UT_LINK_FLAGS)
+
+    if(ENABLE_TFADAPTER_UT)
+        add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tf_adapter/tests)
+    endif()
 
     file(COPY ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/python DESTINATION ${CMAKE_BINARY_DIR}/dist)
     file(COPY ${CMAKE_CURRENT_LIST_DIR}/convert_tf2npu DESTINATION ${CMAKE_BINARY_DIR}/dist/python/npu_bridge)
@@ -42,7 +53,13 @@ if (ENABLE_OPEN_SRC)
     execute_process(COMMAND ${SWIG_BIN_PATH} -python -c++ -threads ${CMAKE_BINARY_DIR}/dist/swig/ge_plugin.i)
     file(COPY ${CMAKE_BINARY_DIR}/dist/swig/tf_adapter.py DESTINATION ${CMAKE_BINARY_DIR}/dist/python/npu_bridge)
 
-    file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/*.cc)
+    file(GLOB_RECURSE SOURCES
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/common/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/ops/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/optimizers/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/util/*.cc
+    )
     add_library(_tf_adapter SHARED ${SOURCES} ${CMAKE_BINARY_DIR}/dist/swig/ge_plugin_wrap.cxx)
 
     foreach (COMPILE_FLAG ${COMPILE_FLAGS})
