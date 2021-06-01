@@ -46,8 +46,7 @@ def npu_resource_init(graph_run_mode = 1,
                       op_compiler_cache_dir=None,
                       debug_dir=None,
                       hcom_multi_mode=False,
-                      distribute_config=None,
-                      op_tune_mode=None):
+                      distribute_config=None):
 
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
     if graph_run_mode > 1:
@@ -92,8 +91,6 @@ def npu_resource_init(graph_run_mode = 1,
             raise ValueError('work_path must be set when use mstune_mode')
         if distribute_config is not None:
             init["distribute_config"] = str(distribute_config)
-        if op_tune_mode is not None:
-            init["op_tune_mode"] = str(op_tune_mode)
 
     if op_compiler_cache_mode is not None:
         init["ge.op_compiler_cache_mode"] = op_compiler_cache_mode

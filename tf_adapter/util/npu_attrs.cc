@@ -419,7 +419,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string mstune_mode;
   std::string work_path;
   std::string distribute_config;
-  std::string op_tune_mode;
   std::string modify_mixlist;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
@@ -438,7 +437,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_debug_dir", &debug_dir);
     ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
     ctx->GetAttr("_distribute_config", &distribute_config);
-    ctx->GetAttr("_op_tune_mode", &op_tune_mode);
     ctx->GetAttr("_modify_mixlist", &modify_mixlist);
   }
 
@@ -458,7 +456,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options["ge.jobType"] = mstune_mode;
   init_options["ge.tuningPath"] = work_path;
   init_options["distribute_config"] = distribute_config;
-  init_options["op_tune_mode"] = op_tune_mode;
   init_options["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
   init_options["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["ge.debugDir"] = debug_dir;
@@ -745,7 +742,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string mstune_mode;
   std::string work_path;
   std::string distribute_config;
-  std::string op_tune_mode;
   std::string buffer_optimize = "l2_optimize";
   std::string enable_small_channel = "0";
   std::string fusion_switch_file;
@@ -862,7 +858,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (attrs.Find("_mstune_mode") != nullptr) { mstune_mode = attrs.Find("_mstune_mode")->s(); }
     if (attrs.Find("_work_path") != nullptr) { work_path = attrs.Find("_work_path")->s(); }
     if (attrs.Find("_distribute_config") != nullptr) { distribute_config = attrs.Find("_distribute_config")->s(); }
-    if (attrs.Find("_op_tune_mode") != nullptr) { op_tune_mode = attrs.Find("_op_tune_mode")->s(); }
     if (attrs.Find("_buffer_optimize") != nullptr) { buffer_optimize = attrs.Find("_buffer_optimize")->s(); }
     if (attrs.Find("_enable_small_channel") != nullptr) {
       enable_small_channel = attrs.Find("_enable_small_channel")->s();
@@ -939,7 +934,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["mstune_mode"] = mstune_mode;
   all_options["work_path"] = work_path;
   all_options["distribute_config"] = distribute_config;
-  all_options["op_tune_mode"] = op_tune_mode;
   all_options["buffer_optimize"] = buffer_optimize;
   all_options["enable_small_channel"] = enable_small_channel;
   all_options["fusion_switch_file"] = fusion_switch_file;
@@ -1017,7 +1011,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string mstune_mode;
   std::string work_path;
   std::string distribute_config;
-  std::string op_tune_mode;
   std::string buffer_optimize = "l2_optimize";
   int enable_small_channel = 0;
   std::string fusion_switch_file;
@@ -1133,13 +1126,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
         if (params.count("distribute_config")) {
           distribute_config = params.at("distribute_config").s();
-        }
-        if (mstune_mode == "2" || mstune_mode == "3") {
-          if (params.count("op_tune_mode")) {
-            op_tune_mode = params.at("op_tune_mode").s();
-          } else {
-            LOG(FATAL) << "mstune_mode: op_tune_mode must be set when use optune.";
-          }
         }
       }
       if (params.count("precision_mode")) {
@@ -1330,7 +1316,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options["mstune_mode"] = mstune_mode;
   init_options["work_path"] = work_path;
   init_options["distribute_config"] = distribute_config;
-  init_options["op_tune_mode"] = op_tune_mode;
   init_options["op_compiler_cache_mode"] = op_compiler_cache_mode;
   init_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["debug_dir"] = debug_dir;
