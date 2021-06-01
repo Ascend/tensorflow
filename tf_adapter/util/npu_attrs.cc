@@ -187,13 +187,13 @@ inline Status CheckOpImplMode(const string &op_select_implmode) {
   }
 }
 
-inline Status CheckMstuneMode(const string &mstune_mode) {
-  std::set<string> mstune_mode_list = {"1", "2", "3", "4"};
+inline Status CheckAoeMode(const string &aoe_mode) {
+  std::set<string> aoe_mode_list = {"1", "2", "3", "4"};
 
-  if (mstune_mode_list.find(mstune_mode) != mstune_mode_list.end()) {
+  if (aoe_mode_list.find(aoe_mode) != aoe_mode_list.end()) {
     return Status::OK();
   } else {
-    return errors::InvalidArgument("mstune mode should be one of the list:['1', '2', '3', '4']");
+    return errors::InvalidArgument("aoe mode should be one of the list:['1', '2', '3', '4']");
   }
 }
 
@@ -416,7 +416,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string debug_dir;
   std::string hcom_multi_mode;
   std::string npuOptimizer;
-  std::string mstune_mode;
+  std::string aoe_mode;
   std::string work_path;
   std::string distribute_config;
   std::string modify_mixlist;
@@ -430,7 +430,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_debug_level", &op_debug_level);
     ctx->GetAttr("_enable_scope_fusion_passes", &enable_scope_fusion_passes);
     ctx->GetAttr("_enable_exception_dump", &enable_exception_dump);
-    ctx->GetAttr("_mstune_mode", &mstune_mode);
+    ctx->GetAttr("_aoe_mode", &aoe_mode);
     ctx->GetAttr("_work_path", &work_path);
     ctx->GetAttr("_op_compiler_cache_mode", &op_compiler_cache_mode);
     ctx->GetAttr("_op_compiler_cache_dir", &op_compiler_cache_dir);
@@ -453,7 +453,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options[ge::OP_DEBUG_LEVEL] = op_debug_level;
   init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
   init_options["ge.exec.enable_exception_dump"] = enable_exception_dump;
-  init_options["ge.jobType"] = mstune_mode;
+  init_options["ge.jobType"] = aoe_mode;
   init_options["ge.tuningPath"] = work_path;
   init_options["distribute_config"] = distribute_config;
   init_options["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
@@ -739,7 +739,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string input_shape;
   std::string dynamic_dims;
   std::string dynamic_node_type;
-  std::string mstune_mode;
+  std::string aoe_mode;
   std::string work_path;
   std::string distribute_config;
   std::string buffer_optimize = "l2_optimize";
@@ -855,7 +855,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (attrs.Find("_dynamic_node_type") != nullptr) {
       dynamic_node_type = attrs.Find("_dynamic_node_type")->s();
     }
-    if (attrs.Find("_mstune_mode") != nullptr) { mstune_mode = attrs.Find("_mstune_mode")->s(); }
+    if (attrs.Find("_aoe_mode") != nullptr) { aoe_mode = attrs.Find("_aoe_mode")->s(); }
     if (attrs.Find("_work_path") != nullptr) { work_path = attrs.Find("_work_path")->s(); }
     if (attrs.Find("_distribute_config") != nullptr) { distribute_config = attrs.Find("_distribute_config")->s(); }
     if (attrs.Find("_buffer_optimize") != nullptr) { buffer_optimize = attrs.Find("_buffer_optimize")->s(); }
@@ -931,7 +931,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["input_shape"] = input_shape;
   all_options["dynamic_dims"] = dynamic_dims;
   all_options["dynamic_node_type"] = dynamic_node_type;
-  all_options["mstune_mode"] = mstune_mode;
+  all_options["aoe_mode"] = aoe_mode;
   all_options["work_path"] = work_path;
   all_options["distribute_config"] = distribute_config;
   all_options["buffer_optimize"] = buffer_optimize;
@@ -1008,8 +1008,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string input_shape;
   std::string dynamic_dims;
   int dynamic_node_type = -1;
-  std::string mstune_mode;
-  std::string work_path;
+  std::string aoe_mode;
+  std::string work_path = "./";
   std::string distribute_config;
   std::string buffer_optimize = "l2_optimize";
   int enable_small_channel = 0;
@@ -1106,23 +1106,27 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_scope_fusion_passes")) {
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
-      if (params.count("mstune_mode")) {
-        mstune_mode = params.at("mstune_mode").s();
-        Status s  = CheckMstuneMode(mstune_mode);
+      if (params.count("aoe_mode")) {
+        aoe_mode = params.at("aoe_mode").s();
+        Status s  = CheckAoeMode(aoe_mode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
         if (params.count("work_path")) {
-          string tmp_path = params.at("work_path").s();
+          std::string tmp_path = params.at("work_path").s();
           s = CheckPath(tmp_path, work_path);
           if (!s.ok()) {
             ADP_LOG(FATAL) << s.error_message();
             LOG(FATAL) << s.error_message();
           }
         } else {
-          ADP_LOG(FATAL) << "work_path must be set when use mstune_mode.";
-          LOG(FATAL) << "work_path must be set when use mstune_mode.";
+          std::string tmp_path = work_path;
+          s = CheckPath(tmp_path, work_path);
+          if (!s.ok()) {
+            ADP_LOG(FATAL) << s.error_message();
+            LOG(FATAL) << s.error_message();
+          }
         }
         if (params.count("distribute_config")) {
           distribute_config = params.at("distribute_config").s();
@@ -1313,7 +1317,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options["op_debug_level"] = std::to_string(op_debug_level);
   init_options["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
   init_options["enable_exception_dump"] = std::to_string(enable_exception_dump);
-  init_options["mstune_mode"] = mstune_mode;
+  init_options["aoe_mode"] = aoe_mode;
   init_options["work_path"] = work_path;
   init_options["distribute_config"] = distribute_config;
   init_options["op_compiler_cache_mode"] = op_compiler_cache_mode;

@@ -500,7 +500,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
         uint32_t device_id = 0;
         OP_REQUIRES_OK_ASYNC(ctx, GetEnvDeviceID(device_id), done);
-        ADP_LOG(INFO) << "[GEOP] in tuning func, mstune_mode:" << init_options_["ge.jobType"]
+        ADP_LOG(INFO) << "[GEOP] in tuning func, aoe_mode:" << init_options_["ge.jobType"]
                       << ", work_path:" << init_options_["ge.tuningPath"]
                       << ", distribute_config:" << init_options_["distribute_config"];
         tune_options_.insert(init_options_.begin(), init_options_.end());

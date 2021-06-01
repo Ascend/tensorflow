@@ -198,7 +198,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   init_options["ge.fusionTensorSize"] = std::to_string(GetFusionTensorSize());
   ADP_LOG(INFO) << "[GePlugin] fusionTensorSize : " << init_options["ge.fusionTensorSize"];
 
-  // mstune mode and work path
+  // aoe mode and work path
   if (!init_options["ge.jobType"].empty()) {
     if (init_options["ge.jobType"] == "2" && !init_options[ge::AUTO_TUNE_MODE].empty()) {
       init_options["ge.jobType"] = "";
@@ -208,7 +208,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
       init_options["ge.buildMode"] = "tuning";
     }
   }
-  ADP_LOG(INFO) << "[GePlugin] mstune mode : " << init_options["ge.jobType"]
+  ADP_LOG(INFO) << "[GePlugin] aoe mode : " << init_options["ge.jobType"]
             << ", work path : " << init_options["ge.tuningPath"]
             << ", distribute_config : " << init_options["distribute_config"];
 
