@@ -1680,19 +1680,18 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     return graph_id;
   }
 
-  auto request_subgraph = [this, name, context](const google::protobuf::Message *root_proto,
-                                                const std::string &fn) -> std::unique_ptr<google::protobuf::Message> {
+  auto request_subgraph = [this, name, context](const std::string &fn) -> std::string {
     DLOG() << "Tensorflow model parser requesting subgraph " << fn << " for ge graph " << name;
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     const tensorflow::FunctionDef *fdef = lib_def->Find(fn);
     if (fdef == nullptr) {
-      return nullptr;
+      return "";
     }
     std::unique_ptr<tensorflow::FunctionBody> fbody;
     auto status = FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
     if (!status.ok()) {
       LOG(ERROR) << "Failed trans function body to graph";
-      return nullptr;
+      return "";
     }
 
     tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
@@ -1705,19 +1704,16 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     PruneFunction(*fdef, graph.get());
 
     MarkGraphNodeInOutDesc(context, graph.get(), 0, nullptr);
-    std::unique_ptr<google::protobuf::Message> subgraph;
-    subgraph.reset(new (std::nothrow) tensorflow::GraphDef());
-    if (subgraph != nullptr) {
-      graph->ToGraphDef(reinterpret_cast<tensorflow::GraphDef *>(subgraph.get()));
-    }
+
     if (kDumpExecutionDetail || kDumpGraph) {
-      WriteTextProto(tensorflow::Env::Default(), name + "_subgraph_" + fn + ".pbtxt", *subgraph);
+      WriteTextProto(tensorflow::Env::Default(), name + "_subgraph_" + fn + ".pbtxt", graph->ToGraphDefDebug());
     }
-    return subgraph;
+    return graph->ToGraphDefDebug().SerializeAsString();
   };
 
-  NPU_CTX_REQUIRES_GE_OK_RETURN(status, "NPU Parse tensorflow model",
-                                parser->ParseProtoWithSubgraph(&def, request_subgraph, ge_compute_graph), graph_id);
+  NPU_CTX_REQUIRES_GE_OK_RETURN(
+    status, "NPU Parse tensorflow model",
+    parser->ParseProtoWithSubgraph(def.SerializeAsString(), request_subgraph, ge_compute_graph), graph_id);
 
   ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
 
