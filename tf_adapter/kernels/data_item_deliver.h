@@ -64,7 +64,7 @@ class DataItemDeliver {
   Status ParallelInitSocketClient();
   void ParallelSendDataVec(std::vector<tdt::DataItem> &data_item);
   Status InitSocketServer();
-  Status RecvDataVec(std::vector<tdt ::DataItem> &data_item);
+  Status RecvDataVec(std::vector<tdt::DataItem> &data_item);
   ~DataItemDeliver();
 
  private:
@@ -100,8 +100,8 @@ DataItemDeliver::DataItemDeliver(int local_rank_id, int device_id,
       local_device_list_(local_device_list),
       channel_name_(channel_name) {
   if (device_id_ > 0) {
-      // slave has no parallel operation
-      return;
+    // slave has no parallel operation
+    return;
   }
   pools_ = std::make_shared<ThreadPool>();
   pools_->InitThreadPool(local_device_list_.size());

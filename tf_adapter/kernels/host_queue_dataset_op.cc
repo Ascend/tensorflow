@@ -249,7 +249,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           mutex_lock lck(mu_);
           cancelled_ = true;
         }
-        ADPLOG(INFO) << "Slave SendDataThread exit.";
+        ADP_LOG(INFO) << "Slave SendDataThread exit.";
       }
       void SendDataThread(const std::shared_ptr<IteratorContext> &ctx) {
         vector<Tensor> args;
