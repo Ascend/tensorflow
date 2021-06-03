@@ -182,12 +182,13 @@ def remote_scatter_write(tensorRemote, tensorLocal, offset):
 
 ##提供gather-alltoallv功能
 #  @param addrinfo 需要读取的地址信息，shape(index_num, 2)：[u64 remoteAddr, u64 dataLength];
-#  @param addrinfo_count_per_rank 向每个rank上读取的数据地址信息数，shape(rank_size, );
+#  @param addrinfo_count_per_rank 向每个rank上发送的数据地址信息数，shape(rank_size, );
 #  @param recv_counts 从每个rank上接收的数据size，shape(rank_size, 1);
 #  @param recv_displacements 从每个rank接收数据起始位置相对于output起始的偏移，shape(rank_size, );
 #  @param dtype 读取对象的数据类型;
 #  @param addr_length u64 类型，从每个地址信息读取的数据个数，如不相等设为-1，如相等且实际长度未知则设为-2，如实际长度已知则设为实际长度;
-#  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group";
+#  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group", 预留参数后续版本支持;
+#  @attention 组网约束:使用该集合通信操作时,所有参与的设备需实现RDMA网络fullmesh全连接组网;
 def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_displacements, dtype, addr_length, group="hccl_world_group"):
     result = gen_hccl_ops.hcom_gather_all_to_all_v(
         addrinfo=addrinfo,
@@ -201,11 +202,12 @@ def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_dis
 
 ##提供alltoallv功能
 #  @param send_data 需要发送的数据;
-#  @param send_counts 给每个rank发送的数据size，shape(rank_size, );
-#  @param send_displacements 给每个rank发送数据起始位置相对于send_data起始的偏移，shape(rank_size, );
+#  @param send_counts 向每个rank发送的数据size，shape(rank_size, );
+#  @param send_displacements 向每个rank发送数据起始位置相对于send_data起始的偏移，shape(rank_size, );
 #  @param recv_counts 从每个rank上接收的数据size，shape(rank_size, 1);
 #  @param recv_displacements 从每个rank接收数据起始位置相对于output起始的偏移，shape(rank_size, );
-#  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group";
+#  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group", 预留参数后续版本支持;
+#  @attention 组网约束:使用该集合通信操作时,所有参与的设备需实现RDMA网络fullmesh全连接组网;
 def all_to_all_v_dynamic(send_data, send_counts, send_displacements, recv_counts, recv_displacements, group="hccl_world_group"):
     result = gen_hccl_ops.hcom_all_to_all_v_dynamic(
         send_data=send_data,
