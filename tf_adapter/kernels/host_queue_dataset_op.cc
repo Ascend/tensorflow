@@ -235,18 +235,21 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
       void SendDataThread() {
         std::vector<DataItem> items;
-        while (data_deliver_->RecvDataVec(items) == Status::OK()) {
+        while (data_deliver_->RecvDataVec(items).ok()) {
           int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items,
                                                dataset()->device_id_);
           if (tdt_status != 0) {
             ADP_LOG(ERROR) << "End training as tdt host push data finished:"
                            << tdt_status;
-            mutex_lock lck(mu_);
-            cancelled_ = true;
-            return;
+            break;
           }
           items.clear();
         }
+        {
+          mutex_lock lck(mu_);
+          cancelled_ = true;
+        }
+        ADPLOG(INFO) << "Slave SendDataThread exit.";
       }
       void SendDataThread(const std::shared_ptr<IteratorContext> &ctx) {
         vector<Tensor> args;

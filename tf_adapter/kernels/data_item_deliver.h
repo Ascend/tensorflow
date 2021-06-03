@@ -1,4 +1,4 @@
-/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2021 The TensorFlow Authors. All Rights Reserved.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-Copyright (C) 2019-2020. Huawei Technologies Co., Ltd. All rights reserved.
+Copyright (C) 2019-2021. Huawei Technologies Co., Ltd. All rights reserved.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -64,7 +64,7 @@ class DataItemDeliver {
   Status ParallelInitSocketClient();
   void ParallelSendDataVec(std::vector<tdt::DataItem> &data_item);
   Status InitSocketServer();
-  Status RecvDataVec(std::vector<tdt::DataItem> &data_item);
+  Status RecvDataVec(std::vector<tdt ::DataItem> &data_item);
   ~DataItemDeliver();
 
  private:
@@ -350,8 +350,8 @@ Status DataItemDeliver::GetTensorData(uint64_t &data_len,
   }
   if (memset_s(buff, data_len, 0, data_len) != 0) {
     free(buff);
-    ADP_LOG(ERROR) << "Failed to reset buff memory.";
-    LOG(ERROR) << "Failed to reset buff memory.";
+    ADP_LOG(ERROR) << "Failed to reset buff memory. size:" << data_len;
+    LOG(ERROR) << "Failed to reset buff memory. size:" << data_len;
     return errors::Internal("Failed to reset buff memory.");
   }
   int recvn = Recv(buff, data_len);
@@ -367,7 +367,7 @@ Status DataItemDeliver::GetTensorData(uint64_t &data_len,
 
 Status DataItemDeliver::GetTensorString(std::string &str) {
   uint32_t size = 0;
-  TF_RETURN_IF_ERROR(GetDataLen(size, UINT64_SIZE));
+  TF_RETURN_IF_ERROR(GetDataLen(size, UINT32_SIZE));
   void *buff = malloc(size);
   if (buff == nullptr) {
     ADP_LOG(ERROR) << "Malloc string failed, size:" << size
@@ -442,7 +442,7 @@ Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
 
     // send tensor shape
     char *tensor_shape = &data_item.tensorShape_[0];
-    uint32_t shape_size = (strlen(tensor_name) + 1) * CHAR_SIZE;
+    uint32_t shape_size = (strlen(tensor_shape) + 1) * CHAR_SIZE;
     item_info[3].iov_base = &shape_size;
     item_info[3].iov_len = UINT32_SIZE;
     item_info[4].iov_base = tensor_shape;
