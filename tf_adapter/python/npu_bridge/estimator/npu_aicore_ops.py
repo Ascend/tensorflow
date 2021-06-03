@@ -33,6 +33,9 @@ from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.helper import helper
 npu_aicore_ops = helper.get_gen_ops();
 
+DEFAULT_GRAPH_SEED = 87654321
+_MAXINT32 = 2**31 - 1
+
 @ops.RegisterGradient("FastGelu")
 def _fast_gelu_grad(op, grad):
   """The gradient for `fast_gelu`.
