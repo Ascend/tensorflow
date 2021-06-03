@@ -111,7 +111,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       inputs.push_back(input);
     }
     *output = new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_,
-                                    local_rank_id_, local_device_list_, device_id_, pools_);
+                                    local_rank_id_, local_device_list_, device_id_);
     OP_REQUIRES(ctx, *output != nullptr,
                 errors::InvalidArgument("Data process host queue dataset op: new dataset failed."));
   }

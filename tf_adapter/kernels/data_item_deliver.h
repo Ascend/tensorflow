@@ -50,7 +50,7 @@ static constexpr char *MESSAGE_HEAD = "head_check";
 static constexpr int QLEN = 8;
 static constexpr int HEAD_INFO_SIZE = 3;
 static constexpr int ITEM_INFO_SIZE = 9;
-static constexpr MAX_TRY_TIMES = 300;
+static constexpr int MAX_TRY_TIMES = 300;
 static constexpr size_t UINT32_SIZE = sizeof(uint32_t);
 static constexpr size_t UINT64_SIZE = sizeof(uint64_t);
 static constexpr size_t CHAR_SIZE = sizeof(char);
@@ -62,9 +62,9 @@ class DataItemDeliver {
                   const std::vector<uint32_t> &local_device_list,
                   const std::string &channel_name);
   Status ParallelInitSocketClient();
-  void ParallelSendDataVec(std::vector<tdt : DataItem> &data_item);
+  void ParallelSendDataVec(std::vector<tdt::DataItem> &data_item);
   Status InitSocketServer();
-  Status RecvDataVec(std::vector<tdt : DataItem> &data_item);
+  Status RecvDataVec(std::vector<tdt::DataItem> &data_item);
   ~DataItemDeliver();
 
  private:
@@ -78,7 +78,7 @@ class DataItemDeliver {
   Status GetTensorType(tdt::TdtDataType &data_type);
   Status GetTensorData(uint64_t &data_len, std::shared_ptr<void> &data_ptr);
   Status GetTensorString(std::string &str);
-  void SocketSend(struct iovec &temp_items[], int vec_size, int fd);
+  void SocketSend(struct iovec temp_items[], int vec_size, int fd);
   Status CheckHead(const char *check_value);
 
   mutex client_list_mu_;
@@ -99,6 +99,10 @@ DataItemDeliver::DataItemDeliver(int local_rank_id, int device_id,
       device_id_(device_id),
       local_device_list_(local_device_list),
       channel_name_(channel_name) {
+  if (device_id_ > 0) {
+      // slave has no parallel operation
+      return;
+  }
   pools_ = std::make_shared<ThreadPool>();
   pools_->InitThreadPool(local_device_list_.size());
 }
@@ -131,7 +135,7 @@ Status DataItemDeliver::ParallelInitSocketClient() {
 }
 
 Status DataItemDeliver::InitSocketClient(int device_id) {
-  int fd = socket(AF_UNIX, SOCKET_STREAM, 0);
+  int fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd < 0) {
     ADP_LOG(ERROR) << "Failed to open unix domain socket.";
     LOG(ERROR) << "Failed to open unix domain socket.";
@@ -148,7 +152,7 @@ Status DataItemDeliver::InitSocketClient(int device_id) {
   int try_times = 0;
   int ret = 0;
   while (true) {
-    ret = connet(fd, (struct sockaddr *)&peer_addr, sizeof(peer_addr));
+    ret = connect(fd, (struct sockaddr *)&peer_addr, sizeof(peer_addr));
     if (ret >= 0) {
       break;
     }
@@ -344,7 +348,7 @@ Status DataItemDeliver::GetTensorData(uint64_t &data_len,
                << ", channel_name:" << channel_name_;
     return errors::Internal("Malloc data failed.");
   }
-  if (memset_s(buff, data_len, 0 data_len) != 0) {
+  if (memset_s(buff, data_len, 0, data_len) != 0) {
     free(buff);
     ADP_LOG(ERROR) << "Failed to reset buff memory.";
     LOG(ERROR) << "Failed to reset buff memory.";
@@ -357,8 +361,8 @@ Status DataItemDeliver::GetTensorData(uint64_t &data_len,
     LOG(ERROR) << "Failed to receive data.";
     return errors::Internal("Failed to receive data.");
   }
-  data_ptr = std::shared_ptr<void>(
-      buff, [](void *elem) { free(elem); }) return Status::OK();
+  data_ptr = std::shared_ptr<void>(buff, [](void *elem) { free(elem); });
+  return Status::OK();
 }
 
 Status DataItemDeliver::GetTensorString(std::string &str) {
@@ -374,7 +378,7 @@ Status DataItemDeliver::GetTensorString(std::string &str) {
                << ", channel_name:" << channel_name_;
     return errors::Internal("Malloc string failed.");
   }
-  if (memset_s(buff, size, 0 size) != 0) {
+  if (memset_s(buff, size, 0, size) != 0) {
     free(buff);
     ADP_LOG(ERROR) << "Failed to reset buff memory.";
     LOG(ERROR) << "Failed to reset buff memory.";
@@ -403,7 +407,7 @@ void DataItemDeliver::ParallelSendDataVec(
     init_status.emplace_back(
         pools_->Enqueue(&DataItemDeliver::SendDataVec, this, data_items, fd));
   }
-  for (auto &&result::init_status) {
+  for (auto &&result : init_status) {
     result.get();
   }
 }
@@ -457,7 +461,7 @@ Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
     item_info[7].iov_len = UINT64_SIZE;
     item_info[8].iov_base = static_cast<void *>(data_item.dataPtr_.get());
     item_info[8].iov_len = data_item.dataLen_;
-    SocketSend(temp_item, ITEM_INFO_SIZE, fd);
+    SocketSend(item_info, ITEM_INFO_SIZE, fd);
   }
   return Status::OK();
 }
@@ -476,14 +480,14 @@ Status DataItemDeliver::CreateSockAddr(struct sockaddr_un &sock_addr,
 }
 void DataItemDeliver::SocketSend(struct iovec temp_items[], int vector_size,
                                    int fd) {
-  int sendn = writev(fd, temp_items, vec_size);
+  int sendn = writev(fd, temp_items, vector_size);
   // if salve first reach max step, socket will be closed, correspond to
   // Recv WARNING
   if (sendn < 0) {
-    ADP_LOG(WARNING) << "Writev socket failed:" << strerror(error)
+    ADP_LOG(WARNING) << "Writev socket failed:" << strerror(errno)
                      << "(errno:" << errno << "), return value:" << sendn
                      << ", fd:" << fd << ", channel_name:" << channel_name_;
-    LOG(WARNING) << "Writev socket failed:" << strerror(error)
+    LOG(WARNING) << "Writev socket failed:" << strerror(errno)
                  << "(errno:" << errno << "), return value:" << sendn
                  << ", fd:" << fd << ", channel_name:" << channel_name_;
   }
