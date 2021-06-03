@@ -686,12 +686,12 @@ class NPUEstimator(estimator_lib.Estimator):
             config: NPURunConfig.
             custom_op: Customer optimizers.
         """
-        if config._mstune_mode is not None:
-            custom_op.parameter_map["mstune_mode"].s = tf.compat.as_bytes(config._mstune_mode)
+        if config._aoe_mode is not None:
+            custom_op.parameter_map["aoe_mode"].s = tf.compat.as_bytes(config._aoe_mode)
             if config._work_path is not None:
                 custom_op.parameter_map["work_path"].s = tf.compat.as_bytes(config._work_path)
             else:
-                raise ValueError('work_path must be set when use mstune_mode')
+                custom_op.parameter_map["work_path"].s = tf.compat.as_bytes("./")
             if config._distribute_config is not None:
                 custom_op.parameter_map["distribute_config"].s = tf.compat.as_bytes(config._distribute_config)
 

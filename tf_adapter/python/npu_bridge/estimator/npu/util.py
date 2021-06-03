@@ -132,19 +132,19 @@ def check_path(path):
     raise ValueError("path:%s is not exists." %(path))
   return real_path
 
-def check_mstune_mode(mstune_mode):
+def check_aoe_mode(aoe_mode):
   """Check mstune mode .
   Args:
-      mstune_mode: mstune_mode: Optimization Task Type."1": model tune; "2": optune;
+      aoe_mode: aoe_mode: Optimization Task Type."1": model tune; "2": optune;
                                 "3": model tune & optune; "4": gradient split tune.
   Return:
-      mstune_mode
+      aoe_mode
   Raise:
-      If mstune_mode is null or not in ['1', '2', '3', '4'].
+      If aoe_mode is null or not in ['1', '2', '3', '4'].
   """
-  mstune_modes = ['1', '2', '3', '4']
-  if mstune_mode not in mstune_modes:
-    raise ValueError("mstune_mode is valid, should be in ['1', '2', '3', '4']")
+  aoe_modes = ['1', '2', '3', '4']
+  if aoe_mode not in aoe_modes:
+    raise ValueError("aoe_mode is valid, should be in ['1', '2', '3', '4']")
 
 def register_func(var_name):
   ops.register_proto_function(

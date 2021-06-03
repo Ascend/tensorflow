@@ -67,7 +67,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  op_select_implmode=None,
                  optypelist_for_implmode=None,
                  dynamic_input_config=None,
-                 mstune_mode=None,
+                 aoe_mode=None,
                  work_path=None,
                  buffer_optimize="l2_optimize",
                  enable_small_channel=0,
@@ -140,9 +140,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                             or high performance.
         optypelist_for_implmode: Operator list.
         dynamic_input_config:Dynamic dims configuration
-        mstune_mode: Optimization Task Type."1": model tune; "2": optune;
+        aoe_mode: Optimization Task Type."1": model tune; "2": optune;
                      "3": model tune & optune; "4": gradient split tune.
-        work_path: Stores temporary files generated during optimization.
+        work_path: Stores temporary files generated during optimization, default is current path.
         buffer_optimize: Whether to enable buffer optimization.
         enable_small_channel: Whether to enable small channel optimization.
         fusion_switch_file: Fusion switch configuration file path.
@@ -217,7 +217,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         if dynamic_input_config is not None and  not isinstance(dynamic_input_config, DynamicInputConfig):
             raise ValueError('dynamic_input_config must be provided with type DynamicInputConfig')
         self._dynamic_input_config = dynamic_input_config
-        self._mstune_mode = mstune_mode
+        self._aoe_mode = aoe_mode
         self._work_path = work_path
         self._buffer_optimize = buffer_optimize
         self._enable_small_channel = enable_small_channel

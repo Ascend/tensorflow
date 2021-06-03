@@ -40,7 +40,7 @@ def npu_resource_init(graph_run_mode = 1,
                       precision_mode = None,
                       enable_scope_fusion_passes = None,
                       enable_exception_dump = 0,
-                      mstune_mode = None,
+                      aoe_mode = None,
                       work_path = None,
                       op_compiler_cache_mode=None,
                       op_compiler_cache_dir=None,
@@ -82,13 +82,13 @@ def npu_resource_init(graph_run_mode = 1,
         init[__option_exec_enable_scope_fusion_passes] = str(enable_scope_fusion_passes)
 
     init["ge.exec.enable_exception_dump"] = str(enable_exception_dump)
-    if mstune_mode is not None:
-        util.check_mstune_mode(mstune_mode)
-        init["ge.jobType"] = str(mstune_mode)
+    if aoe_mode is not None:
+        util.check_aoe_mode(aoe_mode)
+        init["ge.jobType"] = str(aoe_mode)
         if work_path is not None:
             init["ge.tuningPath"] = str(util.check_path(work_path))
         else:
-            raise ValueError('work_path must be set when use mstune_mode')
+            init["ge.tuningPath"] = str(util.check_path("./"))
         if distribute_config is not None:
             init["distribute_config"] = str(distribute_config)
 
