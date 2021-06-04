@@ -102,8 +102,8 @@ def open(device_id=None):
         raise RuntimeError("Failed open npu device %s : %s" % (str(device_id), error_message))
 
     if workers_num > 1:
-        from hccl.manage.api import get_local_rank_id
-        worker_id = get_local_rank_id()
+        from hccl.manage.api import get_rank_id
+        worker_id = get_rank_id()
     else:
         worker_id = 0
 
