@@ -122,7 +122,13 @@ else()
         PREFIX _
     )
 
-    file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/*.cc)
+    file(GLOB_RECURSE SOURCES
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/common/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/ops/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/optimizers/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/util/*.cc
+    )
     add_library(tf_adapter SHARED
         ${SOURCES}
         ${BASE_DIR}/tf_adapter/util/ge_plugin_wrap.cxx
