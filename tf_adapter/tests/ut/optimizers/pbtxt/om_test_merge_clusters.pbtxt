@@ -1,0 +1,296 @@
+node {
+  name: "save/SaveV2/shape_and_slices"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_STRING
+        tensor_shape {
+          dim {
+            size: 3
+          }
+        }
+        string_val: ""
+        string_val: ""
+        string_val: ""
+      }
+    }
+  }
+}
+node {
+  name: "v1"
+  op: "VariableV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_enable_data_pre_proc"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 3
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "save/filename/input"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_STRING
+        tensor_shape {
+        }
+        string_val: "model"
+      }
+    }
+  }
+}
+node {
+  name: "v2"
+  op: "VariableV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 5
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "save/SaveV2/tensor_names"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_STRING
+        tensor_shape {
+          dim {
+            size: 3
+          }
+        }
+        string_val: "v1"
+        string_val: "v2"
+        string_val: "v3"
+      }
+    }
+  }
+}
+node {
+  name: "v3"
+  op: "VariableV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 5
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "save/filename"
+  op: "PlaceholderWithDefault"
+  input: "save/filename/input"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+      }
+    }
+  }
+}
+node {
+  name: "save/Const"
+  op: "PlaceholderWithDefault"
+  input: "save/filename"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_class"
+    value {
+      list {
+        s: "loc:@save/control_dependency"
+      }
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+      }
+    }
+  }
+}
+node {
+  name: "save/SaveV2"
+  op: "SaveV2"
+  input: "save/Const"
+  input: "save/SaveV2/tensor_names"
+  input: "save/SaveV2/shape_and_slices"
+  input: "v1"
+  input: "v2"
+  input: "v3"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtypes"
+    value {
+      list {
+        type: DT_FLOAT
+        type: DT_FLOAT
+        type: DT_FLOAT
+      }
+    }
+  }
+}
+node {
+  name: "save/control_dependency"
+  op: "Identity"
+  input: "save/Const"
+  input: "^save/SaveV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_STRING
+    }
+  }
+}
+library {
+}
+versions {
+  producer: 134
+}

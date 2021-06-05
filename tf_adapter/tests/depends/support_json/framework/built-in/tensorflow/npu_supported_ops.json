@@ -1,0 +1,102 @@
+{
+  "Abs": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "VariableV2": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Cast": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Identity": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Const": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Add": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "_Retval": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "RandomUniformInt": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "AccumulateNV2": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Placeholder": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "MatMul": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "AddV2": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Softmax": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Mul": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Sum": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Sub": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "ApplyMomentum": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "NoOp": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "PlaceholderWithDefault": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Unique": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "ArgMax": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Greater": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "If": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "StridedSlice": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Floor": {
+    "isGray": false,
+    "isHeavy": false
+  }
+}

@@ -24,13 +24,14 @@ CMAKE_PATH="${BUILD_PATH}/tfadapter"
 # print usage message
 usage() {
   echo "Usage:"
-  echo "    bash build.sh [-h] [-j[n]] [-v] [-g]"
+  echo "    bash build.sh [-h] [-j[n]] [-v] [-g] [-u]"
   echo ""
   echo "Options:"
   echo "    -h Print usage"
   echo "    -j[n] Set the number of threads used to build CANN, default is 8"
   echo "    -v Verbose"
   echo "    -g GCC compiler prefix, used to specify the compiler toolchain"
+  echo "    -u TF_adapter utest"
   echo "to be continued ..."
 }
 
@@ -43,8 +44,9 @@ checkopts() {
   VERBOSE=""
   THREAD_NUM=8
   GCC_PREFIX=""
+  ENABLE_TFADAPTER_UT="off"
   # Process the options
-  while getopts 'hj:vg:' opt
+  while getopts 'hj:vug:' opt
   do
     case "${opt}" in
       h) usage
@@ -52,6 +54,7 @@ checkopts() {
       j) THREAD_NUM=$OPTARG ;;
       v) VERBOSE="VERBOSE=1" ;;
       g) GCC_PREFIX=$OPTARG ;;
+      u) ENABLE_TFADAPTER_UT="on" ;;
       *) logging "Undefined option: ${opt}"
          usage
          exit 1 ;;
@@ -68,26 +71,40 @@ mk_dir() {
 
 # create build path
 build_tfadapter() {
+  if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
+    export OPEN_UT=1
+  fi
   logging "Create build directory and build tfadapter"
   cd "${BASE_PATH}" && ./configure
-  CMAKE_ARGS="-DENABLE_OPEN_SRC=True -DBUILD_PATH=$BUILD_PATH"
+  CMAKE_ARGS="-DENABLE_OPEN_SRC=True -DBUILD_PATH=$BUILD_PATH -DCMAKE_INSTALL_PREFIX=${RELEASE_PATH}"
   if [[ "$GCC_PREFIX" != "" ]]; then
     CMAKE_ARGS="$CMAKE_ARGS -DGCC_PREFIX=$GCC_PREFIX"
+  fi
+  if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
+    CMAKE_ARGS="${CMAKE_ARGS} -DENABLE_TFADAPTER_UT=ON"
   fi
   logging "CMake Args: ${CMAKE_ARGS}"
 
   mk_dir "${CMAKE_PATH}"
   cd "${CMAKE_PATH}" && cmake ${CMAKE_ARGS} ../..
-  make ${VERBOSE} -j${THREAD_NUM}
-  logging "tfadapter build success!"
-
-  chmod +x "${BASE_PATH}/tf_adapter_2.x/CI_Build"
-  sh "${BASE_PATH}/tf_adapter_2.x/CI_Build"
+  if [ 0 -ne $? ]
+  then
+    echo "execute command: cmake ${CMAKE_ARGS} .. failed."
+    return 1
+  fi
+  if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
+    make tfadapter_utest ${VERBOSE} -j${THREAD_NUM}
+    logging "Build tfadapter utest success!"
+  else
+    make ${VERBOSE} -j${THREAD_NUM}
+    logging "tfadapter build success!"
+    chmod +x "${BASE_PATH}/tf_adapter_2.x/CI_Build"
+    sh "${BASE_PATH}/tf_adapter_2.x/CI_Build"
+  fi
 }
 
 release_tfadapter() {
   logging "Create output directory"
-  mk_dir "${RELEASE_PATH}"
   RELEASE_TARGET="tfadapter.tar"
   cd ${CMAKE_PATH}/dist/python/dist && mkdir -p tfplugin/bin && cp -r "${BASE_PATH}/script" tfplugin/ && mv npu_bridge-*.whl tfplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" tfplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
 }
@@ -97,8 +114,30 @@ main() {
   # tfadapter build start
   logging "---------------- tfadapter build start ----------------"
   ${GCC_PREFIX}g++ -v
+  mk_dir "${RELEASE_PATH}"
   build_tfadapter
-  release_tfadapter
+  if [[ "X$ENABLE_TFADAPTER_UT" = "Xoff" ]]; then
+    release_tfadapter
+  fi
+  if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
+    cd ${BASE_PATH}
+    export ASCEND_OPP_PATH=${BASE_PATH}/tf_adapter/tests/depends/support_json
+    export PRINT_MODEL=1
+    export LD_LIBRARY_PATH=${CMAKE_PATH}/tf_adapter/tests/depends/aoe/:$LD_LIBRARY_PATH
+    RUN_TEST_CASE=${CMAKE_PATH}/tf_adapter/tests/ut/tfadapter_utest && ${RUN_TEST_CASE}
+    if [[ "$?" -ne 0 ]]; then
+      echo "!!! UT FAILED, PLEASE CHECK YOUR CHANGES !!!"
+      echo -e "\033[31m${RUN_TEST_CASE}\033[0m"
+      exit 1;
+    fi
+    logging "Generating coverage statistics, please wait..."
+    rm -rf ${BASE_PATH}/coverage
+    mkdir ${BASE_PATH}/coverage
+    lcov -c -d ${CMAKE_PATH}/tf_adapter/tests/ut/ -o coverage/tmp.info
+    lcov -r coverage/tmp.info '*/tests/*' '*/nlohmann_json-src/*' '*/tensorflow-src/*' \
+      '*/inc/*' '*/output/*' '*/usr/*' '*/Eigen/*' '*/absl/*' '*/google/*' '*/tensorflow/core/*' \
+      -o coverage/coverage.info
+  fi
   logging "---------------- tfadapter build finished ----------------"
 }
 

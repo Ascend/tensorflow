@@ -68,10 +68,6 @@ limitations under the License.
 #include "framework/omg/parser/parser_inner_ctx.h"
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
-#include "tdt/tdt_host_interface.h"
-#include "tdt/tsd_client.h"
-
-using namespace tdt;
 
 namespace tensorflow {
 Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library);

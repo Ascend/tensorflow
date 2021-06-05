@@ -1,0 +1,122 @@
+node {
+  name: "IteratorV2"
+  op: "IteratorV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_enable_data_pre_proc"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_graph_dynamic_graph_execute_mode"
+    value {
+      s: "dynamic_execute"
+    }
+  }
+  attr {
+    key: "_graph_dynamic_input"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "_graph_dynamic_inputs_shape_range"
+    value {
+      s: "data:[2,3],[1~2,3~4];getnext:[2~3,4~5]"
+    }
+  }
+  attr {
+    key: "_is_train_graph"
+    value {
+      b: false
+    }
+  }
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "output_shapes"
+    value {
+      list {
+        shape {
+        }
+      }
+    }
+  }
+  attr {
+    key: "output_types"
+    value {
+      list {
+        type: DT_DOUBLE
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "IteratorGetNext"
+  op: "IteratorGetNext"
+  input: "IteratorV2"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "output_shapes"
+    value {
+      list {
+        shape {
+        }
+      }
+    }
+  }
+  attr {
+    key: "output_types"
+    value {
+      list {
+        type: DT_DOUBLE
+      }
+    }
+  }
+}
+library {
+}
+versions {
+  producer: 134
+}

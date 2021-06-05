@@ -29,6 +29,7 @@ _COMPAT_TENSORFLOW_VERSION = "1.15.0"
 _COMPAT_PYTHON_VERSION = "Python 3.7"
 _COMPAT_SWIG_VERSION = "SWIG Version "
 _ASCEND_INSTALL_PATH_ENV = "ASCEND_CUSTOM_PATH"
+_OPEN_UT = "OPEN_UT"
 
 
 
@@ -115,6 +116,9 @@ def setup_python():
     with open(real_config_path('LINK_FLAGS'), 'w') as f:
       f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))
       f.write(os.path.join(compile_args[1], 'python', '_pywrap_tensorflow_internal.so\n'))
+    with open(real_config_path('UT_LINK_FLAGS'), 'w') as f:
+      f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))
+      f.write(os.path.join(compile_args[1], 'python', '_pywrap_tensorflow_internal.so\n'))
     break
 
 
@@ -139,7 +143,7 @@ def setup_ascend(env_path):
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libfmk_parser.so\n"))
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libdatatransfer.so\n"))
     f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libindextransform.so\n"))
-    f.write(os.path.join(ascend_path, "atc", "lib64", "libalog.so\n"))
+    f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libalog.so\n"))
 def setup_swig():
   """Get swig install path."""
   default_swig_path = which('swig')
@@ -182,7 +186,8 @@ def setup_swig():
 def main():
   env_snapshot = dict(os.environ)
   setup_python()
-  setup_ascend(env_snapshot.get(_ASCEND_INSTALL_PATH_ENV))
+  if not env_snapshot.get(_OPEN_UT):
+    setup_ascend(env_snapshot.get(_ASCEND_INSTALL_PATH_ENV))
   setup_swig()
 
 
