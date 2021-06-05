@@ -904,13 +904,18 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
 
   if (graph == nullptr) { return Status::OK(); }
 
+  std::string queue_name;
   for (Node *n : graph->get()->nodes()) {
     REQUIRES_NOT_NULL(n);
+    if (n->type_string() == "Iterator" || n->type_string() == "IteratorV2") {
+      queue_name = n->name();
+    }
     if (n->attrs().Find("_NoNeedOptimize")) {
       ADP_LOG(INFO) << "Found mark of noneed optimize on node [" << n->name() << "], skip DpTfToGEConversionPass.";
       return Status::OK();
     }
   }
+  NpuAttrs::SetUseAdpStatus(queue_name, false);
 
   std::map<std::string, std::string> all_options;
   std::map<std::string, std::string> pass_options;
@@ -918,10 +923,18 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
 
   for (Node *n : graph->get()->nodes()) {
     REQUIRES_NOT_NULL(n);
+    if (n->type_string() == "DvppDataset") {
+      uint32_t device_id = 0;
+      (void)GetEnvDeviceID(device_id);
+      n->AddAttr("queue_name", "device" + std::to_string(device_id) + "_" + queue_name);
+      NpuAttrs::SetUseAdpStatus(queue_name, true);
+      ADP_LOG(INFO) << "The graph include DvppDataset, set queue_name:"
+                    << queue_name << ", skip DpTfToGEConversionPass.";
+      return Status::OK();
+    }
     if (n->attrs().Find("_NpuOptimizer")) {
       pass_options = NpuAttrs::GetPassOptions(n->attrs());
       all_options = NpuAttrs::GetAllAttrOptions(n->attrs());
-      break;
     }
   }
   std::string job = pass_options["job"];

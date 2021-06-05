@@ -67,6 +67,8 @@ class OMPartitionSubgraphsPass : public GraphOptimizationPass {
   void GetGraphDynamicExecConfig(Node *node, bool enable_dp, std::map<std::string, std::string> &graph_options);
   void ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
                             std::map<std::string, std::string> &graph_options);
+  Status ProcessGetNext(Node *node, std::string enable_dp,
+                        std::vector<Node*> &remove_nodes, Graph *graphIn);
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_OM_PARTITION_SUBGRAPHS_PASS_H_

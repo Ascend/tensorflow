@@ -37,6 +37,7 @@ limitations under the License.
 
 namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
+std::map<std::string, bool> NpuAttrs::use_adp_info_;
 
 std::string GetDumpPath() {
   static std::string dump_path = "";
@@ -273,6 +274,20 @@ bool NpuAttrs::GetUseTdtStatus(int32_t device_id) {
 void NpuAttrs::SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt) {
   turn_on_tdt_info_[device_id] = is_turn_on_tdt;
   ADP_LOG(INFO) << "set device: " << device_id << " turn_on_tdt_info_: " << turn_on_tdt_info_[device_id];
+}
+
+bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
+  if (use_adp_info_.count(iterator_name) > 0) {
+    ADP_LOG(INFO) << "get iterator: " << iterator_name << " use_adp_info_: " << use_adp_info_[iterator_name];
+    return use_adp_info_[iterator_name];
+  } else {
+    return false;
+  }
+}
+
+void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
+  use_adp_info_[iterator_name] = is_use_adp;
+  ADP_LOG(INFO) << "set iterator: " << iterator_name << " use_adp_info_: " << use_adp_info_[iterator_name];
 }
 
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {
