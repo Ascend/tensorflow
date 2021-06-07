@@ -1,12 +1,12 @@
 node {
-  name: "retval_Add_0_0"
+  name: "retval_Exit_0_0"
   op: "_Retval"
-  input: "GeOp2_0"
+  input: "GeOp13_0"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "T"
     value {
-      type: DT_FLOAT
+      type: DT_INT32
     }
   }
   attr {
@@ -17,7 +17,7 @@ node {
   }
 }
 node {
-  name: "GeOp2_0"
+  name: "GeOp13_0"
   op: "GeOp"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
@@ -31,7 +31,7 @@ node {
     key: "Tout"
     value {
       list {
-        type: DT_FLOAT
+        type: DT_INT32
       }
     }
   }
@@ -92,13 +92,13 @@ node {
   attr {
     key: "_dump_path"
     value {
-      s: "./"
+      s: ""
     }
   }
   attr {
     key: "_dump_step"
     value {
-      s: "1"
+      s: ""
     }
   }
   attr {
@@ -140,13 +140,13 @@ node {
   attr {
     key: "_enable_dump"
     value {
-      s: "1"
+      s: "0"
     }
   }
   attr {
     key: "_enable_dump_debug"
     value {
-      s: "1"
+      s: "0"
     }
   }
   attr {
@@ -252,9 +252,9 @@ node {
     }
   }
   attr {
-    key: "_aoe_mode"
+    key: "_mstune_mode"
     value {
-      s: "4"
+      s: ""
     }
   }
   attr {
@@ -336,12 +336,6 @@ node {
     }
   }
   attr {
-    key: "_train_graph"
-    value {
-      s: "1"
-    }
-  }
-  attr {
     key: "_variable_format_optimize"
     value {
       s: "1"
@@ -350,7 +344,7 @@ node {
   attr {
     key: "_work_path"
     value {
-      s: "./"
+      s: ""
     }
   }
   attr {
@@ -363,7 +357,7 @@ node {
     key: "function"
     value {
       func {
-        name: "GeOp2_0"
+        name: "GeOp13_0"
       }
     }
   }
@@ -371,14 +365,14 @@ node {
 library {
   function {
     signature {
-      name: "GeOp2_0"
+      name: "GeOp13_0"
       output_arg {
-        name: "Add_0_retval"
-        type: DT_FLOAT
+        name: "while/Exit_0_retval"
+        type: DT_INT32
       }
     }
     node_def {
-      name: "Const_1"
+      name: "Const"
       op: "Const"
       device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
@@ -418,113 +412,210 @@ library {
         }
       }
       attr {
-        key: "_train_graph"
-        value {
-          s: "1"
-        }
-      }
-      attr {
         key: "dtype"
         value {
-          type: DT_FLOAT
+          type: DT_INT32
         }
       }
       attr {
         key: "value"
         value {
           tensor {
-            dtype: DT_FLOAT
+            dtype: DT_INT32
             tensor_shape {
-              dim {
-                size: 2
-              }
             }
-            tensor_content: "\000\000 A\000\000 A"
+            int_val: 0
           }
         }
       }
     }
     node_def {
-      name: "Variable"
-      op: "VariableV2"
+      name: "while/Enter"
+      op: "Enter"
+      input: "Const:output:0"
       device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "frame_name"
+        value {
+          s: "while/while_context"
+        }
+      }
+      attr {
+        key: "is_constant"
+        value {
+          b: false
+        }
+      }
+      attr {
+        key: "parallel_iterations"
+        value {
+          i: 10
+        }
+      }
+    }
+    node_def {
+      name: "while/Merge"
+      op: "Merge"
+      input: "while/Enter:output:0"
+      input: "while/NextIteration:output:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "N"
+        value {
+          i: 2
+        }
+      }
+      attr {
+        key: "T"
+        value {
+          type: DT_INT32
+        }
+      }
       attr {
         key: "_class"
         value {
           list {
-            s: "loc:@Variable/read"
+            s: "loc:@while/Switch"
           }
         }
       }
-      attr {
-        key: "_var_format"
-        value {
-          s: "4D"
-        }
-      }
-      attr {
-        key: "container"
-        value {
-          s: ""
-        }
-      }
+    }
+    node_def {
+      name: "while/Less/y"
+      op: "Const"
+      input: "^while/Merge"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
         key: "dtype"
         value {
-          type: DT_FLOAT
+          type: DT_INT32
         }
       }
       attr {
-        key: "shape"
+        key: "value"
         value {
-          shape {
-            dim {
-              size: 2
+          tensor {
+            dtype: DT_INT32
+            tensor_shape {
             }
+            int_val: 10
           }
         }
       }
+    }
+    node_def {
+      name: "while/Less"
+      op: "Less"
+      input: "while/Merge:output:0"
+      input: "while/Less/y:output:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
-        key: "shared_name"
+        key: "T"
         value {
-          s: ""
+          type: DT_INT32
         }
       }
     }
     node_def {
-      name: "Variable/read"
+      name: "while/LoopCond"
+      op: "LoopCond"
+      input: "while/Less:z:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+    }
+    node_def {
+      name: "while/Switch"
+      op: "Switch"
+      input: "while/Merge:output:0"
+      input: "while/LoopCond:output:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_INT32
+        }
+      }
+    }
+    node_def {
+      name: "while/Exit"
+      op: "Exit"
+      input: "while/Switch:output_false:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_INT32
+        }
+      }
+    }
+    node_def {
+      name: "while/Identity"
       op: "Identity"
-      input: "Variable:ref:0"
+      input: "while/Switch:output_true:0"
       device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
         key: "T"
         value {
-          type: DT_FLOAT
-        }
-      }
-      attr {
-        key: "_var_format"
-        value {
-          s: "4D"
+          type: DT_INT32
         }
       }
     }
     node_def {
-      name: "Add"
+      name: "while/Add/y"
+      op: "Const"
+      input: "^while/Identity"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "dtype"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "value"
+        value {
+          tensor {
+            dtype: DT_INT32
+            tensor_shape {
+            }
+            int_val: 1
+          }
+        }
+      }
+    }
+    node_def {
+      name: "while/Add"
       op: "Add"
-      input: "Const_1:output:0"
-      input: "Variable/read:output:0"
+      input: "while/Add/y:output:0"
+      input: "while/Identity:output:0"
       device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
         key: "T"
         value {
-          type: DT_FLOAT
+          type: DT_INT32
+        }
+      }
+    }
+    node_def {
+      name: "while/NextIteration"
+      op: "NextIteration"
+      input: "while/Add:z:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_INT32
         }
       }
     }
     ret {
-      key: "Add_0_retval"
-      value: "Add:z:0"
+      key: "while/Exit_0_retval"
+      value: "while/Exit:output:0"
     }
   }
 }

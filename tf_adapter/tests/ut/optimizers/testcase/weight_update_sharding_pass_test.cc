@@ -68,7 +68,6 @@ class WeightShardOptimizationPassTest : public testing::Test {
     string before = CanonicalGraphString(graph_.get());
     LOG(INFO) << "Before om conversion pass: " << before;
 
-    FunctionDefLibrary flib;
     std::unique_ptr<Graph> *ug = &graph_;
     GraphOptimizationPassOptions options;
     SessionOptions session_options;
@@ -82,9 +81,8 @@ class WeightShardOptimizationPassTest : public testing::Test {
     (*custom_config->mutable_parameter_map())["job"] = job;
     options.session_options = &session_options;
     options.graph = ug;
-    std::unique_ptr<FunctionLibraryDefinition> flib_def(
-      new FunctionLibraryDefinition((*options.graph)->op_registry(), flib));
-    options.flib_def = flib_def.get();
+    FunctionLibraryDefinition flib_def((*ug)->flib_def());
+    options.flib_def = &flib_def;
     WeightUpdateShardingPass().Run(options);
 
     string result = CanonicalGraphString(options.graph->get());

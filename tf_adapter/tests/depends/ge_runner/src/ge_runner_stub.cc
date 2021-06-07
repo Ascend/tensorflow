@@ -98,8 +98,10 @@ class TensorFlowModelParser : public domi::ModelParser {
 
   Status ParseProto(const google::protobuf::Message *proto, ge::ComputeGraphPtr &graph) override;
 
-  Status ParseProtoWithSubgraph(const google::protobuf::Message *root_proto,
-                                domi::GetGraphCallback callback,
+  Status ParseProtoWithSubgraph(const google::protobuf::Message *proto, domi::GetGraphCallback callback,
+                                ge::ComputeGraphPtr &graph) override;
+
+  Status ParseProtoWithSubgraph(const std::string &serialized_proto, domi::GetGraphCallbackV2 callback,
                                 ge::ComputeGraphPtr &graph) override;
 
   ge::DataType ConvertToGeDataType(const uint32_t type) override;
@@ -123,11 +125,15 @@ Status TensorFlowModelParser::ToJson(const char *model_file, const char *json_fi
 
 Status TensorFlowModelParser::ParseProto(const google::protobuf::Message *proto, ge::ComputeGraphPtr &graph) { return ge::SUCCESS; }
 
-Status TensorFlowModelParser::ParseProtoWithSubgraph(const google::protobuf::Message *root_proto,
-                                                     domi::GetGraphCallback callback,
+Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto,
+                                                     domi::GetGraphCallbackV2 callback,
                                                      ge::ComputeGraphPtr &graph) {
+  callback("finall_branch1_Y3CNZMF9Vv8");
   return ge::SUCCESS;
 }
+
+Status TensorFlowModelParser::ParseProtoWithSubgraph(const google::protobuf::Message *proto, domi::GetGraphCallback callback,
+                                                     ge::ComputeGraphPtr &graph) { return ge::SUCCESS; }
 
 Status TensorFlowModelParser::ParseAllGraph(const google::protobuf::Message *root_proto, ge::ComputeGraphPtr &root_graph) { return ge::SUCCESS; }
 

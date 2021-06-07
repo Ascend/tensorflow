@@ -1,23 +1,85 @@
 node {
-  name: "retval_Add_0_0"
-  op: "_Retval"
-  input: "GeOp2_0"
+  name: "report_uninitialized_variables/boolean_mask/GatherV2/axis"
+  op: "Const"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
-    key: "T"
+    key: "dtype"
     value {
-      type: DT_FLOAT
+      type: DT_INT32
     }
   }
   attr {
-    key: "index"
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "report_uninitialized_variables/Const"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_STRING
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        string_val: "Variable"
+        string_val: "Variable_1"
+      }
+    }
+  }
+}
+node {
+  name: "report_uninitialized_variables/boolean_mask/GatherV2"
+  op: "GatherV2"
+  input: "report_uninitialized_variables/Const"
+  input: "GeOp14_0"
+  input: "report_uninitialized_variables/boolean_mask/GatherV2/axis"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "Taxis"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tindices"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Tparams"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "batch_dims"
     value {
       i: 0
     }
   }
 }
 node {
-  name: "GeOp2_0"
+  name: "GeOp14_0"
   op: "GeOp"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
@@ -31,7 +93,7 @@ node {
     key: "Tout"
     value {
       list {
-        type: DT_FLOAT
+        type: DT_INT64
       }
     }
   }
@@ -39,6 +101,12 @@ node {
     key: "_NpuOptimizer"
     value {
       s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_aoe_mode"
+    value {
+      s: ""
     }
   }
   attr {
@@ -92,13 +160,13 @@ node {
   attr {
     key: "_dump_path"
     value {
-      s: "./"
+      s: ""
     }
   }
   attr {
     key: "_dump_step"
     value {
-      s: "1"
+      s: ""
     }
   }
   attr {
@@ -140,13 +208,13 @@ node {
   attr {
     key: "_enable_dump"
     value {
-      s: "1"
+      s: "0"
     }
   }
   attr {
     key: "_enable_dump_debug"
     value {
-      s: "1"
+      s: "0"
     }
   }
   attr {
@@ -252,9 +320,9 @@ node {
     }
   }
   attr {
-    key: "_aoe_mode"
+    key: "_modify_mixlist"
     value {
-      s: "4"
+      s: ""
     }
   }
   attr {
@@ -277,12 +345,6 @@ node {
   }
   attr {
     key: "_op_select_implmode"
-    value {
-      s: ""
-    }
-  }
-  attr {
-    key: "_op_tune_mode"
     value {
       s: ""
     }
@@ -336,12 +398,6 @@ node {
     }
   }
   attr {
-    key: "_train_graph"
-    value {
-      s: "1"
-    }
-  }
-  attr {
     key: "_variable_format_optimize"
     value {
       s: "1"
@@ -350,7 +406,7 @@ node {
   attr {
     key: "_work_path"
     value {
-      s: "./"
+      s: ""
     }
   }
   attr {
@@ -363,7 +419,7 @@ node {
     key: "function"
     value {
       func {
-        name: "GeOp2_0"
+        name: "GeOp14_0"
       }
     }
   }
@@ -371,20 +427,28 @@ node {
 library {
   function {
     signature {
-      name: "GeOp2_0"
+      name: "GeOp14_0"
       output_arg {
-        name: "Add_0_retval"
-        type: DT_FLOAT
+        name: "report_uninitialized_variables/boolean_mask/Squeeze_0_retval"
+        type: DT_INT64
       }
     }
     node_def {
-      name: "Const_1"
-      op: "Const"
+      name: "Variable"
+      op: "VariableV2"
       device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
         key: "_NpuOptimizer"
         value {
           s: "NpuOptimizer"
+        }
+      }
+      attr {
+        key: "_class"
+        value {
+          list {
+            s: "loc:@report_uninitialized_variables/IsVariableInitialized"
+          }
         }
       }
       attr {
@@ -406,60 +470,9 @@ library {
         }
       }
       attr {
-        key: "_task_index"
-        value {
-          s: "0"
-        }
-      }
-      attr {
         key: "_use_off_line"
         value {
           s: "1"
-        }
-      }
-      attr {
-        key: "_train_graph"
-        value {
-          s: "1"
-        }
-      }
-      attr {
-        key: "dtype"
-        value {
-          type: DT_FLOAT
-        }
-      }
-      attr {
-        key: "value"
-        value {
-          tensor {
-            dtype: DT_FLOAT
-            tensor_shape {
-              dim {
-                size: 2
-              }
-            }
-            tensor_content: "\000\000 A\000\000 A"
-          }
-        }
-      }
-    }
-    node_def {
-      name: "Variable"
-      op: "VariableV2"
-      device: "/job:localhost/replica:0/task:0/device:CPU:0"
-      attr {
-        key: "_class"
-        value {
-          list {
-            s: "loc:@Variable/read"
-          }
-        }
-      }
-      attr {
-        key: "_var_format"
-        value {
-          s: "4D"
         }
       }
       attr {
@@ -479,7 +492,10 @@ library {
         value {
           shape {
             dim {
-              size: 2
+              size: 10
+            }
+            dim {
+              size: 10
             }
           }
         }
@@ -492,39 +508,136 @@ library {
       }
     }
     node_def {
-      name: "Variable/read"
-      op: "Identity"
-      input: "Variable:ref:0"
+      name: "Variable_1"
+      op: "VariableV2"
       device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
-        key: "T"
+        key: "_class"
+        value {
+          list {
+            s: "loc:@report_uninitialized_variables/IsVariableInitialized_1"
+          }
+        }
+      }
+      attr {
+        key: "container"
+        value {
+          s: ""
+        }
+      }
+      attr {
+        key: "dtype"
         value {
           type: DT_FLOAT
         }
       }
       attr {
-        key: "_var_format"
+        key: "shape"
         value {
-          s: "4D"
+          shape {
+            dim {
+              size: 10
+            }
+          }
+        }
+      }
+      attr {
+        key: "shared_name"
+        value {
+          s: ""
         }
       }
     }
     node_def {
-      name: "Add"
-      op: "Add"
-      input: "Const_1:output:0"
-      input: "Variable/read:output:0"
+      name: "report_uninitialized_variables/IsVariableInitialized"
+      op: "IsVariableInitialized"
+      input: "Variable:ref:0"
       device: "/job:localhost/replica:0/task:0/device:CPU:0"
       attr {
-        key: "T"
+        key: "dtype"
         value {
           type: DT_FLOAT
         }
       }
     }
+    node_def {
+      name: "report_uninitialized_variables/IsVariableInitialized_1"
+      op: "IsVariableInitialized"
+      input: "Variable_1:ref:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "dtype"
+        value {
+          type: DT_FLOAT
+        }
+      }
+    }
+    node_def {
+      name: "report_uninitialized_variables/stack"
+      op: "Pack"
+      input: "report_uninitialized_variables/IsVariableInitialized:is_initialized:0"
+      input: "report_uninitialized_variables/IsVariableInitialized_1:is_initialized:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "N"
+        value {
+          i: 2
+        }
+      }
+      attr {
+        key: "T"
+        value {
+          type: DT_BOOL
+        }
+      }
+      attr {
+        key: "axis"
+        value {
+          i: 0
+        }
+      }
+    }
+    node_def {
+      name: "report_uninitialized_variables/LogicalNot"
+      op: "LogicalNot"
+      input: "report_uninitialized_variables/stack:output:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+    }
+    node_def {
+      name: "report_uninitialized_variables/boolean_mask/Where"
+      op: "Where"
+      input: "report_uninitialized_variables/LogicalNot:y:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_BOOL
+        }
+      }
+    }
+    node_def {
+      name: "report_uninitialized_variables/boolean_mask/Squeeze"
+      op: "Squeeze"
+      input: "report_uninitialized_variables/boolean_mask/Where:index:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_INT64
+        }
+      }
+      attr {
+        key: "squeeze_dims"
+        value {
+          list {
+            i: 1
+          }
+        }
+      }
+    }
     ret {
-      key: "Add_0_retval"
-      value: "Add:z:0"
+      key: "report_uninitialized_variables/boolean_mask/Squeeze_0_retval"
+      value: "report_uninitialized_variables/boolean_mask/Squeeze:output:0"
     }
   }
 }

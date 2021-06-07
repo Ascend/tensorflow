@@ -11,7 +11,7 @@ if ((${CMAKE_INSTALL_PREFIX} STREQUAL /usr/local) OR
 endif()
 
 if (TF_PKG_SERVER)
-    set(REQ_URL "${TF_PKG_SERVER}/libs/gtest/release-1.8.1.tar.gz")
+    set(REQ_URL "${TF_PKG_SERVER}/libs/ge_gtest/release-1.8.1.tar.gz")
     set(MD5 "")
 elseif (ENABLE_GITEE)
     set(REQ_URL "https://gitee.com/mirrors/googletest/repository/archive/release-1.8.1.tar.gz")

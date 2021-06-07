@@ -190,5 +190,17 @@ TEST_F(OmOptimizationPassTest, IncludeNodeFuncTest) {
   std::string target_graph = DoRunOmOptimizationPassTest();
   EXPECT_EQ(target_graph, "arg_Placeholder_0_0->GeOp12_0;GeOp12_0->retval_IF_branch_1_0_0");
 }
+TEST_F(OmOptimizationPassTest, WhileLoopTest) {
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/om_test_while_loop.pbtxt";
+  InitGraph(org_graph_def_path);
+  std::string target_graph = DoRunOmOptimizationPassTest();
+  EXPECT_EQ(target_graph, "GeOp13_0->retval_Exit_0_0");
+}
+TEST_F(OmOptimizationPassTest, DynamicGetNextInput1Test) {
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/om_test_getnext_dynamic_execute.pbtxt";
+  InitGraph(org_graph_def_path);
+  std::string target_graph = DoRunOmOptimizationPassTest();
+  EXPECT_EQ(target_graph, "arg_arg_Placeholder_0_0->GeOp14_0");
+}
 } // end namespace
 } // end tensorflow
