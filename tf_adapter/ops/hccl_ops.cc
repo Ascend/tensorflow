@@ -282,7 +282,7 @@ REGISTER_OP("HcomRemoteScatterWrite")
 
 )doc");
 
-REGISTER_OP("HcomAllToAllVDynamic")
+REGISTER_OP("HcomAllToAllV")
     .Input("send_data: T")
     .Input("send_counts: int64")
     .Input("send_displacements: int64")

@@ -208,8 +208,8 @@ def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_dis
 #  @param recv_displacements 从每个rank接收数据起始位置相对于output起始的偏移，shape(rank_size, );
 #  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group", 预留参数后续版本支持;
 #  @attention 组网约束:使用该集合通信操作时,所有参与的设备需实现RDMA网络fullmesh全连接组网;
-def all_to_all_v_dynamic(send_data, send_counts, send_displacements, recv_counts, recv_displacements, group="hccl_world_group"):
-    result = gen_hccl_ops.hcom_all_to_all_v_dynamic(
+def all_to_all_v(send_data, send_counts, send_displacements, recv_counts, recv_displacements, group="hccl_world_group"):
+    result = gen_hccl_ops.hcom_all_to_all_v(
         send_data=send_data,
         send_counts=send_counts,
         send_displacements=send_displacements,

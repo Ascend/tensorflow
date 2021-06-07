@@ -152,16 +152,16 @@ public:
 
 REGISTER_KERNEL_BUILDER(Name("HcomGatherAllToAllV").Device(DEVICE_CPU), HcomGatherAllToAllVOpKernel);
 
-class HcomAllToAllVDynamicOpKernel : public OpKernel {
+class HcomAllToAllVOpKernel : public OpKernel {
 public:
-    explicit HcomAllToAllVDynamicOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
-    ~HcomAllToAllVDynamicOpKernel() {}
+    explicit HcomAllToAllVOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
+    ~HcomAllToAllVOpKernel() {}
     void Compute(OpKernelContext* context) override
     {
-        ADP_LOG(INFO) << "HcomAllToAllVDynamic Compute.";
+        ADP_LOG(INFO) << "HcomAllToAllV Compute.";
     }
 };
 
-REGISTER_KERNEL_BUILDER(Name("HcomAllToAllVDynamic").Device(DEVICE_CPU), HcomAllToAllVDynamicOpKernel);
+REGISTER_KERNEL_BUILDER(Name("HcomAllToAllV").Device(DEVICE_CPU), HcomAllToAllVOpKernel);
 
 } // namespace tensorflow
