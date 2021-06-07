@@ -58,13 +58,11 @@ class DpOptimizationPassTest : public testing::Test {
     string before = CanonicalGraphString(graph_.get());
     LOG(INFO) << "Before om conversion pass: " << before;
 
-    FunctionDefLibrary flib;
     std::unique_ptr<Graph> *ug = &graph_;
     GraphOptimizationPassOptions options;
     options.graph = ug;
-    std::unique_ptr<FunctionLibraryDefinition> flib_def(
-      new FunctionLibraryDefinition((*options.graph)->op_registry(), flib));
-    options.flib_def = flib_def.get();
+    FunctionLibraryDefinition flib_def((*ug)->flib_def());
+    options.flib_def = &flib_def;
     DpTfToGEConversionPass().Run(options);
 
     string result = CanonicalGraphString(options.graph->get());
@@ -82,15 +80,14 @@ class DpOptimizationPassTest : public testing::Test {
 };
 
 TEST_F(DpOptimizationPassTest, BuildGeOpTest) {
-  string org_graph_def_path = "tf_adapter/tests/ut//optimizers/pbtxt/dp_test_build_geop.pbtxt";
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/dp_test_build_geop.pbtxt";
   InitGraph(org_graph_def_path);
-  std::string target_graph = "Const->TensorSliceDataset;IteratorV2->MakeIterator:1;"\
-    "TensorSliceDataset->HostQueueDataset:1;HostQueueDataset->DPGroupDataset;GEOPDataset->HostQueueDataset;"\
-    "DPGroupDataset->MakeIterator";
+  std::string target_graph = "Const->TensorSliceDataset;IteratorV2->MakeIterator:1;TensorSliceDataset->HostQueueDataset:1;"\
+    "HostQueueDataset->DPGroupDataset;GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
   EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
 }
 TEST_F(DpOptimizationPassTest, DatasetNotInDeviceTest) {
-  string org_graph_def_path = "tf_adapter/tests/ut//optimizers/pbtxt/dp_test_no_dataset_in_device.pbtxt";
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/dp_test_no_dataset_in_device.pbtxt";
   InitGraph(org_graph_def_path);
   std::string target_graph = "Const->TensorSliceDataset;TensorSliceDataset->BatchDatasetV2;Const->BatchDatasetV2:1;"\
     "Const->BatchDatasetV2:2;BatchDatasetV2->RepeatDataset;Const->RepeatDataset:1;RepeatDataset->OptimizeDataset;"\

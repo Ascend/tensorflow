@@ -33,7 +33,7 @@ namespace tensorflow {
 Status AdpGetNextShapeFn(shape_inference::InferenceContext* c) {
   std::vector<PartialTensorShape> output_shapes;
   TF_RETURN_IF_ERROR(c->GetAttr("output_shapes", &output_shapes));
-  if (output_shapes.size() != c->num_outputs()) {
+  if (output_shapes.size() != static_cast<size_t>(c->num_outputs())) {
     return errors::InvalidArgument(
         "`output_shapes` must be the same length as `output_types` (",
         output_shapes.size(), " vs. ", c->num_outputs());

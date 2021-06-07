@@ -23,6 +23,54 @@
     "isGray": false,
     "isHeavy": false
   },
+  "Enter": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "IsVariableInitialized": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Pack": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "LogicalNot": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Where": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Squeeze": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Merge": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Less": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "LoopCond": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Switch": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "Exit": {
+    "isGray": false,
+    "isHeavy": false
+  },
+  "NextIteration": {
+    "isGray": false,
+    "isHeavy": false
+  },
   "_Retval": {
     "isGray": false,
     "isHeavy": false

@@ -252,7 +252,7 @@ node {
     }
   }
   attr {
-    key: "_mstune_mode"
+    key: "_aoe_mode"
     value {
       s: "4"
     }

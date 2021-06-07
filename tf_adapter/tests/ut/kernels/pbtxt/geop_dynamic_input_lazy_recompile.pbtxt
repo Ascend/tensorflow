@@ -921,6 +921,24 @@ library {
         }
       }
       attr {
+        key: "_dynamic_input"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_dynamic_graph_execute_mode"
+        value {
+          s: "lazy_recompile"
+        }
+      }
+      attr {
+        key: "_graph_dynamic_inputs_shape_range"
+        value {
+          s: ""
+        }
+      }
+      attr {
         key: "container"
         value {
           s: ""
