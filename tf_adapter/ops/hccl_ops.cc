@@ -313,6 +313,7 @@ REGISTER_OP("HcomGatherAllToAllV")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext* c) {
         c->set_output(0, c->UnknownShape());
+        c->set_output(1, c->UnknownShape());
         return Status::OK();
     })
     .Doc(R"doc(

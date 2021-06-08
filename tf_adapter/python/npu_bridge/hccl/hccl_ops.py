@@ -190,7 +190,7 @@ def remote_scatter_write(tensorRemote, tensorLocal, offset):
 #  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group", 预留参数后续版本支持;
 #  @attention 组网约束:使用该集合通信操作时,所有参与的设备需实现RDMA网络fullmesh全连接组网;
 def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_displacements, dtype, addr_length, group="hccl_world_group"):
-    result = gen_hccl_ops.hcom_gather_all_to_all_v(
+    recv_data, gatherd = gen_hccl_ops.hcom_gather_all_to_all_v(
         addrinfo=addrinfo,
         addrinfo_count_per_rank=addrinfo_count_per_rank,
         recv_counts=recv_counts,
@@ -198,7 +198,7 @@ def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_dis
         dtype=dtype,
         addr_length=addr_length,
         group=group)
-    return result
+    return recv_data, gatherd
 
 ##提供alltoallv功能
 #  @param send_data 需要发送的数据;
@@ -209,11 +209,11 @@ def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_dis
 #  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group", 预留参数后续版本支持;
 #  @attention 组网约束:使用该集合通信操作时,所有参与的设备需实现RDMA网络fullmesh全连接组网;
 def all_to_all_v(send_data, send_counts, send_displacements, recv_counts, recv_displacements, group="hccl_world_group"):
-    result = gen_hccl_ops.hcom_all_to_all_v(
+    recv_data = gen_hccl_ops.hcom_all_to_all_v(
         send_data=send_data,
         send_counts=send_counts,
         send_displacements=send_displacements,
         recv_counts=recv_counts,
         recv_displacements=recv_displacements,
         group=group)
-    return result
+    return recv_data
