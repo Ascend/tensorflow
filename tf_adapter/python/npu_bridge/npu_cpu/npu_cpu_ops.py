@@ -36,6 +36,20 @@ def embeddingrankid(addr_tensor, index, row_memory=320, mode='mod'):
         mode=mode)
     return result
 
+## 提供embeddinglocalindex功能
+#  @param addr_tensor tensorflow的tensor类型，embeddinglocalindex操作的输入；
+#  @param index tensorflow的tensor类型，embeddinglocalindex操作的输入；
+#  @param row_memory int类型，一行数据存储的大小 默认为320。
+#  @param mode string类型，embeddinglocalindex的操作类型，可以为”mod”,”order”;数据存储的方式。
+#  @return 对输入addr_tensor，index_tensor执行完embeddinglocalindex操作之后的结果tensor
+def embedding_local_index(addr_tensor, index, row_memory=320, mode='mod'):
+    result = gen_npu_cpu_ops.embedding_local_index(
+        addr_table=addr_tensor,
+        index=index,
+        row_memory=row_memory,
+        mode=mode)
+    return result
+
 ## 提供RandomChoiceWithMask功能
 #  @param x bool 类型
 #  @param count int 类型

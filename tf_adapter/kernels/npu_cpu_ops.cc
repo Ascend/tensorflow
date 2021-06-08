@@ -41,6 +41,13 @@ class EmbeddingRankIdOpKernel : public OpKernel {
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingRankIdOp Compute."; }
 };
 
+class EmbeddingLocalIndexOpKernel : public OpKernel {
+ public:
+  explicit EmbeddingLocalIndexOpKernel(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingLocalIndexOpKernel() {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingLocalIndexOp Compute."; }
+};
+
 class LruCacheOp : public ResourceOpKernel<CacheInterface> {
  public:
   explicit LruCacheOp(OpKernelConstruction* context) : ResourceOpKernel(context) {}
@@ -125,6 +132,7 @@ class DenseImageWarpGradOp : public OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
 REGISTER_KERNEL_BUILDER(Name("CacheAdd").Device(DEVICE_CPU), CacheAddOp);
 REGISTER_KERNEL_BUILDER(Name("CacheRemoteIndexToLocal").Device(DEVICE_CPU), CacheRemoteIndexToLocalOp);
