@@ -1047,8 +1047,13 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       uint64_t graph_id = kInvalidGeGraphId;
       bool loop = false;
       auto loop_graph = std::make_unique<tensorflow::GraphDef>();
-      NPU_CTX_REQUIRES_OK(s, GetAutoLoopGraph(context, optimize_graph.get(), pruned_inputs.size(), pruned_inputs.data(),
-                                              loop, loop_graph.get()));
+      if (!dependent_host_resources.empty()) {
+        NPU_CTX_REQUIRES_OK(s, GetAutoLoopGraph(context, optimize_graph.get(), pruned_inputs.size(),
+                                                pruned_inputs.data(), loop, loop_graph.get()));
+      } else {
+        DLOG() << "Skip trans " << op_name << " to loop graph as no iterator resource dependencies";
+        optimize_graph->ToGraphDef(loop_graph.get());
+      }
 
       LOG(INFO) << "Graph " << op_name << " can loop: " << (loop ? "true" : "false");
       if (kDumpExecutionDetail || kDumpGraph) {
