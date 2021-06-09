@@ -154,6 +154,76 @@ def convert_loss_scale_api(node):
             util_global.set_value('need_conver', True)
             return node
 
+def convert_monitor_session_api(node):
+    if (isinstance(node.func, ast.Attribute) and (node.func.attr == 'MonitoredTrainingSession')) or \
+       (isinstance(node.func, ast.Name) and (node.func.id == 'MonitoredTrainingSession')):
+        log_success_report(getattr(node, "lineno", "None"), 'MonitoredTrainingSession')
+        hooks = None
+        config = None
+        for index, _ in enumerate(node.args):
+            if index == 4:
+                hooks = node.args.pop(4)
+            if index == 9:
+                config = node.args.pop(9)
+                break
+        for keyword in node.keywords:
+            if keyword.arg == 'hooks':
+                hooks = keyword
+            if keyword.arg == "config":
+                config = keyword
+        if not hooks:
+            node.keywords.append(ast.keyword(arg='hooks', value=pasta.parse('npu_hooks_append()')))
+        elif isinstance(hooks, ast.keyword):
+            new_value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[],
+                                 keywords=[ast.keyword(arg='hooks_list', value=hooks.value)])
+            ast.copy_location(new_value, hooks.value)
+            hooks.value = new_value
+        else:
+            node.keywords.append(ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()),
+                                                                         args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
+        if config:
+            if isinstance(config, ast.keyword):
+                new_value = ast.Call(func=ast.Name(id='npu_config_proto', ctx=ast.Load()), args=[],
+                                        keywords=[ast.keyword(arg='config_proto', value=config.value)])
+                ast.copy_location(new_value, config.value)
+                config.value = new_value
+            else:
+                node.keywords.append(ast.keyword(arg='config', value=ast.Call(
+                    func=ast.Name(id='npu_config_proto', ctx=ast.Load()), args=[],
+                    keywords=[ast.keyword(arg='config_proto', value=config)])))
+        else:
+            node.keywords.append(ast.keyword(arg='config', value=pasta.parse('npu_config_proto()')))
+
+        util_global.set_value('need_conver', True)
+        return node
+
+def convert_managed_session_api(node):
+    if isinstance(node.func, ast.Attribute) and node.func.attr == "managed_session":
+        log_msg(getattr(node, 'lineno', 'None'), "add npu_config_proto func in managed_session")
+        config = None
+        for index, _ in enumerate(node.args):
+            if index == 1:
+                config = node.args.pop(1)
+                break
+        for keyword in node.keywords:
+            if keyword.arg == "config":
+                config = keyword
+
+        if config:
+            if isinstance(config, ast.keyword):
+                new_value = ast.Call(func=ast.Name(id='npu_config_proto', ctx=ast.Load()), args=[],
+                                        keywords=[ast.keyword(arg='config_proto', value=config.value)])
+                ast.copy_location(new_value, config.value)
+                config.value = new_value
+            else:
+                node.keywords.append(ast.keyword(arg='config', value=ast.Call(
+                    func=ast.Name(id='npu_config_proto', ctx=ast.Load()), args=[],
+                    keywords=[ast.keyword(arg='config_proto', value=config)])))
+        else:
+            node.keywords.append(ast.keyword(arg='config', value=pasta.parse('npu_config_proto()')))
+        util_global.set_value('need_conver', True)
+        return node
+
 def ast_call(node):
     convert_loss_scale_api(node)
     if _call_name_match(node.func, "set_experimental_options"):
@@ -185,8 +255,8 @@ def ast_call(node):
         node.keywords.append(ast.keyword(arg='optimizer_options', value=src))
         util_global.set_value('need_conver', True)
         return node
-    if (isinstance(node.func, ast.Name) and node.func.id == 'Session') or \
-       (isinstance(node.func, ast.Attribute) and node.func.attr == 'Session'):
+    if (isinstance(node.func, ast.Name) and (node.func.id == 'Session' or node.func.id == 'InteractiveSession')) or \
+       (isinstance(node.func, ast.Attribute) and (node.func.attr == 'Session' or node.func.attr == 'InteractiveSession')):
         log_success_report(getattr(node, 'lineno', 'None'), 'Session()')
         config = None
         for index, _ in enumerate(node.args):
@@ -370,6 +440,9 @@ def ast_call(node):
         if isinstance(node.func, ast.Attribute) and (node.func.attr == estimator_func):
             if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == "learning":
                 return node
+            train_keywords = ["input_fn", "hooks", "steps", "max_steps", "saving_listeners"]
+            if len(node.keywords) == 0 and len(node.args) != 5:
+                return node
             input_fn = None
             hooks = None
             for index, _ in enumerate(node.args):
@@ -378,6 +451,8 @@ def ast_call(node):
                 elif index == 1:
                     hooks = node.args.pop(1)
             for keyword in node.keywords:
+                if keyword.arg not in train_keywords:
+                    return node
                 if keyword.arg == 'input_fn':
                     input_fn = keyword
                 elif keyword.arg == 'hooks':
@@ -430,30 +505,8 @@ def ast_call(node):
             ast.copy_location(new_node, node)
             util_global.set_value('need_conver', True)
             return new_node
-    if (isinstance(node.func, ast.Attribute) and (node.func.attr == 'MonitoredTrainingSession')) or \
-       (isinstance(node.func, ast.Name) and (node.func.id == 'MonitoredTrainingSession')):
-        log_success_report(getattr(node, "lineno", "None"), 'MonitoredTrainingSession')
-        hooks = None
-        for index, _ in enumerate(node.args):
-            if index == 4:
-                hooks = node.args.pop(4)
-                break
-        for keyword in node.keywords:
-            if keyword.arg == 'hooks':
-                hooks = keyword
-                break
-        if not hooks:
-            node.keywords.append(ast.keyword(arg='hooks', value=pasta.parse('npu_hooks_append()')))
-        elif isinstance(hooks, ast.keyword):
-            new_value = ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()), args=[],
-                                 keywords=[ast.keyword(arg='hooks_list', value=hooks.value)])
-            ast.copy_location(new_value, hooks.value)
-            hooks.value = new_value
-        else:
-            node.keywords.append(ast.keyword(arg='hooks', value=ast.Call(func=ast.Name(id='npu_hooks_append', ctx=ast.Load()),
-                                                                         args=[], keywords=[ast.keyword(arg='hooks_list', value=hooks)])))
-        util_global.set_value('need_conver', True)
-        return node
+    convert_monitor_session_api(node)
+    convert_managed_session_api(node)
     specs = {'TrainSpec': 2, 'EvalSpec': 3}
     for spec, hooks_index in specs.items():
         if _call_name_match(node.func, spec):
