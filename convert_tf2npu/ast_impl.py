@@ -233,6 +233,12 @@ def ast_call(node):
         util_global.set_value('need_conver', True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == 'dropout':
         if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == 'nn':
+            for index, _ in enumerate(node.args):
+                if index == 2:
+                    return node
+            for keyword in node.keywords:
+                if keyword.arg == "noise_shape":
+                    return node
             log_success_report(getattr(node, "lineno", "None"), 'dropout')
             node.func=ast.Attribute(value=ast.Name(id='npu_ops', ctx=ast.Load()), attr='dropout', ctx=ast.Load())
             keywords_new = []
