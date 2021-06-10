@@ -236,7 +236,7 @@ REGISTER_OP("HcomRemoteRead")
     .Attr("dtype: {int8, int16, int32, float16, float32, int64, uint64}")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext* c) {
-        c->set_output(0, c->UnknownShape()); // һάshapeȷڶάunknown
+        c->set_output(0, c->UnknownShape());
         return Status::OK();
     })
     .Doc(R"doc(
@@ -278,6 +278,44 @@ REGISTER_OP("HcomRemoteScatterWrite")
     .Attr("dtype: {int8, int16, int32, float16, float32, int64, uint64}")
     .SetIsStateful()
     .SetShapeFn(shape_inference::NoOutputs)
+    .Doc(R"doc(
+
+)doc");
+
+REGISTER_OP("HcomAllToAllV")
+    .Input("send_data: T")
+    .Input("send_counts: int64")
+    .Input("send_displacements: int64")
+    .Input("recv_counts: int64")
+    .Input("recv_displacements: int64")
+    .Output("recv_data: T")
+    .Attr("T: {int8, int16, int32, float16, float32, int64, uint64}")
+    .Attr("group: string")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext* c) {
+        c->set_output(0, c->UnknownShape());
+        return Status::OK();
+    })
+    .Doc(R"doc(
+
+)doc");
+
+REGISTER_OP("HcomGatherAllToAllV")
+    .Input("addrinfo: uint64")
+    .Input("addrinfo_count_per_rank: int64")
+    .Input("recv_counts: int64")
+    .Input("recv_displacements: int64")
+    .Output("recv_data: dtype")
+    .Output("gathered: dtype")
+    .Attr("dtype: {int8, int16, int32, float16, float32, int64, uint64}")
+    .Attr("addr_length: int")
+    .Attr("group: string")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext* c) {
+        c->set_output(0, c->UnknownShape());
+        c->set_output(1, c->UnknownShape());
+        return Status::OK();
+    })
     .Doc(R"doc(
 
 )doc");

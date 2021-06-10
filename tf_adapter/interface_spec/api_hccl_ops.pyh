@@ -8,5 +8,5 @@ def send(tensor, sr_tag, dest_rank, group="hccl_world_group"):
 def receive(shape, data_type, sr_tag, src_rank, group="hccl_world_group"):
 def remote_ref_read(tensorRemote, cache, offset):
 def remote_scatter_write(tensorRemote, tensorLocal, offset):
-
-
+def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_displacements, dtype, addr_length, group="hccl_world_group"):
+def all_to_all_v(send_data, send_counts, send_displacements, recv_counts, recv_displacements, group="hccl_world_group"):
