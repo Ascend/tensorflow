@@ -56,6 +56,36 @@ REGISTER_OP("EmbeddingRankId")
     Output
         rank_id:    Tensors with the same shape as index.dim(0)*3.
     )doc");
+//regist embedding local index op
+REGISTER_OP("EmbeddingLocalIndex")
+  .Input("addr_table: uint64")
+  .Input("index: T")
+  .Output("local_idx: T")
+  .Output("nums: T")
+  .Output("recover_idx: T")
+  .Attr("T: {int64,int32,uint64,uint32}")
+  .Attr("row_memory: int = 320")
+  .Attr("mode: string = 'mod' ")
+  .SetAllowsUninitializedInput()
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto index_shape = c->input(1);
+    c->set_output(0, index_shape);
+    auto nums_shape = c->MakeShape({c->Dim(c->input(0), 0)});
+    c->set_output(1, nums_shape);
+    c->set_output(2, index_shape);
+    return Status::OK();
+  })
+  .Doc(R"doc(
+    Traverse the index calculation server and its position in the server.
+    Arguments
+        addr_table:    Tensors of addr_table.
+        index:    Tensors of index.
+    Output
+        local_idx:    Local_idx sorted by rank_id.
+        nums:   The number of local_idx found on each rank_id.
+        recover_idx:  The sorted local_idx element corresponds to the position of
+                      the original input index.
+    )doc");
 //regist lru cahe op
 REGISTER_OP("LruCache")
   .Output("cache: resource")
