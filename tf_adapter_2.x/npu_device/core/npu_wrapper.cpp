@@ -15,8 +15,6 @@ limitations under the License.
 #include <memory>
 
 #include "Python.h"
-#define PY_MAJOR_VERSION 3
-#define PY_MINOR_VERSION 7
 #include "pybind11/chrono.h"
 #include "pybind11/complex.h"
 #include "pybind11/functional.h"
@@ -87,6 +85,9 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE}};
 }  // namespace
+
+#undef PYBIND11_CHECK_PYTHON_VERSION
+#define PYBIND11_CHECK_PYTHON_VERSION
 
 PYBIND11_MODULE(_npu_device_backends, m) {
   m.def("Open",
