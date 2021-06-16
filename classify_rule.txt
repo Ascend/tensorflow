@@ -1,0 +1,3 @@
+[tensorflow]
+tf_adapter
+tf_adapter_2.x
