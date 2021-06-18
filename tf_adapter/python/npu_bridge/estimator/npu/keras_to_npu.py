@@ -42,6 +42,7 @@ from tensorflow.python.training import training_util
 from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow.python.util import compat_internal
+from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_lib
