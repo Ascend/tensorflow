@@ -38,7 +38,7 @@ limitations under the License.
 #include "ge/ge_api_types.h"
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
-#include "toolchain/tuning_tool/tune_api.h"
+#include "tuning_tool/tune_api.h"
 #include <unordered_map>
 
 namespace tensorflow {

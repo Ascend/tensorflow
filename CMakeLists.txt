@@ -23,6 +23,7 @@ if (ENABLE_OPEN_SRC)
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/tensorflow.cmake)
     include_directories(${CMAKE_CURRENT_LIST_DIR})
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc)
+    include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/toolchain)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/soft_dp)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/graphengine/inc)
@@ -169,6 +170,10 @@ else()
 
     target_link_libraries(tf_adapter PUBLIC
         $<BUILD_INTERFACE:intf_pub>
+        $<BUILD_INTERFACE:mmpa_headers>
+        $<BUILD_INTERFACE:slog_headers>
+        $<BUILD_INTERFACE:msprof_headers>
+        $<BUILD_INTERFACE:aoe_headers>
         -Wl,--no-as-needed
         c_sec
         ge_runner
