@@ -87,7 +87,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  local_device_list=None,
                  session_device_id=None,
                  distribute_config=None,
-                 modify_mixlist=None
+                 modify_mixlist=None,
+                 op_precision_mode=None
                  ):
         """
         Constructs a NPUConfig.
@@ -155,6 +156,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         local_device_list: Available devices.
         distribute_config: Specify the NCA configuration file path
         modify_mixlist: Set the path of operator mixed precision configuration file.
+        op_precision_mode: Set the path of operator precision mode configuration file (.ini)
         """
 
         # Check iterations_per_loop.
@@ -236,6 +238,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._session_device_id = session_device_id
         self._distribute_config = distribute_config
         self._modify_mixlist = modify_mixlist
+        self._op_precision_mode = op_precision_mode
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
