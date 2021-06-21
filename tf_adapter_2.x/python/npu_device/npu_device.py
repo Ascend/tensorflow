@@ -135,9 +135,10 @@ _thread_local = threading.local()
 
 def never_nested_function(func=None, *args, **kwargs):
     def never_nested_decorator(f):
-        if kwargs.get('experimental_compile'):
+        if kwargs.get('experimental_compile') or kwargs.get('jit_compile'):
             logging.info("Skip xla compile tf function %s on npu", f.__name__)
         kwargs['experimental_compile'] = False
+        kwargs['jit_compile'] = False
         tf_decorated_func = _hacked_tensorflow_function(*args, **kwargs)(f)
 
         def wrapper(*func_args, **func_kwargs):
