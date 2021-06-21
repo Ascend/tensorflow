@@ -79,13 +79,10 @@ def write_conver_report(content, file):
     file.write("\r\n")
     file.close()
 
-def write_analysis_report(content, file):
-    report_path = util_global.get_value('report')
-    mkdir(report_path)
-    file = open(os.path.join(report_path, file), 'a')
-    file.write(content)
-    file.write("\r\n")
-    file.close()
+def log_failed_api(lineno, api_msg):
+    content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg])
+    print("".join(["\033[1;31mERROR\033[0m:", content]))
+    write_conver_report(content, util_global.get_value('report_file')[1])
 
 def abs_join(abs1, abs2):
     abs2 = os.fspath(abs2)
@@ -117,6 +114,12 @@ def scan_file(path, file_name, api, lineno):
             support_type.append(api_support[api_name.index(name)])
             migrate_advice.append(api_advice[api_name.index(name)])
 
+            # print error message when api is unsupported on npu
+            api_support_type = api_support[api_name.index(name)]
+            if api_support_type == '分析中（特性商用时不应该存在）' or \
+                    api_support_type == '不支持（无迁移方案，建议用户不使用）':
+                log_failed_api(lineno[i], name)
+
     # search for tf enumeration
     enume_list = pd.read_excel(util_global.get_value('list'), sheet_name=1)
     enume_name = enume_list['API名'].values.tolist()
@@ -134,6 +137,12 @@ def scan_file(path, file_name, api, lineno):
                 support_type.append(api_support[api_name.index(class_name)])
                 migrate_advice.append(api_advice[api_name.index(class_name)])
 
+                # print error message when api is unsupported on npu
+                api_support_type = api_support[api_name.index(class_name)]
+                if api_support_type == '分析中（特性商用时不应该存在）' or \
+                    api_support_type == '不支持（无迁移方案，建议用户不使用）':
+                    log_failed_api(lineno[i], class_name)
+
     # record unsupported api
     (unsupport, unsupport_module, lineno) = get_unsupport_api(os.path.join(path, file_name))
     for i in range(len(unsupport)):
@@ -143,6 +152,9 @@ def scan_file(path, file_name, api, lineno):
         code_module.append(unsupport_module[i])
         support_type.append('不支持（无迁移方案，建议用户不使用）')
         migrate_advice.append('第三方非TF官网API，暂不支持')
+
+        # print error message for unsupported api
+        log_failed_api(lineno[i], unsupport[i])
 
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
@@ -211,4 +223,4 @@ def get_api_statistic(analysis_report):
                         eliminate_dup_type.count('分析中（特性商用时不应该存在）'))
     content = (api_analysis + '\n' + api_eliminate_dup)
     print(content)
-    write_analysis_report(content, 'api_brief_report.txt')
+    write_conver_report(content, 'api_brief_report.txt')

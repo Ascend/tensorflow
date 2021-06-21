@@ -35,6 +35,10 @@ class ConverByAst(ast.NodeTransformer):
         if node.attr == "keras":
             util_global.set_value('is_keras_net', True)
         if node.attr in util_global.get_value('hvd'):
+            distributed_mode = util_global.get_value("distributed_mode", "")
+            if distributed_mode == "tf_strategy" or distributed_mode == "":
+                log_strategy_distributed_mode_error(node)
+                return node
             if isinstance(node.value, ast.Name):
                 if 'hvd' in str(node.value.id):
                     return attribute(node)
@@ -76,7 +80,7 @@ class ConverByAst(ast.NodeTransformer):
 def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
     util_global.set_value('is_keras_net', False)
-    util_global.set_value('has_hccl_api', False)
+    util_global.set_value('has_hvd_api', False)
     util_global.set_value('is_main_file', False)
     util_global.set_value('has_main_func', False)
     if os.path.join(path, file_name) == util_global.get_value('main', ""):
@@ -101,11 +105,11 @@ def conver_ast(path, out_path_dst, file_name):
 
     if util_global.get_value('need_conver', False):
         insert_npu_import(r_node)
-        if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hccl_api', False)
-            or util_global.get_value('is_keras_net', False)):
-            log_warning('the network of keras and horovod script do not have main func, '
-                        'should set -m or --main parameter')
-        if util_global.get_value('is_main_file', False):
+        distributed_mode = util_global.get_value('distributed_mode', "")
+        if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hvd_api', False)
+            or util_global.get_value('is_keras_net', False)) and util_global.get_value('main', "") == "":
+            log_warning_main_arg_not_set()
+        if distributed_mode == "horovod" and util_global.get_value('is_main_file', False):
             insert_npu_resource_init(r_node)
             insert_npu_resource_shutdown(r_node)
         if util_global.get_value('is_main_file', False) and util_global.get_value('is_keras_net', False):

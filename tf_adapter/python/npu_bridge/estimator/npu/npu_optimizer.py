@@ -443,3 +443,97 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         }
         base_config = super(KerasDistributeOptimizer, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+def npu_distributed_optimizer_wrapper(optimizer):
+    """
+    An optimizer that wraps Optimizer, using an allreduce to
+    average gradient values before applying gradients to model weights.
+    """
+    rank_size = os.getenv('RANK_SIZE')
+    if hasattr(optimizer, "compute_gradients"):
+        org_compute_gradients = optimizer.compute_gradients
+        def _npu_compute_gradients(*args, **kwargs):
+            """
+            In DistributedOptimizer, compute_gradients() is overriden to also
+            allreduce the gradients before returning them.
+            """
+            logging.debug("compute_gradients...")
+            gradients = org_compute_gradients(*args, **kwargs)
+            if rank_size == None or int(rank_size) <= 1:
+                return gradients
+            averaged_gradients = []
+            with tf.name_scope("Npu_Distributed_optimizer_Allreduce"):
+                for grad, var in gradients:
+                    avg_grad = allreduce(grad, True) if grad is not None else None
+                    averaged_gradients.append((avg_grad, var))
+            return averaged_gradients
+        optimizer.compute_gradients = _npu_compute_gradients
+
+    if hasattr(optimizer, "get_gradients"):
+        org_get_gradients = optimizer.get_gradients
+        def _npu_get_gradients(loss, params):
+            grads = org_get_gradients(loss, params)
+            if rank_size == None or int(rank_size) <= 1:
+                return grads
+            averaged_grads = []
+            with tf.name_scope("Npu_Distributed_optimizer_get_grads_Allreduce"):
+                for grad in grads:
+                    avg_grad = allreduce(grad, True) if grad is not None else None
+                    averaged_grads.append(avg_grad)
+            return averaged_grads
+        optimizer.get_gradients = _npu_get_gradients
+
+    if hasattr(optimizer, "_compute_gradients"):
+        org_compute_gradients = optimizer._compute_gradients
+        def _npu_compute_gradients(loss, var_list, grad_loss=None):
+            gradients = org_compute_gradients(loss, var_list, grad_loss)
+            if rank_size == None or int(rank_size) <= 1:
+                return gradients
+            averaged_grads = []
+            with tf.name_scope("Npu_Distributed_optimizer_compute_grads_Allreduce"):
+                for grad, var in gradients:
+                    avg_grad = allreduce(grad, True) if grad is not None else None
+                    averaged_grads.append((avg_grad, var))
+            return averaged_grads
+        optimizer._compute_gradients = _npu_compute_gradients
+
+    return optimizer
+
+def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
+    mean_reduce = False
+    if reduction == "mean":
+        mean_reduce = True
+        reduction = "sum"
+
+    reduced_values = []
+    size = int(os.getenv("RANK_SIZE", "1"))
+    for value in values:
+        if isinstance(value, tf.IndexedSlices):
+            # For IndexedSlices, do two allgathers intead of an allreduce.
+            tensor_values=hccl_ops.allgather(value.values, size, group)
+            tensor_indices=hccl_ops.allgather(value.indices, size, group)
+
+            if tensor_values is None:
+                raise ValueError('the result of tf.HcomAllgather([value.values]) is empty')
+            if tensor_indices is None:
+                raise ValueError('the result of tf.HcomAllgather([value.indices]) is empty')
+
+            # To make this operation into an average, divide all gathered values by the size.
+            rank_size = tf.cast(size, value.values.dtype)
+            new_values = tf.div(tensor_values, rank_size) if mean_reduce else tensor_values
+
+            reduced_values.append(tf.IndexedSlices(new_values, tensor_indices, dense_shape=value.dense_shape))
+        else:
+            summed_tensor = hccl_ops.allreduce(value, reduction, fusion, fusion_id, group)
+            if summed_tensor is None:
+                raise ValueError('the result of tf.DavinciAllreduce([tensor]) is empty')
+
+            rank_size = tf.cast(size, dtype=value.dtype)
+            reduced_values.append(tf.div(summed_tensor, rank_size) if mean_reduce else summed_tensor)
+    return reduced_values
+
+def npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
+    if isinstance(values, (list, tuple,)):
+        return _npu_allreduce(values, reduction, fusion, fusion_id, group)
+    else:
+        return _npu_allreduce([values], reduction, fusion, fusion_id, group)[0]
