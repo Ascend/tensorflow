@@ -348,6 +348,17 @@ def ast_call(node):
         node.keywords = []
         node.args = []
         util_global.set_value('need_conver', True)
+    if (isinstance(node.func, ast.Attribute) and (node.func.attr == 'RunConfig')) and \
+        (_call_name_match(node.func.value, 'estimator') or _call_name_match(node.func.value, 'tpu')):
+        save_summary_steps = None
+        for keyword in node.keywords:
+            if (keyword.arg == 'save_summary_steps'):
+                save_summary_steps = keyword
+                break
+        if len(node.args) < 3 and not save_summary_steps:
+            log_msg(getattr(node, 'lineno'), 'RunConfig() add save_summary_steps=0')
+            util_global.set_value('need_conver', True)
+            node.keywords.append(ast.keyword(arg='save_summary_steps', value=pasta.parse('0')))
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator') and \
         ((isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'tpu')) or \
         (isinstance(node.func.value, ast.Name) and (node.func.value.id == 'tpu'))):
