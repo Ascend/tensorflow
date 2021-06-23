@@ -2085,8 +2085,6 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       break;
     }
   }
-  ADP_LOG(INFO) << "pass options:";
-  NpuAttrs::LogOptions(pass_options);
   ADP_LOG(INFO) << "all options:";
   NpuAttrs::LogOptions(all_options);
 
