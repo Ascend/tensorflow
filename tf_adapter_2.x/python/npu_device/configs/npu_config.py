@@ -27,6 +27,7 @@ class NpuConfig(NpuBaseConfig):
         self.is_tailing_optimization = OptionValue(False, [True, False])
         self.op_debug_level = OptionValue(0, [0, 1, 2, 3])
         self.debug_dir = OptionValue(None, None)
+        self.modify_mixlist = OptionValue(None, None)
         self.enable_exception_dump = OptionValue(0, [0, 1])
         self.dump_config = NpuDumpConfig()
         self.profiling_config = NpuProfilingConfig()
