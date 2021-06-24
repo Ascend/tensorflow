@@ -212,6 +212,8 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
             << ", work path : " << init_options["ge.tuningPath"]
             << ", distribute_config : " << init_options["distribute_config"];
 
+  ADP_LOG(INFO) << "[GePlugin] fusion_switch_file :" << init_options["ge.fusionSwitchFile"];
+
   const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
   bool tdt_init = true;
   if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
