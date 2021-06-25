@@ -28,7 +28,7 @@ def log_info(lineno, msg, file):
     write_conver_report(content, file)
 
 def log_warning(msg):
-    content = "************" + msg + "************"
+    content = "WARNING:" + msg
     print(content)
     write_conver_report(content, util_global.get_value('report_file')[0])
 

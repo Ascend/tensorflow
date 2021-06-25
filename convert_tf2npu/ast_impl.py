@@ -81,19 +81,18 @@ def ast_if(node):
                                                                   args=[], keywords=[]))
                     node.body = [keras_sess_assign] + node.body + [ast.Expr(value=close_sess_call)]
                     util_global.set_value('need_conver', True)
-                if util_global.get_value("has_hccl_api", False):
-                    log_msg(getattr(node, "lineno", "None"), " add npu resource init api")
-                    close_sess_call = ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
-                                               args=[ast.Name(id="npu_sess", ctx=ast.Load())], keywords=[])
-                    init_assign = ast.Assign(targets=[ast.Tuple(elts=[ast.Name(id="npu_sess", ctx=ast.Store()),
-                                                                      ast.Name(id="npu_shutdown", ctx=ast.Store())],
-                                                                ctx=ast.Store())],
-                                             value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[], keywords=[]))
-                    shutdown_call = ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
-                                             args=[ast.Name(id="npu_sess", ctx=ast.Load()), ast.Name(id="npu_shutdown", ctx=ast.Load())],
-                                             keywords=[])
-                    node.body = [init_assign] + node.body + [ast.Expr(value=shutdown_call), ast.Expr(value=close_sess_call)]
-                    util_global.set_value('need_conver', True)
+                log_msg(getattr(node, "lineno", "None"), " add npu resource init api")
+                close_sess_call = ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
+                                           args=[ast.Name(id="npu_sess", ctx=ast.Load())], keywords=[])
+                init_assign = ast.Assign(targets=[ast.Tuple(elts=[ast.Name(id="npu_sess", ctx=ast.Store()),
+                                                                  ast.Name(id="npu_shutdown", ctx=ast.Store())],
+                                                            ctx=ast.Store())],
+                                         value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[], keywords=[]))
+                shutdown_call = ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
+                                         args=[ast.Name(id="npu_sess", ctx=ast.Load()), ast.Name(id="npu_shutdown", ctx=ast.Load())],
+                                         keywords=[])
+                node.body = [init_assign] + node.body + [ast.Expr(value=shutdown_call), ast.Expr(value=close_sess_call)]
+                util_global.set_value('need_conver', True)
                 return node
 
 def convert_loss_scale_api(node):
@@ -293,13 +292,20 @@ def ast_call(node):
         util_global.set_value('need_conver', True)
         return node
     if isinstance(node.func, ast.Attribute) and node.func.attr == "DistributedOptimizer":
-        log_success_report(getattr(node, "lineno", "None"), 'DistributedOptimizer')
-        return node.args[0]
+        log_msg(getattr(node, "lineno", "None"), 'change hvd.DistributedOptimizer to the input key optimzier')
+        opt_keyword = None
+        for keyword in node.keywords:
+            if keyword.arg == "optimizer":
+                opt_keyword = keyword
+        if opt_keyword is None:
+            return node.args[0]
+        else:
+            return opt_keyword.value
     if isinstance(node.func, ast.Attribute) and node.func.attr == 'shard':
         log_success_report(getattr(node, "lineno", "None"), 'shard')
-        node.args = [ast.Call(func=ast.Name(id='get_rank_size', ctx=ast.Load()), args=[], keywords=[]),
-                     ast.Call(func=ast.Name(id='get_rank_id', ctx=ast.Load()), args=[], keywords=[])]
-        util_global.set_value("has_hccl_api", True)
+        node.args = [pasta.parse("int(os.getenv('RANK_SIZE', '1'))"),
+                     pasta.parse("int(os.getenv('RANK_ID', '0'))")]
+        node.keywords.clear()
         util_global.set_value('need_conver', True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == 'dropout':
         if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == 'nn':
@@ -315,6 +321,9 @@ def ast_call(node):
             for keyword in node.keywords:
                 if keyword.arg != 'rate':
                     keywords_new.append(keyword)
+                else:
+                    keywords_new.append(ast.keyword(arg='keep_prob', value=ast.BinOp(left=ast.Num(n=1), op=ast.Sub(),
+                                                                                     right=keyword.value)))
             node.keywords = keywords_new
             util_global.set_value('need_conver', True)
     if isinstance(node.func, ast.Attribute) and ((node.func.attr == 'map_and_batch') or (node.func.attr == 'batch' \
@@ -558,32 +567,30 @@ def remove_hvd_import(r_node):
     n = 0
     lenline = len(r_node.body)
 
-    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
-        n += 1
-
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
-        if isinstance(r_node.body[n], ast.ImportFrom):
-            if r_node.body[n].module != None:
-                values = r_node.body[n].module.split(".")
-                if "horovod" in values:
-                    log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
-                    r_node.body.pop(n)
-                    lenline -= 1
-            for value in r_node.body[n].names:
-                if isinstance(value, ast.alias):
-                    values = value.name.split(".")
+    while n < lenline:
+        if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
+            if isinstance(r_node.body[n], ast.ImportFrom):
+                if r_node.body[n].module != None:
+                    values = r_node.body[n].module.split(".")
                     if "horovod" in values:
                         log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
                         r_node.body.pop(n)
                         lenline -= 1
-        elif isinstance(r_node.body[n], ast.Import):
-            for value in r_node.body[n].names:
-                if isinstance(value, ast.alias):
-                    values = value.name.split(".")
-                    if "horovod" in values:
-                        log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
-                        r_node.body.pop(n)
-                        lenline -= 1
+                for value in r_node.body[n].names:
+                    if isinstance(value, ast.alias):
+                        values = value.name.split(".")
+                        if "horovod" in values:
+                            log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
+                            r_node.body.pop(n)
+                            lenline -= 1
+            elif isinstance(r_node.body[n], ast.Import):
+                for value in r_node.body[n].names:
+                    if isinstance(value, ast.alias):
+                        values = value.name.split(".")
+                        if "horovod" in values:
+                            log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
+                            r_node.body.pop(n)
+                            lenline -= 1
         n += 1
 
 def insert_npu_import(r_node):
