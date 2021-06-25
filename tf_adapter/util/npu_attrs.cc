@@ -317,6 +317,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string dynamic_node_type;
   std::string session_device_id;
   std::string modify_mixlist;
+  std::string op_precision_mode;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -367,6 +368,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     ctx->GetAttr("_dynamic_node_type", &dynamic_node_type);
     ctx->GetAttr("_session_device_id", &session_device_id);
     ctx->GetAttr("_modify_mixlist", &modify_mixlist);
+    ctx->GetAttr("_op_precision_mode", &op_precision_mode);
   }
 
   // session options
@@ -396,6 +398,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     sess_options["ge.session_device_id"] = session_device_id;
   }
   sess_options[ge::MODIFY_MIXLIST] = modify_mixlist;
+  sess_options["ge.exec.op_precision_mode"] = op_precision_mode;
 
   return sess_options;
 }
@@ -768,6 +771,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string hcom_multi_mode;
   std::string session_device_id;
   std::string modify_mixlist;
+  std::string op_precision_mode;
 
   if (attrs.Find("_NpuOptimizer") != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -904,6 +908,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (attrs.Find("_modify_mixlist") != nullptr) {
       modify_mixlist = attrs.Find("_modify_mixlist")->s();
     }
+    if (attrs.Find("_op_precision_mode") != nullptr) {
+      op_precision_mode = attrs.Find("_op_precision_mode")->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -960,6 +967,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["hcom_multi_mode"] = hcom_multi_mode;
   all_options["session_device_id"] = session_device_id;
   all_options["modify_mixlist"] = modify_mixlist;
+  all_options["op_precision_mode"] = op_precision_mode;
 
   return all_options;
 }
@@ -1037,6 +1045,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool hcom_multi_mode = false;
   int session_device_id = -1;
   std::string modify_mixlist;
+  std::string op_precision_mode;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1293,6 +1302,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           return errors::Internal("modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
         }
       }
+      if (params.count("op_precision_mode")) {
+        op_precision_mode = params.at("op_precision_mode").s();
+      }
     }
   }
 
@@ -1323,6 +1335,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["hcom_multi_mode"] = std::to_string(hcom_multi_mode);
   sess_options["session_device_id"] = std::to_string(session_device_id);
   sess_options["modify_mixlist"] = modify_mixlist;
+  sess_options["op_precision_mode"] = op_precision_mode;
 
   init_options["precision_mode"] = precision_mode;
   init_options["profiling_mode"] = std::to_string(profiling_mode);
