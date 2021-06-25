@@ -38,7 +38,6 @@ limitations under the License.
 #include "framework/omg/parser/parser_api.h"
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
-#include "hccl/hcom.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tf_adapter/common/adp_logger.h"

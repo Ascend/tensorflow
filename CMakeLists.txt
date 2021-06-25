@@ -140,7 +140,6 @@ else()
         ${TOP_DIR}/inc/
         ${TOP_DIR}/inc/external/
         ${TOP_DIR}/inc/common/
-        ${TOP_DIR}/inc/soft_dp/
         ${TOP_DIR}/soft_dp/
         ${TOP_DIR}/ace/execfwk/soft_dp/
         ${TOP_DIR}/graphengine/inc/
@@ -174,6 +173,7 @@ else()
         $<BUILD_INTERFACE:slog_headers>
         $<BUILD_INTERFACE:msprof_headers>
         $<BUILD_INTERFACE:aoe_headers>
+        $<BUILD_INTERFACE:soft_dp_headers>
         -Wl,--no-as-needed
         c_sec
         ge_runner
