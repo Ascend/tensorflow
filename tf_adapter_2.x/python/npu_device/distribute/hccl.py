@@ -46,7 +46,7 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
     return reduced_values
 
 
-def all_reduce(values, reduction, fusion=1, fusion_id=-1, group="hccl_world_group"):
+def all_reduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip all reduce as current process is not npu cluster worker")
         return values
@@ -63,7 +63,7 @@ def _broadcast(values, root_rank, fusion, fusion_id, group):
         value.assign(hccl_ops.broadcast([value], root_rank, fusion, fusion_id, group)[0])
 
 
-def broadcast(values, root_rank, fusion=2, fusion_id=0, group="hccl_world_group"):
+def broadcast(values, root_rank=0, fusion=2, fusion_id=0, group="hccl_world_group"):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip broadcast as current process is not npu cluster worker")
         return
