@@ -31,9 +31,6 @@ file(GLOB_RECURSE UT_SOURCES
 add_executable(tfadapter_utest
                "main.cc"
                ${UT_SOURCES}
-               #${TFADAPTER_DIR}/tf_adapter/kernels/geop_npu.cc
-               #${TFADAPTER_DIR}/tf_adapter/kernels/infeed_outfeed_ops.cc
-               #${TFADAPTER_DIR}/tf_adapter/kernels/npu_sys_ctl_ops.cc
                )
 
 target_include_directories(tfadapter_utest PRIVATE
@@ -57,7 +54,7 @@ foreach (UT_LINK_FLAG ${UT_LINK_FLAGS})
 endforeach (UT_LINK_FLAG)
 
 string(STRIP ${PYTHON_LIB_PATH} PYTHON_LIB_PATH)
-message("hrz python lib path------------${PYTHON_LIB_PATH}")
+message("python lib path ${PYTHON_LIB_PATH}")
 
 add_dependencies(tfadapter_utest aoe_tuning)
 

@@ -53,13 +53,13 @@ class ConverByAst(ast.NodeTransformer):
         return node
 
     def visit_ImportFrom(self, node):
-        import_from(node)
         self.generic_visit(node)
+        node = import_from(node)
         return node
 
     def visit_Import(self, node):
-        ast_import(node)
         self.generic_visit(node)
+        node = ast_import(node)
         return node
 
     def visit_Assign(self, node):
@@ -103,8 +103,6 @@ def conver_ast(path, out_path_dst, file_name):
             or util_global.get_value('is_keras_net', False)):
             log_warning('the network of keras and horovod script do not have main func, '
                         'should set -m or --main parameter')
-        if util_global.get_value('has_hccl_api', False):
-            remove_hvd_import(r_node)
         if util_global.get_value('is_main_file', False):
             insert_npu_resource_init(r_node)
             insert_npu_resource_shutdown(r_node)
