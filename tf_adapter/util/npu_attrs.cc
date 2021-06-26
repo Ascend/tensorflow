@@ -441,6 +441,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string work_path;
   std::string distribute_config;
   std::string modify_mixlist;
+  std::string fusion_switch_file;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -459,6 +460,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
     ctx->GetAttr("_distribute_config", &distribute_config);
     ctx->GetAttr("_modify_mixlist", &modify_mixlist);
+    ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
   }
 
 
@@ -482,6 +484,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options["ge.debugDir"] = debug_dir;
   init_options["ge.hcomMultiMode"] = hcom_multi_mode;
   init_options[ge::MODIFY_MIXLIST] = modify_mixlist;
+  init_options["ge.fusionSwitchFile"] = fusion_switch_file;
 
   return init_options;
 }
