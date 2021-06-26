@@ -528,7 +528,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   bool is_lazy_recompile_mode = dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile";
   if (is_set_dynamic_config && is_tuning) {
     ADP_LOG(FATAL) << "dynamic input config can not use with mstuning.";
-    LOG(FATAL) << "dynamic input config can not use with mstuning.";
+    std::stringstream ss;
+    ss << "dynamic input config can not use with mstuning.";
+    OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
   } else if (is_set_dynamic_config && !is_tuning) {
     if (InitRebuildFlag(cache_graph_id) != 0) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
@@ -731,7 +733,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
          << ", graph id: " << cache_graph_id << std::endl
          << "Error Message is : " << std::endl
          << error_message;
-      LOG(FATAL) << ss.str();
       OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
     } else {
       add_graph_flag_ = true;
@@ -781,21 +782,26 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (ge_status == ge::SUCCESS) {
       if (BuildOutputTensorInfo(ctx, outputs) != Status::OK()) {
         ADP_LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
-        LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
+        std::string error_message = ge::GEGetErrorMsg();
+        std::stringstream ss;
+        ss << ctx->op_kernel().name() 
+           << "GEOP::DoRunAsync get output failed." << std::endl
+           << "Error Message is : " << std::endl
+           << error_message;
+        OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
       }
     } else if (ge_status == ge::END_OF_SEQUENCE) {
       ctx->SetStatus(errors::OutOfRange("End of sequence"));
       ADP_LOG(WARNING) << "[GEOP] Out of range: End of sequence.";
       LOG(WARNING) << "[GEOP] Out of range: End of sequence.";
     } else if (ge_status != ge::SUCCESS) {
-      tensorflow::Status tfStatus = errors::Unavailable(ToString(ge_status));
-      ctx->CtxFailureWithWarning(tfStatus);
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
       std::string error_message = ge::GEGetErrorMsg();
-      LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed" << std::endl
-                 << "Error Message is : " << std::endl
-                 << error_message;
+      std::stringstream ss;
+      ss << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed" << std::endl
+         << "Error Message is : " << std::endl << error_message;
+      OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
     }
     int64 run_end_time = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "[GEOP] RunGraphAsync callback, status:" << ge_status << ", kernel_name:"
@@ -818,7 +824,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
        << ", graph id: " << cache_graph_id << std::endl
        << "Error Message is : " << std::endl
        << error_message;
-    LOG(FATAL) << ss.str();
     OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
   }
 
