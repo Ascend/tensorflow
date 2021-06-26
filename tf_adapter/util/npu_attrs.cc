@@ -318,6 +318,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string session_device_id;
   std::string modify_mixlist;
   std::string op_precision_mode;
+  std::string graph_run_mode = "1";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -369,6 +370,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     ctx->GetAttr("_session_device_id", &session_device_id);
     ctx->GetAttr("_modify_mixlist", &modify_mixlist);
     ctx->GetAttr("_op_precision_mode", &op_precision_mode);
+    ctx->GetAttr("_graph_run_mode", &graph_run_mode);
   }
 
   // session options
@@ -399,6 +401,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   }
   sess_options[ge::MODIFY_MIXLIST] = modify_mixlist;
   sess_options["ge.exec.op_precision_mode"] = op_precision_mode;
+  sess_options[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
 
   return sess_options;
 }
