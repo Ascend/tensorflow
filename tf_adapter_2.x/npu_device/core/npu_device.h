@@ -43,7 +43,7 @@ class NpuDevice {
 
  public:
   static std::string CreateDevice(const char *name, int device_index,
-                                  const std::map<std::string, std::string> &session_options, NpuDevice **device);
+                                  const std::map<std::string, std::string> &device_options, NpuDevice **device);
 
   static void DeleteDevice(void *device);
 
@@ -67,6 +67,8 @@ class NpuDevice {
   tensorflow::Status TransResourceInput2GraphNode(
     TFE_Context *context, tensorflow::Graph *graph, int num_inputs, TFE_TensorHandle **inputs,
     std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources);
+
+  tensorflow::Status TailingOptimize(TFE_Context *context, tensorflow::Graph *graph, bool &changed);
 
   tensorflow::Status MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
                                             TFE_TensorHandle **inputs);
@@ -204,6 +206,7 @@ class NpuDevice {
   int device_id;
   tensorflow::string device_name;
   tensorflow::string underlying_device;
+  std::map<std::string, std::string> device_options;
 
  private:
   static HashKey Hash(const TensorDataTypes &types) {

@@ -20,7 +20,7 @@ limitations under the License.
 #include <string>
 
 std::string CreateDevice(TFE_Context *context, const char *device_name, int device_index,
-                         const std::map<std::string, std::string> &session_options);
+                         const std::map<std::string, std::string> &device_options);
 
 void ReleaseDeviceResource();
 

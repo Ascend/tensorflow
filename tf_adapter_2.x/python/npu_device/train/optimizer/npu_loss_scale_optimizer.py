@@ -1,4 +1,6 @@
 import tensorflow as tf
+from tensorflow.core.framework import attr_value_pb2
+from tensorflow.python.framework import ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
 from tensorflow.python.util import nest
@@ -17,8 +19,10 @@ from npu_device.distribute.hccl import all_reduce
 def _npu_finite_status_after_executed(executed_ops):
     if not isinstance(executed_ops, (tuple, list)):
         executed_ops = [executed_ops]
-    with tf.control_dependencies(executed_ops):
-        current_status = gen_npu_ops.npu_alloc_float_status()
+    with ops.get_default_graph()._attr_scope(
+            { "_npu_loss_scale": attr_value_pb2.AttrValue(b=True) }):
+        with tf.control_dependencies(executed_ops):
+            current_status = gen_npu_ops.npu_alloc_float_status()
         assign_float_status = gen_npu_ops.npu_get_float_status(current_status)
         finite_status = gen_npu_ops.npu_clear_float_status(assign_float_status)
         if global_npu_ctx() and global_npu_ctx().workers_num > 1:

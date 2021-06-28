@@ -68,11 +68,11 @@ std::vector<NpuDevice *> devices_instances;
 }  // namespace
 
 std::string CreateDevice(TFE_Context *context, const char *name, int device_index,
-                         const std::map<std::string, std::string> &session_options) {
+                         const std::map<std::string, std::string> &device_options) {
   const static std::string kSucceed;
 
   NpuDevice *device = nullptr;
-  auto create_status = NpuDevice::CreateDevice(name, device_index, session_options, &device);
+  auto create_status = NpuDevice::CreateDevice(name, device_index, device_options, &device);
   if (create_status != kSucceed) {
     return create_status;
   }
