@@ -32,16 +32,26 @@ def import_from(node):
         if "keras" in values:
             util_global.set_value('is_keras_net', True)
         if "horovod" in values:
+            log_msg(getattr(node, "lineno", "None"), "remove horovod import line to None")
             util_global.set_value('has_hccl_api', True)
+            new_node = ast.Expr(value=ast.NameConstant(value=None))
+            ast.copy_location(new_node, node)
+            util_global.set_value('need_conver', True)
+            return new_node
     for value in node.names:
         if isinstance(value, ast.alias):
             values = value.name.split(".")
             if "keras" in values:
                 util_global.set_value('is_keras_net', True)
             if "horovod" in values:
+                log_msg(getattr(node, "lineno", "None"), "remove horovod import line to None")
                 util_global.set_value('has_hccl_api', True)
+                new_node = ast.Expr(value=ast.NameConstant(value=None))
+                ast.copy_location(new_node, node)
+                util_global.set_value('need_conver', True)
+                return new_node
     util_global.set_value('need_conver', True)
-
+    return node
 
 def ast_import(node):
     for value in node.names:
@@ -50,8 +60,14 @@ def ast_import(node):
             if "keras" in values:
                 util_global.set_value('is_keras_net', True)
             if "horovod" in values:
+                log_msg(getattr(node, "lineno", "None"), "remove horovod import line to None")
                 util_global.set_value('has_hccl_api', True)
-            util_global.set_value('need_conver', True)
+                new_node = ast.Expr(value=ast.NameConstant(value=None))
+                ast.copy_location(new_node, node)
+                util_global.set_value('need_conver', True)
+                return new_node
+    util_global.set_value('need_conver', True)
+    return node
 
 def ast_function_def(node):
     log_success_report(getattr(node, "lineno", "None"), node.name)
@@ -562,36 +578,6 @@ def ast_call(node):
 def _call_name_match(call_func, call_name):
     return (isinstance(call_func, ast.Attribute) and (call_func.attr == call_name)) or \
            (isinstance(call_func, ast.Name) and (call_func.id) == call_name)
-
-def remove_hvd_import(r_node):
-    n = 0
-    lenline = len(r_node.body)
-
-    while n < lenline:
-        if isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import):
-            if isinstance(r_node.body[n], ast.ImportFrom):
-                if r_node.body[n].module != None:
-                    values = r_node.body[n].module.split(".")
-                    if "horovod" in values:
-                        log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
-                        r_node.body.pop(n)
-                        lenline -= 1
-                for value in r_node.body[n].names:
-                    if isinstance(value, ast.alias):
-                        values = value.name.split(".")
-                        if "horovod" in values:
-                            log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
-                            r_node.body.pop(n)
-                            lenline -= 1
-            elif isinstance(r_node.body[n], ast.Import):
-                for value in r_node.body[n].names:
-                    if isinstance(value, ast.alias):
-                        values = value.name.split(".")
-                        if "horovod" in values:
-                            log_msg(getattr(r_node.body[n], "lineno", "None"), " remove hvd import.")
-                            r_node.body.pop(n)
-                            lenline -= 1
-        n += 1
 
 def insert_npu_import(r_node):
     npu_alias = ast.alias(name='*', asname=None)
