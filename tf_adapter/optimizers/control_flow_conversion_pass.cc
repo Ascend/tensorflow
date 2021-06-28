@@ -69,6 +69,7 @@ Status ControlFlowConversionPass::Run(const GraphOptimizationPassOptions &option
   // Delete _lower_using_switch_merge before LowerFunctionalOpsPass
   for (int i = 2; i < graph->num_node_ids(); ++i) {
     Node *n = graph->FindNodeId(i);
+    if (n == nullptr) { continue; }
     if (n->IsIfNode() || n->type_string() == "Case" || n->IsWhileNode()) { n->ClearAttr(kLowerUsingSwitchMergeAttr); }
   }
 
