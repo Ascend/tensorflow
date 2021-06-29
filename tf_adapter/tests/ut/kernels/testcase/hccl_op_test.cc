@@ -58,42 +58,42 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
   GraphDef graph_def;
   std::string graph_def_path = example_path;
   ReadTextProto(env, graph_def_path, &graph_def);
-  for (int i = 0; i < graph_def.node_size(); i++) {
-    NodeDef *node_def = graph_def.mutable_node(i);
-    if (node_def->name() == node_name) {
-      geop_node_def = *node_def;
-      OpKernelContext::Params params;
-      params.record_tensor_accesses = false;
-      auto device = absl::make_unique<DummyDevice>(env, params.record_tensor_accesses);
-      params.device = device.get();
-      Status status;
-      std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
-                                   *node_def, TF_GRAPH_DEF_VERSION, &status));
-      EXPECT_TRUE(status.ok());
-      AsyncOpKernel* async_op = op->AsAsync();
-      params.op_kernel = async_op;
-      params.session_handle = "session_0";
-      params.inputs = &inputs;
+//   for (int i = 0; i < graph_def.node_size(); i++) {
+//     NodeDef *node_def = graph_def.mutable_node(i);
+//     if (node_def->name() == node_name) {
+//       geop_node_def = *node_def;
+//       OpKernelContext::Params params;
+//       params.record_tensor_accesses = false;
+//       auto device = absl::make_unique<DummyDevice>(env, params.record_tensor_accesses);
+//       params.device = device.get();
+//       Status status;
+//       std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
+//                                    *node_def, TF_GRAPH_DEF_VERSION, &status));
+//       EXPECT_TRUE(status.ok());
+//       AsyncOpKernel* async_op = op->AsAsync();
+//       params.op_kernel = async_op;
+//       params.session_handle = "session_0";
+//       params.inputs = &inputs;
 
-      //function library
-      FunctionDefLibrary func_def_lib = graph_def.library();
-      std::unique_ptr<FunctionLibraryDefinition> lib_def(
-        new FunctionLibraryDefinition(OpRegistry::Global(), func_def_lib));
-      OptimizerOptions opts;
-      std::unique_ptr<ProcessFunctionLibraryRuntime> proc_flr(
-        new ProcessFunctionLibraryRuntime(nullptr, Env::Default(), TF_GRAPH_DEF_VERSION,
-          lib_def.get(), opts, nullptr, nullptr));
-      FunctionLibraryRuntime* flr = proc_flr->GetFLR(ProcessFunctionLibraryRuntime::kDefaultFLRDevice);
-      params.function_library = flr;
-      auto ctx = absl::make_unique<OpKernelContext>(&params);
-      AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
-      async_op->ComputeAsync(ctx.get(), done);
-      if (!only_run_once) {
-        auto ctx1 = absl::make_unique<OpKernelContext>(&params);
-        async_op->ComputeAsync(ctx1.get(), done);
-      }
-    }
-  }
+//       //function library
+//       FunctionDefLibrary func_def_lib = graph_def.library();
+//       std::unique_ptr<FunctionLibraryDefinition> lib_def(
+//         new FunctionLibraryDefinition(OpRegistry::Global(), func_def_lib));
+//       OptimizerOptions opts;
+//       std::unique_ptr<ProcessFunctionLibraryRuntime> proc_flr(
+//         new ProcessFunctionLibraryRuntime(nullptr, Env::Default(), TF_GRAPH_DEF_VERSION,
+//           lib_def.get(), opts, nullptr, nullptr));
+//       FunctionLibraryRuntime* flr = proc_flr->GetFLR(ProcessFunctionLibraryRuntime::kDefaultFLRDevice);
+//       params.function_library = flr;
+//       auto ctx = absl::make_unique<OpKernelContext>(&params);
+//       AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
+//       async_op->ComputeAsync(ctx.get(), done);
+//       if (!only_run_once) {
+//         auto ctx1 = absl::make_unique<OpKernelContext>(&params);
+//         async_op->ComputeAsync(ctx1.get(), done);
+//       }
+//     }
+//   }
   return Status::OK();
 }
 
