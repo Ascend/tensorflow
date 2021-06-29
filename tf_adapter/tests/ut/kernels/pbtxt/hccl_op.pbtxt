@@ -19,6 +19,7 @@ node {
 node {
   name: "HcclOp1_0"
   op: "HcomAllGather"
+  input: "Const_1"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "group"
@@ -30,6 +31,68 @@ node {
     key: "rank_size"
     value {
       s: "8"
+    }
+  }
+}
+
+node {
+  name: "Const_1"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+        s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+        s: "1"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+        s: "localhost"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+        s: "0"
+    }
+  }
+  attr {
+    key: "_task_index"
+    value {
+        s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+        s: "1"
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+        type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+        tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+            dim {
+            size: 2
+            }
+        }
+        tensor_content: "\000\000 A\000\000 A"
+        }
     }
   }
 }
