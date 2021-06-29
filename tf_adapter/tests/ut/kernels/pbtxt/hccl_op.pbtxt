@@ -1,0 +1,39 @@
+node {
+  name: "retval_Add_0_0"
+  op: "_Retval"
+  input: "HcclOp1_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "HcclOp1_0"
+  op: "HcomAllGather"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "group"
+    value {
+      s: "hccl_world_group"
+    }
+  }
+  attr {
+    key: "rank_size"
+    value {
+      s: "8"
+    }
+  }
+}
+
+versions {
+  producer: 134
+}
