@@ -135,9 +135,9 @@ else()
 
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_source.timestamp
                        COMMAND echo "cp tensorflow1.15 source begin:"
-                       COMMAND rm -rf ${BASE_DIR}/tensorflow_15 && mkdir -p ${BASE_DIR}/tensorflow_15
-                       COMMAND cp -rfL ${TOP_DIR}/open_source/tensorflow ${BASE_DIR}/tensorflow_15 || echo skip
-                       COMMAND cd ${BASE_DIR}/tensorflow_15/tensorflow && git checkout . && git fetch --all --tags && git checkout tags/v1.15.5
+                       COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15 && mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15
+                       COMMAND cp -rfL ${TOP_DIR}/open_source/tensorflow ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15 || echo skip
+                       COMMAND cd ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15/tensorflow && git checkout . && git fetch --all --tags && git checkout tags/v1.15.5
                        COMMAND echo "end cp tensorflow1.15 source"
                        DEPENDS ${TOP_DIR}/open_source/tensorflow)
 
@@ -163,7 +163,7 @@ else()
         ${TOP_DIR}/abl/libc_sec/include/
         ${TOP_DIR}/third_party/json/include/
         ${TOP_DIR}/open_source/json/include/
-        ${BASE_DIR}/tensorflow_15/tensorflow
+        ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15/tensorflow
         /opt/buildtools/tensorflow-1.15.5/tensorflow_core/include/
         /opt/buildtools/tensorflow-1.15.5/tensorflow-1.15.5.data/purelib/tensorflow_core/include/
         ${HI_PYTHON_INC}/
@@ -240,7 +240,6 @@ else()
         && rm -rf ${BASE_DIR}/libpywrap_tensorflow_internal.so
         && rm -rf ${BASE_DIR}/libtensorflow_framework.so.1
         && rm -rf ${BASE_DIR}/libtensorflow_framework.so
-        && rm -rf ${BASE_DIR}/tensorflow_15/
         && echo "package whl end"
     )
     ###################################### Tensorflow 2.x ###########################################
