@@ -179,12 +179,14 @@ inline Status CheckPath(const string &input, string &output) {
 }
 
 inline Status CheckOpImplMode(const string &op_select_implmode) {
-  std::set<string> op_impl_mode_list = {"high_precision", "high_performance"};
+  std::set<string> op_impl_mode_list = {"high_precision", "high_performance",
+                                        "high_precision_for_all", "high_performance_for_all"};
 
   if (op_impl_mode_list.find(op_select_implmode) != op_impl_mode_list.end()) {
     return Status::OK();
   } else {
-    return errors::InvalidArgument("op select impl mode should be one of the list:[high_precision, high_performance]");
+    return errors::InvalidArgument("op select impl mode should be one of the list:[high_precision, "
+                                   "high_performance, high_precision_for_all, high_performance_for_all]");
   }
 }
 
