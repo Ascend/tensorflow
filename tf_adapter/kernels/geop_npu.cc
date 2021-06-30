@@ -1074,8 +1074,8 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
   ge_tensor_desc.SetPlacement(output_info->placement_);
   input.SetTensorDesc(ge_tensor_desc);
 
-  uint8_t* data = output_info->data_.get();
-  input.SetData(output_info->data_.get(), output_info->output_size_, output_info->data_.get_deleter());
+  uint8_t* data = output_info->data_.release();
+  input.SetData(data, output_info->output_size_, output_info->data_.get_deleter());
   ADP_LOG(INFO) << "[GEOP] Get input shape:" << input_shape.DebugString()
                 << ", input placement:" << output_info->placement_
                 << ", input length:" << output_info->output_size_
