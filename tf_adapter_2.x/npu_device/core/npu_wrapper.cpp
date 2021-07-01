@@ -94,7 +94,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
   m.def("Open",
         [](const py::handle &context, const char *device_name, int device_index,
            std::map<std::string, std::string> user_options,
-           std::map<std::string, std::string> session_options) -> std::string {
+           std::map<std::string, std::string> device_options) -> std::string {
           pybind11::gil_scoped_release release;
           if (!graph_engine_started.exchange(true)) {
             std::map<std::string, std::string> global_options;
@@ -144,6 +144,11 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             if (!status.ok()) {
               return status.error_message();
             }
+            auto iter = global_options.find(ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION);
+            if (iter != global_options.end() &&
+                device_options.find(ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION) == device_options.end()) {
+              device_options[ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION] = iter->second;
+            }
           }
 
           std::string full_name = tensorflow::strings::StrCat(device_name, ":", device_index);
@@ -152,10 +157,10 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             return "Invalid npu device name " + full_name;
           }
           LOG(INFO) << "Create device instance " << full_name << " with options:";
-          for (const auto &option : session_options) {
+          for (const auto &option : device_options) {
             LOG(INFO) << "  " << option.first << ":" << option.second;
           }
-          auto status = CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, session_options);
+          auto status = CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, device_options);
           pybind11::gil_scoped_acquire acquire;
           return status;
         });

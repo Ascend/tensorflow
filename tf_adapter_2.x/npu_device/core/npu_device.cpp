@@ -47,6 +47,10 @@ limitations under the License.
 
 using Format = ge::Format;
 const static uint64_t kInvalidGeGraphId = -1;
+const static std::string kHcomType = "HcomAllReduce";
+const static std::string kNpuLossScaleAttr = "_npu_loss_scale";
+const static std::string kNpuAllocFloatStatusOp = "NpuAllocFloatStatus";
+const static std::string kEnable = "1";
 
 namespace {
 template <typename T, typename DT>
@@ -70,11 +74,13 @@ class NpuHostFixedAllocator : public tensorflow::Allocator {
 };
 
 size_t RemoveRedundantHcomControlEdges(tensorflow::Graph *graph) {
-  const static std::string kHcomType = "HcomAllReduce";
   std::vector<tensorflow::Edge *> edges_to_remove;
   for (auto edge : graph->edges()) {
     if (edge->IsControlEdge() && (edge->src()->type_string() == kHcomType || edge->dst()->type_string() == kHcomType)) {
-      edges_to_remove.push_back(edge);
+      if (!(edge->src()->type_string() == kHcomType &&
+            edge->src()->def().attr().find(kNpuLossScaleAttr) != edge->src()->def().attr().end())) {
+        edges_to_remove.push_back(edge);
+      }
     }
   }
   for (auto edge : edges_to_remove) {
@@ -218,8 +224,8 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
 }
 
 std::string NpuDevice::CreateDevice(const char *name, int device_index,
-                                    const std::map<std::string, std::string> &session_options, NpuDevice **device) {
-  auto *ge_session = new (std::nothrow) ge::Session(session_options);
+                                    const std::map<std::string, std::string> &device_options, NpuDevice **device) {
+  auto *ge_session = new (std::nothrow) ge::Session(device_options);
   if (ge_session == nullptr) {
     return "Failed init graph engine: create new session failed";
   }
@@ -230,6 +236,7 @@ std::string NpuDevice::CreateDevice(const char *name, int device_index,
   }
   (*device)->device_id = device_index;
   (*device)->device_name = name;
+  (*device)->device_options = device_options;
   (*device)->underlying_device = "/job:localhost/replica:0/task:0/device:CPU:0";
   (*device)->ge_session_ = ge_session;
   (*device)->cancellation_manager_ = std::make_unique<tensorflow::CancellationManager>();
@@ -1000,6 +1007,15 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
 
     if (kDumpExecutionDetail || kDumpGraph) {
       graph_dumper.DumpWithSubGraphs("after_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
+    }
+
+    if (device_options[ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION] == kEnable) {
+      bool changed = false;
+      NPU_CTX_REQUIRES_OK(s, TailingOptimize(context, optimize_graph.get(), changed));
+
+      if (kDumpExecutionDetail || kDumpGraph) {
+        graph_dumper.DumpWithSubGraphs("after_tailing_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
+      }
     }
 
     std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources;
@@ -1980,5 +1996,95 @@ tensorflow::Status NpuDevice::GetMirroredIteratorShapesAndTypes(const tensorflow
   }
   shapes.assign(iter->second.first.begin(), iter->second.first.end());
   types.assign(iter->second.second.begin(), iter->second.second.end());
+  return tensorflow::Status::OK();
+}
+
+tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::Graph *graph, bool &changed) {
+  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
+
+  std::vector<tensorflow::Node *> in_nodes;
+  for (tensorflow::Node *node : graph->op_nodes()) {
+    for (auto &attr : node->attrs()) {
+      if (attr.second.has_func()) {
+        std::string func_name = attr.second.func().name();
+        const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
+        std::unique_ptr<tensorflow::FunctionBody> fbody;
+        FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
+        std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
+        bool changed = false;
+        NPU_REQUIRES_OK(TailingOptimize(context, fbody->graph, changed));
+        if (changed) {
+          tensorflow::FunctionDef optimized_fdef;
+          auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
+            for (const auto &control_ret : fdef->control_ret()) {
+              if (control_ret.second == node->name()) {
+                return absl::make_optional(node->name());
+              }
+            }
+            return absl::nullopt;
+          };
+          NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, func_name, lookup, &optimized_fdef));
+          NPU_REQUIRES_OK(lib_def->RemoveFunction(func_name));
+          NPU_REQUIRES_OK(lib_def->AddFunctionDef(optimized_fdef));
+        }
+      }
+    }
+    if (node->type_string() == kNpuAllocFloatStatusOp &&
+        node->def().attr().find(kNpuLossScaleAttr) != node->def().attr().end()) {
+      std::unordered_set<const tensorflow::Edge *> edges_to_remove;
+      tensorflow::Node *last_allreduce = nullptr;
+      for (auto in_edge : node->in_edges()) {
+        if (in_edge->IsControlEdge()) {
+          if (last_allreduce == nullptr) {
+            if (in_edge->src()->type_string() == kHcomType) {
+              last_allreduce = in_edge->src();
+            }
+          }
+          edges_to_remove.insert(in_edge);
+        }
+      }
+      if (last_allreduce == nullptr || edges_to_remove.empty()) {
+        continue;
+      }
+
+      tensorflow::Node *float_status_allreduce = nullptr;
+      for (auto out_edge : node->out_edges()) {
+        if (out_edge->dst()->type_string() == kHcomType &&
+            out_edge->dst()->def().attr().find(kNpuLossScaleAttr) != node->def().attr().end()) {
+          float_status_allreduce = out_edge->dst();
+          break;
+        }
+      }
+      if (float_status_allreduce == nullptr) {
+        continue;
+      }
+
+      std::unordered_set<tensorflow::Node *> grads;
+      tensorflow::Node *previous_allreduce = last_allreduce;
+      while (previous_allreduce != nullptr) {
+        const tensorflow::EdgeSet& in_edges = previous_allreduce->in_edges();
+        previous_allreduce = nullptr;
+        for (auto in_edge : in_edges) {
+          if (!in_edge->IsControlEdge()) {
+            grads.insert(in_edge->src());
+          } else if (in_edge->src()->type_string() == kHcomType) {
+            previous_allreduce = in_edge->src();
+          }
+        }
+      }
+
+      if (!grads.empty()) {
+        for (auto edge : edges_to_remove) {
+          graph->RemoveEdge(edge);
+        }
+        for (auto grad : grads) {
+          graph->AddControlEdge(grad, node);
+        }
+        graph->AddControlEdge(float_status_allreduce, last_allreduce);
+        changed = true;
+      }
+    }
+  }
+
   return tensorflow::Status::OK();
 }
