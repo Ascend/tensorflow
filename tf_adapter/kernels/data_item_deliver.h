@@ -45,8 +45,8 @@ limitations under the License.
 
 namespace tensorflow {
 namespace data {
-static constexpr char *SOCKET_SERVER_PATH = "/tmp/server";
-static constexpr char *MESSAGE_HEAD = "head_check";
+static constexpr char const *SOCKET_SERVER_PATH = "/tmp/server";
+static constexpr char const *MESSAGE_HEAD = "head_check";
 static constexpr int QLEN = 8;
 static constexpr int HEAD_INFO_SIZE = 3;
 static constexpr int ITEM_INFO_SIZE = 9;
@@ -72,7 +72,7 @@ class DataItemDeliver {
   Status SendDataVec(std::vector<tdt::DataItem> &data_items, int fd);
   Status CreateSockAddr(struct sockaddr_un &sockaddr, const char *path,
                         int local_rank_id);
-  int Recv(void *buffer, size_t data_len);
+  uint64_t Recv(void *buffer, size_t data_len);
   template <typename T>
   Status GetDataLen(T &value, size_t size);
   Status GetTensorType(tdt::TdtDataType &data_type);
@@ -83,12 +83,12 @@ class DataItemDeliver {
 
   mutex client_list_mu_;
   std::vector<int> client_fd_list_;
-  int server_fd_;
+  int server_fd_ = -1;
   std::shared_ptr<ThreadPool> pools_;
   struct sockaddr_un local_addr_ = {0};
   int local_rank_id_;
-  std::vector<uint32_t> local_device_list_;
   uint32_t device_id_;
+  std::vector<uint32_t> local_device_list_;
   std::string channel_name_;
 };
 
@@ -120,7 +120,7 @@ DataItemDeliver::~DataItemDeliver() {
 
 Status DataItemDeliver::ParallelInitSocketClient() {
   std::vector<std::future<Status>> init_status;
-  for (int i = 1; i < local_device_list_.size(); i++) {
+  for (size_t i = 1; i < local_device_list_.size(); i++) {
     init_status.emplace_back(
         pools_->Enqueue(&DataItemDeliver::InitSocketClient, this, i));
   }
@@ -227,7 +227,7 @@ Status DataItemDeliver::InitSocketServer() {
 
 Status DataItemDeliver::CheckHead(const char *check_value) {
   uint32_t head_size = 0;
-  int recvn = Recv(&head_size, UINT32_SIZE);
+  uint64_t recvn = Recv(&head_size, UINT32_SIZE);
   if (recvn != UINT32_SIZE) {
     ADP_LOG(ERROR) << "Failed to recv head length.";
     LOG(ERROR) << "Failed to recv head length.";
@@ -290,7 +290,7 @@ Status DataItemDeliver::RecvDataVec(std::vector<tdt::DataItem> &items) {
   return Status::OK();
 }
 
-int DataItemDeliver::Recv(void *buffer, size_t data_len) {
+uint64_t DataItemDeliver::Recv(void *buffer, size_t data_len) {
   int ret = -1;
   uint64_t buf_pos = 0;
   while (data_len > 0) {
@@ -304,13 +304,13 @@ int DataItemDeliver::Recv(void *buffer, size_t data_len) {
                        << ", channel_name:" << channel_name_;
       LOG(WARNING) << "Client connect closed, server_fd:" << server_fd_
                    << ", channel_name:" << channel_name_;
-      return ret;
+      return 0;
     } else if (ret < 0) {
       ADP_LOG(ERROR) << "Recv data failed,error:" << strerror(errno)
                      << ", (errno:" << errno << "), server_fd:" << server_fd_;
       LOG(ERROR) << "Recv data failed,error:" << strerror(errno)
                  << ", (errno:" << errno << "), server_fd:" << server_fd_;
-      return ret;
+      return 0;
     }
     buf_pos += ret;
     data_len -= ret;
@@ -320,7 +320,7 @@ int DataItemDeliver::Recv(void *buffer, size_t data_len) {
 
 template <typename T>
 Status DataItemDeliver::GetDataLen(T &value, size_t size) {
-  int recvn = Recv(&value, size);
+  uint64_t recvn = Recv(&value, size);
   if (recvn != size) {
     return errors::Internal("Failed to recv data length.");
   }
@@ -328,7 +328,7 @@ Status DataItemDeliver::GetDataLen(T &value, size_t size) {
 }
 
 Status DataItemDeliver::GetTensorType(tdt::TdtDataType &data_type) {
-  int recvn = Recv(&data_type, UINT32_SIZE);
+  uint64_t recvn = Recv(&data_type, UINT32_SIZE);
   if (recvn != UINT32_SIZE) {
     return errors::Internal("Failed to recv data length.");
   }
@@ -354,7 +354,7 @@ Status DataItemDeliver::GetTensorData(uint64_t &data_len,
     LOG(ERROR) << "Failed to reset buff memory. size:" << data_len;
     return errors::Internal("Failed to reset buff memory.");
   }
-  int recvn = Recv(buff, data_len);
+  uint64_t recvn = Recv(buff, data_len);
   if (recvn != data_len) {
     free(buff);
     ADP_LOG(ERROR) << "Failed to receive data.";
@@ -384,7 +384,7 @@ Status DataItemDeliver::GetTensorString(std::string &str) {
     LOG(ERROR) << "Failed to reset buff memory.";
     return errors::Internal("Failed to reset buff memory.");
   }
-  int recvn = Recv(buff, size);
+  uint64_t recvn = Recv(buff, size);
   if (recvn != size) {
     free(buff);
     ADP_LOG(ERROR) << "Failed to receive data.";
