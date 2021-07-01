@@ -1,3 +1,5 @@
 from npu_device.distribute.hccl import all_reduce
 from npu_device.distribute.hccl import broadcast
 from npu_device.distribute.hccl import shard_and_rebatch_dataset
+from npu_device.distribute.weight_update_grouping import grouping_gradients_apply
+from npu_device.distribute.weight_update_grouping import grouping_broadcast

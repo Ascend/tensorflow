@@ -70,6 +70,8 @@ class NpuDevice {
 
   tensorflow::Status TailingOptimize(TFE_Context *context, tensorflow::Graph *graph, bool &changed);
 
+  tensorflow::Status WeightUpdateGroupingOptimize(TFE_Context *context, tensorflow::Graph *graph, bool &changed);
+
   tensorflow::Status MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
                                             TFE_TensorHandle **inputs);
 
