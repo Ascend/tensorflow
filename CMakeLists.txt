@@ -188,6 +188,8 @@ else()
         $<BUILD_INTERFACE:msprof_headers>
         $<BUILD_INTERFACE:aoe_headers>
         $<BUILD_INTERFACE:soft_dp_headers>
+        $<BUILD_INTERFACE:runtime_headers>
+        $<BUILD_INTERFACE:tdt_headers>
         -Wl,--no-as-needed
         c_sec
         ge_runner
