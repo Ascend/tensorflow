@@ -421,7 +421,7 @@ Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
   uint32_t head_size = (strlen(MESSAGE_HEAD) + 1) * CHAR_SIZE;
   head_info[0].iov_base = &head_size;
   head_info[0].iov_len = UINT32_SIZE;
-  head_info[1].iov_base = MESSAGE_HEAD;
+  head_info[1].iov_base = const_cast<char*>(MESSAGE_HEAD);
   head_info[1].iov_len = head_size;
   head_info[2].iov_base = &vector_size;
   head_info[2].iov_len = UINT32_SIZE;
