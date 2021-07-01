@@ -470,7 +470,7 @@ Status DataItemDeliver::CreateSockAddr(struct sockaddr_un &sock_addr,
   sock_addr.sun_family = AF_UNIX;
   int len = 0;
   if (-1 ==
-      (len = snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path), "%s%s%d",
+      (len = snprintf_s(sock_addr.sun_path, sizeof(sock_addr.sun_path), "%s%s%d",
                       path, channel_name_.c_str(), device_id))) {
     ADP_LOG(ERROR) << "Set sun_path failed.";
     LOG(ERROR) << "Set sun_path failed.";
