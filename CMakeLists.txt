@@ -129,10 +129,23 @@ else()
         ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/optimizers/*.cc
         ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/util/*.cc
     )
+
+    add_custom_target(tensorflow_source ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_source.timestamp)
+
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_source.timestamp
+                       COMMAND echo "cp tensorflow1.15 source begin:"
+                       COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15 && mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15
+                       COMMAND cp -rfL ${TOP_DIR}/open_source/tensorflow ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15 || echo skip
+                       COMMAND cd ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15/tensorflow && git checkout . && git fetch --all --tags && git checkout tags/v1.15.5
+                       COMMAND echo "end cp tensorflow1.15 source"
+                       DEPENDS ${TOP_DIR}/open_source/tensorflow)
+
     add_library(tf_adapter SHARED
         ${SOURCES}
         ${BASE_DIR}/tf_adapter/util/ge_plugin_wrap.cxx
     )
+
+    add_dependencies(tf_adapter tensorflow_source)
 
     target_include_directories(tf_adapter PRIVATE
         ${BASE_DIR}/
@@ -150,8 +163,9 @@ else()
         ${TOP_DIR}/abl/libc_sec/include/
         ${TOP_DIR}/third_party/json/include/
         ${TOP_DIR}/open_source/json/include/
-        ${TOP_DIR}/third_party/tensorflow/tensorflow-1.15.0/
-        ${TOP_DIR}/third_party/tensorflow/compile_deps/tf-1.15.0/include/
+        ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_15/tensorflow
+        /opt/buildtools/tensorflow-1.15.5/tensorflow_core/include/
+        /opt/buildtools/tensorflow-1.15.5/tensorflow-1.15.5.data/purelib/tensorflow_core/include/
         ${HI_PYTHON_INC}/
     )
 

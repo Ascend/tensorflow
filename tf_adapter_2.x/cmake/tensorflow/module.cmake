@@ -19,7 +19,7 @@ else()
     add_library(pywrap_tensorflow_internal SHARED ${fake_sources})
     set_target_properties(pywrap_tensorflow_internal PROPERTIES PREFIX _)
 
-    SET(TF_INCLUDE_DIR ${ASCEND_CI_BUILD_DIR}/third_party/tensorflow/compile_deps/tf-2.4.0/include/org)
+    SET(TF_INCLUDE_DIR /opt/buildtools/tensorflow-2.4.1/tensorflow/include/)
     target_link_libraries(tensorflow_libs INTERFACE
             tensorflow_framework
             pywrap_tensorflow_internal)
