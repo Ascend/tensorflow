@@ -76,10 +76,8 @@ class VisitUnsupportImport(ast.NodeVisitor):
         for value in node.names:
             if isinstance(value, ast.alias):
                 classes = value.name.split('.')
-                # from . import file
                 if len(self.modules) == 0:
                     break
-                # from module import unsupported classes
                 if self.modules[0] in self.unsupport:
                     self.imports.append(classes[0])
                     self.import_modules.append(self.modules[0])
@@ -93,10 +91,8 @@ class VisitUnsupportImport(ast.NodeVisitor):
                     break
                 if self.modules[0] in self.unsupport:
                     self.import_modules.append(self.modules[0])
-                    # import unsupported module as alias:
                     if value.asname != None:
                         self.imports.append(value.asname)
-                    # import unsupported module
                     else:
                         self.imports.append(self.modules[0])
         self.generic_visit(node)
