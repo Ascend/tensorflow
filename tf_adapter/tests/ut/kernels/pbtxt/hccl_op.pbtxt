@@ -33,6 +33,12 @@ node {
       s: "8"
     }
   }
+  attr {
+    key: "T"
+    value {
+        type: DT_FLOAT
+    }
+  }
 }
 
 node {
