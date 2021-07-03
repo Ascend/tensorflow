@@ -70,7 +70,8 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
       std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
                                    *node_def, TF_GRAPH_DEF_VERSION, &status));
       EXPECT_TRUE(status.ok());
-      op->Compute();
+      auto ctx = absl::make_unique<OpKernelContext>(&params);
+      op->Compute(ctx.get());
 //       AsyncOpKernel* async_op = op->AsAsync();
 //       params.op_kernel = async_op;
 //       params.session_handle = "session_0";
