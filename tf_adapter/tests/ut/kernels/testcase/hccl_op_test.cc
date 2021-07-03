@@ -10,6 +10,11 @@
 
 namespace tensorflow {
 namespace {
+
+PartialTensorShape S(std::initializer_list<int64> dims) {
+  return PartialTensorShape(dims);
+}
+
 TEST(HcclOpTest, TestShapeInference) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("HcomAllGather", &reg));
