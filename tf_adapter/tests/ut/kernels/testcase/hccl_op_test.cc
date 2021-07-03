@@ -58,18 +58,19 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
   GraphDef graph_def;
   std::string graph_def_path = example_path;
   ReadTextProto(env, graph_def_path, &graph_def);
-//   for (int i = 0; i < graph_def.node_size(); i++) {
-//     NodeDef *node_def = graph_def.mutable_node(i);
-//     if (node_def->name() == node_name) {
-//       geop_node_def = *node_def;
-//       OpKernelContext::Params params;
-//       params.record_tensor_accesses = false;
-//       auto device = absl::make_unique<DummyDevice>(env, params.record_tensor_accesses);
-//       params.device = device.get();
-//       Status status;
-//       std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
-//                                    *node_def, TF_GRAPH_DEF_VERSION, &status));
-//       EXPECT_TRUE(status.ok());
+  for (int i = 0; i < graph_def.node_size(); i++) {
+    NodeDef *node_def = graph_def.mutable_node(i);
+    if (node_def->name() == node_name) {
+      geop_node_def = *node_def;
+      OpKernelContext::Params params;
+      params.record_tensor_accesses = false;
+      auto device = absl::make_unique<DummyDevice>(env, params.record_tensor_accesses);
+      params.device = device.get();
+      Status status;
+      std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
+                                   *node_def, TF_GRAPH_DEF_VERSION, &status));
+      EXPECT_TRUE(status.ok());
+      op->Compute();
 //       AsyncOpKernel* async_op = op->AsAsync();
 //       params.op_kernel = async_op;
 //       params.session_handle = "session_0";
@@ -92,8 +93,8 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
 //         auto ctx1 = absl::make_unique<OpKernelContext>(&params);
 //         async_op->ComputeAsync(ctx1.get(), done);
 //       }
-//     }
-//   }
+    }
+  }
   return Status::OK();
 }
 
