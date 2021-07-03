@@ -228,7 +228,7 @@ Status DataItemDeliver::InitSocketServer() {
 Status DataItemDeliver::CheckHead(const char *check_value) {
   uint32_t head_size = 0;
   uint64_t recvn = Recv(&head_size, UINT32_SIZE);
-  if (recvn != UINT32_SIZE) {
+  if (recvn != static_cast<uint64_t>(UINT32_SIZE)) {
     ADP_LOG(ERROR) << "Failed to recv head length.";
     LOG(ERROR) << "Failed to recv head length.";
     return errors::Internal("Failed to recv head length.");
@@ -240,7 +240,7 @@ Status DataItemDeliver::CheckHead(const char *check_value) {
     return errors::Internal("Failed to malloc head buffer.");
   }
   recvn = Recv(head, head_size);
-  if (recvn != head_size) {
+  if (recvn != static_cast<uint64_t>(head_size)) {
     free(head);
     ADP_LOG(ERROR) << "Failed to recv head value.";
     LOG(ERROR) << "Failed to recv head value.";
@@ -321,7 +321,7 @@ uint64_t DataItemDeliver::Recv(void *buffer, size_t data_len) {
 template <typename T>
 Status DataItemDeliver::GetDataLen(T &value, size_t size) {
   uint64_t recvn = Recv(&value, size);
-  if (recvn != size) {
+  if (recvn != static_cast<uint64_t>(size)) {
     return errors::Internal("Failed to recv data length.");
   }
   return Status::OK();
@@ -329,7 +329,7 @@ Status DataItemDeliver::GetDataLen(T &value, size_t size) {
 
 Status DataItemDeliver::GetTensorType(tdt::TdtDataType &data_type) {
   uint64_t recvn = Recv(&data_type, UINT32_SIZE);
-  if (recvn != UINT32_SIZE) {
+  if (recvn != static_cast<uint64_t>(UINT32_SIZE)) {
     return errors::Internal("Failed to recv data length.");
   }
   return Status::OK();
@@ -385,7 +385,7 @@ Status DataItemDeliver::GetTensorString(std::string &str) {
     return errors::Internal("Failed to reset buff memory.");
   }
   uint64_t recvn = Recv(buff, size);
-  if (recvn != size) {
+  if (recvn != static_cast<uint64_t>(size)) {
     free(buff);
     ADP_LOG(ERROR) << "Failed to receive data.";
     LOG(ERROR) << "Failed to receive data.";
