@@ -68,10 +68,10 @@ REGISTER_OP("HcomAllGather")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
       int rankSize = 0;
-      TF_CHECK_OK(c->GetAttr("rank_size", &rankSize));
+      TF_RETURN_IF_ERROR(c->GetAttr("rank_size", &rankSize));
       Status rankSizeStatus =
           ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rank_size should be greater than 0.")));
-      TF_CHECK_OK(rankSizeStatus);
+      TF_RETURN_IF_ERROR(rankSizeStatus);
 
       int32 inputRank = c->Rank(c->input(0));
       if (InferenceContext::kUnknownRank == inputRank) {
@@ -164,10 +164,10 @@ REGISTER_OP("HcomReduceScatter")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
       int rankSize = 0;
-      TF_CHECK_OK(c->GetAttr("rank_size", &rankSize));
+      TF_RETURN_IF_ERROR(c->GetAttr("rank_size", &rankSize));
       Status rankSizeStatus =
           ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rank_size should be greater than 0.")));
-      TF_CHECK_OK(rankSizeStatus);
+      TF_RETURN_IF_ERROR(rankSizeStatus);
 
       int32 inputRank = c->Rank(c->input(0));
       if (InferenceContext::kUnknownRank == inputRank) {
