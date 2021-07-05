@@ -15,6 +15,16 @@ PartialTensorShape S(std::initializer_list<int64> dims) {
   return PartialTensorShape(dims);
 }
 
+FakeInputFunctor FakeInputStub(DataType dt) {
+  return [dt](const OpDef& op_def, int in_index, const NodeDef& node_def,
+              NodeDefBuilder* builder) {
+    char c = 'a' + (in_index % 26);
+    string in_node =  string(&c, 1);
+    builder->Input(in_node_, 0, dt);
+    return Status::OK();
+  };
+}
+
 TEST(HcclOpTest, TestShapeInference) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("HcomAllGather", &reg));
@@ -24,7 +34,7 @@ TEST(HcclOpTest, TestShapeInference) {
                   .Attr("T", DT_FLOAT)
                   .Attr("rank_size", 8)
                   .Attr("group", "hccl_world_group")
-                  .Input(FakeInput(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def, {S({3, 4})}, {}, {}, {});
   std::vector<shape_inference::ShapeHandle> input_shapes;
@@ -40,6 +50,7 @@ TEST(HcclOpTest, TestShapeInference) {
 
 
 #else
+
 #include "tf_adapter/kernels/geop_npu.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/graph/graph_constructor.h"
