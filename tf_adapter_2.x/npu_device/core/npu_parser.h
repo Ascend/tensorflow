@@ -71,45 +71,45 @@ static void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::
   tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), ndef);
 }
 
-static void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
 }
 
-static void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
 }
 
-static void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
 }
 
-static void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
 }
 
-static void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+__attribute__((unused)) static void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
   n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
-static void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+__attribute__((unused)) static void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
   n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
-static void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+__attribute__((unused)) static void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
   n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
-static void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+__attribute__((unused)) static void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
   n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
-static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::Node *n) {
+__attribute__((unused)) static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::Node *n) {
   std::string serialized_op_def;
   op_data->op_def.SerializeToString(&serialized_op_def);
   n->AddAttr("op_def", serialized_op_def);
 }
 
-static void AssembleOpDef(tensorflow::Node *n) {
+__attribute__((unused)) static void AssembleOpDef(tensorflow::Node *n) {
   const tensorflow::OpRegistrationData *op_reg_data;
   tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
   std::string serialized_op_def;
@@ -117,13 +117,13 @@ static void AssembleOpDef(tensorflow::Node *n) {
   n->AddAttr("op_def", serialized_op_def);
 }
 
-static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::NodeDef *ndef) {
   std::string serialized_op_def;
   op_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
 
-static void AssembleOpDef(tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleOpDef(tensorflow::NodeDef *ndef) {
   const tensorflow::OpRegistrationData *op_reg_data;
   tensorflow::OpRegistry::Global()->LookUp(ndef->op(), &op_reg_data);
   std::string serialized_op_def;

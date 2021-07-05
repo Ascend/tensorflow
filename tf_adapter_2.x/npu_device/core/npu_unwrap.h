@@ -75,7 +75,7 @@ static NpuManagedBuffer *Unwrap(const tensorflow::Tensor *tensor) {
   return reinterpret_cast<T *>(const_cast<char *>(tensor->tensor_data().data()));
 }
 
-static tensorflow::EagerContext *UnwrapCtx(TFE_Context *context) {
+__attribute__((unused)) static tensorflow::EagerContext *UnwrapCtx(TFE_Context *context) {
   return tensorflow::ContextFromInterface(tensorflow::unwrap(context));
 }
 
@@ -83,11 +83,11 @@ static tensorflow::TensorHandle *UnwrapHandle(TFE_TensorHandle *tensor_handle) {
   return tensorflow::TensorHandleFromInterface(tensorflow::unwrap(tensor_handle));
 }
 
-static tensorflow::EagerOperation *UnwrapOp(TFE_Op *op) {
+__attribute__((unused)) static tensorflow::EagerOperation *UnwrapOp(TFE_Op *op) {
   return reinterpret_cast<tensorflow::EagerOperation *>(tensorflow::unwrap(op));
 }
 
-static tensorflow::Status UnwrapTensor(TFE_TensorHandle *tensor_handle, const tensorflow::Tensor **tensor) {
+__attribute__((unused)) static tensorflow::Status UnwrapTensor(TFE_TensorHandle *tensor_handle, const tensorflow::Tensor **tensor) {
   return UnwrapHandle(tensor_handle)->Tensor(tensor);
 }
 
