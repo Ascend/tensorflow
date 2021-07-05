@@ -20,7 +20,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
               NodeDefBuilder* builder) {
     char c = 'a' + (in_index % 26);
     string in_node =  string(&c, 1);
-    builder->Input(in_node_, 0, dt);
+    builder->Input(in_node, 0, dt);
     return Status::OK();
   };
 }
