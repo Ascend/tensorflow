@@ -1186,6 +1186,21 @@ void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **o
   }
   auto attributes = TFE_OpGetAttrs(op);
   DLOG() << "NPU Start executing " << op_name;
+
+  if (kDumpGraph || kDumpExecutionDetail) {
+    tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
+    const tensorflow::FunctionDef *fdef = lib_def->Find(op_name);
+    if (fdef != nullptr) {
+      std::unique_ptr<tensorflow::FunctionBody> fbody;
+      tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
+      tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
+      FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
+
+      OptimizeStageGraphDumper graph_dumper(op_name);
+      graph_dumper.DumpWithSubGraphs("origin_graph", fbody->graph->ToGraphDefDebug(), lib_def);
+    }
+  }
+
   // 如果存在一个算子的输入来自多个设备的情况，需要直接报错
   bool cpu_resource = false;
   NPU_CTX_REQUIRES_OK(s, ValidateResourcePlacement(op_name, num_inputs, inputs.data(), cpu_resource));
@@ -2060,7 +2075,7 @@ tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::
       std::unordered_set<tensorflow::Node *> grads;
       tensorflow::Node *previous_allreduce = last_allreduce;
       while (previous_allreduce != nullptr) {
-        const tensorflow::EdgeSet& in_edges = previous_allreduce->in_edges();
+        const tensorflow::EdgeSet &in_edges = previous_allreduce->in_edges();
         previous_allreduce = nullptr;
         for (auto in_edge : in_edges) {
           if (!in_edge->IsControlEdge()) {
