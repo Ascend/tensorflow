@@ -494,7 +494,7 @@ string GraphCycles::DebugString() const {
   }
 
   string result = "digraph {\n";
-  for (int i = 0; i < rep_->nodes_.size(); i++) {
+  for (std::size_t i = 0; i < rep_->nodes_.size(); i++) {
     if (free_nodes_set.contains(i)) {
       continue;
     }

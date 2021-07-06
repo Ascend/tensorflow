@@ -105,7 +105,7 @@ bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
   };
   tensorflow::ReverseDFSFrom(*graph, {*key}, enter, {}, {}, {});
   DLOG() << "Reserved nodes " << reserved_nums << " vs. totally " << graph->num_op_nodes();
-  return reserved_nums == graph->num_op_nodes();
+  return static_cast<int>(reserved_nums) == graph->num_op_nodes();
 }
 
 tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef &gdef,
@@ -442,7 +442,6 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
                           .Finalize(graph, &arg_substitutes[node]));
 
       } else if (arg_is_variable.count(index)) {
-        tensorflow::Node *variable = nullptr;
         NPU_REQUIRES_OK(tensorflow::NodeBuilder(WrapResourceName(arg_resource_handles[index].name()), "VarHandleOp")
                           .Attr("container", arg_resource_handles[index].container())
                           .Attr("shared_name", arg_resource_handles[index].name())
@@ -965,7 +964,6 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     *spec = CacheOpSpec(op_name, op_reg_data, ndef, {}, tensorflow::strings::StrCat("Op unsupported by NPU"));
     return;
   }
-  bool is_stateful = op_reg_data->op_def.is_stateful();
   // 这里获取输出的dataType，对于常规算子，通过NodeDef的T属性确定，对于function op，则是在ret上自带
   TensorDataTypes data_types;
   NPU_CTX_REQUIRES_OK(s, tensorflow::OutputTypesForNode(ndef, op_reg_data->op_def, &data_types));
@@ -1605,7 +1603,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       }
       done(tensorflow::errors::Internal("Graph engine process graph failed: ", err_msg));
       return;
-    } else if (ge_outputs.size() != num_outputs) {
+    } else if (ge_outputs.size() != static_cast<std::size_t>(num_outputs)) {
       done(tensorflow::errors::Internal("Graph engine process graph succeed but output num ", ge_outputs.size(),
                                         " mismatch with expected ", num_outputs));
       return;

@@ -26,6 +26,7 @@ file(GLOB_RECURSE UT_SOURCES
     "optimizers/testcase/*.cc"
     "util/testcase/*.cc"
     "kernels/testcase/*.cc"
+    "common/testcase/*.cc"
 )
 
 add_executable(tfadapter_utest

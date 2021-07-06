@@ -86,7 +86,7 @@ class NpuManagedBuffer {
 };
 
 // NpuManagedBuffer是Host的对象，是CPU Tensor管理的对象，是NPU内存的Host句柄，应当在析构函数中释放NPU内存
-static void NpuManagedBufferDeallocator(void *data, size_t len, void *arg) {
+__attribute__((unused)) static void NpuManagedBufferDeallocator(void *data, size_t len, void *arg) {
   NpuManagedBuffer::Destroy(reinterpret_cast<NpuManagedBuffer *>(data));
 }
 
