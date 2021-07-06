@@ -20,6 +20,7 @@ import absl.logging as logging
 
 import tensorflow as tf
 from tensorflow.python.eager import context
+from tensorflow.python.eager import def_function
 from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import ops
 from tensorflow.python.distribute import distribute_lib
@@ -141,7 +142,7 @@ def global_npu_ctx():
     return _global_npu_ctx
 
 
-_hacked_tensorflow_function = tf.function
+_hacked_tensorflow_function = def_function.function
 _thread_local = threading.local()
 
 
@@ -213,6 +214,7 @@ class NpuDeviceHandle(object):
             return combined()
 
         ops.device = _f
+        def_function.function = never_nested_function
         tf.function = never_nested_function
 
         self._ctx.default_device = self._device_name

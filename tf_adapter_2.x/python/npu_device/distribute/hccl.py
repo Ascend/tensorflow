@@ -18,6 +18,7 @@ from npu_device.npu_device import global_npu_ctx
 from npu_device.npu_device import never_nested_function
 
 import tensorflow as tf
+from tensorflow.python.keras import optimizers
 from absl import logging
 
 
@@ -86,3 +87,12 @@ def broadcast(values, root_rank=0, fusion=2, fusion_id=0, group="hccl_world_grou
         _broadcast(values, root_rank, fusion, fusion_id, group)
     else:
         _broadcast([values], root_rank, fusion, fusion_id, group)
+
+def npu_distributed_keras_optimizer_wrapper(optimizer, reduce_reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
+    optimizer = optimizers.get(optimizer)
+    org_apply_gradients = optimizer.apply_gradients
+    def _npu_distribute_apply_gradients(grads_and_vars, *args, **kwargs):
+        grads, variables = zip(*grads_and_vars)
+        return org_apply_gradients(zip(all_reduce(grads, reduce_reduction, fusion, fusion_id, group), variables), *args, **kwargs)
+    optimizer.apply_gradients = _npu_distribute_apply_gradients
+    return optimizer
