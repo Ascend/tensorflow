@@ -78,8 +78,8 @@ class RtsStreamGuard {
 
 tensorflow::Status CreateAclTensorDesc(ge::DataType dtype, ge::Format format, const std::vector<int64_t> &shape,
                                        std::shared_ptr<aclTensorDesc> *desc) {
-  aclDataType acl_dtype;
-  aclFormat acl_format;
+  aclDataType acl_dtype = ACL_FLOAT;
+  aclFormat acl_format = ACL_FORMAT_NCHW;
   NPU_REQUIRES_OK(MapGeType2Acl(dtype, &acl_dtype));
   NPU_REQUIRES_OK(MapGeFormat2Acl(format, &acl_format));
   aclTensorDesc *acl_desc = aclCreateTensorDesc(acl_dtype, shape.size(), shape.data(), acl_format);

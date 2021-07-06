@@ -77,7 +77,6 @@ def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir="")
             cpp_file_rel = cpp_file[code_top_prefix_len+1:]
 
         if cpp_file_rel in cpp_file_list:
-            # gcc_cmd_set[obj_file] = " ".join(item_list)
             c_flags_list = []
             rest_list = []
             is_add_I = False
@@ -171,9 +170,6 @@ def main():
         sys.exit(-1)
 
     fd = open(output_file, "w")
-    # content = "GCC_PATH_1 = " + code_top_dir + "/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-gnu-4.8/bin" + "\n"
-    # content += "GCC_PATH = $(GCC_PATH_1)" + "\n"
-    # content += "export GCC_PATH\n\n"
     content = ""
     content += ".PHONY: all\n"
     content += "\n"

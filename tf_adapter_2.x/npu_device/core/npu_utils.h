@@ -90,14 +90,14 @@ limitations under the License.
 #include "acl/acl_base.h"
 #include "graph/types.h"
 
-static bool IsNpuTensorHandle(tensorflow::TensorHandle *handle) {
+__attribute__((unused)) static bool IsNpuTensorHandle(tensorflow::TensorHandle *handle) {
   tensorflow::Status status;
   tensorflow::DeviceNameUtils::ParsedName parsed_name;
   return tensorflow::DeviceNameUtils::ParseFullName(handle->DeviceName(&status), &parsed_name) &&
          parsed_name.type == "NPU";
 }
 
-static bool IsCpuTensorHandle(tensorflow::TensorHandle *handle) {
+__attribute__((unused)) static bool IsCpuTensorHandle(tensorflow::TensorHandle *handle) {
   tensorflow::Status status;
   tensorflow::DeviceNameUtils::ParsedName parsed_name;
   return tensorflow::DeviceNameUtils::ParseFullName(handle->DeviceName(&status), &parsed_name) &&
@@ -122,7 +122,7 @@ class ScopeTensorHandleDeleter {
   std::unordered_set<TFE_TensorHandle *> handles_;
 };
 
-static tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType *tf_type) {
+__attribute__((unused)) static tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType *tf_type) {
   static std::map<ge::DataType, tensorflow::DataType> kGeType2Tf = {
     {ge::DT_FLOAT, tensorflow::DT_FLOAT},           {ge::DT_DOUBLE, tensorflow::DT_DOUBLE},
     {ge::DT_INT32, tensorflow::DT_INT32},           {ge::DT_UINT8, tensorflow::DT_UINT8},
@@ -144,7 +144,7 @@ static tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataTyp
   return tensorflow::Status::OK();
 }
 
-static tensorflow::Status MapTfType2Ge(tensorflow::DataType tf_type, ge::DataType *ge_type) {
+__attribute__((unused)) static tensorflow::Status MapTfType2Ge(tensorflow::DataType tf_type, ge::DataType *ge_type) {
   static std::map<tensorflow::DataType, ge::DataType> kTfType2Ge = {
     {tensorflow::DT_FLOAT, ge::DT_FLOAT},           {tensorflow::DT_DOUBLE, ge::DT_DOUBLE},
     {tensorflow::DT_INT32, ge::DT_INT32},           {tensorflow::DT_UINT8, ge::DT_UINT8},
@@ -166,7 +166,7 @@ static tensorflow::Status MapTfType2Ge(tensorflow::DataType tf_type, ge::DataTyp
   return tensorflow::Status::OK();
 }
 
-static tensorflow::Status MapGeType2Acl(ge::DataType ge_type, aclDataType *acl_type) {
+__attribute__((unused)) static tensorflow::Status MapGeType2Acl(ge::DataType ge_type, aclDataType *acl_type) {
   static std::map<ge::DataType, aclDataType> kGeType2Acl = {
     {ge::DT_FLOAT, ACL_FLOAT},     {ge::DT_DOUBLE, ACL_DOUBLE}, {ge::DT_INT32, ACL_INT32},
     {ge::DT_UINT8, ACL_UINT8},     {ge::DT_INT16, ACL_INT16},   {ge::DT_INT8, ACL_INT8},
@@ -181,7 +181,7 @@ static tensorflow::Status MapGeType2Acl(ge::DataType ge_type, aclDataType *acl_t
   return tensorflow::Status::OK();
 }
 
-static tensorflow::Status MapGeFormat2Acl(ge::Format ge_format, aclFormat *acl_format) {
+__attribute__((unused)) static tensorflow::Status MapGeFormat2Acl(ge::Format ge_format, aclFormat *acl_format) {
   static std::map<ge::Format, aclFormat> kGeFormat2Acl = {{ge::Format::FORMAT_NCHW, ACL_FORMAT_NCHW},
                                                           {ge::Format::FORMAT_NHWC, ACL_FORMAT_NHWC},
                                                           {ge::Format::FORMAT_ND, ACL_FORMAT_ND},
@@ -223,14 +223,14 @@ std::string VecToString(std::vector<T> vec) {
 
 // TODO:在GE处理中，变量名称作为唯一标识，对于shared_name是"_"开头的变量，由于tensorflow禁止变量名以"_"开头，所以无法直接将shared_name
 //  作为Node的name，对于GE，则没有这个限制，因而，这个函数需要能够屏蔽这种差异。
-static std::string WrapResourceName(const std::string &name) {
+__attribute__((unused)) static std::string WrapResourceName(const std::string &name) {
   if (kCustomKernelEnabled) {
     return name;
   }
   return "cpu_" + name;
 }
 
-static tensorflow::Status LoadGraphDefProto(const std::string &file, tensorflow::GraphDef *def) {
+__attribute__((unused)) static tensorflow::Status LoadGraphDefProto(const std::string &file, tensorflow::GraphDef *def) {
   tensorflow::Status status = tensorflow::Env::Default()->FileExists(file);
   if (!status.ok()) {
     return status;
