@@ -176,6 +176,7 @@ else()
         -DNDEBUG
         -ftrapv
         -Wno-deprecated-declarations
+        -fno-common
     )
     target_compile_definitions(tf_adapter PUBLIC
         _FORTIFY_SOURCE=2

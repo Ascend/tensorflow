@@ -1,4 +1,18 @@
 #!/bin/bash
+# Copyright (C) 2021. Huawei Technologies Co., Ltd. All rights reserved.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+set -e
 COMMON_INSTALL_DIR=/usr/local/Ascend
 COMMON_INSTALL_TYPE=full
 DEFAULT_USERNAME=HwHiAiUser
@@ -9,14 +23,14 @@ curpath="$(dirname "$(readlink -f "$0")")"
 common_parse_dir=$COMMON_INSTALL_DIR
 common_parse_type=$COMMON_INSTALL_TYPE
 
-if [ $1 ];then
+if [ "$1" ];then
     common_parse_dir=$2
     common_parse_type=$3
     is_quiet=$4
     install_for_all=$5
 fi
 
-installInfo="${common_parse_dir}/tfplugin/ascend_install.info"
+install_info="${common_parse_dir}/tfplugin/ascend_install.info"
 sourcedir="${common_parse_dir}/tfplugin"
 if [ $(id -u) -ne 0 ]; then
     log_dir="${HOME}/var/log/ascend_seclog"
@@ -24,28 +38,28 @@ else
     log_dir="/var/log/ascend_seclog"
 fi
 
-logFile="${log_dir}/ascend_install.log"
+log_file="${log_dir}/ascend_install.log"
 
 log() {
-    local cur_date_=`date +"%Y-%m-%d %H:%M:%S"`
+    local cur_date_=$(date +"%Y-%m-%d %H:%M:%S")
     local log_type_=${1}
     local msg_="${2}"
-    if [ $log_type_ == "INFO" ]; then
+    if [ "$log_type_" == "INFO" ]; then
         local log_format_="[Tfplugin] [$cur_date_] [$log_type_]: ${msg_}"
         echo "${log_format_}"
-    elif [ $log_type_ == "WARNING" ]; then
+    elif [ "$log_type_" == "WARNING" ]; then
         local log_format_="[Tfplugin] [$cur_date_] [$log_type_]: ${msg_}"
         echo "${log_format_}"
-    elif [ $log_type_ == "ERROR" ]; then
+    elif [ "$log_type_" == "ERROR" ]; then
         local log_format_="[Tfplugin] [$cur_date_] [$log_type_]: ${msg_}"
         echo "${log_format_}"
-    elif [ $log_type_ == "DEBUG" ]; then
+    elif [ "$log_type_" == "DEBUG" ]; then
         local log_format_="[Tfplugin] [$cur_date_] [$log_type_]: ${msg_}"
     fi
-    echo "${log_format_}" >> $logFile
+    echo "${log_format_}" >> $log_file
 }
 
-newEcho() {
+new_echo() {
     local log_type_=${1}
     local log_msg_=${2}
     if  [ "${is_quiet}" = "n" ]; then
@@ -53,7 +67,7 @@ newEcho() {
     fi
 }
 
-updateGroupRightRecursive() {
+update_group_right_recursive() {
     local permission="${1}"
     local file_path="${2}"
     if [ "${install_for_all}" = "y" ]; then
@@ -74,7 +88,7 @@ if [ ! -d "${common_parse_dir}/tfplugin" ];then
     exit 1
 fi
 
-UninstallPackage() {
+uninstall_package() {
     local _module
     _module="$1"
     ls -A "${WHL_INSTALL_DIR_PATH}/${_module}" >/dev/null 2>&1
@@ -108,7 +122,7 @@ PYTHONDIR="${common_parse_dir}""/tfplugin"
 WHL_INSTALL_DIR_PATH="${PYTHONDIR}/python/site-packages"
 NPU_BRIDGE_NAME="npu_bridge"
 
-newUninstall() {
+new_uninstall() {
     if [ ! -d "${sourcedir}" ]; then
         log "INFO" "no need to uninstall tfplugin files."
         return 0
@@ -120,16 +134,16 @@ newUninstall() {
     else
         chmod +w -R "$curpath"
         log "INFO" "uninstall npu bridge begin..."
-        UninstallPackage "${NPU_BRIDGE_NAME}"
+        uninstall_package "${NPU_BRIDGE_NAME}"
         log "INFO" "successful uninstall npu bridge."
 
         if [ "$(arch)" == "x86_64" ];then
           log "INFO" "uninstall npu device begin..."
-          UninstallPackage "npu_device"
+          uninstall_package "npu_device"
           log "INFO" "successful uninstall the npu device..."
         fi
 
-        if [ -d "${WHL_INSTALL_DIR_PATH}" ] && [ "`ls -A "${WHL_INSTALL_DIR_PATH}"`" = "" ]; then
+        if [ -d "${WHL_INSTALL_DIR_PATH}" ] && [ "$(ls -A "${WHL_INSTALL_DIR_PATH}")" = "" ]; then
             rm -rf "${PYTHONDIR}/python"
         fi
     fi
@@ -146,7 +160,7 @@ newUninstall() {
     return 0
 }
 
-newUninstall
+new_uninstall
 if [ $? -ne 0 ];then
     exit 1
 fi

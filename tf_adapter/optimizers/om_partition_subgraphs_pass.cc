@@ -886,8 +886,9 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
     cluster_map[node]->index = new_index;
     cluster_map[node]->nodes.insert(node);
 
-    if (node->attrs().Find("_StartNodeName")) {
-      std::vector<std::string> startNodeVec = string_split(node->attrs().Find("_StartNodeName")->s(), ";");
+    auto node_attr_value = node->attrs().Find("_StartNodeName");
+    if (node_attr_value != nullptr) {
+      std::vector<std::string> startNodeVec = string_split(node_attr_value->s(), ";");
       for (const auto &startNodeName : startNodeVec) { cluster_map[node]->start_nodes_name.insert(startNodeName); }
     }
   }

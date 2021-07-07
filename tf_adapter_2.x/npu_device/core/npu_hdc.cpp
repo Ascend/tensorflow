@@ -71,6 +71,9 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
   size_t dim_num = acltdtGetDimNumFromItem(item);
   size_t acl_data_len = acltdtGetDataSizeFromItem(item);
   char *acl_data = reinterpret_cast<char *>(acltdtGetDataAddrFromItem(item));
+  if (acl_data == nullptr) {
+    return tensorflow::errors::Internal("Failed get data addr from item");
+  }
   if (call_by_channel_receive) {
     acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str());
   }
@@ -253,11 +256,10 @@ tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTenso
 
 tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string &name,
                                       std::shared_ptr<HdcChannel> *guarded_channel) {
-  auto channel = new (std::nothrow) HdcChannel(device_id, name);
-  NPU_REQUIRES(channel,
+  guarded_channel->reset(new (std::nothrow) HdcChannel(device_id, name));
+  NPU_REQUIRES(*guarded_channel,
                tensorflow::errors::Internal("Failed allocate memory for hdc channel ", name, " on device ", device_id));
-  NPU_REQUIRES_OK(channel->Init());
-  guarded_channel->reset(channel);
+  NPU_REQUIRES_OK((*guarded_channel)->Init());
   return tensorflow::Status::OK();
 }
 

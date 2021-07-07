@@ -42,6 +42,7 @@ class Timer : public std::basic_ostringstream<char> {
   explicit Timer(Args... args) {
     *this << tensorflow::strings::StrCat(args...) << " cost ";
   };
+  ~Timer() override = default;
   void Start() {
     if (TF_PREDICT_FALSE(kPerfEnabled)) {
       start_ = tensorflow::Env::Default()->NowMicros();
