@@ -137,8 +137,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         dump_config: The dump configuration.
         stream_max_parallel_num: Specify the degree of parallelism of the AICPU / AICORE engine
                                  to achieve parallel execution between AICPU / AICORE operators.
-        op_select_implmode: Selecting whether the operator is implemented with high precision
-                            or high performance.
+        op_select_implmode: Selecting whether the operator is implemented with high_precision
+                            or high_performance or high_precision_for_all or high_performance_for_all.
         optypelist_for_implmode: Operator list.
         dynamic_input_config:Dynamic dims configuration
         aoe_mode: Optimization Task Type."1": model tune; "2": optune;
