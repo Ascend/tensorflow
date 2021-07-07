@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import tensorflow as tf
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops

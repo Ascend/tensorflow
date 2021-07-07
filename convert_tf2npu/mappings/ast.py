@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 {
 "need_conver": false,
 "gelu":                         ["npu_unary_ops",           "tf.gelu",                      "npu_unary_ops.gelu"],

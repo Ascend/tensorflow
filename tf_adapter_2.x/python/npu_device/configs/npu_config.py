@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from npu_device.configs.dump_config import NpuDumpConfig
 from npu_device.configs.profiling_config import NpuProfilingConfig
 from npu_device.configs.option_base import OptionValue
