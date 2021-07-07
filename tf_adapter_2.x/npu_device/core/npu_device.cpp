@@ -30,6 +30,7 @@ limitations under the License.
 #include "tensorflow/c/eager/tfe_op_internal.h"
 #include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 #include "tensorflow/core/grappler/op_types.h"
+#include "tensorflow/core/platform/refcount.h"
 
 #include "npu_custom_kernel.h"
 #include "npu_device.h"
@@ -50,7 +51,7 @@ const static uint64_t kInvalidGeGraphId = -1;
 
 namespace {
 template <typename T, typename DT>
-class NpuHostFixedAllocator : public tensorflow::Allocator {
+class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::core::RefCounted  {
  public:
   static tensorflow::Allocator *Create(std::unique_ptr<T, DT> ptr) {
     return new (std::nothrow) NpuHostFixedAllocator(std::move(ptr));
@@ -65,7 +66,7 @@ class NpuHostFixedAllocator : public tensorflow::Allocator {
   };
   std::string Name() override { return "NpuHostFixedAllocator"; }
   void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
-  void DeallocateRaw(void *ptr) override { delete this; }
+  void DeallocateRaw(void *ptr) override { Unref(); }
   std::unique_ptr<T, DT> ptr_;
 };
 
