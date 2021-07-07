@@ -57,6 +57,7 @@ limitations under the License.
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/graph/graph.h"
 #include "tensorflow/core/graph/node_builder.h"
+#include "tensorflow/core/lib/core/refcount.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 
 #include "framework/common/ge_inner_error_codes.h"
@@ -74,7 +75,7 @@ Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library
 namespace {
 using geDataUniquePtr = std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>>;
 
-class NpuHostFixedAllocator : public tensorflow::Allocator {
+class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::core::RefCounted {
  public:
   static tensorflow::Allocator *Create(geDataUniquePtr ptr) {
     return new (std::nothrow) NpuHostFixedAllocator(std::move(ptr));
@@ -88,7 +89,7 @@ class NpuHostFixedAllocator : public tensorflow::Allocator {
   }
   std::string Name() override { return "NpuHostFixedAllocator"; }
   void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
-  void DeallocateRaw(void *ptr) override { delete this; }
+  void DeallocateRaw(void *ptr) override { Unref(); }
   geDataUniquePtr ptr_;
 };
 

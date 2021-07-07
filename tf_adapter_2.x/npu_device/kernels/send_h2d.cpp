@@ -35,6 +35,8 @@ class SendH2D : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("device_ids", &device_ids_));
   }
 
+  ~SendH2D() override = default;
+
   void Compute(OpKernelContext *ctx) override {
     if (!initialized_.exchange(true)) {
       std::stringstream ss;

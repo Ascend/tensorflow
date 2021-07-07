@@ -36,7 +36,6 @@ void *PluginLoadManager::DlOpen(const std::string &path) {
   void *handle = dlopen(path.c_str(), RTLD_NOW);
   if (handle == nullptr) {
     ADP_LOG(WARNING) << "dlopen failed, reason:" << dlerror();
-    LOG(WARNING) << "dlopen failed, reason:" << dlerror();
   }
   return handle;
 }
@@ -50,7 +49,6 @@ void *PluginLoadManager::DlSym(void *handle, const std::string &func_name) {
   void *func = dlsym(handle, func_name.c_str());
   if (func == nullptr) {
     ADP_LOG(WARNING) << "get func[" << func_name << "] failed, reason:" << dlerror();
-    LOG(WARNING) << "get func[" << func_name << "] failed, reason:" << dlerror();
   }
   return func;
 }
