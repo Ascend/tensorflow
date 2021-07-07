@@ -33,7 +33,7 @@ get_install_param() {
     if [ ! -f "${_file}" ];then
         exit 1
     fi
-    install_info_key_array=("tfplugin_install_type" "tfplugin_user_name" "tfplugin_user_group" "tfplugin_install_path_param")
+    install_info_key_array=("Tfplugin_Install_Type" "Tfplugin_UserName" "Tfplugin_UserGroup" "Tfplugin_Install_Path_Param")
     for key_param in "${install_info_key_array[@]}"; do
         if [ "${key_param}" == "${_key}" ]; then
             _param=$(grep -r "${_key}=" "${_file}" | cut -d"=" -f2-)
@@ -61,8 +61,8 @@ fi
 
 log_file="${log_dir}/ascend_install.log"
 
-username=$(get_install_param "tfplugin_user_name" "${install_info}")
-usergroup=$(get_install_param "tfplugin_user_group" "${install_info}")
+username=$(get_install_param "Tfplugin_UserName" "${install_info}")
+usergroup=$(get_install_param "Tfplugin_UserGroup" "${install_info}")
 if [ "$username" == "" ]; then
     username="$DEFAULT_USERNAME"
     usergroup="$DEFAULT_USERGROUP"
