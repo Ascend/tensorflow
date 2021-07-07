@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 namespace tensorflow {
+Status CheckOpImplMode(const string &op_select_implmode);
 namespace {
 class NpuAttrTest : public testing::Test {
  protected:
@@ -44,6 +45,9 @@ TEST_F(NpuAttrTest, SplitTest) {
   Split(s, res, ",");
   EXPECT_EQ(res[2], "c");
 }
-
+TEST_F(NpuAttrTest, SetNpuOptimizerAttr) {
+  Status s = CheckOpImplMode("xxx");
+  EXPECT_EQ(s.ok(), false);
+}
 }
 } // end tensorflow

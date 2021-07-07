@@ -117,13 +117,13 @@ __attribute__((unused)) static void AssembleOpDef(tensorflow::Node *n) {
   n->AddAttr("op_def", serialized_op_def);
 }
 
-static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::NodeDef *ndef) {
   std::string serialized_op_def;
   op_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
 
-static void AssembleOpDef(tensorflow::NodeDef *ndef) {
+__attribute__((unused)) static void AssembleOpDef(tensorflow::NodeDef *ndef) {
   const tensorflow::OpRegistrationData *op_reg_data;
   tensorflow::OpRegistry::Global()->LookUp(ndef->op(), &op_reg_data);
   std::string serialized_op_def;
