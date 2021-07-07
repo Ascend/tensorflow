@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 # Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
 # Description: Common depends and micro defines for and only for data preprocess module
 

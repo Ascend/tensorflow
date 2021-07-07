@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from npu_device.distribute import hccl_ops
 from npu_device.npu_device import global_npu_ctx
 from npu_device.npu_device import never_nested_function
