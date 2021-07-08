@@ -268,7 +268,10 @@ uint64_t GePlugin::GetFusionTensorSize() {
     return default_fusion_tensor_size;
   }
   std::string temp_fusion_tensor_size(env_fusion_tensor_size);
-  std::istringstream string_stream(temp_fusion_tensor_size);
+  std::istringstream string_stream;
+  if (!temp_fusion_tensor_size.empty()) {
+    string_stream.str(temp_fusion_tensor_size);
+  }
   uint64_t fusion_tensor_size = 0;
   if (!(string_stream >> fusion_tensor_size)) {
     fusion_tensor_size = default_fusion_tensor_size;
