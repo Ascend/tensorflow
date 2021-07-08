@@ -29,6 +29,7 @@ namespace {
 class FakeOp : public AsyncOpKernel {
  public:
   explicit FakeOp(OpKernelConstruction *context) : AsyncOpKernel(context) {}
+  ~FakeOp() override = default;
 
   void ComputeAsync(OpKernelContext *context, DoneCallback done) override {
     OP_REQUIRES_OK_ASYNC(

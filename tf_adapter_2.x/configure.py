@@ -98,8 +98,8 @@ def setup_python(env_path):
             f.write(python_bin_path)
         with open(real_config_path('COMPILE_FLAGS'), 'w') as f:
             for flag in compile_args[2:-1]:
-                f.write(flag + '\n')
-            f.write("-I" + compile_args[-1] + '\n')
+                f.write("".join([flag , '\n']))
+            f.write("".join(["-I" , compile_args[-1] , '\n']))
         with open(real_config_path('TF_INSTALLED_PATH'), 'w') as f:
             f.write(compile_args[1])
         break
