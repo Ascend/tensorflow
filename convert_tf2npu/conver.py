@@ -40,14 +40,14 @@ def conver():
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(util_global.get_value('input'))[1])
             file_path = os.path.join(path, file_name).replace('\\', '/')
-            content = "Begin conver file: " + file_path
+            content = "".join(["Begin conver file: " , file_path])
             print(content)
             if file_name.endswith(".py"):
                 util_global.set_value('path', file_path)
                 mkdir(os.path.join(out_path, out_path_dst))
                 conver_ast(path, out_path_dst, file_name)
                 if util_global.get_value('need_conver', False):
-                    content = "Finish conver file: " + file_path + '\n'
+                    content = "".join(["Finish conver file: ", file_path, '\n'])
                     print(content)
                     write_report_terminator(content)
                 else:

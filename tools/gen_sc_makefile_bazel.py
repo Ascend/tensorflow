@@ -1,3 +1,5 @@
+#!/usr/bin/python
+#-*- coding: UTF-8 -*-
 # Copyright (C) 2021. Huawei Technologies Co., Ltd. All rights reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-#!/usr/bin/python
-#-*- coding: UTF-8 -*-
 
 import os
 import sys
@@ -46,9 +46,9 @@ def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir="")
             if items[i].endswith("gcc") or items[i].endswith("g++") or items[i].endswith("clang") or items[i].endswith("clang++"):
                 compiler = items[i].split('/')[-1]
                 if compiler.startswith("aarch64"):
-                    items[i] = "external/hcc/bin/" + compiler
+                    items[i] = "".join(["external/hcc/bin/", compiler])
                 if custom_code_top_dir != "" and not items[i].startswith("/") :
-                    items[i] = code_top_dir + "/" + custom_code_top_dir + items[i]
+                    items[i] = "".join([code_top_dir, "/", custom_code_top_dir, items[i]])
                 item_list = items[i:]
                 break
         if len(item_list) == 0:
@@ -98,12 +98,12 @@ def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir="")
                 item = item.strip()
                 if is_add_I:
                     is_add_I = False
-                    item = "-I" + custom_code_top_dir + item
+                    item = "".join(["-I", custom_code_top_dir, item])
                     c_flags_list.append(item)
                     continue
                 if is_add_D:
                     is_add_D = False
-                    item = "-D" + item
+                    item = "".join(["-D", item])
                     c_flags_list.append(item)
                     continue
                 is_add_I = False
@@ -127,9 +127,9 @@ def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir="")
                 wine_str = "export LINT_PATH=%s/vendor/hisi/llt/ci/tools/pc-lint;wine $(LINT_PATH)/LINT-NT.EXE %s $(LINT_PATH)/davinci_x86.lnt %s"%(code_top_dir,c_flags, cpp_file)
 
             rest_option = " ".join(rest_list)
-            gcc_cmd_str = rest_option + " " + gcc_options
+            gcc_cmd_str = " ".join([rest_option, gcc_options])
             gcc_cmd_set[obj_file] = gcc_cmd_str
-            lint_out_path = code_top_dir + "/out/tools/lint/" + obj_file
+            lint_out_path = "".join([code_top_dir, "/out/tools/lint/", obj_file])
             lint_cmd_set[lint_out_path] = wine_str
 
     return gcc_cmd_set,lint_cmd_set
@@ -184,29 +184,29 @@ def main():
 
     fd = open(output_file, "w")
     content = ""
-    content += ".PHONY: all\n"
-    content += "\n"
-    content += "ifeq ($(PCLINT_ENABLE),true)\n"
+    content = "".join([content, ".PHONY: all\n"])
+    content = "".join([content, "\n"])
+    content = "".join([content, "ifeq ($(PCLINT_ENABLE),true)\n"])
     for (obj_file,wine_cmd) in lint_cmd_set.items():
-        obj_file = obj_file + ".lint"
-        content += "all:" + obj_file  + "\n"
-        content += obj_file + ": FORCE\n"
-        content += "\tmkdir -p $(dir $@)\n"
-        content += "\t"+ wine_cmd + " > $@ \n"
-        content += "\n"
-    content += "else\n"
+        obj_file = "".join([obj_file , ".lint"])
+        content = "".join([content, "all:", obj_file, "\n"])
+        content = "".join([content, obj_file, ": FORCE\n"])
+        content = "".join([content, "\tmkdir -p $(dir $@)\n"])
+        content = "".join([content, "\t", wine_cmd, " > $@ \n"])
+        content = "".join([content, "\n"])
+    content = "".join([content, "else\n"])
 
     for (obj_file,gcc_cmd) in gcc_cmd_set.items():
-        content += "all:" + obj_file + "\n"
-        content += obj_file + ": FORCE\n"
-        content += "\trm -rf $@\n"
-        content += "\t $(SOURCEANALYZER) " + gcc_cmd + "\n"
-        content += "\n"
+        content = "".join([content, "all:" , obj_file, "\n"])
+        content = "".join([content, obj_file, ": FORCE\n"])
+        content = "".join([content, "\trm -rf $@\n"])
+        content = "".join([content, "\t $(SOURCEANALYZER) ", gcc_cmd, "\n"])
+        content = "".join([content, "\n"])
 
-    content += "endif\n"
-    content += "\n"
-    content += ".PHONY: FORCE\n"
-    content += "FORCE: \n"
+    content = "".join([content, "endif\n"])
+    content = "".join([content, "\n"])
+    content = "".join([content, ".PHONY: FORCE\n"])
+    content = "".join([content, "FORCE: \n"])
     fd.write(content)
     fd.close()
 
