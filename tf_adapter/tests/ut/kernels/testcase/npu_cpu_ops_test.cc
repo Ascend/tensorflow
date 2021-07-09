@@ -10,7 +10,7 @@ class NpuCpuOpTest : public testing::Test {
 
 TEST_F(NpuCpuOpTest, TestCacheAdd) {
     OpKernelConstruction *context;
-    OpKernelContext *compute_context
+    OpKernelContext *compute_context;
     CacheAddOp cache(context);
     cache.Compute(compute_context);
 }
