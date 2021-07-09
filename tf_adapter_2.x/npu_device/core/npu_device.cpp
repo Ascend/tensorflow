@@ -48,10 +48,14 @@ limitations under the License.
 
 using Format = ge::Format;
 const static uint64_t kInvalidGeGraphId = -1;
-const static std::string kHcomType = "HcomAllReduce";
+const static std::string kHcomAllReduce = "HcomAllReduce";
+const static std::string kHcomBroadcast = "HcomBroadcast";
 const static std::string kNpuLossScaleAttr = "_npu_loss_scale";
 const static std::string kNpuAllocFloatStatusOp = "NpuAllocFloatStatus";
 const static std::string kEnable = "1";
+const static std::string kWeightUpdateGroupingAttr = "_weight_update_grouping";
+const static std::string kReadVariableOp = "ReadVariableOp";
+const static std::string kAssignOp = "AssignVariableOp";
 
 namespace {
 template <typename T, typename DT>
@@ -77,9 +81,9 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
 size_t RemoveRedundantHcomControlEdges(tensorflow::Graph *graph) {
   std::vector<tensorflow::Edge *> edges_to_remove;
   for (auto edge : graph->edges()) {
-    if (edge->IsControlEdge() && (edge->src()->type_string() == kHcomType || edge->dst()->type_string() == kHcomType)) {
-      if (!(edge->src()->type_string() == kHcomType &&
-            edge->src()->def().attr().find(kNpuLossScaleAttr) != edge->src()->def().attr().end())) {
+    if (edge->IsControlEdge() &&
+        (edge->src()->type_string() == kHcomAllReduce || edge->dst()->type_string() == kHcomAllReduce)) {
+      if (!(edge->src()->type_string() == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) != nullptr)) {
         edges_to_remove.push_back(edge);
       }
     }
@@ -448,7 +452,6 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
                           .Attr("_arg_name", node->name())
                           .Attr("_arg_index", int(index))
                           .Finalize(graph, &arg_substitutes[node]));
-
       } else if (arg_is_variable.count(index)) {
         NPU_REQUIRES_OK(tensorflow::NodeBuilder(WrapResourceName(arg_resource_handles[index].name()), "VarHandleOp")
                           .Attr("container", arg_resource_handles[index].container())
@@ -527,7 +530,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
             node->type_string() + "_" + attr.first + "_" + attr.second.func().name() + "_" + std::to_string(node->id());
           const tensorflow::FunctionDef *fdef = lib_def->Find(attr.second.func().name());
           std::unique_ptr<tensorflow::FunctionBody> fbody;
-          FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
+          NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
           std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
           NPU_REQUIRES_OK(TransResourceInput2GraphNode(context, fbody->graph, func_inputs.size(), func_inputs.data(),
                                                        unused_host_resources));
@@ -1008,13 +1011,19 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       graph_dumper.DumpWithSubGraphs("after_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
     }
 
+    bool changed = false;
     if (device_options[ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION] == kEnable) {
-      bool changed = false;
       NPU_CTX_REQUIRES_OK(s, TailingOptimize(context, optimize_graph.get(), changed));
 
       if (kDumpExecutionDetail || kDumpGraph) {
         graph_dumper.DumpWithSubGraphs("after_tailing_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
       }
+    }
+
+    NPU_CTX_REQUIRES_OK(s, WeightUpdateGroupingOptimize(context, optimize_graph.get(), changed));
+    if (kDumpExecutionDetail || kDumpGraph) {
+      graph_dumper.DumpWithSubGraphs("after_weight_update_grouping_optimize", optimize_graph->ToGraphDefDebug(),
+                                     lib_def);
     }
 
     std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources;
@@ -2008,7 +2017,7 @@ tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::
         std::string func_name = attr.second.func().name();
         const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
         std::unique_ptr<tensorflow::FunctionBody> fbody;
-        FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
+        NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
         std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
         bool changed = false;
         NPU_REQUIRES_OK(TailingOptimize(context, fbody->graph, changed));
@@ -2028,14 +2037,13 @@ tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::
         }
       }
     }
-    if (node->type_string() == kNpuAllocFloatStatusOp &&
-        node->def().attr().find(kNpuLossScaleAttr) != node->def().attr().end()) {
+    if (node->type_string() == kNpuAllocFloatStatusOp && node->attrs().Find(kNpuLossScaleAttr) != nullptr) {
       std::unordered_set<const tensorflow::Edge *> edges_to_remove;
       tensorflow::Node *last_allreduce = nullptr;
       for (auto in_edge : node->in_edges()) {
         if (in_edge->IsControlEdge()) {
           if (last_allreduce == nullptr) {
-            if (in_edge->src()->type_string() == kHcomType) {
+            if (in_edge->src()->type_string() == kHcomAllReduce) {
               last_allreduce = in_edge->src();
             }
           }
@@ -2048,8 +2056,8 @@ tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::
 
       tensorflow::Node *float_status_allreduce = nullptr;
       for (auto out_edge : node->out_edges()) {
-        if (out_edge->dst()->type_string() == kHcomType &&
-            out_edge->dst()->def().attr().find(kNpuLossScaleAttr) != node->def().attr().end()) {
+        if (out_edge->dst()->type_string() == kHcomAllReduce &&
+            out_edge->dst()->attrs().Find(kNpuLossScaleAttr) != nullptr) {
           float_status_allreduce = out_edge->dst();
           break;
         }
@@ -2061,12 +2069,12 @@ tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::
       std::unordered_set<tensorflow::Node *> grads;
       tensorflow::Node *previous_allreduce = last_allreduce;
       while (previous_allreduce != nullptr) {
-        const tensorflow::EdgeSet& in_edges = previous_allreduce->in_edges();
+        const tensorflow::EdgeSet &in_edges = previous_allreduce->in_edges();
         previous_allreduce = nullptr;
         for (auto in_edge : in_edges) {
           if (!in_edge->IsControlEdge()) {
             grads.insert(in_edge->src());
-          } else if (in_edge->src()->type_string() == kHcomType) {
+          } else if (in_edge->src()->type_string() == kHcomAllReduce) {
             previous_allreduce = in_edge->src();
           }
         }
@@ -2082,6 +2090,106 @@ tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::
         graph->AddControlEdge(float_status_allreduce, last_allreduce);
         changed = true;
       }
+    }
+  }
+
+  return tensorflow::Status::OK();
+}
+
+tensorflow::Status NpuDevice::WeightUpdateGroupingOptimize(TFE_Context *context, tensorflow::Graph *graph,
+                                                           bool &changed) {
+  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
+  std::vector<tensorflow::Node *> in_nodes;
+  for (tensorflow::Node *node : graph->op_nodes()) {
+    for (auto &attr : node->attrs()) {
+      if (attr.second.has_func()) {
+        std::string func_name = attr.second.func().name();
+        const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
+        std::unique_ptr<tensorflow::FunctionBody> fbody;
+        NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
+        std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
+        bool changed = false;
+        NPU_REQUIRES_OK(WeightUpdateGroupingOptimize(context, fbody->graph, changed));
+        if (changed) {
+          tensorflow::FunctionDef optimized_fdef;
+          auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
+            for (const auto &control_ret : fdef->control_ret()) {
+              if (control_ret.second == node->name()) {
+                return absl::make_optional(node->name());
+              }
+            }
+            return absl::nullopt;
+          };
+          NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, func_name, lookup, &optimized_fdef));
+          NPU_REQUIRES_OK(lib_def->RemoveFunction(func_name));
+          NPU_REQUIRES_OK(lib_def->AddFunctionDef(optimized_fdef));
+        }
+      }
+    }
+
+    if (node->type_string() == kHcomBroadcast && node->attrs().Find(kWeightUpdateGroupingAttr) != nullptr) {
+      std::unordered_set<const tensorflow::Edge *> edges_to_remove;
+      tensorflow::Node *read_var_node = nullptr;
+      for (auto in_edge : node->in_edges()) {
+        if (in_edge->IsControlEdge()) {
+          edges_to_remove.insert(in_edge);
+        } else {
+          if (node->num_inputs() == 1 && in_edge->src()->type_string() == kReadVariableOp &&
+              in_edge->src()->attrs().Find(kWeightUpdateGroupingAttr) != nullptr) {
+            read_var_node = in_edge->src();
+            edges_to_remove.insert(in_edge);
+          }
+        }
+      }
+      if (read_var_node == nullptr) {
+        continue;
+      }
+
+      NPU_REQUIRES((node->num_outputs() == 1),
+                   tensorflow::errors::Internal("When the weight_update_grouping switch ",
+                                                "is on, there can only be one data edge after broadcast ",
+                                                "in the function grouping_gradients_apply"));
+      tensorflow::Node *assign_node = nullptr;
+      for (auto out_edge : node->out_edges()) {
+        if (!out_edge->IsControlEdge()) {
+          NPU_REQUIRES((out_edge->dst()->type_string() == kAssignOp &&
+                        out_edge->dst()->attrs().Find(kWeightUpdateGroupingAttr) != nullptr),
+                       tensorflow::errors::Internal(
+                         "When the weight_update_grouping switch is on, ",
+                         "the operator following broadcast in function grouping_gradients_apply must be assign"));
+          assign_node = out_edge->dst();
+          break;
+        }
+      }
+
+      tensorflow::Node *var_node = nullptr;
+      NPU_REQUIRES_OK(assign_node->input_node(0, &var_node));
+      NPU_REQUIRES((var_node != nullptr), tensorflow::errors::Internal("Get the 0 th input of assign is nullptr"));
+
+      for (auto in_edge : assign_node->in_edges()) {
+        if (in_edge->IsControlEdge()) {
+          edges_to_remove.insert(in_edge);
+        }
+      }
+
+      tensorflow::Node *new_read_var_node = graph->CopyNode(read_var_node);
+      if (new_read_var_node == nullptr) {
+        return tensorflow::errors::Internal("Failed copy node from ", read_var_node->name());
+      }
+      new_read_var_node->set_name(read_var_node->name() + std::string("_copied"));
+
+      for (auto edge : edges_to_remove) {
+        graph->RemoveEdge(edge);
+      }
+
+      graph->AddEdge(var_node, 0, new_read_var_node, 0);
+      graph->AddEdge(new_read_var_node, 0, node, 0);
+      for (auto var_edge : var_node->out_edges()) {
+        if (var_edge->dst() != new_read_var_node && var_edge->dst() != assign_node) {
+          graph->AddControlEdge(assign_node, var_edge->dst());
+        }
+      }
+      changed = true;
     }
   }
 
