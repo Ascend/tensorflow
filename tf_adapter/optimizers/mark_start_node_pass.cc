@@ -119,8 +119,9 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
         if (device_name.find("/job:ps") != std::string::npos) {
           std::string start_node_name;
           std::set<string> start_nodes_name;
-          if (start_node->attrs().Find("_StartNodeName") != nullptr) {
-            start_nodes_name = string_split(start_node->attrs().Find("_StartNodeName")->s(), ";");
+          auto start_node_attr_value = start_node->attrs().Find("_StartNodeName");
+          if (start_node_attr_value != nullptr) {
+            start_nodes_name = string_split(start_node_attr_value->s(), ";");
           }
           start_nodes_name.insert(start_node->name());
           for (const auto &name : start_nodes_name) {
@@ -129,8 +130,9 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
           }
           start_node->AddAttr("_StartNodeName", start_node_name);
 
-          if (n->attrs().Find("_StartNodeName") != nullptr) {
-            std::set<string> nodes_name = string_split(n->attrs().Find("_StartNodeName")->s(), ";");
+          auto n_attr_value = n->attrs().Find("_StartNodeName");
+          if (n_attr_value != nullptr) {
+            std::set<string> nodes_name = string_split(n_attr_value->s(), ";");
             for (const auto &name : nodes_name) { start_nodes_name.insert(name); }
           }
           for (const auto &name : start_nodes_name) {
@@ -160,15 +162,20 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
 }
 
 Status MarkStartNodePass::TraverseNode(Node *start_node) {
+  REQUIRES_NOT_NULL(start_node);
   Status s = Status::OK();
   for (Node *n : start_node->out_nodes()) {
     REQUIRES_NOT_NULL(n);
     std::string start_node_name;
     std::set<string> start_nodes_name;
-    start_nodes_name = string_split(start_node->attrs().Find("_StartNodeName")->s(), ";");
+    auto start_node_attr_value = start_node->attrs().Find("_StartNodeName");
+    if (start_node_attr_value != nullptr) {
+      start_nodes_name = string_split(start_node_attr_value->s(), ";");
+    }
 
-    if (n->attrs().Find("_StartNodeName") != nullptr) {
-      std::set<string> nodes_name = string_split(n->attrs().Find("_StartNodeName")->s(), ";");
+    auto n_attr_value = n->attrs().Find("_StartNodeName");
+    if (n_attr_value != nullptr) {
+      std::set<string> nodes_name = string_split(n_attr_value->s(), ";");
       for (const auto &name : nodes_name) { start_nodes_name.insert(name); }
     }
     for (const auto &name : start_nodes_name) {
