@@ -22,6 +22,6 @@ TEST_F(NpuCpuOpTest, TestCacheAdd) {
     CacheAddOp cache(context);
     delete device;
     delete node_def;
-    delete op_def
+    delete op_def;
 }
 }
