@@ -20,7 +20,7 @@ import time
 def _init():
     global _global_dict
     _global_dict = {}
-    with open('mappings/ast.py', encoding='utf-8') as f:
+    with open('mappings/ast.json') as f:
         load_dict = json.load(f)
         items = load_dict.items()
         for key, value in items:
