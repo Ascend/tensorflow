@@ -16,7 +16,7 @@ TEST_F(NpuCpuOpTest, TestCacheAdd) {
     DeviceBase* device = new DeviceBase(Env::Default());
     NodeDef* node_def = new NodeDef();
     OpDef *op_def = new OpDef();
-    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, deviceBase, nullptr, node_def, op_def, nullptr,
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
                                                              input_types, input_memory_types, output_types, output_memory_types,
                                                              1, nullptr);
     CacheAddOp cache(context);
