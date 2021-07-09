@@ -9,9 +9,13 @@ class NpuCpuOpTest : public testing::Test {
 };
 
 TEST_F(NpuCpuOpTest, TestCacheAdd) {
-    OpKernelConstruction *context;
-    OpKernelContext *compute_context;
+    DataTypeSlice input_types({DT_RESOURCE, DT_INT64});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_INT64, DT_INT64, DT_INT64, DT_INT64});
+    MemoryTypeSlice output_memory_types;
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
     CacheAddOp cache(context);
-    cache.Compute(compute_context);
 }
 }
