@@ -63,6 +63,7 @@ class LruCacheOp : public ResourceOpKernel<CacheInterface> {
 class CacheAddOp : public OpKernel {
  public:
   explicit CacheAddOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~CacheAddOp() override {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "CacheAddOp Compute"; }
 };
 
