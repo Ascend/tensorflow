@@ -184,6 +184,7 @@ Status DataItemDeliver::InitSocketServer() {
       Status::OK()) {
     ADP_LOG(ERROR) << "Failed to create socket.";
     LOG(ERROR) << "Failed to create socket.";
+    close(fd);
     return errors::Internal("Failed to create socket.");
   }
   unlink(local_addr_.sun_path);
@@ -247,11 +248,9 @@ Status DataItemDeliver::CheckHead(const char *check_value) {
     return errors::Internal("Failed to recv head value.");
   }
   if (strcmp(check_value, head) != 0) {
+    ADP_LOG(ERROR) << "Check head failed.";
+    LOG(ERROR) << "Check head failed.";
     free(head);
-    ADP_LOG(ERROR) << "Check head failed, recv:" << head
-                   << ", while right value is:" << check_value;
-    LOG(ERROR) << "Check head failed, recv:" << head
-               << ", while right value is:" << check_value;
     return errors::Internal("Check head failed.");
   }
   free(head);
