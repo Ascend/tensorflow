@@ -666,38 +666,54 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string in_out_pair;
   Status s = Status::OK();
 
-  if (attrs.Find("_NpuOptimizer") != nullptr) {
+  auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
+  auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
+  auto use_off_line_value = attrs.Find("_use_off_line");
+  auto mix_compile_mode_value = attrs.Find("_mix_compile_mode");
+  auto iterations_per_loop_value = attrs.Find("_iterations_per_loop");
+  auto lower_functional_ops_value = attrs.Find("_lower_functional_ops");
+  auto job_value = attrs.Find("_job");
+  auto task_index_value = attrs.Find("_task_index");
+  auto dynamic_input_value = attrs.Find("_dynamic_input");
+  auto dynamic_graph_execute_mode_value = attrs.Find("_dynamic_graph_execute_mode");
+  auto dynamic_inputs_shape_range_value = attrs.Find("_dynamic_inputs_shape_range");
+  auto local_rank_id_value = attrs.Find("_local_rank_id");
+  auto local_device_list_value = attrs.Find("_local_device_list");
+  auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
+  auto in_out_pair_value = attrs.Find("_in_out_pair");
+
+  if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
-    if (attrs.Find("_enable_data_pre_proc") != nullptr) { enable_dp = attrs.Find("_enable_data_pre_proc")->s(); }
-    if (attrs.Find("_use_off_line") != nullptr) { use_off_line = attrs.Find("_use_off_line")->s(); }
-    if (attrs.Find("_mix_compile_mode") != nullptr) { mix_compile_mode = attrs.Find("_mix_compile_mode")->s(); }
-    if (attrs.Find("_iterations_per_loop") != nullptr) {
-      iterations_per_loop = attrs.Find("_iterations_per_loop")->s();
+    if (enable_data_pre_proc_value != nullptr) { enable_dp = enable_data_pre_proc_value->s(); }
+    if (use_off_line_value != nullptr) { use_off_line = use_off_line_value->s(); }
+    if (mix_compile_mode_value != nullptr) { mix_compile_mode = mix_compile_mode_value->s(); }
+    if (iterations_per_loop_value != nullptr) {
+      iterations_per_loop = iterations_per_loop_value->s();
     }
-    if (attrs.Find("_lower_functional_ops") != nullptr) {
-      lower_functional_ops = attrs.Find("_lower_functional_ops")->s();
+    if (lower_functional_ops_value != nullptr) {
+      lower_functional_ops = lower_functional_ops_value->s();
     }
-    if (attrs.Find("_job") != nullptr) {
-      job = attrs.Find("_job")->s();
+    if (job_value != nullptr) {
+      job = job_value->s();
     } else {
       job = "localhost";
     }
-    if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
-    if (attrs.Find("_dynamic_input") != nullptr) { dynamic_input = attrs.Find("_dynamic_input")->s(); }
-    if (attrs.Find("_dynamic_graph_execute_mode") != nullptr) {
-      dynamic_graph_execute_mode = attrs.Find("_dynamic_graph_execute_mode")->s();
+    if (task_index_value != nullptr) { task_index = task_index_value->s(); }
+    if (dynamic_input_value != nullptr) { dynamic_input = dynamic_input_value->s(); }
+    if (dynamic_graph_execute_mode_value != nullptr) {
+      dynamic_graph_execute_mode = dynamic_graph_execute_mode_value->s();
     }
-    if (attrs.Find("_dynamic_inputs_shape_range") != nullptr) {
-      dynamic_inputs_shape_range = attrs.Find("_dynamic_inputs_shape_range")->s();
+    if (dynamic_inputs_shape_range_value != nullptr) {
+      dynamic_inputs_shape_range = dynamic_inputs_shape_range_value->s();
     }
-    if (attrs.Find("_local_rank_id") != nullptr) {
-      local_rank_id = attrs.Find("_local_rank_id")->s();
+    if (local_rank_id_value != nullptr) {
+      local_rank_id = local_rank_id_value->s();
     }
-    if (attrs.Find("_local_device_list") != nullptr) {
-      local_device_list = attrs.Find("_local_device_list")->s();
+    if (local_device_list_value != nullptr) {
+      local_device_list = local_device_list_value->s();
     }
-    if (attrs.Find("_in_out_pair_flag") != nullptr) { in_out_pair_flag = attrs.Find("_in_out_pair_flag")->s(); }
-    if (attrs.Find("_in_out_pair") != nullptr) { in_out_pair = attrs.Find("_in_out_pair")->s(); }
+    if (in_out_pair_flag_value != nullptr) { in_out_pair_flag = in_out_pair_flag_value->s(); }
+    if (in_out_pair_value != nullptr) { in_out_pair = in_out_pair_value->s(); }
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -778,50 +794,105 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string modify_mixlist;
   std::string op_precision_mode;
 
-  if (attrs.Find("_NpuOptimizer") != nullptr) {
+  auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
+  auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
+  auto use_off_line_value = attrs.Find("_use_off_line");
+  auto mix_compile_mode_value = attrs.Find("_mix_compile_mode");
+  auto iterations_per_loop_value = attrs.Find("_iterations_per_loop");
+  auto lower_functional_ops_value = attrs.Find("_lower_functional_ops");
+  auto job_value = attrs.Find("_job");
+  auto task_index_value = attrs.Find("_task_index");
+  auto local_rank_id_value = attrs.Find("_local_rank_id");
+  auto local_device_list_value = attrs.Find("_local_device_list");
+  auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
+  auto in_out_pair_value = attrs.Find("_in_out_pair");
+
+  auto variable_format_optimize_value = attrs.Find("_variable_format_optimize");
+  auto hcom_parallel_value = attrs.Find("_hcom_parallel");
+  auto graph_memory_max_size_value = attrs.Find("_graph_memory_max_size");
+  auto variable_memory_max_size_value = attrs.Find("_variable_memory_max_size");
+  auto enable_dump_value = attrs.Find("_enable_dump");
+  auto enable_dump_debug_value = attrs.Find("_enable_dump_debug");
+  auto dump_path_value = attrs.Find("_dump_path");
+  auto dump_step_value = attrs.Find("_dump_step");
+  auto dump_mode_value = attrs.Find("_dump_mode");
+  auto dump_debug_mode_value = attrs.Find("_dump_debug_mode");
+  auto stream_max_parallel_num_value = attrs.Find("_stream_max_parallel_num");
+
+  auto is_tailing_optimization_value = attrs.Find("_is_tailing_optimization");
+  auto precision_mode_value = attrs.Find("_precision_mode");
+  auto profiling_mode_value = attrs.Find("_profiling_mode");
+  auto profiling_options_value = attrs.Find("_profiling_options");
+  auto auto_tune_mode_value = attrs.Find("_auto_tune_mode");
+  auto graph_run_mode_value = attrs.Find("_graph_run_mode");
+  auto op_debug_level_value = attrs.Find("_op_debug_level");
+  auto enable_scope_fusion_passes_value = attrs.Find("_enable_scope_fusion_passes");
+  auto enable_exception_dump_value = attrs.Find("_enable_exception_dump");
+  auto op_select_implmode_value = attrs.Find("_op_select_implmode");
+  auto optypelist_for_implmode_value = attrs.Find("_optypelist_for_implmode");
+  auto input_shape_value = attrs.Find("_input_shape");
+  auto dynamic_dims_value = attrs.Find("_dynamic_dims");
+  auto dynamic_node_type_value = attrs.Find("_dynamic_node_type");
+  auto aoe_mode_value = attrs.Find("_aoe_mode");
+  auto work_path_value = attrs.Find("_work_path");
+  auto distribute_config_value = attrs.Find("_distribute_config");
+  auto buffer_optimize_value = attrs.Find("_buffer_optimize");
+  auto enable_small_channel_value = attrs.Find("_enable_small_channel");
+  auto fusion_switch_file_value = attrs.Find("_fusion_switch_file");
+  auto enable_compress_weight_value = attrs.Find("_enable_compress_weight");
+  auto compress_weight_conf_value = attrs.Find("_compress_weight_conf");
+  auto op_compiler_cache_mode_value = attrs.Find("_op_compiler_cache_mode");
+  auto op_compiler_cache_dir_value = attrs.Find("_op_compiler_cache_dir");
+  auto debug_dir_value = attrs.Find("_debug_dir");
+  auto hcom_multi_mode_value = attrs.Find("_hcom_multi_mode");
+  auto session_device_id_value = attrs.Find("_session_device_id");
+  auto modify_mixlist_value = attrs.Find("_modify_mixlist");
+  auto op_precision_mode_value = attrs.Find("_op_precision_mode");
+
+  if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
-    if (attrs.Find("_enable_data_pre_proc") != nullptr) { enable_dp = attrs.Find("_enable_data_pre_proc")->s(); }
-    if (attrs.Find("_use_off_line") != nullptr) { use_off_line = attrs.Find("_use_off_line")->s(); }
-    if (attrs.Find("_mix_compile_mode") != nullptr) { mix_compile_mode = attrs.Find("_mix_compile_mode")->s(); }
-    if (attrs.Find("_iterations_per_loop") != nullptr) {
-      iterations_per_loop = attrs.Find("_iterations_per_loop")->s();
+    if (enable_data_pre_proc_value != nullptr) { enable_dp = enable_data_pre_proc_value->s(); }
+    if (use_off_line_value != nullptr) { use_off_line = use_off_line_value->s(); }
+    if (mix_compile_mode_value != nullptr) { mix_compile_mode = mix_compile_mode_value->s(); }
+    if (iterations_per_loop_value != nullptr) {
+      iterations_per_loop = iterations_per_loop_value->s();
     }
-    if (attrs.Find("_lower_functional_ops") != nullptr) {
-      lower_functional_ops = attrs.Find("_lower_functional_ops")->s();
+    if (lower_functional_ops_value != nullptr) {
+      lower_functional_ops = lower_functional_ops_value->s();
     }
-    if (attrs.Find("_job") != nullptr) {
-      job = attrs.Find("_job")->s();
+    if (job_value != nullptr) {
+      job = job_value->s();
     } else {
       job = "localhost";
     }
-    if (attrs.Find("_task_index") != nullptr) { task_index = attrs.Find("_task_index")->s(); }
-    if (attrs.Find("_local_rank_id") != nullptr) {
-      local_rank_id = attrs.Find("_local_rank_id")->s();
+    if (task_index_value != nullptr) { task_index = task_index_value->s(); }
+    if (local_rank_id_value != nullptr) {
+      local_rank_id = local_rank_id_value->s();
     }
-    if (attrs.Find("_local_device_list") != nullptr) {
-      local_device_list = attrs.Find("_local_device_list")->s();
+    if (local_device_list_value != nullptr) {
+      local_device_list = local_device_list_value->s();
     }
-    if (attrs.Find("_in_out_pair_flag") != nullptr) { in_out_pair_flag = attrs.Find("_in_out_pair_flag")->s(); }
-    if (attrs.Find("_in_out_pair") != nullptr) { in_out_pair = attrs.Find("_in_out_pair")->s(); }
+    if (in_out_pair_flag_value != nullptr) { in_out_pair_flag = in_out_pair_flag_value->s(); }
+    if (in_out_pair_value != nullptr) { in_out_pair = in_out_pair_value->s(); }
 
-    if (attrs.Find("_variable_format_optimize") != nullptr) {
-      variable_format_optimize = attrs.Find("_variable_format_optimize")->s();
+    if (variable_format_optimize_value != nullptr) {
+      variable_format_optimize = variable_format_optimize_value->s();
     }
-    if (attrs.Find("_hcom_parallel") != nullptr) { hcom_parallel = attrs.Find("_hcom_parallel")->s(); }
-    if (attrs.Find("_graph_memory_max_size") != nullptr) {
-      graph_memory_max_size = attrs.Find("_graph_memory_max_size")->s();
+    if (hcom_parallel_value != nullptr) { hcom_parallel = hcom_parallel_value->s(); }
+    if (graph_memory_max_size_value != nullptr) {
+      graph_memory_max_size = graph_memory_max_size_value->s();
     }
-    if (attrs.Find("_variable_memory_max_size") != nullptr) {
-      variable_memory_max_size = attrs.Find("_variable_memory_max_size")->s();
+    if (variable_memory_max_size_value != nullptr) {
+      variable_memory_max_size = variable_memory_max_size_value->s();
     }
-    if (attrs.Find("_enable_dump") != nullptr) { enable_dump = attrs.Find("_enable_dump")->s(); }
-    if (attrs.Find("_enable_dump_debug") != nullptr) { enable_dump_debug = attrs.Find("_enable_dump_debug")->s(); }
+    if (enable_dump_value != nullptr) { enable_dump = enable_dump_value->s(); }
+    if (enable_dump_debug_value != nullptr) { enable_dump_debug = enable_dump_debug_value->s(); }
     if (enable_dump != std::to_string(false) || enable_dump_debug != std::to_string(false)) {
-      if (attrs.Find("_dump_path") != nullptr) { dump_path = attrs.Find("_dump_path")->s(); }
+      if (dump_path_value != nullptr) { dump_path = dump_path_value->s(); }
     }
     if (enable_dump != std::to_string(false)) {
-      if (attrs.Find("_dump_step") != nullptr) {
-        dump_step = attrs.Find("_dump_step")->s();
+      if (dump_step_value != nullptr) {
+        dump_step = dump_step_value->s();
         if (!dump_step.empty()) {
           Status s = checkDumpStep(dump_step);
           if (!s.ok()) {
@@ -830,8 +901,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
           }
         }
       }
-      if (attrs.Find("_dump_mode") != nullptr) {
-        dump_mode = attrs.Find("_dump_mode")->s();
+      if (dump_mode_value != nullptr) {
+        dump_mode = dump_mode_value->s();
         Status s = checkDumpMode(dump_mode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
@@ -840,8 +911,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
       }
     }
     if (enable_dump_debug != std::to_string(false)) {
-      if (attrs.Find("_dump_debug_mode") != nullptr) {
-        dump_debug_mode = attrs.Find("_dump_debug_mode")->s();
+      if (dump_debug_mode_value != nullptr) {
+        dump_debug_mode = dump_debug_mode_value->s();
         Status s = checkDumpDebugMode(dump_debug_mode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
@@ -849,72 +920,72 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         }
       }
     }
-    if (attrs.Find("_stream_max_parallel_num") != nullptr) {
-      stream_max_parallel_num = attrs.Find("_stream_max_parallel_num")->s();
+    if (stream_max_parallel_num_value != nullptr) {
+      stream_max_parallel_num = stream_max_parallel_num_value->s();
     }
 
-    if (attrs.Find("_is_tailing_optimization") != nullptr) {
-      is_tailing_optimization = attrs.Find("_is_tailing_optimization")->s();
+    if (is_tailing_optimization_value != nullptr) {
+      is_tailing_optimization = is_tailing_optimization_value->s();
     }
-    if (attrs.Find("_precision_mode") != nullptr) { precision_mode = attrs.Find("_precision_mode")->s(); }
-    if (attrs.Find("_profiling_mode") != nullptr) { profiling_mode = attrs.Find("_profiling_mode")->s(); }
-    if (attrs.Find("_profiling_options") != nullptr) { profiling_options = attrs.Find("_profiling_options")->s(); }
-    if (attrs.Find("_auto_tune_mode") != nullptr) { auto_tune_mode = attrs.Find("_auto_tune_mode")->s(); }
-    if (attrs.Find("_graph_run_mode") != nullptr) { graph_run_mode = attrs.Find("_graph_run_mode")->s(); }
-    if (attrs.Find("_op_debug_level") != nullptr) { op_debug_level = attrs.Find("_op_debug_level")->s(); }
-    if (attrs.Find("_enable_scope_fusion_passes") != nullptr) {
-      enable_scope_fusion_passes = attrs.Find("_enable_scope_fusion_passes")->s();
+    if (precision_mode_value != nullptr) { precision_mode = precision_mode_value->s(); }
+    if (profiling_mode_value != nullptr) { profiling_mode = profiling_mode_value->s(); }
+    if (profiling_options_value != nullptr) { profiling_options = profiling_options_value->s(); }
+    if (auto_tune_mode_value != nullptr) { auto_tune_mode = auto_tune_mode_value->s(); }
+    if (graph_run_mode_value != nullptr) { graph_run_mode = graph_run_mode_value->s(); }
+    if (op_debug_level_value != nullptr) { op_debug_level = op_debug_level_value->s(); }
+    if (enable_scope_fusion_passes_value != nullptr) {
+      enable_scope_fusion_passes = enable_scope_fusion_passes_value->s();
     }
-    if (attrs.Find("_enable_exception_dump") != nullptr) {
-      enable_exception_dump = attrs.Find("_enable_exception_dump")->s();
+    if (enable_exception_dump_value != nullptr) {
+      enable_exception_dump = enable_exception_dump_value->s();
     }
-    if (attrs.Find("_op_select_implmode") != nullptr) {
-      op_select_implmode = attrs.Find("_op_select_implmode")->s();
+    if (op_select_implmode_value != nullptr) {
+      op_select_implmode = op_select_implmode_value->s();
     }
-    if (attrs.Find("_optypelist_for_implmode") != nullptr) {
-      optypelist_for_implmode = attrs.Find("_optypelist_for_implmode")->s();
+    if (optypelist_for_implmode_value != nullptr) {
+      optypelist_for_implmode = optypelist_for_implmode_value->s();
     }
-    if (attrs.Find("_input_shape") != nullptr) { input_shape = attrs.Find("_input_shape")->s(); }
-    if (attrs.Find("_dynamic_dims") != nullptr) { dynamic_dims = attrs.Find("_dynamic_dims")->s(); }
-    if (attrs.Find("_dynamic_node_type") != nullptr) {
-      dynamic_node_type = attrs.Find("_dynamic_node_type")->s();
+    if (input_shape_value != nullptr) { input_shape = input_shape_value->s(); }
+    if (dynamic_dims_value != nullptr) { dynamic_dims = dynamic_dims_value->s(); }
+    if (dynamic_node_type_value != nullptr) {
+      dynamic_node_type = dynamic_node_type_value->s();
     }
-    if (attrs.Find("_aoe_mode") != nullptr) { aoe_mode = attrs.Find("_aoe_mode")->s(); }
-    if (attrs.Find("_work_path") != nullptr) { work_path = attrs.Find("_work_path")->s(); }
-    if (attrs.Find("_distribute_config") != nullptr) { distribute_config = attrs.Find("_distribute_config")->s(); }
-    if (attrs.Find("_buffer_optimize") != nullptr) { buffer_optimize = attrs.Find("_buffer_optimize")->s(); }
-    if (attrs.Find("_enable_small_channel") != nullptr) {
-      enable_small_channel = attrs.Find("_enable_small_channel")->s();
+    if (aoe_mode_value != nullptr) { aoe_mode = aoe_mode_value->s(); }
+    if (work_path_value != nullptr) { work_path = work_path_value->s(); }
+    if (distribute_config_value != nullptr) { distribute_config = distribute_config_value->s(); }
+    if (buffer_optimize_value != nullptr) { buffer_optimize = buffer_optimize_value->s(); }
+    if (enable_small_channel_value != nullptr) {
+      enable_small_channel = enable_small_channel_value->s();
     }
-    if (attrs.Find("_fusion_switch_file") != nullptr) {
-      fusion_switch_file = attrs.Find("_fusion_switch_file")->s();
+    if (fusion_switch_file_value != nullptr) {
+      fusion_switch_file = fusion_switch_file_value->s();
     }
-    if (attrs.Find("_enable_compress_weight") != nullptr) {
-      enable_compress_weight = attrs.Find("_enable_compress_weight")->s();
+    if (enable_compress_weight_value != nullptr) {
+      enable_compress_weight = enable_compress_weight_value->s();
     }
-    if (attrs.Find("_compress_weight_conf") != nullptr) {
-      compress_weight_conf = attrs.Find("_compress_weight_conf")->s();
+    if (compress_weight_conf_value != nullptr) {
+      compress_weight_conf = compress_weight_conf_value->s();
     }
-    if (attrs.Find("_op_compiler_cache_mode") != nullptr) {
-      op_compiler_cache_mode = attrs.Find("_op_compiler_cache_mode")->s();
+    if (op_compiler_cache_mode_value != nullptr) {
+      op_compiler_cache_mode = op_compiler_cache_mode_value->s();
     }
-    if (attrs.Find("_op_compiler_cache_dir") != nullptr) {
-      op_compiler_cache_dir = attrs.Find("_op_compiler_cache_dir")->s();
+    if (op_compiler_cache_dir_value != nullptr) {
+      op_compiler_cache_dir = op_compiler_cache_dir_value->s();
     }
-    if (attrs.Find("_debug_dir") != nullptr) {
-      debug_dir = attrs.Find("_debug_dir")->s();
+    if (debug_dir_value != nullptr) {
+      debug_dir = debug_dir_value->s();
     }
-    if (attrs.Find("_hcom_multi_mode") != nullptr) {
-      hcom_multi_mode = attrs.Find("_hcom_multi_mode")->s();
+    if (hcom_multi_mode_value != nullptr) {
+      hcom_multi_mode = hcom_multi_mode_value->s();
     }
-    if (attrs.Find("_session_device_id") != nullptr) {
-      session_device_id = attrs.Find("_session_device_id")->s();
+    if (session_device_id_value != nullptr) {
+      session_device_id = session_device_id_value->s();
     }
-    if (attrs.Find("_modify_mixlist") != nullptr) {
-      modify_mixlist = attrs.Find("_modify_mixlist")->s();
+    if (modify_mixlist_value != nullptr) {
+      modify_mixlist = modify_mixlist_value->s();
     }
-    if (attrs.Find("_op_precision_mode") != nullptr) {
-      op_precision_mode = attrs.Find("_op_precision_mode")->s();
+    if (op_precision_mode_value != nullptr) {
+      op_precision_mode = op_precision_mode_value->s();
     }
   }
 

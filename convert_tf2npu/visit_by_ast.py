@@ -112,7 +112,7 @@ def get_tf_api(file_name):
     import_list = ['tf', 'hvd']
     for module in import_list:
         for i in range(len(visitor.calls)):
-            if module + '.' in visitor.calls[i] and visitor.calls[i].split('.')[0] == module:
+            if "".join([module , '.']) in visitor.calls[i] and visitor.calls[i].split('.')[0] == module:
                 api.append(visitor.calls[i])
                 lineno.append(visitor.linenos[i])
     return api, lineno

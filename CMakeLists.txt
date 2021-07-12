@@ -93,12 +93,12 @@ else()
     set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> <DEFINES>  -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
 
     add_custom_command(
-        OUTPUT ${BASE_DIR}/tensorflow_framework.cc
-        COMMAND touch ${BASE_DIR}/tensorflow_framework.cc
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_framework.cc
+        COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_framework.cc
     )
 
     add_library(tensorflow_framework SHARED
-        ${BASE_DIR}/tensorflow_framework.cc
+        ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_framework.cc
     )
 
     #rename libtensorflow_framework.so to libtensorflow_framework.so.1
@@ -108,12 +108,12 @@ else()
     )
 
     add_custom_command(
-        OUTPUT ${BASE_DIR}/pywrap_tensorflow_internal.cc
-        COMMAND touch ${BASE_DIR}/pywrap_tensorflow_internal.cc
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pywrap_tensorflow_internal.cc
+        COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/pywrap_tensorflow_internal.cc
     )
 
     add_library(pywrap_tensorflow_internal SHARED
-        ${BASE_DIR}/pywrap_tensorflow_internal.cc
+        ${CMAKE_CURRENT_BINARY_DIR}/pywrap_tensorflow_internal.cc
     )
 
     #rename libpywrap_tensorflow_internal.so to _pywrap_tensorflow_internal.so
@@ -230,12 +230,6 @@ else()
     	&& cd ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && ${HI_PYTHON} setup.py bdist_wheel >/dev/null
         && cp -f dist/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
-        && rm -rf ${BASE_DIR}/pywrap_tensorflow_internal.cc
-        && rm -rf ${BASE_DIR}/tensorflow_framework.cc
-        && rm -rf ${BASE_DIR}/_pywrap_tensorflow_internal.so
-        && rm -rf ${BASE_DIR}/libpywrap_tensorflow_internal.so
-        && rm -rf ${BASE_DIR}/libtensorflow_framework.so.1
-        && rm -rf ${BASE_DIR}/libtensorflow_framework.so
         && echo "package whl end"
     )
     ###################################### Tensorflow 2.x ###########################################
