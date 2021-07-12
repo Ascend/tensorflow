@@ -112,8 +112,8 @@ def setup_python():
       f.write(python_bin_path)
     with open(real_config_path('COMPILE_FLAGS'), 'w') as f:
       for flag in compile_args[2:-1]:
-        f.write(flag + '\n')
-      f.write("-I" + compile_args[-1] + '\n')
+        f.write("".join([flag , '\n']))
+      f.write("".join(["-I" , compile_args[-1] , '\n']))
     print('tensorflow path: %s.' % compile_args[1])
     with open(real_config_path('LINK_FLAGS'), 'w') as f:
       f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))

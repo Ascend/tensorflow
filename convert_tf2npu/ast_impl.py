@@ -463,7 +463,7 @@ def ast_call(node):
     for estimator in util_global.get_value('Estimators', []):
         if (isinstance(node.func, ast.Attribute) and (node.func.attr == estimator)) \
             or (isinstance(node.func, ast.Name) and (node.func.id == estimator)):
-            log_msg(getattr(node, 'lineno'), estimator + '() add config=npu_run_config_init()')
+            log_msg(getattr(node, 'lineno'), "".join([estimator , '() add config=npu_run_config_init()']))
             config = None
             for keyword in node.keywords:
                 if keyword.arg == 'config':

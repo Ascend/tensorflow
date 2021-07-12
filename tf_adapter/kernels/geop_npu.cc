@@ -105,7 +105,7 @@ public:
   geDataUniquePtr data_;
 };
 
-class NpuHostGetNextAllocator : public tensorflow::Allocator {
+class NpuHostGetNextAllocator : public tensorflow::Allocator , public tensorflow::core::RefCounted {
  public:
   static tensorflow::Allocator *Create(std::unique_ptr<NpuGetNextOutputInfo> output) {
     return new (std::nothrow) NpuHostGetNextAllocator(std::move(output));
@@ -119,7 +119,7 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator {
   }
   std::string Name() override { return "NpuHostGetNextAllocator"; }
   void *AllocateRaw(size_t alignment, size_t num_bytes) override { return output_.get(); }
-  void DeallocateRaw(void *ptr) override { delete this; }
+  void DeallocateRaw(void *ptr) override { Unref(); }
   std::unique_ptr<NpuGetNextOutputInfo> output_;
 };
 
