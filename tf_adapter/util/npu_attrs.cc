@@ -665,7 +665,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string in_out_pair_flag = std::to_string(true);
   std::string in_out_pair;
   Status s = Status::OK();
-  
+
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
   auto use_off_line_value = attrs.Find("_use_off_line");
@@ -681,7 +681,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
-  
+
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
     if (enable_data_pre_proc_value != nullptr) { enable_dp = enable_data_pre_proc_value->s(); }
@@ -806,7 +806,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
-  
+
   auto variable_format_optimize_value = attrs.Find("_variable_format_optimize");
   auto hcom_parallel_value = attrs.Find("_hcom_parallel");
   auto graph_memory_max_size_value = attrs.Find("_graph_memory_max_size");
