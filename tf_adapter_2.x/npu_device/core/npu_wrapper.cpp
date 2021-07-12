@@ -72,6 +72,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"is_tailing_optimization", ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION},
   {"op_debug_level", ge::OP_DEBUG_LEVEL},
   {"debug_dir", ge::DEBUG_DIR},
+  {"modify_mixlist", ge::MODIFY_MIXLIST},
   {"enable_exception_dump", ge::OPTION_EXEC_ENABLE_EXCEPTION_DUMP},
   {"enable_dump", ge::OPTION_EXEC_ENABLE_DUMP},
   {"dump_path", ge::OPTION_EXEC_DUMP_PATH},
