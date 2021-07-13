@@ -36,6 +36,7 @@ limitations under the License.
 #include "npu_device.h"
 #include "npu_dp.h"
 #include "npu_env.h"
+#include "npu_global.h"
 #include "npu_logger.h"
 #include "npu_micros.h"
 #include "npu_parser.h"
@@ -59,7 +60,7 @@ const static std::string kAssignOp = "AssignVariableOp";
 
 namespace {
 template <typename T, typename DT>
-class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::core::RefCounted  {
+class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::core::RefCounted {
  public:
   static tensorflow::Allocator *Create(std::unique_ptr<T, DT> ptr) {
     return new (std::nothrow) NpuHostFixedAllocator(std::move(ptr));
@@ -1562,8 +1563,9 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   }
 
   // TODO:这里根据小循环策略修改值
-  int64_t iterations_per_loop = spec->NeedLoop() ? kGlobalLoopSize : 1;
+  int64_t iterations_per_loop = 1;
   if (spec->NeedLoop()) {
+    iterations_per_loop = npu::global::g_npu_loop_size;
     SetNpuLoopSize(context, iterations_per_loop, status);
     if (TF_GetCode(status) != TF_OK) return;
   }

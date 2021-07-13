@@ -13,6 +13,7 @@ if [ "$(arch)" != "x86_64" ];then
 fi
 
 if [ ! -f "/home/jenkins/tensorflow24/.env/bin/activate" ];then
+  echo "No venv for tensorflow2.x installed, skip CI build"
   exit 0
 fi
 

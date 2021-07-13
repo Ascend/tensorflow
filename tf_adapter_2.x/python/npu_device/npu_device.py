@@ -41,6 +41,10 @@ def stupid_repeat(word, times):
     return _npu_device_backends.StupidRepeat(word, times)
 
 
+def set_npu_loop_size(loop_size):
+    _npu_device_backends.SetNpuLoopSize(loop_size)
+
+
 _global_options = None
 _global_options_lock = threading.Lock()
 

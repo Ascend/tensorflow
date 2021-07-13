@@ -20,6 +20,16 @@ limitations under the License.
 
 namespace npu {
 namespace global {
+std::atomic_int64_t g_npu_loop_size{[]() -> int64_t {
+  tensorflow::int64 loop_size = 1;
+  tensorflow::ReadInt64FromEnvVar("NPU_LOOP_SIZE", 1, &loop_size);
+  if (loop_size <= 0) {
+    LOG(ERROR) << "Npu loop size must be greater than 0, got " << loop_size << " set by env 'NPU_LOOP_SIZE'";
+    return 1;
+  }
+  return loop_size;
+}()};
+
 tensorflow::mutex dev_memory_shared_lock;
 bool dev_memory_released{false};
 
