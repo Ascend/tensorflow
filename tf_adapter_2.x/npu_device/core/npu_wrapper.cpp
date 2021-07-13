@@ -193,4 +193,14 @@ PYBIND11_MODULE(_npu_device_backends, m) {
       LOG(INFO) << device_name;
     }
   });
+
+  m.def("SetNpuLoopSize", [](int64_t loop_size) {
+    if (loop_size <= 0) {
+      LOG(ERROR) << "Npu loop size must be greater than 0, got " << loop_size;
+      return;
+    }
+    npu::global::g_npu_loop_size = loop_size;
+    LOG(INFO) << "Npu loop size is set to " << npu::global::g_npu_loop_size
+              << ", it will take effect in the next training loop";
+  });
 };

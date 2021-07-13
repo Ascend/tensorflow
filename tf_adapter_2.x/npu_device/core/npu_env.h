@@ -41,12 +41,6 @@ const static bool kCustomKernelEnabled = []() -> bool {
   return use_custom_kernel;
 }();
 
-const static int64_t kGlobalLoopSize = []() -> int64_t {
-  tensorflow::int64 loop_size = 1;
-  tensorflow::ReadInt64FromEnvVar("NPU_LOOP_SIZE", 1, &loop_size);
-  return loop_size;
-}();
-
 const static bool kPerfEnabled = []() -> bool {
   bool perf_enabled = false;
   tensorflow::ReadBoolFromEnvVar("NPU_ENABLE_PERF", false, &perf_enabled);

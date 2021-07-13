@@ -22,6 +22,8 @@ limitations under the License.
 
 namespace npu {
 namespace global {
+// 全局Device循环次数设置
+extern std::atomic_int64_t g_npu_loop_size;
 // 控制Device内存释放的全局读写锁
 extern tensorflow::mutex dev_memory_shared_lock;
 extern bool dev_memory_released TF_GUARDED_BY(dev_memory_shared_lock);
