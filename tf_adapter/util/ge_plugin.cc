@@ -260,23 +260,13 @@ std::map<std::string, std::string> GePlugin::GetInitOptions() {
 }
 
 uint64_t GePlugin::GetFusionTensorSize() {
-  const char *env_fusion_tensor_size = getenv("FUSION_TENSOR_SIZE");
-
-  // default (50KBytes)
-  const uint64_t default_fusion_tensor_size = 524288000;
-  if (env_fusion_tensor_size == nullptr || strlen(env_fusion_tensor_size) >= ADAPTER_ENV_MAX_LENTH) {
-    return default_fusion_tensor_size;
+  const int64 fusion_tensor_size_default = 524288000;
+  int64 fusion_tensor_size = fusion_tensor_size_default;
+  Status s = ReadInt64FromEnvVar("FUSION_TENSOR_SIZE", fusion_tensor_size_default, &fusion_tensor_size);
+  if (s.ok() && fusion_tensor_size >= 0) {
+    return static_cast<uint64_t>(fusion_tensor_size);
   }
-  std::string temp_fusion_tensor_size(env_fusion_tensor_size);
-  std::istringstream string_stream;
-  if (!temp_fusion_tensor_size.empty()) {
-    string_stream.str(temp_fusion_tensor_size);
-  }
-  uint64_t fusion_tensor_size = 0;
-  if (!(string_stream >> fusion_tensor_size)) {
-    fusion_tensor_size = default_fusion_tensor_size;
-  }
-  return fusion_tensor_size;
+  return static_cast<uint64_t>(fusion_tensor_size_default);
 }
 
 void GePlugin::Finalize() {
