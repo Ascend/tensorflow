@@ -39,15 +39,13 @@ def mkdir_and_copyfile(srcfile, dstpath, file_name):
     shutil.copyfile(os.path.join(srcfile, file_name), os.path.join(dstpath, file_name))
 
 def write_output_after_conver(out_file, dst_content):
-    file = open(out_file, 'w')
-    file.write(dst_content)
-    file.close()
+    with open(out_file, 'w') as file:
+        file.write(dst_content)
 
 def write_report_after_conver(new_file_path, report_file, dst_content):
     mkdir(new_file_path)
-    file = open(os.path.join(new_file_path, report_file), 'w')
-    file.write(dst_content)
-    file.close()
+    with open(os.path.join(new_file_path, report_file), 'w') as file:
+        file.write(dst_content)
 
 def get_bit_val(value, index):
     if value & (1 << index):
@@ -63,29 +61,26 @@ def write_report_terminator(content):
         if get_bit_val(value, times - 1):
             file = util_global.get_value('report_file')[times - 1]
             if os.path.exists(os.path.join(report_path, file)):
-                file = open(os.path.join(report_path, file), 'a')
-                file.write(content)
-                file.write("\r\n")
-                file.write("\r\n")
-                file.close()
+                with open(os.path.join(report_path, file), 'a') as file:
+                    file.write(content)
+                    file.write("\r\n")
+                    file.write("\r\n")
         times = times - 1
     util_global.set_value('report_file_status', 0)
 
 def write_conver_report(content, file):
     report_path = util_global.get_value('report')
     mkdir(report_path)
-    file = open(os.path.join(report_path, file), 'a')
-    file.write(content)
-    file.write("\r\n")
-    file.close()
+    with open(os.path.join(report_path, file), 'a') as file:
+        file.write(content)
+        file.write("\r\n")
 
 def write_analysis_report(content, file):
     report_path = util_global.get_value('report')
     mkdir(report_path)
-    file = open(os.path.join(report_path, file), 'a')
-    file.write(content)
-    file.write("\r\n")
-    file.close()
+    with open(os.path.join(report_path, file), 'a') as file:
+        file.write(content)
+        file.write("\r\n")
 
 def abs_join(abs1, abs2):
     abs2 = os.fspath(abs2)
