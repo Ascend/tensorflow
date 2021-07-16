@@ -1213,7 +1213,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       const char *aoe_mode_env = std::getenv("AOE_MODE");
       std::string aoe_mode_config;
       if (params.count("aoe_mode")) {
-        aoe_mode_config = params.count("aoe_mode").s();
+        aoe_mode_config = params.at("aoe_mode").s();
       }
       if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
         aoe_mode = "";
