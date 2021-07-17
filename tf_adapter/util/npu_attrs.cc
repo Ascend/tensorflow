@@ -115,7 +115,7 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
   delete[] buffer;
 }
 
-Status GetAoeMode(std::map<std::string, ge::AttrValue> &params, std::string &aoe_mode) {
+Status GetAoeMode(std::map<std::string, AttrValue> &params, std::string &aoe_mode) {
   const char *aoe_mode_env = std::getenv("AOE_MODE");
   std::string aoe_mode_config;
   if (params.count("aoe_mode")) {
