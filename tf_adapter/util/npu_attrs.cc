@@ -297,7 +297,7 @@ Status GetAoeTuningConfigs(const google::protobuf::Map<std::string, AttrValue> p
   }
   if(aoe_mode_env == nullptr) {
     aoe_mode_env = "";
-    } 
+  } 
   if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
     aoe_mode = "";
     LOG(INFO) << "yuxing1: " << aoe_mode;
