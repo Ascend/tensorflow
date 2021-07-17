@@ -289,20 +289,14 @@ bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
 
 std::string GetAoeTuningConfigs(const char *aoe_mode_env, std::string aoe_mode_config) {
   std::string aoe_mode;
-  LOG(INFO) << "yuxingAOE_MODE: " << aoe_mode_env;
   if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
     aoe_mode = "";
-    LOG(INFO) << "yuxing1: " << aoe_mode;
   } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
     aoe_mode = aoe_mode_env;
-    LOG(INFO) << "yuxing2: " << aoe_mode;
   } else {
     aoe_mode = aoe_mode_config;
-    LOG(INFO) << "yuxing3: " << aoe_mode;
   }
-}
-  
-  return Status::OK();
+  return aoe_mode;
 }
 
 void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
