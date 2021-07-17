@@ -291,13 +291,10 @@ std::string GetAoeTuningConfigs(const char *aoe_mode_env, std::string aoe_mode_c
   std::string aoe_mode;
   if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
     aoe_mode = "";
-    LOG(INFO) << "yuxingcheck1: " << aoe_mode;
   } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
     aoe_mode = aoe_mode_env;
-    LOG(INFO) << "yuxingcheck2: " << aoe_mode;
   } else {
     aoe_mode = aoe_mode_config;
-    LOG(INFO) << "yuxingcheck3: " << aoe_mode;
   }
   return aoe_mode;
 }
@@ -1226,17 +1223,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
 
       const char *aoe_mode_env = std::getenv("AOE_MODE");
-      LOG(INFO) << "yuxingAOE_MODE: " << aoe_mode_env;
       std::string aoe_mode_config;
       if (params.count("aoe_mode")) {
         aoe_mode_config = params.at("aoe_mode").s();
-        LOG(INFO) << "yuxingaoe_mode_config: " << aoe_mode_config;
       }
       aoe_mode = GetAoeTuningConfigs(aoe_mode_env, aoe_mode_config);
       if (!aoe_mode.empty()) {
-        LOG(INFO) << "yuxingcheckA: " << aoe_mode;
         Status s = CheckAoeMode(aoe_mode);
-        LOG(INFO) << "yuxingcheckB: " << aoe_mode;
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
