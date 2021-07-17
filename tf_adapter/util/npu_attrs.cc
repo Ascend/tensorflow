@@ -1242,7 +1242,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
 
-      Status s = GetAoeMode(params，aoe_mode);
+      Status s = GetAoeMode(params, aoe_mode);
       if (!s.ok()) {
         ADP_LOG(FATAL) << s.error_message();
         LOG(FATAL) << s.error_message();
