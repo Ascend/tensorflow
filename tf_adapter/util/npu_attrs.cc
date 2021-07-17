@@ -292,22 +292,22 @@ Status GetAoeTuningConfigs(const google::protobuf::Map<std::string, AttrValue> p
   std::string aoe_mode_config;
   if (params.count("aoe_mode")) {
     aoe_mode_config = params.at("aoe_mode").s();
-    LOG(Info) << "yuxingaoe_mode_config: " << aoe_mode_config;
+    LOG(INFO) << "yuxingaoe_mode_config: " << aoe_mode_config;
   }
   if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
     aoe_mode = "";
-    LOG(Info) << "yuxing1: " << aoe_mode;
+    LOG(INFO) << "yuxing1: " << aoe_mode;
   } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
     aoe_mode = aoe_mode_env;
-    LOG(Info) << "yuxing2: " << aoe_mode;
+    LOG(INFO) << "yuxing2: " << aoe_mode;
   } else {
     aoe_mode = aoe_mode_config;
-    LOG(Info) << "yuxing3: " << aoe_mode;
+    LOG(INFO) << "yuxing3: " << aoe_mode;
   }
   if (!aoe_mode.empty()) {
-    LOG(Info) << "yuxing4: " << aoe_mode;
+    LOG(INFO) << "yuxing4: " << aoe_mode;
     Status s  = CheckAoeMode(aoe_mode);
-    LOG(Info) << "yuxing5: " << aoe_mode;
+    LOG(INFO) << "yuxing5: " << aoe_mode;
     if (!s.ok()) { return s; }
     if (params.count("work_path")) {
       std::string tmp_path = params.at("work_path").s();
