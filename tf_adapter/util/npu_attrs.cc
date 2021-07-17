@@ -1224,9 +1224,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
       const char *aoe_mode_env = std::getenv("AOE_MODE");
       std::string aoe_mode_config;
-      if (params.count("aoe_mode")) {
-        aoe_mode_config = params.at("aoe_mode").s();
-      }
+      if (params.count("aoe_mode")) { aoe_mode_config = params.at("aoe_mode").s(); }
       aoe_mode = GetAoeTuningConfigs(aoe_mode_env, aoe_mode_config);
       if (!aoe_mode.empty()) {
         Status s = CheckAoeMode(aoe_mode);
@@ -1253,7 +1251,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           distribute_config = params.at("distribute_config").s();
         }
       }
-
       if (params.count("precision_mode")) {
         precision_mode = params.at("precision_mode").s();
       } else {
