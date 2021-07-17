@@ -115,8 +115,12 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
   delete[] buffer;
 }
 
-std::string GetAoeMode(const char *aoe_mode_env, std::string aoe_mode_config) {
-  std::string aoe_mode;
+Status GetAoeMode(std::map<std::string, ge::AttrValue> &params, std::string &aoe_mode) {
+  const char *aoe_mode_env = std::getenv("AOE_MODE");
+  std::string aoe_mode_config;
+  if (params.count("aoe_mode")) {
+    aoe_mode_config = params.at("aoe_mode").s();
+  }
   if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
     aoe_mode = "";
   } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
@@ -124,7 +128,23 @@ std::string GetAoeMode(const char *aoe_mode_env, std::string aoe_mode_config) {
   } else {
     aoe_mode = aoe_mode_config;
   }
-  return aoe_mode;
+  if (!aoe_mode.empty()) {
+    Status s  = CheckAoeMode(aoe_mode);
+    if (!s.ok()) { return s; }
+    if (params.count("work_path")) {
+      std::string tmp_path = params.at("work_path").s();
+      s = CheckPath(tmp_path, work_path);
+      if (!s.ok()) { return s; }
+    } else {
+      std::string tmp_path = work_path;
+      s = CheckPath(tmp_path, work_path);
+      if (!s.ok()) { return s; }
+    }
+    if (params.count("distribute_config")) {
+      distribute_config = params.at("distribute_config").s();
+    }
+  }
+  return Status::OK();
 }
 
 inline Status checkDumpStep(const string &dump_step) {
@@ -1222,37 +1242,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
 
-      const char *aoe_mode_env = std::getenv("AOE_MODE");
-      std::string aoe_mode_config;
-      if (params.count("aoe_mode")) {
-        aoe_mode_config = params.at("aoe_mode").s();
+      Status s = GetAoeMode(params，aoe_mode);
+      if (!s.ok()) {
+        ADP_LOG(FATAL) << s.error_message();
+        LOG(FATAL) << s.error_message();
       }
-      aoe_mode = GetAoeMode(aoe_mode_env, aoe_mode_config);
-      if (!aoe_mode.empty()) {
-        Status s  = CheckAoeMode(aoe_mode);
-        if (!s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
-        }
-        if (params.count("work_path")) {
-          std::string tmp_path = params.at("work_path").s();
-          s = CheckPath(tmp_path, work_path);
-          if (!s.ok()) {
-            ADP_LOG(FATAL) << s.error_message();
-            LOG(FATAL) << s.error_message();
-          }
-        } else {
-          std::string tmp_path = work_path;
-          s = CheckPath(tmp_path, work_path);
-          if (!s.ok()) {
-            ADP_LOG(FATAL) << s.error_message();
-            LOG(FATAL) << s.error_message();
-          }
-        }
-        if (params.count("distribute_config")) {
-          distribute_config = params.at("distribute_config").s();
-        }
-      }
+
       if (params.count("precision_mode")) {
         precision_mode = params.at("precision_mode").s();
       } else {
