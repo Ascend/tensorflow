@@ -287,18 +287,6 @@ bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
   }
 }
 
-std::string GetAoeTuningConfigs(const char *aoe_mode_env, std::string aoe_mode_config) {
-  std::string aoe_mode;
-  if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
-    aoe_mode = "";
-  } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
-    aoe_mode = aoe_mode_env;
-  } else {
-    aoe_mode = aoe_mode_config;
-  }
-  return aoe_mode;
-}
-
 void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
   use_adp_info_[iterator_name] = is_use_adp;
   ADP_LOG(INFO) << "set iterator: " << iterator_name << " use_adp_info_: " << use_adp_info_[iterator_name];
@@ -1224,8 +1212,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
       const char *aoe_mode_env = std::getenv("AOE_MODE");
       std::string aoe_mode_config;
-      if (params.count("aoe_mode")) { aoe_mode_config = params.at("aoe_mode").s(); }
-      aoe_mode = GetAoeTuningConfigs(aoe_mode_env, aoe_mode_config);
+      if (params.count("aoe_mode")) {
+        aoe_mode_config = params.at("aoe_mode").s();
+        if (aoe_mode_config == "") { ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']" }
+      }
+      if (aoe_mode_env != nullptr) { aoe_mode = aoe_mode_env; }
+      if (!aoe_mode_config.empty()) { aoe_mode = aoe_mode_config; }
       if (!aoe_mode.empty()) {
         Status s = CheckAoeMode(aoe_mode);
         if (!s.ok()) {
