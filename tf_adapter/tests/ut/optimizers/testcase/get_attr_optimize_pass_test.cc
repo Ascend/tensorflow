@@ -191,6 +191,9 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue session_device_id = AttrValue();
   session_device_id.set_i(1);
   (*custom_config->mutable_parameter_map())["session_device_id"] = session_device_id;
+  AttrValue aoe_mode = AttrValue();
+  aoe_mode.set_s("1");
+  (*custom_config->mutable_parameter_map())["aoe_mode"] = aoe_mode;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {
