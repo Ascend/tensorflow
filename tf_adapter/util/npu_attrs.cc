@@ -287,7 +287,7 @@ bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
   }
 }
 
-Status GetAoeTuningConfigs(std::map<std::string, AttrValue> params, std::string &aoe_mode, std::string &work_path, std::string &distribute_config) {
+Status GetAoeTuningConfigs(const google::protobuf::Map<std::string, AttrValue> params, std::string &aoe_mode, std::string &work_path, std::string &distribute_config) {
   const char *aoe_mode_env = std::getenv("AOE_MODE");
   std::string aoe_mode_config;
   if (params.count("aoe_mode")) {
