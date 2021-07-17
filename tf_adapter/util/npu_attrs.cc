@@ -115,38 +115,6 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
   delete[] buffer;
 }
 
-Status GetAoeMode(std::map<std::string, AttrValue> &params, std::string &aoe_mode) {
-  const char *aoe_mode_env = std::getenv("AOE_MODE");
-  std::string aoe_mode_config;
-  if (params.count("aoe_mode")) {
-    aoe_mode_config = params.at("aoe_mode").s();
-  }
-  if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
-    aoe_mode = "";
-  } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
-    aoe_mode = aoe_mode_env;
-  } else {
-    aoe_mode = aoe_mode_config;
-  }
-  if (!aoe_mode.empty()) {
-    Status s  = CheckAoeMode(aoe_mode);
-    if (!s.ok()) { return s; }
-    if (params.count("work_path")) {
-      std::string tmp_path = params.at("work_path").s();
-      s = CheckPath(tmp_path, work_path);
-      if (!s.ok()) { return s; }
-    } else {
-      std::string tmp_path = work_path;
-      s = CheckPath(tmp_path, work_path);
-      if (!s.ok()) { return s; }
-    }
-    if (params.count("distribute_config")) {
-      distribute_config = params.at("distribute_config").s();
-    }
-  }
-  return Status::OK();
-}
-
 inline Status checkDumpStep(const string &dump_step) {
   std::string tmp_dump_step = dump_step + "|";
   std::smatch result;
@@ -317,6 +285,38 @@ bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
   } else {
     return false;
   }
+}
+
+Status GetAoeTuningConfigs(std::map<std::string, AttrValue> &params, std::string &aoe_mode, std::string &work_path, std::string &distribute_config) {
+  const char *aoe_mode_env = std::getenv("AOE_MODE");
+  std::string aoe_mode_config;
+  if (params.count("aoe_mode")) {
+    aoe_mode_config = params.at("aoe_mode").s();
+  }
+  if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
+    aoe_mode = "";
+  } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
+    aoe_mode = aoe_mode_env;
+  } else {
+    aoe_mode = aoe_mode_config;
+  }
+  if (!aoe_mode.empty()) {
+    Status s  = CheckAoeMode(aoe_mode);
+    if (!s.ok()) { return s; }
+    if (params.count("work_path")) {
+      std::string tmp_path = params.at("work_path").s();
+      s = CheckPath(tmp_path, work_path);
+      if (!s.ok()) { return s; }
+    } else {
+      std::string tmp_path = work_path;
+      s = CheckPath(tmp_path, work_path);
+      if (!s.ok()) { return s; }
+    }
+    if (params.count("distribute_config")) {
+      distribute_config = params.at("distribute_config").s();
+    }
+  }
+  return Status::OK();
 }
 
 void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
@@ -1242,7 +1242,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
 
-      Status s = GetAoeMode(params, aoe_mode);
+      Status s = GetAoeTuningConfigs(params, aoe_mode, work_path, distribute_config);
       if (!s.ok()) {
         ADP_LOG(FATAL) << s.error_message();
         LOG(FATAL) << s.error_message();
