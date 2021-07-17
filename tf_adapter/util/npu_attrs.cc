@@ -1214,7 +1214,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       std::string aoe_mode_config;
       if (params.count("aoe_mode")) {
         aoe_mode_config = params.at("aoe_mode").s();
-        if (aoe_mode_config == "") { ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']" }
+        if (aoe_mode_config == "") { ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']";}
       }
       if (aoe_mode_env != nullptr) { aoe_mode = aoe_mode_env; }
       if (!aoe_mode_config.empty()) { aoe_mode = aoe_mode_config; }
