@@ -115,6 +115,18 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
   delete[] buffer;
 }
 
+std::string GetAoeMode(const char *aoe_mode_env, std::string aoe_mode_config) {
+  std::string aoe_mode;
+  if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
+    aoe_mode = "";
+  } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
+    aoe_mode = aoe_mode_env;
+  } else {
+    aoe_mode = aoe_mode_config;
+  }
+  return aoe_mode;
+}
+
 inline Status checkDumpStep(const string &dump_step) {
   std::string tmp_dump_step = dump_step + "|";
   std::smatch result;
@@ -1215,13 +1227,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("aoe_mode")) {
         aoe_mode_config = params.at("aoe_mode").s();
       }
-      if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
-        aoe_mode = "";
-      } else if (aoe_mode_config.empty() && aoe_mode_env != nullptr) {
-        aoe_mode = aoe_mode_env;
-      } else {
-        aoe_mode = aoe_mode_config;
-      }
+      aoe_mode = GetAoeMode(aoe_mode_env, aoe_mode_config);
       if (!aoe_mode.empty()) {
         Status s  = CheckAoeMode(aoe_mode);
         if (!s.ok()) {

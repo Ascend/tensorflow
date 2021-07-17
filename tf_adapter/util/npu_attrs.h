@@ -42,6 +42,7 @@ namespace tensorflow {
 std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
+std::string GetAoeMode(const char *aoe_mode_env, std::string aoe_mode_config);
 class NpuAttrs {
  public:
   // This method returns instance Pointers
