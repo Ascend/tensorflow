@@ -288,18 +288,16 @@ bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
 }
 
 Status GetAoeTuningConfigs(const google::protobuf::Map<std::string, AttrValue> params, std::string &aoe_mode, std::string &work_path, std::string &distribute_config) {
-  const char *aoe_mode_env;
+  const char *aoe_mode_env = std::getenv("AOE_MODE");
   std::string aoe_mode_config;
-  if(aoe_mode_env != nullptr) {
-    aoe_mode_env = std::getenv("AOE_MODE");
-    LOG(INFO) << "yuxingAOE_MODE: " << aoe_mode_env;
-  } else {
-    aoe_mode_env = "";
-  }
+  LOG(INFO) << "yuxingAOE_MODE: " << aoe_mode_env;
   if (params.count("aoe_mode")) {
     aoe_mode_config = params.at("aoe_mode").s();
     LOG(INFO) << "yuxingaoe_mode_config: " << aoe_mode_config;
   }
+  if(aoe_mode_env == nullptr) {
+    aoe_mode_env = "";
+    } 
   if (aoe_mode_config.empty() && aoe_mode_env == nullptr) {
     aoe_mode = "";
     LOG(INFO) << "yuxing1: " << aoe_mode;
