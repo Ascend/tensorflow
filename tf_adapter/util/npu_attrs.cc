@@ -1210,8 +1210,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
 
-      const char *aoe_mode_env = std::getenv("AOE_MODE");
-      std::string aoe_mode_config;
       if (params.count("aoe_mode")) {
         aoe_mode = params.at("aoe_mode").s();
         if (aoe_mode.empty()) { ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']"; }
