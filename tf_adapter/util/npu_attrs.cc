@@ -1209,9 +1209,15 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_scope_fusion_passes")) {
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
+
       if (params.count("aoe_mode")) {
         aoe_mode = params.at("aoe_mode").s();
-        Status s  = CheckAoeMode(aoe_mode);
+        if (aoe_mode.empty()) { ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']"; }
+      } else {
+        TF_RETURN_IF_ERROR(ReadStringFromEnvVar("AOE_MODE", "", &aoe_mode));
+      }
+      if (!aoe_mode.empty()) {
+        Status s = CheckAoeMode(aoe_mode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
