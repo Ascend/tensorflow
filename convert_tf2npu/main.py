@@ -28,9 +28,10 @@ def para_check_and_set(argv):
     report = "report" + util_global.get_value('timestap')
     report_suffix = report
     main_file = ""
+    distributed_mode = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hi:l:o:r:m:", ["help", "input=", "list=", "output=", "report=", "main="])
+        opts, args = getopt.getopt(argv, "hi:l:o:r:m:d:", ["help", "input=", "list=", "output=", "report=", "main=", "distributed_mode"])
     except getopt.GetoptError:
         print('Parameter error, please check.')
         print('    this tool just support to convert tf-1.15 scripts.')
@@ -40,7 +41,9 @@ def para_check_and_set(argv):
         print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
         print('-o or --output: The destination script after converted, Default value: output_npu_***/')
         print('-r or --report: Conversion report, Default value: report_npu_***/')
-        print('-m or --main: the executed entry *.py file, default:None')
+        print('-m or --main: The executed entry *.py file, default:None')
+        print('-d or --distributed_mode: The distribute mode to choose, including horovod distributed and tensorflow distributed strategy. '
+              'the value should be one of [horovod, tf_strategy]')
         sys.exit(2)
 
     for opt, arg in opts:
@@ -52,7 +55,9 @@ def para_check_and_set(argv):
             print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
             print('-o or --output: The destination script after converted, Default value: output_npu_***/')
             print('-r or --report: Conversion report, Default value: report_npu_***/')
-            print('-m or --main: the executed entry *.py file, default:None')
+            print('-m or --main: The executed entry *.py file, default:None')
+            print('-d or --distributed_mode: The distribute mode to choose, including horovod distributed and tensorflow distributed strategy. '
+                  'the value should be one of [horovod, tf_strategy]')
             sys.exit()
         elif opt in ("-i", "--input"):
             input_dir = os.path.abspath(arg)
@@ -81,6 +86,10 @@ def para_check_and_set(argv):
                 main_file = os.path.join(main_path, file)
             else:
                 raise ValueError("--main args must be exited files")
+        elif opt in ("-d", "--distributed_mode"):
+            if arg not in ["horovod", "tf_strategy"]:
+                raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")
+            distributed_mode = arg
 
     if input_dir == "npu_input":
         raise ValueError("Please check -i or --input.")
@@ -95,9 +104,12 @@ def para_check_and_set(argv):
     util_global.set_value('output', output)
     util_global.set_value('report', report)
     util_global.set_value('main', main_file)
+    util_global.set_value('distributed_mode', distributed_mode)
 
 
 if __name__ == "__main__":
     util_global._init()
+    util_global.set_value('already_check_distributed_mode_arg', False)
+    util_global.set_value('already_check_main_arg', False)
     para_check_and_set(sys.argv[1:])
     conver()

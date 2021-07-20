@@ -26,11 +26,14 @@ from npu_bridge.estimator.npu.npu_hook import NPUCheckpointSaverHook
 from npu_bridge.estimator.npu.npu_hook import NPUOutputTensorHook
 from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook
 from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
-from npu_bridge.estimator.npu.npu_optimizer import NPUOptimizer
 from npu_bridge.estimator.npu.npu_optimizer import KerasDistributeOptimizer
+from npu_bridge.estimator.npu.npu_optimizer import npu_distributed_optimizer_wrapper
+from npu_bridge.estimator.npu.npu_optimizer import NPUOptimizer
+from npu_bridge.estimator.npu.npu_optimizer import npu_allreduce
 from npu_bridge.estimator.npu.npu_loss_scale_optimizer import NPULossScaleOptimizer
 from npu_bridge.estimator.npu.npu_loss_scale_manager import FixedLossScaleManager
 from npu_bridge.estimator.npu.npu_loss_scale_manager import ExponentialUpdateLossScaleManager
+from npu_bridge.estimator.npu.npu_callbacks import NPUBroadcastGlobalVariablesCallback
 from npu_bridge.estimator import npu_ops
 from npu_bridge.estimator.npu import npu_rnn
 from npu_bridge.estimator.npu import npu_scope
@@ -78,10 +81,16 @@ def npu_hooks_append(hooks_list=[]):
     hooks_list.append(NPUBroadcastGlobalVariablesHook(0, int(os.getenv('RANK_ID', '0'))))
     return hooks_list
 
+def npu_callbacks_append(callbacks_list=[]):
+    if (not isinstance(callbacks_list, list)):
+        callbacks_list = []
+    callbacks_list.append(NPUBroadcastGlobalVariablesCallback(0))
+    return callbacks_list
+
 def npu_config_proto(config_proto = None):
     if (not isinstance(config_proto, config_pb2.ConfigProto)) or (not issubclass(type(config_proto), config_pb2.ConfigProto)):
         config_proto = config_pb2.ConfigProto()
-    
+
     npu_optimizer = None
     for custom_optimizer in config_proto.graph_options.rewrite_options.custom_optimizers:
         if custom_optimizer.name == 'NpuOptimizer':
@@ -90,7 +99,7 @@ def npu_config_proto(config_proto = None):
     if not npu_optimizer:
         npu_optimizer = config_proto.graph_options.rewrite_options.custom_optimizers.add()
         npu_optimizer.name = 'NpuOptimizer'
-    
+
     config_proto.allow_soft_placement = True
     config_proto.log_device_placement = False
     config_proto.graph_options.rewrite_options.remapping = RewriterConfig.OFF
@@ -120,7 +129,7 @@ def set_keras_session_npu_config(config=None):
     from tensorflow.python.keras import backend
     if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
         config = config_pb2.ConfigProto()
-    
+
     npu_optimizer = None
     for custom_optimizer in config.graph_options.rewrite_options.custom_optimizers:
         if custom_optimizer.name == 'NpuOptimizer':
@@ -129,7 +138,7 @@ def set_keras_session_npu_config(config=None):
     if not npu_optimizer:
         npu_optimizer = config.graph_options.rewrite_options.custom_optimizers.add()
         npu_optimizer.name = 'NpuOptimizer'
-    
+
     config.allow_soft_placement = True
     config.log_device_placement = False
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
