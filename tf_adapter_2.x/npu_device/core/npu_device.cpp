@@ -82,9 +82,9 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
 size_t RemoveRedundantHcomControlEdges(tensorflow::Graph *graph) {
   std::vector<tensorflow::Edge *> edges_to_remove;
   for (auto edge : graph->edges()) {
-    if (edge->IsControlEdge() &&
-        (edge->src()->type_string() == kHcomAllReduce || edge->dst()->type_string() == kHcomAllReduce)) {
-      if (!(edge->src()->type_string() == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) != nullptr)) {
+    if (edge->IsControlEdge()) {
+      if (edge->dst()->type_string() == kHcomAllReduce ||
+          (edge->src()->type_string() == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
         edges_to_remove.push_back(edge);
       }
     }
