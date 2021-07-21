@@ -156,13 +156,13 @@ install_package() {
 }
 
 PYTHONDIR="${common_parse_dir}/tfplugin"
-WHL_INSTALL_DIR_PATH="${PYTHONDIR}/python/site-packages"
+WHL_INSTALL_DIR_PATH="${common_parse_dir}/tfplugin/python/site-packages"
 SOURCE_PATH="${sourcedir}/bin"
 PYTHON_NPU_BRIDGE_WHL="npu_bridge-1.15.0-py3-none-any.whl"
 PYTHON_NPU_BRIDGE_NAME="npu_bridge"
 
 new_install() {
-    if [ ! -d ${sourcedir} ]; then
+    if [ ! -d "${sourcedir}" ]; then
         log "INFO" "no need to install tfplugin files."
         return 0
     fi

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #-*- coding: UTF-8 -*-
 # Copyright (C) 2021. Huawei Technologies Co., Ltd. All rights reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,9 +26,9 @@ source_suffix = ["c","cpp","cc","cce"]
 def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir=""):
     gcc_cmd_set = {}
     lint_cmd_set = {}
-    file = open(input_file, "r")
-    lines = file.readlines()
-    file.close()
+    lines = []
+    with open(input_file, "r") as file:
+        lines = file.readlines()
     compile_cmd_regex = re.compile('(gcc|g\+\+|\"aarch64-linux-gnu-gcc\"|ccec)\s+[^ ].*\s-o\s+[^ ]+\.(o|s|cpp|obj)(\s|$)')
     if(custom_code_top_dir != "") :
         custom_code_top_dir = custom_code_top_dir.replace(code_top_dir + "/", "")
@@ -144,9 +144,9 @@ def walkDir(top_dir,directory):
 
 def get_cpp_file_list(top_dir,input_file, custom_code_top_dir=""):
     cpp_file_list = []
-    file = open(input_file, "r")
-    lines = file.readlines()
-    file.close()
+    lines = []
+    with open(input_file, "r") as file:
+        lines = file.readlines()
     for line in lines:
         line = line.strip()
         if custom_code_top_dir != "" :
@@ -182,33 +182,32 @@ def main():
         print "Error: can not get lint gcc cmd "
         sys.exit(-1)
 
-    fd = open(output_file, "w")
-    content = ""
-    content = "".join([content, ".PHONY: all\n"])
-    content = "".join([content, "\n"])
-    content = "".join([content, "ifeq ($(PCLINT_ENABLE),true)\n"])
-    for (obj_file,wine_cmd) in lint_cmd_set.items():
-        obj_file = "".join([obj_file , ".lint"])
-        content = "".join([content, "all:", obj_file, "\n"])
-        content = "".join([content, obj_file, ": FORCE\n"])
-        content = "".join([content, "\tmkdir -p $(dir $@)\n"])
-        content = "".join([content, "\t", wine_cmd, " > $@ \n"])
+    with open(output_file, "w") as fd:
+        content = ""
+        content = "".join([content, ".PHONY: all\n"])
         content = "".join([content, "\n"])
-    content = "".join([content, "else\n"])
+        content = "".join([content, "ifeq ($(PCLINT_ENABLE),true)\n"])
+        for (obj_file,wine_cmd) in lint_cmd_set.items():
+            obj_file = "".join([obj_file , ".lint"])
+            content = "".join([content, "all:", obj_file, "\n"])
+            content = "".join([content, obj_file, ": FORCE\n"])
+            content = "".join([content, "\tmkdir -p $(dir $@)\n"])
+            content = "".join([content, "\t", wine_cmd, " > $@ \n"])
+            content = "".join([content, "\n"])
+        content = "".join([content, "else\n"])
 
-    for (obj_file,gcc_cmd) in gcc_cmd_set.items():
-        content = "".join([content, "all:" , obj_file, "\n"])
-        content = "".join([content, obj_file, ": FORCE\n"])
-        content = "".join([content, "\trm -rf $@\n"])
-        content = "".join([content, "\t $(SOURCEANALYZER) ", gcc_cmd, "\n"])
+        for (obj_file,gcc_cmd) in gcc_cmd_set.items():
+            content = "".join([content, "all:" , obj_file, "\n"])
+            content = "".join([content, obj_file, ": FORCE\n"])
+            content = "".join([content, "\trm -rf $@\n"])
+            content = "".join([content, "\t $(SOURCEANALYZER) ", gcc_cmd, "\n"])
+            content = "".join([content, "\n"])
+
+        content = "".join([content, "endif\n"])
         content = "".join([content, "\n"])
-
-    content = "".join([content, "endif\n"])
-    content = "".join([content, "\n"])
-    content = "".join([content, ".PHONY: FORCE\n"])
-    content = "".join([content, "FORCE: \n"])
-    fd.write(content)
-    fd.close()
+        content = "".join([content, ".PHONY: FORCE\n"])
+        content = "".join([content, "FORCE: \n"])
+        fd.write(content)
 
 if __name__ == '__main__':
     main()
