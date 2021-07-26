@@ -422,6 +422,8 @@ def convert_distributed_strategy_apis(node):
     if isinstance(node.func, ast.Attribute) and node.func.attr == "train":
         return convert_estimator_train_api(node)
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'compile'):
+        if isinstance(node.func.value, ast.Name) and node.func.value.id == "re":
+            return node
         return convert_model_compile_api(node)
     callbacks_indexs = {'fit': 5, 'fit_generator': 4} # the num is callbacks index in api
     for fit_api, callbacks_index in callbacks_indexs.items():

@@ -36,15 +36,11 @@ class ConverByAst(ast.NodeTransformer):
             util_global.set_value('is_keras_net', True)
         if node.attr in util_global.get_value('hvd'):
             distributed_mode = util_global.get_value("distributed_mode", "")
-            if distributed_mode == "tf_strategy" or distributed_mode == "":
-                log_strategy_distributed_mode_error(node)
-                return node
-            if isinstance(node.value, ast.Name):
-                if 'hvd' in str(node.value.id):
-                    return attribute(node)
-            if isinstance(node.value, ast.Attribute):
-                if 'hvd' in str(node.value.attr):
-                    return attribute(node)
+            if isinstance(node.value, ast.Name) and 'hvd' in str(node.value.id):
+                if distributed_mode == "tf_strategy" or distributed_mode == "":
+                    log_strategy_distributed_mode_error(node)
+                    return node
+                return attribute(node)
         return node
 
     def visit_FunctionDef(self, node):
