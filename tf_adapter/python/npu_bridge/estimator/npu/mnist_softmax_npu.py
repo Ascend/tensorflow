@@ -24,6 +24,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import os
 import sys
 
 import tensorflow as tf
@@ -101,7 +102,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--data_dir',
       type=str,
-      default='/tmp/tensorflow/mnist/input_data',
+      default=os.path.realpath('/tmp/tensorflow/mnist/input_data'),
       help='Directory for storing input data')
   parser.add_argument(
       '--npu', type=bool, default=True, help='Turn npu on')

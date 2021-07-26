@@ -119,7 +119,7 @@ uninstall_package() {
 }
 
 PYTHONDIR="${common_parse_dir}""/tfplugin"
-WHL_INSTALL_DIR_PATH="${PYTHONDIR}/python/site-packages"
+WHL_INSTALL_DIR_PATH="${common_parse_dir}/tfplugin/python/site-packages"
 NPU_BRIDGE_NAME="npu_bridge"
 
 new_uninstall() {

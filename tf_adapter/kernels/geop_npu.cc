@@ -713,7 +713,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         tune_options_.insert(graph_options_.begin(), graph_options_.end());
         AoeStatus tune_ret = (*aoe_tuning_)(ge_graph, ge_graphs, ge_session_, tune_options_);
         OP_REQUIRES_ASYNC(ctx, tune_ret == AOE_SUCCESS, errors::Internal("[GEOP] exec aoe tuning func failed."), done);
-        ADP_LOG(INFO) << "[GEOP] msTuning success.";
+        ADP_LOG(INFO) << "[GEOP] aoe success.";
         build_flag_ = true;
         BuildOutTensorInfo(ctx);
         done();

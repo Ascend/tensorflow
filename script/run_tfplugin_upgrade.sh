@@ -102,8 +102,8 @@ if [ -f "$install_info" ]; then
     usergroup="$tfplugin_user_group"
 elif [ -f "$install_info_old" ] && [ $(grep -c -i "Acllib_Install_Path_Param" $install_info_old) -ne 0]; then
     . $install_info_old
-    username=$UserName
-    usergroup=$UserGroup
+    username="$DEFAULT_USERNAME"
+    usergroup="$DEFAULT_USERGROUP"
 else
     echo "ERR_NO:0x0080;ERR_DES:Installation information no longer exists,please complete "${install_info}" or ${install_info_old}"
     exit 1
@@ -153,7 +153,7 @@ install_package() {
 }
 
 PYTHONDIR="${common_parse_dir}""/tfplugin"
-WHL_INSTALL_DIR_PATH="${PYTHONDIR}/python/site-packages"
+WHL_INSTALL_DIR_PATH="${common_parse_dir}/tfplugin/python/site-packages"
 SOURCE_PATH="${sourcedir}/bin"
 PYTHON_NPU_BRIDGE_WHL="npu_bridge-1.15.0-py3-none-any.whl"
 PYTHON_NPU_BRIDGE_NAME="npu_bridge"
