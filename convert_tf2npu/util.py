@@ -53,7 +53,7 @@ def log_migration_report(lineno, msg):
     write_conver_report(content, util_global.get_value('report_file')[2])
     util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b100))
 
-def check_input_message(node, prompt, warning_msg):
+def ask_the_distributed_mode(node, prompt, warning_msg):
     while not util_global.get_value('already_check_distributed_mode_arg', False):
         message = input(prompt)
         if message == "c" or message == "continue":
@@ -68,29 +68,29 @@ def check_input_message(node, prompt, warning_msg):
             print("Input is error, please enter 'exit' or 'c' or 'continue'.")
 
 def log_hvd_distributed_mode_error(node):
-    if util_global.get_value("distributed_mode", "") == "":
+    if not util_global.get_value("distributed_mode", ""):
         prompt = ("As the '-d' option is not included, distributed porting will not be performed. "
                   "Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         warning_msg = " is tf_strategy api. As the '-d' option is not included, distributed porting will not be performed."
-        check_input_message(node, prompt, warning_msg)
+        ask_the_distributed_mode(node, prompt, warning_msg)
     else:
         prompt = ("The '-d' argument conflicts with the Tensorflow distributed strategy in your script, which means that Tensorflow "
                   "distributed porting will not be performed. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         warning_msg = " is tf_strategy api. The '-d' argument conflicts with the Tensorflow distributed strategy"
-        check_input_message(node, prompt, warning_msg)
+        ask_the_distributed_mode(node, prompt, warning_msg)
     util_global.set_value('already_check_distributed_mode_arg', True)
 
 def log_strategy_distributed_mode_error(node):
-    if util_global.get_value("distributed_mode", "") == "":
+    if not util_global.get_value("distributed_mode", ""):
         prompt = ("As the '-d' option is not included, distributed porting will not be performed. "
                   "Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         warning_msg = " is horovod api. As the '-d' option is not included, distributed porting will not be performed."
-        check_input_message(node, prompt, warning_msg)
+        ask_the_distributed_mode(node, prompt, warning_msg)
     else:
         prompt = ("The '-d' argument conflicts with the Horovod distributed strategy in your script, which means that Horovod "
                   "distributed porting will not be performed. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         warning_msg = " is horovod api. The '-d' argument conflicts with the Horovod distributed strategy in your script"
-        check_input_message(node, prompt, warning_msg)
+        ask_the_distributed_mode(node, prompt, warning_msg)
     util_global.set_value('already_check_distributed_mode_arg', True)
 
 def log_warning_main_arg_not_set():

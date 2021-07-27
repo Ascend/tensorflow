@@ -33,6 +33,7 @@ from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras import optimizers
 from npu_bridge.hccl import hccl_ops
 from npu_bridge.estimator import npu_ops
 
@@ -449,6 +450,8 @@ def npu_distributed_optimizer_wrapper(optimizer):
     An optimizer that wraps Optimizer, using an allreduce to
     average gradient values before applying gradients to model weights.
     """
+    if isinstance(optimizer, str):
+        optimizer = optimizers.get(optimizer)
     rank_size = os.getenv('RANK_SIZE')
     if hasattr(optimizer, "compute_gradients"):
         org_compute_gradients = optimizer.compute_gradients
@@ -457,7 +460,6 @@ def npu_distributed_optimizer_wrapper(optimizer):
             In DistributedOptimizer, compute_gradients() is overriden to also
             allreduce the gradients before returning them.
             """
-            logging.debug("compute_gradients...")
             gradients = org_compute_gradients(*args, **kwargs)
             if rank_size == None or int(rank_size) <= 1:
                 return gradients
