@@ -96,8 +96,8 @@ PYBIND11_MODULE(_npu_device_backends, m) {
            std::map<std::string, std::string> user_options,
            std::map<std::string, std::string> device_options) -> std::string {
           pybind11::gil_scoped_release release;
+          static std::map<std::string, std::string> global_options;
           if (!graph_engine_started.exchange(true)) {
-            std::map<std::string, std::string> global_options;
             for (const auto &option : user_options) {
               auto iter = kConfigurableOptions.find(option.first);
               if (iter != kConfigurableOptions.end()) {
@@ -144,11 +144,6 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             if (!status.ok()) {
               return status.error_message();
             }
-            auto iter = global_options.find(ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION);
-            if (iter != global_options.end() &&
-                device_options.find(ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION) == device_options.end()) {
-              device_options[ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION] = iter->second;
-            }
           }
 
           std::string full_name = tensorflow::strings::StrCat(device_name, ":", device_index);
@@ -156,11 +151,12 @@ PYBIND11_MODULE(_npu_device_backends, m) {
           if (!tensorflow::DeviceNameUtils::ParseFullName(full_name, &parsed_name)) {
             return "Invalid npu device name " + full_name;
           }
-          LOG(INFO) << "Create device instance " << full_name << " with options:";
+          LOG(INFO) << "Create device instance " << full_name << " with extra options:";
           for (const auto &option : device_options) {
             LOG(INFO) << "  " << option.first << ":" << option.second;
           }
-          auto status = CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, device_options);
+          // Currently only support global basic options
+          auto status = CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
           pybind11::gil_scoped_acquire acquire;
           return status;
         });
