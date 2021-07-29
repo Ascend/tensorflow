@@ -19,9 +19,20 @@ import copy
 import pasta
 import util_global
 from util import *
+from tf_func_def import *
 
 from inspect import signature
-import tensorflow as tf
+
+tf_func_map = {"tf.estimator.TrainSpec": TrainSpec,
+               "tf.estimator.EvalSpec": EvalSpec,
+               "tf.estimator.Estimator.train": Estimator.train,
+               "tf.keras.Model.compile": Model.compile,
+               "tf.keras.Model.fit": Model.fit,
+               "tf.keras.Model.fit_generator": Model.fit_generator,
+               "tf.Session": Session,
+               "tf.InteractiveSession": InteractiveSession,
+               "tf.train.Supervisor.managed_session": Supervisor.managed_session,
+               "tf.train.MonitoredTrainingSession": MonitoredTrainingSession}
 
 def attribute(node):
     log_success_report(getattr(node, "lineno", "None"), node.attr)
@@ -294,21 +305,21 @@ def convert_distributed_strategy_apis(node):
         util_global.set_value('need_conver', True)
         return new_node
     if _call_name_match(node.func, "TrainSpec"):
-        return convert_origin_func_to_npu(node, tf.estimator.TrainSpec, "TrainSpec", ["hooks"])
+        return convert_origin_func_to_npu(node, tf_func_map["tf.estimator.TrainSpec"], "TrainSpec", ["hooks"])
     if _call_name_match(node.func, "EvalSpec"):
-        return convert_origin_func_to_npu(node, tf.estimator.EvalSpec, "EvalSpec", ["hooks"])
+        return convert_origin_func_to_npu(node, tf_func_map["tf.estimator.EvalSpec"], "EvalSpec", ["hooks"])
     if isinstance(node.func, ast.Attribute) and node.func.attr == "train":
         if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == "learning":
             return node
-        return convert_origin_func_to_npu(node, tf.estimator.Estimator.train, "Estimator.train", ["hooks"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.estimator.Estimator.train"], "Estimator.train", ["hooks"], True)
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'compile'):
         if isinstance(node.func.value, ast.Name) and node.func.value.id == "re":
             return node
-        return convert_origin_func_to_npu(node, tf.keras.Model.compile, "Model.compile", ["optimizer"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.compile"], "Model.compile", ["optimizer"], True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == "fit":
-        return convert_origin_func_to_npu(node, tf.keras.Model.fit, "Model.fit", ["callbacks"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.fit"], "Model.fit", ["callbacks"], True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == "fit_generator":
-        return convert_origin_func_to_npu(node, tf.keras.Model.fit_generator, "Model.fit_generator", ["callbacks"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.fit_generator"], "Model.fit_generator", ["callbacks"], True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == "gradients" and \
        isinstance(node.func.value, ast.Name) and node.func.value.id == "tf":
         return convert_tf_gradient_distributed(node)
@@ -349,9 +360,9 @@ def ast_call(node):
         util_global.set_value('need_conver', True)
         return node
     if _call_name_match(node.func, "Session"):
-        return convert_origin_func_to_npu(node, tf.Session, "tf.Session", ["config"])
+        return convert_origin_func_to_npu(node, tf_func_map["tf.Session"], "tf.Session", ["config"])
     if _call_name_match(node.func, "InteractiveSession"):
-        return convert_origin_func_to_npu(node, tf.InteractiveSession, "tf.InteractiveSession", ["config"])
+        return convert_origin_func_to_npu(node, tf_func_map["tf.InteractiveSession"], "tf.InteractiveSession", ["config"])
     if isinstance(node.func, ast.Attribute) and node.func.attr == "BroadcastGlobalVariablesHook":
         if isinstance(node.func.value, ast.Name) and node.func.value.id == "hvd":
             if is_not_horovod:
@@ -550,9 +561,9 @@ def ast_call(node):
             util_global.set_value('need_conver', True)
             return node
     if _call_name_match(node.func, "MonitoredTrainingSession"):
-        return convert_origin_func_to_npu(node, tf.train.MonitoredTrainingSession, "MonitoredTrainingSession", ["config", "hooks"])
+        return convert_origin_func_to_npu(node, tf_func_map["tf.train.MonitoredTrainingSession"], "MonitoredTrainingSession", ["config", "hooks"])
     if isinstance(node.func, ast.Attribute) and node.func.attr == "managed_session":
-        return convert_origin_func_to_npu(node, tf.train.Supervisor.managed_session, "managed_session", ["config"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.train.Supervisor.managed_session"], "managed_session", ["config"], True)
     if distributed_mode == "tf_strategy": # this cond should be placed at the end of the Call function.
         return convert_distributed_strategy_apis(node)
     return node
