@@ -51,6 +51,8 @@ using Format = ge::Format;
 const static uint64_t kInvalidGeGraphId = -1;
 const static std::string kHcomAllReduce = "HcomAllReduce";
 const static std::string kHcomBroadcast = "HcomBroadcast";
+const static std::string kDropOutGenMaskV3 = "DropOutGenMaskV3";
+const static std::string kDropOutDoMaskV3 = "DropOutDoMaskV3";
 const static std::string kNpuLossScaleAttr = "_npu_loss_scale";
 const static std::string kNpuAllocFloatStatusOp = "NpuAllocFloatStatus";
 const static std::string kEnable = "1";
@@ -79,17 +81,20 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   std::unique_ptr<T, DT> ptr_;
 };
 
-size_t RemoveRedundantHcomControlEdges(tensorflow::Graph *graph) {
+size_t RemoveRedundantControlEdges(tensorflow::Graph *graph) {
   std::vector<tensorflow::Edge *> edges_to_remove;
   for (auto edge : graph->edges()) {
     if (edge->IsControlEdge()) {
       if (edge->dst()->type_string() == kHcomAllReduce ||
           (edge->src()->type_string() == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
         edges_to_remove.push_back(edge);
+      } else if (edge->src()->type_string() == kDropOutDoMaskV3 && edge->dst()->type_string() == kDropOutGenMaskV3) {
+        edges_to_remove.push_back(edge);
       }
     }
   }
   for (auto edge : edges_to_remove) {
+    DLOG() << "Remove redundant control edge " << edge->DebugString();
     graph->RemoveEdge(edge);
   }
   return edges_to_remove.size();
@@ -407,7 +412,7 @@ void NpuDevice::FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
 tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
   TFE_Context *context, tensorflow::Graph *graph, int num_inputs, TFE_TensorHandle **inputs,
   std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources) {
-  (void)RemoveRedundantHcomControlEdges(graph);
+  (void)RemoveRedundantControlEdges(graph);
 
   std::set<int> arg_is_variable;
   std::set<int> arg_is_iterator;
