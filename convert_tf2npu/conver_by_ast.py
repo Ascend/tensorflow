@@ -103,7 +103,7 @@ def conver_ast(path, out_path_dst, file_name):
         insert_npu_import(r_node)
         distributed_mode = util_global.get_value('distributed_mode', "")
         if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hvd_api', False)
-            or util_global.get_value('is_keras_net', False)) and util_global.get_value('main', "") == "":
+            or util_global.get_value('is_keras_net', False)) and  not util_global.get_value('main', ""):
             log_warning_main_arg_not_set()
         if distributed_mode == "horovod" and util_global.get_value('is_main_file', False):
             insert_npu_resource_init(r_node)
