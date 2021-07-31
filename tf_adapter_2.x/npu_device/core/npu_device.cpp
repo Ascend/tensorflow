@@ -74,7 +74,7 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   }
   ~NpuHostFixedAllocator() override {
     DLOG() << "Release zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
-  };
+  }
   std::string Name() override { return "NpuHostFixedAllocator"; }
   void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
   void DeallocateRaw(void *ptr) override { Unref(); }
@@ -93,6 +93,72 @@ size_t RemoveRedundantControlEdges(tensorflow::Graph *graph) {
       }
     }
   }
+
+  if (kGraphEngineGreedyMemory) {
+    for (auto node : graph->op_nodes()) {
+      if (node->type_string() == kDropOutGenMaskV3) {
+        bool is_first_dropout_mask = true;
+        for (const auto edge : node->in_edges()) {
+          if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {
+            is_first_dropout_mask = false;
+            break;
+          }
+        }
+        if (is_first_dropout_mask) {
+          DLOG() << "Tune control edges for dropout in graph engine greedy memory mode for saving device memory, "
+                 << "start with first dropout gen mask node " << node->name();
+
+          std::vector<tensorflow::Node *> dropout_gen_masks;
+          std::vector<tensorflow::Node *> dropout_do_masks;
+          std::set<tensorflow::Node *> seen_masks;
+
+          const std::function<void(tensorflow::Node *)> &enter = [&dropout_gen_masks, &dropout_do_masks,
+                                                                  &seen_masks](tensorflow::Node *node) {
+            if (node->type_string() == kDropOutGenMaskV3) {
+              for (auto edge : node->in_edges()) {
+                if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {
+                  if (seen_masks.insert(edge->src()).second) {
+                    dropout_do_masks.push_back(edge->src());
+                  }
+                }
+              }
+              if (seen_masks.insert(node).second) {
+                dropout_gen_masks.push_back(node);
+              }
+            }
+          };
+
+          tensorflow::EdgeFilter filter = [](const tensorflow::Edge &edge) {
+            return edge.dst()->type_string() == kDropOutDoMaskV3 || edge.dst()->type_string() == kDropOutGenMaskV3;
+          };
+
+          tensorflow::DFSFrom(*graph, {node}, enter, {}, {}, filter);
+
+          size_t total_size = dropout_gen_masks.size();
+          if (dropout_do_masks.size() < total_size) {
+            total_size = dropout_do_masks.size();
+          }
+          DLOG() << "Total dropout gen mask " << dropout_gen_masks.size() << " do mask " << dropout_do_masks.size();
+
+          const static size_t kDropoutCtrlDistance = 3;
+          size_t start = 0;
+          size_t end = kDropoutCtrlDistance;
+          while (end < total_size) {
+            auto &do_mask_node = dropout_do_masks[start++];
+            auto &gen_mask_node = dropout_gen_masks[end++];
+            auto edge = graph->AddControlEdge(do_mask_node, gen_mask_node);
+            if (edge != nullptr) {
+              DLOG() << "Add control edge [D->G] " << edge->DebugString();
+            } else {
+              DLOG() << "Existed control edge [D->G] " << do_mask_node->name() << " -> " << gen_mask_node->name();
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+
   for (auto edge : edges_to_remove) {
     DLOG() << "Remove redundant control edge " << edge->DebugString();
     graph->RemoveEdge(edge);
@@ -1306,7 +1372,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     return;
   }
 
-  if (!kExecuteOpByAcl) {
+  if (!kExecuteOpByAcl || kGraphEngineGreedyMemory) {
     bool op_can_fallback = true;
     if (SupportedResourceGenerator(spec->Op())) {  // Should never fallback npu resource generator
       DLOG() << "Op " << spec->Op() << " not fallback cpu as it is resource generator";
@@ -1322,7 +1388,9 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
       }
     }
     if (op_can_fallback) {
-      DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu as acl engine not enabled";
+      DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu "
+             << (kExecuteOpByAcl ? "as single op execution by npu not enabled"
+                                 : "for saving device memory in graph engine greedy memory mode");
       FallbackCPU(context, spec, num_inputs, inputs, num_outputs, outputs, status);
       return;
     }
