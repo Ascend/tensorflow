@@ -86,7 +86,7 @@ class _ContextWithDefaultDevice(context.Context):
 
 
 @tf.function
-def __graph_engine_warmup():
+def _graph_engine_warmup():
     return tf.constant(0)
 
 
@@ -124,9 +124,6 @@ def open(device_id=None):
         worker_id = 0
 
     context._set_context(ctx)
-
-    if os.getenv('GE_USE_STATIC_MEMORY') == '1':  # Warmup graph engine for malloc npu memory in static memory mode
-        __graph_engine_warmup()
 
     return NpuDeviceHandle(ctx, device_id, device_options, workers_num, worker_id)
 
@@ -223,5 +220,9 @@ class NpuDeviceHandle(object):
 
         global _global_npu_ctx
         _global_npu_ctx = self
+
+        if os.getenv('GE_USE_STATIC_MEMORY') == '1':  # Warmup graph engine for malloc npu memory in static memory mode
+            logging.info("Warmup graph engine in static memory mode")
+            _graph_engine_warmup()
 
         return self
