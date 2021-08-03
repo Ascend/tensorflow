@@ -53,4 +53,10 @@ const static bool kExecuteOpByAcl = []() -> bool {
   return execute_op_by_acl;
 }();
 
+const static bool kGraphEngineGreedyMemory = []() -> bool {
+  tensorflow::int64 graph_engine_greedy_memory = 0;
+  tensorflow::ReadInt64FromEnvVar("GE_USE_STATIC_MEMORY", 0, &graph_engine_greedy_memory);
+  return graph_engine_greedy_memory == 1;
+}();
+
 #endif  // TENSORFLOW_NPU_ENV_H
