@@ -615,7 +615,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
         GraphDef graph_def;
         subgraph.ToGraphDef(&graph_def);
-        WriteTextProto(Env::Default(), graph + "_graph.pbtxt", graph_def);
+        WriteTextProto(Env::Default(), GetDumpPath() + graph + "_graph.pbtxt", graph_def);
       }
 
       bool is_initialize = false;
@@ -940,7 +940,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
   graph.ToGraphDef(&graph_def);
   char *enable_force_v2_control = getenv("ENABLE_FORCE_V2_CONTROL");
   if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
-    WriteTextProto(Env::Default(), function_.name() + "_v1.pbtxt", graph_def);
+    WriteTextProto(Env::Default(), GetDumpPath() + function_.name() + "_v1.pbtxt", graph_def);
 
     Status status = FunctionalizeControlFlow(&graph, &flib_def);
     if (status != Status::OK()) {
@@ -948,7 +948,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
       return Status::OK();
     }
     graph.ToGraphDef(&graph_def);
-    WriteTextProto(Env::Default(), function_.name() + "_v2.pbtxt", graph_def);
+    WriteTextProto(Env::Default(), GetDumpPath() + function_.name() + "_v2.pbtxt", graph_def);
   }
   return Status::OK();
 }

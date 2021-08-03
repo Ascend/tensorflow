@@ -34,36 +34,45 @@ limitations under the License.
 #include "mmpa/mmpa_api.h"
 #include <mutex>
 #include <regex>
-
+#include <iostream>
 namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 
 std::string GetDumpPath() {
-  static std::string dump_path = "";
-  if (dump_path == "") {
-    char *npu_collect_path = std::getenv("NPU_COLLECT_PATH");
-    if (npu_collect_path != nullptr) {
-      std::string base_path_str(npu_collect_path);
-      uint32_t device_id = 0;
-      GetEnvDeviceID(device_id);
-      base_path_str += "/extra-info/graph/" + std::to_string(mmGetPid()) + "_" + std::to_string(device_id) + "/";
-      if (mmAccess2(base_path_str.c_str(), M_F_OK) != EN_OK) {
-        int32_t ret = mmMkdir(base_path_str.c_str(), M_IRUSR | M_IWUSR | M_IXUSR);
-        if (ret != 0) {
-          ADP_LOG(WARNING) << "create dump graph dir failed, path:" << base_path_str;
-          dump_path = "./";
-        } else {
-          dump_path = base_path_str;
-        }
-      } else {
-        dump_path = base_path_str;
+  char *npu_collect_path = std::getenv("NPU_COLLECT_PATH");
+  if (npu_collect_path != nullptr) {
+    std::string collect_path_str(npu_collect_path);
+    collect_path_str.erase(0, collect_path_str.find_first_not_of(" "));
+    collect_path_str.erase(collect_path_str.find_last_not_of(" ") + 1);
+    std::string base_path_str = collect_path_str.empty() ? "./" : collect_path_str + "/";
+
+    uint32_t device_id = 0;
+    GetEnvDeviceID(device_id);
+    base_path_str += "/extra-info/graph/" + std::to_string(mmGetPid()) + "_" + std::to_string(device_id) + "/";
+    if (mmAccess2(base_path_str.c_str(), M_F_OK) != EN_OK) {
+      int32_t ret = mmMkdir(base_path_str.c_str(), M_IRUSR | M_IWUSR | M_IXUSR);
+      if (ret != 0) {
+        ADP_LOG(WARNING) << "create dump graph dir failed, path:" << base_path_str;
+        return "./";
       }
-    } else {
-      dump_path = "./";
+    }
+    return base_path_str;
+  }
+
+  std::string dump_graph_path;
+  (void)ReadStringFromEnvVar("DUMP_GRAPH_PATH", "./", &dump_graph_path);
+  dump_graph_path.erase(0, dump_graph_path.find_first_not_of(" "));
+  dump_graph_path.erase(dump_graph_path.find_last_not_of(" ") + 1);
+
+  std::string base_path = dump_graph_path.empty() ? "./" : dump_graph_path + "/";
+  if (mmAccess2(base_path.c_str(), M_F_OK) != EN_OK) {
+    if (mmMkdir(base_path.c_str(), M_IRUSR | M_IWUSR | M_IXUSR) != 0) {
+      ADP_LOG(WARNING) << "create dump graph dir failed, path:" << base_path;
+      return "./";
     }
   }
-  return dump_path;
+  return base_path;
 }
 
 Status GetEnvDeviceID(uint32_t &device_id) {
