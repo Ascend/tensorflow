@@ -49,5 +49,21 @@ TEST_F(NpuAttrTest, SetNpuOptimizerAttr) {
   Status s = CheckOpImplMode("xxx");
   EXPECT_EQ(s.ok(), false);
 }
+
+TEST_F(NpuAttrTest, GetDumpPath) {
+setenv("DUMP_GRAPH_PATH", "./", 1);
+string path = GetDumpPath();
+EXPECT_EQ(path, ".//");
+setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
+string new_path = GetDumpPath();
+EXPECT_EQ(new_path, "./dump_fold/");
+}
+
+TEST_F(NpuAttrTest, GetCollectionPath) {
+setenv("NPU_COLLECT_PATH", "./collection", 1);
+setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
+string new_path = GetDumpPath();
+EXPECT_NE(new_path, "./dump_fold/");
+}
 }
 } // end tensorflow

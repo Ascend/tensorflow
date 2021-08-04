@@ -2353,7 +2353,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   if (need_print != nullptr && strcmp("1", need_print) == 0) {
     GraphDef omg_graph_def;
     graph->get()->ToGraphDef(&omg_graph_def);
-    string tmpmodel_path = "AfterSubGraph_";
+    string tmpmodel_path = GetDumpPath() + "AfterSubGraph_";
     string tmodel_path = tmpmodel_path + std::to_string(graph_num) + ".pbtxt";
     Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }

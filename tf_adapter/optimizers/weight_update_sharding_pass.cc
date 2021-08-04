@@ -215,7 +215,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
     if (need_print != nullptr && strcmp("1", need_print) == 0) {
       GraphDef omg_graph_def;
       graphIn->ToGraphDef(&omg_graph_def);
-      string tmpmodel_path = "AfterWeightUpdateSharding_";
+      string tmpmodel_path = GetDumpPath() + "AfterWeightUpdateSharding_";
       string tmodel_path = tmpmodel_path + std::to_string(graph_num) + ".pbtxt";
       Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
     }
