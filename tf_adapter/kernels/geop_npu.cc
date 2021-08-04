@@ -1074,6 +1074,7 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
 
   ge::Shape ge_shape(output_info->dims_);
   ge::TensorDesc ge_tensor_desc(ge_shape);
+  ge_tensor_desc.SetOriginShape(ge_shape);
   ge_tensor_desc.SetDataType(type);
   ge_tensor_desc.SetPlacement(output_info->placement_);
   input.SetTensorDesc(ge_tensor_desc);
@@ -1122,6 +1123,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
       ge::Shape ge_shape(dims);
       ge::TensorDesc ge_tensor_desc(ge_shape);
       ge_tensor_desc.SetDataType(type);
+      ge_tensor_desc.SetOriginShape(ge_shape);
       input.SetTensorDesc(ge_tensor_desc);
       input.SetData(static_cast<uint8_t *>(tensor_ptr), total_bytes, [](uint8_t *) {});
       input_shapes.push_back(input_shape);

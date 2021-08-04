@@ -314,6 +314,8 @@ Placement TensorDesc::GetPlacement() const { return ge_placement; }
 
 void TensorDesc::SetPlacement(ge::Placement placement) { ge_placement = placement; }
 
+void TensorDesc::SetOriginShape(const Shape &originShape) {}
+
 std::unique_ptr<uint8_t[], Tensor::DeleteFunc> Tensor::ResetData() { return nullptr; }
 
 ParserContext &GetParserContext() {
