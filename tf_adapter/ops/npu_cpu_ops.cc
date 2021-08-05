@@ -265,6 +265,7 @@ REGISTER_OP("DenseImageWarpGrad")
   .Input("indices: indexT")
   .Input("updates: T")
   .Output("y: T")
+  .Attr("axis: int = 0")
   .Attr("T: numbertype")
   .Attr("indexT: {int32, int64}")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
