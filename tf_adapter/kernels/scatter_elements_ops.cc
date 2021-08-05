@@ -29,14 +29,14 @@ limitations under the License.
 
 namespace tensorflow {
 namespace {
-class ScatterElements : public OpKernel {
+class ScatterElementsOp : public OpKernel {
  public:
-  explicit ScatterElements(OpKernelConstruction *ctx) : OpKernel(ctx) {}
-  ~ScatterElements() { LOG(INFO) << "del ScatterElements"; }
+  explicit ScatterElementsOp(OpKernelConstruction *ctx) : OpKernel(ctx) {}
+  ~ScatterElementsOp() { LOG(INFO) << "del ScatterElements"; }
   void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in ScatterElements"; }
   bool IsExpensive() override { return false; }
 };
 
-REGISTER_KERNEL_BUILDER(Name("ScatterElements").Device(DEVICE_CPU), ScatterElements);
+REGISTER_KERNEL_BUILDER(Name("ScatterElements").Device(DEVICE_CPU), ScatterElementsOp);
 }  // namespace
 }  // namespace tensorflow

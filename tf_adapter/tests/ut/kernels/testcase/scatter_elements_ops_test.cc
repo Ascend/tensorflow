@@ -20,7 +20,10 @@ TEST_F(ScatterElementsOpTest, TestScatterElements) {
     OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
                                                              input_types, input_memory_types, output_types, output_memory_types,
                                                              1, nullptr);
-    ScatterElements scatter_elements(context);
+    ScatterElementsOp scatter_elements(context);
+    OpKernelContext *ctx = nullptr;
+    scatter_elements.Compute(ctx);
+    ASSERT_EQ(false, scatter_elements.IsExpensive());
     delete device;
     delete node_def;
     delete op_def;
