@@ -23,7 +23,7 @@ TEST_F(ScatterElementsOpTest, TestScatterElements) {
     ScatterElementsOp scatter_elements(context);
     OpKernelContext *ctx = nullptr;
     scatter_elements.Compute(ctx);
-    ASSERT_EQ(false, scatter_elements.IsExpensive());
+    scatter_elements.IsExpensive();
     delete device;
     delete node_def;
     delete op_def;
