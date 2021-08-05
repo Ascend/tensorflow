@@ -259,4 +259,17 @@ REGISTER_OP("DenseImageWarpGrad")
     c->set_output(1, input_flow_shape);
     return Status::OK();
   });
+
+  REGISTER_OP("ScatterElements")
+  .Input("data: T")
+  .Input("indices: indexT")
+  .Input("updates: T")
+  .Output("y: T")
+  .Attr("T: numbertype")
+  .Attr("indexT: {int32, int64}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
 }  // namespace tensorflow
