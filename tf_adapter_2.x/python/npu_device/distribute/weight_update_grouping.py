@@ -12,9 +12,9 @@ from absl import logging
 from npu_device.npu_device import global_npu_ctx
 
 class GroupingVars():
-    def __init__(self, vars, rank_size):
+    def __init__(self, variables, rank_size):
         self._vars = []
-        for var in vars:
+        for var in variables:
             if var is not None:
                 item = self._GradDivisionItem(var)
                 self._vars.append(item)
@@ -107,10 +107,10 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     op_list = []
 
     local_rank_id = global_npu_ctx().worker_id
-    vars = []
+    variables = []
     for _, var in grads_and_vars:
-        vars.append(var)
-    grouping_vars = GroupingVars(vars, global_npu_ctx().workers_num)
+        variables.append(var)
+    grouping_vars = GroupingVars(variables, global_npu_ctx().workers_num)
     local_grads_and_vars = []
     for grad, var in grads_and_vars:
         rank_id = grouping_vars.get_gid_by_var(var)
@@ -119,8 +119,8 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     apply_res = apply_func(local_grads_and_vars, *args, **kwargs)
     with ops.get_default_graph()._attr_scope(
         { "_weight_update_grouping": attr_value_pb2.AttrValue(b=True) }):
-        for i in range(len(vars)):
-            var = vars[i]
+        for i in range(len(variables)):
+            var = variables[i]
             rank_id = grouping_vars.get_gid_by_var(var)
             hccl.broadcast([var], rank_id, 0)
     for grad, var in grads_and_vars:
@@ -131,11 +131,11 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     return tf.group(op_list)
 
 @never_nested_function
-def grouping_broadcast(vars):
+def grouping_broadcast(variables):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip grouping broadcast as current process is not npu cluster worker")
-        return vars
-    grouping_vars = GroupingVars(vars, global_npu_ctx().workers_num)
-    for var in vars:
+        return variables
+    grouping_vars = GroupingVars(variables, global_npu_ctx().workers_num)
+    for var in variables:
         rank_id = grouping_vars.get_gid_by_var(var)
         hccl.broadcast([var], rank_id, 0)
