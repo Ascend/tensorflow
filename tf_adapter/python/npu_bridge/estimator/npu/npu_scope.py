@@ -56,7 +56,7 @@ def keep_dtype_scope():
     Specify which layers retain the original precision.
     """
     attrs = {
-        "_keep_dtype": attr_value_pb2.AttrValue(b=True)
+        "_keep_dtype": attr_value_pb2.AttrValue(i=1)
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield

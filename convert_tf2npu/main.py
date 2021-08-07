@@ -23,7 +23,7 @@ from conver import conver
 
 def para_check_and_set(argv):
     input_dir  = "npu_input"
-    support_list = "tf1.15_api_support_list.xlsx"
+    support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
     output = "output" + util_global.get_value('timestap')
     report = "report" + util_global.get_value('timestap')
     report_suffix = report
