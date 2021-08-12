@@ -111,3 +111,15 @@ def npu_weight_prefetch_scope(buffer_pool_id=0, buffer_pool_size=536870912):
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield
+
+@contextlib.contextmanager
+def op_specified_engine_scope(engine_name, kernel_lib_name):
+    """
+    Enable the node in the scope adding _specified_engine_name and _specified_kernel_lib_name attr.
+    """
+    attrs = {
+        "_specified_engine_name": attr_value_pb2.AttrValue(s=compat.as_bytes(engine_name)),
+        "_specified_kernel_lib_name": attr_value_pb2.AttrValue(s=compat.as_bytes(kernel_lib_name))
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield
