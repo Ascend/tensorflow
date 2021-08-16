@@ -1162,6 +1162,7 @@ Status GeOp::GenerateDesc(Node *&node) {
   const OpDef &op_def = node->op_def();
   if (dynamic_input_ == "1" && node->type_string() == "IteratorGetNext") {
     node_def.set_op("DynamicGetNext");
+    if (dynamic_graph_execute_mode_ == "lazy_recompile") { graph_options_["ge.exec.enableCopyOutputAddr"] = "1"; }
   }
 
   std::string format = this->data_format_;  // format
