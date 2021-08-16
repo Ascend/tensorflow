@@ -1,32 +1,30 @@
-#include <memory>
-#include "tf_adapter/kernels/non_zero_ops.cc"
-#include "gtest/gtest.h"
+/* Copyright (C) 2021. Huawei Technologies Co., Ltd. All rights reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-namespace tensorflow {
-class NonZeroOpTest : public testing::Test {
- protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#include "tensorflow/core/framework/op_kernel.h"
+#include "tensorflow/core/framework/register_types.h"
+
+namespace tensorflow{
+template<typename T>
+class NonZeroOP : public OpKernel{
+ public:
+  explicit NonZeroOP(OpKernelConstruction*ctx):OpKernel(ctx) { LOG(INFO) << "new NonZeroOP";}
+  NonZeroOP() { LOG(INFO) << "del NonZeroOP";}
+  void Compute(OpKernelContext*ctx) override{LOG(INFO) << "in NonZeroOP";}
+  bool IsExpensive() override{ 
+    LOG(INFO) << "in NonZero IsExpensive";
+    return false;}
 };
-
-TEST_F(NonZeroOpTest, TestNonZero) {
-    DataTypeSlice input_types({DT_INT32});
-    MemoryTypeSlice input_memory_types;
-    DataTypeSlice output_types({DT_INT32});
-    MemoryTypeSlice output_memory_types;
-    DeviceBase *device = new DeviceBase(Env::Default());
-    NodeDef *node_def = new NodeDef();
-    OpDef *op_def = new OpDef();
-    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
-                                                             input_types, input_memory_types, output_types, output_memory_types,
-                                                             1, nullptr);
-    NonZeroOP<int> non_zero(context);
-    OpKernelContext *ctx = nullptr;
-    non_zero.Compute(ctx);
-    non_zero.IsExpensive();
-    delete device;
-    delete node_def;
-    delete op_def;
-    delete context;
-}
-}
+REGISTER_KERNEL_BUILDER(Name("NonZero").Device(DEVICE_CPU),NonZeroOP<float>);
+}  //namespace tensorflow
