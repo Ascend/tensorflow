@@ -15,16 +15,24 @@ limitations under the License.
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 
-namespace tensorflow{
+namespace tensorflow {
 template<typename T>
-class NonZeroOP : public OpKernel{
+class NonZeroOP : public OpKernel {
  public:
-  explicit NonZeroOP(OpKernelConstruction*ctx):OpKernel(ctx) { LOG(INFO) << "new NonZeroOP";}
-  NonZeroOP() { LOG(INFO) << "del NonZeroOP";}
-  void Compute(OpKernelContext*ctx) override{LOG(INFO) << "in NonZeroOP";}
-  bool IsExpensive() override{ 
+  explicit NonZeroOP(OpKernelConstruction*ctx) : OpKernel(ctx) {
+    LOG(INFO) << "new NonZeroOP";
+  }
+  ~NonZeroOP() {
+    LOG(INFO) << "del NonZeroOP";
+  }
+  void Compute(OpKernelContext*ctx) override {
+    LOG(INFO) << "compute in NonZeroOP";
+  }
+  bool IsExpensive() override { 
     LOG(INFO) << "in NonZero IsExpensive";
-    return false;}
+    return false;
+  }
 };
-REGISTER_KERNEL_BUILDER(Name("NonZero").Device(DEVICE_CPU),NonZeroOP<float>);
+
+REGISTER_KERNEL_BUILDER(Name("NonZero").Device(DEVICE_CPU), NonZeroOP<float>);
 }  //namespace tensorflow

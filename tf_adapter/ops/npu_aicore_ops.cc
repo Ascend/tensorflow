@@ -336,9 +336,9 @@ REGISTER_OP("NonZero")
     .Attr("T:numbertype")
     .Attr("output_type:{int32, int64} = DT_INT64")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c){
+    .SetShapeFn([](InferenceContext* c) {
         auto rank = c->Rank(c->input(0));
-        c->set_output(0,c->MakeShape({rank,-1}));
+        c->set_output(0, c->MakeShape({rank, -1}));
         return Status::OK();
     });
 }  // namespace
