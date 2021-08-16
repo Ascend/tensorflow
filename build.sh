@@ -109,6 +109,12 @@ release_tfadapter() {
   cd ${CMAKE_PATH}/dist/python/dist && mkdir -p tfplugin/bin && cp -r "${BASE_PATH}/script" tfplugin/ && mv npu_bridge-*.whl tfplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" tfplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
 }
 
+release_tfadapter_for_cann() {
+  logging "Create output directory"
+  RELEASE_TARGET="tfadapter.tar"
+  cd ${CMAKE_PATH}/dist/python/dist && mkdir -p fwkplugin/bin && cp -r "${BASE_PATH}/script" fwkplugin/ && mv npu_bridge-*.whl fwkplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" fwkplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
+}
+
 main() {
   checkopts "$@"
   # tfadapter build start
@@ -117,7 +123,11 @@ main() {
   mk_dir "${RELEASE_PATH}"
   build_tfadapter
   if [[ "X$ENABLE_TFADAPTER_UT" = "Xoff" ]]; then
-    release_tfadapter
+    if [[ "X$ALL_IN_ONE_ENABLE" = "X1" ]]; then
+      release_tfadapter_for_cann
+    else
+      release_tfadapter
+    fi
   fi
   if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
     cd ${BASE_PATH}
