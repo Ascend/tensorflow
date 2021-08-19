@@ -5,9 +5,15 @@ if(DEFINED ASCEND_INSTALLED_PATH)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../inc/graphengine/inc/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../inc/metadef/inc)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../inc/metadef/inc/external)
-    target_link_libraries(ge_libs INTERFACE
-            ${ASCEND_INSTALLED_PATH}/fwkacllib/lib64/libge_runner.so
-            ${ASCEND_INSTALLED_PATH}/fwkacllib/lib64/libfmk_parser.so)
+    if(DEFINED ENV{ALL_IN_ONE_ENABLE})
+        target_link_libraries(ge_libs INTERFACE
+                ${ASCEND_INSTALLED_PATH}/compiler/lib64/libge_runner.so
+                ${ASCEND_INSTALLED_PATH}/compiler/lib64/libfmk_parser.so)
+    else()
+        target_link_libraries(ge_libs INTERFACE
+                ${ASCEND_INSTALLED_PATH}/fwkacllib/lib64/libge_runner.so
+                ${ASCEND_INSTALLED_PATH}/fwkacllib/lib64/libfmk_parser.so)
+    endif()
 else()
     include_directories(${ASCEND_CI_BUILD_DIR}/graphengine/inc)
     include_directories(${ASCEND_CI_BUILD_DIR}/graphengine/inc/external)
