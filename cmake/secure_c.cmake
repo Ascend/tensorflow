@@ -5,13 +5,13 @@ if(TF_PKG_SERVER)
   FetchContent_Declare(
           secure_c
           URL ${_json_url}
-          URL_HASH MD5=193f0ca5246c1dd84920db34d2d8249f
+          URL_HASH MD5=ae4865cec1bfb52f7dca03f5c05ac98a
   )
 else()
   FetchContent_Declare(
           secure_c
           URL https://gitee.com/openeuler/libboundscheck/repository/archive/v1.1.10.tar.gz
-          URL_HASH MD5=193f0ca5246c1dd84920db34d2d8249f
+          URL_HASH MD5=ae4865cec1bfb52f7dca03f5c05ac98a
   )
 endif()
 FetchContent_GetProperties(secure_c)
