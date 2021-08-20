@@ -207,3 +207,10 @@ def npu_keras_optimizer(opt):
 def npu_tf_optimizer(opt):
     npu_opt = NPUDistributedOptimizer(opt)
     return npu_opt
+
+def npu_clear_session(k):
+    from tensorflow.python.keras import backend
+    if k != backend:
+        return
+    k.clear_session()
+    k.set_session(session.Session(config=npu_config_proto()))
