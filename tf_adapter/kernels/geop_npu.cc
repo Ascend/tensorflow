@@ -691,10 +691,14 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       ADP_LOG(INFO) << "[GEOP] set graph option.";
       graph_options_["ge.exec.placement"] = "HOST";
     }
+    graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
     if (dynamic_input_ == "1") {
       graph_options_["ge.exec.dynamicInput"] = dynamic_input_;
       graph_options_["ge.exec.dynamicGraphExecuteMode"] = dynamic_graph_execute_mode_;
       graph_options_["ge.exec.dataInputsShapeRange"] = data_inputs_shape_range_;
+      if (dynamic_graph_execute_mode_ == "dynamic_execute" && data_inputs_shape_range_.empty()) {
+        graph_options_["ge.shape_generalized_build_mode"] = "shape_generalized";
+      }
     }
     if (is_tuning) {
       if (is_train_graph_ != "1" && init_options_["ge.jobType"] != "2") {
