@@ -25,7 +25,9 @@ else()
 
     add_library(ascendcl SHARED ${fake_sources})
     add_library(acl_op_compiler SHARED ${fake_sources})
+    add_library(acl_tdt_channel SHARED ${fake_sources})
     target_link_libraries(acl_libs INTERFACE
             ascendcl
-            acl_op_compiler)
+            acl_op_compiler
+            acl_tdt_channel)
 endif()
