@@ -486,5 +486,44 @@ REGISTER_OP("AdamApplyOneWithDecayAssign")
     .Input("add2_y: T")
     .Attr("T: {float16, float32}")
     .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("KMeansCentroids")
+    .Input("x: T")
+    .Input("y: T")
+    .Input("sum_square_y: T")
+    .Input("sum_square_x: T")
+    .Output("segment_sum: T")
+    .Output("segment_count: T")
+    .Output("kmean_total_sum: T")
+    .Attr("T: {float32}")
+    .Attr("use_actual_distance: bool = false")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      auto input_y_shape = c->input(1);
+      auto n = c->Dim(input_y_shape, 0);
+      auto d = c->Dim(input_y_shape, 1);
+      c->set_output(0, c->MakeShape({n, d}));
+      c->set_output(1, c->MakeShape({n, 1}));
+      c->set_output(2, c->MakeShape({1,}));
+      return Status::OK();
+    });
+
+REGISTER_OP("KMeansCentroidsV2")
+    .Input("x: T")
+    .Input("y: T")
+    .Input("sum_square_y: T")
+    .Output("segment_sum: T")
+    .Output("segment_count: T")
+    .Output("kmean_total_sum: T")
+    .Attr("T: {float32}")
+    .Attr("use_actual_distance: bool = false")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      auto input_y_shape = c->input(1);
+      auto n = c->Dim(input_y_shape, 0);
+      auto d = c->Dim(input_y_shape, 1);
+      c->set_output(0, c->MakeShape({n, d}));
+      c->set_output(1, c->MakeShape({n, 1}));
+      c->set_output(2, c->MakeShape({1,}));
+      return Status::OK();
+    });
 }  // namespace
 }  // namespace tensorflow
