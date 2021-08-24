@@ -4,13 +4,13 @@
 
 namespace tensorflow {
 class KMeansCentroidsV2OpTest : public testing::Test {
- protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  protected:
+    virtual void SetUp() {}
+    virtual void TearDown() {}
 };
 
 TEST_F(KMeansCentroidsV2OpTest, TestKMeansCentroidsV2) {
-    DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT});
+    DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
     MemoryTypeSlice output_memory_types;

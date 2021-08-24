@@ -4,9 +4,9 @@
 
 namespace tensorflow {
 class KMeansCentroidsOpTest : public testing::Test {
- protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  protected:
+    virtual void SetUp() {}
+    virtual void TearDown() {}
 };
 
 TEST_F(KMeansCentroidsOpTest, TestKMeansCentroids) {

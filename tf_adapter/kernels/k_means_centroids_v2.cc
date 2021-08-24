@@ -30,13 +30,13 @@ limitations under the License.
 
 namespace tensorflow {
 class KMeansCentroidsV2Op : public OpKernel {
- public:
-  explicit KMeansCentroidsV2Op(OpKernelConstruction *context) : OpKernel(context) {}
-  ~KMeansCentroidsV2Op() override = default;
-  void Compute(OpKernelContext *context) override {
-    ADP_LOG(INFO) << "KMeansCentroidsV2Op Compute, num_inputs: " << context->num_inputs();
-  }
-  bool IsExpensive() override { return false; }
+  public:
+    explicit KMeansCentroidsV2Op(OpKernelConstruction *context) : OpKernel(context) {}
+    ~KMeansCentroidsV2Op() override = default;
+    void Compute(OpKernelContext *context) override {
+      ADP_LOG(INFO) << "KMeansCentroidsV2Op Compute, num_inputs: " << context->num_inputs();
+    }
+    bool IsExpensive() override { return false; }
 };
 
 REGISTER_KERNEL_BUILDER(Name("KMeansCentroidsV2").Device(DEVICE_CPU), KMeansCentroidsV2Op);
