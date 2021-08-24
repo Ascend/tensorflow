@@ -26,7 +26,6 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class KMeansCentroidsOp : public OpKernel {
@@ -34,7 +33,7 @@ class KMeansCentroidsOp : public OpKernel {
     explicit KMeansCentroidsOp(OpKernelConstruction *context) : OpKernel(context) {}
     ~KMeansCentroidsOp() override = default;
     void Compute(OpKernelContext *context) override {
-      ADP_LOG(INFO) << "KMeansCentroidsOp Compute, num_inputs: " << context->num_inputs();
+      ADP_LOG(INFO) << "KMeansCentroidsOp Compute ";
     }
     bool IsExpensive() override { return false; }
 };
