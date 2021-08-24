@@ -11,11 +11,7 @@
 #include "tensorflow/core/platform/test.h"
 
 namespace tensorflow {
-class KMeansCentroidsOpTest : public testing::Test {
-  protected:
-    virtual void SetUp() {}
-    virtual void TearDown() {}
-};
+namespace {
 
 PartialTensorShape TShape(std::initializer_list<int64> dims) {
   return PartialTensorShape(dims);
@@ -31,7 +27,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
   };
 }
 
-TEST_F(KMeansCentroidsOpTest, TestKMeansCentroids) {
+TEST(KMeansCentroidsOpTest, TestKMeansCentroids) {
     DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
@@ -52,7 +48,7 @@ TEST_F(KMeansCentroidsOpTest, TestKMeansCentroids) {
     delete context;
 }
 
-TEST_F(KMeansCentroidsOpTest, TestKMeansCentroidsShapeInference) {
+TEST(KMeansCentroidsOpTest, TestKMeansCentroidsShapeInference) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("KMeansCentroids", &reg));
   OpDef op_def = reg->op_def;
@@ -72,4 +68,5 @@ TEST_F(KMeansCentroidsOpTest, TestKMeansCentroidsShapeInference) {
   ASSERT_EQ("[3,1]", c.DebugString(c.output(1)));
   ASSERT_EQ("[1,]", c.DebugString(c.output(2)));
 }
-}
+}  // namespace
+}  // namespace tensorflow
