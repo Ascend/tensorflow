@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 class KMeansCentroidsOp : public OpKernel {
