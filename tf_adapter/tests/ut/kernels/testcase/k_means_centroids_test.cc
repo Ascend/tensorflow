@@ -52,7 +52,7 @@ TEST_F(KMeansCentroidsOpTest, TestKMeansCentroids) {
     delete context;
 }
 
-TEST(KMeansCentroidsOpTest, TestKMeansCentroidsShapeInference) {
+TEST_F(KMeansCentroidsOpTest, TestKMeansCentroidsShapeInference) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("KMeansCentroids", &reg));
   OpDef op_def = reg->op_def;
