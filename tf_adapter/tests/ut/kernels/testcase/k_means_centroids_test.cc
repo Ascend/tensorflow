@@ -66,7 +66,7 @@ TEST(KMeansCentroidsOpTest, TestKMeansCentroidsShapeInference) {
   TF_CHECK_OK(reg->shape_inference_fn(&c));
   ASSERT_EQ("[3,4]", c.DebugString(c.output(0)));
   ASSERT_EQ("[3,1]", c.DebugString(c.output(1)));
-  ASSERT_EQ("[1,]", c.DebugString(c.output(2)));
+  ASSERT_EQ("[1]", c.DebugString(c.output(2)));
 }
 }  // namespace
 }  // namespace tensorflow
