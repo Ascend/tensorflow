@@ -27,7 +27,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
   };
 }
 
-TEST_F(KMeansCentroidsV2OpTest, TestKMeansCentroidsV2) {
+TEST(KMeansCentroidsV2OpTest, TestKMeansCentroidsV2) {
     DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
