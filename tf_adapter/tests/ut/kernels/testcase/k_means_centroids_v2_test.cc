@@ -1,5 +1,5 @@
 #include <memory>
-#include "tf_adapter/kernels/k_means_centroids.cc"
+#include "tf_adapter/kernels/k_means_centroids_v2.cc"
 #include "gtest/gtest.h"
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/framework/attr_value_util.h"
