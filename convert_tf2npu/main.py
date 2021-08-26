@@ -62,30 +62,30 @@ def para_check_and_set(argv):
         elif opt in ("-i", "--input"):
             input_dir = os.path.abspath(arg)
             if str(input_dir).endswith('/'):
-                input_dir = input_dir[0:len(input_dir)-1]
+                input_dir = input_dir[:-1]
             input_dir = input_dir.replace('\\', '/')
         elif opt in ("-l", "--list"):
             support_list = arg
         elif opt in ("-o", "--output"):
             output = os.path.abspath(arg)
             if str(output).endswith('/'):
-                output = output[0:len(output)-1]
+                output = output[:-1]
             output = output.replace('\\', '/')
         elif opt in ("-r", "--report"):
             report = os.path.abspath(arg)
             if str(report).endswith('/'):
-                report = report[0:len(report)-1]
+                report = report[:-1]
             report = os.path.join(report, report_suffix)
             report = report.replace('\\', '/')
         elif opt in ("-m", "--main"):
             if os.path.isfile(arg):
                 main_file = os.path.abspath(arg)
                 main_path = os.path.dirname(main_file)
-                file = os.path.basename(main_file)
+                select_file = os.path.basename(main_file)
                 main_path = main_path.replace('\\', '/')
-                main_file = os.path.join(main_path, file)
+                main_file = os.path.join(main_path, select_file)
             else:
-                raise ValueError("--main args must be exited files")
+                raise ValueError("--main args must be existed files")
         elif opt in ("-d", "--distributed_mode"):
             if arg not in ["horovod", "tf_strategy"]:
                 raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")

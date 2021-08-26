@@ -88,44 +88,44 @@ class Analyse(object):
         util_global._init()
 
         # verify input arguments
-        if self.script_path.get() == '':
+        if not self.script_path.get():
             raise ValueError("Parameter error, please select the folder of source script to be converted.")
         input_dir = self.script_path.get()
         if str(input_dir).endswith('/'):
-            input_dir = input_dir[0:len(input_dir) - 1]
+            input_dir = input_dir[:-1]
         input_dir = input_dir.replace('\\', '/')
 
         support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
 
         output = "output" + util_global.get_value('timestap')
-        if not self.output_path.get() == '':
+        if self.output_path.get():
             output = self.output_path.get()
             if str(output).endswith('/'):
-                output = output[0:len(output)-1]
+                output = output[:-1]
             output = output.replace('\\', '/')
 
         report = "report" + util_global.get_value('timestap')
         report_suffix = report
-        if not self.report_path.get() == '':
+        if self.report_path.get():
             report = self.report_path.get()
             if str(report).endswith('/'):
-                report = report[0:len(report)-1]
+                report = report[:-1]
             report = os.path.join(report, report_suffix)
             report = report.replace('\\', '/')
 
         main_file = ""
-        if not self.main_file.get() == '':
+        if self.main_file.get():
             main_file = self.main_file.get()
             if os.path.isfile(main_file):
                 main_path = os.path.dirname(main_file)
-                file = os.path.basename(main_file)
+                select_file = os.path.basename(main_file)
                 main_path = main_path.replace('\\', '/')
-                main_file = os.path.join(main_path, file)
+                main_file = os.path.join(main_path, select_file)
             else:
-                raise ValueError("--main args must be exited files")
+                raise ValueError("--main args must be existed files")
 
         distributed_mode = ""
-        if not self.distributed_mode.get() == '':
+        if self.distributed_mode.get():
             distributed_mode = self.distributed_mode.get()
 
         if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
