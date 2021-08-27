@@ -271,3 +271,36 @@ def scatter_elements(data, indices, updates, axis=0, name=None):
   updates = ops.convert_to_tensor(updates, name="updates")
   y = gen_npu_ops.scatter_elements(data, indices, updates, axis, name)
   return y
+
+
+def k_means_centroids(x, y, sum_square_y, sum_square_x, use_actual_distance=False, name=None):
+    """k_means_centroids.
+
+    Args:
+        x: A tensor with type is float.
+        y: A tensor with type is float.
+        sum_square_y: A tensor with type is float.
+        sum_square_x: A tensor with type is float or None.
+        use_actual_distance: Whether to output accurate Loss
+        name: name.
+
+    Returns:
+        A tensor.
+    """
+    if context.executing_eagerly():
+        raise RuntimeError("tf.k_means_centroids() is not compatible with "
+                           "eager execution.")
+    x = ops.convert_to_tensor(x, name="x")
+    y = ops.convert_to_tensor(y, name="y")
+    sum_square_y = ops.convert_to_tensor(sum_square_y, name="sum_square_y")
+    if sum_square_x is not None:
+        sum_square_x = ops.convert_to_tensor(sum_square_x, name="sum_square_x")
+        use_actual_distance = True
+    else:
+        use_actual_distance = False
+
+    if use_actual_distance:
+        result = gen_npu_ops.k_means_centroids(x, y, sum_square_y, sum_square_x, use_actual_distance, name)
+    else:
+        result = gen_npu_ops.k_means_centroids_v2(x, y, sum_square_y, use_actual_distance, name)
+    return result
