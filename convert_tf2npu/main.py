@@ -85,7 +85,7 @@ def para_check_and_set(argv):
                 main_path = main_path.replace('\\', '/')
                 main_file = os.path.join(main_path, select_file)
             else:
-                raise ValueError("--main args must be existed files")
+                raise ValueError("--main args must be existing files")
         elif opt in ("-d", "--distributed_mode"):
             if arg not in ["horovod", "tf_strategy"]:
                 raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")

@@ -16,6 +16,7 @@
 # ============================================================================
 import util_global
 from file_op import write_conver_report
+import os
 
 def log_msg(lineno, msg):
     content = util_global.get_value('path') + ':' + str(lineno) + ' ' + msg
@@ -29,6 +30,7 @@ def log_info(lineno, msg, file):
     write_conver_report(content, file)
 
 def log_warning(msg):
+    os.system("")
     print("".join(["\033[1;33mWARNING\033[0m:", msg]))
     write_conver_report(msg, util_global.get_value('report_file')[0])
 
@@ -41,6 +43,7 @@ def log_success_report(lineno, msg):
 
 def log_failed_report(lineno, msg):
     content = "".join([util_global.get_value('path'), ":", str(lineno), " ", msg, " is not support migration."])
+    os.system("")
     print("".join(["\033[1;31mERROR\033[0m:", content]))
     write_conver_report(content, util_global.get_value('report_file')[1])
     util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b10))
@@ -58,6 +61,7 @@ def ask_the_distributed_mode(node, prompt, warning_msg):
         message = input(prompt)
         if message == "c" or message == "continue":
             content = "".join([util_global.get_value('path'), ":", str(getattr(node, 'lineno')), warning_msg])
+            os.system("")
             print("".join(["\033[1;33mWARNING\033[0m:", content]))
             write_conver_report(content, util_global.get_value('report_file')[1])
             util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b10))

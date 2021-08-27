@@ -87,6 +87,10 @@ def conver_ast(path, out_path_dst, file_name):
         r_node = pasta.parse(source)
     except Exception as e:
         print(repr(e))
+        content = ("There is a format problem in the script, please check the python code "
+                  "specification or whether it is converted to a linux file through 'dos2unix'")
+        os.system("")
+        print("".join(["\033[1;31mERROR\033[0m:", content]))
         return
 
     sys.setrecursionlimit(10000)
@@ -100,7 +104,8 @@ def conver_ast(path, out_path_dst, file_name):
     scan_file(path, file_name, api, lineno)
 
     if util_global.get_value('need_conver', False):
-        insert_npu_import(r_node)
+        if file_name != "__init__.py":
+            insert_npu_import(r_node)
         distributed_mode = util_global.get_value('distributed_mode', "")
         if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hvd_api', False)
             or util_global.get_value('is_keras_net', False)) and  not util_global.get_value('main', ""):

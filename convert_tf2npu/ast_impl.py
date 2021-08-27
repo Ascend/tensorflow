@@ -142,11 +142,13 @@ def check_func_arguments(origin_func, node_args, node_keywords, is_class_func):
     else:
         return True
 
-def add_npu_func_to_params(node, param_index, param_name, npu_func, npu_func_args):
+def add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_func, npu_func_args):
     param_node = None
     if ((not util_global.get_value("distributed_mode", "") or util_global.get_value("distributed_mode", "") == "horovod") and
        (param_name == "callbacks" or param_name == "hooks" or param_name == "optimizer")):
         return node
+    log_param_msg = "".join([org_func_name, " add npu ", param_name])
+    log_msg(getattr(node, "lineno", "None"), log_param_msg)
     for index, _ in enumerate(node.args):
         if param_index is not None and index == param_index:
             param_node = node.args.pop(param_index)
@@ -178,9 +180,7 @@ def match_func_params_and_convert(node, origin_func, org_func_name, param_name, 
         if param == param_name:
             param_index = index if not is_class_func else index - 1
     if param_index is not None:
-        log_param_msg = "".join([org_func_name, "add npu ", param_name])
-        log_msg(getattr(node, "lineno", "None"), log_param_msg)
-        node = add_npu_func_to_params(node, param_index, param_name, npu_func_map[param_name][0], npu_func_map[param_name][1])
+        node = add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_func_map[param_name][0], npu_func_map[param_name][1])
     return node
 
 def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is_class_func=None):
@@ -281,7 +281,7 @@ def convert_hvd_distributed_api(node):
 
 def convert_tf_gradient_distributed(node):
     content = "".join([util_global.get_value('path'), ":", str(getattr(node, "lineno", "None")),
-                       " is tf.gradient api, tool inserts allreduce op after computing grads by default.",
+                       " is tf.gradient api, tool inserts npu_allreduce after computing grads by default.",
                        " You can adjust the allreduce position according to the algorithm"])
     log_warning(content)
     new_node = ast.Call(func=ast.Name(id="npu_allreduce", ctx=ast.Load()), args=[node], keywords=[])
