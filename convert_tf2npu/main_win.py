@@ -15,11 +15,15 @@
 # limitations under the License.
 # ============================================================================
 import os
+import sys
 import pandas as pd
 import tkinter as tk
 from tkinter.filedialog import askdirectory
 from tkinter.filedialog import askopenfilename
 from tkintertable import TableCanvas
+from tkinter import ttk
+import util_global
+from conver import conver
 
 class Analyse(object):
     def __init__(self, parent):
@@ -27,7 +31,7 @@ class Analyse(object):
         self.root.title("Tensorflow1.15 API Analysis")
 
         self.script_path = tk.StringVar()
-        tk.Label(self.root, text="原始脚本路径：").grid(row=0, stick=tk.E)
+        tk.Label(self.root, text="原始脚本路径：").grid(row=0, stick=tk.W)
         tk.Entry(self.root, textvariable=self.script_path, width=30).grid(row=0, column=1, padx=10, pady=10)
         tk.Button(self.root, text="路径选择", command=self.select_script_path).grid(row=0, column=2)
 
@@ -42,9 +46,13 @@ class Analyse(object):
         tk.Button(self.root, text="路径选择", command=self.select_report_path).grid(row=2, column=2)
 
         self.main_file = tk.StringVar()
-        tk.Label(self.root, text="执行入口脚本：").grid(row=3, stick=tk.E)
+        tk.Label(self.root, text="执行入口脚本：").grid(row=3, stick=tk.W)
         tk.Entry(self.root, textvariable=self.main_file, width=30).grid(row=3, column=1, padx=10, pady=10)
         tk.Button(self.root, text="文件选择", command=self.select_main_file).grid(row=3, column=2)
+
+        tk.Label(self.root, text="分布式模式：").grid(row=4, stick=tk.W)
+        self.distributed_mode = ttk.Combobox(self.root, values=["horovod", "tf_strategy"], width=28)
+        self.distributed_mode.grid(row=4, column=1, padx=10, pady=10)
 
         tk.Button(self.root, text="开始分析", command=self.analyse).grid(row=5, column=2, padx=10, pady=10)
         tk.Button(self.root, text="退出", command=exit).grid(row=5, column=1, padx=10, pady=10, stick=tk.E)
@@ -77,55 +85,60 @@ class Analyse(object):
         self.main_file.set(main_file_)
 
     def analyse(self):
+        util_global._init()
+
         # verify input arguments
-        if self.script_path.get() == '':
-            print('Parameter error, please select the folder of source script to be converted.')
-            return
+        if not self.script_path.get():
+            raise ValueError("Parameter error, please select the folder of source script to be converted.")
+        input_dir = self.script_path.get()
+        if str(input_dir).endswith('/'):
+            input_dir = input_dir[:-1]
+        input_dir = input_dir.replace('\\', '/')
 
-        # generate command
-        support_list = "tf1.15_api_support_list.xlsx"
+        support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
 
-        if self.main_file.get() == '':
-            if self.output_path.get() == '' and self.report_path.get() == '':
-                call_main_py = 'python main.py -i {} -l {}'.format('\"' + self.script_path.get() + '\"',
-                                                                   support_list)
-            elif self.output_path.get() == '':
-                call_main_py = 'python main.py -i {} -l {} -r {}'.format('\"' + self.script_path.get() + '\"',
-                                                                         support_list,
-                                                                         '\"' + self.report_path.get() + '\"')
-            elif self.report_path.get() == '':
-                call_main_py = 'python main.py -i {} -l {} -o {}'.format('\"' + self.script_path.get() + '\"',
-                                                                         support_list,
-                                                                         '\"' + self.output_path.get() + '\"')
+        output = "output" + util_global.get_value('timestap')
+        if self.output_path.get():
+            output = self.output_path.get()
+            if str(output).endswith('/'):
+                output = output[:-1]
+            output = output.replace('\\', '/')
+
+        report = "report" + util_global.get_value('timestap')
+        report_suffix = report
+        if self.report_path.get():
+            report = self.report_path.get()
+            if str(report).endswith('/'):
+                report = report[:-1]
+            report = os.path.join(report, report_suffix)
+            report = report.replace('\\', '/')
+
+        main_file = ""
+        if self.main_file.get():
+            main_file = self.main_file.get()
+            if os.path.isfile(main_file):
+                main_path = os.path.dirname(main_file)
+                select_file = os.path.basename(main_file)
+                main_path = main_path.replace('\\', '/')
+                main_file = os.path.join(main_path, select_file)
             else:
-                call_main_py = 'python main.py -i {} -l {} -o {} -r {}'.format('\"' + self.script_path.get() + '\"',
-                                                                               support_list,
-                                                                               '\"' + self.output_path.get() + '\"',
-                                                                               '\"' + self.report_path.get() + '\"')
-        else:
-            if self.output_path.get() == '' and self.report_path.get() == '':
-                call_main_py = 'python main.py -i {} -l {} -m {}'.format('\"' + self.script_path.get() + '\"',
-                                                                         support_list,
-                                                                         '\"' + self.main_file.get() + '\"')
-            elif self.output_path.get() == '':
-                call_main_py = 'python main.py -i {} -l {} -r {} -m {}'.format('\"' + self.script_path.get() + '\"',
-                                                                               support_list,
-                                                                               '\"' + self.report_path.get() + '\"',
-                                                                               '\"' + self.main_file.get() + '\"')
-            elif self.report_path.get() == '':
-                call_main_py = 'python main.py -i {} -l {} -o {} -m {}'.format('\"' + self.script_path.get() + '\"',
-                                                                               support_list,
-                                                                               '\"' + self.output_path.get() + '\"',
-                                                                               '\"' + self.main_file.get() + '\"')
-            else:
-                call_main_py = 'python main.py -i {} -l {} ' \
-                               '-o {} -r {} -m {}'.format('\"' + self.script_path.get() + '\"',
-                                                          support_list,
-                                                          '\"' + self.output_path.get() + '\"',
-                                                          '\"' + self.report_path.get() + '\"',
-                                                          '\"' + self.main_file.get() + '\"')
+                raise ValueError("--main args must be existed files")
 
-        os.system(call_main_py)
+        distributed_mode = ""
+        if self.distributed_mode.get():
+            distributed_mode = self.distributed_mode.get()
+
+        if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
+            print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
+            sys.exit(2)
+
+        util_global.set_value('input', input_dir)
+        util_global.set_value('list', support_list)
+        util_global.set_value('output', output)
+        util_global.set_value('report', report)
+        util_global.set_value('main', main_file)
+        util_global.set_value('distributed_mode', distributed_mode)
+        conver()
         self.hide()
 
         new_frame = tk.Toplevel()
@@ -186,6 +199,6 @@ class Analyse(object):
 
 if __name__ == '__main__':
     root = tk.Tk()
-    root.geometry('425x210')
+    root.geometry('430x260')
     app = Analyse(root)
     root.mainloop()
