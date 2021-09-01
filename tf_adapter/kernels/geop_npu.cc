@@ -224,7 +224,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ADP_LOG(INFO) << "[GEOP] Begin GeOp initialize.";
   if (init_flag_) {
     ADP_LOG(WARNING) << "[GEOP] GEOP already Initialize.";
-    LOG(WARNING) << "[GEOP] GEOP already Initialize.";
     return;
   }
 
@@ -814,6 +813,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name:" << geop_name << " ,tf session: " << tf_session_
                 << " ,graph id: " << cache_graph_id;
+  LOG(INFO) << "The subgraph of the network has started traning on the Ascend AI processor, graph id:" << cache_graph_id;
   // call ge session runGraphAsync api
   ge::Status status = ge_session_->RunGraphAsync(cache_graph_id, inputs, callback);
   if (status != ge::SUCCESS) {
@@ -1281,7 +1281,6 @@ Status GeOp::GenerateDesc(Node *&node) {
     const auto &it = node_def.attr().find(KEY_SHAPE);
     if (it == node_def.attr().end()) {  // no find
       ADP_LOG(WARNING) << "[GEOP] There is no infershape of node : " << node_def.name();
-      LOG(WARNING) << "[GEOP] There is no infershape of node : " << node_def.name();
     } else {
       shape_value = node_def.attr().at(KEY_SHAPE);
       uint32_t shape_size = static_cast<uint32_t>(shape_value.list().shape_size());

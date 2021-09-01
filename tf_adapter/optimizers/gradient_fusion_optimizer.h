@@ -24,10 +24,7 @@ namespace tensorflow {
 namespace grappler {
 class GradFusionOptimizer : public CustomGraphOptimizer {
  public:
-  GradFusionOptimizer() {
-    fusionOpInfo_.clear();
-    fusionOpPool_.clear();
-  }
+  GradFusionOptimizer() {}
 
   ~GradFusionOptimizer() override = default;
 
@@ -40,19 +37,6 @@ class GradFusionOptimizer : public CustomGraphOptimizer {
   Status Optimize(Cluster *cluster, const GrapplerItem &item, GraphDef *optimizedGraph) override;
 
   void Feedback(Cluster *cluster, const GrapplerItem &item, const GraphDef &optimizedGraph, double result) override {}
-
- private:
-  bool IsHcomOp(const NodeDef &nodeDef);
-  Status GetInputTensorSize(NodeDef &nodeDef, int64_t &inputTensorSize);
-  Status FusionOp(std::vector<NodeDef> fusionHcclOps, GraphDef *graphDef);
-  Status SetFusionNodeAttr(NodeDef *fusionNode, NodeDef &originNode);
-  Status SetHcomBroadcastAttr(NodeDef *fusionNode, NodeDef &originNode);
-  int64 GetFusionTensorSize();
-
-  std::unique_ptr<NodeMap> nodeMap_;
-  std::map<string, std::vector<std::pair<int, string>>> fusionOpInfo_;
-  std::map<string, NodeDef> nameToNode_;
-  std::map<string, std::set<string>> fusionOpPool_;
 };
 }  // end namespace grappler
 }  // end namespace tensorflow

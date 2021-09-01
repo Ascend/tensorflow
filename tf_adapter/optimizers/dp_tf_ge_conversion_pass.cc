@@ -38,7 +38,7 @@
 
 namespace tensorflow {
 static const int64 kMicrosToMillis = 1000;
-static int64 g_channel_index = 1;
+static std::atomic<int64>  g_channel_index(1);
 // GE ops white list
 const static std::vector<std::string> GE_OPS_WHITELIST = {
     "MapDataset",     "ParallelMapDataset",   "BatchDataset", "MapAndBatchDataset", "DeviceQueueDataset",
@@ -142,7 +142,6 @@ class DpTfToGEConversionPassImpl {
                       const OptimizationPassRegistry::Grouping pass_group_value);
   bool RunPass(std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
                std::map<std::string, std::string> all_options);
-  bool CheckMakeIteratorNode(Node *&n) const;
   inline bool IsMakeIteratorNode(const Node *n) const;
   inline bool IsDeviceQueueDatasetNode() const;
   inline bool IsIteratorNode(const Node *n) const;
@@ -175,29 +174,6 @@ class DpTfToGEConversionPassImpl {
   // Input flib, not owned
   const FunctionLibraryDefinition *flib_def_;
 };
-
-bool DpTfToGEConversionPassImpl::CheckMakeIteratorNode(Node *&n) const {
-  if (str_util::StartsWith(n->type_string(), DP_INIT_GRAPH_MARK)) {
-    return true;
-  } else if (str_util::StartsWith(n->type_string(), DP_INIT_NOOP_GRAPH_MARK)) {
-    for (const Edge *e : n->in_edges()) {  // MakeIterator is contains group_deps
-      if (e == nullptr || e->src() == nullptr) { continue; }
-      if (str_util::StartsWith(e->src()->def().name(), DP_INIT_GRAPH_MARK)) {
-        ADP_LOG(INFO) << "Remove node: " << n->type_string();
-        n = e->src();
-        if (e->IsControlEdge()) {
-          graph_->RemoveControlEdge(e);
-        } else {
-          graph_->RemoveEdge(e);
-        }
-        ADP_LOG(INFO) << "PruneForReverseReachability node: " << n->type_string();
-        PruneForReverseReachability(&*graph_, {n});
-        return true;
-      }
-    }
-  }
-  return false;
-}
 
 inline bool DpTfToGEConversionPassImpl::IsMakeIteratorNode(const Node *n) const {
   return str_util::StartsWith(n->type_string(), DP_INIT_GRAPH_MARK);

@@ -19,16 +19,6 @@
 
 namespace tensorflow {
 namespace {
-class NPUTestOP : public OpKernel {
- public:
-  explicit NPUTestOP(OpKernelConstruction *ctx) : OpKernel(ctx) {}
-  ~NPUTestOP() override = default;
-  void Compute(OpKernelContext *ctx) override {}
-  bool IsExpensive() override { return false; }
-};
-
-REGISTER_KERNEL_BUILDER(Name("NPUTest").Device(DEVICE_CPU), NPUTestOP);
-
 class NpuOnnxGraphOp : public OpKernel {
  public:
   explicit NpuOnnxGraphOp(OpKernelConstruction *context) : OpKernel(context) {}

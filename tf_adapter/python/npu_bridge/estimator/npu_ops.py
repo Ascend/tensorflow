@@ -41,13 +41,6 @@ gen_npu_ops = helper.get_gen_ops()
 DEFAULT_GRAPH_SEED = 87654321
 _MAXINT32 = 2**31 - 1
 
-def npu_test():
-    """A placeholder op for values fed into the TPU simultaneously as a tuple.
-
-    """
-
-    return gen_npu_ops.npu_test()
-
 def NPUInit(name=None):
   if context.executing_eagerly():
     raise RuntimeError("tf.NPUInit() is not compatible with "
