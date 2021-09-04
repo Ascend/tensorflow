@@ -561,9 +561,9 @@ def ast_call(node):
             util_global.set_value('need_conver', True)
             return node
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'clear_session'):
-        log_msg(getattr(node, 'lineno'), "change keras.clear_session() to npu_clear_session(keras)")
+        log_msg(getattr(node, 'lineno'), "change keras.clear_session() to npu_clear_session()")
         node = ast.Call(func=ast.Name(id='npu_clear_session', ctx=ast.Load()),
-                        args=[node.func.value], keywords=[])
+                        args=[], keywords=[])
         util_global.set_value('need_conver', True)
     if _call_name_match(node.func, "MonitoredTrainingSession"):
         return convert_origin_func_to_npu(node, tf_func_map["tf.train.MonitoredTrainingSession"], "MonitoredTrainingSession", ["config", "hooks"])
