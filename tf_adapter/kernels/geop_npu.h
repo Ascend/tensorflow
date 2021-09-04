@@ -77,6 +77,9 @@ class GeOp : public AsyncOpKernel {
   // create input and output desc for NodeDef
   Status GenerateDesc(Node *&node);
 
+  // parse onnx model in tensorflow node
+  Status ParseOnnxGraphOpAttr(Node *&node);
+
   Status DomiFormatFromString(std::string format, int32_t &domi_format);
 
  private:

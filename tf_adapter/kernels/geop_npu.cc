@@ -67,8 +67,14 @@ limitations under the License.
 #include "framework/omg/parser/parser_api.h"
 #include "framework/omg/parser/parser_factory.h"
 #include "framework/omg/parser/parser_inner_ctx.h"
+#include "parser/onnx_parser.h"
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
+
+#include "graph/utils/graph_utils.h"
+#include "graph/compute_graph.h"
+#include "graph/ge_attr_value.h"
+#include "graph/model.h"
 
 namespace tensorflow {
 Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library);
@@ -911,6 +917,15 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
                  << ret.error_message();
       return ret;
     }
+
+    if(node->type_string() == "NpuOnnxGraphOp") {
+      ret = this->ParseOnnxGraphOpAttr(node);
+      if(!ret.ok()) {
+        LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, "<< ret.error_message();
+        return ret;
+      }
+    }
+
     if (is_tuning) {
       // output handle
       NodeDef &node_def = const_cast<NodeDef &>(node->def());
@@ -954,6 +969,42 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
     graph.ToGraphDef(&graph_def);
     WriteTextProto(Env::Default(), GetDumpPath() + function_.name() + "_v2.pbtxt", graph_def);
   }
+  return Status::OK();
+}
+
+Status GeOp::ParseOnnxGraphOpAttr(Node *&node) {
+  NodeDef &node_def = const_cast<NodeDef &>(node->def());
+
+  //Get input and output numbers of NpuOnnxGraphOp op
+  AttrValue in_value;
+  int inout_nums = node->num_inputs();
+  in_value.set_i(static_cast<int>(inout_nums));
+  node_def.mutable_attr()->insert({"_input_num", in_value});
+  inout_nums = node->num_outputs();
+  AttrValue ot_value;
+  ot_value.set_i(static_cast<int>(inout_nums));
+  node_def.mutable_attr()->insert({"_output_num", ot_value});
+
+  std::string model_path = node_def.attr().find("model_path")->second.s();
+  ge::Graph sub_graph("onnx_compute_graph_" + node->name());
+  std::map<ge::AscendString, ge::AscendString> parser_params;
+  if(ge::SUCCESS != ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph)) {
+    LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Parse Failed.";
+    return errors::Internal("[GEOP] node: %s Onnx Model Parse Failed.",node->name());
+  }
+
+  ge::Model onnx_model("onnx_compute_model_" + node->name(), "");
+  onnx_model.SetGraph(sub_graph);
+  ge::Buffer model_buf;
+  if(ge::SUCCESS != onnx_model.Save(model_buf, false)){
+    LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Serialized Failed.";
+    return errors::Internal("[GEOP] node: %s Onnx Model Serialized Failed.", node->name());
+  }
+
+  std::string model_str(reinterpret_cast<const char*>(model_buf.GetData()), model_buf.GetSize());
+  AttrValue attr_value;
+  attr_value.set_s(model_str);
+  node_def.mutable_attr()->insert({"_external_model", attr_value});
   return Status::OK();
 }
 

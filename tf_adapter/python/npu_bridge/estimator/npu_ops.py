@@ -304,3 +304,7 @@ def k_means_centroids(x, y, sum_square_y, sum_square_x, use_actual_distance=Fals
     else:
         result = gen_npu_ops.k_means_centroids_v2(x, y, sum_square_y, use_actual_distance, name)
     return result
+
+def npu_onnx_graph_op(inputs, tout, model_path, name=None):
+    output = gen_npu_ops.npu_onnx_graph_op(inputs, tout, model_path, name)
+    return output

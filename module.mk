@@ -42,6 +42,7 @@ LOCAL_SHARED_LIBRARIES := \
                           libtsdclient \
                           libdatatransfer \
                           libfmk_parser \
+                          libfmk_onnx_parser \
                           libindextransform
 
 LOCAL_SOFT_DP_LIBRARIES := libSoftDp

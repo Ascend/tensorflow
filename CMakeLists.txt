@@ -27,6 +27,8 @@ if (ENABLE_OPEN_SRC)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/toolchain/tuning_tool)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/soft_dp)
+    include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/parser/inc)
+    include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/parser/inc/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/graphengine/inc)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/graphengine/inc/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/metadef/inc)
@@ -151,6 +153,8 @@ else()
 
     target_include_directories(tf_adapter PRIVATE
         ${BASE_DIR}/
+	${BASE_DIR}/inc/parser/inc/
+	${BASE_DIR}/inc/parser/inc/external/
         ${TOP_DIR}/inc/
         ${TOP_DIR}/inc/external/
         ${TOP_DIR}/inc/common/
@@ -197,6 +201,7 @@ else()
         ge_runner
         datatransfer
         fmk_parser
+        fmk_onnx_parser
         indextransform
         tensorflow_framework
         pywrap_tensorflow_internal

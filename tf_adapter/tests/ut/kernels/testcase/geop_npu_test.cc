@@ -277,5 +277,23 @@ TEST_F(GeOpTest, GeOpWhileLoopV2Test) {
   EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0").ok());
 }
 
+TEST_F(GeOpTest, GeOpNpuOnnxGraphOpTest) {
+  NodeDef node_def;
+  std::string grph_pbtxt_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_npu_onnx_graph_op.pbtxt";
+
+  Tensor in(DT_FLOAT, TensorShape({1,1,5,5}));
+  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
+  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
+}
+
+TEST_F(GeOpTest, GeOpNpuOnnxGraphOpNoModelTest) {
+  NodeDef node_def;
+  std::string grph_pbtxt_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_npu_onnx_graph_op_parse.pbtxt";
+
+  Tensor in(DT_FLOAT, TensorShape({1,1,5,5}));
+  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
+  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
+}
+
 }
 } //end tensorflow
