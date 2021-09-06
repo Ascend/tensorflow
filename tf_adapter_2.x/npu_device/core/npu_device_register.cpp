@@ -67,6 +67,13 @@ void RegisterNpuDevice(TFE_Context *context, const char *name, void *device_info
 std::vector<NpuDevice *> devices_instances;
 }  // namespace
 
+/**
+ * @breif: create device
+ * @param context: context
+ * @param name: device name
+ * @param device_index: device index
+ * @param device_options: device options
+ */
 std::string CreateDevice(TFE_Context *context, const char *name, int device_index,
                          const std::map<std::string, std::string> &device_options) {
   const static std::string kSucceed;
@@ -88,6 +95,9 @@ std::string CreateDevice(TFE_Context *context, const char *name, int device_inde
   return kSucceed;
 }
 
+/**
+ * @breif: release device resource
+ */
 void ReleaseDeviceResource() {
   for (auto device : devices_instances) {
     device->ReleaseResource();

@@ -20,6 +20,7 @@ RELEASE_PATH="${BASE_PATH}/output"
 export BUILD_PATH="${BASE_PATH}/build"
 INSTALL_PATH="${BUILD_PATH}/install"
 CMAKE_PATH="${BUILD_PATH}/tfadapter"
+RELEASE_TARGET="tfadapter.tar"
 
 # print usage message
 usage() {
@@ -105,13 +106,11 @@ build_tfadapter() {
 
 release_tfadapter() {
   logging "Create output directory"
-  RELEASE_TARGET="tfadapter.tar"
   cd ${CMAKE_PATH}/dist/python/dist && mkdir -p tfplugin/bin && cp -r "${BASE_PATH}/script" tfplugin/ && mv npu_bridge-*.whl tfplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" tfplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
 }
 
 release_tfadapter_for_cann() {
   logging "Create output directory"
-  RELEASE_TARGET="tfadapter.tar"
   cd ${CMAKE_PATH}/dist/python/dist && mkdir -p fwkplugin/bin && cp -r "${BASE_PATH}/script" fwkplugin/ && mv npu_bridge-*.whl fwkplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" fwkplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
 }
 

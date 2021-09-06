@@ -15,6 +15,7 @@
 # limitations under the License.
 # ============================================================================
 import os
+import subprocess
 import shutil
 import util_global
 import pandas as pd
@@ -77,7 +78,7 @@ def write_conver_report(content, file):
 
 def log_failed_api(lineno, api_msg):
     content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg])
-    os.system("")
+    subprocess.run(["cd", "."], shell=True)
     print("".join(["\033[1;31mERROR\033[0m:", content]))
     write_conver_report(content, util_global.get_value('report_file')[1])
 

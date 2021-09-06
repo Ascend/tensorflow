@@ -181,6 +181,13 @@ NpuManagedBuffer::~NpuManagedBuffer() {
   }
 }
 
+/**
+ * @breif: npu managed buffer create
+ * @param fmt: ge format
+ * @param shape: tensorflow tensor shape
+ * @param dtype: tensorflow data type
+ * @param buf: npu managed buffer
+ */
 tensorflow::Status NpuManagedBuffer::Create(ge::Format fmt, const tensorflow::TensorShape &shape,
                                             tensorflow::DataType dtype, NpuManagedBuffer **buf) {
   std::vector<int64_t> dims;
@@ -192,11 +199,27 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format fmt, const tensorflow::Te
   return Create(fmt, dims, ge_type, buf);
 }
 
+/**
+ * @breif: npu managed buffer create
+ * @param format: ge format
+ * @param dims: dims
+ * @param data_type: ge data type
+ * @param buf: npu managed buffer
+ */
 tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &dims, ge::DataType data_type,
                                             NpuManagedBuffer **buf) {
   return Create(format, dims, data_type, format, dims, buf);
 }
 
+/**
+ * @breif: npu managed buffer create
+ * @param format: ge format
+ * @param shape: shapes
+ * @param data_type: ge data type
+ * @param origin_format: ge format
+ * @param origin_shape: origin shapes
+ * @param buf: npu managed buffer
+ */
 tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
                                             ge::DataType data_type, ge::Format origin_format,
                                             const std::vector<int64_t> &origin_shape, NpuManagedBuffer **buf) {
@@ -226,6 +249,19 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
   return status;
 }
 
+/**
+ * @breif: npu managed buffer create
+ * @param format: ge format
+ * @param shape: shapes
+ * @param data_type: ge data type
+ * @param origin_format: origin format
+ * @param origin_shape: origin shapes
+ * @param addr: point to save data
+ * @param size: data size
+ * @param arg: deallocator arg
+ * @param deallocator: point to deallocator function 
+ * @param buf: npu managed buffer
+ */
 tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
                                             ge::DataType data_type, ge::Format origin_format,
                                             const std::vector<int64_t> &origin_shape, void *addr, size_t size,
@@ -250,8 +286,17 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
   return tensorflow::Status::OK();
 }
 
+/**
+ * @breif: npu managed buffer destroy
+ * @param buf: npu managed buffer
+ */
 void NpuManagedBuffer::Destroy(NpuManagedBuffer *buf) { delete buf; }
 
+/**
+ * @breif: npu managed buffer assemble to tensor
+ * @param tensor: tensorflow tensor
+ * @return: tensorflow status
+ */
 tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor) {
   NPU_REQUIRES_OK(npu::global::RtsCtx::EnsureInitialized());
   NPU_REQUIRES(tensor != nullptr,
@@ -278,6 +323,11 @@ tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor
   return tensorflow::Status::OK();
 }
 
+/**
+ * @breif: npu managed buffer assemble from tensor
+ * @param tensor: tensorflow tensor
+ * @return: tensorflow status
+ */
 tensorflow::Status NpuManagedBuffer::AssembleFrom(const tensorflow::Tensor *tensor) {
   NPU_REQUIRES_OK(npu::global::RtsCtx::EnsureInitialized());
   NPU_REQUIRES(tensor != nullptr,
@@ -304,6 +354,11 @@ tensorflow::Status NpuManagedBuffer::AssembleFrom(const tensorflow::Tensor *tens
   return tensorflow::Status::OK();
 }
 
+/**
+ * @breif: transform representation on npu
+ * @param dst_buff: npu managed buffer
+ * @return: tensorflow status
+ */
 tensorflow::Status NpuManagedBuffer::TransRepresentationOnNpu(NpuManagedBuffer *dst_buff) {
   DLOG() << "Trans representation on npu, format " << GetFormatName(format_) << " to "
          << GetFormatName(dst_buff->format_) << ", data type " << data_type_ << " to " << dst_buff->data_type_;
@@ -332,6 +387,11 @@ tensorflow::Status NpuManagedBuffer::TransRepresentationOnNpu(NpuManagedBuffer *
   return tensorflow::Status::OK();
 }
 
+/**
+ * @breif: copy host data to device
+ * @param host_data: host data
+ * @param size: data size
+ */
 tensorflow::Status NpuManagedBuffer::HToD(void *host_data, size_t size) {
   NPU_REQUIRES(size <= size_, tensorflow::errors::Internal("Failed copy host buffer to npu as size mismatch npu ",
                                                            size_, " vs. cpu ", size));
@@ -340,6 +400,11 @@ tensorflow::Status NpuManagedBuffer::HToD(void *host_data, size_t size) {
   return tensorflow::Status::OK();
 }
 
+/**
+ * @breif: copy device data to host
+ * @param host_data: host data
+ * @param size: data size
+ */
 tensorflow::Status NpuManagedBuffer::DToH(void *host_data, size_t size) {
   NPU_REQUIRES(size >= size_, tensorflow::errors::Internal("Failed copy npu buffer to host as size mismatch npu ",
                                                            size_, " vs. cpu ", size));
@@ -348,6 +413,9 @@ tensorflow::Status NpuManagedBuffer::DToH(void *host_data, size_t size) {
   return tensorflow::Status::OK();
 }
 
+/**
+ * @breif: return npu managed buffer debug string
+ */
 std::string NpuManagedBuffer::DebugString() const {
   std::stringstream ss;
   tensorflow::DataType origin_type;

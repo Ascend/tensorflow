@@ -30,6 +30,9 @@ limitations under the License.
 #include "tf_adapter/common/adp_logger.h"
 
 using namespace tensorflow;
+/**
+ * @brief: get instance
+ */
 SessionManager &SessionManager::GetInstance() {
   static SessionManager instance;
   return instance;
@@ -63,7 +66,10 @@ bool SessionManager::GetOrCreateGeSession(std::string &tf_session, ge::Session *
   return true;
 }
 
-// destroy ge session.
+/**
+ * @brief: destroy ge session.
+ * @param tf_session: tf session
+ */
 void SessionManager::DestroyGeSession(const std::string &tf_session) {
   if (tf_session.empty()) {
     ADP_LOG(ERROR) << "tf session is empty, can not destroy ge session.";
@@ -158,6 +164,11 @@ void SessionManager::PrintGeSessionOptions(std::map<std::string, std::string> &s
   ADP_LOG(INFO) << "[GEOP] compress_weight_conf :" << sess_options["compress_weight_conf"];
 }
 
+/**
+ * @brief: cache ge graphs
+ * @param ge_session: ge session
+ * @param ge_graph: ge graph
+ */
 bool SessionManager::CacheGeGraphs(ge::Session *ge_session, ge::Graph &ge_graph) {
   if (ge_session == nullptr) {
     ADP_LOG(ERROR) << "ge session is null ptr.";
@@ -168,6 +179,11 @@ bool SessionManager::CacheGeGraphs(ge::Session *ge_session, ge::Graph &ge_graph)
   return true;
 }
 
+/**
+ * @brief: get ge graphs
+ * @param ge_session: ge session
+ * @param ge_graphs: ge graphs
+ */
 bool SessionManager::GetGeGraphs(ge::Session *ge_session, std::vector<ge::Graph> &ge_graphs) {
   if (ge_session == nullptr) {
     ADP_LOG(ERROR) << "ge session is null ptr.";

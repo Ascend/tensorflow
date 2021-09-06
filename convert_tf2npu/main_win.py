@@ -84,6 +84,45 @@ class Analyse(object):
         main_file_ = askopenfilename()
         self.main_file.set(main_file_)
 
+    def get_output_dir(self):
+        output = "output" + util_global.get_value('timestap')
+        if self.output_path.get():
+            output = self.output_path.get()
+            if str(output).endswith('/'):
+                output = output[:-1]
+            output = output.replace('\\', '/')
+        return output
+
+    def get_main_file(self):
+        main_file = ""
+        if self.main_file.get():
+            main_file = self.main_file.get()
+            if os.path.isfile(main_file):
+                main_path = os.path.dirname(main_file)
+                select_file = os.path.basename(main_file)
+                main_path = main_path.replace('\\', '/')
+                main_file = os.path.join(main_path, select_file)
+            else:
+                raise ValueError("--main args must be existed files")
+        return main_file
+
+    def get_report_dir(self):
+        report = "report" + util_global.get_value('timestap')
+        report_suffix = report
+        if self.report_path.get():
+            report = self.report_path.get()
+            if str(report).endswith('/'):
+                report = report[:-1]
+            report = os.path.join(report, report_suffix)
+            report = report.replace('\\', '/')
+        return report
+
+    def get_distributed_mode(self):
+        distributed_mode = ""
+        if self.distributed_mode.get():
+            distributed_mode = self.distributed_mode.get()
+        return distributed_mode
+
     def analyse(self):
         util_global._init()
 
@@ -97,36 +136,10 @@ class Analyse(object):
 
         support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
 
-        output = "output" + util_global.get_value('timestap')
-        if self.output_path.get():
-            output = self.output_path.get()
-            if str(output).endswith('/'):
-                output = output[:-1]
-            output = output.replace('\\', '/')
-
-        report = "report" + util_global.get_value('timestap')
-        report_suffix = report
-        if self.report_path.get():
-            report = self.report_path.get()
-            if str(report).endswith('/'):
-                report = report[:-1]
-            report = os.path.join(report, report_suffix)
-            report = report.replace('\\', '/')
-
-        main_file = ""
-        if self.main_file.get():
-            main_file = self.main_file.get()
-            if os.path.isfile(main_file):
-                main_path = os.path.dirname(main_file)
-                select_file = os.path.basename(main_file)
-                main_path = main_path.replace('\\', '/')
-                main_file = os.path.join(main_path, select_file)
-            else:
-                raise ValueError("--main args must be existed files")
-
-        distributed_mode = ""
-        if self.distributed_mode.get():
-            distributed_mode = self.distributed_mode.get()
+        output = self.get_output_dir()
+        report = self.get_report_dir()
+        main_file = self.get_main_file()
+        distributed_mode = self.get_distributed_mode()
 
         if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
             print("<output> or <report> could not be the subdirectory of <input>, please try another option.")

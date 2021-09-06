@@ -552,6 +552,18 @@ class NPUEstimator(estimator_lib.Estimator):
         result = ":".join(profiling_options)
         return result
 
+    def __load_session_device_id(self, config, custom_op):
+        if config._session_device_id is not None:
+            custom_op.parameter_map["session_device_id"].i = config._session_device_id
+
+    def __load_modify_mixlist(self, config, custom_op):
+        if config._modify_mixlist is not None:
+            custom_op.parameter_map["modify_mixlist"].s = tf.compat.as_bytes(config._modify_mixlist)
+
+    def __load_op_precision_mode(self, config, custom_op):
+        if config._op_precision_mode is not None:
+            custom_op.parameter_map["op_precision_mode"].s = tf.compat.as_bytes(config._op_precision_mode)
+
     def __load_profiling_options(self, config, custom_op):
         """Load profiling config ,and add to custom_optimizers
         Args:
@@ -756,12 +768,10 @@ class NPUEstimator(estimator_lib.Estimator):
         if config._local_device_list is not None:
             custom_op.parameter_map["local_device_list"].s = tf.compat.as_bytes(config._local_device_list)
 
-        if config._session_device_id is not None:
-            custom_op.parameter_map["session_device_id"].i = config._session_device_id
-        if config._modify_mixlist is not None:
-            custom_op.parameter_map["modify_mixlist"].s = tf.compat.as_bytes(config._modify_mixlist)
-        if config._op_precision_mode is not None:
-            custom_op.parameter_map["op_precision_mode"].s = tf.compat.as_bytes(config._op_precision_mode)
+        self.__load_session_device_id(config, custom_op)
+        self.__load_modify_mixlist(config, custom_op)
+        self.__load_op_precision_mode(config, custom_op)
+        
 
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)

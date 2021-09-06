@@ -444,6 +444,40 @@ def _refresh_model_dir_and_session_config(config, model_dir):
 
   return config
 
+def check_keras_model_and_path(keras_model, keras_model_path):
+  if not (keras_model or keras_model_path):
+    raise ValueError(
+        'Either `keras_model` or `keras_model_path` needs to be provided.')
+  if keras_model and keras_model_path:
+    raise ValueError(
+        'Please specity either `keras_model` or `keras_model_path`, '
+        'but not both.')
+
+def get_keras_model(keras_model, keras_model_path):
+  if not keras_model:
+    logging.info('Loading models from %s', keras_model_path)
+    return models.load_model(keras_model_path)
+  else:
+    logging.info('Using the Keras model provided.')
+    return keras_model
+
+def get_warm_start_path(keras_model, custom_objects, config, save_object_ckpt):
+  warm_start_path = None
+  if keras_model._is_graph_network:
+    warm_start_path = _save_first_checkpoint(keras_model, custom_objects,
+                                             config, save_object_ckpt)
+  elif keras_model.built:
+    logging.warning('You are creating an NPUEstimator from a Keras model manually '
+                    'subclassed from `Model`, that was already called on some '
+                    'inputs (and thus already had weights). We are currently '
+                    'unable to preserve the model\'s state (its weights) as '
+                    'part of the NPUEstimator in this case. Be warned that the '
+                    'NPUEstimator has been created using a freshly initialized '
+                    'version of your model.\n'
+                    'Note that this doesn\'t affect the state of the model '
+                    'instance you passed as `keras_model` argument.')
+  return warm_start_path
+
 # LINT.IfChange
 # TODO(b/139699640): let model_to_estimator only rely on public Keras APIs.
 def model_to_npu_estimator(keras_model=None,
@@ -500,22 +534,11 @@ def model_to_npu_estimator(keras_model=None,
     ValueError: if keras_model has not been compiled.
     ValueError: if an invalid checkpoint_format was given.
   """
-  if not (keras_model or keras_model_path):
-    raise ValueError(
-        'Either `keras_model` or `keras_model_path` needs to be provided.')
-  if keras_model and keras_model_path:
-    raise ValueError(
-        'Please specity either `keras_model` or `keras_model_path`, '
-        'but not both.')
+  check_keras_model_and_path()
 
   config = _refresh_model_dir_and_session_config(config, model_dir)
 
-  if not keras_model:
-    logging.info('Loading models from %s', keras_model_path)
-    keras_model = models.load_model(keras_model_path)
-  else:
-    logging.info('Using the Keras model provided.')
-    keras_model = keras_model
+  keras_model = get_keras_model(keras_model, keras_model_path)
 
   if checkpoint_format is None or checkpoint_format == 'checkpoint':
     if not (keras_model._is_graph_network or
@@ -551,20 +574,7 @@ def model_to_npu_estimator(keras_model=None,
     sess = session.Session(config=config.session_config)
     K.set_session(sess)
 
-  warm_start_path = None
-  if keras_model._is_graph_network:
-    warm_start_path = _save_first_checkpoint(keras_model, custom_objects,
-                                             config, save_object_ckpt)
-  elif keras_model.built:
-    logging.warning('You are creating an NPUEstimator from a Keras model manually '
-                    'subclassed from `Model`, that was already called on some '
-                    'inputs (and thus already had weights). We are currently '
-                    'unable to preserve the model\'s state (its weights) as '
-                    'part of the NPUEstimator in this case. Be warned that the '
-                    'NPUEstimator has been created using a freshly initialized '
-                    'version of your model.\n'
-                    'Note that this doesn\'t affect the state of the model '
-                    'instance you passed as `keras_model` argument.')
+  warm_start_path = get_warm_start_path(keras_model, custom_objects, config, save_object_ckpt)
 
   estimator = NPUEstimator(keras_model_fn,
                            config=config,

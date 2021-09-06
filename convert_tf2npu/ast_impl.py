@@ -20,7 +20,6 @@ import pasta
 import util_global
 from util import *
 from tf_func_def import *
-
 from inspect import signature
 
 tf_func_map = {"tf.estimator.TrainSpec": TrainSpec,
@@ -204,6 +203,51 @@ def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is
     util_global.set_value('need_conver', True)
     return node
 
+def convert_dynamic_loss_scale(node):
+    log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.DynamicLossScale"
+                    " to ExponentialUpdateLossScaleManager")
+    node.func = ast.Name(id="ExponentialUpdateLossScaleManager", ctx=ast.Load())
+
+    def check_arg(node):
+        initial_loss_scale = None
+        increment_period = None
+        multiplier = None
+        for index, arg in enumerate(node.args):
+            if index == 0: initial_loss_scale = arg
+            if index == 1: increment_period = arg
+            if index == 2: multiplier = arg
+        for keyword in node.keywords:
+            if keyword.arg == "initial_loss_scale":
+                keyword.arg = "init_loss_scale"
+                initial_loss_scale = keyword
+            if keyword.arg == "increment_period":
+                keyword.arg = "incr_every_n_steps"
+                increment_period = keyword
+            if keyword.arg == "multiplier":
+                keyword.arg = "incr_ratio"
+                multiplier = keyword
+        return (initial_loss_scale, increment_period, multiplier)
+
+    (initial_loss_scale, increment_period, multiplier) = check_arg(node)
+    if initial_loss_scale:
+        if not isinstance(initial_loss_scale, ast.keyword):
+            node.keywords.append(ast.keyword(arg="init_loss_scale", value=initial_loss_scale))
+    else:
+        node.keywords.append(ast.keyword(arg="init_loss_scale", value=pasta.parse("2**15")))
+    if increment_period:
+        if not isinstance(increment_period, ast.keyword):
+            node.keywords.append(ast.keyword(arg="incr_every_n_steps", value=increment_period))
+    else:
+        node.keywords.append(ast.keyword(arg="incr_every_n_steps", value=pasta.parse("2000")))
+    if multiplier:
+        if not isinstance(multiplier, ast.keyword):
+            node.keywords.append(ast.keyword(arg="incr_ratio", value=multiplier))
+    else:
+        node.keywords.append(ast.keyword(arg="incr_ratio", value=pasta.parse("2")))
+    node.args = []
+    util_global.set_value('need_conver', True)
+    return node
+
 def convert_loss_scale_api(node):
     if isinstance(node.func, ast.Attribute):
         if node.func.attr == "FixedLossScale":
@@ -215,44 +259,7 @@ def convert_loss_scale_api(node):
             util_global.set_value('need_conver', True)
             return node
         if node.func.attr == "DynamicLossScale":
-            log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.DynamicLossScale"
-                    " to ExponentialUpdateLossScaleManager")
-            node.func = ast.Name(id="ExponentialUpdateLossScaleManager", ctx=ast.Load())
-            initial_loss_scale = None
-            increment_period = None
-            multiplier = None
-            for index, arg in enumerate(node.args):
-                if index == 0: initial_loss_scale = arg
-                if index == 1: increment_period = arg
-                if index == 2: multiplier = arg
-            for keyword in node.keywords:
-                if keyword.arg == "initial_loss_scale":
-                    keyword.arg = "init_loss_scale"
-                    initial_loss_scale = keyword
-                if keyword.arg == "increment_period":
-                    keyword.arg = "incr_every_n_steps"
-                    increment_period = keyword
-                if keyword.arg == "multiplier":
-                    keyword.arg = "incr_ratio"
-                    multiplier = keyword
-            if initial_loss_scale:
-                if not isinstance(initial_loss_scale, ast.keyword):
-                    node.keywords.append(ast.keyword(arg="init_loss_scale", value=initial_loss_scale))
-            else:
-                node.keywords.append(ast.keyword(arg="init_loss_scale", value=pasta.parse("2**15")))
-            if increment_period:
-                if not isinstance(increment_period, ast.keyword):
-                    node.keywords.append(ast.keyword(arg="incr_every_n_steps", value=increment_period))
-            else:
-                node.keywords.append(ast.keyword(arg="incr_every_n_steps", value=pasta.parse("2000")))
-            if multiplier:
-                if not isinstance(multiplier, ast.keyword):
-                    node.keywords.append(ast.keyword(arg="incr_ratio", value=multiplier))
-            else:
-                node.keywords.append(ast.keyword(arg="incr_ratio", value=pasta.parse("2")))
-            node.args = []
-            util_global.set_value('need_conver', True)
-            return node
+            return convert_dynamic_loss_scale(node)
         if node.func.attr == "MixedPrecisionLossScaleOptimizer":
             log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.MixedPrecisionLossScaleOptimizer"
                     " to NPULossScaleOptimizer")
