@@ -143,12 +143,14 @@ def setup_ascend(env_path):
     if 'ALL_IN_ONE_ENABLE' in os.environ:
       f.write(os.path.join(ascend_path, "compiler", "lib64", "libge_runner.so\n"))
       f.write(os.path.join(ascend_path, "compiler", "lib64", "libfmk_parser.so\n"))
+      f.write(os.path.join(ascend_path, "compiler", "lib64", "libfmk_onnx_parser.so\n"))
       f.write(os.path.join(ascend_path, "runtime", "lib64", "libdatatransfer.so\n"))
       f.write(os.path.join(ascend_path, "runtime", "lib64", "libindextransform.so\n"))
       f.write(os.path.join(ascend_path, "compiler", "lib64", "libalog.so\n"))
     else:
       f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libge_runner.so\n"))
       f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libfmk_parser.so\n"))
+      f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libfmk_onnx_parser.so\n"))
       f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libdatatransfer.so\n"))
       f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libindextransform.so\n"))
       f.write(os.path.join(ascend_path, "fwkacllib", "lib64", "libalog.so\n"))

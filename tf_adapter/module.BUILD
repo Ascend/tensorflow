@@ -44,6 +44,7 @@ cc_library(
         "libge_runner.so",
         "libdatatransfer.so",
         "libfmk_parser.so",
+        "libfmk_onnx_parser.so",
         "libindextransform.so",
         "libmmpa"
     ]),

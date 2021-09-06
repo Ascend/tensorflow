@@ -39,5 +39,17 @@ class NPUTestOP : public OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("NPUTest").Device(DEVICE_CPU), NPUTestOP);
+
+class NpuOnnxGraphOp : public OpKernel {
+ public:
+  explicit NpuOnnxGraphOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~NpuOnnxGraphOp() override = default;
+  void Compute(OpKernelContext *context) override {
+    return;
+  }
+  bool IsExpensive() override { return false; }
+};
+
+REGISTER_KERNEL_BUILDER(Name("NpuOnnxGraphOp").Device(DEVICE_CPU), NpuOnnxGraphOp);
 }  // namespace
 }  // namespace tensorflow

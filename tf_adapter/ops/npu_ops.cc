@@ -26,6 +26,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/framework/common_shape_fns.h"
+#include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/op.h"
 
 namespace tensorflow {
@@ -486,6 +487,15 @@ REGISTER_OP("AdamApplyOneWithDecayAssign")
     .Input("add2_y: T")
     .Attr("T: {float16, float32}")
     .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("NpuOnnxGraphOp")
+    .Input("inputs: Tin")
+    .Attr("Tin: list(type) >= 0")
+    .Output("outputs: Tout")
+    .Attr("Tout: list(type) >= 0")
+    .Attr("model_path: string")
+    .SetShapeFn(shape_inference::UnknownShape);
+
 
 REGISTER_OP("KMeansCentroids")
     .Input("x: T")

@@ -28,6 +28,8 @@
 #include "graph/utils/graph_utils.h"
 #include "tensorflow/core/framework/types.pb.h"
 #include "tensorflow/core/graph/graph_constructor.h"
+#include "graph/buffer.h"
+#include "graph/model.h"
 
 #include <iostream>
 
@@ -273,11 +275,47 @@ size_t ComputeGraph::GetAllNodesSize() const {
   return 1;
 }
 
+Graph::Graph(const std::string& grph) {}
 Graph::Graph(char const* name) {}
 
 Graph GraphUtils::CreateGraphFromComputeGraph(const ComputeGraphPtr compute_graph) { return Graph("ge"); }
 
 void Graph::SetNeedIteration(bool need_iteration) {}
+
+graphStatus aclgrphParseONNX(const char *model_file,
+    const std::map<ge::AscendString, ge::AscendString> &parser_params, ge::Graph &graph) {
+  std::string model_(model_file);
+  if(model_ == "no_model") {
+    return FAILED;
+  }
+  return SUCCESS;
+}
+
+Buffer::Buffer() {}
+std::size_t Buffer::GetSize() const {
+  return sizeof("_external_model");
+}
+std::uint8_t *Buffer::GetData() {
+  std::string *buf_ = new std::string("_external_model");
+  return reinterpret_cast<std::uint8_t *> (buf_);
+}
+const std::uint8_t *Buffer::GetData() const {
+  std::string *buf_ = new std::string("_external_model");
+  return reinterpret_cast<const std::uint8_t *> (buf_);
+}
+
+Model::Model() {}
+Model::Model(const string &name, const string &custom_version) {}
+void Model::SetGraph(const Graph& graph) {}
+graphStatus Model::Save(Buffer &buffer, bool is_dump) const {
+  return GRAPH_SUCCESS;
+}
+ConstProtoAttrMapHelper Model::GetAttrMap() const {
+  return ConstProtoAttrMapHelper();
+}
+ProtoAttrMapHelper Model::MutableAttrMap() {
+  return ProtoAttrMapHelper();
+}
 
 Tensor::Tensor() {}
 
