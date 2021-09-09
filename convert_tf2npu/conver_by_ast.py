@@ -19,6 +19,7 @@ import sys
 import ast
 import pasta
 import util_global
+import subprocess
 from file_op import write_output_after_conver
 from file_op import write_report_after_conver
 from file_op import scan_file
@@ -73,6 +74,22 @@ class ConverByAst(ast.NodeTransformer):
         ast_if(node)
         return node
 
+def conver(r_node, out_path_dst, file_name):
+    if file_name != "__init__.py":
+        insert_npu_import(r_node)
+    distributed_mode = util_global.get_value('distributed_mode', "")
+    if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hvd_api', False)
+        or util_global.get_value('is_keras_net', False)) and  not util_global.get_value('main', ""):
+        log_warning_main_arg_not_set()
+    if distributed_mode == "horovod" and util_global.get_value('is_main_file', False):
+        insert_npu_resource_init(r_node)
+        insert_npu_resource_shutdown(r_node)
+    if util_global.get_value('is_main_file', False) and util_global.get_value('is_keras_net', False):
+        insert_keras_sess_npu_config(r_node)
+        insert_keras_sess_close(r_node)
+    dst_content = pasta.dump(r_node)
+    write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
+
 def conver_ast(path, out_path_dst, file_name):
     util_global.set_value('need_conver', False)
     util_global.set_value('is_keras_net', False)
@@ -89,7 +106,7 @@ def conver_ast(path, out_path_dst, file_name):
         print(repr(e))
         content = ("There is a format problem in the script, please check the python code "
                   "specification or whether it is converted to a linux file through 'dos2unix'")
-        os.system("")
+        subprocess.run(["cd", "."], shell=True)
         print("".join(["\033[1;31mERROR\033[0m:", content]))
         return
 
@@ -104,20 +121,7 @@ def conver_ast(path, out_path_dst, file_name):
     scan_file(path, file_name, api, lineno)
 
     if util_global.get_value('need_conver', False):
-        if file_name != "__init__.py":
-            insert_npu_import(r_node)
-        distributed_mode = util_global.get_value('distributed_mode', "")
-        if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hvd_api', False)
-            or util_global.get_value('is_keras_net', False)) and  not util_global.get_value('main', ""):
-            log_warning_main_arg_not_set()
-        if distributed_mode == "horovod" and util_global.get_value('is_main_file', False):
-            insert_npu_resource_init(r_node)
-            insert_npu_resource_shutdown(r_node)
-        if util_global.get_value('is_main_file', False) and util_global.get_value('is_keras_net', False):
-            insert_keras_sess_npu_config(r_node)
-            insert_keras_sess_close(r_node)
-        dst_content = pasta.dump(r_node)
-        write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
+        conver(r_node, out_path_dst, file_name)
 
     if file_name.endswith("a.py"):
         write_report_after_conver("only_for_test", file_name, node_tree(ast.dump(r_node)))

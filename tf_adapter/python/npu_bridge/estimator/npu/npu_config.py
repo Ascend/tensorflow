@@ -181,9 +181,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         self.mix_compile_mode = mix_compile_mode
         self.enable_data_pre_proc = enable_data_pre_proc
         self.is_tailing_optimization = is_tailing_optimization
-        if save_checkpoints_secs==None and save_checkpoints_steps==None :
-            save_checkpoints_steps=100
-
+        save_checkpoints_steps = self._get_save_checkpoints_steps(save_checkpoints_secs,
+                                                                  save_checkpoints_steps)
         self._profiling_config = profiling_config
 
         # mix precision configuration
@@ -195,32 +194,21 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._variable_memory_max_size = variable_memory_max_size
 
         self._auto_tune_mode = auto_tune_mode
-
-        if dump_config is not None and  not isinstance(dump_config, DumpConfig):
-            raise ValueError(
-                '`dump_config` must be provided with type `DumpConfig`')
-        self._dump_config = dump_config
+        self._dump_config = self._get_dump_config(dump_config)
         self._stream_max_parallel_num = stream_max_parallel_num
 
-        if isinstance(horovod_mode, bool) == False:
-            raise ValueError('"horovod_mode" type must be bool')
-        self.horovod_mode = horovod_mode
+        self.horovod_mode = self._get_horovod_mode(horovod_mode)
         util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
-        if graph_run_mode > 1:
-            raise ValueError('"graph_run_mode" value must be 0 or 1')
-        self.graph_run_mode = graph_run_mode
+        self.graph_run_mode = self._get_graph_run_mode(graph_run_mode)
         self.op_debug_level = op_debug_level
         self.enable_scope_fusion_passes = enable_scope_fusion_passes
-        experimental_distribute = None
-        if tmp_cluster_spec and isinstance(distribute, ParameterServerStrategy):
-            experimental_distribute = DistributeConfig(distribute, distribute, None)
+        experimental_distribute = self._get_experimental_distribute(tmp_cluster_spec, distribute)
         util.check_nonnegative_integer(enable_exception_dump, "enable_exception_dump")
         self.enable_exception_dump = enable_exception_dump
         self._op_select_implmode = op_select_implmode
         self._optypelist_for_implmode = optypelist_for_implmode
-        if dynamic_input_config is not None and  not isinstance(dynamic_input_config, DynamicInputConfig):
-            raise ValueError('dynamic_input_config must be provided with type DynamicInputConfig')
-        self._dynamic_input_config = dynamic_input_config
+
+        self._dynamic_input_config = self._get_dynamic_input_config(dynamic_input_config)
         self._aoe_mode = aoe_mode
         self._work_path = work_path
         self._buffer_optimize = buffer_optimize
@@ -255,6 +243,38 @@ class NPURunConfig(run_config_lib.RunConfig):
             experimental_distribute=experimental_distribute,
             train_distribute=train_distribute,
             eval_distribute=eval_distribute)
+
+    def _get_save_checkpoints_steps(self, save_checkpoints_secs, save_checkpoints_steps):
+        if save_checkpoints_secs==None and save_checkpoints_steps==None :
+            return 100
+        return None
+
+    def _get_dump_config(self, dump_config):
+        if dump_config is not None and  not isinstance(dump_config, DumpConfig):
+            raise ValueError(
+                '`dump_config` must be provided with type `DumpConfig`')
+        return dump_config
+
+    def _get_horovod_mode(self, horovod_mode):
+        if isinstance(horovod_mode, bool) == False:
+            raise ValueError('"horovod_mode" type must be bool')
+        return horovod_mode
+
+    def _get_graph_run_mode(self, graph_run_mode):
+        if graph_run_mode > 1:
+            raise ValueError('"graph_run_mode" value must be 0 or 1')
+        return graph_run_mode
+
+    def _get_experimental_distribute(self, tmp_cluster_spec, distribute):
+        experimental_distribute = None
+        if tmp_cluster_spec and isinstance(distribute, ParameterServerStrategy):
+            experimental_distribute = DistributeConfig(distribute, distribute, None)
+        return experimental_distribute
+
+    def _get_dynamic_input_config(self, dynamic_input_config):
+        if dynamic_input_config is not None and  not isinstance(dynamic_input_config, DynamicInputConfig):
+            raise ValueError('dynamic_input_config must be provided with type DynamicInputConfig')
+        return dynamic_input_config
 
 class ProfilingConfig():
     """Profiling config with NPU support."""

@@ -90,6 +90,10 @@ limitations under the License.
 #include "acl/acl_base.h"
 #include "graph/types.h"
 
+/**
+ * @brief: is npu tensor handle or not
+ * @param handle: tensor handle
+ */
 __attribute__((unused)) static bool IsNpuTensorHandle(tensorflow::TensorHandle *handle) {
   tensorflow::Status status;
   tensorflow::DeviceNameUtils::ParsedName parsed_name;
@@ -97,6 +101,10 @@ __attribute__((unused)) static bool IsNpuTensorHandle(tensorflow::TensorHandle *
          parsed_name.type == "NPU";
 }
 
+/**
+ * @brief: is cpu tensor handle or not
+ * @param handle: tensor handle
+ */
 __attribute__((unused)) static bool IsCpuTensorHandle(tensorflow::TensorHandle *handle) {
   tensorflow::Status status;
   tensorflow::DeviceNameUtils::ParsedName parsed_name;
@@ -122,6 +130,11 @@ class ScopeTensorHandleDeleter {
   std::unordered_set<TFE_TensorHandle *> handles_;
 };
 
+/**
+ * @brief: map ge type to tf
+ * @param ge_type: ge type
+ * @param acl_type: tf type
+ */
 __attribute__((unused)) static tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType *tf_type) {
   static std::map<ge::DataType, tensorflow::DataType> kGeType2Tf = {
     {ge::DT_FLOAT, tensorflow::DT_FLOAT},           {ge::DT_DOUBLE, tensorflow::DT_DOUBLE},
@@ -144,6 +157,11 @@ __attribute__((unused)) static tensorflow::Status MapGeType2Tf(ge::DataType ge_t
   return tensorflow::Status::OK();
 }
 
+/**
+ * @brief: map tf type to ge
+ * @param ge_type: tf type
+ * @param acl_type: ge type
+ */
 __attribute__((unused)) static tensorflow::Status MapTfType2Ge(tensorflow::DataType tf_type, ge::DataType *ge_type) {
   static std::map<tensorflow::DataType, ge::DataType> kTfType2Ge = {
     {tensorflow::DT_FLOAT, ge::DT_FLOAT},           {tensorflow::DT_DOUBLE, ge::DT_DOUBLE},
@@ -166,6 +184,11 @@ __attribute__((unused)) static tensorflow::Status MapTfType2Ge(tensorflow::DataT
   return tensorflow::Status::OK();
 }
 
+/**
+ * @brief: map ge type to acl
+ * @param ge_type: ge type
+ * @param acl_type: acl type
+ */
 __attribute__((unused)) static tensorflow::Status MapGeType2Acl(ge::DataType ge_type, aclDataType *acl_type) {
   static std::map<ge::DataType, aclDataType> kGeType2Acl = {
     {ge::DT_FLOAT, ACL_FLOAT},     {ge::DT_DOUBLE, ACL_DOUBLE}, {ge::DT_INT32, ACL_INT32},
@@ -181,6 +204,11 @@ __attribute__((unused)) static tensorflow::Status MapGeType2Acl(ge::DataType ge_
   return tensorflow::Status::OK();
 }
 
+/**
+ * @brief: map ge format to acl
+ * @param ge_format: ge format
+ * @param acl_format: acl format
+ */
 __attribute__((unused)) static tensorflow::Status MapGeFormat2Acl(ge::Format ge_format, aclFormat *acl_format) {
   static std::map<ge::Format, aclFormat> kGeFormat2Acl = {{ge::Format::FORMAT_NCHW, ACL_FORMAT_NCHW},
                                                           {ge::Format::FORMAT_NHWC, ACL_FORMAT_NHWC},
@@ -230,6 +258,11 @@ __attribute__((unused)) static std::string WrapResourceName(const std::string &n
   return "cpu_" + name;
 }
 
+/**
+ * @brief: load GraphDef proto
+ * @param file: proto file path
+ * @param def: point to save GraphDef
+ */
 __attribute__((unused)) static tensorflow::Status LoadGraphDefProto(const std::string &file, tensorflow::GraphDef *def) {
   tensorflow::Status status = tensorflow::Env::Default()->FileExists(file);
   if (!status.ok()) {

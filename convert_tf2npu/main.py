@@ -21,6 +21,45 @@ import util_global
 from file_op import before_clear
 from conver import conver
 
+def get_para_input(arg):
+    input_dir = os.path.abspath(arg)
+    if str(input_dir).endswith('/'):
+        input_dir = input_dir[:-1]
+    input_dir = input_dir.replace('\\', '/')
+    return input_dir
+
+def get_para_output(arg):
+    output = os.path.abspath(arg)
+    if str(output).endswith('/'):
+        output = output[:-1]
+    output = output.replace('\\', '/')
+    return output
+
+def get_para_report(arg, report_suffix):
+    report = os.path.abspath(arg)
+    if str(report).endswith('/'):
+        report = report[:-1]
+    report = os.path.join(report, report_suffix)
+    report = report.replace('\\', '/')
+    return report
+
+def get_para_main(arg):
+    main_file = ""
+    if os.path.isfile(arg):
+        main_file = os.path.abspath(arg)
+        main_path = os.path.dirname(main_file)
+        select_file = os.path.basename(main_file)
+        main_path = main_path.replace('\\', '/')
+        main_file = os.path.join(main_path, select_file)
+    else:
+        raise ValueError("--main args must be existing files")
+    return main_file
+
+def get_para_distributed_mode(arg):
+    if arg not in ["horovod", "tf_strategy"]:
+        raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")
+    return arg
+
 def para_check_and_set(argv):
     input_dir  = "npu_input"
     support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
@@ -60,36 +99,17 @@ def para_check_and_set(argv):
                   'the value should be one of [horovod, tf_strategy]')
             sys.exit()
         elif opt in ("-i", "--input"):
-            input_dir = os.path.abspath(arg)
-            if str(input_dir).endswith('/'):
-                input_dir = input_dir[:-1]
-            input_dir = input_dir.replace('\\', '/')
+            input_dir = get_para_input(arg)
         elif opt in ("-l", "--list"):
             support_list = arg
         elif opt in ("-o", "--output"):
-            output = os.path.abspath(arg)
-            if str(output).endswith('/'):
-                output = output[:-1]
-            output = output.replace('\\', '/')
+            output = get_para_output(arg)
         elif opt in ("-r", "--report"):
-            report = os.path.abspath(arg)
-            if str(report).endswith('/'):
-                report = report[:-1]
-            report = os.path.join(report, report_suffix)
-            report = report.replace('\\', '/')
+            report = get_para_report(arg, report_suffix)
         elif opt in ("-m", "--main"):
-            if os.path.isfile(arg):
-                main_file = os.path.abspath(arg)
-                main_path = os.path.dirname(main_file)
-                select_file = os.path.basename(main_file)
-                main_path = main_path.replace('\\', '/')
-                main_file = os.path.join(main_path, select_file)
-            else:
-                raise ValueError("--main args must be existing files")
+            main_file = get_para_main(arg)
         elif opt in ("-d", "--distributed_mode"):
-            if arg not in ["horovod", "tf_strategy"]:
-                raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")
-            distributed_mode = arg
+            distributed_mode = get_para_distributed_mode(arg)
 
     if input_dir == "npu_input":
         raise ValueError("Please check -i or --input.")

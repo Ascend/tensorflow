@@ -41,7 +41,10 @@ using json = nlohmann::json;
 const static std::string kOpsInfoJson = "/framework/built-in/tensorflow/npu_supported_ops.json";
 const static std::string kGray = "isGray";
 const static std::string kHeavy = "isHeavy";
-// This method returns different instance Pointers in mixed mode and in the full sink model
+/**
+ * @brief: This method returns different instance Pointers in mixed mode and in the full sink model
+ * @param is_mix: is mix compile mode or not
+ */
 NpuOpsIdentifier *NpuOpsIdentifier::GetInstance(bool is_mix) {
   if (is_mix) {
     static json mixJson;
@@ -70,7 +73,11 @@ NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix
   ADP_LOG(INFO) << opsCnt << " ops parsed";
   VLOG(1) << ops_info_.dump(2);  // 1 is vlog level, 2 is ops info index
 }
-// Parse and store the ops configuration json file, return num of parsed ops
+/**
+ * @brief: Parse and store the ops configuration json file, return num of parsed ops
+ * @param f: npu supported json file path
+ * @param root: json root
+ */
 int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) {
   std::ifstream jsonConfigFileStream(f, std::ifstream::in);
   int32_t opsCnt = 0;
@@ -95,6 +102,11 @@ int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) {
 bool NpuOpsIdentifier::IsNpuSupported(const char *op_name, const std::string &node_name) {
   return NpuOpsIdentifier::IsNpuSupported(std::string(op_name), node_name);
 }
+/**
+ * @brief: is npu supported or not
+ * @param op_name: op type
+ * @param node_name: node name
+ */
 bool NpuOpsIdentifier::IsNpuSupported(const std::string &op_name, const std::string &node_name) {
   bool declared = ops_info_[op_name].is_object();
   if (!declared) {
@@ -116,6 +128,10 @@ bool NpuOpsIdentifier::IsNpuSupported(const std::string &op_name, const std::str
 bool NpuOpsIdentifier::IsPerformanceSensitive(const char *op) {
   return NpuOpsIdentifier::IsPerformanceSensitive(std::string(op));
 }
+/**
+ * @brief: is performance sensitive
+ * @param op: op type
+ */
 bool NpuOpsIdentifier::IsPerformanceSensitive(const std::string &op) {
   if (ops_info_.find(op) != ops_info_.end()) {
     if (ops_info_[op].is_object()) {

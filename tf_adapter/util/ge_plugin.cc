@@ -78,11 +78,19 @@ GePlugin::~GePlugin() {
   ADP_LOG(INFO) << "[GePlugin] destroy constructor end";
 }
 
+/**
+ * @brief: get instance
+ */
 GePlugin *GePlugin::GetInstance() {
   static GePlugin instance;
   return &instance;
 }
 
+/**
+ * @brief: init ge plugin
+ * @param init_options: init options
+ * @param is_global: is global mode or not
+ */
 void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_global) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (isInit_) {
@@ -255,10 +263,16 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   isGlobal_ = is_global;
 }
 
+/**
+ * @brief: get init options
+ */
 std::map<std::string, std::string> GePlugin::GetInitOptions() {
   return init_options_;
 }
 
+/**
+ * @brief: get fusion tensor size
+ */
 uint64_t GePlugin::GetFusionTensorSize() {
   const int64 fusion_tensor_size_default = 524288000;
   int64 fusion_tensor_size = fusion_tensor_size_default;
@@ -269,6 +283,9 @@ uint64_t GePlugin::GetFusionTensorSize() {
   return static_cast<uint64_t>(fusion_tensor_size_default);
 }
 
+/**
+ * @brief: ge plugin finalize
+ */
 void GePlugin::Finalize() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!isInit_) {
@@ -296,21 +313,34 @@ void GePlugin::Finalize() {
 
 }
 
+/**
+ * @brief: is global mode or not
+ */
 bool GePlugin::IsGlobal() {
   std::lock_guard<std::mutex> lock(mutex_);
   return isGlobal_;
 }
 
+/**
+ * @brief: init plugin
+ * @param init_options: init options
+ */
 void PluginInit(std::map<std::string, std::string> &init_options) {
   GePlugin::GetInstance()->Init(init_options, true);
   ADP_LOG(INFO) << "[GePlugin] npu plugin init success";
 }
 
+/**
+ * @brief: finalize plugin
+ */
 void PluginFinalize() {
   GePlugin::GetInstance()->Finalize();
   ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success";
 }
 
+/**
+ * @brief: close npu
+ */
 void NpuClose() {
   GeFinalize();
   uint32_t device_id = 0;
@@ -329,6 +359,10 @@ void NpuClose() {
   ADP_LOG(INFO) << "[GePlugin] npu finalize resource success";
 }
 
+/**
+ * @brief: init rdma pool
+ * @param size: rdma pool size
+ */
 int32_t InitRdmaPool(size_t size) {
   ge::Status ret = ge::InitRdmaPool(size);
   if (ret != ge::SUCCESS) {
@@ -340,6 +374,10 @@ int32_t InitRdmaPool(size_t size) {
   return 0;
 }
 
+/**
+ * @brief: register rdma remote addr
+ * @param var_info: host var infor
+ */
 int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info) {
   ge::Status ret = ge::RdmaRemoteRegister(var_info);
   if (ret != ge::SUCCESS) {
@@ -351,6 +389,11 @@ int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info) {
   return 0;
 }
 
+/**
+ * @brief: rdma init and register
+ * @param var_info: variable info
+ * @param size: size
+ */
 int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t size) {
   ge::Status ret = ge::InitRdmaPool(size);
   if (ret != ge::SUCCESS) {
@@ -369,6 +412,12 @@ int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t
   return 0;
 }
 
+/**
+ * @brief: get variable addr and size
+ * @param var_name: variable name
+ * @param base_addr: base addr
+ * @param var_size: variable size
+ */
 int32_t GetVarAddrAndSize(const string &var_name, uint64_t &base_addr, uint64_t &var_size) {
   ge::Status ret = ge::GetVarBaseAddrAndSize(var_name, base_addr, var_size);
   if (ret != ge::SUCCESS) {
@@ -380,6 +429,12 @@ int32_t GetVarAddrAndSize(const string &var_name, uint64_t &base_addr, uint64_t 
   return 0;
 }
 
+/**
+ * @brief: malloc shared memory
+ * @param tensor_info: tensor info
+ * @param dev_addr: dev addr
+ * @param memory_size: memory size
+ */
 int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, uint64_t &memory_size) {
   ge::Status ret = ge::MallocSharedMemory(tensor_info, dev_addr, memory_size);
   if (ret != ge::SUCCESS) {
