@@ -247,7 +247,7 @@ class NPURunConfig(run_config_lib.RunConfig):
     def _get_save_checkpoints_steps(self, save_checkpoints_secs, save_checkpoints_steps):
         if save_checkpoints_secs==None and save_checkpoints_steps==None :
             return 100
-        return None
+        return save_checkpoints_steps
 
     def _get_dump_config(self, dump_config):
         if dump_config is not None and  not isinstance(dump_config, DumpConfig):
