@@ -1,29 +1,18 @@
-/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Copyright (C) 2019-2020. Huawei Technologies Co., Ltd. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include "tf_adapter/optimizers/om_partition_subgraphs_pass.h"
 
@@ -841,9 +830,8 @@ Status MergeSubgraphs(std::vector<std::pair<string, int>> &sortedCluster, Ordere
 
 std::vector<string> string_split(const string &str, const string &pattern) {
   std::vector<string> resultVec;
-  string::size_type pos1, pos2;
-  pos2 = str.find(pattern);
-  pos1 = 0;
+  string::size_type pos1 = 0;
+  string::size_type pos2 = str.find(pattern);
   while (pos2 != string::npos) {
     resultVec.push_back(str.substr(pos1, pos2 - pos1));
     pos1 = pos2 + pattern.size();
@@ -2060,8 +2048,7 @@ Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, std::string enable_d
 
 Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                                               const OptimizationPassRegistry::Grouping pass_group_value) {
-  int graph_num;
-  graph_num = graph_run_num++;
+  int graph_num = graph_run_num++;
 
   if (graph == nullptr) { return Status::OK(); }
 

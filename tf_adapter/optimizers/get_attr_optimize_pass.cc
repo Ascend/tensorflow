@@ -1,29 +1,18 @@
-/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Copyright (C) 2019-2020. Huawei Technologies Co., Ltd. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include <deque>
 #include <iostream>
@@ -57,8 +46,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
   if (options.graph == nullptr || options.flib_def == nullptr || options.session_options == nullptr) {
     return Status::OK();
   }
-  int graph_num;
-  graph_num = graph_run_num++;
+  int graph_num = graph_run_num++;
 
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
@@ -108,8 +96,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
   if (job != "localhost") {
     for (Node *node : options.graph->get()->op_nodes()) {
       REQUIRES_NOT_NULL(node);
-      std::string device_name;
-      device_name = node->assigned_device_name();
+      std::string device_name = node->assigned_device_name();
       if (device_name.find("/device:") != std::string::npos) {
         device_name = device_name.substr(0, device_name.find("/device:"));
         device_name += std::string("/device:CPU:0");

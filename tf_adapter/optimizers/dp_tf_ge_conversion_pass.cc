@@ -1,29 +1,18 @@
-/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Copyright (C) 2019-2020. Huawei Technologies Co., Ltd. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+/**
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include "tf_adapter/optimizers/dp_tf_ge_conversion_pass.h"
 
@@ -404,8 +393,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
     // Host and Device queue should save type and shape
     auto m_src = e->src()->def().attr();
     bool type_status = false;
-    string::size_type idx;
-    idx = SummarizeAttrValue(m_src["output_types"]).find("Unknown AttrValue");
+    string::size_type idx = SummarizeAttrValue(m_src["output_types"]).find("Unknown AttrValue");
     if (idx == string::npos) { type_status = true; }
     Node *queue_node_host = nullptr;
     // Make sure that 'queue_name' of host and device queue be same
@@ -554,7 +542,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
   ADP_LOG(INFO) << "Start to write graph's pbtxt before optimization.";
 
   const char *need_print = getenv("PRINT_MODEL");
-  if (nullptr != need_print && strcmp("1", need_print) == 0) {
+  if (need_print != nullptr && strcmp("1", need_print) == 0) {
     GraphDef before_graphdef;
     (*g)->ToGraphDef(&before_graphdef);
     string pre_model_path = GetDumpPath() + "BeforeSubGraph_dp_";
@@ -820,7 +808,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
   }
 
   ADP_LOG(INFO) << "End optimize dp_init topological graph";
-  if (nullptr != need_print && strcmp("1", need_print) == 0) {
+  if (need_print != nullptr && strcmp("1", need_print) == 0) {
     GraphDef after_graphdef;
     (*g)->ToGraphDef(&after_graphdef);
     string suffix_model_path = GetDumpPath() + "AfterSubGraph_dp_";
@@ -836,7 +824,7 @@ bool DpTfToGEConversionPassImpl::RemoveIsolatedNode(Graph *g, std::unordered_set
   // nodes, and accumulating the visited nodes.
   std::deque<Node *> queue;
   for (Node *n : visited) {
-    VLOG(2) << "Reverse reach init: " << n->name();
+    ADP_LOG(INFO) << "Reverse reach init: " << n->name();
     queue.push_back(n);
   }
   while (!queue.empty()) {
@@ -845,7 +833,7 @@ bool DpTfToGEConversionPassImpl::RemoveIsolatedNode(Graph *g, std::unordered_set
     for (Node *out : n->out_nodes()) {
       if (visited.insert(out).second) {
         queue.push_back(out);
-        VLOG(2) << "Reverse reach : " << n->name() << " from " << out->name();
+        ADP_LOG(INFO) << "Reverse reach : " << n->name() << " from " << out->name();
       }
     }
   }
@@ -892,7 +880,6 @@ Status DpTfToGEConversionPassImpl::Run(const GraphOptimizationPassOptions &optio
 static std::atomic<int> graph_run_num(1);
 static mutex graph_num_mutex(LINKER_INITIALIZED);
 Status DpTfToGEConversionPass::Run(const GraphOptimizationPassOptions &options) {
-
   return DpTfToGEConversionPassImpl().Run(options);
 }
 
