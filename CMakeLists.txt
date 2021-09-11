@@ -96,6 +96,8 @@ else()
     set(CMAKE_C_COMPILE_OBJECT "<CMAKE_C_COMPILER> <DEFINES> -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
     set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> <DEFINES>  -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
 
+    add_definitions(-DASCEND_CI_LIMITED_PY37)
+
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_framework.cc
         COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/tensorflow_framework.cc
