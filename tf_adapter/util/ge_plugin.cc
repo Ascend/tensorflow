@@ -211,6 +211,12 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   ADP_LOG(INFO) << "[GePlugin] fusion_switch_file :" << init_options["ge.fusionSwitchFile"];
 
+  ADP_LOG(INFO) << "[GePlugin] op_precision_mode :" << init_options[ge::OP_PRECISION_MODE];
+
+  ADP_LOG(INFO) << "[GePlugin] op_select_implmode :" << init_options[ge::OP_SELECT_IMPL_MODE];
+
+  ADP_LOG(INFO) << "[GePlugin] optypelist_for_implmode :" << init_options[ge::OPTYPELIST_FOR_IMPLMODE];
+
   const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
   bool tdt_init = true;
   if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
