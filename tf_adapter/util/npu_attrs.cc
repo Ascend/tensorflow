@@ -442,6 +442,9 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string distribute_config;
   std::string modify_mixlist;
   std::string fusion_switch_file;
+  std::string op_precision_mode;
+  std::string op_select_implmode;
+  std::string optypelist_for_implmode;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -461,6 +464,9 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_distribute_config", &distribute_config);
     ctx->GetAttr("_modify_mixlist", &modify_mixlist);
     ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
+    ctx->GetAttr("_op_precision_mode", &op_precision_mode);
+    ctx->GetAttr("_op_select_implmode", &op_select_implmode);
+    ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
   }
 
 
@@ -485,6 +491,9 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options["ge.hcomMultiMode"] = hcom_multi_mode;
   init_options[ge::MODIFY_MIXLIST] = modify_mixlist;
   init_options["ge.fusionSwitchFile"] = fusion_switch_file;
+  init_options[ge::OP_PRECISION_MODE] = op_precision_mode;
+  init_options[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
+  init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
 
   return init_options;
 }
