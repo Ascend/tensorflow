@@ -8,6 +8,12 @@
 #define SWIG_PYTHON_CAST_MODE
 %}
 
+%{
+#ifdef ASCEND_CI_LIMITED_PY37
+#undef PyCFunction_NewEx
+#endif
+%}
+
 typedef int int32_t;
 %apply int { int32_t };
 
