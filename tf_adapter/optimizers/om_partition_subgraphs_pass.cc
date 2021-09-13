@@ -2269,7 +2269,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       string dstSubgraphId;
       s = GetNodeAttr(varEdge->dst()->attrs(), partitionAttr, &dstSubgraphId);
       if (s.code() == error::Code::NOT_FOUND) {
-        if (!IsRefType(dtypeDst)) {
+        if (!(IsRefType(dtypeDst) || dtypeDst == DT_RESOURCE)) {
           continue;
         } else {
           return errors::InvalidArgument("Ref Tensors (e.g., Variables) output: ", varEdge->dst()->name(),
@@ -2278,7 +2278,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       } else if (!s.ok()) {
         return s;
       }
-      if (IsRefType(dtypeDst) && srcSubgraphId != dstSubgraphId) {
+      if ((IsRefType(dtypeDst) || dtypeDst == DT_RESOURCE) && srcSubgraphId != dstSubgraphId) {
         Node *nodeCopy = graphIn->AddNode(varEdge->src()->def(), &s);
         if (!s.ok()) { return s; }
         nodeCopy->ClearAttr(partitionAttr);

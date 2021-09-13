@@ -1409,7 +1409,6 @@ void NpuDevice::Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **o
     const tensorflow::FunctionDef *fdef = lib_def->Find(op_name);
     if (fdef != nullptr) {
       std::unique_ptr<tensorflow::FunctionBody> fbody;
-      tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
       FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
 
       OptimizeStageGraphDumper graph_dumper(op_name);
