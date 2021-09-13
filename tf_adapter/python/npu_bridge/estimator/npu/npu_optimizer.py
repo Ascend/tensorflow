@@ -200,19 +200,7 @@ class NPUOptimizer(optimizer.Optimizer):
       else:
         return gradients
 
-    averaged_gradients = []
-    grads = []
-    with tf.name_scope(self._name + "_Allreduce"):
-        for grad, var in gradients:
-            grads.append(grad)
-            if self._is_loss_scale and (len(grads) == len(gradients)) and self._is_tailing_optimization:
-              self._reduce_all(grads)
-              with tf.get_default_graph().control_dependencies([self._is_overall_finite]):
-                avg_grad = allreduce(grad, True) if grad is not None else None
-                averaged_gradients.append((avg_grad, var))
-            else:
-              avg_grad = allreduce(grad, True) if grad is not None else None
-              averaged_gradients.append((avg_grad, var))
+    averaged_gradients = self._averaged_gradients(gradients)
     if self._is_loss_scale:
       return self._down_scale(averaged_gradients, loss_scale)
     else:
@@ -280,6 +268,21 @@ class NPUOptimizer(optimizer.Optimizer):
     """Calls this same method on the underlying optimizer."""
     return self._opt.variables(*args, **kwargs)
 
+  def _averaged_gradients(self, gradients):
+    averaged_gradients = []
+    grads = []
+    with tf.name_scope(self._name + "_Allreduce"):
+        for grad, var in gradients:
+            grads.append(grad)
+            if self._is_loss_scale and (len(grads) == len(gradients)) and self._is_tailing_optimization:
+              self._reduce_all(grads)
+              with tf.get_default_graph().control_dependencies([self._is_overall_finite]):
+                avg_grad = allreduce(grad, True) if grad is not None else None
+                averaged_gradients.append((avg_grad, var))
+            else:
+              avg_grad = allreduce(grad, True) if grad is not None else None
+              averaged_gradients.append((avg_grad, var))
+    return averaged_gradients
 
 class NPUDistributedOptimizer(tf.train.Optimizer):
     """
@@ -324,15 +327,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
 
         averaged_gradients = []
         if self._is_weight_update_sharding and int(rank_size) <= len(gradients):
-            local_rank_id = os.getenv('DEVICE_ID')
-            if local_rank_id == None or int(local_rank_id) < 0:
-                raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
-            util.add_grads_and_vars(gradients, int(rank_size))
-            with tf.name_scope(self._name + "_Reduce_Weight_Update_Sharding"):
-                for grad, var in gradients:
-                    rank_id = util.get_gid_by_grad(grad)
-                    avg_grad = reduce(grad, var, rank_id, True, 2, rank_id) if grad is not None else None
-                    averaged_gradients.append((avg_grad, var))
+            averaged_gradients = self._averaged_gradients_if_weight_update_sharding(gradients, rank_size)
         elif self._is_weight_update_sharding and int(rank_size) > len(gradients):
             raise ValueError("The number of gradients is less than rank_size, "
                              "so weight_update_sharding cannot be executed")
@@ -349,30 +344,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
             return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
 
         if self._is_weight_update_sharding:
-            op_list = []
-            local_rank_id = os.getenv('DEVICE_ID')
-            if local_rank_id == None or int(local_rank_id) < 0:
-                raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
-            local_grads_and_vars = []
-            for grad, var in grads_and_vars:
-                rank_id = util.get_gid_by_weight(var)
-                if rank_id >= 0 and rank_id == int(local_rank_id):
-                    local_grads_and_vars.append((grad, var))
-            apply_res = self._optimizer.apply_gradients(local_grads_and_vars, global_step, name)
-            with tf.get_default_graph().control_dependencies([apply_res]):
-                with tf.name_scope(self._name + "_Broadcast_Weight_Update_Sharding"):
-                    for grad, var in grads_and_vars:
-                        rank_id = util.get_gid_by_weight(var)
-                        with tf.get_default_graph().control_dependencies(op_list):
-                            outputs = hccl_ops.broadcast([var], rank_id, 0)
-                        if outputs is not None:
-                            op_list.append(outputs[0].op)
-            for grad, var in grads_and_vars:
-                rank_id = util.get_gid_by_weight(var)
-                if rank_id >= 0 and rank_id != int(local_rank_id):
-                    op_list.append(grad)
-            op_list.append(apply_res)
-            return tf.group(op_list)
+            return self._apply_gradients_if_weight_update_sharding(grads_and_vars, global_step, name)
         else:
             return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
 
@@ -387,6 +359,46 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
     def variables(self, *args, **kwargs):
         """Calls this same method on the underlying optimizer."""
         return self._optimizer.variables(*args, **kwargs)
+
+    def _apply_gradients_if_weight_update_sharding(self, grads_and_vars,
+                                                   global_step, name):
+        op_list = []
+        local_rank_id = os.getenv('DEVICE_ID')
+        if local_rank_id == None or int(local_rank_id) < 0:
+            raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
+        local_grads_and_vars = []
+        for grad, var in grads_and_vars:
+            rank_id = util.get_gid_by_weight(var)
+            if rank_id >= 0 and rank_id == int(local_rank_id):
+                local_grads_and_vars.append((grad, var))
+        apply_res = self._optimizer.apply_gradients(local_grads_and_vars, global_step, name)
+        with tf.get_default_graph().control_dependencies([apply_res]):
+            with tf.name_scope(self._name + "_Broadcast_Weight_Update_Sharding"):
+                for grad, var in grads_and_vars:
+                    rank_id = util.get_gid_by_weight(var)
+                    with tf.get_default_graph().control_dependencies(op_list):
+                        outputs = hccl_ops.broadcast([var], rank_id, 0)
+                    if outputs is not None:
+                        op_list.append(outputs[0].op)
+        for grad, var in grads_and_vars:
+            rank_id = util.get_gid_by_weight(var)
+            if rank_id >= 0 and rank_id != int(local_rank_id):
+                op_list.append(grad)
+        op_list.append(apply_res)
+        return tf.group(op_list)
+
+    def _averaged_gradients_if_weight_update_sharding(self, gradients, rank_size):
+        averaged_gradients = []
+        local_rank_id = os.getenv('DEVICE_ID')
+        if local_rank_id == None or int(local_rank_id) < 0:
+            raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
+        util.add_grads_and_vars(gradients, int(rank_size))
+        with tf.name_scope(self._name + "_Reduce_Weight_Update_Sharding"):
+            for grad, var in gradients:
+                rank_id = util.get_gid_by_grad(grad)
+                avg_grad = reduce(grad, var, rank_id, True, 2, rank_id) if grad is not None else None
+                averaged_gradients.append((avg_grad, var))
+        return averaged_gradients
 
 class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
     """

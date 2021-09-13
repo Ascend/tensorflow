@@ -194,7 +194,7 @@ bool CmpVecValue(Node *node1, Node *node2) {
 std::string CurrentTimeInStr() {
   std::time_t now = std::time(nullptr);
   std::tm *ptm = std::localtime(&now);
-  if (nullptr == ptm) { return ""; }
+  if (ptm == nullptr) { return ""; }
 
   const int time_buffer_len = 32;
   char buffer[time_buffer_len] = {0};
