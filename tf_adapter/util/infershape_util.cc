@@ -32,6 +32,7 @@ struct EdgeInfo {
 };
 
 int64 InferShapeUtil::GetCurrentTimestap() {
+  static const long kPerSecHasUsec = 1000000;
   struct timeval tv;
   int ret = gettimeofday(&tv, nullptr);
   if (ret != 0) {
@@ -39,7 +40,7 @@ int64 InferShapeUtil::GetCurrentTimestap() {
     LOG(ERROR) << "Func gettimeofday may failed, ret:" << ret;
     return 0;
   }
-  int64 totalUsec = tv.tv_usec + tv.tv_sec * 1000000;
+  int64 totalUsec = tv.tv_usec + tv.tv_sec * kPerSecHasUsec;
   return totalUsec;
 }
 

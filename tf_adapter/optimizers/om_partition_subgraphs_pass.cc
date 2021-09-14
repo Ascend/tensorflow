@@ -338,6 +338,7 @@ using GraphPaths = std::vector<GraphPath>;
 int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
   if (!op_head || ops_tail.count(nullptr) > 0) { return 0; }
 
+  static const size_t kLegalPathSize = 2;
   NodeSet empty;
   NodeSet noagain;
   NodeMap seen;
@@ -352,12 +353,12 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
 
     if (!cur_node) {
       seen.erase(path.back());
-      if (path.size() >= 2) { seen[path[path.size() - 2]].erase(path.back()); }
+      if (path.size() >= kLegalPathSize) { seen[path[path.size() - kLegalPathSize]].erase(path.back()); }
       path.pop_back();
       continue;
     }
     path.push_back(cur_node);
-    if (path.size() >= 2) { seen[path[path.size() - 2]].insert(path.back()); }
+    if (path.size() >= kLegalPathSize) { seen[path[path.size() - kLegalPathSize]].insert(path.back()); }
     stack.push_back(nullptr);
 
     if (ops_tail.count(cur_node) > 0 || ops_save.count(cur_node) > 0) {
@@ -405,6 +406,9 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
   using Pairs = std::vector<Pair>;
 
   int model = 0;
+  static const int kModel1 = 1;
+  static const int kModel2 = 2;
+  static const int kModel3 = 3;
   std::string s;
   Nodes nodes;
   Pair pair;
@@ -416,10 +420,10 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
           break;
       case ']':
       case ',':
-          if (1 == model && !pair.empty()) { pairs.emplace_back(std::move(pair)); }
-          else if (2 == model && !nodes.empty()) { pair.emplace_back(std::move(nodes)); }
-          else if (3 == model && !s.empty()) { nodes.emplace_back(std::move(s)); }
-          if (']' == c) { --model; }
+          if (model == kModel1 && !pair.empty()) { pairs.emplace_back(std::move(pair)); }
+          else if (model == kModel2 && !nodes.empty()) { pair.emplace_back(std::move(nodes)); }
+          else if (model == kModel3 && !s.empty()) { nodes.emplace_back(std::move(s)); }
+          if (c == ']') { --model; }
           break;
       case ' ':
       case '\t':
@@ -434,7 +438,8 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
   std::set<std::string> empty;
   for (auto &pair : pairs) {
     OneGraphIOP one_graph_iop;
-    if (pair.size() < 2) { continue; }
+    static const size_t kLegalSize = 2;
+    if (pair.size() < kLegalSize) { continue; }
     for (auto &in : pair[0]) {
       IOP iop(in, empty);
       for (auto &out : pair[1]) {
@@ -451,18 +456,19 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
 Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
                                  FunctionLibraryDefinition *func_lib, const std::string &in_out_pair, const std::string &in_out_pair_flag) {
   AllGraphIOP all_graph_iop;
-  if (0 >= ParseInOutPair(in_out_pair, all_graph_iop)) {
+  if (ParseInOutPair(in_out_pair, all_graph_iop) <= 0) {
     return errors::Internal("in_out_pair: ", in_out_pair, " is invalid.");
   }
   NodeSet ops_save;
   for (auto &one_graph_iop : all_graph_iop) {
     for (auto &iop : one_graph_iop) {
+      static const size_t kLegalLogSize = 2;
       std::string log_out;
       for (auto &out : iop.second) {
         log_out += out + ", ";
       }
-      if (log_out.size() > 2) {
-        log_out = log_out.substr(0, log_out.size() - 2);
+      if (log_out.size() > kLegalLogSize) {
+        log_out = log_out.substr(0, log_out.size() - kLegalLogSize);
       }
       ADP_LOG(INFO) << iop.first << " -> " << log_out;
 
@@ -1943,6 +1949,7 @@ Status OMPartitionSubgraphsPass::Run(const GraphOptimizationPassOptions &options
 
 void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
                                                     std::map<std::string, std::string> &graph_options) {
+  static const size_t kLegalShapeVecSize = 2;
   std::vector<std::string> inputsVec;
   std::vector<std::string> shapesVec;
   Split(dynamic_inputs_shape_range, inputsVec, ";");
@@ -1950,7 +1957,7 @@ void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_s
   for (auto tmp : inputsVec) {
     std::vector<std::string> shapeVec;
     Split(tmp, shapeVec, ":");
-    if (shapeVec.size() != 2) {
+    if (shapeVec.size() != kLegalShapeVecSize) {
       ADP_LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
       LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, example:'data:[1,2];getnext:[2,3]'";
     } else if (shapeVec[0] != "data" && shapeVec[0] != "getnext") {
@@ -1960,7 +1967,7 @@ void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_s
       shapesVec.push_back(shapeVec[1]);
     }
   }
-  if (shapesVec.empty() || shapesVec.size() > 2) {
+  if (shapesVec.empty() || shapesVec.size() > kLegalShapeVecSize) {
     ADP_LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, more than 2 input styles.";
     LOG(FATAL) << "dynamic_inputs_shape_range style is invalid, more than 2 input styles.";
   } else if (shapesVec.size() == 1) {

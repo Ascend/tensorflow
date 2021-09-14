@@ -396,7 +396,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   sess_options["ge.enableCompressWeight"] = enable_compress_weight;
   sess_options["compress_weight_conf"] = compress_weight_conf;
   sess_options["ge.dynamicNodeType"] = dynamic_node_type;
-  if (0 <= std::atoi(session_device_id.c_str())) {
+  if (std::atoi(session_device_id.c_str()) >= 0) {
     sess_options["ge.session_device_id"] = session_device_id;
   }
   sess_options[ge::MODIFY_MIXLIST] = modify_mixlist;
@@ -1378,7 +1378,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         hcom_multi_mode = params.at("hcom_multi_mode").b();
       }
       if (params.count("session_device_id")) {
-        if (0 <= params.at("session_device_id").i()) {
+        if (params.at("session_device_id").i() >= 0) {
           session_device_id = params.at("session_device_id").i();
         } else {
           ADP_LOG(FATAL) << "session_device_id must be nonnegative integer.";

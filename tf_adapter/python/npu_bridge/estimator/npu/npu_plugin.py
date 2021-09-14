@@ -34,6 +34,22 @@ __option_exec_profiling_options = str(tf_adapter.OPTION_EXEC_PROFILING_OPTIONS)
 __option_graph_run_mode = str(tf_adapter.OPTION_GRAPH_RUN_MODE)
 __option_exec_option_exec_hccl_flag = str(tf_adapter.OPTION_EXEC_HCCL_FLAG)
 
+def init_op_compiler_cache_mode(init, op_compiler_cache_mode):
+    if op_compiler_cache_mode is not None:
+        init["ge.op_compiler_cache_mode"] = op_compiler_cache_mode
+
+def init_op_compiler_cache_dir(init, op_compiler_cache_dir):
+    if op_compiler_cache_dir is not None:
+        init["ge.op_compiler_cache_dir"] = op_compiler_cache_dir
+
+def init_debug_dir(init, debug_dir):
+    if debug_dir is not None:
+        init["ge.debugDir"] = debug_dir
+
+def check_graph_run_mode(graph_run_mode):
+    if graph_run_mode > 1:
+        raise ValueError('"graph_run_mode" value must be 0 or 1')
+
 def npu_resource_init(graph_run_mode = 1,
                       op_debug_level = 0,
                       enable_profiling = False,
@@ -51,8 +67,7 @@ def npu_resource_init(graph_run_mode = 1,
                       distribute_config=None):
 
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
-    if graph_run_mode > 1:
-        raise ValueError('"graph_run_mode" value must be 0 or 1')
+    check_graph_run_mode(graph_run_mode)
     util.check_nonnegative_integer(enable_exception_dump, "enable_exception_dump")
     util.check_nonnegative_integer(op_debug_level, "op_debug_level")
     util.check_bool_type(enable_profiling, "enable_profiling")
@@ -94,12 +109,9 @@ def npu_resource_init(graph_run_mode = 1,
         if distribute_config is not None:
             init["distribute_config"] = str(distribute_config)
 
-    if op_compiler_cache_mode is not None:
-        init["ge.op_compiler_cache_mode"] = op_compiler_cache_mode
-    if op_compiler_cache_dir is not None:
-        init["ge.op_compiler_cache_dir"] = op_compiler_cache_dir
-    if debug_dir is not None:
-        init["ge.debugDir"] = debug_dir
+    init_op_compiler_cache_mode(init, op_compiler_cache_mode)
+    init_op_compiler_cache_dir(init, op_compiler_cache_dir)
+    init_debug_dir(init, debug_dir)
 
     util.check_bool_type(hcom_multi_mode, "hcom_multi_mode")
     hcom_multi_mode = util.convert_bool_to_int(hcom_multi_mode)
