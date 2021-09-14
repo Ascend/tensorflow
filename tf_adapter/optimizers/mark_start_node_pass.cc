@@ -20,7 +20,6 @@
 #include <numeric>
 #include <string>
 
-#include "tensorflow/compiler/jit/graphcycles/graphcycles.h"
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/common_runtime/shape_refiner.h"
