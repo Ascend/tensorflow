@@ -15,6 +15,7 @@
 # limitations under the License.
 # ============================================================================
 import ast
+import util_global
 
 class VisitCall(ast.NodeVisitor):
     def __init__(self):
@@ -100,6 +101,7 @@ class VisitUnsupportImport(ast.NodeVisitor):
         self.generic_visit(node)
 
 def get_tf_api(file_name):
+    util_global.set_value('use_keras_dropout', False)
     with open(file_name, 'r', encoding='utf-8') as file:
         source = file.read()
     tree = ast.parse(source)
@@ -110,11 +112,18 @@ def get_tf_api(file_name):
     api = []
     lineno = []
     import_list = ['tf', 'hvd']
+    keras_dropout_api = ['tf.layers.dropout', 'tf.layers.Dropout', 'tf.keras.layers.Dropout',
+                         'tf.keras.layers.SpatialDropout1D', 'tf.keras.layers.SpatialDropout2D',
+                         'tf.keras.layers.SpatialDropout3D']
     for module in import_list:
         for i in range(len(visitor.calls)):
             if "".join([module , '.']) in visitor.calls[i] and visitor.calls[i].split('.')[0] == module:
                 api.append(visitor.calls[i])
                 lineno.append(visitor.linenos[i])
+
+            # get tf api using keras dropout
+            if visitor.calls[i] in keras_dropout_api:
+                util_global.set_value('use_keras_dropout', True)
     return api, lineno
 
 def get_tf_enume(file_name, enume_list):
