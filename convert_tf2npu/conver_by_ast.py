@@ -77,6 +77,8 @@ class ConverByAst(ast.NodeTransformer):
 def conver(r_node, out_path_dst, file_name):
     if file_name != "__init__.py":
         insert_npu_import(r_node)
+    if util_global.get_value('use_keras_dropout', False):
+        insert_keras_dropout_import(r_node)
     distributed_mode = util_global.get_value('distributed_mode', "")
     if not util_global.get_value('has_main_func', False) and (util_global.get_value('has_hvd_api', False)
         or util_global.get_value('is_keras_net', False)) and  not util_global.get_value('main', ""):

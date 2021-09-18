@@ -608,6 +608,21 @@ def insert_npu_import(r_node):
         r_node.body.insert(import_index, npu_import)
         log_msg(import_index, "from npu_bridge.npu_init import *")
 
+def insert_keras_dropout_import(r_node):
+    npu_alias = ast.alias(name='npu_convert_dropout', asname=None)
+    npu_import = ast.ImportFrom(module='npu_bridge.estimator.npu', names=[npu_alias], level=0)
+    n = 0
+    lenline = len(r_node.body)
+
+    while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
+        n += 1
+
+    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom)):
+        n += 1
+
+    r_node.body.insert(n, npu_import)
+    log_msg(n, "from npu_bridge.estimator.npu import npu_convert_dropout")
+
 def insert_npu_resource_init(r_node):
     n = 0
     lenline = len(r_node.body)
