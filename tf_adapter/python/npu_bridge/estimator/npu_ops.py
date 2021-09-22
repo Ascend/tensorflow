@@ -33,9 +33,6 @@ from tensorflow.contrib.util import loader
 from tensorflow.python.eager import context
 from tensorflow.python.framework import device
 from tensorflow.python.platform import resource_loader
-from tensorflow.python.keras import backend
-from tensorflow.python.keras.utils import tf_utils
-from tensorflow.python.keras.layers.core import Dropout
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 from npu_bridge.helper import helper
@@ -205,22 +202,6 @@ def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
     gen_out = gen_npu_ops.drop_out_gen_mask(noise_shape, keep_prob, seed, seed2, name)
     result = gen_npu_ops.drop_out_do_mask(x, gen_out, keep_prob, name)
     return result
-
-def dropout_call(self, inputs, training=None):
-    """Make Keras Dropout to execute NPU dropout"""
-    if training is None:
-        training = backend.learning_phase()
-    def dropped_inputs():
-        return dropout(
-            inputs,
-            noise_shape=self._get_noise_shape(inputs),
-            seed=self.seed,
-            keep_prob=1-self.rate)
-    output = tf_utils.smart_cond(training,
-                                 dropped_inputs,
-                                 lambda: array_ops.identity(inputs))
-    return output
-Dropout.call = dropout_call
 
 @ops.RegisterGradient("DropOutDoMask")
 def _DropOutDoMaskGrad(op, grad):
