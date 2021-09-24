@@ -138,12 +138,12 @@ class _DynamicBasic(base_layer.Layer):
                         (self._direction, DYNAMIC_RNN_UNIDIRECTION, DYNAMIC_RNN_BIDIRECTION))
 
   def build(self, input_shape):
-    if input_shape[0].value is None:
-      raise ValueError("Expected input_shape[0] to be known, saw shape: batch_size.")
-    if input_shape[1].value is None:
-      raise ValueError("Expected input_shape[1] to be known, saw shape: batch_size.")
     time_size = input_shape[0].value
     batch_size = input_shape[1].value
+    if time_size is None:
+        time_size = 1
+    if batch_size is None:
+        batch_size = 16
     self._seq_length = self.add_variable(
       "dynamicbase/seq_length",
       shape=[batch_size],
@@ -387,12 +387,13 @@ class DynamicRNN(_DynamicBasic):
     return self._forget_bias
 
   def build(self, input_shape):
-    if input_shape[1].value is None:
-      raise ValueError("Expected input_shape[0] to be known, saw shape: batch_size.")
     batch_size = input_shape[1].value
+    if batch_size is None:
+        batch_size = 16
     if input_shape[2].value is None:
       raise ValueError("Expected input_shape[2] to be known, saw shape: input_size.")
     input_size = input_shape[2].value
+        
     self._rnn_w = self.add_variable(
       "dynamicrnn/w",
       shape=[input_size + self._hidden_size, 4 * self._hidden_size],
