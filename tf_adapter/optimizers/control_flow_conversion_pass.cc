@@ -34,8 +34,6 @@ Status ControlFlowConversionPass::Run(const GraphOptimizationPassOptions &option
   if (options.graph == nullptr || options.session_options == nullptr) { return Status::OK(); }
 
   Graph *graph = options.graph->get();
-  if (graph == nullptr) { return errors::Internal("Lowering While op requires a graph to be available."); }
-
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
   if (job == "ps" || job == "default") {

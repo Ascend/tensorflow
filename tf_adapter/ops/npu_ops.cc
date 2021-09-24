@@ -25,8 +25,6 @@ using shape_inference::ShapeHandle;
 using shape_inference::UnchangedShape;
 
 namespace {
-REGISTER_OP("NPUTest").SetShapeFn(shape_inference::NoOutputs);
-
 REGISTER_OP("GeOp")
     .Input("inputs: Tin")
     .Attr("Tin: list(type) >= 0")

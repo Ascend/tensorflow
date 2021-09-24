@@ -55,6 +55,7 @@ const std::string ATTR_VALUE_SCOPE_NAME = "_without_npu_compile";
 const int MAX_GROUP_SIZE = 100000;
 const uint32_t MIN_CLUSTER_SIZE = 2;
 std::atomic<bool> compile_mode(false);
+mutex support_node_mu;
 std::set<string> not_support_nodes;
 
 // Graph to FunctionDef conversion.
@@ -214,6 +215,7 @@ bool IsWhiteListSupport(const string &op_name, bool mix_compile_mode, const stri
              !EndsWith(op_name, suffix_op_v2) && (support_const || !(op_name == "Const")) &&
              !(op_name == "_Arg") && !(op_name == "_Retval") && !(op_name == "StringJoin");
   if (!ans) {
+    mutex_lock lock(support_node_mu);
     auto ret = not_support_nodes.insert(op_name);
     if (ret.second) {
       ADP_LOG(INFO) << "node: " << op_name << " is not in white list, "

@@ -35,7 +35,7 @@ static const int64 kMicrosToMillis = 1000;
 static std::atomic<int> graph_run_num(1);
 static mutex graph_num_mutex(LINKER_INITIALIZED);
 
-std::set<string> string_split(const string &str, const string &pattern) {
+std::set<string> StringSplit(const string &str, const string &pattern) {
   std::set<string> resultSet;
   string::size_type pos1, pos2;
   pos2 = str.find(pattern);
@@ -109,7 +109,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
           std::set<string> start_nodes_name;
           auto start_node_attr_value = start_node->attrs().Find("_StartNodeName");
           if (start_node_attr_value != nullptr) {
-            start_nodes_name = string_split(start_node_attr_value->s(), ";");
+            start_nodes_name = StringSplit(start_node_attr_value->s(), ";");
           }
           start_nodes_name.insert(start_node->name());
           for (const auto &name : start_nodes_name) {
@@ -120,7 +120,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
 
           auto n_attr_value = n->attrs().Find("_StartNodeName");
           if (n_attr_value != nullptr) {
-            std::set<string> nodes_name = string_split(n_attr_value->s(), ";");
+            std::set<string> nodes_name = StringSplit(n_attr_value->s(), ";");
             for (const auto &name : nodes_name) { start_nodes_name.insert(name); }
           }
           for (const auto &name : start_nodes_name) {
@@ -158,12 +158,12 @@ Status MarkStartNodePass::TraverseNode(Node *start_node) {
     std::set<string> start_nodes_name;
     auto start_node_attr_value = start_node->attrs().Find("_StartNodeName");
     if (start_node_attr_value != nullptr) {
-      start_nodes_name = string_split(start_node_attr_value->s(), ";");
+      start_nodes_name = StringSplit(start_node_attr_value->s(), ";");
     }
 
     auto n_attr_value = n->attrs().Find("_StartNodeName");
     if (n_attr_value != nullptr) {
-      std::set<string> nodes_name = string_split(n_attr_value->s(), ";");
+      std::set<string> nodes_name = StringSplit(n_attr_value->s(), ";");
       for (const auto &name : nodes_name) { start_nodes_name.insert(name); }
     }
     for (const auto &name : start_nodes_name) {

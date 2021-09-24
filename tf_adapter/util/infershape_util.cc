@@ -300,7 +300,6 @@ Status InferShapeUtil::addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode) {
   shape_inference::InferenceContext *pCxt = shapeRef.GetContext(pNode);
   if (pCxt == nullptr) {
     ADP_LOG(WARNING) << "The InferenceContext of node " << pNode->name() << " is null.";
-    LOG(WARNING) << "The InferenceContext of node " << pNode->name() << " is null.";
     return Status::OK();
   }
 
@@ -324,8 +323,6 @@ Status InferShapeUtil::addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode) {
     if (strShape.find('?') != std::string::npos) {
       ADP_LOG(WARNING) << "The shape of node " << pNode->name() << " output " << i << " is " << strShape
                        << ", unknown shape.";
-      LOG(WARNING) << "The shape of node " << pNode->name() << " output " << i << " is " << strShape
-                   << ", unknown shape.";
 
       auto identifier = NpuOpsIdentifier::GetInstance(false);
       if (identifier->IsPerformanceSensitive(pNode->type_string())) {
