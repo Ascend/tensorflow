@@ -696,7 +696,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       }
     }
     if (is_tuning) {
-      if (is_train_graph_ != "1" && init_options_["ge.jobType"] != "2") {
+      if (is_train_graph_ != "1" && init_options_["ge.jobType"] != "2" && init_options_["ge.jobType"] != "1") {
         ADP_LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
         OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().CacheGeGraphs(ge_session_, ge_graph),
           errors::Internal("[GEOP] cache ge session failed."), done);
