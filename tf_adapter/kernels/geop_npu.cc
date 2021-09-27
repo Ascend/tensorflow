@@ -759,6 +759,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       done();
       return;
     }
+    LOG(INFO) << "The model has been compiled on the Ascend AI processor, current graph id is:" << cache_graph_id;
   } else {
     if (compute_graph_empty_) {
       int64 endTime = InferShapeUtil::GetCurrentTimestap();
@@ -813,7 +814,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name:" << geop_name << " ,tf session: " << tf_session_
                 << " ,graph id: " << cache_graph_id;
-  LOG(INFO) << "The subgraph of the network has started traning on the Ascend AI processor, graph id:" << cache_graph_id;
   // call ge session runGraphAsync api
   ge::Status status = ge_session_->RunGraphAsync(cache_graph_id, inputs, callback);
   if (status != ge::SUCCESS) {
