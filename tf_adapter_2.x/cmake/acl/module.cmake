@@ -7,11 +7,13 @@ if(DEFINED ASCEND_INSTALLED_PATH)
         include_directories(${ASCEND_INSTALLED_PATH}/runtime/include)
         target_link_libraries(acl_libs INTERFACE
                 ${ASCEND_INSTALLED_PATH}/runtime/lib64/libascendcl.so
+                ${ASCEND_INSTALLED_PATH}/compiler/lib64/libacl_tdt_channel.so
                 ${ASCEND_INSTALLED_PATH}/compiler/lib64/libacl_op_compiler.so)
     else()
         include_directories(${ASCEND_INSTALLED_PATH}/fwkacllib/include)
         target_link_libraries(acl_libs INTERFACE
                 ${ASCEND_INSTALLED_PATH}/fwkacllib/lib64/libascendcl.so
+                ${ASCEND_INSTALLED_PATH}/fwkacllib/lib64/libacl_tdt_channel.so
                 ${ASCEND_INSTALLED_PATH}/fwkacllib/lib64/libacl_op_compiler.so)
     endif()
 else()
