@@ -57,6 +57,7 @@ const static std::string kDropOutGenMaskV3 = "DropOutGenMaskV3";
 const static std::string kDropOutDoMaskV3 = "DropOutDoMaskV3";
 const static std::string kNpuLossScaleAttr = "_npu_loss_scale";
 const static std::string kNpuAllocFloatStatusOp = "NpuAllocFloatStatus";
+const static std::string kNpuGetFloatStatusOp = "NpuGetFloatStatus";
 const static std::string kEnable = "1";
 const static std::string kWeightUpdateGroupingAttr = "_weight_update_grouping";
 const static std::string kReadVariableOp = "ReadVariableOp";
@@ -87,7 +88,7 @@ size_t RemoveRedundantControlEdges(tensorflow::Graph *graph) {
   std::vector<tensorflow::Edge *> edges_to_remove;
   for (auto edge : graph->edges()) {
     if (edge->IsControlEdge()) {
-      if (edge->dst()->type_string() == kHcomAllReduce ||
+      if ((edge->dst()->type_string() == kHcomAllReduce && edge->src()->type_string() != kNpuGetFloatStatusOp) ||
           (edge->src()->type_string() == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
         edges_to_remove.push_back(edge);
       } else if (edge->src()->type_string() == kDropOutDoMaskV3 && edge->dst()->type_string() == kDropOutGenMaskV3) {
