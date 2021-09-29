@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2021. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
 
+#include "graph/ascend_string.h"
 #include "graph/utils/graph_utils.h"
 #include "graph/compute_graph.h"
 #include "graph/ge_attr_value.h"
@@ -977,6 +978,8 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) {
   std::string model_path = node_def.attr().find("model_path")->second.s();
   ge::Graph sub_graph("onnx_compute_graph_" + node->name());
   std::map<ge::AscendString, ge::AscendString> parser_params;
+  std::string subgrph_name("onnx_compute_graph_" + node->name() + CurrentTimeInStr());
+  parser_params.insert({ge::AscendString(ge::ir_option::OUTPUT), ge::AscendString(subgrph_name.c_str())});
   if(ge::SUCCESS != ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph)) {
     LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Parse Failed.";
     return errors::Internal("[GEOP] node: %s Onnx Model Parse Failed.",node->name());
