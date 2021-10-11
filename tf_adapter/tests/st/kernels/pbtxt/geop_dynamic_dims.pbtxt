@@ -1,0 +1,696 @@
+node {
+  name: "arg_Placeholder_0_0"
+  op: "_Arg"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "retval_Add_1_0"
+  op: "_Retval"
+  input: "GeOp13_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "GeOp13_0"
+  op: "GeOp"
+  input: "arg_Placeholder_0_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "Tin"
+    value {
+      list {
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      list {
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_auto_tune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_buffer_optimize"
+    value {
+      s: "l2_optimize"
+    }
+  }
+  attr {
+    key: "_compress_weight_conf"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_debug_dir"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_distribute_config"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_do_npu_optimizer"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_dump_debug_mode"
+    value {
+      s: "all"
+    }
+  }
+  attr {
+    key: "_dump_mode"
+    value {
+      s: "output"
+    }
+  }
+  attr {
+    key: "_dump_path"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_dump_step"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_dynamic_dims"
+    value {
+      s: "1,128;3,128;5,128"
+    }
+  }
+  attr {
+    key: "_dynamic_graph_execute_mode"
+    value {
+      s: "dynamic_execute"
+    }
+  }
+  attr {
+    key: "_dynamic_input"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_dynamic_node_type"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_compress_weight"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_data_pre_proc"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_enable_dump"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_dump_debug"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_exception_dump"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_scope_fusion_passes"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_small_channel"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_fusion_switch_file"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_graph_run_mode"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_hcom_multi_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_hcom_parallel"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_in_out_pair"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_in_out_pair_flag"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_input_shape"
+    value {
+      s: "getnext:-1,-1"
+    }
+  }
+  attr {
+    key: "_is_tailing_optimization"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_local_device_list"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_local_rank_id"
+    value {
+      s: "-1"
+    }
+  }
+  attr {
+    key: "_lower_functional_ops"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_mstune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_compiler_cache_dir"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_compiler_cache_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_debug_level"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_op_select_implmode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_tune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_optypelist_for_implmode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_precision_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_profiling_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_profiling_options"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_session_device_id"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_stream_max_parallel_num"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_task_index"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_train_graph"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_variable_format_optimize"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_work_path"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "data_format"
+    value {
+      s: "NHWC"
+    }
+  }
+  attr {
+    key: "function"
+    value {
+      func {
+        name: "GeOp13_0"
+      }
+    }
+  }
+}
+library {
+  function {
+    signature {
+      name: "GeOp13_0"
+      input_arg {
+        name: "arg_Placeholder_0_0_0_arg"
+        type: DT_FLOAT
+      }
+      output_arg {
+        name: "Add_1_retval"
+        type: DT_FLOAT
+      }
+    }
+    node_def {
+      name: "add/x"
+      op: "Const"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "dtype"
+        value {
+          type: DT_FLOAT
+        }
+      }
+      attr {
+        key: "value"
+        value {
+          tensor {
+            dtype: DT_FLOAT
+            tensor_shape {
+              dim {
+                size: 1
+              }
+              dim {
+                size: 128
+              }
+            }
+            tensor_content: "\321[{>\267\360\212=`F\033?\016Y><R\300\304=\317\271A?\031`A?W\341\344>%\']>\333o\243>%\242L?{\312\253>}\\\270>\211\276\217>\370h\351>\262Lh?FR^?\255a\361>\326\214\334>\243\026\177?\262\324E>\2064\335>\262P\334=\030\317T?\230$\345>\376\216d?\21540?G\250\255=@\301z?)\317\237>\346<D?xP\233>\017\250m?\t9y?\210n]?c\260j>3\224\203>\261\324\006?\007t/>\354\251\321>\030\320q?\375\226\342>\344\020 ?\031\037n?o\333^=,S/?\363\373\217>\246mM?\336L\021?\026\257\324>\035\024\037?K\247\024?\202\217r?\3206\002?\r\026\326>\212\264\261=/e^?\376P\010?\260\2440?\222E\346>\223\010\311>\017t\007?;\324-?Y\230n?@\326\036?:,\364=H\022Z?n<\037>U\311I?f2\313>T\'\\?\310z\335>1\214M?\r\321\322>|;\344>\263\365U?\230\243 ?\251\3453?-\025\311>Ztu?\213\353\215>^T\021?|\311??(\301\255>\224\262\030?\243\361\322=\320\344\274>\212\001\203=\272\027\320>\005\254\354>Z\371-?\355\315\367>\2035)?w\227j?\355My?8c\347>\221\207\270>\215\306\343>(&\273>\320\034\363>\023I*>dyX?\024\365f?\313RP?J\226\001?\240|\'=\370\365:?\204\276c?\346\231\276>B\007H=\267N\243>_\273\310>\271\032\t?k\232%?\322\3517?J\220A?\356\240U?\310\2705?\347.\030?R\264\312>u4c;Ptb?G\3424?\343S,?O\311\020?\312JP?\347Z\020?\216\334n?"
+          }
+        }
+      }
+    }
+    node_def {
+      name: "strided_slice/stack"
+      op: "Const"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "dtype"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "value"
+        value {
+          tensor {
+            dtype: DT_INT32
+            tensor_shape {
+              dim {
+                size: 1
+              }
+            }
+            int_val: 0
+          }
+        }
+      }
+    }
+    node_def {
+      name: "strided_slice/stack_1"
+      op: "Const"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "dtype"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "value"
+        value {
+          tensor {
+            dtype: DT_INT32
+            tensor_shape {
+              dim {
+                size: 1
+              }
+            }
+            int_val: 1
+          }
+        }
+      }
+    }
+    node_def {
+      name: "IteratorV2"
+      op: "IteratorV2"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "_NpuOptimizer"
+        value {
+          s: "NpuOptimizer"
+        }
+      }
+      attr {
+        key: "_dynamic_dims"
+        value {
+          s: "1,128;3,128;5,128"
+        }
+      }
+      attr {
+        key: "_dynamic_node_type"
+        value {
+          s: "0"
+        }
+      }
+      attr {
+        key: "_enable_data_pre_proc"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_input_shape"
+        value {
+          s: "getnext:-1,-1"
+        }
+      }
+      attr {
+        key: "_is_train_graph"
+        value {
+          b: false
+        }
+      }
+      attr {
+        key: "_iterations_per_loop"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_job"
+        value {
+          s: "localhost"
+        }
+      }
+      attr {
+        key: "_mix_compile_mode"
+        value {
+          s: "0"
+        }
+      }
+      attr {
+        key: "_use_off_line"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "container"
+        value {
+          s: ""
+        }
+      }
+      attr {
+        key: "output_shapes"
+        value {
+          list {
+            shape {
+              dim {
+                size: 1
+              }
+              dim {
+                size: 128
+              }
+            }
+          }
+        }
+      }
+      attr {
+        key: "output_types"
+        value {
+          list {
+            type: DT_FLOAT
+          }
+        }
+      }
+      attr {
+        key: "shared_name"
+        value {
+          s: "IteratorV2"
+        }
+      }
+    }
+    node_def {
+      name: "add"
+      op: "AddV2"
+      input: "arg_Placeholder_0_0_0_arg"
+      input: "add/x:output:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_FLOAT
+        }
+      }
+    }
+    node_def {
+      name: "IteratorGetNext"
+      op: "IteratorGetNext"
+      input: "IteratorV2:handle:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "output_shapes"
+        value {
+          list {
+            shape {
+              dim {
+                size: 1
+              }
+              dim {
+                size: 128
+              }
+            }
+          }
+        }
+      }
+      attr {
+        key: "output_types"
+        value {
+          list {
+            type: DT_FLOAT
+          }
+        }
+      }
+    }
+    node_def {
+      name: "strided_slice"
+      op: "StridedSlice"
+      input: "IteratorGetNext:components:0"
+      input: "strided_slice/stack:output:0"
+      input: "strided_slice/stack_1:output:0"
+      input: "strided_slice/stack_1:output:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "Index"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "T"
+        value {
+          type: DT_FLOAT
+        }
+      }
+      attr {
+        key: "begin_mask"
+        value {
+          i: 0
+        }
+      }
+      attr {
+        key: "ellipsis_mask"
+        value {
+          i: 0
+        }
+      }
+      attr {
+        key: "end_mask"
+        value {
+          i: 0
+        }
+      }
+      attr {
+        key: "new_axis_mask"
+        value {
+          i: 0
+        }
+      }
+      attr {
+        key: "shrink_axis_mask"
+        value {
+          i: 1
+        }
+      }
+    }
+    node_def {
+      name: "Add_1"
+      op: "Add"
+      input: "add:z:0"
+      input: "strided_slice:output:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_FLOAT
+        }
+      }
+    }
+    ret {
+      key: "Add_1_retval"
+      value: "Add_1:z:0"
+    }
+  }
+}
+versions {
+  producer: 134
+  min_consumer: 12
+}

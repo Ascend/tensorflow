@@ -46,8 +46,9 @@ checkopts() {
   THREAD_NUM=8
   GCC_PREFIX=""
   ENABLE_TFADAPTER_UT="off"
+  ENABLE_TFADAPTER_ST="off"
   # Process the options
-  while getopts 'hj:vug:' opt
+  while getopts 'hj:vusg:' opt
   do
     case "${opt}" in
       h) usage
@@ -56,6 +57,7 @@ checkopts() {
       v) VERBOSE="VERBOSE=1" ;;
       g) GCC_PREFIX=$OPTARG ;;
       u) ENABLE_TFADAPTER_UT="on" ;;
+      s) ENABLE_TFADAPTER_ST="on" ;;
       *) logging "Undefined option: ${opt}"
          usage
          exit 1 ;;
@@ -84,6 +86,9 @@ build_tfadapter() {
   if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
     CMAKE_ARGS="${CMAKE_ARGS} -DENABLE_TFADAPTER_UT=ON"
   fi
+  if [[ "X$ENABLE_TFADAPTER_ST" = "Xon" ]]; then
+    CMAKE_ARGS="${CMAKE_ARGS} -DENABLE_TFADAPTER_ST=ON"
+  fi
   logging "CMake Args: ${CMAKE_ARGS}"
 
   mk_dir "${CMAKE_PATH}"
@@ -96,6 +101,9 @@ build_tfadapter() {
   if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
     make tfadapter_utest ${VERBOSE} -j${THREAD_NUM}
     logging "Build tfadapter utest success!"
+  elif [[ "X$ENABLE_TFADAPTER_ST" = "Xon" ]]; then
+    make tfadapter_stest ${VERBOSE} -j${THREAD_NUM}
+    logging "Build tfadapter stest success!"
   else
     make ${VERBOSE} -j${THREAD_NUM}
     logging "tfadapter build success!"
@@ -121,7 +129,7 @@ main() {
   ${GCC_PREFIX}g++ -v
   mk_dir "${RELEASE_PATH}"
   build_tfadapter
-  if [[ "X$ENABLE_TFADAPTER_UT" = "Xoff" ]]; then
+  if [[ "X$ENABLE_TFADAPTER_UT" = "Xoff" ]] && [[ "X$ENABLE_TFADAPTER_ST" = "Xoff" ]]; then
     if [[ "X$ALL_IN_ONE_ENABLE" = "X1" ]]; then
       release_tfadapter_for_cann
     else
@@ -143,6 +151,25 @@ main() {
     rm -rf ${BASE_PATH}/coverage
     mkdir ${BASE_PATH}/coverage
     lcov -c -d ${CMAKE_PATH}/tf_adapter/tests/ut/ -o coverage/tmp.info
+    lcov -r coverage/tmp.info '*/tests/*' '*/nlohmann_json-src/*' '*/tensorflow-src/*' \
+      '*/inc/*' '*/output/*' '*/usr/*' '*/Eigen/*' '*/absl/*' '*/google/*' '*/tensorflow/core/*' \
+      -o coverage/coverage.info
+  fi
+  if [[ "X$ENABLE_TFADAPTER_ST" = "Xon" ]]; then
+    cd ${BASE_PATH}
+    export ASCEND_OPP_PATH=${BASE_PATH}/tf_adapter/tests/depends/support_json
+    export PRINT_MODEL=1
+    export LD_LIBRARY_PATH=${CMAKE_PATH}/tf_adapter/tests/depends/aoe/:$LD_LIBRARY_PATH
+    RUN_TEST_CASE=${CMAKE_PATH}/tf_adapter/tests/st/tfadapter_stest && ${RUN_TEST_CASE}
+    if [[ "$?" -ne 0 ]]; then
+      echo "!!! ST FAILED, PLEASE CHECK YOUR CHANGES !!!"
+      echo -e "\033[31m${RUN_TEST_CASE}\033[0m"
+      exit 1;
+    fi
+    logging "Generating coverage statistics, please wait..."
+    rm -rf ${BASE_PATH}/coverage
+    mkdir ${BASE_PATH}/coverage
+    lcov -c -d ${CMAKE_PATH}/tf_adapter/tests/st/ -o coverage/tmp.info
     lcov -r coverage/tmp.info '*/tests/*' '*/nlohmann_json-src/*' '*/tensorflow-src/*' \
       '*/inc/*' '*/output/*' '*/usr/*' '*/Eigen/*' '*/absl/*' '*/google/*' '*/tensorflow/core/*' \
       -o coverage/coverage.info

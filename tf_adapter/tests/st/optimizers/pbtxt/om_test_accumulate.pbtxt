@@ -1,0 +1,374 @@
+node {
+  name: "random_uniform/shape"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\002\000\000\000\002\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "random_uniform/min"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 2
+      }
+    }
+  }
+}
+node {
+  name: "random_uniform/max"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 6
+      }
+    }
+  }
+}
+node {
+  name: "random_uniform_1/min"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 3
+      }
+    }
+  }
+}
+node {
+  name: "random_uniform_1/max"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 5
+      }
+    }
+  }
+}
+node {
+  name: "AccumulateNV2/Internal/_0"
+  op: "TemporaryVariable"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+        }
+      }
+    }
+  }
+  attr {
+    key: "var_name"
+    value {
+      s: "AccumulateNV2/Internal/Accumulator"
+    }
+  }
+  experimental_debug_info {
+    original_node_names: "AccumulateNV2"
+  }
+}
+node {
+  name: "random_uniform"
+  op: "RandomUniformInt"
+  input: "random_uniform/shape"
+  input: "random_uniform/min"
+  input: "random_uniform/max"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "seed"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "seed2"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "random_uniform_1"
+  op: "RandomUniformInt"
+  input: "random_uniform/shape"
+  input: "random_uniform_1/min"
+  input: "random_uniform_1/max"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "seed"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "seed2"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "AccumulateNV2/Internal/_3"
+  op: "Const"
+  input: "^random_uniform"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+          dim {
+            size: 2
+          }
+        }
+        int_val: 0
+      }
+    }
+  }
+  experimental_debug_info {
+    original_node_names: "AccumulateNV2"
+  }
+}
+node {
+  name: "AccumulateNV2/Internal/_4"
+  op: "Assign"
+  input: "AccumulateNV2/Internal/_0"
+  input: "AccumulateNV2/Internal/_3"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "_grappler_relax_allocator_constraints"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "use_locking"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "validate_shape"
+    value {
+      b: false
+    }
+  }
+  experimental_debug_info {
+    original_node_names: "AccumulateNV2"
+  }
+}
+node {
+  name: "AccumulateNV2/Internal/_6"
+  op: "AssignAdd"
+  input: "AccumulateNV2/Internal/_4"
+  input: "random_uniform_1"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "use_locking"
+    value {
+      b: true
+    }
+  }
+  experimental_debug_info {
+    original_node_names: "AccumulateNV2"
+  }
+}
+node {
+  name: "AccumulateNV2/Internal/_5"
+  op: "AssignAdd"
+  input: "AccumulateNV2/Internal/_4"
+  input: "random_uniform"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "use_locking"
+    value {
+      b: true
+    }
+  }
+  experimental_debug_info {
+    original_node_names: "AccumulateNV2"
+  }
+}
+node {
+  name: "AccumulateNV2"
+  op: "DestroyTemporaryVariable"
+  input: "AccumulateNV2/Internal/_4"
+  input: "^AccumulateNV2/Internal/_5"
+  input: "^AccumulateNV2/Internal/_6"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "var_name"
+    value {
+      s: "AccumulateNV2/Internal/Accumulator"
+    }
+  }
+  experimental_debug_info {
+    original_node_names: "AccumulateNV2"
+  }
+}
+library {
+}
+versions {
+  producer: 134
+}
