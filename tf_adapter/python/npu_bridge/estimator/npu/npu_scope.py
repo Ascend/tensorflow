@@ -123,3 +123,15 @@ def op_specified_engine_scope(engine_name, kernel_lib_name):
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield
+
+
+@contextlib.contextmanager
+def npu_qos_label_scope(label):
+    """
+    Enable the node in the scope adding _qos_service_label attr.
+    """
+    attrs = {
+        "_qos_service_label": attr_value_pb2.AttrValue(i=label)
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield
