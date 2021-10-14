@@ -176,3 +176,32 @@ def nonzerowithvalue(x, transpose=False, output_type=dtypes.int64, name=None):
     result = npu_aicore_ops.non_zero_with_value(x, transpose, output_type, name=name)
     return result
 # go/tf-wildcard-import
+
+
+def layer_norm(x, gamma, beta, begin_norm_axis=0, begin_params_axis=0, epsilon=0.0000001, name=None):
+    """ LayerNorm operator interface implementation
+
+    Args:
+        x: A input tensor with type is float16 or float32.
+        gamma: scaling operation to normalized tensor.
+        beta: add offset to normalized tensor.
+        begin_norm_axis: A optional attribute, the type is int32. Defaults to 0.
+        begin_params_axis: A optional attribute, the type is int32. Defaults to 0.
+        epsilon: A optional attribute, the type is int32. Defaults to 0.0000001.
+        name: Layer name.
+
+    Returns:
+        A tensor.
+    """
+    mean, variance, res = npu_aicore_ops.layer_norm(x, gamma, beta, begin_norm_axis,
+                                                    begin_params_axis, epsilon, name)
+
+    return [mean, variance, res]
+
+
+@ops.RegisterGradient("LayerNorm")
+def _layer_norm_grad(op, grad):
+    pd_x, pd_gamma, pd_beta = npu_aicore_ops.layer_norm_grad(grad, op.inputs[0], op.outputs[2], op.outputs[1],
+                                                             op.inputs[1])
+
+    return [pd_x, pd_gamma, pd_beta]

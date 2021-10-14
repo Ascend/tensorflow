@@ -362,6 +362,59 @@ REGISTER_OP("NonZeroWithValue")
         c->set_output(0, c->MakeShape({c->MakeDim(value_num)}));
         c->set_output(1, c->MakeShape({c->MakeDim(index_dim)}));
         c->set_output(2, c->MakeShape({c->MakeDim(count_dim)}));
+	return Status::OK();
+    });
+
+REGISTER_OP("LayerNorm")
+    .Input("x: T")
+    .Input("gamma: T")
+    .Input("beta: T")
+    .Output("y: T")
+    .Output("mean: T")
+    .Output("variance: T")
+    .Attr("T: {float16, float32}")
+    .Attr("begin_norm_axis: int = 0")
+    .Attr("begin_params_axis: int = 0")
+    .Attr("epsilon: float = 0.0000001")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+        int real_dim_num = c->Rank(c->input(0));
+        int begin_norm_axis = 0;
+        TF_RETURN_IF_ERROR(c->GetAttr("begin_norm_axis", &begin_norm_axis));
+        ShapeHandle input_shape_handle;
+        TF_RETURN_IF_ERROR(c->WithRank(c->input(0), real_dim_num, &input_shape_handle));
+        ShapeHandle out_shape_handle;
+        for (int i = 0; i < real_dim_num; ++i) {
+            DimensionHandle tmp_dim_handle = c->Dim(input_shape_handle, i);
+            if (i >= begin_norm_axis) {
+                tmp_dim_handle = c->MakeDim(1);
+                TF_RETURN_IF_ERROR(c->ReplaceDim(input_shape_handle,
+                                   i,
+                                   tmp_dim_handle,
+                                   &out_shape_handle));
+            }
+        }
+        c->set_output(0, c->input(0));
+        c->set_output(1, out_shape_handle);
+        c->set_output(2, out_shape_handle);
+        return Status::OK();
+    });
+
+REGISTER_OP("LayerNormGrad")
+    .Input("dy: T")
+    .Input("x: T")
+    .Input("variance: T")
+    .Input("mean: T")
+    .Input("gamma: T")
+    .Output("pd_x: T")
+    .Output("pd_gamma: T")
+    .Output("pd_beta: T")
+    .Attr("T: {float16, float32}")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+        c->set_output(0, c->input(0));
+        c->set_output(1, c->input(4));
+        c->set_output(2, c->input(4));
         return Status::OK();
     });
 }  // namespace
