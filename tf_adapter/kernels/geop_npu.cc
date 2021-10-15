@@ -62,6 +62,7 @@
 
 #include "graph/ascend_string.h"
 #include "graph/utils/graph_utils.h"
+#include "graph/utils/node_adapter.h"
 #include "graph/compute_graph.h"
 #include "graph/ge_attr_value.h"
 #include "graph/model.h"
@@ -978,17 +979,25 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) {
   std::string model_path = node_def.attr().find("model_path")->second.s();
   ge::Graph sub_graph("onnx_compute_graph_" + node->name());
   std::map<ge::AscendString, ge::AscendString> parser_params;
-  std::string subgrph_name("onnx_compute_graph_" + node->name() + CurrentTimeInStr());
+  std::string subgrph_name("onnx_compute_graph_" + node->name() + '_' + CurrentTimeInStr());
   parser_params.insert({ge::AscendString(ge::ir_option::OUTPUT), ge::AscendString(subgrph_name.c_str())});
-  if(ge::SUCCESS != ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph)) {
+  if (ge::SUCCESS != ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph)) {
     LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Parse Failed.";
     return errors::Internal("[GEOP] node: %s Onnx Model Parse Failed.",node->name());
+  }
+
+  // rename the nodes in subgraph of onnx model
+  for (auto &sub_node : sub_graph.GetAllNodes()) {
+    auto snode = ge::NodeAdapter::GNode2Node(sub_node);
+    auto orig_name = snode->GetName();
+    auto modi_name = node->name() + '_' + orig_name;
+    snode->GetOpDesc()->SetName(modi_name);
   }
 
   ge::Model onnx_model("onnx_compute_model_" + node->name(), "");
   onnx_model.SetGraph(sub_graph);
   ge::Buffer model_buf;
-  if(ge::SUCCESS != onnx_model.Save(model_buf, false)){
+  if (ge::SUCCESS != onnx_model.Save(model_buf, false)) {
     LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Serialized Failed.";
     return errors::Internal("[GEOP] node: %s Onnx Model Serialized Failed.", node->name());
   }
