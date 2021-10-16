@@ -26,6 +26,7 @@
 #include "ge/ge_api_types.h"
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
+#include "graph/utils/node_adapter.h"
 #include "tensorflow/core/framework/types.pb.h"
 #include "tensorflow/core/graph/graph_constructor.h"
 #include "graph/buffer.h"
@@ -281,6 +282,29 @@ Graph::Graph(char const* name) {}
 Graph GraphUtils::CreateGraphFromComputeGraph(const ComputeGraphPtr compute_graph) { return Graph("ge"); }
 
 void Graph::SetNeedIteration(bool need_iteration) {}
+
+GNode::GNode() {}
+
+std::vector<GNode> Graph::GetAllNodes() const {
+  std::vector<GNode> res;
+  GNode node;
+  res.push_back(node);
+  return res;
+}
+
+NodePtr NodeAdapter::GNode2Node(ge::GNode const &node) {
+  return nullptr;
+}
+
+std::string Node::GetName() const {
+  return "";
+}
+
+OpDescPtr Node::GetOpDesc() const {
+  return nullptr;
+}
+
+void OpDesc::SetName(std::string const &name) {}
 
 graphStatus aclgrphParseONNX(const char *model_file,
     const std::map<ge::AscendString, ge::AscendString> &parser_params, ge::Graph &graph) {
