@@ -121,6 +121,9 @@ def setup_python():
     with open(real_config_path('UT_LINK_FLAGS'), 'w') as f:
       f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))
       f.write(os.path.join(compile_args[1], 'python', '_pywrap_tensorflow_internal.so\n'))
+    with open(real_config_path('ST_LINK_FLAGS'), 'w') as f:
+      f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))
+      f.write(os.path.join(compile_args[1], 'python', '_pywrap_tensorflow_internal.so\n'))
     break
 
 

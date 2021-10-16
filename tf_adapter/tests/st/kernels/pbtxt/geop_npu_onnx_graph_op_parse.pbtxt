@@ -1,0 +1,170 @@
+node {
+  name: "_arg_conv_input_0_0"
+  op: "_Arg"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0 
+    }
+  }
+}
+node {
+  name: "_retval_conv2d_0_0"
+  op: "_RetVal"
+  input: "GeOp91_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "GeOp91_0"
+  op: "GeOp"
+  input: "_arg_conv_input_0_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "Tin"
+    value {
+      list {
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      list {
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_do_npu_optimizer"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_variable_format_optimize"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "data_format"
+    value {
+      s: "NHWC"
+    }
+  }
+  attr {
+    key: "function"
+    value {
+      func {
+        name: "GeOp91_0"
+      }
+    }
+  }
+}
+
+library {
+  function {
+    signature {
+      name: "GeOp91_0"
+      input_arg {
+        name: "_arg_conv_input_0_0_0_arg"
+        type: DT_FLOAT
+      }
+      output_arg {
+        name: "conv2d_0_retval"
+        type: DT_FLOAT
+      }
+    }
+    node_def {
+      name: "conv2d"
+      op: "NpuOnnxGraphOp"
+      input: "_arg_conv_input_0_0_0_arg"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "Tin"
+        value {
+          list {
+            type: DT_FLOAT
+          }
+        }
+      }
+      attr {
+        key: "Tout"
+        value {
+          list {
+            type: DT_FLOAT
+          }
+        }
+      }
+      attr {
+        key: "_NpuOptimizer"
+        value {
+          s: "NpuOptimizer"
+        }
+      }
+      attr {
+        key: "_do_npu_optimizer"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_use_off_line"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_variable_format_optimize"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "model_path"
+        value {
+          s: "no_model"
+        }
+      }
+    }
+    ret {
+      key: "conv2d_0_retval"
+      value: "conv2d:outputs:0"
+    }
+  }
+}
+versions {
+  producer: 134
+}

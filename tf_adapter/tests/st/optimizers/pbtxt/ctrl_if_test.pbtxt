@@ -1,0 +1,289 @@
+node {
+  name: "Greater/y"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "Greater"
+  op: "Greater"
+  input: "arg_Placeholder_0_0"
+  input: "Greater/y"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "IF_branch_1"
+  op: "If"
+  input: "Greater"
+  input: "arg_Placeholder_0_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "Tcond"
+    value {
+      type: DT_BOOL
+    }
+  }
+  attr {
+    key: "Tin"
+    value {
+      list {
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      list {
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "else_branch"
+    value {
+      func {
+        name: "finall_branch1_Y3CNZMF9Vv8"
+      }
+    }
+  }
+  attr {
+    key: "output_shapes"
+    value {
+      list {
+      }
+    }
+  }
+  attr {
+    key: "then_branch"
+    value {
+      func {
+        name: "finall_branch1_Y3CNZMF9Vv8"
+      }
+    }
+  }
+}
+node {
+  name: "arg_Placeholder_0_0"
+  op: "_Arg"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "retval_IF_branch_1_0_0"
+  op: "_Retval"
+  input: "IF_branch_1"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+library {
+  function {
+    signature {
+      name: "finall_branch1_Y3CNZMF9Vv8"
+      input_arg {
+        name: "x"
+        type: DT_FLOAT
+      }
+      output_arg {
+        name: "if_branch_2"
+        type: DT_FLOAT
+      }
+      is_stateful: true
+    }
+    node_def {
+      name: "Greater/y"
+      op: "Const"
+      attr {
+        key: "dtype"
+        value {
+          type: DT_FLOAT
+        }
+      }
+      attr {
+        key: "value"
+        value {
+          tensor {
+            dtype: DT_FLOAT
+            tensor_shape {
+            }
+            float_val: 0
+          }
+        }
+      }
+    }
+    node_def {
+      name: "Greater"
+      op: "Greater"
+      input: "x"
+      input: "Greater/y:output:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_FLOAT
+        }
+      }
+    }
+    node_def {
+      name: "IF_branch_2"
+      op: "If"
+      input: "Greater:z:0"
+      input: "x"
+      attr {
+        key: "Tcond"
+        value {
+          type: DT_BOOL
+        }
+      }
+      attr {
+        key: "Tin"
+        value {
+          list {
+            type: DT_FLOAT
+          }
+        }
+      }
+      attr {
+        key: "Tout"
+        value {
+          list {
+            type: DT_FLOAT
+          }
+        }
+      }
+      attr {
+        key: "else_branch"
+        value {
+          func {
+            name: "finall_branch2_0zkt64DYFRw"
+          }
+        }
+      }
+      attr {
+        key: "output_shapes"
+        value {
+          list {
+          }
+        }
+      }
+      attr {
+        key: "then_branch"
+        value {
+          func {
+            name: "finall_branch2_0zkt64DYFRw"
+          }
+        }
+      }
+    }
+    ret {
+      key: "if_branch_2"
+      value: "IF_branch_2:output:0"
+    }
+    attr {
+      key: "_disable_call_shape_inference"
+      value {
+        b: true
+      }
+    }
+  }
+  function {
+    signature {
+      name: "finall_branch2_0zkt64DYFRw"
+      input_arg {
+        name: "x_0"
+        type: DT_FLOAT
+      }
+      output_arg {
+        name: "x"
+        type: DT_FLOAT
+      }
+    }
+    ret {
+      key: "x"
+      value: "x_0"
+    }
+    attr {
+      key: "_disable_call_shape_inference"
+      value {
+        b: true
+      }
+    }
+  }
+}
+versions {
+  producer: 134
+  min_consumer: 12
+}
