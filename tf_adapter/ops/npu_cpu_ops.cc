@@ -261,4 +261,110 @@ REGISTER_OP("DenseImageWarpGrad")
       c->set_output(0, data_shape);
       return Status::OK();
     });
+
+  REGISTER_OP("BatchEnqueue")
+    .Input("x: T")
+    .Input("queue_id: uint32")
+    .Output("enqueue_count: int32")
+    .Attr("batch_size: int = 8")
+    .Attr("queue_name: string = ''")
+    .Attr("pad_mode: {'REPLICATE', 'ZERO'} = 'REPLICATE'")
+    .Attr("T: {float16, float32, float64, int8, uint8, int16, uint16, int32, uint32, int64, uint64}")
+    .SetShapeFn(tensorflow::shape_inference::ScalarShape);
+
+  REGISTER_OP("OCRRecognitionPreHandle")
+    .Input("imgs_data: uint8")
+    .Input("imgs_offset: int32")
+    .Input("imgs_size: int32")
+    .Input("langs: int32")
+    .Input("langs_score: T")
+    .Output("imgs: uint8")
+    .Output("imgs_relation: int32")
+    .Output("imgs_lang: int32")
+    .Attr("batch_size: int = 8")
+    .Attr("data_format: {'NHWC', 'NCHW'} = 'NHWC'")
+    .Attr("pad_mode: {'REPLICATE', 'ZERO'} = 'REPLICATE'")
+    .Attr("T: {float16, float32}")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      c->set_output(0, c->Vector(c->UnknownDim()));
+      c->set_output(1, c->Vector(c->UnknownDim()));
+      c->set_output(2, c->Vector(c->UnknownDim()));
+      return Status::OK();
+    });
+
+  REGISTER_OP("OCRDetectionPreHandle")
+    .Input("img: uint8")
+    .Output("resized_img: uint8")
+    .Output("h_scale: float32")
+    .Output("w_scale: float32")
+    .Attr("data_format: {'NHWC', 'NCHW'} = 'NHWC'")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      std::string dt_format;
+      const std::set<std::string> kVaildFormat = {"NHWC", "NCHW"};
+      if (!c->GetAttr("data_format", &dt_format).ok()) {
+        dt_format = "NHWC";
+      }
+      if (kVaildFormat.find(dt_format) == kVaildFormat.end()) {
+        return errors::InvalidArgument("Invalid data format string: ",
+                                       dt_format);
+      }
+      const int32_t kRank = 3;
+      std::vector<DimensionHandle> out_dims(kRank);
+      if (dt_format == "NHWC") {
+        out_dims[0] = c->UnknownDim();
+        out_dims[1] = c->UnknownDim();
+        out_dims[2] = c->MakeDim(3);
+      } else {
+        out_dims[0] = c->MakeDim(3);
+        out_dims[1] = c->UnknownDim();
+        out_dims[2] = c->UnknownDim();
+      }
+      c->set_output(0, c->MakeShape(out_dims));
+      c->set_output(1, c->Scalar());
+      c->set_output(2, c->Scalar());
+      return Status::OK();
+    });
+
+  REGISTER_OP("OCRIdentifyPreHandle")
+    .Input("imgs_data: uint8")
+    .Input("imgs_offset: int32")
+    .Input("imgs_size: int32")
+    .Output("resized_imgs: uint8")
+    .Attr("size: list(int)")
+    .Attr("data_format: {'NHWC', 'NCHW'} = 'NHWC'")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      std::vector<int32_t> size;
+      TF_RETURN_IF_ERROR(c->GetAttr("size", &size));
+      if (size.size() != 2) {
+        return errors::InvalidArgument(
+          "size attribute should contain 2 values, but got: ",
+          size.size());
+      }
+      const int64_t k1 = size[0];
+      const int64_t k2 = size[1];
+
+      std::string dt_format;
+      const std::set<std::string> kVaildFormat = {"NHWC", "NCHW"};
+      if (!c->GetAttr("data_format", &dt_format).ok()) {
+        dt_format = "NHWC";
+      }
+      if (kVaildFormat.find(dt_format) == kVaildFormat.end()) {
+        return errors::InvalidArgument("Invalid data format string: ",
+                                       dt_format);
+      }
+      const int32_t kRank = 4;
+      std::vector<DimensionHandle> out_dims(kRank);
+      out_dims[0] = c->UnknownDim();
+      if (dt_format == "NHWC") {
+        out_dims[0] = c->MakeDim(k1);
+        out_dims[1] = c->MakeDim(k2);
+        out_dims[2] = c->MakeDim(3);
+      } else {
+        out_dims[0] = c->MakeDim(3);
+        out_dims[1] = c->MakeDim(k1);
+        out_dims[2] = c->MakeDim(k2);
+      }
+      c->set_output(0, c->MakeShape(out_dims));
+      return Status::OK();
+    });
 }  // namespace tensorflow
