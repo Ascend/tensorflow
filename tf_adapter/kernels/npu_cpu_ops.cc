@@ -121,6 +121,34 @@ class DenseImageWarpGradOp : public OpKernel {
   bool IsExpensive() override { return false; }
 };
 
+class BatchEnqueueOp : public OpKernel {
+ public:
+  explicit BatchEnqueueOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~BatchEnqueueOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "BatchEnqueueOp Compute"; }
+};
+
+class OCRRecognitionPreHandleOp : public OpKernel {
+ public:
+  explicit OCRRecognitionPreHandleOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~OCRRecognitionPreHandleOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "OCRRecognitionPreHandleOp Compute"; }
+};
+
+class OCRDetectionPreHandleOp : public OpKernel {
+ public:
+  explicit OCRDetectionPreHandleOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~OCRDetectionPreHandleOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "OCRDetectionPreHandleOp Compute"; }
+};
+
+class OCRIdentifyPreHandleOp : public OpKernel {
+ public:
+  explicit OCRIdentifyPreHandleOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~OCRIdentifyPreHandleOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "OCRIdentifyPreHandleOp Compute"; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
@@ -128,6 +156,10 @@ REGISTER_KERNEL_BUILDER(Name("CacheAdd").Device(DEVICE_CPU), CacheAddOp);
 REGISTER_KERNEL_BUILDER(Name("CacheRemoteIndexToLocal").Device(DEVICE_CPU), CacheRemoteIndexToLocalOp);
 REGISTER_KERNEL_BUILDER(Name("CacheAllIndexToLocal").Device(DEVICE_CPU), CacheAllIndexToLocalOp);
 REGISTER_KERNEL_BUILDER(Name("RandomChoiceWithMask").Device(DEVICE_CPU), RandomChoiceWithMaskOp);
+REGISTER_KERNEL_BUILDER(Name("BatchEnqueue").Device(DEVICE_CPU), BatchEnqueueOp);
+REGISTER_KERNEL_BUILDER(Name("OCRRecognitionPreHandle").Device(DEVICE_CPU), OCRRecognitionPreHandleOp);
+REGISTER_KERNEL_BUILDER(Name("OCRDetectionPreHandle").Device(DEVICE_CPU), OCRDetectionPreHandleOp);
+REGISTER_KERNEL_BUILDER(Name("OCRIdentifyPreHandle").Device(DEVICE_CPU), OCRIdentifyPreHandleOp);
 
 #define REGISTER_KERNEL(type)                                \
 REGISTER_KERNEL_BUILDER(Name("DeformableOffsets")            \
