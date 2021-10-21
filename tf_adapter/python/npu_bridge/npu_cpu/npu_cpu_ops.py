@@ -150,3 +150,47 @@ def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format
         size=size,
         data_format=data_format)
     return result
+
+def batch_dilate_polys(polys_data, polys_offset,polys_size,score,min_border,min_area_thr,score_thr,expands_cale):
+    result = gen_npu_cpu_ops.batch_dilate_polys(
+        polys_data=polys_data, 
+        polys_offset=polys_offset,
+        polys_size=polys_size,
+        score=score,
+        min_border=min_border,
+        min_area_thr=min_area_thr,
+        score_thr=score_thr,
+        expands_cale=expands_cale)
+    return result
+
+def ocr_find_contours(img, value_mode=0):
+    result = gen_npu_cpu_ops.ocr_find_contours(img=img,value_mode=value_mode)
+    return result
+
+def dequeue(queue_id, output_type, output_shape, queue_name=""):
+    result = gen_npu_cpu_ops.dequeue(
+        queue_id=queue_id,
+        output_type=output_type,
+        output_shape=output_shape,
+        queue_name=queue_name)
+    return result
+
+def ocr_detection_post_handle(img, polys_data, polys_offset, polys_size, data_format="NHWC"):
+    result = gen_npu_cpu_ops.ocr_detection_post_handle(
+        img=img,
+        polys_data=polys_data,
+        polys_offset=polys_offset,
+        polys_size=polys_size,
+        data_format=data_format)
+    return result
+
+def resize_and_clip_polys(polys_data, polys_offset, polys_size, h_scale, w_scale, img_h, img_w):
+    result = gen_npu_cpu_ops.resize_and_clip_polys(
+        polys_data=polys_data,
+        polys_offset=polys_offset,
+        polys_size=polys_size,
+        h_scale=h_scale,
+        w_scale=w_scale,
+        img_h=img_h,
+        img_w=img_w)
+    return result
