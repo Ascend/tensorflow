@@ -167,5 +167,88 @@ TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInference) {
     {TShape({3}), TShape({3}), TShape({3})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
+
+TEST(OCROpsTest, TestBatchDilatePolysShapeInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("BatchDilatePolys", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)                  
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,
+    {TShape({1}), TShape({1}), TShape({1}), TShape({1}),TShape({1}),TShape({1}),TShape({1})},{}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
+TEST(OCROpsTest, TestOCRFindContoursShapeInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRFindContours", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)                  
+                  .Attr("value_mode", 0)
+                  .Input(FakeInputStub(DT_UINT8))                  
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,
+    {TShape({2})},{}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
+TEST(OCROpsTest, TestDequeueShapeInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("Dequeue", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("queue_name", "TEST")
+                  .Attr("output_type", DT_UINT8)
+                  .Attr("output_shape", {2})
+                  .Input(FakeInputStub(DT_UINT32))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,{TShape({})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
+TEST(OCROpsTest, TestOCRDetectionPostHandleShapeInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRDetectionPostHandle", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("data_format", "NHWC")
+                  .Input(FakeInputStub(DT_UINT8))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,{TShape({3}), TShape({3}), TShape({3}), TShape({3})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
+TEST(OCROpsTest, TestResizeAndClipPolysInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("ResizeAndClipPolys", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,{TShape({})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
 }  // namespace
 }  // namespace tensorflow
