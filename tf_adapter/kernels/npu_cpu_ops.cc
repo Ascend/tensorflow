@@ -149,6 +149,41 @@ class OCRIdentifyPreHandleOp : public OpKernel {
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "OCRIdentifyPreHandleOp Compute"; }
 };
 
+class BatchDilatePolysOp : public OpKernel {
+  public :
+  explicit BatchDilatePolysOp(OpKernelConstruction *context):OpKernel(context){}
+  ~BatchDilatePolysOp() override{}
+  void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"BatchDilatePolysOp Compute";}
+};
+
+class OCRFindContoursOp : public OpKernel {
+  public :
+  explicit OCRFindContoursOp(OpKernelConstruction *context):OpKernel(context){}
+  ~OCRFindContoursOp() override{}
+  void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"OCRFindContoursOp Compute";}
+};
+
+class OCRDetectionPostHandleOp : public OpKernel {
+ public:
+  explicit OCRDetectionPostHandleOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~OCRDetectionPostHandleOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "OCRDetectionPostHandleOp Compute"; }
+};
+
+class ResizeAndClipPolysOp : public OpKernel {
+ public:
+  explicit ResizeAndClipPolysOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~ResizeAndClipPolysOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "ResizeAndClipPolysOp Compute"; }
+};
+
+class DequeueOp : public OpKernel {
+ public:
+  explicit DequeueOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~DequeueOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DequeueOp Compute"; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
@@ -160,6 +195,11 @@ REGISTER_KERNEL_BUILDER(Name("BatchEnqueue").Device(DEVICE_CPU), BatchEnqueueOp)
 REGISTER_KERNEL_BUILDER(Name("OCRRecognitionPreHandle").Device(DEVICE_CPU), OCRRecognitionPreHandleOp);
 REGISTER_KERNEL_BUILDER(Name("OCRDetectionPreHandle").Device(DEVICE_CPU), OCRDetectionPreHandleOp);
 REGISTER_KERNEL_BUILDER(Name("OCRIdentifyPreHandle").Device(DEVICE_CPU), OCRIdentifyPreHandleOp);
+REGISTER_KERNEL_BUILDER(Name("BatchDilatePolys").Device(DEVICE_CPU), BatchDilatePolysOp);
+REGISTER_KERNEL_BUILDER(Name("OCRFindContours").Device(DEVICE_CPU), OCRFindContoursOp);
+REGISTER_KERNEL_BUILDER(Name("OCRDetectionPostHandle").Device(DEVICE_CPU), OCRDetectionPostHandleOp);
+REGISTER_KERNEL_BUILDER(Name("ResizeAndClipPolys").Device(DEVICE_CPU), ResizeAndClipPolysOp);
+REGISTER_KERNEL_BUILDER(Name("Dequeue").Device(DEVICE_CPU), DequeueOp);
 
 #define REGISTER_KERNEL(type)                                \
 REGISTER_KERNEL_BUILDER(Name("DeformableOffsets")            \
