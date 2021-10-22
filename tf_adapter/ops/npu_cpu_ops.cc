@@ -268,6 +268,7 @@ REGISTER_OP("DenseImageWarpGrad")
     .Output("enqueue_count: int32")
     .Attr("batch_size: int = 8")
     .Attr("queue_name: string = ''")
+    .Attr("queue_depth: int = 100")
     .Attr("pad_mode: {'REPLICATE', 'ZERO'} = 'REPLICATE'")
     .Attr("T: {float16, float32, float64, int8, uint8, int16, uint16, int32, uint32, int64, uint64}")
     .SetShapeFn(tensorflow::shape_inference::ScalarShape);

@@ -92,14 +92,16 @@ def dense_image_warp_grad(op, grad):
 #  @param queue_id uint32 类型
 #  @param batch_size int 类型
 #  @param queue_name string 类型
+#  @param queue_depth int64 类型
 #  @param pad_mode string 类型
 #  @return enqueue_count int64类型
-def batch_enqueue(x, queue_id, batch_size=8, queue_name="", pad_mode="REPLICATE"):
+def batch_enqueue(x, queue_id=0, batch_size=8, queue_name="", queue_depth=100, pad_mode="REPLICATE"):
     result = gen_npu_cpu_ops.batch_enqueue(
         x=x,
         queue_id=queue_id,
         batch_size=batch_size,
         queue_name=queue_name,
+        queue_depth=queue_depth,
         pad_mode=pad_mode)
     return result
 
@@ -130,7 +132,7 @@ def ocr_recognition_pre_handle(imgs_data, imgs_offset, imgs_size, langs, langs_s
 #  @param data_format string 类型
 #  @return resized_img,h_scale,w_scale uint8,float32,float32 类型
 def ocr_detection_pre_handle(img, data_format="NHWC"):
-    result = gen_npu_cpu_ops.ocr_recognition_pre_handle(
+    result = gen_npu_cpu_ops.ocr_detection_pre_handle(
         img=img,
         data_format=data_format)
     return result
@@ -143,7 +145,7 @@ def ocr_detection_pre_handle(img, data_format="NHWC"):
 #  @param data_format string 类型
 #  @return resized_imgs, uint8 类型
 def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format="NHWC"):
-    result = gen_npu_cpu_ops.ocr_recognition_pre_handle(
+    result = gen_npu_cpu_ops.ocr_identify_pre_handle(
         imgs_data=imgs_data,
         imgs_offset=imgs_offset,
         imgs_size=imgs_size,
@@ -151,7 +153,7 @@ def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format
         data_format=data_format)
     return result
 
-def batch_dilate_polys(polys_data, polys_offset,polys_size,score,min_border,min_area_thr,score_thr,expands_cale):
+def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, min_area_thr, score_thr, expands_scale):
     result = gen_npu_cpu_ops.batch_dilate_polys(
         polys_data=polys_data, 
         polys_offset=polys_offset,
@@ -160,7 +162,7 @@ def batch_dilate_polys(polys_data, polys_offset,polys_size,score,min_border,min_
         min_border=min_border,
         min_area_thr=min_area_thr,
         score_thr=score_thr,
-        expands_cale=expands_cale)
+        expands_scale=expands_scale)
     return result
 
 def ocr_find_contours(img, value_mode=0):
