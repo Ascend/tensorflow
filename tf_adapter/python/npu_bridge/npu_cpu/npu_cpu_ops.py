@@ -153,7 +153,7 @@ def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format
         data_format=data_format)
     return result
 
-def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, min_area_thr, score_thr, expands_scale):
+def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, min_area_thr, score_thr, expand_scale):
     result = gen_npu_cpu_ops.batch_dilate_polys(
         polys_data=polys_data, 
         polys_offset=polys_offset,
@@ -162,7 +162,7 @@ def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, 
         min_border=min_border,
         min_area_thr=min_area_thr,
         score_thr=score_thr,
-        expands_scale=expands_scale)
+        expand_scale=expand_scale)
     return result
 
 def ocr_find_contours(img, value_mode=0):
