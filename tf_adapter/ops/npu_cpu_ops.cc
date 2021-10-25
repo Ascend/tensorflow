@@ -420,7 +420,7 @@ REGISTER_OP("OCRFindContours")
 REGISTER_OP("Dequeue")
     .Input("queue_id: uint32")
     .Output("data: output_type")
-    .Attr("output_type: {float16, float32, float64, uint8, uint16} = DT_UINT8")
+    .Attr("output_type: {float16, float32, float64, int8, uint8, int16, uint16, int32, uint32, int64, uint64} = DT_UINT8")
     .Attr("output_shape: list(int)")
     .Attr("queue_name: string = ''")
     .SetShapeFn([](shape_inference::InferenceContext *c) {
@@ -435,7 +435,7 @@ REGISTER_OP("Dequeue")
       return Status::OK();
     });
 
-    REGISTER_OP("OCRDetectionPostHandle")
+REGISTER_OP("OCRDetectionPostHandle")
     .Input("img: uint8")
     .Input("polys_data: int32")
     .Input("polys_offset: int32")
