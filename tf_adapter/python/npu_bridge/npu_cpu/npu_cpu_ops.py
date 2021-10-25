@@ -153,7 +153,7 @@ def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format
         data_format=data_format)
     return result
 
-## 提供OCRDetectionPostHandle功能
+## 提供BatchDilatePolys功能
 #  @param polys_data int32 类型
 #  @param polys_offset int32 类型
 #  @param polys_size int32 类型
@@ -177,7 +177,7 @@ def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, 
         expand_scale=expand_scale)
     return result
 
-## 提供OCRDetectionPostHandle功能
+## 提供OCRFindContours功能
 #  @param img uint8 类型
 #  @param value_mode int 类型
 #  @return polys_data int32 类型
