@@ -12,7 +12,7 @@ class NonZeroWithValueOpTest : public testing::Test {
 TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
-    DataTypeSlice output_types({DT_INT64, DT_INT64, DT_INT64});
+    DataTypeSlice output_types({DT_INT32, DT_INT64, DT_INT64});
     MemoryTypeSlice output_memory_types;
     DeviceBase *device = new DeviceBase(Env::Default());
     NodeDef *node_def = new NodeDef();
