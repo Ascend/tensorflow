@@ -9,7 +9,7 @@ class NonZeroWithValueOpTest : public testing::Test {
   virtual void TearDown() {}
 };
 
-TEST_F(NonZeroWithValueTest, TestNonZeroWithValue) {
+TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_INT64, DT_INT64, DT_INT64});
