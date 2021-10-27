@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/fake_input.h"
-
+#include "tensorflow/core/platform/test.h"
 namespace tensorflow {
 class NonZeroWithValueOpTest : public testing::Test {
  protected:
@@ -25,7 +25,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
   };
 }
 
-TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
+TEST(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_INT32, DT_INT64, DT_INT64});
