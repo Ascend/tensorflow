@@ -1,27 +1,14 @@
 #include <memory>
 #include "tf_adapter/kernels/non_zero_with_value_ops.cc"
 #include "gtest/gtest.h"
-#include "tensorflow/core/framework/shape_inference.h"
-#include "tensorflow/core/framework/fake_input.h"
-#include "tensorflow/core/platform/test.h"
 namespace tensorflow {
-namespace {
+class NonZeroWithValueOpTest : public testing::Test {
+ protected:
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+};
 
-PartialTensorShape TShape(std::initializer_list<int64> dims) {
-  return PartialTensorShape(dims);
-}
-
-FakeInputFunctor FakeInputStub(DataType dt) {
-  return [dt](const OpDef& op_def, int in_index, const NodeDef& node_def,
-              NodeDefBuilder* builder) {
-    char c = 'a' + (in_index % 26);
-    string in_node =  string(&c, 1);
-    builder->Input(in_node, 0, dt);
-    return Status::OK();
-  };
-}
-
-TEST(NonZeroWithValueOpTest, TestNonZeroWithValue) {
+TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_INT32, DT_INT64, DT_INT64});
@@ -41,20 +28,4 @@ TEST(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     delete op_def;
     delete context;
 }
-
-TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
-  const OpRegistrationData* reg;
-  TF_CHECK_OK(OpRegistry::Global()->LookUp("NonZeroWithValue", &reg));
-  OpDef op_def = reg->op_def;
-  NodeDef def;
-  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
-                  .Attr("T", DT_FLOAT)
-                  .Attr("output_type", DT_INT64)
-                  .Input(FakeInputStub(DT_FLOAT))
-                  .Finalize(&def));
-  shape_inference::InferenceContext c(0, &def, op_def,{TShape({3, 4}), TShape({3, 4}), TShape({3, 1}}, {}, {}, {});
-  std::vector<shape_inference::ShapeHandle> input_shapes;
-  TF_CHECK_OK(reg->shape_inference_fn(&c));
-}
-}  // namespace
 }  // namespace tensorflow
