@@ -68,4 +68,5 @@ TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
   ASSERT_EQ("[12]", c.DebugString(c.output(0)));
   ASSERT_EQ("[24]", c.DebugString(c.output(1)));
   ASSERT_EQ("[1]", c.DebugString(c.output(2)));
+}
 }  // namespace tensorflow

@@ -11,20 +11,6 @@
 #include "tensorflow/core/platform/test.h"
 
 namespace tensorflow {
-PartialTensorShape TShape(std::initializer_list<int64> dims) {
-  return PartialTensorShape(dims);
-}
-
-FakeInputFunctor FakeInputStub(DataType dt) {
-  return [dt](const OpDef& op_def, int in_index, const NodeDef& node_def,
-              NodeDefBuilder* builder) {
-    char c = 'a' + (in_index % 26);
-    string in_node =  string(&c, 1);
-    builder->Input(in_node, 0, dt);
-    return Status::OK();
-  };
-}
-
 class NonZeroWithValueOpTest : public testing::Test {
  protected:
   virtual void SetUp() {}
@@ -52,6 +38,21 @@ TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     delete context;
 }
 
+PartialTensorShape TShape(std::initializer_list<int64> dims) {
+  return PartialTensorShape(dims);
+}
+
+FakeInputFunctor FakeInputStub(DataType dt) {
+  return [dt](const OpDef& op_def, int in_index, const NodeDef& node_def,
+              NodeDefBuilder* builder) {
+    char c = 'a' + (in_index % 26);
+    string in_node =  string(&c, 1);
+    builder->Input(in_node, 0, dt);
+    return Status::OK();
+  };
+}
+
+
 TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("NonZeroWithValue", &reg));
@@ -68,4 +69,5 @@ TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
   ASSERT_EQ("[12]", c.DebugString(c.output(0)));
   ASSERT_EQ("[24]", c.DebugString(c.output(1)));
   ASSERT_EQ("[1]", c.DebugString(c.output(2)));
+}
 }  // namespace tensorflow
