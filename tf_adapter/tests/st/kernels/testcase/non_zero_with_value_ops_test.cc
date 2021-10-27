@@ -29,4 +29,22 @@ TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     delete op_def;
     delete context;
 }
+
+TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("NonZeroWithValue", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("T", DT_FLOAT)
+                  .Attr("output_type", DT_INT64)
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,{TShape({3, 4})}, {}, {}, {});
+  std::vector<shape_inference::ShapeHandle> input_shapes;
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+  ASSERT_EQ("[12]", c.DebugString(c.output(0)));
+  ASSERT_EQ("[24]", c.DebugString(c.output(1)));
+  ASSERT_EQ("[1]", c.DebugString(c.output(2)));
+}
 }
