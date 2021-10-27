@@ -49,7 +49,7 @@ TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
   NodeDef def;
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Attr("T", DT_FLOAT)
-                  .Attr("output_type", DT_INT64)
+                  .Attr("output_type", DT_INT32)
                   .Input(FakeInputStub(DT_FLOAT))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,{TShape({3, 4})}, {}, {}, {});

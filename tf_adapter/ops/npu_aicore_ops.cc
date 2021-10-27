@@ -349,7 +349,7 @@ REGISTER_OP("NonZeroWithValue")
     .Output("count:output_type")
     .Attr("transpose:bool = false")
     .Attr("T:numbertype")
-    .Attr("output_type:{int32, int64} = DT_INT64")
+    .Attr("output_type:{int32, int64} = DT_INT32")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext* c) {
         auto input_shape = c->input(0);
