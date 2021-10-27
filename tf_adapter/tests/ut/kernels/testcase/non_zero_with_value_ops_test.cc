@@ -10,7 +10,9 @@
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/platform/test.h"
 
+
 namespace tensorflow {
+namespace {
 PartialTensorShape TShape(std::initializer_list<int64> dims) {
   return PartialTensorShape(dims);
 }
@@ -24,12 +26,6 @@ FakeInputFunctor FakeInputStub(DataType dt) {
     return Status::OK();
   };
 }
-
-class NonZeroWithValueOpTest : public testing::Test {
- protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
-};
 
 TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     DataTypeSlice input_types({DT_INT32});
@@ -69,4 +65,5 @@ TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
   ASSERT_EQ("[24]", c.DebugString(c.output(1)));
   ASSERT_EQ("[1]", c.DebugString(c.output(2)));
 }
+}  // namespace
 }  // namespace tensorflow
