@@ -10,9 +10,13 @@
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/platform/test.h"
 
-
 namespace tensorflow {
-namespace {
+class NonZeroWithValueOpTest : public testing::Test {
+ protected:
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+};
+
 PartialTensorShape TShape(std::initializer_list<int64> dims) {
   return PartialTensorShape(dims);
 }
@@ -65,5 +69,4 @@ TEST(NonZeroWithValueOpTest, TestNonZeroWithValueShapeInference) {
   ASSERT_EQ("[24]", c.DebugString(c.output(1)));
   ASSERT_EQ("[1]", c.DebugString(c.output(2)));
 }
-}  // namespace
 }  // namespace tensorflow
