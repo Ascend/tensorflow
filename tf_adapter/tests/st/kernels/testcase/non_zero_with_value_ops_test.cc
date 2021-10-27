@@ -1,14 +1,7 @@
 #include <memory>
 #include "tf_adapter/kernels/non_zero_with_value_ops.cc"
 #include "gtest/gtest.h"
-#include "tensorflow/core/framework/attr_value.pb.h"
-#include "tensorflow/core/framework/attr_value_util.h"
-#include "tensorflow/core/framework/fake_input.h"
-#include "tensorflow/core/framework/node_def.pb.h"
-#include "tensorflow/core/framework/node_def_builder.h"
-#include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/shape_inference.h"
-#include "tensorflow/core/platform/test.h"
 
 namespace tensorflow {
 class NonZeroWithValueOpTest : public testing::Test {
