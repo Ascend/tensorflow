@@ -2,6 +2,7 @@
 #include "tf_adapter/kernels/non_zero_with_value_ops.cc"
 #include "gtest/gtest.h"
 #include "tensorflow/core/framework/shape_inference.h"
+#include "tensorflow/core/framework/fake_input.h"
 
 namespace tensorflow {
 class NonZeroWithValueOpTest : public testing::Test {
