@@ -9,7 +9,7 @@ class NonZeroWithValueOpTest : public testing::Test {
 };
 
 TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
-    DataTypeSlice input_types({DT_INT32});
+    DataTypeSlice input_types({DT_FLOAT});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_INT32, DT_INT64, DT_INT64});
     MemoryTypeSlice output_memory_types;
@@ -19,7 +19,7 @@ TEST_F(NonZeroWithValueOpTest, TestNonZeroWithValue) {
     OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
                                                              input_types, input_memory_types, output_types, output_memory_types,
                                                              1, nullptr);
-    NonZeroWithValueOP<int> non_zero_with_value(context);
+    NonZeroWithValueOP<float> non_zero_with_value(context);
     OpKernelContext *ctx = nullptr;
     non_zero_with_value.Compute(ctx);
     non_zero_with_value.IsExpensive();
