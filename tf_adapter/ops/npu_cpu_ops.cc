@@ -311,13 +311,13 @@ REGISTER_OP("DenseImageWarpGrad")
       const int32_t kRank = 3;
       std::vector<DimensionHandle> out_dims(kRank);
       if (dt_format == "NHWC") {
-        out_dims[0] = c->UnknownDim();
-        out_dims[1] = c->UnknownDim();
+        out_dims[0] = c->MakeDim(960);
+        out_dims[1] = c->MakeDim(960);
         out_dims[2] = c->MakeDim(3);
       } else {
         out_dims[0] = c->MakeDim(3);
-        out_dims[1] = c->UnknownDim();
-        out_dims[2] = c->UnknownDim();
+        out_dims[1] = c->MakeDim(960);
+        out_dims[2] = c->MakeDim(960);
       }
       c->set_output(0, c->MakeShape(out_dims));
       c->set_output(1, c->Scalar());
@@ -354,15 +354,16 @@ REGISTER_OP("DenseImageWarpGrad")
       }
       const int32_t kRank = 4;
       std::vector<DimensionHandle> out_dims(kRank);
-      out_dims[0] = c->UnknownDim();
+      auto imgs_offset = c->input(1);
+      out_dims[0] = c->Dim(imgs_offset, 0);
       if (dt_format == "NHWC") {
-        out_dims[0] = c->MakeDim(k1);
-        out_dims[1] = c->MakeDim(k2);
-        out_dims[2] = c->MakeDim(3);
-      } else {
-        out_dims[0] = c->MakeDim(3);
         out_dims[1] = c->MakeDim(k1);
         out_dims[2] = c->MakeDim(k2);
+        out_dims[3] = c->MakeDim(3);
+      } else {
+        out_dims[1] = c->MakeDim(3);
+        out_dims[2] = c->MakeDim(k1);
+        out_dims[3] = c->MakeDim(k2);
       }
       c->set_output(0, c->MakeShape(out_dims));
       return Status::OK();
