@@ -472,3 +472,9 @@ def keep_tensors_dtypes(graph, input_tensors):
       tensor.op._set_attr("_keep_dtype", attr_value_pb2.AttrValue(i=1))
   else:
     raise ValueError("input_tensors must be list or tuple.")
+
+def set_op_tensor_max_range(tensor, max_shape):
+  if isinstance(tensor, ops.Operation):
+    tensor._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
+  else:
+    tensor.op._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))

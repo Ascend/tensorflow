@@ -5,6 +5,7 @@ if(DEFINED ASCEND_INSTALLED_PATH)
         include_directories(${ASCEND_INSTALLED_PATH}/compiler/include)
         include_directories(${ASCEND_INSTALLED_PATH}/compiler/include/acl/error_codes)
         include_directories(${ASCEND_INSTALLED_PATH}/runtime/include)
+        include_directories(${ASCEND_INSTALLED_PATH}/runtime/include/acl)
         target_link_libraries(acl_libs INTERFACE
                 ${ASCEND_INSTALLED_PATH}/runtime/lib64/libascendcl.so
                 ${ASCEND_INSTALLED_PATH}/compiler/lib64/libacl_tdt_channel.so

@@ -268,6 +268,7 @@ REGISTER_OP("DenseImageWarpGrad")
     .Output("enqueue_count: int32")
     .Attr("batch_size: int = 8")
     .Attr("queue_name: string = ''")
+    .Attr("queue_depth: int = 100")
     .Attr("pad_mode: {'REPLICATE', 'ZERO'} = 'REPLICATE'")
     .Attr("T: {float16, float32, float64, int8, uint8, int16, uint16, int32, uint32, int64, uint64}")
     .SetShapeFn(tensorflow::shape_inference::ScalarShape);
@@ -371,6 +372,114 @@ REGISTER_OP("DenseImageWarpGrad")
         out_dims[3] = c->MakeDim(k2);
       }
       c->set_output(0, c->MakeShape(out_dims));
+      return Status::OK();
+    });
+
+REGISTER_OP("BatchDilatePolys")
+         .Input("polys_data:int32")
+         .Input("polys_offset:int32")
+         .Input("polys_size:int32")
+         .Input("score:float")
+         .Input("min_border:int32")
+         .Input("min_area_thr:int32")
+         .Input("score_thr:float")
+         .Input("expand_scale:float")
+         .Output("dilated_polys_data:int32")
+         .Output("dilated_polys_offset:int32")
+         .Output("dilated_polys_size:int32")
+         .SetShapeFn([](shape_inference::InferenceContext *c){
+           auto input_shape0=c->input(0);
+           auto input_shape1=c->input(1);
+           auto input_shape2=c->input(2);
+           auto input_shape3=c->input(3);
+           auto input_shape4=c->input(4);
+           auto input_shape5=c->input(5);
+           auto input_shape6=c->input(6);
+           auto input_shape7=c->input(7);
+           c->set_output(0,c->Vector(c->UnknownDim()));
+           c->set_output(1,c->Vector(c->UnknownDim()));
+           c->set_output(2,c->Vector(c->UnknownDim()));
+           return Status::OK();                 
+         });
+
+REGISTER_OP("OCRFindContours")
+         .Input("img:uint8")
+         .Output("polys_data:int32")
+         .Output("polys_offset:int32")
+         .Output("polys_size:int32")
+         .Attr("value_mode:int = 0")
+         .SetShapeFn([](shape_inference::InferenceContext *c){
+           auto input_shape0=c->input(0);
+           auto input_shape1=c->input(1);
+           auto input_shape2=c->input(2);
+           auto input_shape3=c->input(3);
+           auto input_shape4=c->input(4);
+           auto input_shape5=c->input(5);
+           auto input_shape6=c->input(6);
+           auto input_shape7=c->input(7);
+           c->set_output(0,c->Vector(c->UnknownDim()));
+           c->set_output(1,c->Vector(c->UnknownDim()));
+           c->set_output(2,c->Vector(c->UnknownDim()));
+           return Status::OK();                 
+         });
+
+REGISTER_OP("Dequeue")
+    .Input("queue_id: uint32")
+    .Output("data: output_type")
+    .Attr("output_type: {float16, float32, float64, int8, uint8, int16, uint16, int32, uint32, int64, uint64} = DT_UINT8")
+    .Attr("output_shape: list(int)")
+    .Attr("queue_name: string = ''")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      std::vector<int32_t> output_shape;
+      TF_RETURN_IF_ERROR(c->GetAttr("output_shape", &output_shape));
+      int32_t rank = output_shape.size();
+      std::vector<DimensionHandle> out_dims(rank);
+      for (auto i = 0; i < rank; ++i){
+        out_dims[i] = c->MakeDim(output_shape[i]);
+      }
+      c->set_output(0, c->MakeShape(out_dims));
+      return Status::OK();
+    });
+
+REGISTER_OP("OCRDetectionPostHandle")
+    .Input("img: uint8")
+    .Input("polys_data: int32")
+    .Input("polys_offset: int32")
+    .Input("polys_size: int32")
+    .Output("imgs_data: uint8")
+    .Output("imgs_offset: int32")
+    .Output("imgs_size: int32")
+    .Output("rect_points: int32")
+    .Attr("data_format: {'NHWC', 'NCHW'} = 'NHWC'")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      c->set_output(0, c->Vector(c->UnknownDim()));
+      auto data_shape = c->input(2);
+      c->set_output(1, data_shape);
+      c->set_output(2, c->Matrix(c->Rank(c->input(2)), 3));
+      const int32_t rank = 3;
+      std::vector<DimensionHandle> out_dims(rank);
+      out_dims[0] = c->Dim(data_shape, 0);
+      out_dims[1] = c->MakeDim(4);
+      out_dims[2] = c->MakeDim(2);
+      c->set_output(3, c->MakeShape(out_dims));
+      return Status::OK();
+    });
+
+    REGISTER_OP("ResizeAndClipPolys")
+    .Input("polys_data: int32")
+    .Input("polys_offset: int32")
+    .Input("polys_size: int32")
+    .Input("h_scale: float32")
+    .Input("w_scale: float32")
+    .Input("img_h: int32")
+    .Input("img_w: int32")
+    .Output("clipped_polys_data: int32")
+    .Output("clipped_polys_offset: int32")
+    .Output("clipped_polys_size: int32")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      c->set_output(0, c->Vector(c->UnknownDim()));
+      c->set_output(1, c->Vector(c->UnknownDim()));
+      c->set_output(2, c->Vector(c->UnknownDim()));
       return Status::OK();
     });
 }  // namespace tensorflow

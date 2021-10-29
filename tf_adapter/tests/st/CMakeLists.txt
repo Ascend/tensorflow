@@ -24,6 +24,7 @@ file(GLOB_RECURSE ST_SOURCES
     ${TFADAPTER_DIR}/tf_adapter/util/*.cc
     ${TFADAPTER_DIR}/tf_adapter/kernels/*.cc
     "optimizers/testcase/om_partition_subgraphs_pass_test.cc"
+    "kernels/testcase/ocr_ops_test.cc"
 )
 
 add_executable(tfadapter_stest

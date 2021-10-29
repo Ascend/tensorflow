@@ -92,14 +92,16 @@ def dense_image_warp_grad(op, grad):
 #  @param queue_id uint32 类型
 #  @param batch_size int 类型
 #  @param queue_name string 类型
+#  @param queue_depth int64 类型
 #  @param pad_mode string 类型
 #  @return enqueue_count int64类型
-def batch_enqueue(x, queue_id, batch_size=8, queue_name="", pad_mode="REPLICATE"):
+def batch_enqueue(x, queue_id=0, batch_size=8, queue_name="", queue_depth=100, pad_mode="REPLICATE"):
     result = gen_npu_cpu_ops.batch_enqueue(
         x=x,
         queue_id=queue_id,
         batch_size=batch_size,
         queue_name=queue_name,
+        queue_depth=queue_depth,
         pad_mode=pad_mode)
     return result
 
@@ -130,7 +132,7 @@ def ocr_recognition_pre_handle(imgs_data, imgs_offset, imgs_size, langs, langs_s
 #  @param data_format string 类型
 #  @return resized_img,h_scale,w_scale uint8,float32,float32 类型
 def ocr_detection_pre_handle(img, data_format="NHWC"):
-    result = gen_npu_cpu_ops.ocr_recognition_pre_handle(
+    result = gen_npu_cpu_ops.ocr_detection_pre_handle(
         img=img,
         data_format=data_format)
     return result
@@ -143,10 +145,94 @@ def ocr_detection_pre_handle(img, data_format="NHWC"):
 #  @param data_format string 类型
 #  @return resized_imgs, uint8 类型
 def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format="NHWC"):
-    result = gen_npu_cpu_ops.ocr_recognition_pre_handle(
+    result = gen_npu_cpu_ops.ocr_identify_pre_handle(
         imgs_data=imgs_data,
         imgs_offset=imgs_offset,
         imgs_size=imgs_size,
         size=size,
         data_format=data_format)
+    return result
+
+## 提供BatchDilatePolys功能
+#  @param polys_data int32 类型
+#  @param polys_offset int32 类型
+#  @param polys_size int32 类型
+#  @param score float 类型
+#  @param min_border int32 类型
+#  @param min_area_thr int32 类型
+#  @param score_thr float 类型
+#  @param expand_scale float 类型
+#  @return dilated_polys_data int32 类型
+#  @return dilated_polys_offset int32 类型
+#  @return dilated_polys_size int32 类型
+def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, min_area_thr, score_thr, expand_scale):
+    result = gen_npu_cpu_ops.batch_dilate_polys(
+        polys_data=polys_data, 
+        polys_offset=polys_offset,
+        polys_size=polys_size,
+        score=score,
+        min_border=min_border,
+        min_area_thr=min_area_thr,
+        score_thr=score_thr,
+        expand_scale=expand_scale)
+    return result
+
+## 提供OCRFindContours功能
+#  @param img uint8 类型
+#  @param value_mode int 类型
+#  @return polys_data int32 类型
+#  @return polys_offset int32 类型
+#  @return polys_size int32 类型
+def ocr_find_contours(img, value_mode=0):
+    result = gen_npu_cpu_ops.ocr_find_contours(img=img,value_mode=value_mode)
+    return result
+
+## 提供Dequeue功能
+#  @param queue_id uint32 类型
+#  @param output_type RealNumberType 类型
+#  @param output_shape list(int) 类型
+#  @param queue_name string 类型
+#  @return data 根据output_type确定类型
+def dequeue(queue_id, output_type, output_shape, queue_name=""):
+    result = gen_npu_cpu_ops.dequeue(
+        queue_id=queue_id,
+        output_type=output_type,
+        output_shape=output_shape,
+        queue_name=queue_name)
+    return result
+
+## 提供OCRDetectionPostHandle功能
+#  @param img uint8 类型
+#  @param polys_data int32 类型
+#  @param polys_offset int32 类型
+#  @param polys_size int32 类型
+#  @param data_format string 类型
+#  @return imgs_data,imgs_offset,imgs_size,rect_points uint8,int32,int32,int32 类型
+def ocr_detection_post_handle(img, polys_data, polys_offset, polys_size, data_format="NHWC"):
+    result = gen_npu_cpu_ops.ocr_detection_post_handle(
+        img=img,
+        polys_data=polys_data,
+        polys_offset=polys_offset,
+        polys_size=polys_size,
+        data_format=data_format)
+    return result
+
+## 提供ResizeAndClipPolys功能
+#  @param polys_data int32 类型
+#  @param polys_offset int32 类型
+#  @param polys_size int32 类型
+#  @param h_scale float32 类型
+#  @param w_scale float32 类型
+#  @param img_h int32 类型
+#  @param img_w int32 类型
+#  @return clipped_polys_data,clipped_polys_offset,clipped_polys_size int32,int32,int32 类型
+def resize_and_clip_polys(polys_data, polys_offset, polys_size, h_scale, w_scale, img_h, img_w):
+    result = gen_npu_cpu_ops.resize_and_clip_polys(
+        polys_data=polys_data,
+        polys_offset=polys_offset,
+        polys_size=polys_size,
+        h_scale=h_scale,
+        w_scale=w_scale,
+        img_h=img_h,
+        img_w=img_w)
     return result
