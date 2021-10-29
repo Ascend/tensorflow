@@ -409,14 +409,6 @@ REGISTER_OP("OCRFindContours")
          .Output("polys_size:int32")
          .Attr("value_mode:int = 0")
          .SetShapeFn([](shape_inference::InferenceContext *c){
-           auto input_shape0=c->input(0);
-           auto input_shape1=c->input(1);
-           auto input_shape2=c->input(2);
-           auto input_shape3=c->input(3);
-           auto input_shape4=c->input(4);
-           auto input_shape5=c->input(5);
-           auto input_shape6=c->input(6);
-           auto input_shape7=c->input(7);
            c->set_output(0,c->Vector(c->UnknownDim()));
            c->set_output(1,c->Vector(c->UnknownDim()));
            c->set_output(2,c->Vector(c->UnknownDim()));
