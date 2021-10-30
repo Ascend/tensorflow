@@ -162,4 +162,17 @@ def nonzero(x, transpose=False, output_type=dtypes.int64, name=None):
     x = ops.convert_to_tensor(x, name="x")
     result = npu_aicore_ops.non_zero(x, transpose, output_type, name=name)
     return result
+
+
+def nonzerowithvalue(x, transpose=False, output_type=dtypes.int64, name=None):
+    """
+    nonezero op
+    Return the indices of the elementes that are non-zero.
+    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes in that dimension.
+    The values in a are always tested and returned in row-major ,C-style order.
+
+    """
+    x = ops.convert_to_tensor(x, name="x")
+    result = npu_aicore_ops.non_zero_with_value(x, transpose, output_type, name=name)
+    return result
 # go/tf-wildcard-import

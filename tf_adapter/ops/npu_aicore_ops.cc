@@ -341,5 +341,28 @@ REGISTER_OP("NonZero")
         c->set_output(0, c->MakeShape({rank, -1}));
         return Status::OK();
     });
+
+REGISTER_OP("NonZeroWithValue")
+    .Input("x:T")
+    .Output("value:T")
+    .Output("index:output_type")
+    .Output("count:output_type")
+    .Attr("transpose:bool = false")
+    .Attr("T:numbertype")
+    .Attr("output_type:{int32, int64} = DT_INT32")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+        auto input_shape = c->input(0);
+        int64_t dim1 = c->Value(c->Dim(input_shape, 0));
+        int64_t dim2 = c->Value(c->Dim(input_shape, 1));
+        int64_t value_num = dim1 * dim2;
+        int64_t index_dim = 2 * dim1 * dim2;
+        int64_t count_dim = 1;
+
+        c->set_output(0, c->MakeShape({c->MakeDim(value_num)}));
+        c->set_output(1, c->MakeShape({c->MakeDim(index_dim)}));
+        c->set_output(2, c->MakeShape({c->MakeDim(count_dim)}));
+        return Status::OK();
+    });
 }  // namespace
 } // namespace tensorflow
