@@ -419,6 +419,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   init_options[ge::OPTION_EXEC_PROFILING_BPPONIT_OPTIONS] = "";
   init_options["ge.jobType"] = "";
   init_options["ge.tuningPath"] = "";
+  init_options["ge.deviceType"] = "default_device_type";
   return init_options;
 }
 
@@ -445,6 +446,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string op_precision_mode;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
+  std::string device_type = "default_device_type";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -467,6 +469,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_precision_mode", &op_precision_mode);
     ctx->GetAttr("_op_select_implmode", &op_select_implmode);
     ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
+    ctx->GetAttr("_device_type", &device_type);
   }
 
 
@@ -494,6 +497,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options[ge::OP_PRECISION_MODE] = op_precision_mode;
   init_options[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
   init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
+  init_options["ge.deviceType"] = device_type;
 
   return init_options;
 }
@@ -803,6 +807,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string session_device_id;
   std::string modify_mixlist;
   std::string op_precision_mode;
+  std::string device_type = "default_device_type";
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -858,6 +863,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto session_device_id_value = attrs.Find("_session_device_id");
   auto modify_mixlist_value = attrs.Find("_modify_mixlist");
   auto op_precision_mode_value = attrs.Find("_op_precision_mode");
+  auto device_type_value = attrs.Find("_device_type");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -997,6 +1003,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (op_precision_mode_value != nullptr) {
       op_precision_mode = op_precision_mode_value->s();
     }
+    if (device_type_value != nullptr) { device_type = device_type_value->s(); }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1054,6 +1061,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["session_device_id"] = session_device_id;
   all_options["modify_mixlist"] = modify_mixlist;
   all_options["op_precision_mode"] = op_precision_mode;
+  all_options["device_type"] = device_type;
 
   return all_options;
 }
@@ -1132,6 +1140,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   int session_device_id = -1;
   std::string modify_mixlist;
   std::string op_precision_mode;
+  std::string device_type = "default_device_type";
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1397,6 +1406,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("op_precision_mode")) {
         op_precision_mode = params.at("op_precision_mode").s();
       }
+      if (params.count("device_type")) { device_type = params.at("device_type").s(); }
     }
   }
 
@@ -1443,6 +1453,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options["op_compiler_cache_mode"] = op_compiler_cache_mode;
   init_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["debug_dir"] = debug_dir;
+  init_options["device_type"] = device_type;
 
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);

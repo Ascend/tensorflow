@@ -90,7 +90,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  session_device_id=None,
                  distribute_config=None,
                  modify_mixlist=None,
-                 op_precision_mode=None
+                 op_precision_mode=None,
+                 device_type="default_device_type"
                  ):
         """
         Constructs a NPUConfig.
@@ -216,8 +217,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._fusion_switch_file = fusion_switch_file
         self._enable_compress_weight = enable_compress_weight
         self._compress_weight_conf = compress_weight_conf
-        self._op_compiler_cache_mode=op_compiler_cache_mode
-        self._op_compiler_cache_dir=op_compiler_cache_dir
+        self._op_compiler_cache_mode = op_compiler_cache_mode
+        self._op_compiler_cache_dir = op_compiler_cache_dir
         self._debug_dir=debug_dir
         self._hcom_multi_mode = hcom_multi_mode
         self._dynamic_input = dynamic_input
@@ -229,6 +230,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._distribute_config = distribute_config
         self._modify_mixlist = modify_mixlist
         self._op_precision_mode = op_precision_mode
+        self._device_type = device_type
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
