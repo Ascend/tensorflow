@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021-2021. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,23 +18,21 @@
 #include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
-template<typename T>
-class NonZeroWithValueOP : public OpKernel {
- public:
-  explicit NonZeroWithValueOP(OpKernelConstruction*ctx) : OpKernel(ctx) {
+template <typename T> class NonZeroWithValueOP : public OpKernel {
+public:
+  explicit NonZeroWithValueOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new NonZeroWithValueOP";
   }
-  ~NonZeroWithValueOP() {
-    LOG(INFO) << "del NonZeroWithValueOP";
-  }
-  void Compute(OpKernelContext*ctx) override {
+  ~NonZeroWithValueOP() { LOG(INFO) << "del NonZeroWithValueOP"; }
+  void Compute(OpKernelContext *ctx) override {
     LOG(INFO) << "compute in NonZeroWithValueOP";
   }
-  bool IsExpensive() override { 
+  bool IsExpensive() override {
     LOG(INFO) << "in NonZeroWithValue IsExpensive";
     return false;
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("NonZeroWithValue").Device(DEVICE_CPU), NonZeroWithValueOP<float>);
-}  //namespace tensorflow
+REGISTER_KERNEL_BUILDER(Name("NonZeroWithValue").Device(DEVICE_CPU),
+                        NonZeroWithValueOP<float>);
+} // namespace tensorflow

@@ -163,6 +163,7 @@ def nonzero(x, transpose=False, output_type=dtypes.int64, name=None):
     result = npu_aicore_ops.non_zero(x, transpose, output_type, name=name)
     return result
 
+
 def nonzerowithvalue(x, transpose=False, output_type=dtypes.int64, name=None):
     """
     nonezero op
