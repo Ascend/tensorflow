@@ -314,7 +314,7 @@ REGISTER_OP("DenseImageWarpGrad")
       const int32_t kRank = 3;
       const int64_t resizedH = 960;
       const int64_t resizedW = 960;
-      const int64_t resizedC = 3
+      const int64_t resizedC = 3;
       std::vector<DimensionHandle> out_dims(kRank);
       if (dt_format == "NHWC") {
         out_dims[0] = c->MakeDim(resizedH);
