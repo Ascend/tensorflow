@@ -151,6 +151,20 @@ TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInference) {
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 
+TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInference1) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRDetectionPreHandle", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("data_format", "NCHW")
+                  .Input(FakeInputStub(DT_UINT8))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,
+    {TShape({3})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
 TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInference) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRIdentifyPreHandle", &reg));
@@ -159,6 +173,23 @@ TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInference) {
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Attr("size", {1,2})
                   .Attr("data_format", "NHWC")
+                  .Input(FakeInputStub(DT_UINT8))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,
+    {TShape({3}), TShape({3}), TShape({3})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
+TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInference1) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRIdentifyPreHandle", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("size", {1,2})
+                  .Attr("data_format", "NCHW")
                   .Input(FakeInputStub(DT_UINT8))
                   .Input(FakeInputStub(DT_INT32))
                   .Input(FakeInputStub(DT_INT32))

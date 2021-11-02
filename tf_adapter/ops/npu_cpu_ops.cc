@@ -309,16 +309,21 @@ REGISTER_OP("DenseImageWarpGrad")
         return errors::InvalidArgument("Invalid data format string: ",
                                        dt_format);
       }
+
+      /* fixed to resize to 960 * 960 */
       const int32_t kRank = 3;
+      const int64_t kResizedH = 960;
+      const int64_t kResizedW = 960;
+      const int64_t kResizedC = 3;
       std::vector<DimensionHandle> out_dims(kRank);
       if (dt_format == "NHWC") {
-        out_dims[0] = c->UnknownDim();
-        out_dims[1] = c->UnknownDim();
-        out_dims[2] = c->MakeDim(3);
+        out_dims[0] = c->MakeDim(kResizedH);
+        out_dims[1] = c->MakeDim(kResizedW);
+        out_dims[2] = c->MakeDim(kResizedC);
       } else {
-        out_dims[0] = c->MakeDim(3);
-        out_dims[1] = c->UnknownDim();
-        out_dims[2] = c->UnknownDim();
+        out_dims[0] = c->MakeDim(kResizedC);
+        out_dims[1] = c->MakeDim(kResizedH);
+        out_dims[2] = c->MakeDim(kResizedW);
       }
       c->set_output(0, c->MakeShape(out_dims));
       c->set_output(1, c->Scalar());
@@ -355,15 +360,16 @@ REGISTER_OP("DenseImageWarpGrad")
       }
       const int32_t kRank = 4;
       std::vector<DimensionHandle> out_dims(kRank);
-      out_dims[0] = c->UnknownDim();
+      auto imgs_offset = c->input(1);
+      out_dims[0] = c->Dim(imgs_offset, 0);
       if (dt_format == "NHWC") {
-        out_dims[0] = c->MakeDim(k1);
-        out_dims[1] = c->MakeDim(k2);
-        out_dims[2] = c->MakeDim(3);
-      } else {
-        out_dims[0] = c->MakeDim(3);
         out_dims[1] = c->MakeDim(k1);
         out_dims[2] = c->MakeDim(k2);
+        out_dims[3] = c->MakeDim(3);
+      } else {
+        out_dims[1] = c->MakeDim(3);
+        out_dims[2] = c->MakeDim(k1);
+        out_dims[3] = c->MakeDim(k2);
       }
       c->set_output(0, c->MakeShape(out_dims));
       return Status::OK();
@@ -403,14 +409,6 @@ REGISTER_OP("OCRFindContours")
          .Output("polys_size:int32")
          .Attr("value_mode:int = 0")
          .SetShapeFn([](shape_inference::InferenceContext *c){
-           auto input_shape0=c->input(0);
-           auto input_shape1=c->input(1);
-           auto input_shape2=c->input(2);
-           auto input_shape3=c->input(3);
-           auto input_shape4=c->input(4);
-           auto input_shape5=c->input(5);
-           auto input_shape6=c->input(6);
-           auto input_shape7=c->input(7);
            c->set_output(0,c->Vector(c->UnknownDim()));
            c->set_output(1,c->Vector(c->UnknownDim()));
            c->set_output(2,c->Vector(c->UnknownDim()));
