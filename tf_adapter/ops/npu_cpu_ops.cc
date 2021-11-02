@@ -375,7 +375,7 @@ REGISTER_OP("DenseImageWarpGrad")
       const int32 kImgShapeRank = 1;
       if (c->Rank(c->input(0)) != kImgShapeRank) {
         return errors::InvalidArgument("Invalid images shape: shape rank[%d] != 1",
-                                       dt_format);
+                                       c->Rank(c->input(0)));
       }
 
       const int32_t kRank = 4;

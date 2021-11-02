@@ -147,7 +147,7 @@ TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInference) {
                   .Input(FakeInputStub(DT_UINT8))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
-    {TShape({3})}, {}, {}, {});
+    {TShape({3, 3, 3})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 
@@ -161,7 +161,7 @@ TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInference1) {
                   .Input(FakeInputStub(DT_UINT8))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
-    {TShape({3})}, {}, {}, {});
+    {TShape({3, 3, 3})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 
@@ -178,7 +178,7 @@ TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInference) {
                   .Input(FakeInputStub(DT_INT32))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
-    {TShape({3}), TShape({3}), TShape({3})}, {}, {}, {});
+    {TShape({10}), TShape({3}), TShape({3, 3})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 
@@ -195,7 +195,7 @@ TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInference1) {
                   .Input(FakeInputStub(DT_INT32))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
-    {TShape({3}), TShape({3}), TShape({3})}, {}, {}, {});
+    {TShape({3}), TShape({3}), TShape({3, 3})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 
