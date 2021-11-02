@@ -312,18 +312,18 @@ REGISTER_OP("DenseImageWarpGrad")
 
       /* fixed to resize to 960 * 960 */
       const int32_t kRank = 3;
-      const int64_t resizedH = 960;
-      const int64_t resizedW = 960;
-      const int64_t resizedC = 3;
+      const int64_t kResizedH = 960;
+      const int64_t kResizedW = 960;
+      const int64_t kResizedC = 3;
       std::vector<DimensionHandle> out_dims(kRank);
       if (dt_format == "NHWC") {
-        out_dims[0] = c->MakeDim(resizedH);
-        out_dims[1] = c->MakeDim(resizedW);
-        out_dims[2] = c->MakeDim(resizedC);
+        out_dims[0] = c->MakeDim(kResizedH);
+        out_dims[1] = c->MakeDim(kResizedW);
+        out_dims[2] = c->MakeDim(kResizedC);
       } else {
-        out_dims[0] = c->MakeDim(resizedC);
-        out_dims[1] = c->MakeDim(resizedH);
-        out_dims[2] = c->MakeDim(resizedW);
+        out_dims[0] = c->MakeDim(kResizedC);
+        out_dims[1] = c->MakeDim(kResizedH);
+        out_dims[2] = c->MakeDim(kResizedW);
       }
       c->set_output(0, c->MakeShape(out_dims));
       c->set_output(1, c->Scalar());
