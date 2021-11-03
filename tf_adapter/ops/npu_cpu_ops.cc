@@ -374,8 +374,27 @@ REGISTER_OP("DenseImageWarpGrad")
       
       const int32 kImgShapeRank = 1;
       if (c->Rank(c->input(0)) != kImgShapeRank) {
-        return errors::InvalidArgument("Invalid images shape: shape rank must be 1, bug got: ",
+        return errors::InvalidArgument("Invalid images shape: must be 1, bug got: ",
                                        c->Rank(c->input(0)));
+      }
+
+      const int32 kImgOffsetShapeRank = 1;
+      if (c->Rank(c->input(1)) != kImgOffsetShapeRank) {
+        return errors::InvalidArgument("Invalid images offset shape: must be 1, bug got: ",
+                                       c->Rank(c->input(1)));
+      }
+
+      const int32 kImgSizeShapeRank = 2;
+      if (c->Rank(c->input(2)) != kImgSizeShapeRank) {
+        return errors::InvalidArgument("Invalid images size shape: must be 2, bug got: ",
+                                       c->Rank(c->input(2)));
+      }
+      
+      // the second dim of imgs size must be 3 
+      const int32 kImgSizeShape = 3;
+      if (c->Value(c->Dim(c->input(2), 1)) != kImgSizeShape) {
+        return errors::InvalidArgument("Invalid image size shape: must be 3, bug got: ",
+                                       c->Value(c->Dim(c->input(2))));
       }
 
       const int32_t kRank = 4;
