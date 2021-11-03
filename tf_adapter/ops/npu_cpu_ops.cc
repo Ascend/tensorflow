@@ -394,7 +394,7 @@ REGISTER_OP("DenseImageWarpGrad")
       const int32 kImgSizeShape = 3;
       if (c->Value(c->Dim(c->input(2), 1)) != kImgSizeShape) {
         return errors::InvalidArgument("Invalid image size shape: must be 3, bug got: ",
-                                       c->Value(c->Dim(c->input(2))));
+                                       c->Value(c->Dim(c->input(2), 1)));
       }
 
       const int32_t kRank = 4;
