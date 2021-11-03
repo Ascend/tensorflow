@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "tensorflow/compiler/jit/graphcycles/graphcycles.h"
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/common_runtime/shape_refiner.h"
 #include "tensorflow/core/framework/graph_def_util.h"
@@ -39,7 +40,6 @@
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/npu_ops_identifier.h"
-#include "tf_adapter/common/graphcycles.h"
 
 namespace tensorflow {
 static const int64 kMicrosToMillis = 1000;
@@ -889,7 +889,6 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
     }
   }
   // Check for existing cyclicity in the graph
-  std::vector<Edge *> cycleEdges;
   for (auto edge : graph->edges()) {
     REQUIRES_NOT_NULL(edge);
     Node *src = edge->src();
@@ -899,25 +898,13 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
     // Skip source/sink
     if (!src->IsOp() || !dst->IsOp()) { continue; }
     // Skip NextIteration
-    if (src->IsNextIteration()) {
-      cycleEdges.push_back(edge);
-      continue;
-    }
+    if (src->IsNextIteration()) { continue; }
     if (!cycles.InsertEdge(cluster_map[src]->index, cluster_map[dst]->index)) {
       ADP_LOG(ERROR) << "Failing due to cycle";
       LOG(ERROR) << "Failing due to cycle";
       return errors::Unimplemented("Input graph has a cycle (inserting an edge from ", src->DebugString(), " to ",
                                    dst->DebugString(), " would create a cycle)");
     }
-  }
-
-  for (auto edge : cycleEdges) {
-    REQUIRES_NOT_NULL(edge);
-    Node *src = edge->src();
-    Node *dst = edge->dst();
-    REQUIRES_NOT_NULL(src);
-    REQUIRES_NOT_NULL(dst);
-    cycles.InsertEdge(cluster_map[src]->index, cluster_map[dst]->index, true);
   }
 
   bool changed = false;
