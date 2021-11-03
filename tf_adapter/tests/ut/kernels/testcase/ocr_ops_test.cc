@@ -176,7 +176,7 @@ TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail1) {
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
     {TShape({5,5,4})}, {}, {}, {});
-  ASSERT_TRUE(reg->shape_inference_fn(&c).ok());
+  ASSERT_TRUE(!reg->shape_inference_fn(&c).ok());
 }
 
 TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail2) {
@@ -220,7 +220,7 @@ TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInference) {
                   .Input(FakeInputStub(DT_INT32))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
-    {TShape({-1}), TShape({3}), TShape({3})}, {}, {}, {});
+    {TShape({-1}), TShape({-1}), TShape({-1, 3})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 
