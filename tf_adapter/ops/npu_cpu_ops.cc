@@ -314,14 +314,14 @@ REGISTER_OP("DenseImageWarpGrad")
       const int64_t kChannle = 3;
       int32 imgRank = c->Rank(c->input(0));
       if (imgRank != kRank) {
-        return errors::InvalidArgument("Invalid image shape: shape rank[%d] != 3",
+        return errors::InvalidArgument("Invalid image shape: shape rank must be 3, but got",
                                        imgRank);
       }
       
       size_t pos_c = dt_format.find("C");
       int64 channle = c->Value(c->Dim(c->input(0), pos_c - 1));
       if (channle != kChannle) {
-        return errors::InvalidArgument("Invalid image shape: shape channel[%d] != 3",
+        return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got",
                                        channle);
       }
 
@@ -374,7 +374,7 @@ REGISTER_OP("DenseImageWarpGrad")
       
       const int32 kImgShapeRank = 1;
       if (c->Rank(c->input(0)) != kImgShapeRank) {
-        return errors::InvalidArgument("Invalid images shape: shape rank[%d] != 1",
+        return errors::InvalidArgument("Invalid images shape: shape rank must be 1, bug got: ",
                                        c->Rank(c->input(0)));
       }
 
