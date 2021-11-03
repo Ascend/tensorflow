@@ -176,10 +176,10 @@ TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail1) {
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
     {TShape({5,5,4})}, {}, {}, {});
-  ASSERT_TRUE(reg->shape_inference_fn(&c));
+  ASSERT_TRUE(reg->shape_inference_fn(&c).ok());
 }
 
-TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail1) {
+TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail2) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRDetectionPreHandle", &reg));
   OpDef op_def = reg->op_def;
@@ -193,7 +193,7 @@ TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail1) {
   ASSERT_TRUE(!reg->shape_inference_fn(&c).ok());
 }
 
-TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail2) {
+TEST(OCROpsTest, TestOCRDetectionPreHandleShapeInferenceFail3) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRDetectionPreHandle", &reg));
   OpDef op_def = reg->op_def;
@@ -275,7 +275,7 @@ TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInferencefail2) {
   ASSERT_TRUE(!reg->shape_inference_fn(&c).ok());
 }
 
-TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInferencefail2) {
+TEST(OCROpsTest, TestOCRIdentifyPreHandleShapeInferencefail3) {
   const OpRegistrationData* reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("OCRIdentifyPreHandle", &reg));
   OpDef op_def = reg->op_def;
