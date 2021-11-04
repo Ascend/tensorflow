@@ -310,18 +310,31 @@ REGISTER_OP("DenseImageWarpGrad")
                                        dt_format);
       }
 
-      /* fixed to resize to 960 * 960 */
       const int32_t kRank = 3;
+      const int64_t kChannle = 3;
+      int32 imgRank = c->Rank(c->input(0));
+      if (imgRank != kRank) {
+        return errors::InvalidArgument("Invalid image shape: shape rank must be 3, but got",
+                                       imgRank);
+      }
+      
+      size_t pos_c = dt_format.find("C");
+      int64 channle = c->Value(c->Dim(c->input(0), pos_c - 1));
+      if (channle != kChannle) {
+        return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got",
+                                       channle);
+      }
+
+      /* fixed to resize to 960 * 960 */
       const int64_t kResizedH = 960;
       const int64_t kResizedW = 960;
-      const int64_t kResizedC = 3;
       std::vector<DimensionHandle> out_dims(kRank);
       if (dt_format == "NHWC") {
         out_dims[0] = c->MakeDim(kResizedH);
         out_dims[1] = c->MakeDim(kResizedW);
-        out_dims[2] = c->MakeDim(kResizedC);
+        out_dims[2] = c->MakeDim(channle);
       } else {
-        out_dims[0] = c->MakeDim(kResizedC);
+        out_dims[0] = c->MakeDim(channle);
         out_dims[1] = c->MakeDim(kResizedH);
         out_dims[2] = c->MakeDim(kResizedW);
       }
@@ -358,6 +371,32 @@ REGISTER_OP("DenseImageWarpGrad")
         return errors::InvalidArgument("Invalid data format string: ",
                                        dt_format);
       }
+      
+      const int32 kImgShapeRank = 1;
+      if (c->Rank(c->input(0)) != kImgShapeRank) {
+        return errors::InvalidArgument("Invalid images shape: must be 1, bug got: ",
+                                       c->Rank(c->input(0)));
+      }
+
+      const int32 kImgOffsetShapeRank = 1;
+      if (c->Rank(c->input(1)) != kImgOffsetShapeRank) {
+        return errors::InvalidArgument("Invalid images offset shape: must be 1, bug got: ",
+                                       c->Rank(c->input(1)));
+      }
+
+      const int32 kImgSizeShapeRank = 2;
+      if (c->Rank(c->input(2)) != kImgSizeShapeRank) {
+        return errors::InvalidArgument("Invalid images size shape: must be 2, bug got: ",
+                                       c->Rank(c->input(2)));
+      }
+      
+      // the second dim of imgs size must be 3 
+      const int32 kImgSizeShape = 3;
+      if (c->Value(c->Dim(c->input(2), 1)) != kImgSizeShape) {
+        return errors::InvalidArgument("Invalid image size shape: must be 3, bug got: ",
+                                       c->Value(c->Dim(c->input(2), 1)));
+      }
+
       const int32_t kRank = 4;
       std::vector<DimensionHandle> out_dims(kRank);
       auto imgs_offset = c->input(1);
