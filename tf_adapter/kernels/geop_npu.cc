@@ -712,8 +712,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
           errors::Internal("[GEOP] ge ge session nontraining graphs failed."), done);
         tune_options_.insert(graph_options_.begin(), graph_options_.end());
         AoeStatus tune_ret = (*aoe_tuning_)(ge_graph, ge_graphs, ge_session_, tune_options_);
-        OP_REQUIRES_ASYNC(ctx, tune_ret == AOE_SUCCESS, errors::Internal("[GEOP] exec aoe tuning func failed."), done);
-        ADP_LOG(INFO) << "[GEOP] aoe success.";
+        OP_REQUIRES_ASYNC(ctx, (tune_ret == AOE_SUCCESS) || (tune_ret == AOE_ERROR_NO_AICORE_GRAPH),
+                          errors::Internal("[GEOP] exec aoe tuning func failed[", tune_ret, "]."), done);
+        ADP_LOG(INFO) << "[GEOP] aoe success[" << tune_ret << "].";
         build_flag_ = true;
         BuildOutTensorInfo(ctx);
         done();
@@ -774,7 +775,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   if (is_tuning) {
-    ADP_LOG(INFO) << "in mstune mode, graph only execute once, The remaining steps return directly.";
     BuildOutTensorInfo(ctx);
     done();
     return;

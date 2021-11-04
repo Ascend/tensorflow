@@ -19,6 +19,7 @@
 using AoeStatus = int32_t;
 const AoeStatus AOE_SUCCESS = 0;
 const AoeStatus AOE_FALLURE = -1;
+const AoeStatus AOE_ERROR_NO_AICORE_GRAPH = 12;
 
 /**
  * @ingroup mstune
