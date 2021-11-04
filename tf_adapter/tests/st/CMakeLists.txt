@@ -24,8 +24,11 @@ file(GLOB_RECURSE ST_SOURCES
     ${TFADAPTER_DIR}/tf_adapter/util/*.cc
     ${TFADAPTER_DIR}/tf_adapter/kernels/*.cc
     "optimizers/testcase/om_partition_subgraphs_pass_test.cc"
+    "optimizers/testcase/get_attr_optimize_pass_test.cc"
     "kernels/testcase/ocr_ops_test.cc"
     "kernels/testcase/non_zero_with_value_ops_test.cc"
+    "kernels/testcase/geop_npu_test.cc"
+    "util/testcase/*.cc"
 )
 
 add_executable(tfadapter_stest

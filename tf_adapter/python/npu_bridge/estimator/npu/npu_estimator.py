@@ -767,6 +767,7 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["local_rank_id"].i = config._local_rank_id
         if config._local_device_list is not None:
             custom_op.parameter_map["local_device_list"].s = tf.compat.as_bytes(config._local_device_list)
+        custom_op.parameter_map["device_type"].s = tf.compat.as_bytes(config._device_type)
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)
