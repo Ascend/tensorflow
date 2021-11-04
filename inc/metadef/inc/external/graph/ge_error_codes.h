@@ -40,6 +40,7 @@ const graphStatus GRAPH_SUCCESS = 0;
 const graphStatus GRAPH_NOT_CHANGED = 1343242304;
 const graphStatus GRAPH_PARAM_INVALID = 50331649;
 const graphStatus GRAPH_NODE_WITHOUT_CONST_INPUT = 50331648;
+const graphStatus GRAPH_NODE_NEED_REPASS = 50331647;
 }  // namespace ge
 
 #endif  // INC_EXTERNAL_GRAPH_GE_ERROR_CODES_H_

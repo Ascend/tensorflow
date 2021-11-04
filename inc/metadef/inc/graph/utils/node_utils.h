@@ -26,6 +26,18 @@
 namespace ge {
 // Op types of Const like Opps.
 extern const std::set<std::string> kConstOpTypes;
+
+// Op types of Enter like Opps.
+extern const std::set<std::string> kEnterOpTypes;
+// Op types of Merge like Opps.
+extern const std::set<std::string> kMergeOpTypes;
+// Op types of Switch like Opps.
+extern const std::set<std::string> kSwitchOpTypes;
+// Op types of NextIteration like Opps.
+extern const std::set<std::string> kNextIterationOpTypes;
+// Op types of Exit like Opps.
+extern const std::set<std::string> kExitOpTypes;
+
 // Op types of If like Opps.
 extern const std::set<std::string> kIfOpTypes;
 // Op types of While like Opps.
@@ -84,6 +96,7 @@ class NodeUtils {
   static std::string GetNodeType(const NodePtr &node);
 
   static std::vector<ComputeGraphPtr> GetAllSubgraphs(const Node &node);
+  static graphStatus GetDirectSubgraphs(const NodePtr &node, std::vector<ComputeGraphPtr> &subgraphs);
   static ComputeGraphPtr GetSubgraph(const Node &node, uint32_t index);
   static graphStatus SetSubgraph(Node &node, uint32_t index, const ComputeGraphPtr &subgraph);
   static NodePtr CreatNodeWithoutGraph(const OpDescPtr op_desc);
@@ -108,6 +121,12 @@ class NodeUtils {
   ///
   static NodePtr GetParentInput(const Node &node);
   static NodePtr GetParentInput(const NodePtr &node);
+  ///
+  /// @brief Get subgraph original input node and corresponding out_anchor.
+  /// @param [in] node
+  /// @return NodeToOutAnchor  node and out_anchor which linked to in_param node
+  ///
+  static NodeToOutAnchor GetParentInputAndAnchor(const NodePtr &node);
 
   ///
   /// @brief Get is dynamic shape graph from node.
@@ -144,24 +163,24 @@ class NodeUtils {
   /// @param [in] node
   /// @return Node
   ///
-  static vector<NodePtr> GetSubgraphDataNodesByIndex(const Node &node, int index);
+  static std::vector<NodePtr> GetSubgraphDataNodesByIndex(const Node &node, int index);
 
   ///
   /// @brief Get subgraph input data node by index.
   /// @param [in] node
   /// @return Node
   ///
-  static vector<NodePtr> GetSubgraphOutputNodes(const Node &node);
+  static std::vector<NodePtr> GetSubgraphOutputNodes(const Node &node);
 
   static NodePtr GetInDataNodeByIndex(const Node &node, const int index);
 
-  static vector<pair<InDataAnchorPtr, NodePtr>> GetOutDataNodesWithAnchorByIndex(const Node &node, const int index);
+  static std::vector<std::pair<InDataAnchorPtr, NodePtr>> GetOutDataNodesWithAnchorByIndex(const Node &node, const int index);
 
   static ge::ConstNodePtr GetNodeFromOperator(const Operator &oprt);
 
-  static graphStatus GetInputConstData(const ConstNodePtr& node_ptr, const string &dst_name, GeTensorPtr &ge_tensor);
+  static graphStatus GetInputConstData(const ConstNodePtr& node_ptr, const std::string &dst_name, GeTensorPtr &ge_tensor);
 
-  static graphStatus GetInputConstData(const Node &node, const string &dst_name, GeTensorPtr &ge_tensor);
+  static graphStatus GetInputConstData(const Node &node, const std::string &dst_name, GeTensorPtr &ge_tensor);
 
   ///
   /// @brief Get node type in cross subgragh.
@@ -170,7 +189,32 @@ class NodeUtils {
   ///
   static std::string GetInConstNodeTypeCrossSubgraph(const ge::NodePtr &node);
 
- private:
+  ///
+  /// @brief Get node in cross subgragh.
+  /// @param [in] node
+  /// @return Node
+  ///
+  static NodePtr GetInNodeCrossSubgraph(const ge::NodePtr &node);
+
+  ///
+  /// @brief Get peer input node, supported get cross PartitionedCall .
+  /// @param [in] node, current node
+  /// @param [in] index, current node the index'th input, if it is PartionedCall's subgraph Data, please assign 0
+  /// @param [out] peer_node,
+  ///          A(PartionedCall_0)->B(PartionedCall_1)
+  ///          PartionedCall_0's subgraph: Data->A->Netoutput
+  ///          PartionedCall_1's subgraph: Data1->B->Netoutput
+  ///          If it is called like GetInNodeCrossPartionCallNode(B,0,peer_node)or(Data1,0,peer_node), peer_node is A
+  /// @return [graphStatus] running result of this function
+  ///
+  static graphStatus GetInNodeCrossPartionedCallNode(const NodePtr &node, uint32_t index, NodePtr &peer_node);
+
+  static graphStatus SetNodeParallelGroup(Node &node, const char *group_name);
+
+  static graphStatus UpdateInputOriginalShapeAndShape(const Node &node, uint32_t index, const GeShape &shape);
+  static graphStatus UpdateOutputOriginalShapeAndShape(const Node &node, uint32_t index, const GeShape &shape);
+
+private:
   static std::map<NodePtr, std::vector<uint32_t>> map_send_info_;
   static std::map<NodePtr, std::vector<uint32_t>> map_recv_info_;
 };

@@ -27,20 +27,20 @@ using std::map;
 namespace ge {
 class GEThreadLocalContext {
  public:
-  graphStatus GetOption(const string &key, string &option);
-  void SetGraphOption(map<std::string, string> options_map);
-  void SetSessionOption(map<std::string, string> options_map);
-  void SetGlobalOption(map<std::string, string> options_map);
+  graphStatus GetOption(const std::string &key, std::string &option);
+  void SetGraphOption(std::map<std::string, std::string> options_map);
+  void SetSessionOption(std::map<std::string, std::string> options_map);
+  void SetGlobalOption(std::map<std::string, std::string> options_map);
 
-  map<string, string> GetAllGraphOptions() const;
-  map<string, string> GetAllSessionOptions() const;
-  map<string, string> GetAllGlobalOptions() const;
-  map<string, string> GetAllOptions() const;
+  std::map<std::string, std::string> GetAllGraphOptions() const;
+  std::map<std::string, std::string> GetAllSessionOptions() const;
+  std::map<std::string, std::string> GetAllGlobalOptions() const;
+  std::map<std::string, std::string> GetAllOptions() const;
 
  private:
-  map<string, string> graph_options_;
-  map<string, string> session_options_;
-  map<string, string> global_options_;
+  std::map<std::string, std::string> graph_options_;
+  std::map<std::string, std::string> session_options_;
+  std::map<std::string, std::string> global_options_;
 };  // class GEThreadLocalContext
 
 GEThreadLocalContext &GetThreadLocalContext();

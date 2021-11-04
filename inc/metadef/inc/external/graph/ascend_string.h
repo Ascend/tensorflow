@@ -32,6 +32,8 @@ class AscendString {
 
   const char* GetString() const;
 
+  size_t Hash() const;
+
   bool operator<(const AscendString& d) const;
 
   bool operator>(const AscendString& d) const;
@@ -53,11 +55,7 @@ namespace std {
 template <>
 struct hash<ge::AscendString> {
   size_t operator()(const ge::AscendString &name) const {
-    std::string str_name;
-    if (name.GetString() != nullptr) {
-      str_name = name.GetString();
-    }
-    return hash<string>()(str_name);
+    return name.Hash();
   }
 };
 }

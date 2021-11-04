@@ -17,13 +17,13 @@
 #ifndef INC_REGISTER_GRAPH_OPTIMIZER_BUFFER_FUSION_PASS_BASE_H_
 #define INC_REGISTER_GRAPH_OPTIMIZER_BUFFER_FUSION_PASS_BASE_H_
 
-#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
 #include "register/graph_optimizer/buffer_fusion/buffer_fusion_constant.h"
 #include "register/graph_optimizer/buffer_fusion/buffer_fusion_pattern.h"
 #include "register/graph_optimizer/graph_optimize_register_error_codes.h"
+#include "register/graph_optimizer/fusion_common/op_slice_info.h"
 
 namespace fe {
 enum BufferFusionPassType {
@@ -39,17 +39,32 @@ class BufferFusionPassBase {
   explicit BufferFusionPassBase();
   virtual ~BufferFusionPassBase();
   virtual std::vector<BufferFusionPattern *> DefinePatterns() = 0;
-  virtual Status GetFusionNodes(const BufferFusionMapping &mapping, vector<ge::NodePtr> &fusion_nodes);
+  virtual Status GetFusionNodes(const BufferFusionMapping &mapping, std::vector<ge::NodePtr> &fusion_nodes);
+  virtual Status CalcFusionOpSliceInfo(std::vector<ge::NodePtr> &fusion_nodes, OpCalcInfo &op_slice_info);
+#ifdef ONLY_COMPILE_OPEN_SRC
   std::vector<ge::NodePtr> GetMatchedNodes(const BufferFusionMapping &mapping);
-  std::vector<ge::NodePtr> GetMatchedNodesByDescName(const std::string &desc_name, const BufferFusionMapping &mapping);
+#else
+  static std::vector<ge::NodePtr> GetMatchedNodes(const BufferFusionMapping &mapping);
+#endif
+#ifdef ONLY_COMPILE_OPEN_SRC
+  std::vector<ge::NodePtr> GetMatchedNodesByDescName(const std::string &desc_name,
+                                                     const BufferFusionMapping &mapping);
+#else
+  static std::vector<ge::NodePtr> GetMatchedNodesByDescName(const std::string &desc_name,
+                                                            const BufferFusionMapping &mapping);
+#endif
+#ifdef ONLY_COMPILE_OPEN_SRC
   ge::NodePtr GetMatchedHeadNode(const std::vector<ge::NodePtr> &matched_nodes);
+#else
+  static ge::NodePtr GetMatchedHeadNode(const std::vector<ge::NodePtr> &matched_nodes);
+#endif
 
-  void SetName(const string &name) { name_ = name; }
+  void SetName(const std::string &name) { name_ = name; }
 
-  string GetName() { return name_; }
+  std::string GetName() { return name_; }
 
  private:
-  string name_;
+  std::string name_;
 };
 
 }  // namespace fe

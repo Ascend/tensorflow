@@ -100,8 +100,12 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY TensorDesc {
   void SetPlacement(Placement placement);
   Placement GetPlacement() const;
 
+  void SetConstData(std::unique_ptr<uint8_t[]> const_data_buffer, const size_t &const_data_len);
+  bool GetConstData(uint8_t **const_data_buffer, size_t &const_data_len) const;
+
  private:
   std::shared_ptr<TensorDescImpl> impl;
+  friend class TensorAdapter;
 };
 
 class TensorImpl;

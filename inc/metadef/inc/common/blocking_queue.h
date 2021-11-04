@@ -17,7 +17,7 @@
 #ifndef INC_COMMON_BLOCKING_QUEUE_H_
 #define INC_COMMON_BLOCKING_QUEUE_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <condition_variable>
 #include <list>
 #include <mutex>
@@ -126,6 +126,20 @@ class BlockingQueue {
   void Clear() {
     std::unique_lock<std::mutex> lock(mutex_);
     queue_.clear();
+  }
+
+  void SetMaxSize(uint32_t size) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (size == 0) {
+      max_size_ = kDefaultMaxQueueSize;
+      return;
+    }
+    max_size_ = size;
+  }
+
+  uint32_t Size() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return queue_.size();
   }
 
  private:

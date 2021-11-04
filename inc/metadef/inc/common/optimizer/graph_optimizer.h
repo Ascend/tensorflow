@@ -34,7 +34,7 @@ class GraphOptimizer {
   virtual ~GraphOptimizer() {}
 
   // initialize graphOptimizer
-  virtual Status Initialize(const map<string, string> &options) = 0;
+  virtual Status Initialize(const std::map<std::string, std::string> &options) = 0;
 
   // close graphOptimizer
   virtual Status Finalize() = 0;
@@ -71,6 +71,9 @@ class GraphOptimizer {
 
   // op compile
   virtual Status OptimizeFusedGraphAfterGraphSlice(ComputeGraph &graph) { return SUCCESS; }
+
+  // optimize whole graph, using after stage1
+  virtual Status OptimizeAfterStage1(ComputeGraph &graph) { return SUCCESS; }
 };
 }  // namespace ge
 /*lint +e148*/

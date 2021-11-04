@@ -106,6 +106,8 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Graph {
 
   graphStatus RemoveNode(GNode &node);
 
+  graphStatus RemoveNode(GNode &node, bool contain_subgraph);
+
   graphStatus RemoveEdge(GNode &src_node, const int32_t src_port_index, GNode &dst_node, const int32_t dst_port_index);
 
   GNode AddNodeByOp(const Operator &op);

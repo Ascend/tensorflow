@@ -32,12 +32,12 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY RuntimeInferenceContext {
   static graphStatus CreateContext(const std::string &context_id);
   static void DestroyContext(const std::string &context_id);
 
-  graphStatus SetTensor(int64_t node_id, int output_id, Tensor &&tensor);
-  graphStatus GetTensor(int64_t node_id, int output_id, GeTensorPtr &tensor);
-  graphStatus GetTensor(int64_t node_id, int output_id, Tensor &tensor);
+  graphStatus SetTensor(int64_t node_id, int32_t output_id, Tensor &&tensor);
+  graphStatus GetTensor(int64_t node_id, int32_t output_id, GeTensorPtr &tensor);
+  graphStatus GetTensor(int64_t node_id, int32_t output_id, Tensor &tensor);
 
  private:
-  std::map<int64_t, std::vector<Tensor>> tensors_;
+  std::map<int64_t, std::vector<std::unique_ptr<Tensor>>> tensors_;
   std::map<int64_t, std::vector<GeTensorPtr>> ge_tensors_;
   std::mutex mu_;
 

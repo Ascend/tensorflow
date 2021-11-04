@@ -30,6 +30,9 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY InferDataSliceFuncRegister 
 };
 
 // infer data slice func register
+#define IMPLEMT_COMMON_INFER_DATA_SLICE(func_name) \
+  GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY static graphStatus func_name(Operator &op)
+
 #define IMPLEMT_INFER_DATA_SLICE(op_name, func_name) \
   GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY static graphStatus func_name(op::op_name &op)
 

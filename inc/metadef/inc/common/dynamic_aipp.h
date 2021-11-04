@@ -17,7 +17,7 @@
 #ifndef INC_COMMON_DYNAMIC_AIPP_H_
 #define INC_COMMON_DYNAMIC_AIPP_H_
 
-#include <stdint.h>
+#include <cstdint>
 
 /**
 * @ingroup dnn

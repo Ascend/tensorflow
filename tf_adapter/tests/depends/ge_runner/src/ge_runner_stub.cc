@@ -259,20 +259,31 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
   return ret;
 }
 
+class ComputeGraphImpl {
+public:
+  ComputeGraphImpl(const std::string &name) : name_(name) {}
+  ~ComputeGraphImpl() {}
+public:
+  std::string name_;
+  AttrStore attrs_;
+};
+
 ComputeGraph::ComputeGraph(const std::string &name)
-    : name_(name), nodes_(), input_nodes_(), sub_graph_(), is_valid_flag_(false), need_iteration_(false) {
+    : impl_(std::shared_ptr<ComputeGraphImpl>(new ComputeGraphImpl(name))) {
 }
 
 ComputeGraph::~ComputeGraph() {}
 
-ProtoAttrMapHelper ComputeGraph::MutableAttrMap() { return attrs_; }
+ProtoAttrMap &ComputeGraph::MutableAttrMap() {
+  return impl_->attrs_;
+}
 
-ConstProtoAttrMapHelper ComputeGraph::GetAttrMap() const {
-  return ConstProtoAttrMapHelper(attrs_.GetProtoOwner(), attrs_.GetProtoMsg());
+ConstProtoAttrMap &ComputeGraph::GetAttrMap() const {
+  return impl_->attrs_;
 }
 
 size_t ComputeGraph::GetAllNodesSize() const {
-  if (name_ == "total_0") { return 0; }
+  if (impl_->name_ == "total_0") { return 0; }
   return 1;
 }
 
@@ -316,13 +327,18 @@ graphStatus aclgrphParseONNX(const char *model_file,
 }
 
 Buffer::Buffer() {}
+
+Buffer::~Buffer() {}
+
 std::size_t Buffer::GetSize() const {
   return sizeof("_external_model");
 }
+
 std::uint8_t *Buffer::GetData() {
   std::string *buf_ = new std::string("_external_model");
   return reinterpret_cast<std::uint8_t *> (buf_);
 }
+
 const std::uint8_t *Buffer::GetData() const {
   std::string *buf_ = new std::string("_external_model");
   return reinterpret_cast<const std::uint8_t *> (buf_);
@@ -334,11 +350,13 @@ void Model::SetGraph(const Graph& graph) {}
 graphStatus Model::Save(Buffer &buffer, bool is_dump) const {
   return GRAPH_SUCCESS;
 }
-ConstProtoAttrMapHelper Model::GetAttrMap() const {
-  return ConstProtoAttrMapHelper();
+
+ConstProtoAttrMap &Model::GetAttrMap() const {
+  return attrs_;
 }
-ProtoAttrMapHelper Model::MutableAttrMap() {
-  return ProtoAttrMapHelper();
+
+ProtoAttrMap &Model::MutableAttrMap() {
+  return attrs_;
 }
 
 Tensor::Tensor() {}

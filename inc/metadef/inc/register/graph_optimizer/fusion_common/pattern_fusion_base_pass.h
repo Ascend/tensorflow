@@ -45,8 +45,8 @@ using PatternFusionBasePassImplPtr = std::shared_ptr<PatternFusionBasePassImpl>;
 class PatternFusionBasePass : public GraphPass {
  public:
   using OpDesc = FusionPattern::OpDesc;
-  using Mapping = map<const std::shared_ptr<OpDesc>, vector<ge::NodePtr>>;
-  using Mappings = vector<Mapping>;
+  using Mapping = std::map<const std::shared_ptr<OpDesc>, std::vector<ge::NodePtr>>;
+  using Mappings = std::vector<Mapping>;
 
   PatternFusionBasePass();
   virtual ~PatternFusionBasePass();
@@ -71,19 +71,31 @@ class PatternFusionBasePass : public GraphPass {
   virtual Status Run(ge::ComputeGraph &graph, OpsKernelInfoStorePtr ops_kernel_info_store_ptr);
 
  protected:
-  virtual vector<FusionPattern *> DefinePatterns() = 0;
-  virtual Status Fusion(ge::ComputeGraph &graph, Mapping &mapping, vector<ge::NodePtr> &new_nodes) = 0;
+  virtual std::vector<FusionPattern *> DefinePatterns() = 0;
+  virtual Status Fusion(ge::ComputeGraph &graph, Mapping &mapping, std::vector<ge::NodePtr> &new_nodes) = 0;
 
   std::vector<ge::NodePtr> GetNodesFromMapping(const Mapping &mapping);
-  ge::NodePtr GetNodeFromMapping(const string &id, const Mapping &mapping);
+  ge::NodePtr GetNodeFromMapping(const std::string &id, const Mapping &mapping);
 
   void RecordOutputAnchorMap(ge::NodePtr output_node);
   void ClearOutputAnchorMap();
 
-  Status SetDataDumpAttr(vector<ge::NodePtr> &original_nodes, vector<ge::NodePtr> &fus_nodes);
+  Status SetDataDumpAttr(std::vector<ge::NodePtr> &original_nodes, std::vector<ge::NodePtr> &fus_nodes);
 
   bool CheckOpSupported(const ge::OpDescPtr &op_desc_ptr);
 
+  bool CheckOpSupported(const ge::NodePtr &node);
+
+  /** check whether the input graph is Cyclic
+  *
+  *  @param graph need to be checked
+  *  @return false or true
+  */
+  bool CheckGraphCycle(ge::ComputeGraph &graph);
+
+  void EnableNetworkAnalysis();
+
+  void DumpMapping(const FusionPattern &pattern, const Mapping &mapping);
  private:
   /** match all nodes in graph according to pattern
    *
@@ -100,6 +112,9 @@ class PatternFusionBasePass : public GraphPass {
   std::shared_ptr<PatternFusionBasePassImpl> pattern_fusion_base_pass_impl_ptr_;
 
   std::unordered_map<ge::NodePtr, std::map<ge::InDataAnchorPtr, ge::OutDataAnchorPtr>> origin_op_anchors_map_;
+
+  bool enable_network_analysis_ = false;
+
 };
 }  // namespace fe
 

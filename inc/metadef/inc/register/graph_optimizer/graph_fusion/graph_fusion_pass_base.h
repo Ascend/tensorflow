@@ -53,8 +53,8 @@ using PatternFusionBasePassImplPtr = std::shared_ptr<PatternFusionBasePassImpl>;
 class GraphFusionPassBase : public GraphPass {
  public:
   using OpDesc = FusionPattern::OpDesc;
-  using Mapping = map<const std::shared_ptr<OpDesc>, vector<ge::NodePtr>>;
-  using Mappings = vector<Mapping>;
+  using Mapping = std::map<const std::shared_ptr<OpDesc>, std::vector<ge::NodePtr>>;
+  using Mappings = std::vector<Mapping>;
 
   GraphFusionPassBase();
   virtual ~GraphFusionPassBase();
@@ -73,7 +73,7 @@ class GraphFusionPassBase : public GraphPass {
    *
    * @return NA
    */
-  virtual vector<FusionPattern *> DefinePatterns() = 0;
+  virtual std::vector<FusionPattern *> DefinePatterns() = 0;
 
   /** do fusion according to nodes matched
    *
@@ -83,14 +83,14 @@ class GraphFusionPassBase : public GraphPass {
    * @return NOT_CHANGED, the graph did not change
    * @return FAILED, fail to modify graph
    */
-  virtual Status Fusion(ge::ComputeGraph &graph, Mapping &mapping, vector<ge::NodePtr> &new_nodes) = 0;  // lint !e148
+  virtual Status Fusion(ge::ComputeGraph &graph, Mapping &mapping, std::vector<ge::NodePtr> &new_nodes) = 0;
 
   /** get nodes from matched result
    *
    * @param mapping match result
    * @return nodes result
    */
-  static ge::NodePtr GetNodeFromMapping(const string &id, const Mapping &mapping);
+  static ge::NodePtr GetNodeFromMapping(const std::string &id, const Mapping &mapping);
 
  private:
   /** match all nodes in graph according to pattern

@@ -25,13 +25,20 @@ class GEContext {
   graphStatus GetOption(const std::string &key, std::string &option);
   bool GetHostExecFlag();
   uint64_t SessionId();
+  uint64_t ContextId();
+  uint64_t WorkStreamId();
   uint32_t DeviceId();
   uint64_t TraceId();
   void Init();
   void SetSessionId(uint64_t session_id);
+  void SetContextId(uint64_t context_id);
+  void SetWorkStreamId(uint64_t work_stream_id);
   void SetCtxDeviceId(uint32_t device_id);
  private:
   thread_local static uint64_t session_id_;
+  thread_local static uint64_t context_id_;
+  // now use pid/tid or sessionid/graphid concat, set in external api
+  thread_local static uint64_t work_stream_id_;
   uint32_t device_id_ = 0;
   uint64_t trace_id_ = 0;
 };  // class GEContext

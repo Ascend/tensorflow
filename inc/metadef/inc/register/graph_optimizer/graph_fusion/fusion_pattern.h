@@ -22,13 +22,6 @@
 #include <string>
 #include <vector>
 
-using std::initializer_list;
-using std::map;
-using std::string;
-using std::vector;
-
-using namespace std;
-
 namespace fe {
 
 /** Fusion pattern
@@ -44,7 +37,7 @@ class FusionPattern {
    * @brief description of Ops
    */
   struct OpDesc {
-    string id;                       // Identifier
+    std::string id;                       // Identifier
     std::vector<std::string> types;  // the Op types of Ops
     std::vector<OpDescPtr> inputs;   // all input Ops
     bool repeatable;                 // flag to show if match multiple Ops or not
@@ -52,7 +45,11 @@ class FusionPattern {
   };
 
  public:
-  explicit FusionPattern(string name = "");
+#ifdef ONLY_COMPILE_OPEN_SRC
+  explicit FusionPattern(std::string name = "");
+#else
+  explicit FusionPattern(const std::string name = "");
+#endif
   ~FusionPattern();
 
   /** set pattern name
@@ -60,7 +57,7 @@ class FusionPattern {
    * @param name pattern name
    * @return FusionPattern
    */
-  FusionPattern &SetName(const string &name);
+  FusionPattern &SetName(const std::string &name);
 
   /** add Op description with unknown number of args
    *
@@ -68,7 +65,7 @@ class FusionPattern {
    * @param types op type list
    * @return FusionPattern
    */
-  FusionPattern &AddOpDesc(const string &id, const initializer_list<string> &types = {});
+  FusionPattern &AddOpDesc(const std::string &id, const std::initializer_list<std::string> &types = {});
 
   /** add Op description with vector
    *
@@ -77,7 +74,7 @@ class FusionPattern {
    *
    * @return FusionPattern
    */
-  FusionPattern &AddOpDesc(const string &id, const vector<string> &types);
+  FusionPattern &AddOpDesc(const std::string &id, const std::vector<std::string> &types);
 
   /** set input Ops with unknown number of args
    *
@@ -87,7 +84,7 @@ class FusionPattern {
    *
    * @return FusionPattern
    */
-  FusionPattern &SetInputs(const string &id, const initializer_list<string> &input_ids);
+  FusionPattern &SetInputs(const std::string &id, const std::initializer_list<std::string> &input_ids);
 
   /** set input Ops with unknown number of args
    *
@@ -97,7 +94,7 @@ class FusionPattern {
    *
    * @return FusionPattern
    */
-  FusionPattern &SetInputs(const string &id, const vector<string> &input_ids);
+  FusionPattern &SetInputs(const std::string &id, const std::vector<std::string> &input_ids);
 
   /** set output Op
    *
@@ -105,7 +102,7 @@ class FusionPattern {
    *
    * @return FusionPattern
    */
-  FusionPattern &SetOutput(const string &id);
+  FusionPattern &SetOutput(const std::string &id);
 
   /** build pattern and check if error exists
    *
@@ -119,7 +116,7 @@ class FusionPattern {
    *
    * @return fusion pattern name
    */
-  const string &GetName() const;
+  const std::string &GetName() const;
 
   /** get the OpDesc of input Ops (const)
    *
@@ -127,7 +124,7 @@ class FusionPattern {
    *
    * @return op_desc's iniput opdesc list
    */
-  static const vector<std::shared_ptr<OpDesc>> *GetInputs(std::shared_ptr<OpDesc> op_desc);
+  static const std::vector<std::shared_ptr<OpDesc>> *GetInputs(std::shared_ptr<OpDesc> op_desc);
 
   /** get the OpDesc of output Op
    *
@@ -140,15 +137,16 @@ class FusionPattern {
    */
   void Dump() const;
 
-  void GetOpDescList(vector<std::shared_ptr<OpDesc>> &op_desc_list);
-
+#ifdef ONLY_COMPILE_OPEN_SRC
+  void GetOpDescList(std::vector<std::shared_ptr<OpDesc>> &op_desc_list);
+#endif
   /** get OpDesc based on ID, return nullptr if failed
    *
    * @param id pattern id
    *
    * @return pattern's output opdesc list
    */
-  std::shared_ptr<FusionPattern::OpDesc> GetOpDesc(const string &id) const;
+  std::shared_ptr<FusionPattern::OpDesc> GetOpDesc(const std::string &id) const;
 
  private:
   FusionPattern(const FusionPattern &) = default;
@@ -157,11 +155,11 @@ class FusionPattern {
   void SetError();
 
  private:
-  string name_;
+  std::string name_;
 
-  vector<std::shared_ptr<OpDesc>> ops_;
+  std::vector<std::shared_ptr<OpDesc>> ops_;
 
-  map<string, std::shared_ptr<OpDesc>> op_map_;
+  std::map<std::string, std::shared_ptr<OpDesc>> op_map_;
 
   std::shared_ptr<OpDesc> output_;
 

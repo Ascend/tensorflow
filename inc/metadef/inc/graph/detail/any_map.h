@@ -40,23 +40,29 @@ class TypeID {
   bool operator==(const TypeID &__arg) const { return type_ == __arg.type_; }
 
  private:
-  explicit TypeID(string type) : type_(std::move(type)) {}  // lint !e30 !e32
+  explicit TypeID(std::string type) : type_(std::move(type)) {}
 
-  string type_;
+  std::string type_;
 };
 
 class AnyMap {
  public:
   template <class DT>
-  bool Set(const string &name, const DT &val);
+  bool Set(const std::string &name, const DT &val);
 
   template <class T>
-  bool Get(const string &name, T &retValue) const;
+  bool Get(const std::string &name, T &retValue) const;
 
-  bool Has(const string &name) const { return anyValues_.find(name) != anyValues_.end(); }
+  bool Has(const std::string &name) const { return anyValues_.find(name) != anyValues_.end(); }
 
   void Swap(AnyMap &other) {
     anyValues_.swap(other.anyValues_);
+  }
+
+  void Names(std::set<std::string> &names) const {
+    for (const auto &item : anyValues_) {
+      names.emplace(item.first);
+    }
   }
 
  private:
@@ -82,11 +88,11 @@ class AnyMap {
     const VT value_;
   };
 
-  std::map<string, shared_ptr<Placeholder>> anyValues_;
+  std::map<std::string, shared_ptr<Placeholder>> anyValues_;
 };
 
 template <class DT>
-bool AnyMap::Set(const string &name, const DT &val) {
+bool AnyMap::Set(const std::string &name, const DT &val) {
   auto it = anyValues_.find(name);
 
   std::shared_ptr<Holder<DT>> tmp;
@@ -111,7 +117,7 @@ bool AnyMap::Set(const string &name, const DT &val) {
 }
 
 template <class T>
-bool AnyMap::Get(const string &name, T &retValue) const {
+bool AnyMap::Get(const std::string &name, T &retValue) const {
   auto it = anyValues_.find(name);
   if (it != anyValues_.end() && it->second && it->second->GetTypeInfo() == TypeID::Of<T>()) {
     auto retPtr = std::static_pointer_cast<Holder<T>>(it->second);

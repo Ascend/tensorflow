@@ -30,7 +30,7 @@
 #include <vector>
 
 namespace fe {
-using NodeTypeMap = std::unordered_map<string, std::unordered_set<ge::NodePtr>>;
+using NodeTypeMap = std::unordered_map<std::string, std::map<std::string, ge::NodePtr>>;
 using NodeTypeMapPtr = std::shared_ptr<NodeTypeMap>;
 struct NodeMapInfo {
   int64_t run_count;
@@ -169,12 +169,13 @@ class GraphPassUtil {
       return;
     }
     NodeTypeMapPtr node_type_map = node_map_info->node_type_map;
-    string real_op_type = ge::NodeUtils::GetNodeType(*node_ptr);
+    std::string real_op_type = ge::NodeUtils::GetNodeType(*node_ptr);
     auto iter = node_type_map->find(real_op_type);
     if (iter != node_type_map->end()) {
-      iter->second.insert(node_ptr);
+      iter->second.emplace(node_ptr->GetName(), node_ptr);
     } else {
-      node_type_map->emplace(std::make_pair(real_op_type, std::unordered_set<ge::NodePtr>{node_ptr}));
+      node_type_map->emplace(std::make_pair(real_op_type,
+                                            std::map<std::string, ge::NodePtr>{{node_ptr->GetName(), node_ptr}}));
     }
   }
 
@@ -224,9 +225,10 @@ class GraphPassUtil {
     }
     auto iter = node_type_map->find(op_type);
     if (iter == node_type_map->end()) {
-      node_type_map->emplace(std::make_pair(op_type, std::unordered_set<ge::NodePtr>{node_ptr}));
+      node_type_map->emplace(std::make_pair(op_type,
+                                            std::map<std::string, ge::NodePtr>{{node_ptr->GetName(), node_ptr}}));
     } else {
-      iter->second.insert(node_ptr);
+      iter->second.emplace(node_ptr->GetName(), node_ptr);
     }
   }
 
@@ -237,7 +239,7 @@ class GraphPassUtil {
     }
     auto iter = node_type_map->find(op_type);
     if (iter != node_type_map->end()) {
-      iter->second.erase(node_ptr);
+      iter->second.erase(node_ptr->GetName());
     }
   }
 
@@ -246,11 +248,16 @@ class GraphPassUtil {
     if (node_type_map == nullptr) {
       return;
     }
+
     auto iter = node_type_map->find(op_type);
-    if (iter != node_type_map->end()) {
-      for (auto &node_ptr : iter->second) {
-        nodes.push_back(node_ptr);
-      }
+    if (iter == node_type_map->end()) {
+      return;
+    }
+    if (iter->second.empty()) {
+      return;
+    }
+    for (auto node_iter = iter->second.begin(); node_iter != iter->second.end(); node_iter++) {
+      nodes.push_back(node_iter->second);
     }
   }
 };

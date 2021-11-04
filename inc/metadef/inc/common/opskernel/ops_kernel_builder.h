@@ -26,6 +26,11 @@
 namespace ge {
 class OpsKernelBuilder {
  public:
+  enum Mode {
+    kNormal,
+    kFfts,
+    kFftsPlus
+  };
   OpsKernelBuilder() = default;
   virtual ~OpsKernelBuilder() = default;
 
@@ -42,13 +47,19 @@ class OpsKernelBuilder {
   virtual Status GenerateTask(const Node &node, RunContext &context,
                               std::vector<domi::TaskDef> &tasks) = 0;
 
+  // generate task for op with different mode
+  virtual Status GenerateTask(const Node &node, RunContext &context, std::vector<domi::TaskDef> &tasks,
+                              OpsKernelBuilder::Mode) {
+    return SUCCESS;
+  }
+
   // only call aicpu interface to generate task struct
-  virtual Status GenSingleOpRunTask(const NodePtr &node, STR_FWK_OP_KERNEL &task, string &task_info) {
+  virtual Status GenSingleOpRunTask(const NodePtr &node, STR_FWK_OP_KERNEL &task, std::string &task_info) {
     return FAILED;
   }
 
   // only call aicpu interface to generate task struct
-  virtual Status GenMemCopyTask(uint64_t count, STR_FWK_OP_KERNEL &task, string &task_info) {
+  virtual Status GenMemCopyTask(uint64_t count, STR_FWK_OP_KERNEL &task, std::string &task_info) {
     return FAILED;
   }
 };

@@ -44,82 +44,29 @@
     }                                                                                                              \
   } while (0)
 
-#define REFER_ATTR_VALUE(VT_ENUM, DataType, attr, ret) \
-  do {                                                 \
-    DataType ret;                                      \
-    attr.GetValue<DataType>(ret);                      \
-  } while (0)
-
-#define PRINT_ATTR_VALUE_IF(value_type, VT_ENUM, DataType, attr, stream) \
-  do {                                                                   \
-    if (value_type == VT_ENUM) {                                         \
-      REFER_ATTR_VALUE(VT_ENUM, DataType, attr, ret)                     \
-      stream << ret;                                                     \
-    }                                                                    \
-  } while (0)
-
-#define PRINT_LIST_ATTR_VALUE_IF(value_type, VT_ENUM, DataType, attr, stream) \
-  do {                                                                        \
-    if (value_type == VT_ENUM) {                                              \
-      REFER_ATTR_VALUE(VT_ENUM, DataType, attr, ret)                          \
-      stream << "[";                                                          \
-      for (int i = 0; i < ret.size(); i++) {                                  \
-        stream << ret[i];                                                     \
-        if (i + 1 != ret.size()) stream << ", ";                              \
-      }                                                                       \
-      stream << "]";                                                          \
-    }                                                                         \
-  } while (0)
-
-#define PRINT_ATTR_VALUE_ELIF(value_type, VT_ENUM, DataType, attr, stream) \
-  else PRINT_ATTR_VALUE_IF(value_type, VT_ENUM, DataType, attr, stream)
-
-#define PRINT_LIST_ATTR_VALUE_ELIF(value_type, VT_ENUM, DataType, attr, stream) \
-  else PRINT_LIST_ATTR_VALUE_IF(value_type, VT_ENUM, DataType, attr, stream)
-
-#define PRINT_SHAPE(i_o, n, idx, stream)                                               \
-  do {                                                                                 \
-    auto op = n->GetOpDesc();                                                          \
-    GeTensorDesc td = i_o == "input" ? op->GetInputDesc(idx) : op->GetOutputDesc(idx); \
-    auto shape = td.GetShape().GetDims();                                              \
-    stream << "[";                                                                     \
-    for (int i = 0; i < shape.size(); i++) {                                           \
-      stream << shape[i];                                                              \
-      if (i + 1 < shape.size()) stream << ", ";                                        \
-    }                                                                                  \
-    stream << "]";                                                                     \
-  } while (0)
-
-#define PRINT_ATTR_FUNC(stream)                                                                                    \
-  [&](GeAttrValue attr) {                                                                                          \
-    auto type = attr.GetValueType();                                                                               \
-    PRINT_ATTR_VALUE_IF(type, GeAttrValue::ValueType::VT_STRING, GeAttrValue::STR, attr, stream)                   \
-    PRINT_ATTR_VALUE_ELIF(type, GeAttrValue::ValueType::VT_FLOAT, GeAttrValue::FLOAT, attr, stream)                \
-    PRINT_ATTR_VALUE_ELIF(type, GeAttrValue::ValueType::VT_BOOL, GeAttrValue::BOOL, attr, stream)                  \
-    PRINT_ATTR_VALUE_ELIF(type, GeAttrValue::ValueType::VT_INT, GeAttrValue::INT, attr, stream)                    \
-    PRINT_LIST_ATTR_VALUE_ELIF(type, GeAttrValue::ValueType::VT_LIST_STRING, GeAttrValue::LIST_STR, attr, stream)  \
-    PRINT_LIST_ATTR_VALUE_ELIF(type, GeAttrValue::ValueType::VT_LIST_FLOAT, GeAttrValue::LIST_FLOAT, attr, stream) \
-    PRINT_LIST_ATTR_VALUE_ELIF(type, GeAttrValue::ValueType::VT_LIST_BOOL, GeAttrValue::LIST_BOOL, attr, stream)   \
-    PRINT_LIST_ATTR_VALUE_ELIF(type, GeAttrValue::ValueType::VT_LIST_INT, GeAttrValue::LIST_INT, attr, stream)     \
-    else if (type == GeAttrValue::ValueType::VT_TENSOR_DESC) stream << "TENSOR_DESC";                              \
-    else if (type == GeAttrValue::ValueType::VT_TENSOR) stream << "TENSOR";                                        \
-    else if (type == GeAttrValue::ValueType::VT_BYTES) stream << "BYTES";                                          \
-    else if (type == GeAttrValue::ValueType::VT_LIST_TENSOR_DESC) stream << "LIST_TENSOR_DESC";                    \
-    else if (type == GeAttrValue::ValueType::VT_LIST_TENSOR) stream << "LIST_TENSOR";                              \
-    else if (type == GeAttrValue::ValueType::VT_LIST_BYTES) stream << "LIST_BYTES";                                \
-  };
+namespace {
+struct GraphInfo {
+  std::set<ge::NodePtr> nodes;
+  std::map<uint32_t, std::pair<ge::OutDataAnchorPtr, std::list<ge::InDataAnchorPtr>>> data_inputs;
+  std::map<uint32_t, std::pair<ge::OutDataAnchorPtr, std::list<ge::InDataAnchorPtr>>> data_outputs;
+  std::list<std::pair<ge::OutControlAnchorPtr, ge::InControlAnchorPtr>> ctrl_inputs;
+  std::list<std::pair<ge::OutControlAnchorPtr, ge::InControlAnchorPtr>> ctrl_outputs;
+  std::list<std::pair<ge::OutDataAnchorPtr, ge::InDataAnchorPtr>> inner_data_edges;
+  std::list<std::pair<ge::OutControlAnchorPtr, ge::InControlAnchorPtr>> inner_ctrl_edges;
+};
+}
 
 namespace ge {
 enum IOType { kIn, kOut };
 
 struct NodeIndexIO {
-  NodeIndexIO(ge::NodePtr node, uint32_t index, IOType io_type)
+  NodeIndexIO(NodePtr node, uint32_t index, IOType io_type)
       : node_(std::move(node)), index_(index), io_type_(io_type) {
     if (node_ != nullptr) {
       value_ = node_->GetName() + (io_type_ == kOut ? "_out_" : "_in_") + std::to_string(index_);
     }
   }
-  NodeIndexIO(ge::NodePtr node, int index, IOType io_type)
+  NodeIndexIO(NodePtr node, int index, IOType io_type)
       : node_(std::move(node)), index_(static_cast<uint32_t>(index)), io_type_(io_type) {
     if (node_ != nullptr) {
       value_ = node_->GetName() + (io_type_ == kOut ? "_out_" : "_in_") + std::to_string(index_);
@@ -143,9 +90,12 @@ class GraphUtils {
 
   static GraphPtr CreateGraphPtrFromComputeGraph(const ComputeGraphPtr compute_graph);
 
+  static graphStatus GetIndependentCompileGraphs(const ComputeGraphPtr &compute_graph,
+		                                 std::vector<ComputeGraphPtr> &independent_compile_subgraphs);
+
   static graphStatus RecoverGraphOperators(const Graph &graph);
 
-  static ComputeGraphPtr CreateGraphFromOperator(const string &name, const std::vector<Operator> &inputs);
+  static ComputeGraphPtr CreateGraphFromOperator(const std::string &name, const std::vector<Operator> &inputs);
 
   static graphStatus AddEdge(const OutDataAnchorPtr &src, const InDataAnchorPtr &dst);
 
@@ -166,6 +116,12 @@ class GraphUtils {
   static graphStatus RemoveEdge(const OutControlAnchorPtr &src, const InControlAnchorPtr &dst);
 
   static graphStatus RemoveEdge(const OutDataAnchorPtr &src, const InControlAnchorPtr &dst);
+
+  static graphStatus ReplaceEdgeSrc(const OutDataAnchorPtr &src, const InDataAnchorPtr &dst,
+                                    const OutDataAnchorPtr &new_src);
+
+  static graphStatus ReplaceEdgeSrc(const OutControlAnchorPtr &src, const InControlAnchorPtr &dst,
+                                    const OutControlAnchorPtr &new_src);
 
   static graphStatus ReplaceEdgeDst(const OutDataAnchorPtr &src, const InDataAnchorPtr &dst,
                                     const InDataAnchorPtr &new_dst);
@@ -189,7 +145,14 @@ class GraphUtils {
                                       ComputeGraphPtr &dst_compute_graph,
                                       std::map<ConstNodePtr, NodePtr> &node_old_2_new,
                                       std::map<ConstOpDescPtr, OpDescPtr> &op_desc_old_2_new,
-                                      int32_t &depth);
+                                      int32_t depth);
+
+  static graphStatus CopyOpAndSubgraph(const ComputeGraphPtr &src_compute_graph,
+                                       ComputeGraphPtr &dst_compute_graph,
+                                       std::map<ConstNodePtr, NodePtr> &node_old_2_new,
+                                       std::map<ConstOpDescPtr, OpDescPtr> &op_desc_old_2_new,
+                                       std::unordered_map<std::string, NodePtr> &all_new_nodes,
+                                       int32_t depth);
 
   static graphStatus CopyMembers(const ComputeGraphPtr &src_compute_graph,
                                  ComputeGraphPtr &dst_compute_graph,
@@ -210,6 +173,11 @@ class GraphUtils {
   ///
   static graphStatus InsertNodeAfter(const OutDataAnchorPtr &src, const std::vector<InDataAnchorPtr> &dsts,
                                      const NodePtr &insert_node, uint32_t input_index = 0, uint32_t output_index = 0);
+
+  static graphStatus InsertNodeBefore(const InDataAnchorPtr &dst,
+                                      const NodePtr &insert_node,
+                                      uint32_t input_index = 0,
+                                      uint32_t output_index = 0);
 
   static graphStatus RemoveJustNode(ComputeGraphPtr compute_graph, const NodePtr &node);
 
@@ -352,7 +320,7 @@ class GraphUtils {
   /// @param prefix: node name prefix of new graph.
   /// @return ComputeGraphPtr
   ///
-  static ComputeGraphPtr CloneGraph(const ComputeGraphPtr &graph, const string &prefix,
+  static ComputeGraphPtr CloneGraph(const ComputeGraphPtr &graph, const std::string &prefix,
                                     std::vector<NodePtr> &input_nodes, std::vector<NodePtr> &output_nodes);
 
   ///
@@ -363,7 +331,7 @@ class GraphUtils {
   ///
   static graphStatus CopyTensorAttrs(const OpDescPtr &dst_desc, const NodePtr &src_node);
 
-  static graphStatus TopologicalSortingByName(const ge::ComputeGraphPtr &compute_graph, vector<NodePtr> &node_vec);
+  static graphStatus TopologicalSortingByName(const ge::ComputeGraphPtr &compute_graph, std::vector<NodePtr> &node_vec);
 
   ///
   /// Get reference-mapping of all data_anchors in graph
@@ -402,6 +370,21 @@ class GraphUtils {
   ///
   static bool IsRefFromInput(const OutDataAnchorPtr &out_data_anchor, int32_t &reuse_in_index);
 
+  static bool IsNoPaddingRefFromInput(const OutDataAnchorPtr &out_data_anchor, int32_t &reuse_in_index);
+
+  static bool IsNodeInGraphRecursively(const ComputeGraphPtr &graph, const Node &node);
+
+  static graphStatus GetSubgraphsRecursively(const ComputeGraphPtr &graph, std::vector<ComputeGraphPtr> &subgraphs);
+
+  static ComputeGraphPtr BuildSubgraphWithNodes(const ComputeGraphPtr &graph, const std::set<NodePtr> &nodes,
+                                                const std::string &subgraph_name);
+
+  static ComputeGraphPtr BuildSubgraphWithNodes(ComputeGraph &graph, const std::set<NodePtr> &nodes,
+                                                const std::string &subgraph_name);
+
+  static graphStatus UnfoldSubgraph(const ComputeGraphPtr &graph,
+                                    const std::function<bool(const ComputeGraphPtr &)> &filter);
+
  private:
   ///
   /// Get reference-mapping for in_data_anchors of node
@@ -410,7 +393,7 @@ class GraphUtils {
   /// @param [out] anchor_to_symbol
   /// @return success: GRAPH_SUCESS
   ///
-  static graphStatus HandleInAnchorMapping(const NodePtr &node,
+  static graphStatus HandleInAnchorMapping(const ComputeGraphPtr &graph, const NodePtr &node,
                                            std::map<std::string, std::list<NodeIndexIO>> &symbol_to_anchors,
                                            std::map<std::string, std::string> &anchor_to_symbol);
 
@@ -465,8 +448,8 @@ class GraphUtils {
   /// @param [in] all_nodes: all nodes in new graph.
   /// @return success: GRAPH_SUCESS
   ///
-  static graphStatus RelinkGraphEdges(const NodePtr &node, const string &prefix,
-                                      const std::unordered_map<string, NodePtr> &all_nodes);
+  static graphStatus RelinkGraphEdges(const NodePtr &node, const std::string &prefix,
+                                      const std::unordered_map<std::string, NodePtr> &all_nodes);
 
   ///
   /// Union ref-mapping
@@ -492,6 +475,26 @@ class GraphUtils {
   static graphStatus UpdateRefMapping(const NodeIndexIO &cur_node_info, const NodeIndexIO &exist_node_info,
                                       std::map<std::string, std::list<NodeIndexIO>> &symbol_to_anchors,
                                       std::map<std::string, std::string> &anchor_to_symbol);
+
+  static void BuildGraphInfoFromNodes(const std::set<NodePtr> &nodes, GraphInfo &graph_info);
+
+  static void BuildInDataEdgesFromNode(const NodePtr &node, const std::set<NodePtr> &nodes,
+                                       std::map<OutDataAnchorPtr, size_t> &data_input_index_map,
+                                       GraphInfo &graph_info);
+
+  static NodePtr BuildSubgraphNode(ComputeGraph &graph, const std::string &graph_name,
+                                   const GraphInfo &graph_info);
+
+  static ComputeGraphPtr BuildSubgraph(const NodePtr &subgraph_node, const GraphInfo &graph_info,
+                                       const std::string &subgraph_name);
+
+  static graphStatus RelinkDataEdges(const NodePtr &subgraph_node, const GraphInfo &graph_info);
+
+  static graphStatus RelinkCtrlEdges(const NodePtr &subgraph_node, const GraphInfo &graph_info);
+
+  static graphStatus MergeInputNodes(const ComputeGraphPtr &graph);
+
+  static graphStatus MergeNetOutputNode(const ComputeGraphPtr &graph);
 };
 
 class ComputeGraphBuilder {

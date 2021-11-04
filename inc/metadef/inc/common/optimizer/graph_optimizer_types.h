@@ -17,8 +17,9 @@
 #ifndef INC_COMMON_OPTIMIZER_GRAPH_OPTIMIZER_TYPES_H_
 #define INC_COMMON_OPTIMIZER_GRAPH_OPTIMIZER_TYPES_H_
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
+
 namespace ge {
 enum OPTIMIZER_SCOPE {
   UNIT = 0,

@@ -24,7 +24,6 @@
 #include "graph/def_types.h"
 #include "graph/ge_error_codes.h"
 #include "graph/types.h"
-#include "graph/usr_types.h"
 #include "register/register_types.h"
 #include "external/register/register_fmk_types.h"
 
@@ -43,11 +42,9 @@ class TypeUtils {
   static std::string FormatToSerialString(Format format);
   static Format SerialStringToFormat(const std::string &str);
   static Format DataFormatToFormat(const std::string &str);
+  static graphStatus SplitFormatFromStr(const std::string &str, std::string &primary_format_str, int32_t &sub_format);
   static Format DomiFormatToFormat(domi::domiTensorFormat_t domi_format);
   static std::string FmkTypeToSerialString(domi::FrameworkType fmk_type);
-
-  static graphStatus Usr2DefQuantizeFactorParams(const UsrQuantizeFactorParams &usr, QuantizeFactorParams &def);
-  static graphStatus Def2UsrQuantizeFactorParams(const QuantizeFactorParams &def, UsrQuantizeFactorParams &usr);
 
   static bool GetDataTypeLength(ge::DataType data_type, uint32_t &length);
   static bool CheckUint64MulOverflow(uint64_t a, uint32_t b);

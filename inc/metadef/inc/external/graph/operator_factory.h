@@ -30,7 +30,13 @@ using OpCreator = std::function<Operator(const std::string &)>;
 using OpCreatorV2 = std::function<Operator(const AscendString &)>;
 using InferShapeFunc = std::function<graphStatus(Operator &)>;
 using InferFormatFunc = std::function<graphStatus(Operator &)>;
+using InferValueRangeFunc = std::function<graphStatus(Operator &)>;
 using VerifyFunc = std::function<graphStatus(Operator &)>;
+
+enum WHEN_CALL {
+  INPUT_IS_DYNAMIC = 0,
+  INPUT_HAS_VALUE_RANGE = 1
+};
 
 class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY OperatorFactory {
  public:
@@ -45,7 +51,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY OperatorFactory {
   static graphStatus GetOpsTypeList(std::vector<AscendString> &all_ops);
 
   ATTRIBUTED_DEPRECATED(bool IsExistOp(const char *))
-  static bool IsExistOp(const string &operator_type);
+  static bool IsExistOp(const std::string &operator_type);
 
   static bool IsExistOp(const char *operator_type);
 };
@@ -53,7 +59,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY OperatorFactory {
 class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY OperatorCreatorRegister {
  public:
   ATTRIBUTED_DEPRECATED(OperatorCreatorRegister(const char *, OpCreatorV2 const &))
-  OperatorCreatorRegister(const string &operator_type, OpCreator const &op_creator);
+  OperatorCreatorRegister(const std::string &operator_type, OpCreator const &op_creator);
   OperatorCreatorRegister(const char *operator_type, OpCreatorV2 const &op_creator);
   ~OperatorCreatorRegister() = default;
 };
@@ -72,6 +78,14 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY InferFormatFuncRegister {
   InferFormatFuncRegister(const std::string &operator_type, const InferFormatFunc &infer_format_func);
   InferFormatFuncRegister(const char *operator_type, const InferFormatFunc &infer_format_func);
   ~InferFormatFuncRegister() = default;
+};
+
+class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY InferValueRangeFuncRegister {
+ public:
+  InferValueRangeFuncRegister(const char *operator_type, WHEN_CALL when_call,
+                              const InferValueRangeFunc &infer_value_range_func);
+  InferValueRangeFuncRegister(const char *operator_type);
+  ~InferValueRangeFuncRegister() = default;
 };
 
 class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY VerifyFuncRegister {
