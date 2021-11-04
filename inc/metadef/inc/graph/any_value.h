@@ -172,7 +172,7 @@ private:
 private:
   using ValueHolder = union {
     void *pointer;
-    std::aligned_storage<sizeof(pointer)>::type inline_buf;
+    std::aligned_storage<sizeof(void *)>::type inline_buf;
   };
   ValueHolder holder_{};
 
