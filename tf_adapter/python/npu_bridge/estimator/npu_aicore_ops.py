@@ -193,15 +193,15 @@ def layer_norm(x, gamma, beta, begin_norm_axis=0, begin_params_axis=0, epsilon=0
     Returns:
         A tensor.
     """
-    mean, variance, res = npu_aicore_ops.layer_norm(x, gamma, beta, begin_norm_axis,
+    res, mean, variance = npu_aicore_ops.layer_norm(x, gamma, beta, begin_norm_axis,
                                                     begin_params_axis, epsilon, name)
 
-    return [mean, variance, res]
+    return [res, mean, variance]
 
 
 @ops.RegisterGradient("LayerNorm")
-def _layer_norm_grad(op, grad):
-    pd_x, pd_gamma, pd_beta = npu_aicore_ops.layer_norm_grad(grad, op.inputs[0], op.outputs[2], op.outputs[1],
+def _layer_norm_grad(op, *grad):
+    pd_x, pd_gamma, pd_beta = npu_aicore_ops.layer_norm_grad(grad[0], op.inputs[0], op.outputs[2], op.outputs[1],
                                                              op.inputs[1])
 
     return [pd_x, pd_gamma, pd_beta]
