@@ -29,6 +29,7 @@
 namespace ge {
 class OpDesc;
 using OpDescPtr = std::shared_ptr<OpDesc>;
+using ConstGeTensorBarePtr = const GeTensor*;
 
 class OpDescUtils {
  public:
@@ -39,29 +40,26 @@ class OpDescUtils {
   ~OpDescUtils() = default;
   static bool HasQuantizeFactorParams(const OpDescPtr& op_desc);
   static bool HasQuantizeFactorParams(const OpDesc& op_desc);
-  static graphStatus GetQuantizeFactorParams(const OpDescPtr& op_desc, QuantizeFactorParams& quant);
-  static graphStatus GetQuantizeFactorParams(const OpDesc& op_desc, QuantizeFactorParams& quant);
-  static graphStatus SetQuantizeFactorParams(const OpDescPtr &op_desc, const QuantizeFactorParams& quant);
-  static graphStatus SetQuantizeFactorParams(OpDesc& op_desc, const QuantizeFactorParams& quant);
+  static std::vector<ge::NodePtr> GetConstInputNode(const ge::Node& node);
+  static std::vector<NodeToOutAnchor> GetConstInputNodeAndAnchor(const ge::Node &node);
+  static std::vector<ConstGeTensorPtr> GetInputData(const std::vector<ge::NodePtr>& input_nodes);
+  static std::vector<ConstGeTensorPtr> GetWeightsFromNodes(const std::vector<NodeToOutAnchor>& input_nodes_2_out_anchors);
 
-  static vector<ge::NodePtr> GetConstInputNode(const ge::Node& node);
-  static vector<ConstGeTensorPtr> GetInputData(const vector<ge::NodePtr>& input_nodes);
-
-  static vector<ConstGeTensorPtr> GetWeights(const ge::Node& node);
-  static vector<ConstGeTensorPtr> GetWeights(const ge::ConstNodePtr& node);
-  static vector<GeTensorPtr> MutableWeights(const ge::Node& node);
-  static vector<GeTensorPtr> MutableWeights(const ge::NodePtr node);
-  static graphStatus SetWeights(ge::Node& node, const vector<ge::GeTensorPtr>& weights);
-  static graphStatus SetWeights(ge::NodePtr node, const vector<ge::GeTensorPtr> &weights);
-  static graphStatus SetWeights(ge::Node &node, const map<int, ge::GeTensorPtr> &weights_map);
+  static std::vector<ConstGeTensorPtr> GetWeights(const ge::Node& node);
+  static std::vector<ConstGeTensorPtr> GetWeights(const ge::ConstNodePtr& node);
+  static std::vector<GeTensorPtr> MutableWeights(const ge::Node& node);
+  static std::vector<GeTensorPtr> MutableWeights(const ge::NodePtr node);
+  static graphStatus SetWeights(ge::Node& node, const std::vector<ge::GeTensorPtr>& weights);
+  static graphStatus SetWeights(ge::NodePtr node, const std::vector<ge::GeTensorPtr> &weights);
+  static graphStatus SetWeights(ge::Node &node, const std::map<int, ge::GeTensorPtr> &weights_map);
   static graphStatus ClearWeights(ge::NodePtr node);
 
   static bool ClearInputDesc(ge::OpDescPtr op_desc, uint32_t index);
   static bool ClearInputDesc(const ge::NodePtr& node);
   static bool ClearOutputDesc(const ge::OpDescPtr& op_desc, uint32_t index);
   static bool ClearOutputDesc(const ge::NodePtr& node);
-  static vector<ge::NodePtr> GetConstInputs(const ge::Node& node);
-  static vector<ge::NodePtr> GetConstInputs(const ge::ConstNodePtr& node);
+  static std::vector<ge::NodePtr> GetConstInputs(const ge::Node& node);
+  static std::vector<ge::NodePtr> GetConstInputs(const ge::ConstNodePtr& node);
   static size_t GetNonConstInputsSize(const ge::Node& node);
   static size_t GetNonConstInputsSize(ge::ConstNodePtr node);
   // Index: Indicates the index of all non const inputs
@@ -73,24 +71,24 @@ class OpDescUtils {
   static bool IsNonConstInput(const ge::Node& node, size_t index = 0);
   static bool IsNonConstInput(const ge::ConstNodePtr& node, size_t index = 0);
 
-  static vector<ge::GeTensorDesc> GetNonConstTensorDesc(const ge::ConstNodePtr& node);
+  static std::vector<ge::GeTensorDesc> GetNonConstTensorDesc(const ge::ConstNodePtr& node);
   static graphStatus AddConstOpToAnchor(InDataAnchorPtr in_anchor, const GeTensorPtr& tensor_ptr);
 
   static Operator CreateOperatorFromOpDesc(OpDescPtr op_desc);
   static Operator CreateOperatorFromNode(ge::ConstNodePtr node_ptr);
   static OpDescPtr GetOpDescFromOperator(const Operator& oprt);
-  static graphStatus CopyOperatorLinks(const std::map<string, ge::Operator> &src_op_list,
-                                       std::map<string, ge::Operator> &dst_op_list);
+  static graphStatus CopyOperatorLinks(const std::map<std::string, ge::Operator> &src_op_list,
+                                       std::map<std::string, ge::Operator> &dst_op_list);
   static graphStatus CopyOperators(ComputeGraphPtr &dst_compute_graph,
                                    const std::map<ConstNodePtr, NodePtr> &node_old_2_new,
                                    const std::map<ConstOpDescPtr, OpDescPtr> &op_desc_old_2_new,
-                                   const std::map<string, ge::Operator> &src_op_list,
-                                   std::map<string, ge::Operator> &dst_op_list);
+                                   const std::map<std::string, ge::Operator> &src_op_list,
+                                   std::map<std::string, ge::Operator> &dst_op_list);
   static OpDescPtr CreateConstOp(const GeTensorPtr& tensor_ptr);
 
   static graphStatus SetSubgraphInstanceName(const std::string &subgraph_name,
       const std::string &subgraph_instance_name, OpDescPtr &op_desc);
-
+  static ConstGeTensorBarePtr GetInputConstData(const Operator &op, uint32_t idx);
  private:
   static GeTensorPtr MutableWeights(ge::OpDesc& op_desc);
   static GeTensorPtr MutableWeights(ge::OpDescPtr op_desc);

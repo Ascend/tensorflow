@@ -25,6 +25,16 @@
 namespace ge {
 class TensorUtils {
  public:
+  static GeTensor CreateShareTensor(const GeTensor &other);
+  static GeTensor CreateShareTensor(const GeTensorDesc &tensorDesc,
+                                    std::shared_ptr<AlignedPtr> aligned_ptr,
+                                    size_t size);
+  static void ShareTensor(const GeTensor &from, GeTensor &to);
+  static TensorData CreateShareTensorData(const TensorData &other);
+  static void ShareTensorData(const TensorData &from, TensorData &to);
+  static void ShareAlignedPtr(std::shared_ptr<AlignedPtr> ptr, size_t size, TensorData &to);
+  static void ShareAlignedPtr(std::shared_ptr<AlignedPtr> ptr, size_t size, GeTensor &to);
+  static void CopyTensor(const GeTensor &from, GeTensor &to);
   static ge::graphStatus GetSize(const GeTensorDesc &tensorDesc, int64_t &size);
   static void SetSize(GeTensorDesc &tensorDesc, int64_t size);
   static uint32_t GetWeightSize(const ConstGeTensorPtr &tensorPtr);
@@ -47,17 +57,6 @@ class TensorUtils {
   static void SetReuseInputIndex(GeTensorDesc &tensorDesc, uint32_t idx);
   static ge::graphStatus GetDataOffset(const GeTensorDesc &tensorDesc, int64_t &offset);
   static void SetDataOffset(GeTensorDesc &tensorDesc, int64_t offset);
-  static ge::graphStatus GetCmpsSize(const GeTensorDesc &tensorDesc, uint32_t &cmp_size);
-  static void SetCmpsSize(GeTensorDesc &tensorDesc, uint32_t cmp_size);
-  static ge::graphStatus GetCmpsTab(const GeTensorDesc &tensorDesc, vector<uint8_t> &vec);
-  static void SetCmpsTab(GeTensorDesc &tensorDesc, const uint8_t *data, size_t size);
-  static ge::graphStatus GetCmpsTabOffset(const GeTensorDesc &tensorDesc, int64_t &tab_offset);
-  static void SetCmpsTabOffset(GeTensorDesc &tensorDesc, int64_t tab_offset);
-  static ge::graphStatus GetCmpsInfo(const GeTensorDesc &tensorDesc, CompressInfo &info);
-  static void SetCmpsInfo(GeTensorDesc &tensorDesc, const CompressInfo &info);
-  static bool HasAlloffsetQuantizeInfo(const GeTensorDesc &tensorDesc);
-  static ge::graphStatus GetAlloffsetQuantizeInfo(const GeTensorDesc &tensorDesc, AllOffsetQuantizeInfo &info);
-  static void SetAlloffsetQuantizeInfo(GeTensorDesc &tensorDesc, const AllOffsetQuantizeInfo &info);
   static ge::graphStatus GetRC(const GeTensorDesc &tensorDesc, uint32_t &rc);
   static void SetRC(GeTensorDesc &tensorDesc, uint32_t rc);
 
@@ -70,8 +69,12 @@ class TensorUtils {
   /// @return GRAPH_SUCCESS:success, other:failed
   ///
   static ge::graphStatus CalcTensorMemSize(const GeShape &shape, Format format, DataType data_type, int64_t &mem_size);
+  static ge::graphStatus CalcTensorMemSizeForNoTiling(const GeTensorDesc &tensor, Format format, DataType data_type,
+                                                      int64_t &mem_size);
   static ge::graphStatus GetTensorMemorySizeInBytes(const GeTensorDesc &desc_temp, int64_t &size_temp);
   static ge::graphStatus GetTensorSizeInBytes(const GeTensorDesc &desc_temp, int64_t &size_temp);
+  static ge::graphStatus CheckShapeByShapeRange(const GeShape &shape,
+                                                const std::vector<std::pair<int64_t, int64_t>> &shape_range);
 };
 }  // namespace ge
 #endif  // INC_GRAPH_UTILS_TENSOR_UTILS_H_

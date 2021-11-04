@@ -82,7 +82,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Operator {
   using OpNamedAttrs = ge::NamedAttrs;
   using OpListInt = std::vector<int64_t>;
   using OpListFloat = std::vector<float>;
-  using OpListString = std::vector<string>;
+  using OpListString = std::vector<std::string>;
   using OpListAcendString = std::vector<AscendString>;
   using OpListBool = std::vector<bool>;
   using OpListTensor = std::vector<Tensor>;
@@ -93,12 +93,12 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Operator {
 
   Operator() {}
   ATTRIBUTED_DEPRECATED(Operator(const char *))
-  explicit Operator(const string &type);
+  explicit Operator(const std::string &type);
 
   explicit Operator(const char *type);
 
   ATTRIBUTED_DEPRECATED(Operator(const char *, const char *))
-  Operator(const string &name, const string &type);  // lint !e148
+  Operator(const std::string &name, const std::string &type);
 
   Operator(const AscendString &name, const AscendString &type);
 
@@ -109,94 +109,96 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Operator {
   bool IsEmpty() const;
 
   ATTRIBUTED_DEPRECATED(graphStatus GetName(AscendString &) const)
-  string GetName() const;
+  std::string GetName() const;
 
   graphStatus GetName(AscendString &name) const;
 
   ATTRIBUTED_DEPRECATED(graphStatus GetOpType(AscendString &) const)
-  string GetOpType() const;
+  std::string GetOpType() const;
 
   graphStatus GetOpType(AscendString &type) const;
 
   // Only has one output index = 0
   ATTRIBUTED_DEPRECATED(Operator &SetInput(const char *, const Operator &))
-  Operator &SetInput(const string &dst_name, const Operator &src_oprt);
+  Operator &SetInput(const std::string &dst_name, const Operator &src_oprt);
 
   Operator &SetInput(const char *dst_name, const Operator &src_oprt);
 
   ATTRIBUTED_DEPRECATED(Operator &SetInput(const char *, const Operator &, const char *))
-  Operator &SetInput(const string &dst_name, const Operator &src_oprt, const string &name);  // lint !e148
+  Operator &SetInput(const std::string &dst_name, const Operator &src_oprt, const std::string &name);
 
   Operator &SetInput(const char *dst_name, const Operator &src_oprt, const char *name);
 
   ATTRIBUTED_DEPRECATED(Operator &SetInput(const char *, const Operator &, uint32_t))
-  Operator &SetInput(const string &dst_name, const Operator &src_oprt, uint32_t index);
+  Operator &SetInput(const std::string &dst_name, const Operator &src_oprt, uint32_t index);
 
   Operator &SetInput(const char *dst_name, const Operator &src_oprt, uint32_t index);
+
+  Operator &SetInput(uint32_t dst_index, const Operator &src_oprt, uint32_t src_index);
 
   Operator &AddControlInput(const Operator &src_oprt);
 
   ATTRIBUTED_DEPRECATED(graphStatus GetInputConstData(const char *, Tensor &) const)
-  graphStatus GetInputConstData(const string &dst_name, Tensor &data) const;
+  graphStatus GetInputConstData(const std::string &dst_name, Tensor &data) const;
 
   graphStatus GetInputConstData(const char *dst_name, Tensor &data) const;
 
   ATTRIBUTED_DEPRECATED(TensorDesc GetInputDescByName(const char *) const)
-  TensorDesc GetInputDesc(const string &name) const;
+  TensorDesc GetInputDesc(const std::string &name) const;
 
   TensorDesc GetInputDescByName(const char *name) const;
 
   TensorDesc GetInputDesc(uint32_t index) const;
 
   ATTRIBUTED_DEPRECATED(int GetDynamicOutputNum(const char *) const)
-  int GetDynamicOutputNum(const string &name) const;
+  int GetDynamicOutputNum(const std::string &name) const;
 
   int GetDynamicOutputNum(const char *name) const;
 
   ATTRIBUTED_DEPRECATED(int GetDynamicInputNum(const char *))
-  int GetDynamicInputNum(const string &name) const;
+  int GetDynamicInputNum(const std::string &name) const;
 
   int GetDynamicInputNum(const char *name) const;
 
   ATTRIBUTED_DEPRECATED(graphStatus TryGetInputDesc(const char *, TensorDesc &) const)
-  graphStatus TryGetInputDesc(const string &name, TensorDesc &tensor_desc) const;
+  graphStatus TryGetInputDesc(const std::string &name, TensorDesc &tensor_desc) const;
 
   graphStatus TryGetInputDesc(const char *name, TensorDesc &tensor_desc) const;
 
   ATTRIBUTED_DEPRECATED(graphStatus UpdateInputDesc(const char *, const TensorDesc &))
-  graphStatus UpdateInputDesc(const string &name, const TensorDesc &tensor_desc);
+  graphStatus UpdateInputDesc(const std::string &name, const TensorDesc &tensor_desc);
 
   graphStatus UpdateInputDesc(const char *name, const TensorDesc &tensor_desc);
 
   ATTRIBUTED_DEPRECATED(TensorDesc GetOutputDescByName(const char *) const)
-  TensorDesc GetOutputDesc(const string &name) const;
+  TensorDesc GetOutputDesc(const std::string &name) const;
 
   TensorDesc GetOutputDescByName(const char *name) const;
 
   TensorDesc GetOutputDesc(uint32_t index) const;
 
   ATTRIBUTED_DEPRECATED(graphStatus UpdateOutputDesc(const char *, const TensorDesc &tensor_desc))
-  graphStatus UpdateOutputDesc(const string &name, const TensorDesc &tensor_desc);  // lint !e148
+  graphStatus UpdateOutputDesc(const std::string &name, const TensorDesc &tensor_desc);
 
   graphStatus UpdateOutputDesc(const char *name, const TensorDesc &tensor_desc);
 
   ATTRIBUTED_DEPRECATED(TensorDesc GetDynamicInputDesc(const char *, uint32_t) const)
-  TensorDesc GetDynamicInputDesc(const string &name, uint32_t index) const;
+  TensorDesc GetDynamicInputDesc(const std::string &name, uint32_t index) const;
 
   TensorDesc GetDynamicInputDesc(const char *name, uint32_t index) const;
 
   ATTRIBUTED_DEPRECATED(graphStatus UpdateDynamicInputDesc(const char *, uint32_t, const TensorDesc &))
-  graphStatus UpdateDynamicInputDesc(const string &name, uint32_t index, const TensorDesc &tensor_desc);  // lint !e148
+  graphStatus UpdateDynamicInputDesc(const std::string &name, uint32_t index, const TensorDesc &tensor_desc);
 
   graphStatus UpdateDynamicInputDesc(const char *name, uint32_t index, const TensorDesc &tensor_desc);
 
   ATTRIBUTED_DEPRECATED(TensorDesc GetDynamicOutputDesc(const char *, uint32_t) const)
-  TensorDesc GetDynamicOutputDesc(const string &name, uint32_t index) const;
+  TensorDesc GetDynamicOutputDesc(const std::string &name, uint32_t index) const;
 
   TensorDesc GetDynamicOutputDesc(const char *name, uint32_t index) const;
 
   ATTRIBUTED_DEPRECATED(graphStatus UpdateDynamicOutputDesc(const char *, uint32_t, const TensorDesc &))
-  graphStatus UpdateDynamicOutputDesc(const string &name, uint32_t index, const TensorDesc &tensor_desc);  // lint !e148
+  graphStatus UpdateDynamicOutputDesc(const std::string &name, uint32_t index, const TensorDesc &tensor_desc);
 
   graphStatus UpdateDynamicOutputDesc(const char *name, uint32_t index, const TensorDesc &tensor_desc);
 
@@ -217,92 +219,92 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Operator {
   graphStatus GetAllAttrNamesAndTypes(std::map<AscendString, AscendString> &attr_name_types) const;
 
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, int64_t))
-  Operator &SetAttr(const string &name, int64_t attr_value);
+  Operator &SetAttr(const std::string &name, int64_t attr_value);
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, int32_t))
-  Operator &SetAttr(const string &name, int32_t attr_value);
+  Operator &SetAttr(const std::string &name, int32_t attr_value);
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, uint32_t))
-  Operator &SetAttr(const string &name, uint32_t attr_value);
+  Operator &SetAttr(const std::string &name, uint32_t attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, int64_t &) const)
-  graphStatus GetAttr(const string &name, int64_t &attr_value) const;
+  graphStatus GetAttr(const std::string &name, int64_t &attr_value) const;
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, int32_t &) const)
-  graphStatus GetAttr(const string &name, int32_t &attr_value) const;
+  graphStatus GetAttr(const std::string &name, int32_t &attr_value) const;
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, uint32_t &) const)
-  graphStatus GetAttr(const string &name, uint32_t &attr_value) const;
+  graphStatus GetAttr(const std::string &name, uint32_t &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<int64_t> &))
-  Operator &SetAttr(const string &name, const std::vector<int64_t> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<int64_t> &attr_value);
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<int32_t> &))
-  Operator &SetAttr(const string &name, const std::vector<int32_t> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<int32_t> &attr_value);
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<uint32_t> &))
-  Operator &SetAttr(const string &name, const std::vector<uint32_t> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<uint32_t> &attr_value);
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, std::initializer_list<int64_t> &&))
-  Operator &SetAttr(const string &name, std::initializer_list<int64_t> &&attr_value);
+  Operator &SetAttr(const std::string &name, std::initializer_list<int64_t> &&attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *name, std::vector<int64_t> &) const)
-  graphStatus GetAttr(const string &name, std::vector<int64_t> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<int64_t> &attr_value) const;
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *name, std::vector<int32_t> &) const)
-  graphStatus GetAttr(const string &name, std::vector<int32_t> &attr_value) const;
-  ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const string &, std::vector<uint32_t> &) const)
-  graphStatus GetAttr(const string &name, std::vector<uint32_t> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<int32_t> &attr_value) const;
+  ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const std::string &, std::vector<uint32_t> &) const)
+  graphStatus GetAttr(const std::string &name, std::vector<uint32_t> &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, float attr_value))
-  Operator &SetAttr(const string &name, float attr_value);
+  Operator &SetAttr(const std::string &name, float attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, float &) const)
-  graphStatus GetAttr(const string &name, float &attr_value) const;
+  graphStatus GetAttr(const std::string &name, float &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<float> &))
-  Operator &SetAttr(const string &name, const std::vector<float> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<float> &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, std::vector<float> &) const)
-  graphStatus GetAttr(const string &name, std::vector<float> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<float> &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, AttrValue &&))
-  Operator &SetAttr(const string &name, AttrValue &&attr_value);
+  Operator &SetAttr(const std::string &name, AttrValue &&attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, AttrValue &) const)
-  graphStatus GetAttr(const string &name, AttrValue &attr_value) const;
-  Operator &SetAttr(const string &name, const string &attr_value);
-  graphStatus GetAttr(const string &name, string &attr_value) const;
-  Operator &SetAttr(const string &name, const std::vector<string> &attr_value);
-  graphStatus GetAttr(const string &name, std::vector<string> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, AttrValue &attr_value) const;
+  Operator &SetAttr(const std::string &name, const std::string &attr_value);
+  graphStatus GetAttr(const std::string &name, std::string &attr_value) const;
+  Operator &SetAttr(const std::string &name, const std::vector<std::string> &attr_value);
+  graphStatus GetAttr(const std::string &name, std::vector<std::string> &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, bool))
-  Operator &SetAttr(const string &name, bool attr_value);
+  Operator &SetAttr(const std::string &name, bool attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, bool &) const)
-  graphStatus GetAttr(const string &name, bool &attr_value) const;
+  graphStatus GetAttr(const std::string &name, bool &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<bool> &))
-  Operator &SetAttr(const string &name, const std::vector<bool> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<bool> &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, std::vector<bool> &) const)
-  graphStatus GetAttr(const string &name, std::vector<bool> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<bool> &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const Tensor &))
-  Operator &SetAttr(const string &name, const Tensor &attr_value);
+  Operator &SetAttr(const std::string &name, const Tensor &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, Tensor &) const)
-  graphStatus GetAttr(const string &name, Tensor &attr_value) const;
+  graphStatus GetAttr(const std::string &name, Tensor &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<Tensor> &))
-  Operator &SetAttr(const string &name, const std::vector<Tensor> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<Tensor> &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, std::vector<Tensor> &) const)
-  graphStatus GetAttr(const string &name, std::vector<Tensor> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<Tensor> &attr_value) const;
 
   // Bytes type
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const OpBytes &))
-  Operator &SetAttr(const string &name, const OpBytes &attr_value);
+  Operator &SetAttr(const std::string &name, const OpBytes &attr_value);
   // Bytes type
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, OpBytes &) const)
-  graphStatus GetAttr(const string &name, OpBytes &attr_value) const;
+  graphStatus GetAttr(const std::string &name, OpBytes &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<std::vector<int64_t>> &))
-  Operator &SetAttr(const string &name, const std::vector<std::vector<int64_t>> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<std::vector<int64_t>> &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, std::vector<std::vector<int64_t>> &) const)
-  graphStatus GetAttr(const string &name, std::vector<std::vector<int64_t>> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<std::vector<int64_t>> &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<ge::DataType> &))
-  Operator &SetAttr(const string &name, const std::vector<ge::DataType> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<ge::DataType> &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, std::vector<ge::DataType> &) const)
-  graphStatus GetAttr(const string &name, std::vector<ge::DataType> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<ge::DataType> &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const ge::DataType &))
-  Operator &SetAttr(const string &name, const ge::DataType &attr_value);
+  Operator &SetAttr(const std::string &name, const ge::DataType &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, ge::DataType &) const)
-  graphStatus GetAttr(const string &name, ge::DataType &attr_value) const;
+  graphStatus GetAttr(const std::string &name, ge::DataType &attr_value) const;
 
   // func type
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const ge::NamedAttrs &))
-  Operator &SetAttr(const string &name, const ge::NamedAttrs &attr_value);
+  Operator &SetAttr(const std::string &name, const ge::NamedAttrs &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, ge::NamedAttrs &) const)
-  graphStatus GetAttr(const string &name, ge::NamedAttrs &attr_value) const;
+  graphStatus GetAttr(const std::string &name, ge::NamedAttrs &attr_value) const;
   ATTRIBUTED_DEPRECATED(Operator &SetAttr(const char *, const std::vector<ge::NamedAttrs> &))
-  Operator &SetAttr(const string &name, const std::vector<ge::NamedAttrs> &attr_value);
+  Operator &SetAttr(const std::string &name, const std::vector<ge::NamedAttrs> &attr_value);
   ATTRIBUTED_DEPRECATED(graphStatus GetAttr(const char *, std::vector<ge::NamedAttrs> &) const)
-  graphStatus GetAttr(const string &name, std::vector<ge::NamedAttrs> &attr_value) const;
+  graphStatus GetAttr(const std::string &name, std::vector<ge::NamedAttrs> &attr_value) const;
 
   Operator &SetAttr(const char *name, int64_t attr_value);
   Operator &SetAttr(const char *name, int32_t attr_value);
@@ -368,43 +370,43 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Operator {
   std::vector<std::string> GetSubgraphNames() const;
   graphStatus GetSubgraphNames(std::vector<AscendString> &names) const;
   ATTRIBUTED_DEPRECATED(SubgraphBuilder GetSubgraphBuilder(const char *) const)
-  SubgraphBuilder GetSubgraphBuilder(const string &name) const;
+  SubgraphBuilder GetSubgraphBuilder(const std::string &name) const;
   SubgraphBuilder GetSubgraphBuilder(const char *name) const;
   ATTRIBUTED_DEPRECATED(Graph GetSubgraph(const char *) const)
-  Graph GetSubgraph(const string &name) const;
+  Graph GetSubgraph(const std::string &name) const;
   Graph GetSubgraph(const char *name) const;
   ATTRIBUTED_DEPRECATED(SubgraphBuilder GetDynamicSubgraphBuilder(const char *, uint32_t) const)
-  SubgraphBuilder GetDynamicSubgraphBuilder(const string &name, uint32_t index) const;
+  SubgraphBuilder GetDynamicSubgraphBuilder(const std::string &name, uint32_t index) const;
   SubgraphBuilder GetDynamicSubgraphBuilder(const char *name, uint32_t index) const;
   ATTRIBUTED_DEPRECATED(Graph GetDynamicSubgraph(const char *, uint32_t) const)
-  Graph GetDynamicSubgraph(const string &name, uint32_t index) const;
+  Graph GetDynamicSubgraph(const std::string &name, uint32_t index) const;
   Graph GetDynamicSubgraph(const char *name, uint32_t index) const;
 
  protected:
-  void AttrRegister(const string &name, float attr_value);
-  void AttrRegister(const string &name, const std::vector<float> &attr_value);
-  void AttrRegister(const string &name, int64_t attr_value);
-  void AttrRegister(const string &name, const std::vector<int64_t> &attr_value);
-  void AttrRegister(const string &name, const string &attr_value);
-  void AttrRegister(const string &name, const std::vector<string> &attr_value);
-  void AttrRegister(const string &name, bool attr_value);
-  void AttrRegister(const string &name, const std::vector<bool> &attr_value);
-  void AttrRegister(const string &name, const Tensor &attr_value);
-  void AttrRegister(const string &name, const std::vector<Tensor> &attr_value);
-  void AttrRegister(const string &name, const OpBytes &attr_value);
-  void AttrRegister(const string &name, const std::vector<std::vector<int64_t>> &attr_value);
-  void AttrRegister(const string &name, const std::vector<ge::DataType> &attr_value);
-  void AttrRegister(const string &name, const ge::DataType &attr_value);
-  void AttrRegister(const string &name, const ge::NamedAttrs &attr_value);
-  void AttrRegister(const string &name, const std::vector<ge::NamedAttrs> &attr_value);
-  void AttrRegister(const string &name, const AscendString &attr_value);
-  void AttrRegister(const string &name, const std::vector<AscendString> &attr_value);
+  void AttrRegister(const std::string &name, float attr_value);
+  void AttrRegister(const std::string &name, const std::vector<float> &attr_value);
+  void AttrRegister(const std::string &name, int64_t attr_value);
+  void AttrRegister(const std::string &name, const std::vector<int64_t> &attr_value);
+  void AttrRegister(const std::string &name, const std::string &attr_value);
+  void AttrRegister(const std::string &name, const std::vector<std::string> &attr_value);
+  void AttrRegister(const std::string &name, bool attr_value);
+  void AttrRegister(const std::string &name, const std::vector<bool> &attr_value);
+  void AttrRegister(const std::string &name, const Tensor &attr_value);
+  void AttrRegister(const std::string &name, const std::vector<Tensor> &attr_value);
+  void AttrRegister(const std::string &name, const OpBytes &attr_value);
+  void AttrRegister(const std::string &name, const std::vector<std::vector<int64_t>> &attr_value);
+  void AttrRegister(const std::string &name, const std::vector<ge::DataType> &attr_value);
+  void AttrRegister(const std::string &name, const ge::DataType &attr_value);
+  void AttrRegister(const std::string &name, const ge::NamedAttrs &attr_value);
+  void AttrRegister(const std::string &name, const std::vector<ge::NamedAttrs> &attr_value);
+  void AttrRegister(const std::string &name, const AscendString &attr_value);
+  void AttrRegister(const std::string &name, const std::vector<AscendString> &attr_value);
 
   explicit Operator(OperatorImplPtr &&op_impl);
 
-  void InputRegister(const string &name);
+  void InputRegister(const std::string &name);
 
-  void OptionalInputRegister(const string &name);
+  void OptionalInputRegister(const std::string &name);
 
   void InferFuncRegister(const std::function<graphStatus(Operator &)> &func);
 
@@ -412,34 +414,34 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Operator {
 
   void InferFormatFuncRegister(const std::function<graphStatus(Operator &)> &func);
 
-  void OutputRegister(const string &name);
+  void OutputRegister(const std::string &name);
 
-  void DynamicInputRegister(const string &name, const unsigned int num, bool is_push_back = true);
+  void DynamicInputRegister(const std::string &name, const unsigned int num, bool is_push_back = true);
 
-  void DynamicInputRegisterByIndex(const string &name, const unsigned int num, size_t index);
+  void DynamicInputRegisterByIndex(const std::string &name, const unsigned int num, size_t index);
 
-  void DynamicOutputRegister(const string &name, const unsigned int num, bool is_push_back = true);
+  void DynamicOutputRegister(const std::string &name, const unsigned int num, bool is_push_back = true);
 
-  void RequiredAttrRegister(const string &name);
+  void RequiredAttrRegister(const std::string &name);
 
-  graphStatus VerifyAll();  // lint !e148
+  graphStatus VerifyAll();
 
   // Only has one output index = 0
-  Operator &SetInput(const string &dst_name, uint32_t dst_index,
+  Operator &SetInput(const std::string &dst_name, uint32_t dst_index,
                      const Operator &src_oprt);
 
-  Operator &SetInput(const string &dst_name, uint32_t dst_index, const Operator &src_oprt,
-                     const string &name);  // lint !e148
+  Operator &SetInput(const std::string &dst_name, uint32_t dst_index, const Operator &src_oprt,
+                     const std::string &name);
 
-  void SubgraphRegister(const string &ir_name, bool dynamic);
-  void SubgraphCountRegister(const string &ir_name, uint32_t count);
-  void SetSubgraphBuilder(const string &ir_name, uint32_t index, const SubgraphBuilder &builder);
-  Graph GetSubgraphImpl(const string &name) const;
+  void SubgraphRegister(const std::string &ir_name, bool dynamic);
+  void SubgraphCountRegister(const std::string &ir_name, uint32_t count);
+  void SetSubgraphBuilder(const std::string &ir_name, uint32_t index, const SubgraphBuilder &builder);
+  Graph GetSubgraphImpl(const std::string &name) const;
 
  private:
-  Operator &SetInput(const string &dst_name, const OutHandler &out_handler);  // lint !e148
+  Operator &SetInput(const std::string &dst_name, const OutHandler &out_handler);
 
-  OutHandler GetOutput(const string &name) const;
+  OutHandler GetOutput(const std::string &name) const;
 
   OutHandler GetOutput(uint32_t index) const;
 
@@ -447,7 +449,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Operator {
 
   OperatorImplPtr operator_impl_{nullptr};
 
-  graphStatus GetInputConstDataOut(const string &dst_name, Tensor &data) const;
+  graphStatus GetInputConstDataOut(const std::string &dst_name, Tensor &data) const;
 
   std::shared_ptr<const Node> GetNode() const;
 };

@@ -17,7 +17,7 @@
 #ifndef INC_REGISTER_OP_REGISTRY_H_
 #define INC_REGISTER_OP_REGISTRY_H_
 
-#include <limits.h>
+#include <climits>
 #include <set>
 #include <string>
 #include <unordered_map>

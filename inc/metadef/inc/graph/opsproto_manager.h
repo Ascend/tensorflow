@@ -17,7 +17,6 @@
 #ifndef INC_GRAPH_OPSPROTO_MANAGER_H_
 #define INC_GRAPH_OPSPROTO_MANAGER_H_
 
-#include <string.h>
 #include <map>
 #include <string>
 #include <vector>

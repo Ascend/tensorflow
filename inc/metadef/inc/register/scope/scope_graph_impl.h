@@ -121,7 +121,7 @@ class FusionScopesResult::FusionScopesResultImpl {
   bool FindNodes(const std::string &node_name) const;
   bool FindScopes(const std::string &scope_name) const;
 
-  InnerNodeInfo *AddInnerNode(const string &name, const string &type);
+  InnerNodeInfo *AddInnerNode(const std::string &name, const std::string &type);
   InnerNodeInfo *MutableRecentInnerNode();
   InnerNodeInfo *MutableInnerNode(uint32_t index);
   FusionInnerNodesInfo GetInnerNodesInfo();
@@ -177,7 +177,7 @@ class ScopeGraph::ScopeGraphImpl {
   void AddFusionScopesResult(FusionScopesResult *result);
   const std::unordered_map<std::string, FusionScopesResult *> &FusionScopesResults() const { return fusion_results_; }
   FusionScopesResult *GetFusionScopesResults(const domi::tensorflow::NodeDef *node_def) const;
-  FusionScopesResult *GetFusionScopesResults(const string &node_name) const;
+  FusionScopesResult *GetFusionScopesResults(const std::string &node_name) const;
   const std::unordered_map<std::string, ge::OperatorPtr> &GetNodesMap() const { return nodes_map_; }
   const std::map<std::string, ge::OperatorPtr> &GetNodesMapNew() const { return nodes_map_new_; }
   bool IsFusionOpChild(const std::string &node_name, std::vector<ScopeFusionOpInfo> &info_list);

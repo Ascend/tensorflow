@@ -30,7 +30,7 @@ class BufferFusionPassRegistry {
 
   static BufferFusionPassRegistry &GetInstance();
 
-  void RegisterPass(const BufferFusionPassType &pass_type, const std::string &pass_name, CreateFn create_fn);
+  void RegisterPass(const BufferFusionPassType &pass_type, const std::string &pass_name, CreateFn create_fun);
 
   std::map<std::string, CreateFn> GetCreateFnByType(const BufferFusionPassType &pass_type);
 
@@ -56,7 +56,7 @@ class BufferFusionPassRegistrar {
 #define REGISTER_BUFFER_FUSION_PASS_UNIQ(ctr, pass_name, pass_type, pass_class)                     \
   static ::fe::BufferFusionPassRegistrar register_buffer_fusion_pass##ctr __attribute__((unused)) = \
       ::fe::BufferFusionPassRegistrar(                                                              \
-          pass_type, pass_name, []() -> ::fe::BufferFusionPassBase * { return new (std::nothrow) pass_class(); })
+          (pass_type), (pass_name), []()->::fe::BufferFusionPassBase * { return new (std::nothrow) pass_class();})
 
 }  // namespace fe
 #endif  // INC_REGISTER_GRAPH_OPTIMIZER_BUFFER_FUSION_PASS_REGISTRY_H_

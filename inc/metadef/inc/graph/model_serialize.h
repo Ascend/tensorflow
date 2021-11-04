@@ -44,10 +44,6 @@ class ModelSerialize {
   size_t GetSerializeModelSize(const Model &model);
 
  private:
-  static std::map<std::string, GeAttrValue> &MutableTensorDescAttrMap(GeTensorDesc &tensorDesc);
-
-  static const std::map<std::string, GeAttrValue> &GetTensorDescAttrMap(const GeTensorDesc &tensorDesc);
-
   friend class ModelSerializeImp;
   friend class GraphDebugImp;
 };

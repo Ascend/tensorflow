@@ -31,7 +31,11 @@ class FusionPassRegistry {
 
   static FusionPassRegistry &GetInstance();
 
+#ifdef ONLY_COMPILE_OPEN_SRC
   void RegisterPass(const GraphFusionPassType &pass_type, const std::string &pass_name, CreateFn create_fn);
+#else
+  void RegisterPass(const GraphFusionPassType &pass_type, const std::string &pass_name, CreateFn create_fn) const;
+#endif
 
   std::map<std::string, CreateFn> GetCreateFnByType(const GraphFusionPassType &pass_type);
 
@@ -43,7 +47,7 @@ class FusionPassRegistry {
 
 class FusionPassRegistrar {
  public:
-  FusionPassRegistrar(const GraphFusionPassType &pass_type, const std::string &pass_name, GraphPass *(*create_fun)());
+  FusionPassRegistrar(const GraphFusionPassType &pass_type, const std::string &pass_name, GraphPass *(*create_fn)());
   ~FusionPassRegistrar() {}
 };
 

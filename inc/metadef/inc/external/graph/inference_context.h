@@ -20,10 +20,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
 
 #include "./tensor.h"
 #include "./types.h"
 #include "ascend_string.h"
+#include "resource_context.h"
 
 namespace ge {
 class InferenceContext;
@@ -49,7 +51,7 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY ShapeAndType {
   std::shared_ptr<ShapeAndTypeImpl> shape_and_type_impl_;
 };
 
-class InferenceContextImpl;
+struct InnerInferenceContext;
 class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY InferenceContext {
  public:
   ~InferenceContext() = default;
@@ -68,15 +70,67 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY InferenceContext {
   void SetMarks(const std::vector<std::string> &marks);
   void SetMarks(const std::vector<AscendString> &marks);
 
+
   ATTRIBUTED_DEPRECATED(void GetMarks(std::vector<AscendString> &) const)
   const std::vector<std::string> &GetMarks() const;
   void GetMarks(std::vector<AscendString> &marks) const;
 
-  static std::unique_ptr<InferenceContext> Create();
+  static std::unique_ptr<InferenceContext> Create(void *resource_context_mgr = nullptr);
+   /**
+   * Get corresponding resource_context by key
+   * For resource op infershape, invoked by op infer_func.
+   * @param key
+   * @return corresponding resource context. Check not null before use it.
+   */
+  ResourceContext *GetResourceContext(const ge::AscendString &key);
+
+  /**
+   * Set corresponding resource_context by key. For node which will write to resource.
+   * For resource op infershape, invoked by write_op infer_func.
+   * @param key
+   * @param resource_context pointer.
+   * @return status
+   */
+  graphStatus SetResourceContext(const ge::AscendString &key, ResourceContext *resource_context);
+  /**
+   * Register resource key relied on. For node which will read from resource.
+   * For resource op infershape, invoked by read_op infer_func.
+   * @param key
+   * @return status
+   */
+  graphStatus RegisterReliedOnResourceKey(const ge::AscendString &key);
+
+  /**
+  * During infershape of write op, if resource shape changed, use this to tell.
+  * For resource op infershape, invoked by write_op infer_func.
+  * @param key
+  * @return status
+  */
+  graphStatus AddChangedResourceKey(const ge::AscendString &key);
+
+  /**
+   * After read_op infershaped, can get resource_keys relied on.
+   * For resource op infershape, invoked by ge infershape framework.
+   * @param keys
+   * @return status
+   */
+  const std::set<ge::AscendString>& GetReliedOnResourceKeys() const;
+
+  /**
+   * After infershape of write op, ge can get resource_key which shape changed.
+   * For resource op infershape, invoked by ge infershape framework.
+   * @return keys
+   */
+  const std::set<ge::AscendString>& GetChangedResourceKeys() const;
+  /**
+   * After handle changed resource shape, should clear changed_keys in context.
+   * For resource op infershape, invoked by ge infershape framework.
+   */
+  void ClearChangedResourceKeys();
 
  private:
-  explicit InferenceContext(std::unique_ptr<InferenceContextImpl> &impl);
-  std::shared_ptr<InferenceContextImpl> inference_context_impl_;
+  explicit InferenceContext(std::unique_ptr<InnerInferenceContext> &inner_context);
+  std::shared_ptr<InnerInferenceContext> inner_inference_context_;
 };
 }  // namespace ge
 #endif  // INC_EXTERNAL_GRAPH_INFERENCE_CONTEXT_H_

@@ -26,22 +26,23 @@
 #include "graph/ge_tensor.h"
 #include "graph/graph.h"
 #include "graph/node.h"
+#include "graph/model.h"
 
 namespace ge {
 using ComputeGraphPtr = std::shared_ptr<ComputeGraph>;
 
 struct NodeNameGraphReq {
-    string node_name;
+    std::string node_name;
     int32_t index;
     ComputeGraphPtr graph;
 };
 
 struct NodeNameNodeReq {
-    string src_node_name;
+    std::string src_node_name;
     int32_t src_out_index;
     NodePtr dst_node;
     int32_t dst_in_index;
-    string dst_node_name;
+    std::string dst_node_name;
 };
 
 class ModelSerializeImp {
@@ -67,25 +68,36 @@ class ModelSerializeImp {
   bool HandleNodeNameRef();
 
   bool UnserializeOpDesc(OpDescPtr &opDesc, proto::OpDef &opDefProto);
-  void AttrDefToOpDesc(OpDescPtr &op_desc, std::vector<string> &key_in, std::vector<string> &key_out,
-                       std::vector<uint32_t> &value_in, std::vector<uint32_t> &value_out, std::vector<string> &opt);
-  void OpDescToAttrDef(const ConstOpDescPtr &op_desc, proto::OpDef *op_def_proto);
+  void AttrDefToOpDesc(OpDescPtr &op_desc, std::vector<std::string> &key_in, std::vector<std::string> &key_out,
+                       std::vector<uint32_t> &value_in, std::vector<uint32_t> &value_out, std::vector<std::string> &opt);
+  void OpDescToAttrDef(const ConstOpDescPtr &op_desc, proto::OpDef *op_def_proto, bool is_dump = false);
 
   bool UnserializeNode(ComputeGraphPtr &graph, proto::OpDef &opDefProto);
 
   bool UnserializeTensor(GeTensorPtr &tensor, proto::TensorDef &tensorProto);
 
-  bool ParseNodeIndex(const string &node_index, string &nodeName, int32_t &index);
+  bool ParseNodeIndex(const std::string &node_index, std::string &nodeName, int32_t &index);
 
   void SetProtobufOwner(const ProtoMsgOwner &bufferProtobufOnwer) { protobuf_owner_ = bufferProtobufOnwer; }
+
+  static bool SerializeAllAttrsFromAnyMap(
+      const std::map<std::string, AnyValue> &, google::protobuf::Map<std::string, ::ge::proto::AttrDef> *);
+  static bool DeserializeAllAttrsToAttrHolder(
+      const google::protobuf::Map<std::string, ::ge::proto::AttrDef> &, AttrHolder *);
 
  private:
   bool RebuildOwnership(ComputeGraphPtr &compute_graph, std::map<std::string, ComputeGraphPtr> &subgraphs);
 
+  void FixOpDefSubgraphInstanceName(const ConstOpDescPtr &op_desc);
+
+  void ExtractMetaDataAttr(proto::OpDef &op_def_proto, std::vector<std::string> &opt_input,
+                           std::vector<std::string> &key_in, std::vector<uint32_t> &value_in,
+                           std::vector<std::string> &key_out, std::vector<uint32_t> &value_out) const;
+
   std::vector<NodeNameGraphReq> graph_input_node_names_;
   std::vector<NodeNameGraphReq> graph_output_node_names_;
   std::vector<NodeNameNodeReq> node_input_node_names_;
-  std::map<string, NodePtr> node_map_;
+  std::map<std::string, NodePtr> node_map_;
   ProtoMsgOwner protobuf_owner_;
 };
 }  // namespace ge

@@ -42,12 +42,12 @@ class Pass {
    */
   virtual Status Run(ge::ComputeGraph &graph) = 0;
 
-  void SetName(const string &name) { name_ = name; }
+  void SetName(const std::string &name) { name_ = name; }
 
-  string GetName() { return name_; }
+  std::string GetName() { return name_; }
 
  private:
-  string name_;
+  std::string name_;
 };
 
 }  // namespace fe

@@ -31,10 +31,10 @@ enum MemoryType { DDR = 0, HBM };
 enum L2Type { Cache = 0, Buff };
 
 typedef struct tag_str_info {
-  string aic_version;
-  string ccec_aic_version;
-  string ccec_aiv_version;
-  string is_support_ai_cpu_compiler;
+  std::string aic_version;
+  std::string ccec_aic_version;
+  std::string ccec_aiv_version;
+  std::string is_support_ai_cpu_compiler;
 } StrInfo;
 
 typedef struct tag_so_c_info {
@@ -125,18 +125,18 @@ typedef struct tag_platform_info {
   SoCInfo soc_info;
   AiCoreSpec ai_core_spec;
   AiCoreMemoryRates ai_core_memory_rates;
-  map<string, vector<string>> ai_core_intrinsic_dtype_map;
+  std::map<std::string, std::vector<std::string>> ai_core_intrinsic_dtype_map;
   VectorCoreSpec vector_core_spec;
   VectorCoreMemoryRates vector_core_memory_rates;
   CPUCache cpucache;
-  map<string, vector<string>> vector_core_intrinsic_dtype_map;
+  std::map<std::string, std::vector<std::string>> vector_core_intrinsic_dtype_map;
 } PlatformInfo;
 
 typedef struct tag_optional_info {
-  string soc_version;
-  string core_type;
+  std::string soc_version;
+  std::string core_type;
   uint32_t ai_core_num;
-  string l1_fusion_flag;
+  std::string l1_fusion_flag;
 } OptionalInfo;
 }  // namespace fe
 #endif
