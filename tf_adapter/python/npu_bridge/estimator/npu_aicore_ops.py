@@ -133,13 +133,13 @@ def dropout_v3(x, keep_prob, noise_shape=None, seed=None, name=None):
     """
     x = ops.convert_to_tensor(x, name="x")
     if not x.dtype.is_floating:
-      raise ValueError("x has to be a floating point tensor since it's going to"
-                       " be scaled. Got a %s tensor instead." % x.dtype)
-    if isinstance(keep_prob, numbers.Real) and not 0 < keep_prob <= 1:
-      raise ValueError("keep_prob must be a scalar tensor or a float in the "
-                       "range (0, 1], got %g" % keep_prob)
-    if isinstance(keep_prob, float) and keep_prob == 1:
-      return x
+        raise ValueError("x must be a floating point tensor."
+                         " Got a %s tensor instead." % x.dtype)
+    if isinstance(keep_prob, numbers.Real) and not 0 < keep_prob <= 1.0:
+        raise ValueError("keep_prob must be a float value or a scalar tensor in the "
+                         "range (0, 1], got %g" % keep_prob)
+    if isinstance(keep_prob, float) and keep_prob == 1.0:
+        return x
     seed, seed2 = get_seed(seed)
     noise_shape = _get_noise_shape(x, noise_shape)
     gen_out = npu_aicore_ops.drop_out_gen_mask_v3(noise_shape, keep_prob, seed, seed2, name)

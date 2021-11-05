@@ -67,9 +67,9 @@ checkopts() {
 
 # mkdir directory
 mk_dir() {
-  local create_dir="$1"
-  mkdir -pv "${create_dir}"
-  logging "Created ${create_dir}"
+  local dir_name="$1"
+  mkdir -pv "${dir_name}"
+  logging "Created dir ${dir_name}"
 }
 
 # create build path
