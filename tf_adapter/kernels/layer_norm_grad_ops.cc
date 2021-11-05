@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2019-2021. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,19 @@
 
 namespace tensorflow {
 class LayerNormGradOp : public OpKernel {
- public:
-  explicit LayerNormGradOp(OpKernelConstruction *context) : OpKernel(context) {}
-  ~LayerNormGradOp() override = default;
-  void Compute(OpKernelContext *context) override {
-    ADP_LOG(INFO) << "LayerNormGradOp Compute, num_inputs: " << context->num_inputs();
+public:
+  explicit LayerNormGradOp(OpKernelConstruction *context) : OpKernel(context) {
+    LOG(INFO) << "new LayerNormGradOp";
   }
-  bool IsExpensive() override { return false; }
+  ~LayerNormGradOp() {
+    LOG(INFO) << "del LayerNormGradOp";
+  }
+  void Compute(OpKernelContext *context) override {
+    LOG(INFO) << "LayerNormGradOp Compute, num_inputs: " << context->num_inputs();
+  }
+  bool IsExpensive() override {
+    LOG(INFO) << "in LayerNormGrad IsExpensive";
+    return false; }
 };
 
 REGISTER_KERNEL_BUILDER(Name("LayerNormGrad").Device(DEVICE_CPU), LayerNormGradOp);
