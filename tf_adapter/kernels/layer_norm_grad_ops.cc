@@ -34,6 +34,6 @@ public:
     return false; }
 };
 
-REGISTER_KERNEL_BUILDER(Name("LayerNormGrad").Device(DEVICE_CPU), LayerNormGradOp);
+REGISTER_KERNEL_BUILDER(Name("LayerNormGrad").Device(DEVICE_CPU), LayerNormGradOp<float>);
 }  // namespace tensorflow
 
