@@ -381,6 +381,9 @@ REGISTER_OP("LayerNorm")
         int real_dim_num = c->Rank(c->input(0));
         int begin_norm_axis = 0;
         TF_RETURN_IF_ERROR(c->GetAttr("begin_norm_axis", &begin_norm_axis));
+        if (begin_norm_axis < 0) {
+          begin_norm_axis += real_dim_num;
+        }
         ShapeHandle input_shape_handle;
         TF_RETURN_IF_ERROR(c->WithRank(c->input(0), real_dim_num, &input_shape_handle));
         ShapeHandle out_shape_handle;
