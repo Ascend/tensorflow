@@ -15,7 +15,7 @@
  */
 
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
 template <typename T> class LayerNormOp : public OpKernel {
