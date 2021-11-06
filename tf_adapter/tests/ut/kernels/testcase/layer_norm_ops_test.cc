@@ -22,9 +22,9 @@ FakeInputFunctor FakeInputStub(DataType dt) {
 }
 
 TEST(LayerNormOpTest, TestLayerNorm) {
-  DataTypeSlice input_types({DT_FLOAT});
+  DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
   MemoryTypeSlice input_memory_types;
-  DataTypeSlice output_types({DT_FLOAT});
+  DataTypeSlice output_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
   MemoryTypeSlice output_memory_types;
   DeviceBase *device = new DeviceBase(Env::Default());
   NodeDef *node_def = new NodeDef();
@@ -32,7 +32,7 @@ TEST(LayerNormOpTest, TestLayerNorm) {
   OpKernelConstruction *context = new OpKernelConstruction(
       DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
       input_memory_types, output_types, output_memory_types, 1, nullptr);
-  LayerNormOp<int> layer_norm(context);
+  LayerNormOp<float> layer_norm(context);
   OpKernelContext *ctx = nullptr;
   layer_norm.Compute(ctx);
   layer_norm.IsExpensive();
