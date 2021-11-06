@@ -18,7 +18,7 @@
 #include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
-class LayerNormOp : public OpKernel {
+template <typename T> class LayerNormOp : public OpKernel {
 public:
   explicit LayerNormOp(OpKernelConstruction *context) : OpKernel(context) {
     LOG(INFO) << "new LayerNormOp";
