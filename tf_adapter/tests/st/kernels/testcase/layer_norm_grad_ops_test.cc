@@ -22,9 +22,9 @@ FakeInputFunctor FakeInputStub(DataType dt) {
 }
 
 TEST(LayerNormGradOpTest, TestLayerNormGrad) {
-  DataTypeSlice input_types({DT_FLOAT});
+  DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT});
   MemoryTypeSlice input_memory_types;
-  DataTypeSlice output_types({DT_FLOAT});
+  DataTypeSlice output_types({DT_FLOAT, DT_FLOAT, DT_FLOAT});
   MemoryTypeSlice output_memory_types;
   DeviceBase *device = new DeviceBase(Env::Default());
   NodeDef *node_def = new NodeDef();
@@ -32,7 +32,7 @@ TEST(LayerNormGradOpTest, TestLayerNormGrad) {
   OpKernelConstruction *context = new OpKernelConstruction(
       DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
       input_memory_types, output_types, output_memory_types, 1, nullptr);
-  LayerNormGradOp<int> layer_norm_grad(context);
+  LayerNormGradOp<float> layer_norm_grad(context);
   OpKernelContext *ctx = nullptr;
   layer_norm_grad.Compute(ctx);
   layer_norm_grad.IsExpensive();
