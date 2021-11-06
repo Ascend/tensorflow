@@ -18,7 +18,7 @@
 #include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
-template <typename T> class LayerNormOp : public OpKernel {
+class LayerNormOp : public OpKernel {
 public:
   explicit LayerNormOp(OpKernelConstruction *context) : OpKernel(context) {
     LOG(INFO) << "new LayerNormOp";

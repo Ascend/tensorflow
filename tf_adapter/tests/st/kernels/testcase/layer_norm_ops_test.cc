@@ -32,7 +32,7 @@ TEST(LayerNormOpTest, TestLayerNorm) {
   OpKernelConstruction *context = new OpKernelConstruction(
       DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
       input_memory_types, output_types, output_memory_types, 1, nullptr);
-  LayerNormOp<float> layer_norm(context);
+  LayerNormOp layer_norm(context);
   OpKernelContext *ctx = nullptr;
   layer_norm.Compute(ctx);
   layer_norm.IsExpensive();

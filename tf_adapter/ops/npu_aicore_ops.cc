@@ -384,6 +384,9 @@ REGISTER_OP("LayerNorm")
         if (begin_norm_axis < 0) {
           begin_norm_axis += real_dim_num;
         }
+        if (begin_norm_axis < 0 || begin_norm_axis >= real_dim_num) {
+          return errors::InvalidArgument("begin_norm_axis is invalid");
+        }
         ShapeHandle input_shape_handle;
         TF_RETURN_IF_ERROR(c->WithRank(c->input(0), real_dim_num, &input_shape_handle));
         ShapeHandle out_shape_handle;
