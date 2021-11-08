@@ -1,8 +1,8 @@
 # source file:python/npu_bridge/estimator/npu_ops.py
 
-def initialize_system(name = None):
+def initialize_system(name=None):
 
-def shutdown_system(name = None):
+def shutdown_system(name=None):
 
 def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
 
