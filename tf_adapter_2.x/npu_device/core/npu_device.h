@@ -131,7 +131,8 @@ class NpuDevice {
                       TF_Status *status);
 
   tensorflow::Status GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
-                                      TFE_TensorHandle **inputs, bool &loop, tensorflow::GraphDef *def);
+                                      TFE_TensorHandle **inputs, bool &loop, bool &builtin_loop,
+                                      tensorflow::GraphDef *def);
 
   uint64_t AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
                            const tensorflow::GraphDef &def, bool loop, TF_Status *status);
