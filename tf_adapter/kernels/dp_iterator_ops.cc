@@ -22,16 +22,6 @@
 
 namespace tensorflow {
 namespace data {
-namespace {
-// See documentation in ../../ops/dataset_ops.cc for a high-level
-// description of the following ops.
-const char kAnonymousIterator[] = "AnonymousIterator";
-const char kAnonymousIteratorV2[] = "AnonymousIteratorV2";
-const char kIteratorVariantTypeName[] = "tensorflow::Iterator";
-const char kOutputShapes[] = "output_shapes";
-const char kOutputTypes[] = "output_types";
-}  // namespace
-
 void DpMakeIteratorOp::Compute(OpKernelContext *ctx) {
   ADP_LOG(INFO) << "===Begin Computer MakeIterator===";
   CHECK_NOT_NULL(ctx);

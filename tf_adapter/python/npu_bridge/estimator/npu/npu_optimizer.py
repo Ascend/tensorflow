@@ -34,15 +34,14 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras import optimizers
-from npu_bridge.hccl import hccl_ops
-from npu_bridge.estimator import npu_ops
-
-from npu_bridge.helper import helper
-gen_npu_ops = helper.get_gen_ops();
-
 from tensorflow.python.platform import tf_logging as logging
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.estimator.npu import util
+from npu_bridge.hccl import hccl_ops
+from npu_bridge.estimator import npu_ops
+from npu_bridge.helper import helper
+
+gen_npu_ops = helper.get_gen_ops()
 
 def allreduce(tensor, average=True):
     """
@@ -65,8 +64,8 @@ def allreduce(tensor, average=True):
     if isinstance(tensor, tf.IndexedSlices):
         # For IndexedSlices, do two allgathers intead of an allreduce.
         logging.debug("HcomAllgather...")
-        values=hccl_ops.allgather(tensor.values, size)
-        indices=hccl_ops.allgather(tensor.indices, size)
+        values = hccl_ops.allgather(tensor.values, size)
+        indices = hccl_ops.allgather(tensor.indices, size)
 
         if values is None:
             raise ValueError('the result of tf.HcomAllgather([tensor.values]) is empty')
@@ -77,19 +76,20 @@ def allreduce(tensor, average=True):
         rank_size = tf.cast(size, tensor.values.dtype)
         new_values = tf.div(values, rank_size) if average else values
 
-        return tf.IndexedSlices(new_values, indices,dense_shape=tensor.dense_shape)
+        return tf.IndexedSlices(new_values, indices, dense_shape=tensor.dense_shape)
 
     else:
         logging.debug("HcomAllReduce...")
-        summed_tensor=hccl_ops.allreduce(tensor,"sum")
+        summed_tensor = hccl_ops.allreduce(tensor, "sum")
 
-        if summed_tensor is None:# and summed_tensor:
+        if summed_tensor is None:  # and summed_tensor:
             raise ValueError('the result of tf.DavinciAllreduce([tensor]) is empty')
 
         rank_size = tf.cast(size, dtype=tensor.dtype)
         new_tensor = tf.div(summed_tensor, rank_size) if average else summed_tensor
 
         return new_tensor
+
 
 def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
     basic = NPUBasics("")
@@ -98,10 +98,10 @@ def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
     if isinstance(tensor, tf.IndexedSlices):
         # For IndexedSlices, do two allgathers intead of a reduce.
         logging.debug("HcomAllgather...")
-        values=hccl_ops.allgather(tensor.values, size)
-        indices=hccl_ops.allgather(tensor.indices, size)
+        values = hccl_ops.allgather(tensor.values, size)
+        indices = hccl_ops.allgather(tensor.indices, size)
 
-        if values is  None:
+        if values is None:
             raise ValueError('the result of tf.HcomAllgather([tensor.values]) is empty')
         if indices is None:
             raise ValueError('the result of tf.HcomAllgather([tensor.indices]) is empty')
@@ -110,7 +110,7 @@ def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
         rank_size = tf.cast(size, tensor.values.dtype)
         new_values = tf.div(values, rank_size) if average else values
 
-        return tf.IndexedSlices(new_values, indices,dense_shape=tensor.dense_shape)
+        return tf.IndexedSlices(new_values, indices, dense_shape=tensor.dense_shape)
 
     else:
         logging.debug("HcomReduce...")
@@ -118,8 +118,8 @@ def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
         if local_rank_id == None or int(local_rank_id) < 0:
             raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
 
-        summed_tensor=hccl_ops.reduce(tensor,"sum", root_rank, fusion, fusion_id)
-        if summed_tensor is None:# and summed_tensor:
+        summed_tensor = hccl_ops.reduce(tensor, "sum", root_rank, fusion, fusion_id)
+        if summed_tensor is None:  # and summed_tensor:
             raise ValueError('the result of tf.DavinciReduce([tensor]) is empty')
         if root_rank != int(local_rank_id):
             return summed_tensor
@@ -128,161 +128,153 @@ def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
             new_tensor = tf.div(summed_tensor, rank_size) if average else summed_tensor
             return new_tensor
 
+
 class NPUOptimizer(optimizer.Optimizer):
-  """An optimizer that wraps another tf.Optimizer that can using an allreduce to
-  average gradient values before applying gradients to model weights when
-  'is_distributed' is True. And applies loss scaling in backprop when 'is_loss_scale'
-  is True. 'is_tailing_optimization' is used to determine whether to enable
-  communication tailing optimization to improve training performance,
-  this setting only takes effect when 'is_distributed' is True. """
-
-  def __init__(self, opt, loss_scale_manager=None, is_distributed=False, is_loss_scale=False,
-                is_tailing_optimization=False, name=None):
-    """Construct a loss scaling optimizer.
-
-    Args:
-        opt: The actual optimizer that will be used to compute and apply the
-            gradients. Must be an implementation of the
-            `tf.compat.v1.train.Optimizer` interface.
-        loss_scale_manager: A LossScaleManager object.
+    """An optimizer that wraps another tf.Optimizer that can using an allreduce to
+    average gradient values before applying gradients to model weights when
+    'is_distributed' is True. And applies loss scaling in backprop when 'is_loss_scale'
+    is True. 'is_tailing_optimization' is used to determine whether to enable
+    communication tailing optimization to improve training performance,
+    this setting only takes effect when 'is_distributed' is True.
     """
-    self._opt = opt
-    self._loss_scale_manager = loss_scale_manager
-    self._float_status = tf.constant([0.0], dtype=tf.float32)
-    self._is_distributed = is_distributed
-    self._is_loss_scale = is_loss_scale
-    self._is_tailing_optimization = is_tailing_optimization
-    if is_loss_scale and loss_scale_manager is None:
-      raise ValueError("is_loss_scale is True, loss_scale_manager can not be None")
-    if name is None:
-      name = "NPUOptimizer{}".format(type(opt).__name__)
-    self._name = name
-    super(NPUOptimizer, self).__init__(name=self._name, use_locking=False)
 
-  def compute_gradients(self,
-                        loss,
-                        var_list=None,
-                        gate_gradients=optimizer.Optimizer.GATE_OP,
-                        aggregation_method=None,
-                        colocate_gradients_with_ops=False,
-                        grad_loss=None):
-    """Compute gradients. See base class `tf.compat.v1.train.Optimizer`."""
-    if self._is_loss_scale:
-      loss_scale = self._loss_scale_manager.get_loss_scale()
-      if context.executing_eagerly():
+    def __init__(self, opt, loss_scale_manager=None, is_distributed=False, is_loss_scale=False,
+                 is_tailing_optimization=False, name=None):
+        """Construct a loss scaling optimizer.
 
-        def scaled_loss():
-          loss_val = loss()
-          return loss_val * math_ops.cast(loss_scale, loss_val.dtype.base_dtype)
-      else:
-        if callable(loss):
-          loss_val = loss()
+        Args:
+            opt: The actual optimizer that will be used to compute and apply the
+                gradients. Must be an implementation of the
+                `tf.compat.v1.train.Optimizer` interface.
+            loss_scale_manager: A LossScaleManager object.
+        """
+        self._opt = opt
+        self._loss_scale_manager = loss_scale_manager
+        self._float_status = tf.constant([0.0], dtype=tf.float32)
+        self._is_distributed = is_distributed
+        self._is_loss_scale = is_loss_scale
+        self._is_tailing_optimization = is_tailing_optimization
+        if is_loss_scale and loss_scale_manager is None:
+            raise ValueError("is_loss_scale is True, loss_scale_manager can not be None")
+        if name is None:
+            name = "NPUOptimizer{}".format(type(opt).__name__)
+        self._name = name
+        super(NPUOptimizer, self).__init__(name=self._name, use_locking=False)
+
+    def compute_gradients(self,
+                          loss,
+                          var_list=None,
+                          gate_gradients=optimizer.Optimizer.GATE_OP,
+                          aggregation_method=None,
+                          colocate_gradients_with_ops=False,
+                          grad_loss=None):
+        """Compute gradients. See base class `tf.compat.v1.train.Optimizer`."""
+        if self._is_loss_scale:
+            loss_scale = self._loss_scale_manager.get_loss_scale()
+            loss_value = loss() if callable(loss) else loss
+            scaled_loss = loss_value * math_ops.cast(loss_scale, loss_value.dtype.base_dtype)
+            self._float_status = gen_npu_ops.npu_alloc_float_status()
         else:
-          loss_val = loss
-        scaled_loss = loss_val * math_ops.cast(loss_scale,
-                                              loss_val.dtype.base_dtype)
+            scaled_loss = loss
 
-      self._float_status = gen_npu_ops.npu_alloc_float_status()
-    else :
-      scaled_loss = loss
+        logging.debug("compute_gradients...")
+        gradients = self._opt.compute_gradients(
+            scaled_loss,
+            var_list=var_list,
+            gate_gradients=gate_gradients,
+            aggregation_method=aggregation_method,
+            colocate_gradients_with_ops=colocate_gradients_with_ops,
+            grad_loss=grad_loss)
+        if not self._is_distributed:
+            if self._is_loss_scale:
+                return self._down_scale(gradients, loss_scale)
+            else:
+                return gradients
 
-    logging.debug("compute_gradients...")
-    gradients = self._opt.compute_gradients(
-        scaled_loss,
-        var_list=var_list,
-        gate_gradients=gate_gradients,
-        aggregation_method=aggregation_method,
-        colocate_gradients_with_ops=colocate_gradients_with_ops,
-        grad_loss=grad_loss)
-    if not self._is_distributed:
-      if self._is_loss_scale:
-        return self._down_scale(gradients, loss_scale)
-      else:
-        return gradients
+        averaged_gradients = self._averaged_gradients(gradients)
+        if self._is_loss_scale:
+            return self._down_scale(averaged_gradients, loss_scale)
+        else:
+            return averaged_gradients
 
-    averaged_gradients = self._averaged_gradients(gradients)
-    if self._is_loss_scale:
-      return self._down_scale(averaged_gradients, loss_scale)
-    else:
-      return averaged_gradients
+    def apply_gradients(self, grads_and_vars, global_step=None, name=None):
+        """Apply gradients. See base class `tf.compat.v1.train.Optimizer`."""
 
-  def apply_gradients(self, grads_and_vars, global_step=None, name=None):
-    """Apply gradients. See base class `tf.compat.v1.train.Optimizer`."""
+        if self._is_loss_scale:
+            if not self._is_tailing_optimization:
+                grads = [g for (g, _) in grads_and_vars]
+                self._reduce_all(grads)
 
-    if self._is_loss_scale:
-      if not self._is_tailing_optimization:
-        grads = [g for (g, _) in grads_and_vars]
-        self._reduce_all(grads)
+            def true_apply_gradients_fn():
+                def true_apply_gradients(grads_and_vars, global_step=None, name=None):
+                    return self._opt.apply_gradients(grads_and_vars, global_step, name)
 
-      def true_apply_gradients_fn():
-        def true_apply_gradients(grads_and_vars, global_step=None, name=None):
+                return true_apply_gradients(grads_and_vars, global_step, name)
+
+            update_vars = control_flow_ops.cond(self._is_overall_finite,
+                                                true_apply_gradients_fn,
+                                                gen_control_flow_ops.no_op)
+
+            # Potentially adjust gradient scale in case of finite gradients.
+            return control_flow_ops.group(
+                update_vars,
+                self._loss_scale_manager.update_loss_scale(self._is_overall_finite))
+        else:
             return self._opt.apply_gradients(grads_and_vars, global_step, name)
 
-        return true_apply_gradients(grads_and_vars, global_step, name)
-
-      update_vars = control_flow_ops.cond(self._is_overall_finite,
-                            true_apply_gradients_fn,
-                            gen_control_flow_ops.no_op)
-
-      # Potentially adjust gradient scale in case of finite gradients.
-      return control_flow_ops.group(
-          update_vars,
-          self._loss_scale_manager.update_loss_scale(self._is_overall_finite))
-    else:
-        return self._opt.apply_gradients(grads_and_vars, global_step, name)
-
-  def _down_scale(self, grads_vars, loss_scale):
-    # Down scale grads by the loss_scale.
-    gv = []
-    inv_loss_scale = gen_math_ops.reciprocal(loss_scale)
-    for g, v in grads_vars:
-      if g is not None:
-        gv.append((g * math_ops.cast(inv_loss_scale, g.dtype.base_dtype), v))
-      else:
-        gv.append((g, v))
-    return gv
-
-  def _reduce_all(self, grads):
-    with tf.get_default_graph().control_dependencies(grads):
-      local_float_status = gen_npu_ops.npu_get_float_status(self._float_status)
-      cleared_float_status = gen_npu_ops.npu_clear_float_status(local_float_status)
-
-    if self._is_distributed:
-      with tf.get_default_graph().control_dependencies([local_float_status]):
-        aggregated_float_status = hccl_ops.allreduce([self._float_status], "sum", fusion=0)
-        self._is_overall_finite = math_ops.reduce_all(tf.equal(aggregated_float_status,
-                                                      cleared_float_status))
-    else:
-      self._is_overall_finite = math_ops.reduce_all(tf.equal(self._float_status,
-                                                      cleared_float_status))
-
-  def get_slot(self, *args, **kwargs):
-    """Calls this same method on the underlying optimizer."""
-    return self._opt.get_slot(*args, **kwargs)
-
-  def get_slot_names(self, *args, **kwargs):
-    """Calls this same method on the underlying optimizer."""
-    return self._opt.get_slot_names(*args, **kwargs)
-
-  def variables(self, *args, **kwargs):
-    """Calls this same method on the underlying optimizer."""
-    return self._opt.variables(*args, **kwargs)
-
-  def _averaged_gradients(self, gradients):
-    averaged_gradients = []
-    grads = []
-    with tf.name_scope(self._name + "_Allreduce"):
-        for grad, var in gradients:
-            grads.append(grad)
-            if self._is_loss_scale and (len(grads) == len(gradients)) and self._is_tailing_optimization:
-              self._reduce_all(grads)
-              with tf.get_default_graph().control_dependencies([self._is_overall_finite]):
-                avg_grad = allreduce(grad, True) if grad is not None else None
-                averaged_gradients.append((avg_grad, var))
+    def _down_scale(self, grads_vars, loss_scale):
+        # Down scale grads by the loss_scale.
+        gv = []
+        inv_loss_scale = gen_math_ops.reciprocal(loss_scale)
+        for g, v in grads_vars:
+            if g is not None:
+                gv.append((g * math_ops.cast(inv_loss_scale, g.dtype.base_dtype), v))
             else:
-              avg_grad = allreduce(grad, True) if grad is not None else None
-              averaged_gradients.append((avg_grad, var))
-    return averaged_gradients
+                gv.append((g, v))
+        return gv
+
+    def _reduce_all(self, grads):
+        with tf.get_default_graph().control_dependencies(grads):
+            local_float_status = gen_npu_ops.npu_get_float_status(self._float_status)
+            cleared_float_status = gen_npu_ops.npu_clear_float_status(local_float_status)
+
+        if self._is_distributed:
+            with tf.get_default_graph().control_dependencies([local_float_status]):
+                aggregated_float_status = hccl_ops.allreduce([self._float_status], "sum", fusion=0)
+                self._is_overall_finite = math_ops.reduce_all(tf.equal(aggregated_float_status,
+                                                                       cleared_float_status))
+        else:
+            self._is_overall_finite = math_ops.reduce_all(tf.equal(self._float_status,
+                                                                   cleared_float_status))
+
+    def get_slot(self, *args, **kwargs):
+        """Calls this same method on the underlying optimizer."""
+        return self._opt.get_slot(*args, **kwargs)
+
+    def get_slot_names(self, *args, **kwargs):
+        """Calls this same method on the underlying optimizer."""
+        return self._opt.get_slot_names(*args, **kwargs)
+
+    def variables(self, *args, **kwargs):
+        """Calls this same method on the underlying optimizer."""
+        return self._opt.variables(*args, **kwargs)
+
+    def _averaged_gradients(self, gradients):
+        averaged_gradients = []
+        grads = []
+        with tf.name_scope(self._name + "_Allreduce"):
+            for grad, var in gradients:
+                grads.append(grad)
+                if self._is_loss_scale and (len(grads) == len(gradients)) and self._is_tailing_optimization:
+                    self._reduce_all(grads)
+                    with tf.get_default_graph().control_dependencies([self._is_overall_finite]):
+                        avg_grad = allreduce(grad, True) if grad is not None else None
+                        averaged_gradients.append((avg_grad, var))
+                else:
+                    avg_grad = allreduce(grad, True) if grad is not None else None
+                    averaged_gradients.append((avg_grad, var))
+        return averaged_gradients
+
 
 class NPUDistributedOptimizer(tf.train.Optimizer):
     """
@@ -400,11 +392,13 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
                 averaged_gradients.append((avg_grad, var))
         return averaged_gradients
 
+
 class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
     """
     An optimizer that wraps another keras Optimizer, using an allreduce to
     average gradient values before applying gradients to model weights.
     """
+
     def __init__(self, optimizer, name="NpuKerasOptimizer", **kwargs):
         """
         Construct a new KerasDistributeOptimizer, which uses another optimizer
@@ -418,6 +412,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         super(KerasDistributeOptimizer, self).__init__(name, **kwargs)
         self._optimizer = optimizer
         old_get_gradient = self._optimizer.get_gradients
+
         def new_get_gradient(loss, params):
             grads = old_get_gradient(loss, params)
             rank_size = os.getenv('RANK_SIZE', '1')
@@ -429,11 +424,11 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_grads.append(avg_grad)
             return averaged_grads
+
         self._optimizer.get_gradients = new_get_gradient
 
     def get_updates(self, loss, params):
         return self._optimizer.get_updates(loss, params)
-
 
     def _compute_gradients(self, loss, var_list, grad_loss=None):
         gradients = self._optimizer._compute_gradients(loss, var_list, grad_loss)
@@ -457,6 +452,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         base_config = super(KerasDistributeOptimizer, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
 def npu_distributed_optimizer_wrapper(optimizer):
     """
     An optimizer that wraps Optimizer, using an allreduce to
@@ -467,6 +463,7 @@ def npu_distributed_optimizer_wrapper(optimizer):
     rank_size = os.getenv('RANK_SIZE')
     if hasattr(optimizer, "compute_gradients"):
         org_compute_gradients = optimizer.compute_gradients
+
         def _npu_compute_gradients(*args, **kwargs):
             """
             In DistributedOptimizer, compute_gradients() is overriden to also
@@ -481,10 +478,12 @@ def npu_distributed_optimizer_wrapper(optimizer):
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_gradients.append((avg_grad, var))
             return averaged_gradients
+
         optimizer.compute_gradients = _npu_compute_gradients
 
     if hasattr(optimizer, "get_gradients"):
         org_get_gradients = optimizer.get_gradients
+
         def _npu_get_gradients(loss, params):
             grads = org_get_gradients(loss, params)
             if rank_size == None or int(rank_size) <= 1:
@@ -495,10 +494,12 @@ def npu_distributed_optimizer_wrapper(optimizer):
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_grads.append(avg_grad)
             return averaged_grads
+
         optimizer.get_gradients = _npu_get_gradients
 
     if hasattr(optimizer, "_compute_gradients"):
         org_compute_gradients = optimizer._compute_gradients
+
         def _npu_compute_gradients(loss, var_list, grad_loss=None):
             gradients = org_compute_gradients(loss, var_list, grad_loss)
             if rank_size == None or int(rank_size) <= 1:
@@ -509,9 +510,11 @@ def npu_distributed_optimizer_wrapper(optimizer):
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_grads.append((avg_grad, var))
             return averaged_grads
+
         optimizer._compute_gradients = _npu_compute_gradients
 
     return optimizer
+
 
 def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
     mean_reduce = False
@@ -524,8 +527,8 @@ def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl
     for value in values:
         if isinstance(value, tf.IndexedSlices):
             # For IndexedSlices, do two allgathers intead of an allreduce.
-            tensor_values=hccl_ops.allgather(value.values, size, group)
-            tensor_indices=hccl_ops.allgather(value.indices, size, group)
+            tensor_values = hccl_ops.allgather(value.values, size, group)
+            tensor_indices = hccl_ops.allgather(value.indices, size, group)
 
             if tensor_values is None:
                 raise ValueError('the result of tf.HcomAllgather([value.values]) is empty')
@@ -545,6 +548,7 @@ def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl
             rank_size = tf.cast(size, dtype=value.dtype)
             reduced_values.append(tf.div(summed_tensor, rank_size) if mean_reduce else summed_tensor)
     return reduced_values
+
 
 def npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
     if isinstance(values, (list, tuple,)):

@@ -19,51 +19,51 @@ import util_global
 
 class VisitCall(ast.NodeVisitor):
     def __init__(self):
-        self.calls = []
-        self.linenos = []
-        self._current = []
         self._in_call = False
+        self._current_visit = []
+        self.call_nodes = []
+        self.line_nos = []
 
     def visit_Call(self, node):
-        self._current = []
         self._in_call = True
+        self._current_visit = []
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
         if self._in_call:
-            self._current.append(node.attr)
+            self._current_visit.append(node.attr)
         self.generic_visit(node)
 
     def visit_Name(self, node):
         if self._in_call:
-            self._current.append(node.id)
-            self.calls.append('.'.join(self._current[::-1]))
-            self.linenos.append(getattr(node, "lineno", "None"))
+            self._current_visit.append(node.id)
+            self.call_nodes.append('.'.join(self._current_visit[::-1]))
+            self.line_nos.append(getattr(node, "lineno", "None"))
             # Reset the state
-            self._current = []
             self._in_call = False
+            self._current_visit = []
         self.generic_visit(node)
 
 class VisitAttr(ast.NodeVisitor):
     def __init__(self):
-        self.attrs = []
-        self.linenos = []
-        self._current = []
         self._in_attr = False
+        self._current_visit = []
+        self.attr_nodes = []
+        self.line_nos = []
 
     def visit_Attribute(self, node):
         self._in_attr = True
-        self._current.append(node.attr)
+        self._current_visit.append(node.attr)
         self.generic_visit(node)
 
     def visit_Name(self, node):
         if self._in_attr:
-            self._current.append(node.id)
-            self.attrs.append('.'.join(self._current[::-1]))
-            self.linenos.append(getattr(node, "lineno", "None"))
+            self._current_visit.append(node.id)
+            self.attr_nodes.append('.'.join(self._current_visit[::-1]))
+            self.line_nos.append(getattr(node, "lineno", "None"))
             # Reset the state
-            self._current = []
             self._in_attr = False
+            self._current_visit = []
         self.generic_visit(node)
 
 class VisitUnsupportImport(ast.NodeVisitor):
@@ -116,13 +116,13 @@ def get_tf_api(file_name):
                          'tf.keras.layers.SpatialDropout1D', 'tf.keras.layers.SpatialDropout2D',
                          'tf.keras.layers.SpatialDropout3D']
     for module in import_list:
-        for i in range(len(visitor.calls)):
-            if "".join([module , '.']) in visitor.calls[i] and visitor.calls[i].split('.')[0] == module:
-                api.append(visitor.calls[i])
-                lineno.append(visitor.linenos[i])
+        for i in range(len(visitor.call_nodes)):
+            if "".join([module , '.']) in visitor.call_nodes[i] and visitor.call_nodes[i].split('.')[0] == module:
+                api.append(visitor.call_nodes[i])
+                lineno.append(visitor.line_nos[i])
 
             # get tf api using keras dropout
-            if visitor.calls[i] in keras_dropout_api:
+            if visitor.call_nodes[i] in keras_dropout_api:
                 util_global.set_value('use_keras_dropout', True)
     return api, lineno
 
@@ -136,10 +136,10 @@ def get_tf_enume(file_name, enume_list):
     # get tensorflow enume api
     api = []
     lineno = []
-    for i in range(len(visitor.attrs)):
-        if visitor.attrs[i] in enume_list:
-            api.append(visitor.attrs[i])
-            lineno.append(visitor.linenos[i])
+    for i in range(len(visitor.attr_nodes)):
+        if visitor.attr_nodes[i] in enume_list:
+            api.append(visitor.attr_nodes[i])
+            lineno.append(visitor.line_nos[i])
     return api, lineno
 
 def get_unsupport_api(file_name):
@@ -155,14 +155,14 @@ def get_unsupport_api(file_name):
     api = []
     lineno = []
     module = []
-    for i in range(len(visitor.calls)):
-        imports = visitor.calls[i].split('.')[0]
-        if imports in unsupportor.imports or visitor.calls[i].startswith('nvml'):
-            if visitor.calls[i].startswith('nvml'):
+    for i in range(len(visitor.call_nodes)):
+        imports = visitor.call_nodes[i].split('.')[0]
+        if imports in unsupportor.imports or visitor.call_nodes[i].startswith('nvml'):
+            if visitor.call_nodes[i].startswith('nvml'):
                 module.append('pynvml')
             else:
                 index = unsupportor.imports.index(imports)
                 module.append(unsupportor.import_modules[index])
-            api.append(visitor.calls[i])
-            lineno.append(visitor.linenos[i])
+            api.append(visitor.call_nodes[i])
+            lineno.append(visitor.line_nos[i])
     return api, module, lineno
