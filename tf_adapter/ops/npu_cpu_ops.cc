@@ -507,10 +507,12 @@ REGISTER_OP("OCRDetectionPostHandle")
     .Output("clipped_polys_data: int32")
     .Output("clipped_polys_offset: int32")
     .Output("clipped_polys_size: int32")
+    .Output("clipped_polys_num: int32")
     .SetShapeFn([](shape_inference::InferenceContext *c) {
       c->set_output(0, c->Vector(c->UnknownDim()));
       c->set_output(1, c->Vector(c->UnknownDim()));
       c->set_output(2, c->Vector(c->UnknownDim()));
+      c->set_output(3, c->Scalar());
       return Status::OK();
     });
 }  // namespace tensorflow
