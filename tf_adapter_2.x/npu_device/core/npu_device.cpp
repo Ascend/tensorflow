@@ -174,6 +174,8 @@ bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
   for (auto node : graph->op_nodes()) {
     if (node->IsWhileNode()) {
       if (*key != nullptr) {
+        DLOG() << "Skip check as no while node in graph";
+        *key = nullptr;
         return false;
       }
       *key = node;
@@ -1262,16 +1264,18 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     } else {
       uint64_t graph_id = kInvalidGeGraphId;
       bool loop = false;
+      bool builtin_loop = false;
       auto loop_graph = std::make_unique<tensorflow::GraphDef>();
       if (!dependent_host_resources.empty()) {
         NPU_CTX_REQUIRES_OK(s, GetAutoLoopGraph(context, optimize_graph.get(), pruned_inputs.size(),
-                                                pruned_inputs.data(), loop, loop_graph.get()));
+                                                pruned_inputs.data(), loop, builtin_loop, loop_graph.get()));
       } else {
         DLOG() << "Skip trans " << op_name << " to loop graph as no iterator resource dependencies";
         optimize_graph->ToGraphDef(loop_graph.get());
       }
 
-      LOG(INFO) << "Graph " << op_name << " can loop: " << (loop ? "true" : "false");
+      LOG(INFO) << "Graph " << op_name << " can loop: " << (loop ? "true" : "false")
+                << " builtin loop: " << (builtin_loop ? "true" : "false");
       if (kDumpExecutionDetail || kDumpGraph) {
         graph_dumper.DumpWithSubGraphs((loop ? "LOOP" : "NON-LOOP"), *loop_graph, lib_def);
       }
@@ -1280,6 +1284,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       *spec = CacheFuncSpec(op_name, op_reg_data, ndef, graph_id, std::move(loop_graph), lambda,
                             dependent_host_resources, "");
       reinterpret_cast<const npu::FuncSpec *>(spec->get())->SetNeedLoop(loop);
+      reinterpret_cast<const npu::FuncSpec *>(spec->get())->SetBuiltinLoop(builtin_loop);
     }
     return;
   } else {
@@ -1813,22 +1818,26 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
     if (TF_GetCode(status) != TF_OK) return;
   }
 
+  int64_t consume_resource_times = 1;
+  if (spec->NeedLoop() || spec->BuiltinLoop()) {
+    consume_resource_times = npu::global::g_npu_loop_size;
+  }
   for (const auto &resource : spec->DependentHostResources()) {
-    if (spec->NeedLoop() || kDumpExecutionDetail) {
-      LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << iterations_per_loop
+    if (spec->NeedLoop() || spec->BuiltinLoop() || kDumpExecutionDetail) {
+      LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << consume_resource_times
                 << " times";
     }
     const tensorflow::Tensor *tensor;
     NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(tf_inputs[resource.first], &tensor));
     // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
     bool need_loop = spec->NeedLoop();
-    auto done = [resource, iterations_per_loop, need_loop](const tensorflow::Status &s) {
+    auto done = [resource, consume_resource_times, need_loop](const tensorflow::Status &s) {
       if (need_loop || !s.ok() || kDumpExecutionDetail) {
-        LOG(INFO) << "Iterator resource " << resource.second->Name() << " consume " << iterations_per_loop
+        LOG(INFO) << "Iterator resource " << resource.second->Name() << " consume " << consume_resource_times
                   << " times done with status " << s.ToString();
       }
     };
-    NPU_CTX_REQUIRES_OK(status, resource.second->ConsumeAsync(*tensor, iterations_per_loop, done));
+    NPU_CTX_REQUIRES_OK(status, resource.second->ConsumeAsync(*tensor, consume_resource_times, done));
   }
 
   MaybeRebuildFuncSpecGraph(context, spec, status);
@@ -2070,13 +2079,15 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, co
  * @param def: tensorflow graph def
  */
 tensorflow::Status NpuDevice::GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *origin_graph, int num_inputs,
-                                               TFE_TensorHandle **inputs, bool &loop, tensorflow::GraphDef *def) {
+                                               TFE_TensorHandle **inputs, bool &loop, bool &builtin_loop,
+                                               tensorflow::GraphDef *def) {
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   std::unique_ptr<tensorflow::Graph> graph = std::make_unique<tensorflow::Graph>(lib_def);
   CopyGraph(*origin_graph, graph.get());
 
   tensorflow::Node *key;
   if (!IsGraphNeedLoop(graph.get(), &key)) {
+    builtin_loop = (key != nullptr);
     loop = false;
     graph->ToGraphDef(def);
     return tensorflow::Status::OK();
