@@ -27,7 +27,7 @@ public:
     LOG(INFO) << "del LayerNormOp";
   }
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "LayerNormOp Compute, num_inputs: " << context->num_inputs();
+    LOG(INFO) << "LayerNormOp Compute";
   }
   bool IsExpensive() override {
     LOG(INFO) << "in LayerNorm IsExpensive";
