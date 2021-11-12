@@ -60,9 +60,9 @@ TEST(LayerNormOpTest, TestLayerNormShapeInference) {
                                       {}, {}, {});
   std::vector<shape_inference::ShapeHandle> input_shapes;
   TF_CHECK_OK(reg->shape_inference_fn(&c));
-  ASSERT_EQ("[16, 32]", c.DebugString(c.output(0)));
-  ASSERT_EQ("[16, 1]", c.DebugString(c.output(1)));
-  ASSERT_EQ("[16, 1]", c.DebugString(c.output(2)));
+  ASSERT_EQ("[16,32]", c.DebugString(c.output(0)));
+  ASSERT_EQ("[16,1]", c.DebugString(c.output(1)));
+  ASSERT_EQ("[16,1]", c.DebugString(c.output(2)));
 }
 } // namespace
 } // namespace tensorflow
