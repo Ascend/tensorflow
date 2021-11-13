@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
-#
+# Copyright (C) 2019-2021. Huawei Technologies Co., Ltd. All rights reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-#
+
 #     http://www.apache.org/licenses/LICENSE-2.0
-#
+
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -55,29 +54,33 @@ import json
 import random
 import string
 
+
 def no_check_override():
     class _Manager:
         def __init__(self):
             pass
+
         def __enter__(self):
             self.__orign = estimator_lib.Estimator._assert_members_are_not_overridden
-            estimator_lib.Estimator._assert_members_are_not_overridden = lambda x : None
+            estimator_lib.Estimator._assert_members_are_not_overridden = lambda x: None
+
         def __exit__(self, exc_type, exc_val, exc_tb):
             estimator_lib.Estimator._assert_members_are_not_overridden = self.__orign
+
     return _Manager()
 
 
 def _wrap_computation_in_while_loop(iterations_per_loop_var, op_fn):
+    def computation(i):
+        with ops.control_dependencies([op_fn]):
+            return i + 1
 
-  def computation(i):
-    with ops.control_dependencies([op_fn]):
-      return i + 1
-
-  iterations = array_ops.identity(iterations_per_loop_var)
-  return control_flow_ops.while_loop(
+    iterations = array_ops.identity(iterations_per_loop_var)
+    return control_flow_ops.while_loop(
         lambda i: i < iterations,
         computation, [constant_op.constant(0)],
         parallel_iterations=1)
+
 
 class _OutfeedHostCall(object):
     def __init__(self, channel_name):
@@ -190,8 +193,7 @@ class _OutfeedHostCall(object):
             return []
         return npu_ops.outfeed_enqueue_op(inputs=tensors, channel_name=self._channel_name)
 
-
-    def record(self, host_calls): # ref def record(self, host_calls):@tpu_estimator.py+1618
+    def record(self, host_calls):  # ref def record(self, host_calls):@tpu_estimator.py+1618
         for name, host_call in host_calls.items():
             host_fn, tensor_list_or_dict = host_call
             self._names.append(name)
@@ -211,121 +213,45 @@ class _OutfeedHostCall(object):
                     self._tensor_dtypes[name].append(tensor.dtype)
                     self._tensor_shapes[name].append(tensor.shape)
 
+
 class NPUEstimatorSpec(model_fn_lib.EstimatorSpec):
     """Ops and objects returned from a `model_fn` and passed to an `NPUEstimator`.
 
     `NPUEstimatorSpec` fully defines the model to be run by an `Estimator`.
     """
+
     def __new__(cls,
-        mode,
-        predictions=None,
-        loss=None,
-        train_op=None,
-        eval_metric_ops=None,
-        export_outputs=None,
-        training_chief_hooks=None,
-        training_hooks=None,
-        scaffold=None,
-        evaluation_hooks=None,
-        prediction_hooks=None,
-        host_call=None):
-
-        """Creates a validated `EstimatorSpec` instance.
-
-        Depending on the value of `mode`, different arguments are required. Namely
-
-        * For `mode == ModeKeys.TRAIN`: required fields are `loss` and `train_op`.
-        * For `mode == ModeKeys.EVAL`: required field is `loss`.
-        * For `mode == ModeKeys.PREDICT`: required fields are `predictions`.
-
-        model_fn can populate all arguments independent of mode. In this case, some
-        arguments will be ignored by an `Estimator`. E.g. `train_op` will be
-        ignored in eval and infer modes. Example:
-
-        ```python
-        def my_model_fn(features, labels, mode):
-          predictions = ...
-          loss = ...
-          train_op = ...
-          return tf.estimator.EstimatorSpec(
-              mode=mode,
-              predictions=predictions,
-              loss=loss,
-              train_op=train_op)
-        ```
-
-        Alternatively, model_fn can just populate the arguments appropriate to the
-        given mode. Example:
-
-        ```python
-        def my_model_fn(features, labels, mode):
-          if (mode == tf.estimator.ModeKeys.TRAIN or
-              mode == tf.estimator.ModeKeys.EVAL):
-            loss = ...
-          else:
-            loss = None
-          if mode == tf.estimator.ModeKeys.TRAIN:
-            train_op = ...
-          else:
-            train_op = None
-          if mode == tf.estimator.ModeKeys.PREDICT:
-            predictions = ...
-          else:
-            predictions = None
-
-          return tf.estimator.EstimatorSpec(
-              mode=mode,
-              predictions=predictions,
-              loss=loss,
-              train_op=train_op)
-        ```
-
+                mode,
+                predictions=None,
+                loss=None,
+                train_op=None,
+                eval_metric_ops=None,
+                export_outputs=None,
+                training_chief_hooks=None,
+                training_hooks=None,
+                scaffold=None,
+                evaluation_hooks=None,
+                prediction_hooks=None,
+                host_call=None):
+        """
         Args:
-            mode: A `ModeKeys`. Specifies if this is training, evaluation or
-                prediction.
-            predictions: Predictions `Tensor` or dict of `Tensor`.
-            loss: Training loss `Tensor`. Must be either scalar, or with shape `[1]`.
-            train_op: Op for the training step.
-            eval_metric_ops: Dict of metric results keyed by name.
-                The values of the dict can be one of the following:
-                (1) instance of `Metric` class.
-                (2) Results of calling a metric function, namely a
-                `(metric_tensor, update_op)` tuple. `metric_tensor` should be
-                evaluated without any impact on state (typically is a pure computation
-                results based on variables.). For example, it should not trigger the
-                `update_op` or requires any input fetching.
-            export_outputs: Describes the output signatures to be exported to
-                `SavedModel` and used during serving.
-                A dict `{name: output}` where:
-                * name: An arbitrary name for this output.
-                * output: an `ExportOutput` object such as `ClassificationOutput`,
-                    `RegressionOutput`, or `PredictOutput`.
-                Single-headed models only need to specify one entry in this dictionary.
-                Multi-headed models should specify one entry for each head, one of
-                which must be named using
-                signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY.
-                If no entry is provided, a default `PredictOutput` mapping to
-                `predictions` will be created.
-            training_chief_hooks: Iterable of `tf.train.SessionRunHook` objects to
-                run on the chief worker during training.
-            training_hooks: Iterable of `tf.train.SessionRunHook` objects to run
-                on all workers during training.
-            scaffold: A `tf.train.Scaffold` object that can be used to set
-                initialization, saver, and more to be used in training.
-            evaluation_hooks: Iterable of `tf.train.SessionRunHook` objects to
-                run during evaluation.
-            prediction_hooks: Iterable of `tf.train.SessionRunHook` objects to
-                run during predictions.
+            mode: Reference tensorflow tf.estimator.EstimatorSpec model_dir.
+            predictions: Reference tensorflow tf.estimator.EstimatorSpec predictions.
+            loss: Reference tensorflow tf.estimator.EstimatorSpec loss.
+            train_op: Reference tensorflow tf.estimator.EstimatorSpec train_op.
+            eval_metric_ops: Reference tensorflow tf.estimator.EstimatorSpec eval_metric_ops.
+            export_outputs: Reference tensorflow tf.estimator.EstimatorSpec export_outputs.
+            training_chief_hooks: Reference tensorflow tf.estimator.EstimatorSpec training_chief_hooks.
+            training_hooks: Reference tensorflow tf.estimator.EstimatorSpec training_hooks.
+            scaffold: Reference tensorflow tf.estimator.EstimatorSpec scaffold.
+            evaluation_hooks: Reference tensorflow tf.estimator.EstimatorSpec evaluation_hooks.
+            prediction_hooks: Reference tensorflow tf.estimator.EstimatorSpec prediction_hooks.
             host_call:  A tuple of `func`, or a list of `tensor` or `dict`.Get	255
                 summary infomation, and send to host every step. Only used if mode	256
                 is `ModeKeys.TRAIN` or  `ModeKeys.EVAL`.
 
         Returns:
-            A validated `EstimatorSpec` object.
-
-        Raises:
-            ValueError: If validation fails.
-            TypeError: If any of the arguments is not the expected type.
+            A validated `NPUEstimatorSpec` object.
         """
         host_calls = {}
         if host_call is not None:
@@ -348,6 +274,7 @@ class NPUEstimatorSpec(model_fn_lib.EstimatorSpec):
         spec._host_call = host_call
         return spec
 
+
 class NPUEstimator(estimator_lib.Estimator):
     """Estimator with NPU support.
 
@@ -355,6 +282,7 @@ class NPUEstimator(estimator_lib.Estimator):
     replicating inputs and models for each core, and returning to host
     periodically to run hooks.
     """
+
     def __init__(self,
                  model_fn=None,
                  model_dir=None,
@@ -396,7 +324,7 @@ class NPUEstimator(estimator_lib.Estimator):
         # Init npu system: get task and device info from configuration file.
         if not self.__load_job_info(job_start_file):
             raise ValueError('Load job info failed, '
-                            'please check whether `JOB_ID` is set in environment variable')
+                             'please check whether `JOB_ID` is set in environment variable')
 
         # Check modie dir in NPUEstimator and NPURunConfig
         model_dir = self.__check_model_dir(model_dir, config)
@@ -425,6 +353,7 @@ class NPUEstimator(estimator_lib.Estimator):
 
     def __augment_model_fn(self, model_fn, model_dir, config):
         """Returns a new model_fn, which wraps the NPU support."""
+
         def _model_fn(features, labels, mode, params):
             """A Estimator `model_fn` for NPUEstimator."""
             model_fn_args = function_utils.fn_args(model_fn)
@@ -449,13 +378,15 @@ class NPUEstimator(estimator_lib.Estimator):
             npu_hooks = []
 
             if mode == model_fn_lib.ModeKeys.TRAIN:
-                if not isinstance(estimator_spec, NPUEstimatorSpec) and not isinstance(estimator_spec, model_fn_lib.EstimatorSpec):
+                if not isinstance(estimator_spec, NPUEstimatorSpec) and not isinstance(estimator_spec,
+                                                                                       model_fn_lib.EstimatorSpec):
                     raise RuntimeError('estimator_spec used by NPU train must have type '
-                        '`NPUEstimatorSpec` or `EstimatorSpec`. Got {}'.format(type(estimator_spec)))
+                                       '`NPUEstimatorSpec` or `EstimatorSpec`. Got {}'.format(type(estimator_spec)))
                 # 1. NPUBroadcastGlobalVariablesHook
                 rank_size = os.getenv('RANK_SIZE')
                 if rank_size != None and rank_size.isdigit() and int(rank_size) > 1 and not config.horovod_mode:
-                    npu_hooks.append(NPUBroadcastGlobalVariablesHook(self.__device_info._root_rank, self.__device_info._index))
+                    npu_hooks.append(
+                        NPUBroadcastGlobalVariablesHook(self.__device_info._root_rank, self.__device_info._index))
 
                 # 2. NPUCheckpointSaverHook
                 if config.save_checkpoints_steps or config.save_checkpoints_secs:
@@ -468,7 +399,7 @@ class NPUEstimator(estimator_lib.Estimator):
                 if isinstance(estimator_spec, NPUEstimatorSpec):
                     if estimator_spec._host_call is not None:
                         host_call = _OutfeedHostCall(mode)
-                        host_call.record({"host_call" : estimator_spec._host_call})
+                        host_call.record({"host_call": estimator_spec._host_call})
                         # add outfeed enqueue op
                         loss, train_op = estimator_spec.loss, estimator_spec.train_op
                         with ops.control_dependencies([train_op]):
@@ -482,7 +413,7 @@ class NPUEstimator(estimator_lib.Estimator):
                     npu_hooks.append(NPULogOutfeedSessionHook(sys.stderr))
 
                 # 3. set iterations per loop hook
-                if config.iterations_per_loop > 1 :
+                if config.iterations_per_loop > 1:
                     npu_hooks.append(SetIterationsVarHook(config.iterations_per_loop))
                     train_op = tf.group(estimator_spec.train_op, name="IterationOp")
                     estimator_spec = estimator_spec._replace(train_op=train_op)
@@ -494,13 +425,14 @@ class NPUEstimator(estimator_lib.Estimator):
                 estimator_spec = estimator_spec._replace(training_hooks=tuple(new_train_hooks))
 
             elif mode == model_fn_lib.ModeKeys.EVAL:
-                if not isinstance(estimator_spec, NPUEstimatorSpec) and not isinstance(estimator_spec, model_fn_lib.EstimatorSpec):
+                if not isinstance(estimator_spec, NPUEstimatorSpec) and not isinstance(estimator_spec,
+                                                                                       model_fn_lib.EstimatorSpec):
                     raise RuntimeError('estimator_spec used by NPU evaluate must have type '
-                        '`NPUEstimatorSpec` or `EstimatorSpec`. Got {}'.format(type(estimator_spec)))
+                                       '`NPUEstimatorSpec` or `EstimatorSpec`. Got {}'.format(type(estimator_spec)))
                 if isinstance(estimator_spec, NPUEstimatorSpec):
                     if estimator_spec._host_call is not None:
                         host_call = _OutfeedHostCall(mode)
-                        host_call.record({"host_call" : estimator_spec._host_call})
+                        host_call.record({"host_call": estimator_spec._host_call})
                         # add outfeed enqueue op
                         loss, train_op = estimator_spec.loss, estimator_spec.train_op
                         with ops.control_dependencies([loss]):
@@ -545,7 +477,7 @@ class NPUEstimator(estimator_lib.Estimator):
             raise ValueError(error_mag)
 
         profiling_types = ["training_trace", "task_trace", "op_trace"]
-        for option in profiling_options :
+        for option in profiling_options:
             if option not in profiling_types:
                 raise ValueError(error_mag)
 
@@ -576,7 +508,8 @@ class NPUEstimator(estimator_lib.Estimator):
                 if config._profiling_config._profiling_options is None:
                     raise ValueError('profiling_options must be set when use profiling')
                 else:
-                    custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(config._profiling_config._profiling_options)
+                    custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(
+                        config._profiling_config._profiling_options)
 
     def __load_mix_precision(self, config, custom_op):
         """Load mix precision config ,and add to custom_optimizers
@@ -687,9 +620,9 @@ class NPUEstimator(estimator_lib.Estimator):
         """
 
         if (config._dynamic_input_config is not None and
-            config._dynamic_input_config._input_shape is not None and
-            config._dynamic_input_config._dynamic_dims is not None and
-            config._dynamic_input_config._dynamic_node_type is not None):
+                config._dynamic_input_config._input_shape is not None and
+                config._dynamic_input_config._dynamic_dims is not None and
+                config._dynamic_input_config._dynamic_node_type is not None):
             custom_op.parameter_map["input_shape"].s = tf.compat.as_bytes(config._dynamic_input_config._input_shape)
             custom_op.parameter_map["dynamic_dims"].s = tf.compat.as_bytes(config._dynamic_input_config._dynamic_dims)
             custom_op.parameter_map["dynamic_node_type"].i = config._dynamic_input_config._dynamic_node_type
@@ -738,11 +671,13 @@ class NPUEstimator(estimator_lib.Estimator):
         if config._graph_memory_max_size is not None:
             custom_op.parameter_map["graph_memory_max_size"].s = tf.compat.as_bytes(str(config._graph_memory_max_size))
         if config._variable_memory_max_size is not None:
-            custom_op.parameter_map["variable_memory_max_size"].s = tf.compat.as_bytes(str(config._variable_memory_max_size))
+            custom_op.parameter_map["variable_memory_max_size"].s = tf.compat.as_bytes(
+                str(config._variable_memory_max_size))
         custom_op.parameter_map["graph_run_mode"].i = config.graph_run_mode
         custom_op.parameter_map["op_debug_level"].i = config.op_debug_level
         if config.enable_scope_fusion_passes is not None:
-            custom_op.parameter_map["enable_scope_fusion_passes"].s = tf.compat.as_bytes(config.enable_scope_fusion_passes)
+            custom_op.parameter_map["enable_scope_fusion_passes"].s = tf.compat.as_bytes(
+                config.enable_scope_fusion_passes)
         custom_op.parameter_map["enable_exception_dump"].i = config.enable_exception_dump
         if config._buffer_optimize is not None:
             custom_op.parameter_map["buffer_optimize"].s = tf.compat.as_bytes(config._buffer_optimize)
@@ -762,7 +697,8 @@ class NPUEstimator(estimator_lib.Estimator):
         custom_op.parameter_map["dynamic_input"].b = config._dynamic_input
         custom_op.parameter_map["dynamic_graph_execute_mode"].s = tf.compat.as_bytes(config._dynamic_graph_execute_mode)
         if config._dynamic_inputs_shape_range is not None:
-            custom_op.parameter_map["dynamic_inputs_shape_range"].s = tf.compat.as_bytes(config._dynamic_inputs_shape_range)
+            custom_op.parameter_map["dynamic_inputs_shape_range"].s = tf.compat.as_bytes(
+                config._dynamic_inputs_shape_range)
         if config._local_rank_id is not None:
             custom_op.parameter_map["local_rank_id"].i = config._local_rank_id
         if config._local_device_list is not None:
@@ -772,7 +708,6 @@ class NPUEstimator(estimator_lib.Estimator):
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)
         self.__load_op_precision_mode(config, custom_op)
-        
 
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)
@@ -802,7 +737,6 @@ class NPUEstimator(estimator_lib.Estimator):
         self.__load_mstune_config(config, custom_op)
 
         return config
-
 
     def __load_job_info(self, job_start_file):
         """Parse the file from the CSA."""

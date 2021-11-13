@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
+# Copyright (c) Huawei Technologies Co., Ltd. 2019-2021. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ from tensorflow.python.ops.nn_ops import _get_noise_shape
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import random_seed
 from tensorflow.contrib.util import loader
 from tensorflow.python.eager import context
 from tensorflow.python.framework import device
@@ -134,26 +135,6 @@ def _truncate_seed(seed):
     return seed % _MAXINT32  # Truncate to fit into 32-bit integer
 
 
-def get_seed(op_seed):
-    global_seed = ops.get_default_graph().seed
-
-    if global_seed is not None:
-        if op_seed is None:
-            op_seed = ops.get_default_graph()._last_id
-
-        seeds = _truncate_seed(global_seed), _truncate_seed(op_seed)
-    else:
-        if op_seed is not None:
-            seeds = DEFAULT_GRAPH_SEED, _truncate_seed(op_seed)
-        else:
-            seeds = None, None
-    # Avoid (0, 0) as the C++ ops interpret it as nondeterminism, which would
-    # be unexpected since Python docs say nondeterminism is (None, None).
-    if seeds == (0, 0):
-        return (0, _MAXINT32)
-    return seeds
-
-
 def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
     """The gradient for `gelu`.
 
@@ -180,7 +161,7 @@ def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
                          "range (0, 1], got %g" % keep_prob)
     if isinstance(keep_prob, float) and keep_prob == 1.0:
         return x
-    seed, seed2 = get_seed(seed)
+    seed, seed2 = random_seed.get_seed(seed)
     noise_shape = _get_noise_shape(x, noise_shape)
     gen_out = gen_npu_ops.drop_out_gen_mask(noise_shape, keep_prob, seed, seed2, name)
     result = gen_npu_ops.drop_out_do_mask(x, gen_out, keep_prob, name)

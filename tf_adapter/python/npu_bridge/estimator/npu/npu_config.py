@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
-#
+# Copyright (C) 2019-2021. Huawei Technologies Co., Ltd. All rights reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-#
+
 #     http://www.apache.org/licenses/LICENSE-2.0
-#
+
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -102,29 +101,15 @@ class NPURunConfig(run_config_lib.RunConfig):
             global step is increased `iterations_per_loop` times in one `Session.run`.
             It is recommended to be set as number of global steps for next checkpoint.
         profiling_config: The profiling configuration.
-        model_dir: Directory where model parameters, graph, etc are saved. If
-            `PathLike` object, the path will be resolved. If `None`, will use a
-            default value set by the Estimator.
-        tf_random_seed: Random seed for TensorFlow initializers.
-            Setting this value allows consistency between reruns.
-        save_summary_steps: Save summaries every this many steps.
-        save_checkpoints_steps: Save checkpoints every this many steps. Can not be
-            specified with `save_checkpoints_secs`.
-        save_checkpoints_secs: Save checkpoints every this many seconds. Can not
-            be specified with `save_checkpoints_steps`. Defaults to 600 seconds if
-            both `save_checkpoints_steps` and `save_checkpoints_secs` are not set
-            in constructor.  If both `save_checkpoints_steps` and
-            `save_checkpoints_secs` are None, then checkpoints are disabled.
-        session_config: A ConfigProto used to set session parameters, or None.
-        keep_checkpoint_max: The maximum number of recent checkpoint files to
-            keep. As new files are created, older files are deleted. If None or 0,
-            all checkpoint files are kept. Defaults to 5 (that is, the 5 most recent
-            checkpoint files are kept.)
-        keep_checkpoint_every_n_hours: Number of hours between each checkpoint
-            to be saved. The default value of 10,000 hours effectively disables
-            the feature.
-        log_step_count_steps: The frequency, in number of global steps, that the
-            global step/sec and the loss will be logged during training.
+        model_dir: Reference tensorflow tf.estimator.RunConfig model_dir.
+        tf_random_seed: Reference tensorflow tf.estimator.RunConfig tf_random_seed.
+        save_summary_steps: Reference tensorflow tf.estimator.RunConfig save_summary_steps.
+        save_checkpoints_steps: Reference tensorflow tf.estimator.RunConfig save_checkpoints_steps.
+        save_checkpoints_secs: Reference tensorflow tf.estimator.RunConfig save_checkpoints_secs.
+        session_config: Reference tensorflow tf.estimator.RunConfig session_config.
+        keep_checkpoint_max: Reference tensorflow tf.estimator.RunConfig keep_checkpoint_max.
+        keep_checkpoint_every_n_hours: Reference tensorflow tf.estimator.RunConfig keep_checkpoint_every_n_hours.
+        log_step_count_steps: Reference tensorflow tf.estimator.RunConfig log_step_count_steps.
         enabel_data_pre_proc: This is the switch of data preprocess.
         precision_mode: if train, default is: allow_fp32_to_fp16; if inference, default is: force_fp16.
         variable_format_optimize: enable or disable variable format optimize while graph

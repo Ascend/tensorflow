@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
+# Copyright (c) Huawei Technologies Co., Ltd. 2019-2021. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,9 @@ import  numbers
 from tensorflow.contrib.util import loader
 from tensorflow.python.platform import resource_loader
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import random_seed
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops.nn_ops import _get_noise_shape
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import dtypes
 from tensorflow.python.eager import context
@@ -73,49 +75,6 @@ def prelu(x, weight):
 def _truncate_seed(seed):
       return seed % _MAXINT32  # Truncate to fit into 32-bit integer
 
-# go/tf-wildcard-import
-def get_seed(op_seed):
-  global_seed = ops.get_default_graph().seed
-
-  if global_seed is not None:
-    if op_seed is None:
-      op_seed = ops.get_default_graph()._last_id
-
-    seeds = _truncate_seed(global_seed), _truncate_seed(op_seed)
-  else:
-    if op_seed is not None:
-      seeds = DEFAULT_GRAPH_SEED, _truncate_seed(op_seed)
-    else:
-      seeds = None, None
-  # Avoid (0, 0) as the C++ ops interpret it as nondeterminism, which would
-  # be unexpected since Python docs say nondeterminism is (None, None).
-  if seeds == (0, 0):
-    return (0, _MAXINT32)
-  return seeds
-
-def _get_noise_shape(x, noise_shape):
-  # If noise_shape is none return immediately.
-  if noise_shape is None:
-    return array_ops.shape(x)
-
-  try:
-    # Best effort to figure out the intended shape.
-    # If not possible, let the op to handle it.
-    # In eager mode exception will show up.
-    noise_shape_ = tensor_shape.as_shape(noise_shape)
-  except (TypeError, ValueError):
-    return noise_shape
-
-  if x.shape.dims is not None and len(x.shape.dims) == len(noise_shape_.dims):
-    new_dims = []
-    for i, dim in enumerate(x.shape.dims):
-      if noise_shape_.dims[i].value is None and dim.value is not None:
-        new_dims.append(dim.value)
-      else:
-        new_dims.append(noise_shape_.dims[i].value)
-    return tensor_shape.TensorShape(new_dims)
-
-  return noise_shape
 
 def dropout_v3(x, keep_prob, noise_shape=None, seed=None, name=None):
     """The gradient for `gelu`.
@@ -140,7 +99,7 @@ def dropout_v3(x, keep_prob, noise_shape=None, seed=None, name=None):
                          "range (0, 1], got %g" % keep_prob)
     if isinstance(keep_prob, float) and keep_prob == 1.0:
         return x
-    seed, seed2 = get_seed(seed)
+    seed, seed2 = random_seed.get_seed(seed)
     noise_shape = _get_noise_shape(x, noise_shape)
     gen_out = npu_aicore_ops.drop_out_gen_mask_v3(noise_shape, keep_prob, seed, seed2, name)
     result = npu_aicore_ops.drop_out_do_mask_v3(x, gen_out, keep_prob, name)
