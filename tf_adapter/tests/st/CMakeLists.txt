@@ -29,6 +29,8 @@ file(GLOB_RECURSE ST_SOURCES
     "kernels/testcase/non_zero_with_value_ops_test.cc"
     "kernels/testcase/geop_npu_test.cc"
     "util/testcase/*.cc"
+    "kernels/testcase/layer_norm_ops_test.cc"
+    "kernels/testcase/layer_norm_grad_ops_test.cc"
 )
 
 add_executable(tfadapter_stest
