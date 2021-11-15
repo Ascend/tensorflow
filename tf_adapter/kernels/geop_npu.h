@@ -29,6 +29,7 @@
 #include "graph/utils/graph_utils.h"
 #include "tune_api.h"
 #include <unordered_map>
+#include <atomic>
 
 namespace tensorflow {
 using AoeTuningFunc = AoeStatus (*)(ge::Graph &, std::vector<ge::Graph> &, ge::Session *,
@@ -59,9 +60,6 @@ class GeOp : public AsyncOpKernel {
                               std::vector<Tensor> &input_vec,
                               std::vector<std::string> &input_shapes,
                               std::vector<ge::Tensor> &inputs);
-
-  // prepare output tensor
-  Status BuildOutTensorInfo(OpKernelContext *ctx);
 
   // create input and output desc for NodeDef
   Status GenerateDesc(Node *&node);
@@ -96,6 +94,11 @@ class GeOp : public AsyncOpKernel {
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                         std::vector<std::string> &input_shapes);
+  int RunTuning(std::vector<Tensor> &input_vec, OpKernelContext *ctx);
+
+  std::string BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::string &graph);
+
+  void SetDynamicInput();
 
  private:
   static const std::string INPUT_DESC;
@@ -145,6 +148,8 @@ class GeOp : public AsyncOpKernel {
   std::map<string, string> tune_options_;
   std::string is_dynamic_getnext_;
   std::string placeholder_index_;
+
+  std::atomic_flag tuned_flag_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_

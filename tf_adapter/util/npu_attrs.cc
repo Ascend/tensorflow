@@ -68,9 +68,9 @@ Status GetEnvDeviceID(uint32_t &device_id) {
   int64 phy_device_id = -1;
   int64 logic_device_id = -1;
   const char* tmp_ascend_device_id = std::getenv("ASCEND_DEVICE_ID");
-  string env_ascend_device_id(tmp_ascend_device_id == nullptr ? "" : tmp_ascend_device_id);
+  std::string env_ascend_device_id(tmp_ascend_device_id == nullptr ? "" : tmp_ascend_device_id);
   const char* tmp_device_id = std::getenv("DEVICE_ID");
-  string env_device_id(tmp_device_id == nullptr ? "" : tmp_device_id);
+  std::string env_device_id(tmp_device_id == nullptr ? "" : tmp_device_id);
   if (env_ascend_device_id.empty() && env_device_id.empty()) {
     ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set session_device_id, session_device_id has a higher priority";
     LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set session_device_id, session_device_id has a higher priority";
@@ -113,7 +113,7 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
   delete[] buffer;
 }
 
-inline Status checkDumpStep(const string &dump_step) {
+inline Status checkDumpStep(const std::string &dump_step) {
   std::string tmp_dump_step = dump_step + "|";
   std::smatch result;
   std::vector<string> match_vecs;
@@ -139,7 +139,7 @@ inline Status checkDumpStep(const string &dump_step) {
   return Status::OK();
 }
 
-inline Status checkDumpMode(const string &dump_mode) {
+inline Status checkDumpMode(const std::string &dump_mode) {
   std::set<string> dump_mode_list = {"input", "output", "all"};
   std::set<string>::iterator iter;
 
@@ -150,7 +150,7 @@ inline Status checkDumpMode(const string &dump_mode) {
   }
 }
 
-inline Status checkDumpDebugMode(const string &dump_debug_mode) {
+inline Status checkDumpDebugMode(const std::string &dump_debug_mode) {
   std::set<string> dump_debug_mode_list = {"aicore_overflow", "atomic_overflow", "all"};
   std::set<string>::iterator iter;
 
@@ -161,7 +161,7 @@ inline Status checkDumpDebugMode(const string &dump_debug_mode) {
   }
 }
 
-inline Status CheckPath(const string &input, string &output) {
+inline Status CheckPath(const std::string &input, std::string &output) {
   if (mmIsDir(input.c_str()) != EN_OK) {
     return errors::InvalidArgument("the path ", input.c_str(), " is not directory.");
   }
@@ -176,7 +176,7 @@ inline Status CheckPath(const string &input, string &output) {
   return Status::OK();
 }
 
-inline Status CheckOpImplMode(const string &op_select_implmode) {
+inline Status CheckOpImplMode(const std::string &op_select_implmode) {
   std::set<string> op_impl_mode_list = {"high_precision", "high_performance",
                                         "high_precision_for_all", "high_performance_for_all"};
 
@@ -188,7 +188,7 @@ inline Status CheckOpImplMode(const string &op_select_implmode) {
   }
 }
 
-inline Status CheckAoeMode(const string &aoe_mode) {
+inline Status CheckAoeMode(const std::string &aoe_mode) {
   std::set<string> aoe_mode_list = {"1", "2", "3", "4"};
 
   if (aoe_mode_list.find(aoe_mode) != aoe_mode_list.end()) {
@@ -198,7 +198,7 @@ inline Status CheckAoeMode(const string &aoe_mode) {
   }
 }
 
-inline Status CheckInputShape(const string &input_shape) {
+inline Status CheckInputShape(const std::string &input_shape) {
   std::vector<std::string> inputs;
   Split(input_shape, inputs, ";");
   if (inputs.empty()) {
@@ -214,7 +214,7 @@ inline Status CheckInputShape(const string &input_shape) {
   return Status::OK();
 }
 
-inline Status CheckDynamicDims(const string &dynamic_dims) {
+inline Status CheckDynamicDims(const std::string &dynamic_dims) {
   std::vector<std::string> inputs;
   Split(dynamic_dims, inputs, ";");
   if (inputs.empty()) {
@@ -303,7 +303,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
   std::string stream_max_parallel_num;
-  string npuOptimizer;
+  std::string npuOptimizer;
   std::string is_tailing_optimization = std::to_string(false);
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
@@ -511,7 +511,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   bool mix_compile_mode = false;
   int iterations_per_loop = 1;
   bool lower_functional_ops = false;
-  string job = "default";
+  std::string job = "default";
   int task_index = 0;
   bool dynamic_input = false;
   std::string dynamic_graph_execute_mode = "dynamic_execute";
@@ -611,7 +611,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "default";
+  std::string job = "default";
   std::string task_index = "0";
   std::string dynamic_input = std::to_string(false);
   std::string dynamic_graph_execute_mode = "dynamic_execute";
@@ -621,7 +621,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
   std::string in_out_pair_flag = std::to_string(true);
   std::string in_out_pair;
   Status s = Status::OK();
-  string npuOptimizer;
+  std::string npuOptimizer;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     do_npu_optimizer = "1";
@@ -669,7 +669,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "default";
+  std::string job = "default";
   std::string task_index = "0";
   std::string dynamic_input = std::to_string(false);
   std::string dynamic_graph_execute_mode = "dynamic_execute";
@@ -757,7 +757,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string mix_compile_mode = std::to_string(false);
   std::string iterations_per_loop = "1";
   std::string lower_functional_ops = std::to_string(false);
-  string job = "default";
+  std::string job = "default";
   std::string task_index = "0";
   std::string local_rank_id = "-1";
   std::string local_device_list;
@@ -1110,7 +1110,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool mix_compile_mode = false;
   int iterations_per_loop = 1;
   bool lower_functional_ops = false;
-  string job = "localhost";
+  std::string job = "localhost";
   int task_index = 0;
   bool dynamic_input = false;
   std::string dynamic_graph_execute_mode = "dynamic_execute";
@@ -1158,15 +1158,17 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_dump_debug")) { enable_dump_debug = params.at("enable_dump_debug").b(); }
       if (enable_dump || enable_dump_debug) {
         if (params.count("dump_path")) {
-          string tmp_path = params.at("dump_path").s();
+          std::string tmp_path = params.at("dump_path").s();
           Status s = CheckPath(tmp_path, dump_path);
           if (!s.ok()) {
-            ADP_LOG(FATAL) << s.error_message();
-            LOG(FATAL) << s.error_message();
+            ADP_LOG(ERROR) << s.error_message();
+            LOG(ERROR) << s.error_message();
+            return errors::Internal(s.error_message());
           }
         } else {
-          ADP_LOG(FATAL) << "if use dump function, dump_path must be set.";
-          LOG(FATAL) << "if use dump function, dump_path must be set.";
+          ADP_LOG(ERROR) << "if use dump function, dump_path must be set.";
+          LOG(ERROR) << "if use dump function, dump_path must be set.";
+          return errors::Internal("if use dump function, dump_path must be set.");
         }
       }
       if (enable_dump) {
@@ -1286,7 +1288,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
               ADP_LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
-              LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
+              LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
+              return errors::Internal("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.");
             }
           }
           if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
@@ -1297,7 +1300,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         Status s = CheckLocalRankId(local_rank_id);
         if (!s.ok()) {
           ADP_LOG(ERROR) << s.error_message();
-          LOG(FATAL) << s.error_message();
+          LOG(ERROR) << s.error_message();
+          return errors::Internal(s.error_message());
         }
       }
       if (params.count("local_device_list")) {
@@ -1305,7 +1309,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         Status s = CheckDeviceList(local_device_list);
         if (!s.ok()) {
           ADP_LOG(ERROR) << s.error_message();
-          LOG(FATAL) << s.error_message();
+          LOG(ERROR) << s.error_message();
+          return errors::Internal(s.error_message());
         }
       }
       if (params.count("in_out_pair_flag")) { in_out_pair_flag = params.at("in_out_pair_flag").b(); }
@@ -1471,6 +1476,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["in_out_pair_flag"] = std::to_string(in_out_pair_flag);
   pass_options["in_out_pair"] = in_out_pair;
 
+  if (!node) {
+    ADP_LOG(ERROR) << "node is null.";
+    LOG(ERROR) << "node is null.";
+    return errors::Internal("node is null.");
+  }
   std::string attr_name;
   for (const auto &option : sess_options) {
     attr_name = std::string("_") + option.first;

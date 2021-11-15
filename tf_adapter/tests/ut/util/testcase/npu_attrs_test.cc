@@ -1,6 +1,13 @@
 #include "tf_adapter/util/npu_attrs.h"
 #include "gtest/gtest.h"
 #include <stdlib.h>
+#include "tensorflow/core/graph/graph.h"
+#include "tensorflow/core/graph/graph_constructor.h"
+#include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/platform/env.h"
+#include "tensorflow/core/platform/logging.h"
+#include "tensorflow/core/public/session_options.h"
+#include "tensorflow/core/common_runtime/optimization_registry.h"
 
 namespace tensorflow {
 Status CheckOpImplMode(const string &op_select_implmode);
@@ -64,6 +71,64 @@ setenv("NPU_COLLECT_PATH", "./collection", 1);
 setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
 string new_path = GetDumpPath();
 EXPECT_NE(new_path, "./dump_fold/");
+}
+
+TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableDump) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  session_options.config.mutable_graph_options()
+      ->mutable_optimizer_options()
+      ->set_do_function_inlining(true);
+  auto *custom_config = session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue enable_dump_debug = AttrValue();
+  enable_dump_debug.set_b(true);
+  (*custom_config->mutable_parameter_map())["enable_dump_debug"] = enable_dump_debug;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue dump_path = AttrValue();
+  dump_path.set_s("/invalid");
+  (*custom_config->mutable_parameter_map())["dump_path"] = dump_path;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  dump_path.set_s("/");
+  (*custom_config->mutable_parameter_map())["dump_path"] = dump_path;
+  AttrValue dump_step = AttrValue();
+  dump_step.set_s("777");
+  (*custom_config->mutable_parameter_map())["dump_step"] = dump_step;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  enable_dump_debug.set_b(false);
+  (*custom_config->mutable_parameter_map())["enable_dump_debug"] = enable_dump_debug;
+  AttrValue local_rank_id = AttrValue();
+  local_rank_id.set_i(777);
+  (*custom_config->mutable_parameter_map())["local_rank_id"] = local_rank_id;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  local_rank_id.set_i(0);
+  (*custom_config->mutable_parameter_map())["local_rank_id"] = local_rank_id;
+  AttrValue local_device_list = AttrValue();
+  local_device_list.set_s("invalid string");
+  (*custom_config->mutable_parameter_map())["local_device_list"] = local_device_list;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue dynamic_input = AttrValue();
+  dynamic_input.set_b(true);
+  (*custom_config->mutable_parameter_map())["dynamic_input"] = dynamic_input;
+  AttrValue dynamic_graph_execute_mode = AttrValue();
+  dynamic_graph_execute_mode.set_s("execute mode");
+  (*custom_config->mutable_parameter_map())["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
 }
 }
 } // end tensorflow
