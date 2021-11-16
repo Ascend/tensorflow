@@ -34,6 +34,6 @@ public:
     return false; }
 };
 
-REGISTER_KERNEL_BUILDER(Name("LayerNorm").Device(DEVICE_CPU), LayerNormOp);
+REGISTER_KERNEL_BUILDER(Name("FusedLayerNorm").Device(DEVICE_CPU), LayerNormOp);
 }  // namespace tensorflow
 

@@ -44,7 +44,7 @@ TEST(LayerNormGradOpTest, TestLayerNormGrad) {
 
 TEST(LayerNormGradOpTest, TestLayerNormGradShapeInference) {
   const OpRegistrationData *reg;
-  TF_CHECK_OK(OpRegistry::Global()->LookUp("LayerNormGrad", &reg));
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("FusedLayerNormGrad", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
