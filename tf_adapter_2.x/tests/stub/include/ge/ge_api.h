@@ -5,6 +5,8 @@
 #include <vector>
 #include <cstring>
 
+#include "tensorflow/core/graph/graph.h"
+
 namespace ge {
 Status GEInitialize(const std::map<std::string, std::string> &options);
 
@@ -34,8 +36,8 @@ class TensorDesc {
   DataType GetDataType() const { return type_; }
 
  private:
-  DataType type_;
-  Format format_;
+  DataType type_ = DT_FLOAT;
+  Format format_ = FORMAT_ND;
   Shape shape_;
 };
 
@@ -81,13 +83,16 @@ class ComputeGraph {
  public:
   explicit ComputeGraph(const std::string &name) {}
   ~ComputeGraph() = default;
+  std::shared_ptr<tensorflow::Graph> graph;
 };
 
 class Graph {
  public:
   Graph() = default;
   ~Graph() = default;
-  void SetNeedIteration(bool need_iteration) {}
+  void SetNeedIteration(bool v) { need_iteration = v; }
+  bool need_iteration = false;
+  std::shared_ptr<tensorflow::Graph> graph;
 };
 
 class Session {
@@ -98,19 +103,21 @@ class Session {
 
   ~Session() = default;
 
-  Status AddGraph(uint32_t graphId, const Graph &graph) { return SUCCESS; }
+  Status AddGraph(uint32_t graphId, const Graph &graph);
 
-  Status RemoveGraph(uint32_t graphId) { return SUCCESS; }
+  Status RemoveGraph(uint32_t graphId);
 
-  Status RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &inputs, RunAsyncCallback callback) {
-    return SUCCESS;
-  }
+  Status RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &inputs, RunAsyncCallback callback);
 
-  bool IsGraphNeedRebuild(uint32_t graphId) { return false; }
+  bool IsGraphNeedRebuild(uint32_t graphId);
+
+ private:
+  std::map<uint32_t, std::shared_ptr<tensorflow::Graph>> graphs_;
+  std::map<uint32_t, bool> graph_need_rebuild_;
 };
 
 struct GraphUtils {
-  static Graph CreateGraphFromComputeGraph(const ge::ComputeGraphPtr compute_graph) { return {}; }
+  static Graph CreateGraphFromComputeGraph(const ge::ComputeGraphPtr compute_graph);
 };  // namespace GraphUtils
 
 }  // namespace ge

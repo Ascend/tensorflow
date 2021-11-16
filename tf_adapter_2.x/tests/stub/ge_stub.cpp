@@ -12,9 +12,68 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include "npu_parser.h"
 #include "ge/ge_api.h"
 
 namespace ge {
+Graph GraphUtils::CreateGraphFromComputeGraph(const ge::ComputeGraphPtr compute_graph) {
+  Graph graph;
+  graph.graph = compute_graph->graph;
+  return graph;
+}
+
+Status Session::AddGraph(uint32_t graphId, const Graph &graph) {
+  graphs_[graphId] = graph.graph;
+  graph_need_rebuild_[graphId] = false;
+  return SUCCESS;
+}
+
+Status Session::RemoveGraph(uint32_t graphId) {
+  graphs_.erase(graphId);
+  graph_need_rebuild_.erase(graphId);
+  return SUCCESS;
+}
+
+Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &inputs, RunAsyncCallback callback) {
+  // std::function<void(Status, std::vector<ge::Tensor> &)>;
+  auto graph = graphs_[graphId];
+  std::vector<ge::Tensor> outputs;
+
+  if (graph == nullptr) {
+    callback(ge::FAILED, outputs);
+  }
+  for (const auto &node : graph->op_nodes()) {
+    if (node->IsRetval()) {
+      const tensorflow::AttrValue *attr = node->attrs().Find(kInputDesc);
+      if (attr != nullptr) {
+        for (auto &desc : attr->list().func()) {
+          std::vector<int64_t> dims;
+          auto &desc_attr = desc.attr();
+          if (desc_attr.find(kShape) != desc_attr.end()) {
+            tensorflow::AttrValue shape_value = desc_attr.at(kShape);
+            for (int i = 0; i < shape_value.list().i_size(); i++) {
+              dims.push_back(shape_value.list().i(i));
+            }
+          }
+
+          outputs.emplace_back(ge::Tensor());
+          size_t size = 4;
+          for (auto dim : dims) {
+            size *= dim;
+          }
+          std::vector<uint8_t> data(size);
+          outputs.back().SetData(data.data(), size);
+          outputs.back().SetTensorDesc(ge::TensorDesc(ge::Shape(dims)));
+        }
+      }
+    }
+  }
+  callback(ge::SUCCESS, outputs);
+  return ge::SUCCESS;
+}
+
+bool Session::IsGraphNeedRebuild(uint32_t graphId) { graph_need_rebuild_[graphId]; }
+
 std::string GEGetErrorMsg() { return ""; }
 
 Status GEInitialize(const std::map<std::string, std::string> &options) { return SUCCESS; }

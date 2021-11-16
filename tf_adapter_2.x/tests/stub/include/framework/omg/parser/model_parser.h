@@ -8,11 +8,9 @@ class GE_FUNC_VISIBILITY ModelParser {
  public:
   ModelParser() = default;
   ~ModelParser() = default;
-  ge::DataType ConvertToGeDataType(const uint32_t type) { return ge::DT_FLOAT; }
+  ge::DataType ConvertToGeDataType(const uint32_t type);
   Status ParseProtoWithSubgraph(const std::string &serialized_proto, GetGraphCallbackV2 callback,
-                                ge::ComputeGraphPtr &graph) {
-    return ge::SUCCESS;
-  }
+                                ge::ComputeGraphPtr &graph);
 };
 }  // namespace domi
 
