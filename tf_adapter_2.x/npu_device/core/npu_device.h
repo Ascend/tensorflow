@@ -24,8 +24,6 @@
 #include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/tf_status.h"
 
-#include "framework/omg/parser/model_parser.h"
-#include "framework/omg/parser/parser_factory.h"
 #include "ge/ge_api.h"
 
 #include "npu_cache_spec.h"

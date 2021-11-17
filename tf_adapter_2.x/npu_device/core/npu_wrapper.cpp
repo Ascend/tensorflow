@@ -44,7 +44,6 @@
 #include "tensorflow/python/lib/core/safe_ptr.h"
 #include "tensorflow/python/util/util.h"
 
-#include "framework/omg/omg_inner_types.h"
 #include "framework/omg/parser/parser_api.h"
 #include "ge/ge_api.h"
 
