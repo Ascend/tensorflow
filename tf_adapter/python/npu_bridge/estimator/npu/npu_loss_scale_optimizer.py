@@ -52,7 +52,10 @@ class NPULossScaleOptimizer(lso.LossScaleOptimizer):
         if self._enable_overflow_check():
             with tf.name_scope(self._name):
                 self._float_status = gen_npu_ops.npu_alloc_float_status()
-            grads = [g for g, _ in grads_and_vars]
+            grads = []
+            for (g, _) in grads_and_vars:
+                if g is not None:
+                    grads.append(g)
             with tf.get_default_graph().control_dependencies(grads):
                 local_float_status = gen_npu_ops.npu_get_float_status(self._float_status)
                 cleared_float_status = gen_npu_ops.npu_clear_float_status(local_float_status)

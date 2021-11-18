@@ -65,33 +65,31 @@ class ExponentialUpdateLossScaleManager(lsm_lib.ExponentialUpdateLossScaleManage
             decr_ratio=decr_ratio)
 
     def update_loss_scale(self, finite_grads):
-        """Updates loss scale based on if gradients are finite in current step."""
-
         def update_if_finite_grads():
-            def incr_loss_scale():
+            def increase_loss_scale():
                 incr_result_finite = gen_math_ops.less(self._loss_scale, (3.4e+38) / self._incr_ratio)
-                new_loss_scale = control_flow_ops.cond(
+                new_loss_scale_value = control_flow_ops.cond(
                     incr_result_finite,
                     lambda: self._loss_scale * self._incr_ratio,
                     lambda: self._loss_scale)
-                update_op = state_ops.assign(self._loss_scale, new_loss_scale)
-                return control_flow_ops.group(update_op, self._reset_stats())
+                update_loss_scale = state_ops.assign(self._loss_scale, new_loss_scale_value)
+                return control_flow_ops.group(update_loss_scale, self._reset_stats())
 
             is_incr_good_steps = self._num_good_steps + 1 >= self._incr_every_n_steps
-            return control_flow_ops.cond(is_incr_good_steps, incr_loss_scale,
+            return control_flow_ops.cond(is_incr_good_steps, increase_loss_scale,
                                          lambda: state_ops.assign_add(self._num_good_steps, 1).op)
 
         def update_if_not_finite_grads():
-            def decr_loss_scale():
-                new_loss_scale = gen_math_ops.maximum(1., self._loss_scale * self._decr_ratio)
-                update_op = state_ops.assign(self._loss_scale, new_loss_scale)
-                return control_flow_ops.group(update_op, self._reset_stats())
+            def decrease_loss_scale():
+                new_loss_scale_value = gen_math_ops.maximum(1., self._loss_scale * self._decr_ratio)
+                update_loss_scale = state_ops.assign(self._loss_scale, new_loss_scale_value)
+                return control_flow_ops.group(update_loss_scale, self._reset_stats())
 
             def only_update_steps():
                 return control_flow_ops.group(state_ops.assign_add(self._num_bad_steps, 1),
                                               state_ops.assign(self._num_good_steps, 0))
 
             is_incr_bad_steps = self._num_bad_steps + 1 >= self._decr_every_n_nan_or_inf
-            return control_flow_ops.cond(is_incr_bad_steps, decr_loss_scale, only_update_steps)
+            return control_flow_ops.cond(is_incr_bad_steps, decrease_loss_scale, only_update_steps)
 
         return control_flow_ops.cond(finite_grads, update_if_finite_grads, update_if_not_finite_grads)
