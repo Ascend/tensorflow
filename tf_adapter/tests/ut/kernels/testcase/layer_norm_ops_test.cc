@@ -50,7 +50,7 @@ TEST(LayerNormOpTest, TestLayerNorm) {
 
 TEST(LayerNormOpTest, TestLayerNormShapeInference) {
   const OpRegistrationData *reg;
-  TF_CHECK_OK(OpRegistry::Global()->LookUp("LayerNorm", &reg));
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("FusedLayerNorm", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)

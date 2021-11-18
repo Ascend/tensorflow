@@ -365,7 +365,7 @@ REGISTER_OP("NonZeroWithValue")
 	return Status::OK();
     });
 
-REGISTER_OP("LayerNorm")
+REGISTER_OP("FusedLayerNorm")
     .Input("x: T")
     .Input("gamma: T")
     .Input("beta: T")
@@ -406,7 +406,7 @@ REGISTER_OP("LayerNorm")
         return Status::OK();
     });
 
-REGISTER_OP("LayerNormGrad")
+REGISTER_OP("FusedLayerNormGrad")
     .Input("dy: T")
     .Input("x: T")
     .Input("variance: T")
