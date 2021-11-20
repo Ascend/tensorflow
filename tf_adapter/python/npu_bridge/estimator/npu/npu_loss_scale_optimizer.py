@@ -77,13 +77,12 @@ class NPULossScaleOptimizer(lso.LossScaleOptimizer):
             return self._opt.apply_gradients(grads_and_vars, global_step, name)
 
         update_variables = control_flow_ops.cond(is_overall_finite,
-                                            true_apply_grads_fn,
-                                            gen_control_flow_ops.no_op)
+                                                 true_apply_grads_fn,
+                                                 gen_control_flow_ops.no_op)
 
         # Potentially adjust gradient scale in case of finite gradients.
-        return control_flow_ops.group(
-            update_variables,
-            self._loss_scale_manager.update_loss_scale(is_overall_finite))
+        return control_flow_ops.group(update_variables,
+                                      self._loss_scale_manager.update_loss_scale(is_overall_finite))
 
     def _enable_overflow_check(self):
         if isinstance(self._loss_scale_manager, FixedLossScaleManager) or \

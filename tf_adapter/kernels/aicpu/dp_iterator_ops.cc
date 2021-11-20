@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tf_adapter/kernels/dp_iterator_ops.h"
+#include "tf_adapter/kernels/aicpu/dp_iterator_ops.h"
 
 #include "tensorflow/core/kernels/data/iterator_ops.h"
 #include "tf_adapter/common/adp_logger.h"

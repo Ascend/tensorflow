@@ -17,30 +17,22 @@
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tf_adapter/kernels/amct_common.h"
+#include "tf_adapter/kernels/aicore/amct_common.h"
 
 using namespace tensorflow;
 
 template <typename T>
-int AscendQuantInternelCpu(struct QuantInputParam<T> input_param) {
-  int bound = pow(BASE, input_param.quant_bits - 1);
+int AscendAntiQuantInternelCpu(struct AntiQuantInputParam<T> input_param) {
   for (int i = 0; i < input_param.size; i++) {
-    float quant_input = round(input_param.in[i] * input_param.scale) + input_param.offset;
-    if (quant_input < -bound) {
-      quant_input = -bound;
-    } else if (quant_input > bound - 1) {
-      quant_input = bound - 1;
-    }
-    input_param.out[i] = quant_input - input_param.offset;
+    input_param.out[i] = input_param.in[i] * input_param.scale;
   }
   return 0;
 }
 
 template <typename T>
-class AscendQuantOp : public OpKernel {
+class AscendAntiQuantOp : public OpKernel {
  public:
-  explicit AscendQuantOp(OpKernelConstruction* context) : OpKernel(context) {
-    OP_REQUIRES_OK(context, context->GetAttr("dst_type", &(dst_type)));
+  explicit AscendAntiQuantOp(OpKernelConstruction* context) : OpKernel(context) {
     OP_REQUIRES_OK(context, context->GetAttr("scale", &(scale)));
     OP_REQUIRES_OK(context, context->GetAttr("offset", &(offset)));
     input_param.size = 0;
@@ -48,14 +40,9 @@ class AscendQuantOp : public OpKernel {
     input_param.out = NULL;
     input_param.scale = scale;
     input_param.offset = offset;
-    if (dst_type == "INT4") {
-      input_param.quant_bits = 4;
-    } else if (dst_type == "INT8") {
-      input_param.quant_bits = 8;
-    }
   }
 
-  ~AscendQuantOp(){}
+  ~AscendAntiQuantOp(){}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
@@ -74,18 +61,17 @@ class AscendQuantOp : public OpKernel {
     input_param.out = output_tensor->flat<T>().data();
 
     if (input_param.size == 0) {
-      OP_REQUIRES(context, false, errors::InvalidArgument("AscendQuantOp: input_tensor is empty!"));
+      OP_REQUIRES(context, false, errors::InvalidArgument("AscendAntiQuantOp: input_tensor is empty!"));
     }
-    AscendQuantInternelCpu(input_param);
+    AscendAntiQuantInternelCpu(input_param);
   }
 
  private:
-  struct QuantInputParam<T> input_param;
-  std::string dst_type;
+  struct AntiQuantInputParam<T> input_param;
   float scale;
   float offset;
 };
 
 REGISTER_KERNEL_BUILDER(
-  Name("AscendQuant").Device(tensorflow::DEVICE_CPU).TypeConstraint<float>("T"),
-  AscendQuantOp<float>);
+  Name("AscendAntiQuant").Device(tensorflow::DEVICE_CPU).TypeConstraint<float>("T"),
+  AscendAntiQuantOp<float>);

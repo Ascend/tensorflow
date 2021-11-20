@@ -17,7 +17,7 @@
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tf_adapter/kernels/amct_common.h"
+#include "tf_adapter/kernels/aicore/amct_common.h"
 
 using namespace tensorflow;
 

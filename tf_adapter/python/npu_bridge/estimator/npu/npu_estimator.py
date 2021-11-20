@@ -193,7 +193,7 @@ class _OutfeedHostCall(object):
             return []
         return npu_ops.outfeed_enqueue_op(inputs=tensors, channel_name=self._channel_name)
 
-    def record(self, host_calls):  # ref def record(self, host_calls):@tpu_estimator.py+1618
+    def record(self, host_calls):
         for name, host_call in host_calls.items():
             host_fn, tensor_list_or_dict = host_call
             self._names.append(name)

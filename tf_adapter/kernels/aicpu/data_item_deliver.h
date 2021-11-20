@@ -30,7 +30,7 @@
 #include "tdt/data_common.h"
 #include "tensorflow/core/framework/stats_aggregator.h"
 #include "tf_adapter/common/adp_logger.h"
-#include "tf_adapter/kernels/threads_pool.h"
+#include "tf_adapter/kernels/aicpu/threads_pool.h"
 
 namespace tensorflow {
 namespace data {
