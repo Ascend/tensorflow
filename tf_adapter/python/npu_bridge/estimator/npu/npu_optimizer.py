@@ -198,40 +198,34 @@ class NPUOptimizer(optimizer.Optimizer):
             return averaged_gradients
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
-        """Apply gradients. See base class `tf.compat.v1.train.Optimizer`."""
-
         if self._is_loss_scale:
             if not self._is_tailing_optimization:
                 grads = [g for (g, _) in grads_and_vars]
                 self._reduce_all(grads)
 
-            def true_apply_gradients_fn():
-                def true_apply_gradients(grads_and_vars, global_step=None, name=None):
-                    return self._opt.apply_gradients(grads_and_vars, global_step, name)
+            def true_apply_grads_fn():
+                return self._opt.apply_gradients(grads_and_vars, global_step, name)
 
-                return true_apply_gradients(grads_and_vars, global_step, name)
-
-            update_vars = control_flow_ops.cond(self._is_overall_finite,
-                                                true_apply_gradients_fn,
-                                                gen_control_flow_ops.no_op)
+            update_variables = control_flow_ops.cond(self._is_overall_finite,
+                                                    true_apply_grads_fn,
+                                                    gen_control_flow_ops.no_op)
 
             # Potentially adjust gradient scale in case of finite gradients.
             return control_flow_ops.group(
-                update_vars,
+                update_variables,
                 self._loss_scale_manager.update_loss_scale(self._is_overall_finite))
         else:
             return self._opt.apply_gradients(grads_and_vars, global_step, name)
 
     def _down_scale(self, grads_vars, loss_scale):
-        # Down scale grads by the loss_scale.
-        gv = []
-        inv_loss_scale = gen_math_ops.reciprocal(loss_scale)
-        for g, v in grads_vars:
-            if g is not None:
-                gv.append((g * math_ops.cast(inv_loss_scale, g.dtype.base_dtype), v))
+        grads_and_vars = []
+        reciprocal_loss_scale = gen_math_ops.reciprocal(loss_scale)
+        for grads, variables in grads_vars:
+            if grads is not None:
+                grads_and_vars.append((grads * math_ops.cast(reciprocal_loss_scale, grads.dtype.base_dtype), variables))
             else:
-                gv.append((g, v))
-        return gv
+                grads_and_vars.append((grads, variables))
+        return grads_and_vars
 
     def _reduce_all(self, grads):
         with tf.get_default_graph().control_dependencies(grads):
