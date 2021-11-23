@@ -114,7 +114,7 @@ def batch_enqueue(x, queue_id=0, batch_size=8, queue_name="", queue_depth=100, p
 #  @param batch_size int 类型
 #  @param data_format string 类型
 #  @param pad_mode string 类型
-#  @return imgs,imgs_relation,imgs_lang uint8,int32,int32 类型
+#  @return imgs,imgs_relation,imgs_lang,imgs_piece_fillers uint8,int32,int32,int32 类型
 def ocr_recognition_pre_handle(imgs_data, imgs_offset, imgs_size, langs, langs_score, batch_size=8, data_format="NHWC", pad_mode="REPLICATE"):
     result = gen_npu_cpu_ops.ocr_recognition_pre_handle(
         imgs_data=imgs_data,
