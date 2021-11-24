@@ -1,5 +1,5 @@
 #include <memory>
-#include "tf_adapter/kernels/layer_norm_ops.cc"
+#include "tf_adapter/kernels/aicore/layer_norm_ops.cc"
 #include "gtest/gtest.h"
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/framework/attr_value_util.h"

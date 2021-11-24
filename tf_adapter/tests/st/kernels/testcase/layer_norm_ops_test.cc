@@ -1,7 +1,7 @@
 #include "tensorflow/core/framework/fake_input.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/platform/test.h"
-#include "tf_adapter/kernels/layer_norm_ops.cc"
+#include "tf_adapter/kernels/aicore/layer_norm_ops.cc"
 #include "gtest/gtest.h"
 #include <memory>
 namespace tensorflow {
