@@ -27,7 +27,7 @@
 #include "tensorflow/core/util/env_var.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
-#include "tf_adapter/kernels/data_item_deliver.h"
+#include "tf_adapter/kernels/aicpu/data_item_deliver.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include <dlfcn.h>
 #include <thread>
