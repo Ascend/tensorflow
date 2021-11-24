@@ -1,5 +1,5 @@
 #include <memory>
-#include "tf_adapter/kernels/scatter_elements_ops.cc"
+#include "tf_adapter/kernels/aicore/scatter_elements_ops.cc"
 #include "gtest/gtest.h"
 
 namespace tensorflow {

@@ -1,5 +1,5 @@
 #include <memory>
-#include "tf_adapter/kernels/non_zero_ops.cc"
+#include "tf_adapter/kernels/aicore/non_zero_ops.cc"
 #include "gtest/gtest.h"
 
 namespace tensorflow {
