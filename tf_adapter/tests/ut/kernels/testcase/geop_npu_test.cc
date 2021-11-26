@@ -153,6 +153,15 @@ TEST_F(GeOpTest, GeOpDynamicInput1Test) {
   EXPECT_TRUE(!attrs["_dynamic_input"].s().empty());
   EXPECT_EQ(attrs["_dynamic_graph_execute_mode"].s() == "dynamic_execute", true);
 }
+TEST_F(GeOpTest, GeOpAoeTuningAndDynamicDimsTest) {
+  setenv("PRINT_MODEL", "1", true);
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_aoe_tuning_and_dynamic_dims.pbtxt";
+  Tensor a(DT_INT32, TensorShape({1,}));
+  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a)};
+  setenv("ENABLE_FORCE_V2_CONTROL", "1", true);
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0", false).ok());
+}
 TEST_F(GeOpTest, GeOpAoeTuningTest) {
   Env* env = Env::Default();
   GraphDef graph_def;
