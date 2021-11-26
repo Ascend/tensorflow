@@ -51,19 +51,19 @@ TEST_F(NpuAttrTest, SetNpuOptimizerAttr) {
 }
 
 TEST_F(NpuAttrTest, GetDumpPath) {
-setenv("DUMP_GRAPH_PATH", "./", 1);
-string path = GetDumpPath();
-EXPECT_EQ(path, ".//");
-setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
-string new_path = GetDumpPath();
-EXPECT_EQ(new_path, "./dump_fold/");
+  setenv("DUMP_GRAPH_PATH", "./", 1);
+  string path = GetDumpPath();
+  EXPECT_EQ(path, ".//");
+  setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
+  string new_path = GetDumpPath();
+  EXPECT_EQ(new_path, "./dump_fold/");
 }
 
 TEST_F(NpuAttrTest, GetCollectionPath) {
-setenv("NPU_COLLECT_PATH", "./collection", 1);
-setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
-string new_path = GetDumpPath();
-EXPECT_NE(new_path, "./dump_fold/");
+  setenv("NPU_COLLECT_PATH", "./collection", 1);
+  setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
+  string new_path = GetDumpPath();
+  EXPECT_NE(new_path, "./dump_fold/");
 }
 }
 } // end tensorflow

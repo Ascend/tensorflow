@@ -61,17 +61,11 @@ class InferShapeUtil {
 
   static void setShapeOfMergeOP(ShapeRefiner &shapeRef, Node *pNode);
 
-  static void setShapeOfBroadcastGradientArgsOP(ShapeRefiner &shapeRef,
-                                                Node *pNode);
-
-  static void setShapeOfReshapeOP(ShapeRefiner &shapeRef, Node *pNode);
-
   static void inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRef,
                                 int iTime);
 
   static Status addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode);
 
-  static void printGraphShape(ShapeRefiner &shapeRef, Graph *graph);
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_CONTRIB_OFFLINE_TRAIN_UTIL_INFERSHAPE_H_
