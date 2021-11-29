@@ -1,4 +1,18 @@
 #!/bin/bash
+# Copyright 2019-2020 Huawei Technologies Co., Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ============================================================================
 
 COMMON_INSTALL_DIR=/usr/local/Ascend
 COMMON_INSTALL_TYPE=full
@@ -11,7 +25,7 @@ common_parse_dir=$COMMON_INSTALL_DIR
 common_parse_type=$COMMON_INSTALL_TYPE
 unset PYTHONPATH
 
-getInstallParam() {
+get_install_param() {
     local _key="$1"
     local _file="$2"
     local _param
@@ -21,8 +35,8 @@ getInstallParam() {
     fi
     install_info_key_array=("Fwkplugin_Install_Type" "Fwkplugin_UserName" "Fwkplugin_UserGroup" "Fwkplugin_Install_Path_Param")
     for key_param in "${install_info_key_array[@]}"; do
-        if [ ${key_param} == ${_key} ]; then
-            _param=`grep -r "${_key}=" "${_file}" | cut -d"=" -f2-`
+        if [ "${key_param}" == "${_key}" ]; then
+            _param=$(grep -r "${_key}=" "${_file}" | cut -d"=" -f2-)
             break
         fi
     done
@@ -43,7 +57,7 @@ else
     common_parse_dir=${input_install_dir}
 fi
 
-installInfo="${common_parse_dir}/fwkplugin/ascend_install.info"
+install_info="${common_parse_dir}/fwkplugin/ascend_install.info"
 sourcedir="${common_parse_dir}/fwkplugin"
 SOURCE_INSTALL_COMMON_PARSER_FILE="${curpath}/install_common_parser.sh"
 
@@ -53,11 +67,11 @@ else
     log_dir="/var/log/ascend_seclog"
 fi
 
-logFile="${log_dir}/ascend_install.log"
+log_file="${log_dir}/ascend_install.log"
 
-if [ -f "${installInfo}" ]; then
-    username=$(getInstallParam "Fwkplugin_UserName" "${installInfo}")
-    usergroup=$(getInstallParam "Fwkplugin_UserGroup" "${installInfo}")
+if [ -f "${install_info}" ]; then
+    username=$(get_install_param "Fwkplugin_UserName" "${install_info}")
+    usergroup=$(get_install_param "Fwkplugin_UserGroup" "${install_info}")
 fi
 if [ "$username" == "" ]; then
     username="$DEFAULT_USERNAME"
@@ -65,25 +79,25 @@ if [ "$username" == "" ]; then
 fi
 
 log() {
-    local cur_date_=`date +"%Y-%m-%d %H:%M:%S"`
+    local cur_date_=$(date +"%Y-%m-%d %H:%M:%S")
     local log_type_="${1}"
     local msg_="${2}"
-    if [ $log_type_ == "INFO" ]; then
+    if [ "$log_type_" == "INFO" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
         echo "${log_format_}"
-    elif [ $log_type_ == "WARNING" ]; then
+    elif [ "$log_type_" == "WARNING" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
         echo "${log_format_}"
-    elif [ $log_type_ == "ERROR" ]; then
+    elif [ "$log_type_" == "ERROR" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
         echo "${log_format_}"
-    elif [ $log_type_ == "DEBUG" ]; then
+    elif [ "$log_type_" == "DEBUG" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
     fi
-    echo "${log_format_}" >> $logFile
+    echo "${log_format_}" >> $log_file
 }
 
-newEcho() {
+new_echo() {
     local log_type_=${1}
     local log_msg_=${2}
     if  [ "${is_quiet}" = "n" ]; then
@@ -91,7 +105,7 @@ newEcho() {
     fi
 }
 
-updateGroupRightRecursive() {
+update_group_right_recursive() {
     local permission="${1}"
     local file_path="${2}"
     if [ "${install_for_all}" = "y" ]; then
@@ -112,7 +126,7 @@ if [ ! -d "${common_parse_dir}/fwkplugin" ]; then
     exit 1
 fi
 
-UninstallPackage() {
+uninstall_package() {
     local _module="$1"
     local _module_apth="$2"
     if [ ! -d "${WHL_INSTALL_DIR_PATH}/${_module}" ]; then
@@ -140,7 +154,7 @@ UninstallPackage() {
     fi
 }
 
-RemoveEmptyDir() {
+remove_empty_dir() {
     local _path="${1}"
     if [ -d "${_path}" ]; then
         is_empty=$(ls "${_path}" | wc -l)
@@ -154,20 +168,20 @@ RemoveEmptyDir() {
     fi
 }
 
-removeCheckShell() {
+remove_check_shell() {
     local type_arr=("bash" "csh" "fish")
     for type in ${type_arr[@]}; do
         local check_shell_path=${sourcedir}/bin/prereq_check.${type}
         local common_path=${common_parse_dir}/bin/prereq_check.${type}
-        local PACKAGE_NAME="fwkplugin"
-        [ ! -f ${common_path} ] && continue
+        local package_name="fwkplugin"
+        [ ! -f "${common_path}" ] && continue
 
         chmod u+w ${common_path}
-        local path_regex="\/\(.\+\/\)\?${PACKAGE_NAME}\/bin\/prereq_check.${type}"
+        local path_regex="\/\(.\+\/\)\?${package_name}\/bin\/prereq_check.${type}"
         sed -i "/^${path_regex}$/d" ${common_path}
         chmod u-w ${common_path}
 
-        num=`grep -r "prereq_check.${type}" ${common_path} | wc -l`
+        num=$(grep -r "prereq_check.${type}" "${common_path}" | wc -l)
         if [ ${num} -eq 0 ]; then
             rm -f ${common_path}
         fi
@@ -177,18 +191,18 @@ removeCheckShell() {
 FWKPLUGIN_INSTALL_DIR_PATH="${common_parse_dir}/fwkplugin"
 WHL_INSTALL_DIR_PATH="${common_parse_dir}/python/site-packages"
 
-newUninstall() {
+new_uninstall() {
     if [ ! -d "${FWKPLUGIN_INSTALL_DIR_PATH}" ]; then
         log "INFO" "no need to uninstall fwkplugin files."
         return 0
     else
         chmod +w -R "$curpath"
         log "INFO" "uninstall npu bridge begin..."
-        UninstallPackage "npu_bridge" ${WHL_INSTALL_DIR_PATH}
+        uninstall_package "npu_bridge" ${WHL_INSTALL_DIR_PATH}
         log "INFO" "successful uninstall npu bridge."
         if [ "$(arch)" == "x86_64" ];then
             log "INFO" "uninstall npu device begin..."
-            UninstallPackage "npu_device" ${WHL_INSTALL_DIR_PATH}
+            uninstall_package "npu_device" ${WHL_INSTALL_DIR_PATH}
             log "INFO" "successful uninstall npu device."
         fi
     fi
@@ -217,7 +231,7 @@ newUninstall() {
         return 1
     fi
 
-    removeCheckShell
+    remove_check_shell
     # 删除目录与文件
     bash "${SOURCE_INSTALL_COMMON_PARSER_FILE}" --package="fwkplugin" --remove "${common_parse_type}" "${common_parse_dir}" "${curpath}/filelist.csv"
     if [ $? -ne 0 ]; then
@@ -231,14 +245,14 @@ newUninstall() {
         fi
     fi
 
-    RemoveEmptyDir "${common_parse_dir}/python/site-packages"
-    RemoveEmptyDir "${common_parse_dir}/python"
+    remove_empty_dir "${common_parse_dir}/python/site-packages"
+    remove_empty_dir "${common_parse_dir}/python"
 
     if [ -d "${FWKPLUGIN_INSTALL_DIR_PATH}/python/site-packages" ]; then
         rm -rf "${FWKPLUGIN_INSTALL_DIR_PATH}/python/site-packages"
     fi
 
-    RemoveEmptyDir "${FWKPLUGIN_INSTALL_DIR_PATH}/python"
+    remove_empty_dir "${FWKPLUGIN_INSTALL_DIR_PATH}/python"
 
     if [ $? -ne 0 ]; then
         log "ERROR" "ERR_NO:0x0090;ERR_DES:delete fwkplugin files failed."
@@ -247,7 +261,7 @@ newUninstall() {
     return 0
 }
 
-newUninstall
+new_uninstall
 if [ $? -ne 0 ]; then
     exit 1
 fi

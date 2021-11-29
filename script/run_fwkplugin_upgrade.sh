@@ -1,4 +1,18 @@
 #!/bin/bash
+# Copyright 2019-2020 Huawei Technologies Co., Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ============================================================================
 
 COMMON_INSTALL_DIR=/usr/local/Ascend
 COMMON_INSTALL_TYPE=full
@@ -18,7 +32,7 @@ unset PYTHONPATH
 
 . "${common}"
 
-getInstallParam() {
+get_install_param() {
     local _key="$1"
     local _file="$2"
     local _param
@@ -28,8 +42,8 @@ getInstallParam() {
     fi
     install_info_key_array=("Fwkplugin_Install_Type" "Fwkplugin_UserName" "Fwkplugin_UserGroup" "Fwkplugin_Install_Path_Param")
     for key_param in "${install_info_key_array[@]}"; do
-        if [ ${key_param} == ${_key} ]; then
-            _param=`grep -r "${_key}=" "${_file}" | cut -d"=" -f2-`
+        if [ "${key_param}" == "${_key}" ]; then
+            _param=$(grep -r "${_key}=" "${_file}" | cut -d"=" -f2-)
             break
         fi
     done
@@ -52,8 +66,8 @@ else
     common_parse_dir=${input_install_dir}
 fi
 
-installInfo="${common_parse_dir}/fwkplugin/ascend_install.info"
-installInfo_old="/etc/ascend_install.info"
+install_info="${common_parse_dir}/fwkplugin/ascend_install.info"
+install_info_old="/etc/ascend_install.info"
 
 if [ $(id -u) -ne 0 ]; then
     log_dir="${HOME}/var/log/ascend_seclog"
@@ -61,28 +75,28 @@ else
     log_dir="/var/log/ascend_seclog"
 fi
 
-logFile="${log_dir}/ascend_install.log"
+log_file="${log_dir}/ascend_install.log"
 
 log() {
-    local cur_date_=`date +"%Y-%m-%d %H:%M:%S"`
+    local cur_date_=$(date +"%Y-%m-%d %H:%M:%S")
     local log_type_=${1}
     local msg_="${2}"
-    if [ $log_type_ == "INFO" ]; then
+    if [ "$log_type_" == "INFO" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
         echo "${log_format_}"
-    elif [ $log_type_ == "WARNING" ]; then
+    elif [ "$log_type_" == "WARNING" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
          echo "${log_format_}"
-    elif [ $log_type_ == "ERROR" ]; then
+    elif [ "$log_type_" == "ERROR" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
          echo "${log_format_}"
-    elif [ $log_type_ == "DEBUG" ]; then
+    elif [ "$log_type_" == "DEBUG" ]; then
         local log_format_="[Fwkplugin] [$cur_date_] [$log_type_]: ${msg_}"
     fi
-     echo "${log_format_}" >> $logFile
+     echo "${log_format_}" >> $log_file
 }
 
-newEcho() {
+new_echo() {
     local log_type_=${1}
     local log_msg_=${2}
     if  [ "${is_quiet}" = "n" ]; then
@@ -91,22 +105,22 @@ newEcho() {
 }
 
 output_progress() {
-    newEcho "INFO" "upgrade upgradePercentage:$1%"
+    new_echo "INFO" "upgrade upgradePercentage:$1%"
     log "INFO" "upgrade upgradePercentage:$1%"
 }
 
-if [ -f "$installInfo" ]; then
-    Fwkplugin_UserName=$(getInstallParam "Fwkplugin_UserName" "${installInfo}")
-    Fwkplugin_UserGroup=$(getInstallParam "Fwkplugin_UserGroup" "${installInfo}")
-    Fwkplugin_Install_Type=$(getInstallParam "Fwkplugin_Install_Type" "${installInfo}")
-    username="$Fwkplugin_UserName"
-    usergroup="$Fwkplugin_UserGroup"
-elif [ -f $installInfo_old ] && [ ` grep -c -i "Fwkplugin_Install_Path_Param" $installInfo_old ` -ne 0]; then
-    . $installInfo_old
-    username=$UserName
-    usergroup=$UserGroup
+if [ -f "$install_info" ]; then
+    fwkplugin_userName=$(get_install_param "Fwkplugin_UserName" "${install_info}")
+    fwkplugin_usergroup=$(get_install_param "Fwkplugin_UserGroup" "${install_info}")
+    fwkplugin_install_type=$(get_install_param "Fwkplugin_Install_Type" "${install_info}")
+    username="$fwkplugin_userName"
+    usergroup="$fwkplugin_usergroup"
+elif [ -f "$install_info_old" ] && [ $(grep -c -i "Fwkplugin_Install_Path_Param" "$install_info_old") -ne 0]; then
+    . $install_info_old
+    username=$DEFAULT_USERNAME
+    usergroup=$DEFAULT_USERGROUP
 else
-    echo "ERR_NO:0x0080;ERR_DES:Installation information no longer exists,please complete "${installInfo}" or ${installInfo_old}"
+    echo "ERR_NO:0x0080;ERR_DES:Installation information no longer exists,please complete "${install_info}" or ${install_info_old}"
     exit 1
 fi
 
@@ -125,7 +139,7 @@ if [ ! -d "$common_parse_dir" ]; then
     exit 1
 fi
 
-InstallPackage() {
+install_package() {
     local _package="$1"
     local _pythonlocalpath="$2"
     log "INFO" "install python module package in ${_package}"
@@ -151,13 +165,13 @@ InstallPackage() {
     fi
 }
 
-copyCheckShell() {
+copy_check_shell() {
     local type_arr=("bash" "csh" "fish")
     for type in ${type_arr[@]}; do
         local check_shell_path=${input_install_dir}/fwkplugin/bin/prereq_check.${type}
         local common_path=${common_parse_dir}/bin/prereq_check.${type}
         local path_regex="\/\(.\+\/\)\?fwkplugin\/bin\/prereq_check.${type}"
-        if [ -f ${common_path} ]; then
+        if [ -f "${common_path}" ]; then
             chmod u+w ${common_path}
             sed -i "/^${path_regex}$/d" ${common_path}
             echo "${check_shell_path}" >> ${common_path}
@@ -171,7 +185,7 @@ copyCheckShell() {
     done
 }
 
-SetEnv() {
+set_env() {
     local setenv_option=""
     if [ "${setenv_flag}" = y ]; then
         setenv_option="--setenv"
@@ -203,14 +217,14 @@ SetEnv() {
 }
 
 PYTHONDIR="${common_parse_dir}"
-WHL_INSTALL_DIR_PATH="${PYTHONDIR}/python/site-packages"
-WHL_SOFTLINK_INSTALL_DIR_PATH="${PYTHONDIR}/fwkplugin/python/site-packages"
+WHL_INSTALL_DIR_PATH="${common_parse_dir}/python/site-packages"
+WHL_SOFTLINK_INSTALL_DIR_PATH="${common_parse_dir}/fwkplugin/python/site-packages"
 SOURCE_PATH="${sourcedir}/bin"
 PYTHON_NPU_BRIDGE_WHL="npu_bridge-1.15.0-py3-none-any.whl"
 PYTHON_NPU_DEVICE_WHL="npu_device-0.1-py3-none-any.whl"
 
-newUpgrade() {
-    if [ ! -d ${sourcedir} ]; then
+new_upgrade() {
+    if [ ! -d "${sourcedir}" ]; then
         log "INFO" "no need to upgrade fwkplugin files."
         return 0
     fi
@@ -230,10 +244,10 @@ newUpgrade() {
     fi
 
     # 文件与目录赋权
-    copyCheckShell
+    copy_check_shell
 
     log "INFO" "Fwkplugin do setenv."
-    SetEnv
+    set_env
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -250,12 +264,12 @@ newUpgrade() {
         exit 1
     else
         log "INFO" "install npu bridge begin..."
-        InstallPackage "${SOURCE_PATH}/${PYTHON_NPU_BRIDGE_WHL}" "${WHL_INSTALL_DIR_PATH}"
+        install_package "${SOURCE_PATH}/${PYTHON_NPU_BRIDGE_WHL}" "${WHL_INSTALL_DIR_PATH}"
         output_progress 50
         log "INFO" "successful install the npu bridge..."
         if [ "$(arch)" == "x86_64" ];then
             log "INFO" "install adapter for tensorflow 2.x begin..."
-            InstallPackage "${SOURCE_PATH}/${PYTHON_NPU_DEVICE_WHL}" "${WHL_INSTALL_DIR_PATH}"
+            install_package "${SOURCE_PATH}/${PYTHON_NPU_DEVICE_WHL}" "${WHL_INSTALL_DIR_PATH}"
             output_progress 60
             log "INFO" "successfully installed adapter for tensorflow 2.x"
         fi
@@ -276,7 +290,7 @@ newUpgrade() {
     return 0
 }
 
-newUpgrade
+new_upgrade
 if [ $? -ne 0 ]; then
     exit 1
 fi
