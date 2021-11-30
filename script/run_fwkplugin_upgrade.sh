@@ -110,10 +110,10 @@ output_progress() {
 }
 
 if [ -f "$install_info" ]; then
-    fwkplugin_userName=$(get_install_param "Fwkplugin_UserName" "${install_info}")
+    fwkplugin_username=$(get_install_param "Fwkplugin_UserName" "${install_info}")
     fwkplugin_usergroup=$(get_install_param "Fwkplugin_UserGroup" "${install_info}")
     fwkplugin_install_type=$(get_install_param "Fwkplugin_Install_Type" "${install_info}")
-    username="$fwkplugin_userName"
+    username="$fwkplugin_username"
     usergroup="$fwkplugin_usergroup"
 elif [ -f "$install_info_old" ] && [ $(grep -c -i "Fwkplugin_Install_Path_Param" "$install_info_old") -ne 0]; then
     . $install_info_old
