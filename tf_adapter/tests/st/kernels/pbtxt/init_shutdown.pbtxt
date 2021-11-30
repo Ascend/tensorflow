@@ -1,0 +1,15 @@
+node {
+  name: "NPUInit"
+  op: "NPUInit"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+}
+node {
+  name: "NPUShutdown"
+  op: "NPUShutdown"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+}
+library {
+}
+versions {
+  producer: 134
+}

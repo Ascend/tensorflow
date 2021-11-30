@@ -198,60 +198,6 @@ void InferShapeUtil::setShapeOfMergeOP(ShapeRefiner &shapeRef, Node *pNode) {
   }
 }
 
-void InferShapeUtil::setShapeOfBroadcastGradientArgsOP(ShapeRefiner &shapeRef, Node *pNode) {
-  CHECK_NOT_NULL(pNode);
-  int iInputNums = pNode->num_inputs();
-  std::vector<tensorflow::shape_inference::ShapeHandle> inputShapes(iInputNums);
-
-  (void) getInputShapesOfNode(shapeRef, pNode, inputShapes);
-
-  tensorflow::shape_inference::InferenceContext *pCxt = shapeRef.GetContext(pNode);
-  CHECK_NOT_NULL(pCxt);
-  int64 maxDimVal = pCxt->Value(pCxt->Dim(inputShapes.at(0), 0));
-  int iMaxDimIndex = 0;
-  for (int i = 1; i < iInputNums; i++) {
-    const int64 secondValue = pCxt->Value(pCxt->Dim(inputShapes.at(i), 0));
-    if (secondValue > maxDimVal) {
-      iMaxDimIndex = i;
-      maxDimVal = secondValue;
-    }
-  }
-
-  std::vector<TensorShapeProto> shapeVec;
-  int iOutputNums = pNode->num_outputs();
-  for (int i = 0; i < iOutputNums; i++) {
-    TensorShapeProto proto;
-    if (pCxt->DebugString(pCxt->output(i)).find('?') != std::string::npos)  // the shape of this output has ?
-    {
-      pCxt->ShapeHandleToProto(inputShapes[iMaxDimIndex], &proto);
-      ADP_LOG(INFO) << "Node name " << pNode->name() << " add attr shape "
-                    << pCxt->DebugString(inputShapes[iMaxDimIndex]);
-    } else {
-      pCxt->ShapeHandleToProto(pCxt->output(i), &proto);
-    }
-    shapeVec.push_back(proto);
-  }
-
-  pNode->AddAttr(KEY_SHAPE, gtl::ArraySlice<TensorShapeProto>(shapeVec));
-}
-
-void InferShapeUtil::setShapeOfReshapeOP(ShapeRefiner &shapeRef, Node *pNode) {
-  CHECK_NOT_NULL(pNode);
-  tensorflow::shape_inference::InferenceContext *pCxt = shapeRef.GetContext(pNode);
-  CHECK_NOT_NULL(pCxt);
-  if (pCxt->DebugString(pCxt->output(0)).find('?') == std::string::npos) { return; }
-
-  std::vector<tensorflow::shape_inference::ShapeHandle> inShapes(pNode->num_inputs());
-  (void) getInputShapesOfNode(shapeRef, pNode, inShapes);
-
-  if (pCxt->DebugString(inShapes[0]).find('?') == std::string::npos) {
-    TensorShapeProto proto;
-    pCxt->ShapeHandleToProto(inShapes[0], &proto);
-    pNode->AddAttr(KEY_SHAPE, proto);  // Reshape has only one output
-    ADP_LOG(INFO) << "Node name " << pNode->name() << " add attr shape " << pCxt->DebugString(inShapes[0]);
-  }
-}
-
 void InferShapeUtil::inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRef, int iTime) {
   CHECK_NOT_NULL(graph);
   for (Node *pNode : graph->nodes()) {
@@ -270,27 +216,6 @@ void InferShapeUtil::inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRe
     } else if ((iTime == INFER_SHAPE_FIRST_TIME)
                && ((pNode->type_string() == "Merge") || (pNode->type_string() == "RefMerge"))) {
       setShapeOfMergeOP(shapeRef, pNode);
-    }
-  }
-}
-
-void InferShapeUtil::printGraphShape(ShapeRefiner &shapeRef, Graph *graph) {
-  CHECK_NOT_NULL(graph);
-  shape_inference::InferenceContext *pCxt = nullptr;
-  int iOutNums;
-  for (Node *pNode : graph->nodes()) {
-    CHECK_NOT_NULL(pNode);
-    pCxt = shapeRef.GetContext(pNode);
-    if (pCxt == nullptr) { continue; }
-    iOutNums = pCxt->num_outputs();
-    if (iOutNums <= 0) {
-      ADP_LOG(INFO) << "Node " << pNode->name() << " has none outputs.";
-      return;
-    }
-    for (int i = 0; i < iOutNums; i++) {
-      tensorflow::shape_inference::ShapeHandle shape = pCxt->output(i);
-      string strShape = pCxt->DebugString(shape);
-      ADP_LOG(INFO) << "The shape of node " << pNode->name() << " output " << i << " is " << strShape;
     }
   }
 }
