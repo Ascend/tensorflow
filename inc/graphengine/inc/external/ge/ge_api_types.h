@@ -115,6 +115,7 @@ const char *const PERFORMANCE_MODE = "ge.performance_mode";
 const char *const SHAPE_GENERALIZED_BUILD_MODE = "ge.shape_generalized_build_mode";
 const char *const MODIFY_MIXLIST = "ge.exec.modify_mixlist";
 const char *const OP_PRECISION_MODE = "ge.exec.op_precision_mode";
+const char *const HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
 }  // namespace configure_option
 // Configure stream num by Session constructor options param,
 // its value should be int32_t type, default value is "1"
