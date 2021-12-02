@@ -290,6 +290,107 @@ class DynamicRNN(_DynamicBasic):
             shape=[4 * self._hidden_size],
             dtype=self._dtype,
             initializer=init_ops.zeros_initializer(dtype=self._dtype))
+        self._init_h = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
+        self._init_c = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
+        super(DynamicRNN, self).build(input_shape)
+
+    def call(self,
+             x,
+             seq_length=None,
+             init_h=None,
+             init_c=None):
+        """Dynamic GRU.
+        """
+        super(DynamicRNN, self).call(x, seq_length=seq_length)
+        if init_h is None:
+            init_h = self._init_h
+        else:
+            init_h_shape = tensor_shape.TensorShape(init_h)
+            if init_h_shape.ndims == 2:
+                init_h = tf.reshape(init_h, [1, init_h_shape[0], init_h_shape[1]])
+        if init_c is None:
+            init_c = self._init_c
+        else:
+            init_c_shape = tensor_shape.TensorShape(init_c)
+            if init_c_shape.ndims == 2:
+                init_c = tf.reshape(init_c, [1, init_c_shape[0], init_c_shape[1]])
+        if init_c is None:
+            init_c = self._init_c
+        self._args["w"] = self._rnn_w
+        self._args["b"] = self._rnn_b
+        self._args["init_h"] = init_h
+        self._args["init_c"] = init_c
+        return gen_npu_ops.dynamic_rnn(**self._args)
+
+
+class DynamicRNNV2(_DynamicBasic):
+    """Create a basic class for dynamic using Layer."""
+
+    def __init__(self,
+                 hidden_size,
+                 dtype,
+                 cell_type="LSTM",
+                 direction=DYNAMIC_RNN_UNIDIRECTION,
+                 cell_depth=1,
+                 use_peephole=False,
+                 keep_prob=1.0,
+                 cell_clip=-1.0,
+                 num_proj=0,
+                 time_major=True,
+                 activation="tanh",
+                 forget_bias=0.0,
+                 is_training=True):
+        super(DynamicRNNV2, self).__init__(
+            hidden_size,
+            dtype,
+            direction=direction,
+            cell_depth=cell_depth,
+            keep_prob=keep_prob,
+            cell_clip=cell_clip,
+            num_proj=num_proj,
+            activation=activation,
+            time_major=time_major,
+            is_training=is_training)
+        self._cell_type = cell_type
+        self._use_peephole = use_peephole
+        self._forget_bias = forget_bias
+        self._args["cell_type"] = self._cell_type
+        self._args["use_peephole"] = self._use_peephole
+        self._args["forget_bias"] = self._forget_bias
+        self._rnn_w = None
+        self._rnn_b = None
+        self._init_c = None
+
+    @property
+    def cell_type(self):
+        return self._cell_type
+
+    @property
+    def use_peephole(self):
+        return self._use_peephole
+
+    @property
+    def forget_bias(self):
+        return self._forget_bias
+
+    def build(self, input_shape):
+        batch_size = input_shape[1].value
+        if batch_size is None:
+            batch_size = 16
+        if input_shape[2].value is None:
+            raise ValueError("Expected input_shape[2] to be known, saw shape: input_size.")
+        input_size = input_shape[2].value
+
+        self._rnn_w = self.add_variable(
+            "dynamicrnn/w",
+            shape=[input_size + self._hidden_size, 4 * self._hidden_size],
+            dtype=self._dtype,
+            initializer=init_ops.glorot_uniform_initializer(seed=10, dtype=self._dtype))
+        self._rnn_b = self.add_variable(
+            "dynamicrnn/b",
+            shape=[4 * self._hidden_size],
+            dtype=self._dtype,
+            initializer=init_ops.zeros_initializer(dtype=self._dtype))
         super(DynamicRNN, self).build(input_shape)
 
     def call(self,
@@ -301,7 +402,7 @@ class DynamicRNN(_DynamicBasic):
              init_c=None):
         """Dynamic GRU.
         """
-        super(DynamicRNN, self).call(x, seq_length=seq_length)
+        super(DynamicRNNV2, self).call(x, seq_length=seq_length)
         batch_size = array_ops.shape(x)[1]
 
         if init_h is None:
