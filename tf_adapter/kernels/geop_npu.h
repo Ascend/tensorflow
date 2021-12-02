@@ -60,6 +60,8 @@ class GeOp : public AsyncOpKernel {
                               std::vector<Tensor> &input_vec,
                               std::vector<std::string> &input_shapes,
                               std::vector<ge::Tensor> &inputs);
+  // prepare output tensor
+  Status BuildOutTensorInfo(OpKernelContext *ctx);
 
   // create input and output desc for NodeDef
   Status GenerateDesc(Node *&node);
