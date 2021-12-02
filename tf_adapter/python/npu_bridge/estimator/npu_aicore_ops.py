@@ -55,6 +55,21 @@ def _fast_gelu_grad(op, grad):
   return [npu_aicore_ops.fast_gelu_grad(grad, op.inputs[0])]  # List of one Tensor, since we have one input
 
 
+@ops.RegisterGradient("FastGeluV2")
+def _fast_gelu_v2_grad(op, grad):
+    """The gradient for `fast_gelu_v2`.
+
+    Args:
+      op: The `fast_gelu_v2` `Operation` that we are differentiating, which we can use
+          to find the inputs and outputs of the original op.
+      grad: Gradient with respect to the output of the `fast_gelu_v2` op.
+
+    Returns:
+      Gradients with respect to the input of `fast_gelu_v2`.
+    """
+    return [npu_aicore_ops.fast_gelu_v2_grad(grad, op.inputs[0])]  # List of one Tensor, since we have one input
+
+
 def centralization(x, axes, name=None):
     """
     centralization op
