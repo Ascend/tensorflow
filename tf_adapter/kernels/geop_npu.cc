@@ -524,35 +524,22 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   // if input shapes changed, cache graphs
   uint32_t cache_graph_id = graph_id_;
-  bool is_set_dynamic_config = (!sess_options_["ge.inputShape"].empty()) && (!sess_options_["ge.dynamicDims"].empty());
-  bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
-  bool is_lazy_recompile_mode = (dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile");
-  ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config
-                << " is_tuning: " << is_tuning
-                << " is_lazy_recompile_mode: " << is_lazy_recompile_mode;
-
-  if (is_tuning) {
-    if (is_set_dynamic_config) {
-      ADP_LOG(ERROR) << "dynamic input config can not use with mstuning.";
-      OP_REQUIRES_ASYNC(ctx, false, errors::Internal("dynamic input config can not use with mstuning."), done);
-      return;
-    }
-    auto input_vec_aoe = input_vec;
-    if (RunTuning(input_vec_aoe, ctx) != 0) {
-      ADP_LOG(ERROR) << "RunTuning fail.";
-      done();
-      return;
-    }
+  bool is_set_dynamic_config = !sess_options_["ge.inputShape"].empty() && !sess_options_["ge.dynamicDims"].empty();
+  bool is_tuning = !init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty();
+  bool is_lazy_recompile_mode = dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile";
+  if (is_set_dynamic_config && is_tuning) {
+    ADP_LOG(FATAL) << "dynamic input config can not use with mstuning.";
+    std::stringstream ss;
+    ss << "dynamic input config can not use with mstuning.";
+    OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
+    return;
+  } else if (is_set_dynamic_config && !is_tuning) {
     if (InitRebuildFlag(cache_graph_id) != 0) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
       return;
     }
-    ADP_LOG(INFO) << "RunTuning finish.";
-  } else if (is_set_dynamic_config) {
-    if (InitRebuildFlag(cache_graph_id) != 0) {
-      OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
-      return;
-    }
+  } else if (!is_set_dynamic_config && is_tuning) {
+    ADP_LOG(INFO) << "[GEOP] in tune func, do not rebuild graph.";
   } else {
     // in dynamic input mode, cache graphs.
     if (is_lazy_recompile_mode) {
@@ -608,7 +595,63 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
     auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
-      return this->BuildSubGraph(flib_def, graph);
+      // const tensorflow::GraphDef *graph_def_in = reinterpret_cast<const tensorflow::GraphDef *>(root_proto);
+      ADP_LOG(INFO) << "[GEOP] build_sub_graph enter, sub graph name is " << graph;
+      const FunctionDef *func_def = flib_def->Find(graph);
+      if (func_def == nullptr) {
+        ADP_LOG(ERROR) << "[GEOP] Sub graph not found in library, sub graph name is " << graph;
+        LOG(ERROR) << "[GEOP] Sub graph not found in library, sub graph name is " << graph;
+        return "";
+      }
+      // get infershape
+      Graph subgraph(flib_def);
+      Status status = InferShapeUtil::GetSubGraphFromFunctionDef(*flib_def, *func_def, &subgraph);
+      if (status != Status::OK()) {
+        ADP_LOG(ERROR) << "[GEOP] Get subgraph from functiondef fail:" << status.error_message();
+        LOG(ERROR) << "[GEOP] Get subgraph from functiondef fail:" << status.error_message();
+        return "";
+      }
+      ADP_LOG(INFO) << "[GEOP] Get subgraph from functiondef success.";
+      char *enable_force_v2_control = getenv("ENABLE_FORCE_V2_CONTROL");
+      if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
+        GraphDef graph_def;
+        subgraph.ToGraphDef(&graph_def);
+        WriteTextProto(Env::Default(), GetDumpPath() + graph + "_graph.pbtxt", graph_def);
+      }
+
+      bool is_initialize = false;
+      for (Node *node : subgraph.nodes()) {
+        AddNodeAttrs(node, is_initialize);
+
+        // Add Input&Output Desc into NodeDef
+        if (GenerateDesc(node) != Status::OK()) {
+          ADP_LOG(WARNING) << "[GEOP] name: " << node->name() << " op:" << node->type_string()
+                           << " Generate desc failed in subgraph.";
+          LOG(WARNING) << "[GEOP] name: " << node->name() << " op:" << node->type_string()
+                       << " Generate desc failed in subgraph.";
+        }
+      }
+
+      unique_ptr<GraphDef> sub_graph_def(new (std::nothrow) GraphDef());
+      if (sub_graph_def == nullptr) {
+        ADP_LOG(ERROR) << "[GEOP] Malloc memory for subgraph def fail.";
+        LOG(ERROR) << "[GEOP] Malloc memory for subgraph def fail.";
+        return "";
+      }
+      subgraph.ToGraphDef(sub_graph_def.get());
+      if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
+        sub_graph_def->release_library();
+        sub_graph_def->mutable_versions()->clear_min_consumer();
+      }
+
+      char *need_print = getenv("PRINT_MODEL");
+      if (need_print != nullptr && strcmp("1", need_print) == 0) {
+        string tmpmodel_path = GetDumpPath() + "TF_Subgraph_";
+        string tmodel_path = tmpmodel_path + graph.c_str() + ".pbtxt";
+        Status status_out = WriteTextProto(Env::Default(), tmodel_path, *sub_graph_def);
+      }
+      ADP_LOG(INFO) << "[GEOP] build_sub_graph exit, sub graph name is " << graph;
+      return sub_graph_def->SerializeAsString();
     };
     ge::Status status = model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(),
                                                              build_sub_graph, compute_graph);
@@ -649,7 +692,39 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options_["ge.exec.placement"] = "HOST";
     }
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
-    SetDynamicInput();
+    if (dynamic_input_ == "1") {
+      graph_options_["ge.exec.dynamicInput"] = dynamic_input_;
+      graph_options_["ge.exec.dynamicGraphExecuteMode"] = dynamic_graph_execute_mode_;
+      graph_options_["ge.exec.dataInputsShapeRange"] = data_inputs_shape_range_;
+      if (dynamic_graph_execute_mode_ == "dynamic_execute" && data_inputs_shape_range_.empty()) {
+        graph_options_["ge.shape_generalized_build_mode"] = "shape_generalized";
+      }
+    }
+    if (is_tuning) {
+      if (is_train_graph_ != "1" && init_options_["ge.jobType"] != "2" && init_options_["ge.jobType"] != "1") {
+        ADP_LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
+        OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().CacheGeGraphs(ge_session_, ge_graph),
+            errors::Internal("[GEOP] cache ge session failed."), done);
+        build_flag_ = true;
+        BuildOutTensorInfo(ctx);
+        done();
+        return;
+      } else {
+        ADP_LOG(INFO) << "[GEOP] in tune mode, training graph handled by tools.";
+        std::vector<ge::Graph> ge_graphs;
+        OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().GetGeGraphs(ge_session_, ge_graphs),
+            errors::Internal("[GEOP] ge ge session nontraining graphs failed."), done);
+        tune_options_.insert(graph_options_.begin(), graph_options_.end());
+        AoeStatus tune_ret = (*aoe_tuning_)(ge_graph, ge_graphs, ge_session_, tune_options_);
+        OP_REQUIRES_ASYNC(ctx, (tune_ret == AOE_SUCCESS) || (tune_ret == AOE_ERROR_NO_AICORE_GRAPH),
+                          errors::Internal("[GEOP] exec aoe tuning func failed[", tune_ret, "]."), done);
+        ADP_LOG(INFO) << "[GEOP] aoe success[" << tune_ret << "].";
+        build_flag_ = true;
+        BuildOutTensorInfo(ctx);
+        done();
+        return;
+      }
+    }
 
     // call ge session addGraph api
     status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options_);
@@ -701,6 +776,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       done();
       return;
     }
+  }
+
+  if (is_tuning) {
+    BuildOutTensorInfo(ctx);
+    done();
+    return;
   }
 
   int64 run_start_time = InferShapeUtil::GetCurrentTimestap();
@@ -819,6 +900,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
                                !sess_options_["ge.dynamicNodeType"].empty();
   if (is_set_dynamic_config) { BuildShapeNodeAndCacheArgNodes(graph); }
 
+  bool is_tuning = !init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty();
   for (Node *node : graph.nodes()) {
     AddNodeAttrs(node, is_initialize);
     // Add Input&Output Desc into NodeDef
@@ -829,6 +911,27 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
       LOG(ERROR) << "[GEOP] node: " << node->name() << " GenerateDesc failed, "
                  << ret.error_message();
       return ret;
+    }
+
+    if (is_tuning) {
+      // output handle
+      NodeDef &node_def = const_cast<NodeDef &>(node->def());
+      if (node->type_string() == "_Retval") {
+        int index = node_def.attr().at("index").i();
+        // format: AttrValue.list(ListValue).func(repeated NameAttrList)
+        NameAttrList desc_attr = node_def.attr().at(INPUT_DESC).list().func(0);
+
+        std::vector<int64> dims;
+        int dim_num = desc_attr.attr().at(SERIALIZE_SHAPE).list().i_size();
+        for (int t = 0; t < dim_num; t++) {
+          int64 dim_i = (int64_t) desc_attr.attr().at(SERIALIZE_SHAPE).list().i(t);
+          if (dim_i < 0) { dim_i = 1; }
+          dims.push_back(dim_i);
+        }
+
+        TensorShape out_shape(dims);
+        outputs_shape_.insert(std::map<int, TensorShape>::value_type(index, out_shape));
+      }
     }
 
     if(node->type_string() == "NpuOnnxGraphOp") {
@@ -1256,6 +1359,16 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
                               " is dynamic, please ensure that npu option[dynamic_input] is set"
                               " correctly, for more details please refer to the migration guide.");
     }
+  }
+  return Status::OK();
+}
+Status GeOp::BuildOutTensorInfo(OpKernelContext *ctx) {
+  int num_outputs = ctx->num_outputs();
+    // populate outputs
+  for (int i = 0; i < num_outputs; i++) {
+    TensorShape out_shape = outputs_shape_.at(i);
+    Tensor *tensor = nullptr;
+    TF_RETURN_IF_ERROR(ctx->allocate_output(i, out_shape, &tensor));
   }
   return Status::OK();
 }
