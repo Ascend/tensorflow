@@ -269,6 +269,25 @@ def dynamic_rnn_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
     return (dx, dw, db, seq_length, dh_prev, dc_prev)
 
 
+@ops.RegisterGradient("DynamicRnnV2")
+def dynamic_rnn_v2_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
+    (x, w, b, init_h, init_c) = op.inputs
+    (y, output_h, output_c, i, j, f, o, tanhc) = op.outputs
+    (dw, db, dx, dh_prev, dc_prev) = gen_npu_ops.dynamic_rnn_grad(x, w, b, y, init_h[-1], init_c[-1], output_h,
+                                                                  output_c, dy, dh[-1], dc[-1], i, j, f, o, tanhc,
+                                                                  cell_type=op.get_attr("cell_type"),
+                                                                  direction=op.get_attr("direction"),
+                                                                  cell_depth=op.get_attr("cell_depth"),
+                                                                  use_peephole=op.get_attr("use_peephole"),
+                                                                  keep_prob=op.get_attr("keep_prob"),
+                                                                  cell_clip=op.get_attr("cell_clip"),
+                                                                  num_proj=op.get_attr("num_proj"),
+                                                                  time_major=op.get_attr("time_major"),
+                                                                  forget_bias=op.get_attr("forget_bias"))
+
+    return (dx, dw, db, dh_prev, dc_prev)
+
+
 def scatter_elements(data, indices, updates, axis=0, name=None):
     data = ops.convert_to_tensor(data, name="data")
     indices = ops.convert_to_tensor(indices, name="indices")

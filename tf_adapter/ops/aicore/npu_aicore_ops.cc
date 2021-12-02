@@ -219,6 +219,72 @@ REGISTER_OP("DynamicRnn")
       return Status::OK();
     });
 
+REGISTER_OP("DynamicRnnV2")
+    .Input("x: T")
+    .Input("w: T")
+    .Input("b: T")
+    .Input("init_h: T")
+    .Input("init_c: T")
+    .Output("y: T")
+    .Output("output_h: T")
+    .Output("output_c: T")
+    .Output("i: T")
+    .Output("j: T")
+    .Output("f: T")
+    .Output("o: T")
+    .Output("tanhc: T")
+    .Attr("T: {float16, float32}")
+    .Attr("cell_type: string")
+    .Attr("direction: string")
+    .Attr("cell_depth: int = 1")
+    .Attr("use_peephole: bool = false")
+    .Attr("keep_prob: float = 1.0")
+    .Attr("cell_clip: float = -1.0")
+    .Attr("num_proj: int = 0")
+    .Attr("time_major: bool = true")
+    .Attr("activation: string")
+    .Attr("forget_bias: float = 0.0")
+    .Attr("is_training: bool = true")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      auto input_shape = c->input(0);
+      auto num_step = c->Dim(input_shape, 0);
+      auto batch_size = c->Dim(input_shape, 1);
+      auto input_size = c->Dim(input_shape, 2);
+      auto w = c->input(1);
+      auto hidden_size_total = c->Dim(w, 0);
+      DimensionHandle hidden_size;
+      TF_RETURN_IF_ERROR(c->Subtract(hidden_size_total, input_size, &hidden_size));
+      int num_proj = 0;
+      TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
+      ShapeHandle output_y_shape;
+      if (num_proj == 0) {
+        output_y_shape = c->MakeShape({num_step, batch_size, hidden_size});
+      } else {
+        std::vector<DimensionHandle> num_projs;
+        num_projs.reserve(num_proj);
+        auto num_proj_shape = c->MakeShape(num_projs);
+        DimensionHandle num_proj_size = c->Dim(num_proj_shape, 0);
+        DimensionHandle output_hidden_size;
+        TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
+        output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
+      }          
+      auto output_h_shape = 
+          c->MakeShape({num_step, batch_size, hidden_size});
+      auto output_c_shape = 
+          c->MakeShape({num_step, batch_size, hidden_size});
+
+      c->set_output(0, output_y_shape);
+      c->set_output(1, output_h_shape);
+      c->set_output(2, output_c_shape);
+      c->set_output(3, c->UnknownShape());
+      c->set_output(4, c->UnknownShape());
+      c->set_output(5, c->UnknownShape());
+      c->set_output(6, c->UnknownShape());
+      c->set_output(7, c->UnknownShape());
+      return Status::OK();
+    });
+
 REGISTER_OP("DynamicRnnGrad")
     .Input("x: T")
     .Input("w: T")
