@@ -447,6 +447,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string device_type = "default_device_type";
+  std::string soc_config;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -470,6 +471,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_select_implmode", &op_select_implmode);
     ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
     ctx->GetAttr("_device_type", &device_type);
+    ctx->GetAttr("_soc_config", &soc_config);
   }
 
 
@@ -498,6 +500,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
   init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
   init_options["ge.deviceType"] = device_type;
+  if (!soc_config.empty()) { init_options["ge.socVersion"] = soc_config; }
 
   return init_options;
 }
@@ -776,6 +779,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
   std::string stream_max_parallel_num;
+  std::string soc_config;
 
   std::string is_tailing_optimization = std::to_string(false);
   std::string precision_mode;
@@ -833,6 +837,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto dump_mode_value = attrs.Find("_dump_mode");
   auto dump_debug_mode_value = attrs.Find("_dump_debug_mode");
   auto stream_max_parallel_num_value = attrs.Find("_stream_max_parallel_num");
+  auto soc_config_value = attrs.Find("_soc_config");
 
   auto is_tailing_optimization_value = attrs.Find("_is_tailing_optimization");
   auto precision_mode_value = attrs.Find("_precision_mode");
@@ -1004,6 +1009,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
       op_precision_mode = op_precision_mode_value->s();
     }
     if (device_type_value != nullptr) { device_type = device_type_value->s(); }
+    if (soc_config_value != nullptr) { soc_config = soc_config_value->s(); }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1018,6 +1024,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["dump_mode"] = dump_mode;
   all_options["enable_dump_debug"] = enable_dump_debug;
   all_options["dump_debug_mode"] = dump_debug_mode;
+  all_options["soc_config"] = soc_config;
 
   all_options["is_tailing_optimization"] = is_tailing_optimization;
   all_options["precision_mode"] = precision_mode;
@@ -1092,6 +1099,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
   std::string stream_max_parallel_num;
+  std::string soc_config;
 
   std::map<std::string, std::string> init_options;
   bool is_tailing_optimization = false;
@@ -1268,6 +1276,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           precision_mode = "force_fp16";
         }
       }
+      if (params.count("soc_config")) { soc_config = params.at("soc_config").s(); }
 
       do_npu_optimizer = true;
       if (params.count("enable_data_pre_proc")) { enable_dp = params.at("enable_data_pre_proc").b(); }
@@ -1459,6 +1468,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["debug_dir"] = debug_dir;
   init_options["device_type"] = device_type;
+  init_options["soc_config"] = soc_config;
 
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);

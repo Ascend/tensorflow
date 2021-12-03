@@ -15,7 +15,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                 op_compiler_cache_mode=None, op_compiler_cache_dir=None, debug_dir=None, hcom_multi_mode=False, dynamic_input=False,
                 dynamic_graph_execute_mode="dynamic_execute", dynamic_inputs_shape_range=None,
                 train_distribute=None, eval_distribute=None, local_rank_id=None, local_device_list=None, session_device_id=None,
-                distribute_config=None, modify_mixlist=None, op_precision_mode=None, device_type="default_device_type"):
+                distribute_config=None, modify_mixlist=None, op_precision_mode=None, device_type="default_device_type",
+                soc_config=None):
 
 class ProfilingConfig():
     def __init__(self, enable_profiling=False, profiling_options=None):
