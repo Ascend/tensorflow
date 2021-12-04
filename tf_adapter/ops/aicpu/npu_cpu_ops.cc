@@ -282,6 +282,7 @@ REGISTER_OP("DenseImageWarpGrad")
     .Output("imgs: uint8")
     .Output("imgs_relation: int32")
     .Output("imgs_lang: int32")
+    .Output("imgs_piece_fillers: int32")
     .Attr("batch_size: int = 8")
     .Attr("data_format: {'NHWC', 'NCHW'} = 'NHWC'")
     .Attr("pad_mode: {'REPLICATE', 'ZERO'} = 'REPLICATE'")
@@ -290,6 +291,7 @@ REGISTER_OP("DenseImageWarpGrad")
       c->set_output(0, c->Vector(c->UnknownDim()));
       c->set_output(1, c->Vector(c->UnknownDim()));
       c->set_output(2, c->Vector(c->UnknownDim()));
+      c->set_output(3, c->Vector(c->UnknownDim()));
       return Status::OK();
     });
 
