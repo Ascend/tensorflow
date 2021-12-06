@@ -302,7 +302,9 @@ class DynamicRNN(_DynamicBasic):
         """Dynamic RNN.
         """
         super(DynamicRNN, self).call(x, seq_length=seq_length)
-        batch_size = array_ops.shape(x)[1]
+        batch_size = x.shape[1].value
+        if batch_size is None:
+            batch_size = array_ops.shape(x)[1]
 
         if init_h is None:
             self._init_h = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
