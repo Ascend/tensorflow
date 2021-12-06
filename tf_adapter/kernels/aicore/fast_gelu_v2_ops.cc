@@ -31,7 +31,7 @@ public:
   }
   bool IsExpensive() override {
     LOG(INFO) << "in FastGeluV2 IsExpensive";
-    return false; 
+    return false;
   }
 };
 
