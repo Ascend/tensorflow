@@ -52,7 +52,7 @@ TEST(FastGeluV2OpTest, TestFastGeluV2ShapeInference) {
                   .Input(FakeInputStub(DT_FLOAT))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def, {TShape({16, 32})},
-                                      {});
+                                      {}, {}, {});
   std::vector<shape_inference::ShapeHandle> input_shapes;
   TF_CHECK_OK(reg->shape_inference_fn(&c));
   ASSERT_EQ("[16,32]", c.DebugString(c.output(0)));
