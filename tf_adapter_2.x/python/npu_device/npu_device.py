@@ -144,10 +144,24 @@ def global_npu_ctx():
 
 
 _hacked_tensorflow_function = def_function.function
+_hacked_def_function_function_call = def_function.Function.__call__
 _thread_local = threading.local()
 
 
-def never_nested_function(func=None, *args, **kwargs):
+def _never_nested_function_call(self, *func_args, **func_kwargs):
+    if not hasattr(_thread_local, "entrance_function"):
+        _thread_local.entrance_function = None
+    if _thread_local.entrance_function is not None:
+        logging.info("Inlining nested tf function %s under %s on npu", self._python_function.__name__,
+                     _thread_local.entrance_function)
+        return self._python_function(*func_args, **func_kwargs)
+    _thread_local.entrance_function = self._python_function.__name__
+    result = _hacked_def_function_function_call(self, *func_args, **func_kwargs)
+    _thread_local.entrance_function = None
+    return result
+
+
+def npu_compat_function(func=None, *args, **kwargs):
     def never_nested_decorator(f):
         if kwargs.get('experimental_compile'):
             logging.info("Skip xla compile tf function %s on npu", f.__name__)
@@ -156,22 +170,7 @@ def never_nested_function(func=None, *args, **kwargs):
             logging.info("Skip xla compile tf function %s on npu", f.__name__)
             kwargs['jit_compile'] = False
 
-        tf_decorated_func = _hacked_tensorflow_function(*args, **kwargs)(f)
-
-        def wrapper(*func_args, **func_kwargs):
-            if not hasattr(_thread_local, "entrance_function"):
-                _thread_local.entrance_function = None
-            if _thread_local.entrance_function is not None:
-                logging.info("Inlining nested tf function %s under %s on npu", f.__name__,
-                             _thread_local.entrance_function)
-                return f(*func_args, **func_kwargs)
-            _thread_local.entrance_function = f.__name__
-            result = tf_decorated_func(*func_args, **func_kwargs)
-            _thread_local.entrance_function = None
-            return result
-
-        wrapper.__name__ = f.__name__  # We should never change origin function name in decorator
-        return wrapper
+        return _hacked_tensorflow_function(*args, **kwargs)(f)
 
     if func is not None:
         return never_nested_decorator(func)
@@ -214,9 +213,10 @@ class NpuDeviceHandle(object):
         def _f(*args, **kwargs):
             return combined()
 
+        def_function.Function.__call__ = _never_nested_function_call
         ops.device = _f
-        def_function.function = never_nested_function
-        tf.function = never_nested_function
+        def_function.function = npu_compat_function
+        tf.function = npu_compat_function
 
         self._ctx.default_device = self._device_name
 

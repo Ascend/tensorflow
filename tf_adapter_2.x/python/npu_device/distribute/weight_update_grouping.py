@@ -20,7 +20,7 @@ import tensorflow as tf
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops
 from npu_device.distribute import hccl
-from npu_device.npu_device import never_nested_function
+from npu_device.npu_device import npu_compat_function
 from absl import logging
 
 from npu_device.npu_device import global_npu_ctx
@@ -111,7 +111,7 @@ class GroupingVars():
                 gid = item.root_rank_id
         return gid
 
-@never_nested_function
+@npu_compat_function
 def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         return apply_func(grads_and_vars, *args, **kwargs)
@@ -144,7 +144,7 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     op_list.append(apply_res)
     return tf.group(op_list)
 
-@never_nested_function
+@npu_compat_function
 def grouping_broadcast(variables):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip grouping broadcast as current process is not npu cluster worker")

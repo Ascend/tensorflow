@@ -26,11 +26,11 @@ from tensorflow.python.keras.mixed_precision.loss_scale_optimizer import _op_in_
 
 from npu_device.npu_device import global_npu_ctx
 from npu_device import gen_npu_ops
-from npu_device.npu_device import never_nested_function
+from npu_device.npu_device import npu_compat_function
 from npu_device.distribute.hccl import all_reduce
 
 
-@never_nested_function
+@npu_compat_function
 def _npu_finite_status_after_executed(executed_ops):
     if not isinstance(executed_ops, (tuple, list)):
         executed_ops = [executed_ops]
