@@ -66,6 +66,7 @@
 #include "graph/compute_graph.h"
 #include "graph/ge_attr_value.h"
 #include "graph/model.h"
+#include "aoe_types.h"
 
 namespace tensorflow {
 Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library);
@@ -214,9 +215,10 @@ GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false),
       sess_init_flag_(false), compute_graph_empty_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr),
-      job_type_(""), is_host_graph_(false), handle_(nullptr), aoe_tuning_(nullptr),
-      need_compile_graph_first_(false), aoe_init_(nullptr), aoe_finalize_(nullptr),
-      tuned_flag_(ATOMIC_FLAG_INIT) {
+      job_type_(""), is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false),
+      tuned_flag_(ATOMIC_FLAG_INIT), session_id_(0), aoe_finalize_(nullptr), aoe_initialize_(nullptr),
+      aoe_create_session_(nullptr), aoe_set_gesession_(nullptr), aoe_set_dependgraphs_(nullptr),
+      aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr) {
   Initialize(ctx);
 }
 
@@ -278,14 +280,36 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   if ((!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty())) {
     handle_ = mmDlopen("libaoe_tuning.so", MMPA_RTLD_NOW);
     OP_REQUIRES(ctx, handle_ != nullptr,
-      errors::InvalidArgument("libaoe_tuning.so dlopen failed, ", mmDlerror()));
-    aoe_tuning_ = (AoeTuningFunc)mmDlsym(handle_, const_cast<char *>("AoeOnlineTuning"));
-    aoe_init_ = (AoeInitFunc)mmDlsym(handle_, const_cast<char *>("AoeOnlineInitialize"));
-    aoe_finalize_ = (AoeFinalizeFunc)mmDlsym(handle_, const_cast<char *>("AoeOnlineFinalize"));
-    OP_REQUIRES(ctx, aoe_tuning_ != nullptr && aoe_init_ != nullptr && aoe_finalize_ != nullptr,
-      errors::InvalidArgument("dlsym Aoe API failed, ", mmDlerror()));
+                errors::InvalidArgument("libaoe_tuning.so dlopen failed, ", mmDlerror()));
+    // aoe init
+    aoe_initialize_ = (AoeInitializeFunc)mmDlsym(handle_, const_cast<char *>("AoeInitialize"));
+    OP_REQUIRES(ctx, aoe_initialize_ != nullptr ,
+                errors::InvalidArgument("dlsym Aoe initialize API failed, ", mmDlerror()));
+    // aoe finilize
+    aoe_finalize_ = (AoeFinalizeFunc)mmDlsym(handle_, const_cast<char *>("AoeFinalize"));
+    OP_REQUIRES(ctx, aoe_finalize_ != nullptr ,
+                errors::InvalidArgument("dlsym Aoe finalize API failed, ", mmDlerror()));
+    // aoe create session
+    aoe_create_session_ = (AoeCreateSessionFunc)mmDlsym(handle_, const_cast<char *>("AoeCreateSession"));
+    OP_REQUIRES(ctx, aoe_create_session_ != nullptr ,
+                errors::InvalidArgument("dlsym Aoe create session API failed, ", mmDlerror()));
+    // aoe set session
+    aoe_set_gesession_ = (AoeSetGeSessionFunc)mmDlsym(handle_, const_cast<char *>("AoeSetGeSession"));
+    OP_REQUIRES(ctx, aoe_set_gesession_ != nullptr ,
+                errors::InvalidArgument("dlsym Aoe set session API failed, ", mmDlerror()));
+    // aoe set depend graphs
+    aoe_set_dependgraphs_ = (AoeSetDependGraphFunc)mmDlsym(handle_, const_cast<char *>("AoeSetDependGraphs"));
+    OP_REQUIRES(ctx, aoe_set_dependgraphs_ != nullptr ,
+                errors::InvalidArgument("dlsym Aoe set depend graphs API failed, ", mmDlerror()));
+    // aoe set tuning graph
+    aoe_set_tuninggraph_ = (AoeSetTuningGraphFunc)mmDlsym(handle_, const_cast<char *>("AoeSetTuningGraph"));
+    OP_REQUIRES(ctx, aoe_set_tuninggraph_ != nullptr,
+                errors::InvalidArgument("dlsym Aoe aoe set tuning graph API failed, ", mmDlerror()));
+    // aoe tuning
+    aoe_tuning_graph_ = (AoeTuningGraphFunc)mmDlsym(handle_, const_cast<char *>("AoeTuningGraph"));
+    OP_REQUIRES(ctx, aoe_tuning_graph_ != nullptr,
+                errors::InvalidArgument("dlsym Aoe tuning graph API failed, ", mmDlerror()));
   }
-
   sess_options_ = NpuAttrs::GetSessOptions(ctx);
   ADP_LOG(INFO) << "session options:";
   NpuAttrs::LogOptions(sess_options_);
@@ -504,8 +528,22 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         tune_options_.insert(sess_options_.begin(), sess_options_.end());
         tune_options_.insert({"work_path", init_options_["ge.tuningPath"]});
         tune_options_.insert({"job_type", init_options_["ge.jobType"]});
-        AoeStatus tune_ret = (*aoe_init_)(ge_session_, tune_options_);
-        OP_REQUIRES_ASYNC(ctx, tune_ret == AOE_SUCCESS, errors::Internal("[GEOP] exec aoe init func failed."), done);
+        // aoe ini
+        std::map<ge::AscendString, ge::AscendString> global_options;
+        global_options.insert({ge::AscendString("work_path"), ge::AscendString(init_options_["ge.tuningPath"].c_str())});
+        AoeStatus init_ret = (*aoe_initialize_)(global_options);
+        OP_REQUIRES_ASYNC(ctx, init_ret == AOE_SUCCESS,
+                          errors::Internal("[GEOP] exec aoe initialize func failed[", init_ret, "]."), done);
+        // aoe create session
+        std::map<ge::AscendString, ge::AscendString> session_options;
+        session_options.insert({ge::AscendString("job_type"), ge::AscendString(init_options_["ge.jobType"].c_str())});
+        AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
+        OP_REQUIRES_ASYNC(ctx, session_ret == AOE_SUCCESS,
+                          errors::Internal("[GEOP] exec aoe create session func failed[", session_ret, "]."), done);
+        // aoe set ge session
+        AoeStatus set_ret = (*aoe_set_gesession_)(session_id_, ge_session_);
+        OP_REQUIRES_ASYNC(ctx, set_ret == AOE_SUCCESS,
+                          errors::Internal("[GEOP] exec aoe set session func failed[", set_ret, "]."), done);
       }
       ADP_LOG(INFO) << "[GEOP] tf session: " << tf_session_ << " get ge session success.";
       sess_init_flag_ = true;
@@ -705,6 +743,11 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         ADP_LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
         OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().CacheGeGraphs(ge_session_, ge_graph),
             errors::Internal("[GEOP] cache ge session failed."), done);
+        // set depend graphs
+        std::vector<ge::Graph> dependGraph;
+        AoeStatus depend_ret = (*aoe_set_dependgraphs_)(session_id_, dependGraph);
+        OP_REQUIRES_ASYNC(ctx, depend_ret == AOE_SUCCESS,
+                          errors::Internal("[GEOP] exec aoe depend func failed[", depend_ret, "]."), done);
         build_flag_ = true;
         BuildOutTensorInfo(ctx);
         done();
@@ -715,10 +758,16 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         OP_REQUIRES_ASYNC(ctx, SessionManager::GetInstance().GetGeGraphs(ge_session_, ge_graphs),
             errors::Internal("[GEOP] ge ge session nontraining graphs failed."), done);
         tune_options_.insert(graph_options_.begin(), graph_options_.end());
-        AoeStatus tune_ret = (*aoe_tuning_)(ge_graph, ge_graphs, ge_session_, tune_options_);
-        OP_REQUIRES_ASYNC(ctx, (tune_ret == AOE_SUCCESS) || (tune_ret == AOE_ERROR_NO_AICORE_GRAPH),
+        // set tuning graph
+        AoeStatus tune_ret = (*aoe_set_tuninggraph_)(session_id_, ge_graph);
+        OP_REQUIRES_ASYNC(ctx, tune_ret == AOE_SUCCESS,
+                          errors::Internal("[GEOP] exec aoe set tuning func failed[", tune_ret, "]."), done);
+        // aoe tuning
+        std::map<ge::AscendString, ge::AscendString> tuingOptions;
+        AoeStatus aoe_tune_ret = (*aoe_tuning_graph_)(session_id_, tuingOptions);
+        OP_REQUIRES_ASYNC(ctx, (tune_ret == AOE_SUCCESS) && (aoe_tune_ret == AOE_SUCCESS),
                           errors::Internal("[GEOP] exec aoe tuning func failed[", tune_ret, "]."), done);
-        ADP_LOG(INFO) << "[GEOP] aoe success[" << tune_ret << "].";
+        ADP_LOG(INFO) << "[GEOP] aoe success[" << aoe_tune_ret << "].";
         build_flag_ = true;
         BuildOutTensorInfo(ctx);
         done();
@@ -1207,13 +1256,6 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, OpKernelContext *ctx) {
       ADP_LOG(ERROR) << "get ge session nontraining graphs failed.";
       return -1;
     }
-    tune_options_.insert(graph_options_.begin(), graph_options_.end());
-    AoeStatus tune_ret = (*aoe_tuning_)(ge_graph, ge_graphs, ge_session_, tune_options_);
-    if ((tune_ret != AOE_SUCCESS) && (tune_ret != AOE_ERROR_NO_AICORE_GRAPH)) {
-      ADP_LOG(ERROR) << "exec aoe tuning func failed[" << tune_ret << "].";
-      return -1;
-    }
-    ADP_LOG(INFO) << "[GEOP] aoe success[" << tune_ret << "].";
     return 0;
   }
 }
