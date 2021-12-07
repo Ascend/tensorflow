@@ -15,7 +15,7 @@
 # ==============================================================================
 from npu_device.distribute import hccl_ops
 from npu_device.npu_device import global_npu_ctx
-from npu_device.npu_device import never_nested_function
+from npu_device.npu_device import npu_compat_function
 
 import tensorflow as tf
 from tensorflow.python.keras import optimizers
@@ -34,7 +34,7 @@ def shard_and_rebatch_dataset(dataset, global_bs):
     return dataset, int(batch_size)
 
 
-@never_nested_function
+@npu_compat_function
 def _all_reduce(values, reduction, fusion, fusion_id, group):
     workers_num = global_npu_ctx().workers_num
 
@@ -73,7 +73,7 @@ def all_reduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_wor
         return _all_reduce([values], reduction, fusion, fusion_id, group)[0]
 
 
-@never_nested_function
+@npu_compat_function
 def _broadcast(values, root_rank, fusion, fusion_id, group):
     for value in values:
         value.assign(hccl_ops.broadcast([value], root_rank, fusion, fusion_id, group)[0])
