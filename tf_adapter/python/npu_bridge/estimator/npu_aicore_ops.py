@@ -55,6 +55,18 @@ def _fast_gelu_grad(op, grad):
   return [npu_aicore_ops.fast_gelu_grad(grad, op.inputs[0])]  # List of one Tensor, since we have one input
 
 
+def fast_gelu_v2(x, name=None):
+    """ fast_gelu_v2 operator interface implementation
+
+    Args:
+        x: A input tensor with type is float16 or float32.
+
+    Returns:
+        A tensor.
+    """
+    return npu_aicore_ops.fast_gelu_v2(x, name)
+
+
 def centralization(x, axes, name=None):
     """
     centralization op

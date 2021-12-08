@@ -31,6 +31,12 @@ REGISTER_OP("FastGelu")
     .Attr("T: realnumbertype")
     .SetShapeFn(tensorflow::shape_inference::UnchangedShape);
 
+REGISTER_OP("FastGeluV2")
+    .Input("features: T")
+    .Output("activations: T")
+    .Attr("T: realnumbertype")
+    .SetShapeFn(tensorflow::shape_inference::UnchangedShape);
+
 REGISTER_OP("FastGeluGrad")
     .Input("gradients: T")
     .Input("features: T")
