@@ -283,7 +283,9 @@ uint64_t DataItemDeliver::Recv(void *buffer, size_t data_len) {
   uint64_t buf_pos = 0;
   while (data_len > 0) {
     do {
-      ret = recv(server_fd_, buffer + buf_pos, data_len, 0);
+      ret = recv(server_fd_,
+          reinterpret_cast<void *>(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(buffer)) + buf_pos),
+          data_len, 0);
     } while ((ret == -1) && (errno == EINTR));
     if (ret == 0) {
       // if master first reach max step ,socket will be close. correspond to
