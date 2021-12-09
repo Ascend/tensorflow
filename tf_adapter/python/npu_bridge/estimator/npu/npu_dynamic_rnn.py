@@ -290,34 +290,39 @@ class DynamicRNN(_DynamicBasic):
             shape=[4 * self._hidden_size],
             dtype=self._dtype,
             initializer=init_ops.zeros_initializer(dtype=self._dtype))
-        self._init_h = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
-        self._init_c = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
         super(DynamicRNN, self).build(input_shape)
 
     def call(self,
              x,
              seq_length=None,
              init_h=None,
-             init_c=None):
-        """Dynamic GRU.
+             init_c=None,
+             weight=None,
+             bias=None,):
+        """Dynamic RNN.
         """
         super(DynamicRNN, self).call(x, seq_length=seq_length)
+        batch_size = x.shape[1].value
+        if batch_size is None:
+            batch_size = array_ops.shape(x)[1]
+
         if init_h is None:
+            self._init_h = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
             init_h = self._init_h
-        else:
-            init_h_shape = tensor_shape.TensorShape(init_h)
-            if init_h_shape.ndims == 2:
-                init_h = tf.reshape(init_h, [1, init_h_shape[0], init_h_shape[1]])
         if init_c is None:
+            self._init_c = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
             init_c = self._init_c
-        else:
-            init_c_shape = tensor_shape.TensorShape(init_c)
-            if init_c_shape.ndims == 2:
-                init_c = tf.reshape(init_c, [1, init_c_shape[0], init_c_shape[1]])
-        if init_c is None:
-            init_c = self._init_c
-        self._args["w"] = self._rnn_w
-        self._args["b"] = self._rnn_b
+
+        if weight is None:
+            weight = self._rnn_w
+        if bias is None:
+            bias = self._rnn_b
+        self._args["w"] = weight
+        self._args["b"] = bias
         self._args["init_h"] = init_h
         self._args["init_c"] = init_c
-        return gen_npu_ops.dynamic_rnn(**self._args)
+        if seq_length is None:
+            self._args.pop("seq_length")
+            return gen_npu_ops.dynamic_rnn_v2(**self._args)
+        else:
+            return gen_npu_ops.dynamic_rnn(**self._args)
