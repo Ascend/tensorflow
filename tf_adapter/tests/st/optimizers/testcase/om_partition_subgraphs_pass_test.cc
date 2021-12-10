@@ -202,5 +202,11 @@ TEST_F(OmOptimizationPassTest, DynamicGetNextInput1Test) {
   std::string target_graph = DoRunOmOptimizationPassTest();
   EXPECT_EQ(target_graph, "arg_arg_Placeholder_0_0->GeOp14_0");
 }
+TEST_F(OmOptimizationPassTest, StringInputMaxSizeTest) {
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/om_test_string_input.pbtxt";
+  InitGraph(org_graph_def_path);
+  std::string target_graph = DoRunOmOptimizationPassTest();
+  EXPECT_EQ(target_graph, "arg_input_0_0->DecodeJpeg;DecodeJpeg->retval_DecodeJpeg_0_0");
+}
 } // end namespace
 } // end tensorflow
