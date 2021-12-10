@@ -156,8 +156,12 @@ def _never_nested_function_call(self, *func_args, **func_kwargs):
                      _thread_local.entrance_function)
         return self._python_function(*func_args, **func_kwargs)
     _thread_local.entrance_function = self._python_function.__name__
-    result = _hacked_def_function_function_call(self, *func_args, **func_kwargs)
-    _thread_local.entrance_function = None
+    try:
+        result = _hacked_def_function_function_call(self, *func_args, **func_kwargs)
+    except Exception as e:
+        raise e
+    finally:
+        _thread_local.entrance_function = None
     return result
 
 

@@ -104,4 +104,5 @@ void ReleaseDeviceResource() {
   for (auto device : devices_instances) {
     device->ReleaseResource();
   }
+  devices_instances.clear();
 }
