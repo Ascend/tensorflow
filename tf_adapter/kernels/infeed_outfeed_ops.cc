@@ -14,74 +14,16 @@
  * limitations under the License.
  */
 
-#include "securec.h"
-#include "tdt/tdt_host_interface.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
+#include "tf_adapter/util/acl_channel.h"
+#include "tf_adapter/util/npu_attrs.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include <string>
 
 namespace tensorflow {
 namespace {
-Status GetTensorShape(const string &tensor_shape, TensorShape &shape) {
-  // change "[32,224,224,3]" => "32,224,224,3"
-  // tensor_shape.size() - 2 is the second to last
-  string str = tensor_shape.substr(1, tensor_shape.size() - 2);
-  string::size_type index = 0;
-  if (!str.empty()) {
-    while ((index = str.find(' ', index)) != string::npos) { str.erase(index, 1); }
-  }
-  string split = ",";
-  string::size_type pos2 = str.find(split);
-  string::size_type pos1 = 0;
-  while (pos2 != string::npos) {
-    try {
-      shape.AddDim(std::stoi(str.substr(pos1, pos2 - pos1)));
-    } catch (...) { return errors::InvalidArgument("Invalid shape string: ", tensor_shape); }
-    // string::size_type can store the length of any string object
-    pos1 = pos2 + split.size();
-    pos2 = str.find(split, pos1);
-  }
-  if (pos1 != str.length()) {
-    try {
-      shape.AddDim(std::stoi(str.substr(pos1)));
-    } catch (...) { return errors::InvalidArgument("Invalid shape string: ", tensor_shape); }
-  }
-  return Status::OK();
-}
-
-Status ConvertDataItem2Tensor(const std::vector<tdt::DataItem> &items, std::vector<Tensor> &tensors) {
-  for (auto &item : items) {
-    if (item.dataType_ == tdt::TDT_END_OF_SEQUENCE) {
-      ADP_LOG(INFO) << "End of processing.";
-      return Status::OK();
-    }
-    DataType type = DT_FLOAT;
-    DataTypeFromString(item.tensorType_, &type);
-    if (type == DT_STRING) {
-      Tensor result_tensor(tensorflow::DT_STRING, TensorShape({}));
-      std::shared_ptr<std::string> data_str_ptr = std::static_pointer_cast<std::string>(item.dataPtr_);
-      result_tensor.scalar<string>()() =
-          std::move(string(reinterpret_cast<const char *>(data_str_ptr->c_str()), item.dataLen_));
-      tensors.emplace_back(std::move(result_tensor));
-    } else if (DataTypeCanUseMemcpy(type)) {
-      TensorShape tensorShape;
-      Status s = GetTensorShape(item.tensorShape_, tensorShape);
-      if (!s.ok()) { return s; }
-      Tensor result_tensor = Tensor(type, tensorShape);
-      std::shared_ptr<std::string> data_str_ptr = std::static_pointer_cast<std::string>(item.dataPtr_);
-      errno_t ret = memcpy_s(const_cast<char *>(result_tensor.tensor_data().data()), result_tensor.tensor_data().size(),
-                             data_str_ptr->c_str(), item.dataLen_);
-      if (ret != EOK) { return errors::Unknown("memcpy failed"); }
-      tensors.emplace_back(std::move(result_tensor));
-    } else {
-      return errors::InvalidArgument("Not support this type: ", type);
-    }
-  }
-  return Status::OK();
-}
-
 class OutfeedEnqueueOp : public OpKernel {
  public:
   explicit OutfeedEnqueueOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
@@ -99,26 +41,54 @@ class OutfeedEnqueueOp : public OpKernel {
 class OutfeedDequeueOp : public OpKernel {
  public:
   explicit OutfeedDequeueOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    // ctx is not nullptr
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
-    OP_REQUIRES(ctx, tdt::TdtHostPreparePopData() == 0, errors::Internal("Prepare Pop Data failed"));
-    ADP_LOG(INFO) << "OutfeedDequeueOp built";
+    // Create log summary acl channel
+    ADP_LOG(INFO) << "Start create acl channel for out-feed dequeue op " << channel_name_;
+    uint32_t device_id = 0;
+    OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
+    const size_t kDefaultCapacity = 3;
+    acl_handle_ = CreateAclTdtRecvChannel(device_id, channel_name_, kDefaultCapacity);
+    OP_REQUIRES(ctx, acl_handle_ != nullptr, errors::Internal("Acl create receive channel failed."));
+    ADP_LOG(INFO) << "Succeed create acl channel for out-feed dequeue op " << channel_name_;
   }
-  ~OutfeedDequeueOp() override { ADP_LOG(INFO) << "OutfeedDequeueOp has been destructed"; }
+  ~OutfeedDequeueOp() override {
+    ADP_LOG(INFO) << "Start destroy acl channel for out-feed dequeue op " << channel_name_;
+    if (acl_handle_ != nullptr) {
+      if (acltdtDestroyChannel(acl_handle_) != ACL_ERROR_NONE) {
+        ADP_LOG(ERROR) << "Failed destroy acl channel for out-feed dequeue op " << channel_name_;
+      } else {
+        ADP_LOG(INFO) << "Succeed destroy acl channel for out-feed dequeue op " << channel_name_;
+      }
+    }
+  }
   void Compute(OpKernelContext *ctx) override {
-    CHECK_NOT_NULL(ctx);
-    std::vector<tdt::DataItem> bundle;
-    OP_REQUIRES(ctx, tdt::TdtHostPopData(channel_name_, bundle) == 0,
-                errors::Internal("TdtHostPopData get data failed"));
-    std::vector<Tensor> out_tensors;
-    OP_REQUIRES_OK(ctx, ConvertDataItem2Tensor(bundle, out_tensors));
-    OP_REQUIRES(ctx, !out_tensors.empty(), errors::OutOfRange("Outfeed tensors reach the end"));
-    OP_REQUIRES(
-        ctx, out_tensors.size() == output_shapes_.size(),
-        errors::Internal("Outfeed tensors num mismatch", out_tensors.size(), "vs. expect", output_shapes_.size()));
-    for (int i = 0; i < ctx->num_outputs(); ++i) { ctx->set_output(i, out_tensors[i]); }
+    ADP_LOG(INFO) << "Start compute out-feed dequeue op " << channel_name_;
+    CancellationManager *cm = ctx->cancellation_manager();
+    CancellationToken token = cm->get_cancellation_token();
+    bool already_cancelled = !cm->RegisterCallback(token, [this]() {
+      ADP_LOG(INFO) << "Start run cancellation callback of out-feed dequeue op " << channel_name_;
+      Status ret = StopRecvTensorByAcl(&acl_handle_, channel_name_);
+      if (!ret.ok()) { ADP_LOG(ERROR) << ret.error_message(); }
+    });
+
+    if (TF_PREDICT_FALSE(already_cancelled)) {
+      ctx->SetStatus(errors::Internal("out-feed op ", channel_name_, " called after cancelled."));
+      return;
+    }
+
+    std::vector<Tensor> tensors;
+    ADP_LOG(INFO) << "Start recv tensors by acl out-feed dequeue op " << channel_name_;
+    auto status = RecvTensorByAcl(acl_handle_, tensors);
+    ADP_LOG(INFO) << "Start de-register callback out-feed dequeue op " << channel_name_;
+    (void) cm->DeregisterCallback(token);
+    OP_REQUIRES_OK(ctx, status);
+    OP_REQUIRES(ctx, !tensors.empty(), errors::OutOfRange("out-feed op ", channel_name_, " received end-of-sequence"));
+    OP_REQUIRES(ctx, tensors.size() == output_shapes_.size(),
+                errors::Internal("out-feed op ", channel_name_, " received ", tensors.size(), " tensors but expect ",
+                                 output_shapes_.size(), " tensors"));
+    for (int i = 0; i < ctx->num_outputs(); ++i) { ctx->set_output(i, tensors[i]); }
   }
   bool IsExpensive() override { return false; }
 
@@ -126,29 +96,11 @@ class OutfeedDequeueOp : public OpKernel {
   DataTypeVector output_types_;
   std::vector<PartialTensorShape> output_shapes_;
   std::string channel_name_;
-};
-
-class StopOutfeedDequeueOp : public OpKernel {
- public:
-  explicit StopOutfeedDequeueOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
-    ADP_LOG(INFO) << "StopOutfeedDequeueOp built";
-  }
-  ~StopOutfeedDequeueOp() override { ADP_LOG(INFO) << "StopOutfeedDequeueOp has been destructed"; }
-  void Compute(OpKernelContext *ctx) override {
-    ADP_LOG(INFO) << "StopOutfeedDequeueOp running";
-    OP_REQUIRES(ctx, tdt::TdtHostStop(channel_name_) == 0, errors::Internal("TdtHostStop failed"));
-  }
-  bool IsExpensive() override { return false; }
-
- private:
-  std::string channel_name_;
+  acltdtChannelHandle *acl_handle_ = nullptr;
 };
 
 REGISTER_KERNEL_BUILDER(Name("OutfeedDequeueOp").Device(DEVICE_CPU), OutfeedDequeueOp);
 
 REGISTER_KERNEL_BUILDER(Name("OutfeedEnqueueOp").Device(DEVICE_CPU), OutfeedEnqueueOp);
-
-REGISTER_KERNEL_BUILDER(Name("StopOutfeedDequeueOp").Device(DEVICE_CPU), StopOutfeedDequeueOp);
 }  // namespace
 }  // namespace tensorflow

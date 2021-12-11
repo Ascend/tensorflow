@@ -142,6 +142,12 @@ TEST_F(GeOpTest, GeOpDynamicInputTest) {
   EXPECT_TRUE(attrs.find("_dynamic_input") != attrs.end());
   EXPECT_TRUE(!attrs["_dynamic_input"].s().empty());
 }
+TEST_F(GeOpTest, GeOpDynamicInputGetNextTest) {
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_input_lazy_recompile.pbtxt";
+  gtl::InlinedVector<TensorValue, 4> inputs;
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp11_0").ok());
+}
 TEST_F(GeOpTest, GeOpDynamicInput1Test) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_execute.pbtxt";
@@ -303,6 +309,11 @@ TEST_F(GeOpTest, GeOpNpuOnnxGraphOpNoModelTest) {
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
   EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
 }
-
+TEST_F(GeOpTest, GeOpDpOpTest) {
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dpop.pbtxt";
+  gtl::InlinedVector<TensorValue, 4> inputs;
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0_dp").ok());
+}
 }
 } //end tensorflow

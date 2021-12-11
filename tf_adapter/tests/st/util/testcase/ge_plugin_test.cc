@@ -82,7 +82,6 @@ TEST_F(GePluginTest, MallocSharedMemOKTest) {
   EXPECT_EQ(ret, 0);
 }
 TEST_F(GePluginTest, NpuCloseTest) {
-  NpuAttrs::SetUseTdtStatus(0, true);
   NpuClose();
 }
 TEST_F(GePluginTest, RdmaInitAndRegisterFail1Test) {

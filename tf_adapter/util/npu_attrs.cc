@@ -27,6 +27,13 @@
 namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
+std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
+
+extern const bool kIsNewDataTransfer = []() -> bool {
+  bool is_new_data_transfer = false;
+  tensorflow::ReadBoolFromEnvVar("IS_NEW_DATA_TRANSFER", false, &is_new_data_transfer);
+  return is_new_data_transfer;
+}();
 
 std::string GetDumpPath() {
   char *npu_collect_path = std::getenv("NPU_COLLECT_PATH");
@@ -288,6 +295,20 @@ bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
 void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
   use_adp_info_[iterator_name] = is_use_adp;
   ADP_LOG(INFO) << "set iterator: " << iterator_name << " use_adp_info_: " << use_adp_info_[iterator_name];
+}
+
+bool NpuAttrs::IsDatasetExecuteInDevice(std::string iterator_name) {
+  if (dataset_execute_info_.count(iterator_name) > 0) {
+    ADP_LOG(INFO) << "get data pre-process graph: " << iterator_name << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
+    return dataset_execute_info_[iterator_name];
+  } else {
+    return false;
+  }
+}
+
+void NpuAttrs::SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool is_dataset_execute_device) {
+  dataset_execute_info_[iterator_name] = is_dataset_execute_device;
+  ADP_LOG(INFO) << "data pre-process graph: " << iterator_name << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
 }
 
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {

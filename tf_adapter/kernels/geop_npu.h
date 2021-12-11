@@ -108,6 +108,12 @@ class GeOp : public AsyncOpKernel {
 
   void SetDynamicInput();
 
+  void ProcessDpOpFuncDef(Node *node);
+
+  void HandleDpOpAndGetNextNodes(Graph &graph);
+
+  void ChangeChannelNameAttr(NodeDef &node_def);
+
  private:
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;

@@ -33,6 +33,7 @@ add_subdirectory(depends/alog)
 add_subdirectory(depends/datatransfer)
 add_subdirectory(depends/ge_runner)
 add_subdirectory(depends/aoe)
+add_subdirectory(depends/ascendcl)
 
 if (ENABLE_TFADAPTER_UT)
     add_subdirectory(ut)

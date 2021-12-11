@@ -60,7 +60,6 @@ add_dependencies(tfadapter_stest aoe_tuning)
 
 target_link_libraries(tfadapter_stest PUBLIC
     $<BUILD_INTERFACE:intf_pub>
-    gtest gtest_main c_sec mmpa_stub indextransform_stub alog_stub datatransfer_stub ge_runner_stub
+    gtest gtest_main c_sec mmpa_stub indextransform_stub alog_stub datatransfer_stub ge_runner_stub ascendcl_stub
     ${PYTHON_LIB_PATH} -lrt -ldl -lgcov
 )
-

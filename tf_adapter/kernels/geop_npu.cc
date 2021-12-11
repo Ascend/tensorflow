@@ -862,7 +862,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       return;
     }
     int64 run_end_time = InferShapeUtil::GetCurrentTimestap();
-    ADP_LOG(INFO) << "[GEOP] RunGraphAsync callback, status:" << ge_status << ", kernel_name:"
+    ADP_LOG(EVENT) << "[GEOP] RunGraphAsync callback, status:" << ge_status << ", kernel_name:"
                   << ctx->op_kernel().name() << "[ " << (run_end_time - run_start_time) << "us]";
     done();
   };
@@ -890,6 +890,46 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                 << " ,tf session: " << tf_session_ << " ,graph id: " << cache_graph_id << " ["
                 << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;
+}
+
+void GeOp::ChangeChannelNameAttr(NodeDef &node_def) {
+  const std::string pre_channel_name = node_def.attr().at("channel_name").s();
+  uint32_t device_id = 0;
+  (void)GetEnvDeviceID(device_id);
+  AttrValue channel_name = AttrValue();
+  channel_name.set_s(std::to_string(std::hash<std::string>{}(tf_session_ + pre_channel_name +
+    "_device_" + std::to_string(device_id))));
+  (*node_def.mutable_attr())["channel_name"] = channel_name;
+  ADP_LOG(INFO) << "[GEOP] changed the value of channel_name attr of node:" << node_def.name() << " to " << channel_name.s();
+}
+
+void GeOp::ProcessDpOpFuncDef(Node *node) {
+  const std::string func_name = node->def().attr().at("function").func().name();
+  const std::string org_func_def_lib = node->def().attr().at("func_def").s();
+  FunctionDefLibrary func_def_lib;
+  func_def_lib.ParseFromString(org_func_def_lib);
+  for (auto &func_def : *func_def_lib.mutable_function()) {
+    if (func_def.signature().name() == func_name) {
+      for (auto &node_def : *func_def.mutable_node_def()) {
+        if (!NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + node_def.name())
+            && (node_def.op() == "IteratorV2" || node_def.op() == "Iterator")) {
+          NpuAttrs::SetDatasetExecuteInDeviceStatus(tf_session_ + node_def.name(), true);
+        }
+        if (node_def.op() == "DeviceQueueDataset") {
+          if (kIsNewDataTransfer) { ChangeChannelNameAttr(node_def); }
+          tensorflow::AttrValue value;
+          value.set_b(kIsNewDataTransfer);
+          node_def.mutable_attr()->insert({"_is_new_data_transfer", value});
+        }
+      }
+    }
+  }
+  std::string new_func_def_lib;
+  func_def_lib.SerializeToString(&new_func_def_lib);
+  AttrValue func_def_value = AttrValue();
+  func_def_value.set_s(new_func_def_lib);
+  NodeDef &node_def = const_cast<NodeDef &>(node->def());
+  (*node_def.mutable_attr())["func_def"] = func_def_value;
 }
 
 void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
@@ -926,6 +966,66 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
     node_def.mutable_attr()->erase("data_format");
     node_def.mutable_attr()->erase("cce_format");
     node_def.mutable_attr()->erase("output_type");
+  }
+}
+
+void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
+  std::vector<Node *> remove_nodes;
+  for (Node *node : graph.nodes()) {
+    CHECK_NOT_NULL(node);
+    if (node->type_string() == "DPOP") {
+      ProcessDpOpFuncDef(node);
+    } else if (node->type_string() == "IteratorGetNext") {
+      Node *iterator_node = nullptr;
+      std::string iterator_name;
+      NodeDef &node_def = const_cast<NodeDef &>(node->def());
+      for (auto in_edge : node->in_edges()) {
+        CHECK_NOT_NULL(in_edge);
+        CHECK_NOT_NULL(in_edge->src());
+        if (in_edge->src()->type_string() == "IteratorV2" || in_edge->src()->type_string() == "Iterator") {
+          iterator_name = in_edge->src()->name();
+          iterator_node = in_edge->src();
+        }
+      }
+      uint32_t device_id = 0;
+      (void)GetEnvDeviceID(device_id);
+      std::string channel_name = std::to_string(std::hash<std::string>{}(tf_session_ + iterator_name +
+          "_device_" + std::to_string(device_id)));
+      if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
+        if (dynamic_input_ == "1") { node_def.set_op("DynamicGetNext"); }
+      } else {
+        Node *aicpu_getnext = nullptr;
+        std::string aicpu_getnext_name = "aicpu_getnext_" + node->name();
+        auto getnext_attrs = node->def().attr();
+        std::string aicpu_getnext_type = dynamic_input_ == "1" ? "DynamicGetNextV2" : "GetNext";
+        TF_CHECK_OK(NodeBuilder(aicpu_getnext_name, aicpu_getnext_type)
+                               .Device(node->def().device())
+                               .Attr("channel_name", channel_name)
+                               .Attr("output_types", getnext_attrs["output_types"])
+                               .Attr("output_shapes", getnext_attrs["output_shapes"])
+                               .Finalize(&graph, &aicpu_getnext));
+        for (auto out_edge : node->out_edges()) {
+          CHECK_NOT_NULL(out_edge);
+          graph.AddEdge(aicpu_getnext, out_edge->src_output(), out_edge->dst(), out_edge->dst_input());
+        }
+        const OpDef &getnext_op_def = aicpu_getnext->op_def();
+        NodeDef &getnext_node_def = const_cast<NodeDef &>(aicpu_getnext->def());
+        std::string op_def_s;
+        getnext_op_def.SerializeToString(&op_def_s);
+        tensorflow::AttrValue value;
+        value.set_s(op_def_s);
+        getnext_node_def.mutable_attr()->insert({"op_def", value});
+        remove_nodes.push_back(node);
+        remove_nodes.push_back(iterator_node);
+      }
+      if (dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile") {
+        graph_options_["ge.exec.enableCopyOutputAddr"] = "1";
+      }
+    }
+  }
+  for (Node *node : remove_nodes) {
+    ADP_LOG(INFO) << "[GEOP] Remove node:" << node->name();
+    graph.RemoveNode(node);
   }
 }
 
@@ -1000,6 +1100,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
       return ret;
     }
   }
+  HandleDpOpAndGetNextNodes(graph);
   graph.ToGraphDef(&graph_def);
   char *enable_force_v2_control = getenv("ENABLE_FORCE_V2_CONTROL");
   if (enable_force_v2_control != nullptr && strcmp("1", enable_force_v2_control) == 0) {
@@ -1420,10 +1521,6 @@ Status GeOp::GenerateDesc(Node *&node) {
   REQUIRES_NOT_NULL(node);
   NodeDef &node_def = const_cast<NodeDef &>(node->def());
   const OpDef &op_def = node->op_def();
-  if (dynamic_input_ == "1" && node->type_string() == "IteratorGetNext") {
-    node_def.set_op("DynamicGetNext");
-    if (dynamic_graph_execute_mode_ == "lazy_recompile") { graph_options_["ge.exec.enableCopyOutputAddr"] = "1"; }
-  }
 
   std::string format = this->data_format_;  // format
   int32_t domi_format = domi::domiTensorFormat_t::DOMI_TENSOR_RESERVED;

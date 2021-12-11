@@ -147,6 +147,12 @@ TEST_F(GeOpTest, GeOpDynamicInputTest) {
   EXPECT_TRUE(attrs.find("_dynamic_input") != attrs.end());
   EXPECT_TRUE(!attrs["_dynamic_input"].s().empty());
 }
+TEST_F(GeOpTest, GeOpDynamicInputGetNextTest) {
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_input_lazy_recompile.pbtxt";
+  gtl::InlinedVector<TensorValue, 4> inputs;
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp11_0").ok());
+}
 TEST_F(GeOpTest, GeOpDynamicInput1Test) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_execute.pbtxt";
@@ -261,7 +267,6 @@ TEST_F(GeOpTest, GeOpFuncSubGraphTest) {
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a)};
   EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp12_0").ok());
 }
-
 TEST_F(GeOpTest, GeOpDynamicDimsTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_dims.pbtxt";
@@ -272,14 +277,12 @@ TEST_F(GeOpTest, GeOpDynamicDimsTest) {
   EXPECT_TRUE(attrs.find("_input_shape") != attrs.end());
   EXPECT_TRUE(!attrs["_input_shape"].s().empty());
 }
-
 TEST_F(GeOpTest, GeOpWhileLoopV1Test) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_while_loop.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
   EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0").ok());
 }
-
 TEST_F(GeOpTest, GeOpWhileLoopV2Test) {
   setenv("ENABLE_FORCE_V2_CONTROL", "1", true);
   NodeDef node_def;
@@ -287,7 +290,6 @@ TEST_F(GeOpTest, GeOpWhileLoopV2Test) {
   gtl::InlinedVector<TensorValue, 4> inputs;
   EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0").ok());
 }
-
 TEST_F(GeOpTest, GeOpNpuOnnxGraphOpTest) {
   NodeDef node_def;
   std::string grph_pbtxt_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_npu_onnx_graph_op.pbtxt";
@@ -296,7 +298,6 @@ TEST_F(GeOpTest, GeOpNpuOnnxGraphOpTest) {
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
   EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
 }
-
 TEST_F(GeOpTest, GeOpNpuOnnxGraphOpNoModelTest) {
   NodeDef node_def;
   std::string grph_pbtxt_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_npu_onnx_graph_op_parse.pbtxt";
@@ -326,6 +327,7 @@ TEST_F(GeOpTest, DomiFormatFromStringTest) {
   EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_FRACTAL_Z);
   ret = geop_node->DomiFormatFromString("aa", domi_format);
   EXPECT_TRUE(!ret.ok());
+
 }
 }  // namespace
 }  // namespace tensorflow
