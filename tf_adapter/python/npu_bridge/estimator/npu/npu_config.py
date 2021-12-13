@@ -91,7 +91,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  modify_mixlist=None,
                  op_precision_mode=None,
                  device_type="default_device_type",
-                 soc_config=None
+                 soc_config=None,
+                 hccl_timeout="600"
                  ):
         """
         Constructs a NPUConfig.
@@ -218,6 +219,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._op_precision_mode = op_precision_mode
         self._device_type = device_type
         self._soc_config = soc_config
+        self._hccl_timeout = hccl_timeout
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

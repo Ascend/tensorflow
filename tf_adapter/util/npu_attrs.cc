@@ -319,6 +319,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string modify_mixlist;
   std::string op_precision_mode;
   std::string graph_run_mode = "1";
+  std::string hccl_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -371,6 +372,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     ctx->GetAttr("_modify_mixlist", &modify_mixlist);
     ctx->GetAttr("_op_precision_mode", &op_precision_mode);
     ctx->GetAttr("_graph_run_mode", &graph_run_mode);
+    ctx->GetAttr("_hccl_timeout", &hccl_timeout);
   }
 
   // session options
@@ -402,6 +404,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   sess_options[ge::MODIFY_MIXLIST] = modify_mixlist;
   sess_options["ge.exec.op_precision_mode"] = op_precision_mode;
   sess_options[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
+  sess_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
 
   return sess_options;
 }
@@ -1100,6 +1103,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string dump_debug_mode = "all";
   std::string stream_max_parallel_num;
   std::string soc_config;
+  std::string hccl_timeout;
 
   std::map<std::string, std::string> init_options;
   bool is_tailing_optimization = false;
@@ -1421,6 +1425,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         op_precision_mode = params.at("op_precision_mode").s();
       }
       if (params.count("device_type")) { device_type = params.at("device_type").s(); }
+      if (params.count("hccl_timeout")) { hccl_timeout = params.at("hccl_timeout").s(); }
     }
   }
 
@@ -1452,6 +1457,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["session_device_id"] = std::to_string(session_device_id);
   sess_options["modify_mixlist"] = modify_mixlist;
   sess_options["op_precision_mode"] = op_precision_mode;
+  sess_options["hccl_timeout"] = hccl_timeout;
 
   init_options["precision_mode"] = precision_mode;
   init_options["profiling_mode"] = std::to_string(profiling_mode);
