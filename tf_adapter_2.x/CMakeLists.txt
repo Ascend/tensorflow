@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.14)
 project(AscendAdapter2)
 
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_C_FLAGS "-D_FORTIFY_SOURCE=2 -O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -fno-common -pipe ${CMAKE_C_FLAGS}")
-set(CMAKE_CXX_FLAGS "-D_FORTIFY_SOURCE=2 -O2 -DNDEBUG -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -fno-common -pipe ${CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "-D_FORTIFY_SOURCE=2 -O2 -DNDEBUG -Wfloat-equal -Wextra -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -fno-common -pipe ${CMAKE_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "-D_FORTIFY_SOURCE=2 -O2 -DNDEBUG -Wfloat-equal -Wextra -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -fno-common -pipe ${CMAKE_CXX_FLAGS}")
 set(CMAKE_SKIP_RPATH TRUE)
 
 IF (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
