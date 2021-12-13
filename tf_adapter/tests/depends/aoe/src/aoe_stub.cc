@@ -16,21 +16,32 @@
 
 #include "toolchain/tuning_tool/tune_api.h"
 
-extern "C" AoeStatus AoeOnlineInitialize(ge::Session *session, const std::map<std::string, std::string> &option) {
-  if (option.empty()) {
-    return AOE_FALLURE;
-  }
+extern "C" AoeStatus AoeInitialize(const std::map<ge::AscendString, ge::AscendString> &globalOptions) {
   return AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeOnlineFinalize() {
+extern "C" AoeStatus AoeFinalize() {
   return AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeOnlineTuning(ge::Graph &tuningGraph, std::vector<ge::Graph> &dependGraph,
-    ge::Session *session, const std::map<std::string, std::string> &option) {
-  if (option.empty()) {
-    return AOE_FALLURE;
-  }
+extern "C" AoeStatus AoeCreateSession(const std::map<ge::AscendString, ge::AscendString> &sessionOptions,
+                                      SessionId &SessionId) {
+  return AOE_SUCCESS;
+}
+
+extern "C" AoeStatus AoeSetGeSession(SessionId SessionId, ge::Session* geSession) {
+  return AOE_SUCCESS;
+}
+
+extern "C" AoeStatus AoeSetDependGraphs(SessionId SessionId, std::vector<ge::Graph> &dependGraph) {
+  return AOE_SUCCESS;
+}
+
+extern "C" AoeStatus AoeSetTuningGraph(SessionId SessionId, ge::Graph &tuningGraph) {
+  return AOE_SUCCESS;
+}
+
+extern "C" AoeStatus AoeTuningGraph(SessionId SessionId,
+                                    const std::map<ge::AscendString, ge::AscendString> &tuningOptions) {
   return AOE_SUCCESS;
 }
