@@ -22,6 +22,7 @@ import util_global
 import pandas as pd
 from visit_by_ast import get_tf_enume
 from visit_by_ast import get_unsupport_api
+import re
 
 def before_clear():
     exit_folder = os.path.exists(util_global.get_value('output'))
