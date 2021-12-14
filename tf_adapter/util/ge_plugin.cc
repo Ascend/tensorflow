@@ -253,7 +253,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
     ADP_LOG(FATAL) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
     LOG(FATAL) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
   }
-  ADP_LOG(INFO) << "[GePlugin] Initialize parser SUCESS";
+  ADP_LOG(INFO) << "[GePlugin] Initialize parser success.";
   isInit_ = true;
   isGlobal_ = is_global;
 }
