@@ -2147,33 +2147,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       // fuse Iterator and IteratorGetNext, build new node AdpGetNext.
       TF_CHECK_OK(ProcessGetNext(node, pass_options["enable_dp"], remove_nodes, graphIn));
     } else if (node->type_string() == "_UnaryOpsComposition") {
-      ADP_LOG(INFO) << "begin split _UnaryOpsComposition.";
-      Node *pre_node = nullptr;
-      if (node->in_edges().size() != 1) {
-        ADP_LOG(INFO) << "edge size if not 1, not support in _UnaryOpsComposition.";
-        continue;
-      }
-      pre_node = (*node->in_edges().begin())->src();
-      auto attr_map = node->def().attr();
-      auto node_list = attr_map["op_names"].list();
-      Node *unary_node = nullptr;
-      for (int i = 0; i < node_list.s_size(); i++) {
-        const string &node_name = node_list.s(i);
-        string op_name = node->name() + "_" + std::to_string(i) + "_" + node_name;
-        ADP_LOG(INFO) << "op_names node_list: " << i << " is node: " << node_name;
-        TF_CHECK_OK(NodeBuilder(op_name, node_name)
-                        .Input(pre_node, 0)
-                        .Device(pre_node->def().device())
-                        .Finalize(&*graphIn, &unary_node));
-        REQUIRES_NOT_NULL(unary_node);
-        ADP_LOG(INFO) << unary_node->type_string() << " has built success.";
-        pre_node = unary_node;
-      }
-      for (auto out_edge : node->out_edges()) {
-        ADP_LOG(INFO) << "begin add edge ";
-        graphIn->AddEdge(unary_node, 0, out_edge->dst(), out_edge->dst_input());
-      }
-      graphIn->RemoveNode(node);
+      TF_RETURN_IF_ERROR(SplitUnaryOpsComposition(graphIn, node));
     } else if (node->type_string() == "DestroyTemporaryVariable" && node->name().find("AccumulateNV2") != std::string::npos) {
       TF_RETURN_IF_ERROR(AccumulateNFusion(graphIn, node));
     }
@@ -2343,6 +2317,34 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " success. ["
                  << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  return Status::OK();
+}
+
+Status OMPartitionSubgraphsPass::SplitUnaryOpsComposition(Graph *graph, Node *node) {
+  ADP_LOG(INFO) << "begin split _UnaryOpsComposition.";
+  Node *pre_node = (*node->in_edges().begin())->src();
+  auto node_list = node->def().attr().at("op_names").list();
+  Node *unary_node = nullptr;
+  for (int i = 0; i < node_list.s_size(); i++) {
+    const string &node_name = node_list.s(i);
+    string op_name = node->name() + "_" + std::to_string(i) + "_" + node_name;
+    ADP_LOG(INFO) << "op_names node_list: " << i << " is node: " << node_name;
+    TF_CHECK_OK(NodeBuilder(op_name, node_name)
+                  .Input(pre_node, 0)
+                  .Device(pre_node->def().device())
+                  .Finalize(&*graph, &unary_node));
+    ADP_LOG(INFO) << unary_node->type_string() << " has built success.";
+    pre_node = unary_node;
+    REQUIRES_NOT_NULL(pre_node);
+  }
+  for (auto out_edge : node->out_edges()) {
+    if (out_edge->IsControlEdge()) {
+      graph->AddControlEdge(unary_node, out_edge->dst());
+    } else {
+      graph->AddEdge(unary_node, 0, out_edge->dst(), out_edge->dst_input());
+    }
+  }
+  graph->RemoveNode(node);
   return Status::OK();
 }
 
