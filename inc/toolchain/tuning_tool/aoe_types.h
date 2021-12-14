@@ -16,7 +16,6 @@
 #include <memory>
 #include "graph/graph.h"
 
-using SessionId = uint64_t;
 using AoeStatus = int32_t;
 const AoeStatus AOE_SUCCESS = 0;
 const AoeStatus AOE_FALLURE = -1;
