@@ -451,6 +451,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string optypelist_for_implmode;
   std::string device_type = "default_device_type";
   std::string soc_config;
+  std::string hccl_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -475,6 +476,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
     ctx->GetAttr("_device_type", &device_type);
     ctx->GetAttr("_soc_config", &soc_config);
+    ctx->GetAttr("_hccl_timeout", &hccl_timeout);
   }
 
 
@@ -503,6 +505,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
   init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
   init_options["ge.deviceType"] = device_type;
+  init_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
   if (!soc_config.empty()) { init_options["ge.socVersion"] = soc_config; }
 
   return init_options;
@@ -815,6 +818,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string modify_mixlist;
   std::string op_precision_mode;
   std::string device_type = "default_device_type";
+  std::string hccl_timeout;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -872,6 +876,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto modify_mixlist_value = attrs.Find("_modify_mixlist");
   auto op_precision_mode_value = attrs.Find("_op_precision_mode");
   auto device_type_value = attrs.Find("_device_type");
+  auto hccl_timeout_value = attrs.Find("_hccl_timeout");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -1008,6 +1013,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (modify_mixlist_value != nullptr) {
       modify_mixlist = modify_mixlist_value->s();
     }
+    if (hccl_timeout_value != nullptr) {
+      hccl_timeout = hccl_timeout_value->s();
+    }
     if (op_precision_mode_value != nullptr) {
       op_precision_mode = op_precision_mode_value->s();
     }
@@ -1072,6 +1080,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["modify_mixlist"] = modify_mixlist;
   all_options["op_precision_mode"] = op_precision_mode;
   all_options["device_type"] = device_type;
+  all_options["hccl_timeout"] = hccl_timeout;
 
   return all_options;
 }
