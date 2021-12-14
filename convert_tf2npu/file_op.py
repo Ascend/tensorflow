@@ -22,7 +22,6 @@ import util_global
 import pandas as pd
 from visit_by_ast import get_tf_enume
 from visit_by_ast import get_unsupport_api
-import re
 
 def before_clear():
     exit_folder = os.path.exists(util_global.get_value('output'))
@@ -87,7 +86,7 @@ def check_warning(lineno, api_msg):
                            api_msg, ", It is suggested to use npu api. Please refer to the online document: ",
                            doc_msg])
         subprocess.run(["cd", "."], shell=True)
-        print("".join(["\033[1;33mWARNING\033[0m:", content]))
+        print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
         write_conver_report(content, util_global.get_value('report_file')[1])
 
 def log_failed_api(lineno, api_msg, is_third_party):
@@ -95,23 +94,23 @@ def log_failed_api(lineno, api_msg, is_third_party):
     if is_third_party:
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
                            ", Please modify user scripts manually."])
-        print("".join(["\033[1;31mERROR\033[0m:", content]))
+        print("".join(["\033[1;31mERROR\033[0m:", content]), flush=True)
 
     elif api_msg.startswith("hvd"):
         doc_msg = "{}, chapter: {}".format('"Tensorflow模型迁移和训练', '"Horovod脚本迁移示例"')
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
                            ", Please refer to the online document: ", doc_msg])
-        print("".join(["\033[1;33mWARNING\033[0m:", content]))
+        print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
 
     elif api_msg.startswith("tf.is_"):
         doc_msg = "{}, chapter: {}".format('"Tensorflow模型迁移和训练', '"tf.is_finite接口手工迁移" and "Loss Scale"')
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
                            ", Please refer to the online document: ", doc_msg])
-        print("".join(["\033[1;33mWARNING\033[0m:", content]))
+        print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
 
     else:
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg])
-        print("".join(["\033[1;31mERROR\033[0m:", content]))
+        print("".join(["\033[1;31mERROR\033[0m:", content]), flush=True)
     write_conver_report(content, util_global.get_value('report_file')[1])
 
 def abs_join(abs1, abs2):
