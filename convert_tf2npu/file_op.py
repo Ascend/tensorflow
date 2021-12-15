@@ -15,6 +15,7 @@
 # limitations under the License.
 # ============================================================================
 import os
+import re
 import subprocess
 import shutil
 import util_global
@@ -76,10 +77,40 @@ def write_conver_report(content, file):
         file.write(content)
         file.write("\r\n")
 
-def log_failed_api(lineno, api_msg):
-    content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg])
+def check_warning(lineno, api_msg):
+    # raise warning when api is related to element range check
+    pattern = r'tf.*.is_finite'
+    if re.match(pattern, api_msg):
+        doc_msg = "{}, chapter: {}".format('"Tensorflow模型迁移和训练', '"tf.is_finite接口手工迁移" and "Loss Scale"')
+        content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", You used tensorflow api: ",
+                           api_msg, ", It is suggested to use npu api. Please refer to the online document: ",
+                           doc_msg])
+        subprocess.run(["cd", "."], shell=True)
+        print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
+        write_conver_report(content, util_global.get_value('report_file')[1])
+
+def log_failed_api(lineno, api_msg, is_third_party):
     subprocess.run(["cd", "."], shell=True)
-    print("".join(["\033[1;31mERROR\033[0m:", content]))
+    if is_third_party:
+        content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
+                           ", Please modify user scripts manually."])
+        print("".join(["\033[1;31mERROR\033[0m:", content]), flush=True)
+
+    elif api_msg.startswith("hvd"):
+        doc_msg = "{}, chapter: {}".format('"Tensorflow模型迁移和训练', '"Horovod脚本迁移示例"')
+        content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
+                           ", Please refer to the online document: ", doc_msg])
+        print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
+
+    elif api_msg.startswith("tf.is_"):
+        doc_msg = "{}, chapter: {}".format('"Tensorflow模型迁移和训练', '"tf.is_finite接口手工迁移" and "Loss Scale"')
+        content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
+                           ", Please refer to the online document: ", doc_msg])
+        print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
+
+    else:
+        content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg])
+        print("".join(["\033[1;31mERROR\033[0m:", content]), flush=True)
     write_conver_report(content, util_global.get_value('report_file')[1])
 
 def abs_join(abs1, abs2):
@@ -112,11 +143,15 @@ def scan_file(path, file_name, api, lineno):
             support_type.append(api_support[api_name.index(name)])
             migrate_advice.append(api_advice[api_name.index(name)])
 
-            # print error message when api is unsupported on npu
             api_support_type = api_support[api_name.index(name)]
+            # print warning message of npu supported api
+            if api_support_type == '支持（无需迁移）' or api_support_type == '兼容类':
+                check_warning(lineno[i], name)
+
+            # print error message when api is unsupported on npu
             if api_support_type == '分析中（特性商用时不应该存在）' or \
                     api_support_type == '不支持（无迁移方案，建议用户不使用）':
-                log_failed_api(lineno[i], name)
+                log_failed_api(lineno[i], name, is_third_party=False)
 
     # search for tf enumeration
     enume_list = pd.read_excel(util_global.get_value('list'), sheet_name=1)
@@ -139,7 +174,7 @@ def scan_file(path, file_name, api, lineno):
                 api_support_type = api_support[api_name.index(class_name)]
                 if api_support_type == '分析中（特性商用时不应该存在）' or \
                     api_support_type == '不支持（无迁移方案，建议用户不使用）':
-                    log_failed_api(lineno[i], class_name)
+                    log_failed_api(lineno[i], class_name, is_third_party=False)
 
     # record unsupported api
     (unsupport, unsupport_module, lineno) = get_unsupport_api(os.path.join(path, file_name))
@@ -152,7 +187,7 @@ def scan_file(path, file_name, api, lineno):
         migrate_advice.append('第三方非TF官网API，暂不支持')
 
         # print error message for unsupported api
-        log_failed_api(lineno[i], unsupport[i])
+        log_failed_api(lineno[i], unsupport[i], is_third_party=True)
 
     analyse_result = pd.DataFrame({'脚本文件名': script_name, '代码行': code_line,
                                    '模块名': code_module, 'API名': code_api,
