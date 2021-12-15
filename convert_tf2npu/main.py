@@ -21,12 +21,14 @@ import util_global
 from file_op import before_clear
 from conver import conver
 
+
 def get_para_input(arg):
     input_dir = os.path.abspath(arg)
     if str(input_dir).endswith('/'):
         input_dir = input_dir[:-1]
     input_dir = input_dir.replace('\\', '/')
     return input_dir
+
 
 def get_para_output(arg):
     output = os.path.abspath(arg)
@@ -35,6 +37,7 @@ def get_para_output(arg):
     output = output.replace('\\', '/')
     return output
 
+
 def get_para_report(arg, report_suffix):
     report = os.path.abspath(arg)
     if str(report).endswith('/'):
@@ -42,6 +45,7 @@ def get_para_report(arg, report_suffix):
     report = os.path.join(report, report_suffix)
     report = report.replace('\\', '/')
     return report
+
 
 def get_para_main(arg):
     main_file = ""
@@ -55,13 +59,15 @@ def get_para_main(arg):
         raise ValueError("--main args must be existing files")
     return main_file
 
+
 def get_para_distributed_mode(arg):
     if arg not in ["horovod", "tf_strategy"]:
         raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")
     return arg
 
+
 def para_check_and_set(argv):
-    input_dir  = "npu_input"
+    input_dir = "npu_input"
     support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
     output = "output" + util_global.get_value('timestap')
     report = "report" + util_global.get_value('timestap')
@@ -70,7 +76,8 @@ def para_check_and_set(argv):
     distributed_mode = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hi:l:o:r:m:d:", ["help", "input=", "list=", "output=", "report=", "main=", "distributed_mode"])
+        opts, args = getopt.getopt(argv, "hi:l:o:r:m:d:",
+                                   ["help", "input=", "list=", "output=", "report=", "main=", "distributed_mode"])
     except getopt.GetoptError:
         print('Parameter error, please check.')
         print('    this tool just support to convert tf-1.15 scripts.')
@@ -81,7 +88,8 @@ def para_check_and_set(argv):
         print('-o or --output: The destination script after converted, Default value: output_npu_***/')
         print('-r or --report: Conversion report, Default value: report_npu_***/')
         print('-m or --main: The executed entry *.py file, default:None')
-        print('-d or --distributed_mode: The distribute mode to choose, including horovod distributed and tensorflow distributed strategy. '
+        print('-d or --distributed_mode: The distribute mode to choose, '
+              'including horovod distributed and tensorflow distributed strategy. '
               'the value should be one of [horovod, tf_strategy]')
         sys.exit(2)
 
@@ -95,7 +103,8 @@ def para_check_and_set(argv):
             print('-o or --output: The destination script after converted, Default value: output_npu_***/')
             print('-r or --report: Conversion report, Default value: report_npu_***/')
             print('-m or --main: The executed entry *.py file, default:None')
-            print('-d or --distributed_mode: The distribute mode to choose, including horovod distributed and tensorflow distributed strategy. '
+            print('-d or --distributed_mode: The distribute mode to choose, '
+                  'including horovod distributed and tensorflow distributed strategy. '
                   'the value should be one of [horovod, tf_strategy]')
             sys.exit()
         elif opt in ("-i", "--input"):
@@ -113,7 +122,6 @@ def para_check_and_set(argv):
 
     if input_dir == "npu_input":
         raise ValueError("Please check -i or --input.")
-
 
     if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
         print("<output> or <report> could not be the subdirectory of <input>, please try another option.")

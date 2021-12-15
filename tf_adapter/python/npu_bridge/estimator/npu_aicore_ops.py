@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import  numbers
+import numbers
 from tensorflow.contrib.util import loader
 from tensorflow.python.platform import resource_loader
 from tensorflow.python.framework import ops
@@ -35,24 +35,26 @@ from tensorflow.python.framework import device
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 from npu_bridge.helper import helper
+
 npu_aicore_ops = helper.get_gen_ops();
 
 DEFAULT_GRAPH_SEED = 87654321
-_MAXINT32 = 2**31 - 1
+_MAXINT32 = 2 ** 31 - 1
+
 
 @ops.RegisterGradient("FastGelu")
 def _fast_gelu_grad(op, grad):
-  """The gradient for `fast_gelu`.
+    """The gradient for `fast_gelu`.
 
-  Args:
-      op: The `fast_gelu` `Operation` that we are differentiating, which we can use
-          to find the inputs and outputs of the original op.
-      grad: Gradient with respect to the output of the `fast_gelu` op.
+    Args:
+        op: The `fast_gelu` `Operation` that we are differentiating, which we can use
+            to find the inputs and outputs of the original op.
+        grad: Gradient with respect to the output of the `fast_gelu` op.
 
-  Returns:
-      Gradients with respect to the input of `fast_gelu`.
-  """
-  return [npu_aicore_ops.fast_gelu_grad(grad, op.inputs[0])]  # List of one Tensor, since we have one input
+    Returns:
+        Gradients with respect to the input of `fast_gelu`.
+    """
+    return [npu_aicore_ops.fast_gelu_grad(grad, op.inputs[0])]  # List of one Tensor, since we have one input
 
 
 def fast_gelu_v2(x, name=None):
@@ -76,16 +78,19 @@ def centralization(x, axes, name=None):
     result = npu_aicore_ops.centralization(x, axes, name=name)
     return result
 
+
 @ops.RegisterGradient("PRelu")
 def prelu_grad(op, grad):
     dx, da = npu_aicore_ops.p_relu_grad(grad, op.inputs[0], op.inputs[1])
     return [dx, da]
 
+
 def prelu(x, weight):
     return npu_aicore_ops.p_relu(x, weight)
 
+
 def _truncate_seed(seed):
-      return seed % _MAXINT32  # Truncate to fit into 32-bit integer
+    return seed % _MAXINT32  # Truncate to fit into 32-bit integer
 
 
 def dropout_v3(x, keep_prob, noise_shape=None, seed=None, name=None):
@@ -117,10 +122,12 @@ def dropout_v3(x, keep_prob, noise_shape=None, seed=None, name=None):
     result = npu_aicore_ops.drop_out_do_mask_v3(x, gen_out, keep_prob, name)
     return result
 
+
 @ops.RegisterGradient("DropOutDoMaskV3")
 def _DropOutDoMaskV3Grad(op, grad):
-    result = npu_aicore_ops.drop_out_do_mask_v3(grad, op.inputs[1],  op.inputs[2])
+    result = npu_aicore_ops.drop_out_do_mask_v3(grad, op.inputs[1], op.inputs[2])
     return [result, None, None]
+
 
 def nonzero(x, transpose=False, output_type=dtypes.int64, name=None):
     """
@@ -146,6 +153,8 @@ def nonzerowithvalue(x, transpose=False, output_type=dtypes.int64, name=None):
     x = ops.convert_to_tensor(x, name="x")
     result = npu_aicore_ops.non_zero_with_value(x, transpose, output_type, name=name)
     return result
+
+
 # go/tf-wildcard-import
 
 

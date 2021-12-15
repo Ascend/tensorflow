@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import json
+import os
 from hccl.manage.api import get_local_rank_size
 from hccl.manage.api import get_rank_id
 from npu_bridge import tf_adapter
@@ -23,8 +25,6 @@ from npu_bridge.estimator.npu import npu_scope
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import init_ops
-import json
-import os
 
 __auto_tune_mode = str(tf_adapter.AUTO_TUNE_MODE)
 __op_debug_level = str(tf_adapter.OP_DEBUG_LEVEL)
@@ -34,38 +34,42 @@ __option_exec_profiling_options = str(tf_adapter.OPTION_EXEC_PROFILING_OPTIONS)
 __option_graph_run_mode = str(tf_adapter.OPTION_GRAPH_RUN_MODE)
 __option_exec_option_exec_hccl_flag = str(tf_adapter.OPTION_EXEC_HCCL_FLAG)
 
+
 def init_op_compiler_cache_mode(init, op_compiler_cache_mode):
     if op_compiler_cache_mode is not None:
         init["ge.op_compiler_cache_mode"] = op_compiler_cache_mode
+
 
 def init_op_compiler_cache_dir(init, op_compiler_cache_dir):
     if op_compiler_cache_dir is not None:
         init["ge.op_compiler_cache_dir"] = op_compiler_cache_dir
 
+
 def init_debug_dir(init, debug_dir):
     if debug_dir is not None:
         init["ge.debugDir"] = debug_dir
+
 
 def check_graph_run_mode(graph_run_mode):
     if graph_run_mode > 1:
         raise ValueError('"graph_run_mode" value must be 0 or 1')
 
-def npu_resource_init(graph_run_mode = 1,
-                      op_debug_level = 0,
-                      enable_profiling = False,
-                      profiling_options = None,
-                      auto_tune_mode = None,
-                      precision_mode = None,
-                      enable_scope_fusion_passes = None,
-                      enable_exception_dump = 0,
-                      aoe_mode = None,
-                      work_path = None,
+
+def npu_resource_init(graph_run_mode=1,
+                      op_debug_level=0,
+                      enable_profiling=False,
+                      profiling_options=None,
+                      auto_tune_mode=None,
+                      precision_mode=None,
+                      enable_scope_fusion_passes=None,
+                      enable_exception_dump=0,
+                      aoe_mode=None,
+                      work_path=None,
                       op_compiler_cache_mode=None,
                       op_compiler_cache_dir=None,
                       debug_dir=None,
                       hcom_multi_mode=False,
                       distribute_config=None):
-
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
     check_graph_run_mode(graph_run_mode)
     util.check_nonnegative_integer(enable_exception_dump, "enable_exception_dump")
@@ -73,7 +77,7 @@ def npu_resource_init(graph_run_mode = 1,
     util.check_bool_type(enable_profiling, "enable_profiling")
     enable_profiling = util.convert_bool_to_int(enable_profiling)
 
-    init={}
+    init = {}
     init[__option_graph_run_mode] = str(graph_run_mode)
     init[__op_debug_level] = str(op_debug_level)
     init[__option_exec_profiling_mode] = str(enable_profiling)
@@ -117,14 +121,17 @@ def npu_resource_init(graph_run_mode = 1,
     hcom_multi_mode = util.convert_bool_to_int(hcom_multi_mode)
     init["ge.hcomMultiMode"] = str(hcom_multi_mode)
 
-    init_options=tf_adapter.map_string_string(init)
+    init_options = tf_adapter.map_string_string(init)
     tf_adapter.PluginInit(init_options)
+
 
 def npu_resource_shutdown():
     tf_adapter.PluginFinalize()
 
+
 def npu_close():
     tf_adapter.NpuClose()
+
 
 def init_rdma_pool(mem_size):
     """
@@ -210,6 +217,7 @@ def malloc_shared_memory(var_name, shape, data_type):
     if res[0] != 0:
         raise RuntimeError('{} malloc shared memory failed'.format(var_name))
     return res[1], res[2]
+
 
 def get_rdma_cache(data_type, shape, name="rdma_w"):
     with npu_scope.npu_mem_type_scope():
