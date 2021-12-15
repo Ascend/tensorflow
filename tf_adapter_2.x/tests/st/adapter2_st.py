@@ -20,6 +20,7 @@ import tensorflow as tf
 from tensorflow.python.eager import context
 
 import npu_device
+from npu_device.npu_device import stupid_repeat
 
 npu_device.global_options().is_tailing_optimization = True
 npu = npu_device.open().as_default()
@@ -52,6 +53,9 @@ class Adapter2St(unittest.TestCase):
             x = tf.Variable(1)
         y = tf.Variable(1)
         self.assertRaises(tf.errors.InvalidArgumentError, foo_add, x, y)
+
+    def test_basic0(self):
+        stupid_repeat("", 1)
 
     def test_basic1(self):
         self.assertTrue(tensor_equal(foo_add(1, 2), tf.constant(3)))
@@ -273,6 +277,7 @@ class Adapter2St(unittest.TestCase):
             for i in tf.range(10):
                 train_with_loss_scale()
 
+        npu_device.set_npu_loop_size(10)
         optimizer = tf.keras.optimizers.Adam()
         scaled_optimizer = npu_device.train.optimizer.NpuLossScaleOptimizer(optimizer)
 
