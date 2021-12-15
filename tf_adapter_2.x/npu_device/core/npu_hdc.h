@@ -33,6 +33,8 @@ class HdcChannel {
 
   tensorflow::Status SendTensors(const std::vector<tensorflow::Tensor> &tensors);
 
+  tensorflow::Status RecvTensors(std::vector<tensorflow::Tensor> &tensors);
+
   tensorflow::Status NotifyFinish();
 
   tensorflow::Status NotifyAbnormal();
