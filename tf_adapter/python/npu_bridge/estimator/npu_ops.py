@@ -22,9 +22,9 @@ from __future__ import print_function
 
 import threading
 import os
+import numbers
 import tensorflow as tf
 
-import numbers
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops.nn_ops import _get_noise_shape
 from tensorflow.python.framework import tensor_shape

@@ -29,6 +29,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import variables
 
+
 class NPUBulkSaverBuilder(BulkSaverBuilder):
     def _build_internal(self,
                         names_to_saveables,
@@ -45,7 +46,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
         if not context.executing_eagerly() and (not build_save or
                                                 not build_restore):
             raise ValueError("save and restore operations need to be built together "
-                            " when eager execution is not enabled.")
+                             " when eager execution is not enabled.")
 
         saveables = saveable_object_util.validate_and_slice_inputs(
             names_to_saveables)
@@ -82,7 +83,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
                         save_tensor = self._AddShardedSaveOps(filename_tensor, per_device)
                 if build_restore:
                     restore_op = self._AddShardedRestoreOps(filename_tensor, per_device,
-                                                        restore_sequentially, reshape)
+                                                            restore_sequentially, reshape)
             else:
                 if build_save:
                     op_list = []
@@ -102,7 +103,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
                         save_tensor = self._AddSaveOps(filename_tensor, saveables)
                 if build_restore:
                     restore_op = self._AddRestoreOps(filename_tensor, saveables,
-                                                restore_sequentially, reshape)
+                                                     restore_sequentially, reshape)
 
         # In the following use case, it's possible to have restore_ops be called
         # something else:
@@ -151,6 +152,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
                 sharded=sharded,
                 keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours,
                 version=self._write_version)
+
 
 class NPUSaver(Saver):
     def _build(self, checkpoint_path, build_save, build_restore):

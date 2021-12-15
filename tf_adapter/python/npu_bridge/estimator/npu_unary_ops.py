@@ -25,22 +25,23 @@ from tensorflow.contrib.util import loader
 from tensorflow.python.platform import resource_loader
 from tensorflow.python.framework import ops
 
-
 from npu_bridge.helper import helper
+
 npu_unary_ops = helper.get_gen_ops();
+
 
 @ops.RegisterGradient("Gelu")
 def _gelu_grad(op, grad):
-  """The gradient for `gelu`.
+    """The gradient for `gelu`.
 
-  Args:
-      op: The `gelu` `Operation` that we are differentiating, which we can use
-          to find the inputs and outputs of the original op.
-      grad: Gradient with respect to the output of the `gelu` op.
+    Args:
+        op: The `gelu` `Operation` that we are differentiating, which we can use
+            to find the inputs and outputs of the original op.
+        grad: Gradient with respect to the output of the `gelu` op.
 
-  Returns:
-      Gradients with respect to the input of `gelu`.
-  """
-  return [npu_unary_ops.gelu_grad(grad, op.inputs[0], op.outputs[0])]  # List of one Tensor, since we have one input
+    Returns:
+        Gradients with respect to the input of `gelu`.
+    """
+    return [npu_unary_ops.gelu_grad(grad, op.inputs[0], op.outputs[0])]  # List of one Tensor, since we have one input
 
 # go/tf-wildcard-import

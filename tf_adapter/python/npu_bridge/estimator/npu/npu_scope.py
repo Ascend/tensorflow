@@ -24,6 +24,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.util import compat
 from npu_bridge.estimator.npu.npu_config import NpuExecutePlacement
 
+
 @contextlib.contextmanager
 def without_npu_compile_scope():
     """
@@ -73,6 +74,7 @@ def npu_stage_scope(stage):
     with ops.get_default_graph()._attr_scope(attrs):
         yield
 
+
 @contextlib.contextmanager
 def npu_mem_type_scope():
     """
@@ -111,6 +113,7 @@ def npu_weight_prefetch_scope(buffer_pool_id=0, buffer_pool_size=536870912):
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield
+
 
 @contextlib.contextmanager
 def op_specified_engine_scope(engine_name, kernel_lib_name):
