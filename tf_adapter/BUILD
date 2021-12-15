@@ -33,9 +33,9 @@ cc_binary(
     linkopts = [] + select({
                 # Public introduction of external dependencies on project.
                 # External linked libraries, typically, located in out/${product}/host/obj/lib
-                ":cloud_build": ["-Lexternal/tf_adapter_cloud_host_libs/ -lc_sec -lge_runner -ltsdclient -ldatatransfer -lfmk_parser -lfmk_onnx_parser -lindextransform"],
-                ":mini_build": ["-Lexternal/tf_adapter_mini_host_libs/ -lc_sec -lge_runner -ltsdclient -ldatatransfer -lfmk_parser -lfmk_onnx_parser -lindextransform",],
-                ":onetrack_build": ["-Lexternal/tf_adapter_onetrack_host_libs/ -lc_sec -lge_runner -ltsdclient -ldatatransfer -lfmk_parser -lfmk_onnx_parser -lindextransform",],
+                ":cloud_build": ["-Lexternal/tf_adapter_cloud_host_libs/ -lc_sec -lge_runner -lascendcl -lfmk_parser -lfmk_onnx_parser -lindextransform"],
+                ":mini_build": ["-Lexternal/tf_adapter_mini_host_libs/ -lc_sec -lge_runner -lascendcl -lfmk_parser -lfmk_onnx_parser -lindextransform",],
+                ":onetrack_build": ["-Lexternal/tf_adapter_onetrack_host_libs/ -lc_sec -lge_runner -lascendcl -lfmk_parser -lfmk_onnx_parser -lindextransform",],
                 "//conditions:default": [],
             }) + [
             # "-z defs",

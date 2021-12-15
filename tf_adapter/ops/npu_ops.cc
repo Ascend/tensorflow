@@ -131,8 +131,6 @@ REGISTER_OP("OutfeedDequeueOp")
     .SetIsStateful()
     .SetShapeFn(OutfeedDequeueShapeFn);
 
-REGISTER_OP("StopOutfeedDequeueOp").Attr("channel_name: string").SetIsStateful().SetShapeFn(shape_inference::NoOutputs);
-
 REGISTER_OP("DropOutDoMask")
     .Input("x: T")
     .Input("mask: uint8")

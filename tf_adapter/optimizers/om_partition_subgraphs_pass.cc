@@ -520,7 +520,6 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
   bool hasIteratorOp = false;
   bool hasMakeIteratorOp = false;
   bool hasOutfeedDequeueOp = false;
-  bool hasStopOutfeedDequeueOp = false;
   for (Node *node : graph.op_nodes()) {
     sortedNodes.push_back(node);
     if (node->type_string().find("MakeIterator") != string::npos) {
@@ -530,12 +529,10 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
       hasIteratorOp = true;
     } else if (node->type_string() == "OutfeedDequeueOp") {
       hasOutfeedDequeueOp = true;
-    } else if (node->type_string() == "StopOutfeedDequeueOp") {
-      hasStopOutfeedDequeueOp = true;
     }
   }
 
-  if (hasStopOutfeedDequeueOp || hasOutfeedDequeueOp) {
+  if (hasOutfeedDequeueOp) {
     candidates->clear();
     ADP_LOG(INFO) << "hostcall subgraph will run on host.";
     return Status::OK();
@@ -925,7 +922,6 @@ Status MarkForPartition(std::unique_ptr<Graph> *graphIn, int &clusterNum, bool m
           || !NodeIsCandidateForClustering(dst, &npuSupportCandidates)) {
         continue;
       }
-
       if (is_set_lazy_recompile && src->type_string() == "IteratorGetNext" && enable_dp) {
         graph_options["is_dynamic_getnext"] = "1";
         continue;

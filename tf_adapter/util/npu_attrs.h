@@ -23,6 +23,7 @@
 #include "tensorflow/core/graph/graph.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/public/session_options.h"
+#include "tensorflow/core/util/env_var.h"
 #include <map>
 #include <string>
 
@@ -31,6 +32,8 @@ namespace tensorflow {
 std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
+extern const bool kIsNewDataTransfer;
+
 class NpuAttrs {
  public:
   // This method returns instance Pointers
@@ -44,13 +47,16 @@ class NpuAttrs {
   static std::map<std::string, std::string> GetDefaultPassOptions();
   static Status SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node);
   static void LogOptions(const std::map<std::string, std::string>& options);
-  static bool GetUseTdtStatus(int32_t device_id);
   static void SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt);
+  static bool GetUseTdtStatus(int32_t device_id);
   static bool GetUseAdpStatus(std::string iterator_name);
   static void SetUseAdpStatus(std::string iterator_name, bool is_use_adp);
+  static bool IsDatasetExecuteInDevice(std::string iterator_name);
+  static void SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool is_dataset_execute_device);
  private:
   static std::map<int32_t, bool> turn_on_tdt_info_;
   static std::map<std::string, bool> use_adp_info_;
+  static std::map<std::string, bool> dataset_execute_info_;
 };
 }  // namespace tensorflow
 

@@ -172,23 +172,16 @@ class _SIGNAL(object):
 
 class _OpQueueContext(object):
     """Manages work queue and thread for a infeed/outfeed thread."""
-
     def __init__(self, name, target, args):
         self._name = name
         self._queue = Queue.Queue()
         args = (self,) + args
         self._thread = threading.Thread(name=name, target=target, args=args)
-        self._thread.daemon = True
+        self._thread.daemon = False
         self._thread.start()
 
     def stop(self):
         self._queue.put(_SIGNAL.STOP)
-
-    def join(self):
-        logging.info('Shutting down %s thread.' % self._name)
-        self.stop()
-        self._thread.join()
-
 
 class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
     def __init__(self, output_stream):
@@ -196,50 +189,31 @@ class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
         self._stopped = False
 
     def begin(self):
-        self._finalize_ops = [npu_ops.stop_outfeed_dequeue_op("_npu_log")]
+        self._finalize_ops = []
         outfeed_log_tensors = npu_ops.outfeed_dequeue_op(
-            channel_name="_npu_log",
-            output_types=[tf.string],
-            output_shapes=[()])
+                channel_name="_npu_log",
+                output_types=[tf.string],
+                output_shapes=[()])
         self._dequeue_ops = tf.print(outfeed_log_tensors, output_stream=self._output_stream)
-
-    def _run_coordinate(self, queue_ctx, session, coord):
-        logging.info('Starting log outfeed thread coordinate.')
-        while not coord.should_stop():
-            time.sleep(1)
-        if not self._stopped:
-            self._stopped = True
-            session.run(self._finalize_ops)
 
     def _run_outfeed(self, queue_ctx, session):
         logging.info('Starting log outfeed thread controller.')
         while True:
             try:
                 session.run(self._dequeue_ops)
-            except tf.errors.OutOfRangeError:
+            except Exception:
                 logging.info('Log outfeed thread finished')
-                break
-            except Exception as e:
-                logging.error('Log outfeed thread exit unexpectedly.', e.what())
                 break
 
     def after_create_session(self, session, coord):
         self._outfeed_controller = _OpQueueContext(
             name='LogOutfeedController', target=self._run_outfeed, args=(session,))
-        self._outfeed_coordinate = _OpQueueContext(
-            name='LogOutfeedCoordinate', target=self._run_coordinate, args=(session, coord))
-        logging.info('Add log output coordinate thread to coord')
-        # add outfeed_coordinate thread to coord
-        # when the coordinated session close, the coord.join() will wait for this thread finish
-        coord.register_thread(self._outfeed_coordinate._thread)
 
     def end(self, session):
         if not self._stopped:
             self._stopped = True
-            session.run(self._finalize_ops)
-        logging.info('Stop log output thread controller')
-        self._outfeed_controller.join()
-
+            if len(self._finalize_ops):
+                session.run(self._finalize_ops)
 
 class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
     def __init__(self,
@@ -252,7 +226,7 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
 
     def begin(self):
         self._init_ops = []
-        self._finalize_ops = [npu_ops.stop_outfeed_dequeue_op(self._channel_name)]
+        self._finalize_ops = []
 
         summary_writer_init_ops = contrib_summary.summary_writer_initializer_op()
         self._init_ops.extend(summary_writer_init_ops)
@@ -260,26 +234,15 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         for op in summary_writer_init_ops:
             self._finalize_ops.append(contrib_summary.flush(writer=op.inputs[0]))
 
-    def _run_coordinate(self, queue_ctx, session, coord):
-        logging.info('Starting outfeed thread coordinate.')
-        while not coord.should_stop():
-            time.sleep(1)
-        if not self._stopped:
-            self._stopped = True
-            session.run(self._finalize_ops)
-
     def _run_outfeed(self, queue_ctx, session):
         logging.info('Starting outfeed thread controller.')
         while True:
             try:
                 session.run(self._dequeue_ops)
-            except tf.errors.OutOfRangeError:
+            except Exception:
                 logging.info('summary outfeed thread finished')
                 break
-            except Exception as e:
-                logging.error('summary outfeed thread exit unexpectedly.', e.what())
-                break
-        logging.info('Outfeed thread finished, shutting down.')
+        logging.info('Outfeed thread finished, shutting down')
 
     def after_create_session(self, session, coord):
         logging.info('Init NPU system')
@@ -290,12 +253,7 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
 
         self._outfeed_controller = _OpQueueContext(
             name='OutfeedController', target=self._run_outfeed, args=(session,))
-        self._outfeed_coordinate = _OpQueueContext(
-            name='OutfeedCoordinate', target=self._run_coordinate, args=(session, coord))
         logging.info('Add log output coordinate thread to coord')
-        # add outfeed_coordinate thread to coord
-        # when the coordinated session close, the coord.join() will wait for this thread finish
-        coord.register_thread(self._outfeed_coordinate._thread)
 
     def end(self, session):
         self._finished = True
@@ -303,11 +261,8 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         logging.info('Shutdown NPU system.')
         if not self._stopped:
             self._stopped = True
-            session.run(self._finalize_ops)
-
-        logging.info('Stop output thread controller')
-        self._outfeed_controller.join()
-
+            if len(self._finalize_ops):
+                session.run(self._finalize_ops)
 
 class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):
     """call output_fn to print tensors every N steps or at end."""

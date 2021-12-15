@@ -190,6 +190,8 @@ else()
         -Wl,--no-as-needed
         c_sec
         ge_runner
+        ascendcl
+        acl_tdt_channel
         datatransfer
         fmk_parser
         fmk_onnx_parser
@@ -231,7 +233,7 @@ else()
         && cp -r ${CMAKE_CURRENT_BINARY_DIR}/_tf_adapter.so ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         && cp -r $<TARGET_FILE:SoftDp> ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         # && cp -r ${CMAKE_CURRENT_BINARY_DIR}/../../../../../soft_dp/libSoftDp.so ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
-    	&& cd ${CMAKE_CURRENT_BINARY_DIR}/wheel
+        && cd ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && ${HI_PYTHON} setup.py bdist_wheel >/dev/null
         && cp -f dist/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
         && echo "package whl end"

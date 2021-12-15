@@ -1,4 +1,5 @@
 #include "tf_adapter/optimizers/dp_tf_ge_conversion_pass.h"
+#include "tf_adapter/util/npu_attrs.h"
 #include "gtest/gtest.h"
 #include "mmpa/mmpa_api.h"
 #include "tensorflow/core/graph/graph.h"
@@ -6,6 +7,7 @@
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/logging.h"
+#include <stdlib.h>
 
 namespace tensorflow {
 namespace {
@@ -94,6 +96,17 @@ TEST_F(DpOptimizationPassTest, DatasetNotInDeviceTest) {
     "Const->OptimizeDataset:1;OptimizeDataset->ModelDataset;IteratorV2->MakeIterator:1;ModelDataset->HostQueueDataset:1;"\
     "HostQueueDataset->DPGroupDataset;GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
   EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
+}
+TEST_F(DpOptimizationPassTest, NewDatasetNotInDeviceTest) {
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/dp_test_no_dataset_in_device.pbtxt";
+  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  InitGraph(org_graph_def_path);
+  std::string target_graph = "Const->TensorSliceDataset;TensorSliceDataset->BatchDatasetV2;Const->BatchDatasetV2:1;"\
+    "Const->BatchDatasetV2:2;BatchDatasetV2->RepeatDataset;Const->RepeatDataset:1;RepeatDataset->OptimizeDataset;"\
+    "Const->OptimizeDataset:1;OptimizeDataset->ModelDataset;IteratorV2->MakeIterator:1;ModelDataset->HostQueueDataset:1;"\
+    "HostQueueDataset->DPGroupDataset;GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
+  EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
+  *const_cast<bool *>(&kIsNewDataTransfer) = false;
 }
 } // end namespace
 } // end tensorflow

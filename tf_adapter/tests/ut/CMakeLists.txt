@@ -27,6 +27,7 @@ file(GLOB_RECURSE UT_SOURCES
     "util/testcase/*.cc"
     "kernels/testcase/*.cc"
     "common/testcase/*.cc"
+    "kernels/testcase/dataset/*.cc"
 )
 
 add_executable(tfadapter_utest
@@ -61,7 +62,6 @@ add_dependencies(tfadapter_utest aoe_tuning)
 
 target_link_libraries(tfadapter_utest PUBLIC
     $<BUILD_INTERFACE:intf_pub>
-    gtest gtest_main c_sec mmpa_stub indextransform_stub alog_stub datatransfer_stub ge_runner_stub
+    gtest gtest_main c_sec mmpa_stub indextransform_stub alog_stub datatransfer_stub ge_runner_stub ascendcl_stub
     ${PYTHON_LIB_PATH} -lrt -ldl -lgcov
 )
-
