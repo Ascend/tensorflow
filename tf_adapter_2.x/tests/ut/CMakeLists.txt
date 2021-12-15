@@ -18,7 +18,8 @@ target_link_libraries(adapter2_ut_main PRIVATE
 
 add_custom_target(adapter2_ut ALL
         COMMAND ./adapter2_ut_main
-        COMMAND lcov -c -q -d . -o ut_coverage.info
-        COMMAND lcov -e ut_coverage.info "*tf_adapter_2.x/npu_device*" -o ut_coverage.info
-        DEPENDS adapter2_ut_main
+        COMMAND lcov -c -q -d . -o ut_addons.coverage
+        COMMAND lcov -q -e ut_addons.coverage "*tf_adapter_2.x/npu_device*" -o ut_addons.coverage
+        COMMAND lcov -o ut.coverage -a ${CMAKE_BINARY_DIR}/st/st.coverage -a ut_addons.coverage
+        DEPENDS adapter2_ut_main adapter2_st
         VERBATIM)

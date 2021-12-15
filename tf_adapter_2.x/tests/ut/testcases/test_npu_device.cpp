@@ -1,21 +1,23 @@
-/* Copyright (C) 2021. Huawei Technologies Co., Ltd. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
+#include "tensorflow/c/c_api.h"
 
 #include <gtest/gtest.h>
 #include <memory>
-
-#include "tensorflow/c/c_api.h"
 
 #include "npu_env.h"
 #include "npu_unwrap.h"
@@ -177,14 +179,6 @@ class ST_NpuDevice : public ::testing::Test {
   TF_Status *status;
 };
 
-TEST_F(ST_NpuDevice, function_add) {
-  EagerOpBuilder()
-    .Op("function_add")
-    .Input(CreateCpuHandle(tensorflow::TensorShape{1}, std::vector<float>{1.0}))
-    .NumOutputs(1)
-    .RunExpectStatus(TF_OK);
-}
-
 TEST_F(ST_NpuDevice, eager_select_v2_op) {
   EagerOpBuilder()
     .Op("SelectV2")
@@ -238,11 +232,5 @@ TEST_F(ST_NpuDevice, eager_iterator_v2_op) {
     .Op("MakeIterator")
     .Input(dataset_result->Get(0))
     .Input(iterator_result->Get(0))
-    .RunExpectStatus(TF_OK);
-
-  EagerOpBuilder()
-    .Op("function_while_consume_iterator")
-    .Input(iterator_result->Get(0))
-    .Input(dataset_result->Get(0))
     .RunExpectStatus(TF_OK);
 }
