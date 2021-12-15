@@ -135,3 +135,14 @@ def npu_qos_label_scope(label):
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield
+
+@contextlib.contextmanager
+def subgraph_multi_dims_scope(index):
+    """
+    Enable the node in the scope adding subgraph multi dims index.
+    """
+    attrs = {
+        "_subgraph_multi_dims_index": attr_value_pb2.AttrValue(i=index)
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield
