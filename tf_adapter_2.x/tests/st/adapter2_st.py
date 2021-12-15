@@ -21,7 +21,9 @@ from tensorflow.python.eager import context
 
 import npu_device
 
+npu_device.global_options().is_tailing_optimization = True
 npu = npu_device.open().as_default()
+npu.workers_num = 8  # mock run in 8P env
 
 
 def tensor_equal(t1, t2):
@@ -251,6 +253,35 @@ class Adapter2St(unittest.TestCase):
             npu_device.gen_npu_ops.drop_out_do_mask_v3(x, gen_out, tf.constant(0.1))
 
         f(tf.constant([[0.1]]))
+
+    def test_tailing_optimize(self):
+        @tf.function
+        def train_with_loss_scale():
+            with tf.GradientTape() as tape:
+                p1 = tf.add(x, x)
+                p2 = tf.add(p1, x1)
+                p3 = tf.add(p2, x2)
+                p4 = tf.add(p3, x3)
+                p5 = tf.add(p4, x4)
+                loss = tf.reduce_sum(p5)
+            grads = tape.gradient(loss, [x, x1, x2, x3, x4])
+            grads = npu_device.distribute.all_reduce(grads)
+            scaled_optimizer.apply_gradients(zip(grads, [x, x1, x2, x3, x4]))
+
+        @tf.function
+        def train_loop():
+            for i in tf.range(10):
+                train_with_loss_scale()
+
+        optimizer = tf.keras.optimizers.Adam()
+        scaled_optimizer = npu_device.train.optimizer.NpuLossScaleOptimizer(optimizer)
+
+        x = tf.Variable(1.0)
+        x1 = tf.Variable(1.0)
+        x2 = tf.Variable(1.0)
+        x3 = tf.Variable(1.0)
+        x4 = tf.Variable(1.0)
+        train_loop()
 
 
 if __name__ == '__main__':
