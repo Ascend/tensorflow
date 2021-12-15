@@ -83,7 +83,9 @@ Status ModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto, 
   tensorflow::GraphDef graph_def;
   graph_def.ParseFromString(serialized_proto);
   graph->graph = std::make_shared<tensorflow::Graph>(tensorflow::OpRegistry::Global());
-  tensorflow::ConvertGraphDefToGraph({}, graph_def, graph->graph.get());
+  tensorflow::GraphConstructorOptions opts;
+  opts.allow_internal_ops = true;
+  tensorflow::ConvertGraphDefToGraph(opts, graph_def, graph->graph.get());
   return ge::SUCCESS;
 }
 }  // namespace domi

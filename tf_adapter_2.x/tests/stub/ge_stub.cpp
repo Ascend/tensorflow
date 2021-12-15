@@ -44,35 +44,49 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
   }
   for (const auto &node : graph->op_nodes()) {
     if (node->IsRetval()) {
+      int index = 0;
       const tensorflow::AttrValue *attr = node->attrs().Find(kInputDesc);
-      if (attr != nullptr) {
-        for (auto &desc : attr->list().func()) {
-          std::vector<int64_t> dims;
-          auto &desc_attr = desc.attr();
-          if (desc_attr.find(kShape) != desc_attr.end()) {
-            tensorflow::AttrValue shape_value = desc_attr.at(kShape);
-            for (int i = 0; i < shape_value.list().i_size(); i++) {
-              dims.push_back(shape_value.list().i(i));
-            }
-          }
+      if (attr == nullptr) {
+        const tensorflow::Edge *edge = nullptr;
+        node->input_edge(0, &edge);
+        if (edge == nullptr || edge->src()->attrs().Find(kOutputDesc) == nullptr) {
+          LOG(ERROR) << "Can not mock tensor for " << node->name();
+          continue;
+        }
+        attr = edge->src()->attrs().Find(kOutputDesc);
+        index = edge->src_output();
+      }
 
-          outputs.emplace_back(ge::Tensor());
-          size_t size = 4;
-          for (auto dim : dims) {
-            size *= dim;
-          }
-          std::vector<uint8_t> data(size);
-          outputs.back().SetData(data.data(), size);
-          outputs.back().SetTensorDesc(ge::TensorDesc(ge::Shape(dims)));
+      auto &desc_attr = attr->list().func(index).attr();
+
+      std::vector<int64_t> dims;
+      if (desc_attr.find(kShape) != desc_attr.end()) {
+        tensorflow::AttrValue shape_value = desc_attr.at(kShape);
+        for (int i = 0; i < shape_value.list().i_size(); i++) {
+          dims.push_back(shape_value.list().i(i));
         }
       }
+      ge::DataType dtype = ge::DT_FLOAT;
+      if (desc_attr.find(kType) != desc_attr.end()) {
+        tensorflow::AttrValue shape_value = desc_attr.at(kType);
+        dtype = static_cast<ge::DataType>(shape_value.i());
+      }
+
+      outputs.emplace_back(ge::Tensor());
+      size_t size = tensorflow::DataTypeSize(static_cast<tensorflow::DataType>(dtype));
+      for (auto dim : dims) {
+        size *= dim;
+      }
+      std::vector<uint8_t> data(size);
+      outputs.back().SetData(data.data(), size);
+      outputs.back().SetTensorDesc(ge::TensorDesc(ge::Shape(dims), ge::FORMAT_ND, dtype));
     }
   }
   callback(ge::SUCCESS, outputs);
   return ge::SUCCESS;
 }
 
-bool Session::IsGraphNeedRebuild(uint32_t graphId) { graph_need_rebuild_[graphId]; }
+bool Session::IsGraphNeedRebuild(uint32_t graphId) { return graph_need_rebuild_[graphId]; }
 
 std::string GEGetErrorMsg() { return ""; }
 

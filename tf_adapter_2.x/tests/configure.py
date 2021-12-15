@@ -29,7 +29,6 @@ except ImportError:
 
 _COMPAT_TENSORFLOW_VERSION = "2.4"
 _PYTHON_BIN_PATH_ENV = "ADAPTER_TARGET_PYTHON_PATH"
-_ASCEND_INSTALLED_PATH_ENV = "ASCEND_INSTALLED_PATH"
 
 
 def run_command(cmd):
@@ -98,11 +97,12 @@ def setup_python(env_path):
             f.write(python_bin_path)
         with open(real_config_path('COMPILE_FLAGS'), 'w') as f:
             for flag in compile_args[2:-1]:
-                f.write("".join([flag , '\n']))
-            f.write("".join(["-I" , compile_args[-1] , '\n']))
+                f.write("".join([flag, '\n']))
+            f.write("".join(["-I", compile_args[-1], '\n']))
         with open(real_config_path('TF_INSTALLED_PATH'), 'w') as f:
             f.write(compile_args[1])
         break
+
 
 def main():
     env_snapshot = dict(os.environ)
