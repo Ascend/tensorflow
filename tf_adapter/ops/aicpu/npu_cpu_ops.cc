@@ -44,7 +44,7 @@ REGISTER_OP("EmbeddingRankId")
     Output
         rank_id:    Tensors with the same shape as index.dim(0)*3.
     )doc");
-//regist embedding local index op
+// regist embedding local index op
 REGISTER_OP("EmbeddingLocalIndex")
   .Input("addr_table: uint64")
   .Input("index: T")
@@ -74,7 +74,7 @@ REGISTER_OP("EmbeddingLocalIndex")
         recover_idx:  The sorted local_idx element corresponds to the position of
                       the original input index.
     )doc");
-//regist lru cahe op
+// regist lru cahe op
 REGISTER_OP("LruCache")
   .Output("cache: resource")
   .Attr("cache_size: int")
@@ -84,7 +84,7 @@ REGISTER_OP("LruCache")
   .Attr("dtype: {uint32, uint64, int32, int64}")
   .SetIsStateful()
   .SetShapeFn(shape_inference::ScalarShape);
-//regist cache add op
+// regist cache add op
 REGISTER_OP("CacheAdd")
   .Input("cache: resource")
   .Input("ids: T")
@@ -100,7 +100,7 @@ REGISTER_OP("CacheAdd")
     c->set_output(3, c->Vector(c->UnknownDim()));
     return Status::OK();
   });
-//regist cache remote index to local op
+// regist cache remote index to local op
 REGISTER_OP("CacheRemoteIndexToLocal")
   .Input("cache: resource")
   .Input("ids: T")
@@ -110,7 +110,7 @@ REGISTER_OP("CacheRemoteIndexToLocal")
     c->set_output(0, c->Vector(c->Rank(c->input(1))));
     return Status::OK();
   });
-//regist cache all index to local op
+// regist cache all index to local op
 REGISTER_OP("CacheAllIndexToLocal")
   .Input("cache: resource")
   .Output("local_idx: dtype")
@@ -120,7 +120,7 @@ REGISTER_OP("CacheAllIndexToLocal")
     return Status::OK();
   });
 
-//regist deformable offsets op
+// regist deformable offsets op
 REGISTER_OP("DeformableOffsets")
   .Input("x: T")
   .Input("offsets: T")
@@ -173,7 +173,7 @@ REGISTER_OP("DeformableOffsets")
     c->set_output(0, c->MakeShape(out_dims));
     return Status::OK();
   });
-//regist deformable offsets grad op
+// regist deformable offsets grad op
 REGISTER_OP("DeformableOffsetsGrad")
   .Input("grad: T")
   .Input("x: T")
@@ -195,7 +195,7 @@ REGISTER_OP("DeformableOffsetsGrad")
     c->set_output(1, input_offsets_shape);
     return Status::OK();
   });
-//regist Random Choice With Mask op
+// regist Random Choice With Mask op
 REGISTER_OP("RandomChoiceWithMask")
   .Input("x: bool")
   .Output("y: int32")
@@ -206,7 +206,7 @@ REGISTER_OP("RandomChoiceWithMask")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     int64 count(0);
     c->GetAttr("count", &count);
-    if (count >0) {
+    if (count > 0) {
       c->set_output(0, c->Matrix(count, c->Rank(c->input(0))));
       c->set_output(1, c->Vector(count));
     } else if (count == 0) {
@@ -219,7 +219,7 @@ REGISTER_OP("RandomChoiceWithMask")
     }
     return Status::OK();
   });
-//regist dense image warp op
+// regist dense image warp op
 REGISTER_OP("DenseImageWarp")
   .Input("image: T")
   .Input("flow: S")
@@ -231,7 +231,7 @@ REGISTER_OP("DenseImageWarp")
     c->set_output(0, input_image_shape);
     return Status::OK();
   });
-//regist dense image warp grad op
+// regist dense image warp grad op
 REGISTER_OP("DenseImageWarpGrad")
   .Input("grad: T")
   .Input("image: T")
@@ -311,22 +311,19 @@ REGISTER_OP("DenseImageWarpGrad")
         return errors::InvalidArgument("Invalid data format string: ",
                                        dt_format);
       }
-
       const int32_t kRank = 3;
-      const int64_t kChannle = 3;
       int32 imgRank = c->Rank(c->input(0));
       if (imgRank != kRank) {
         return errors::InvalidArgument("Invalid image shape: shape rank must be 3, but got",
                                        imgRank);
       }
-      
+      const int64_t kChannel = 3;
       size_t pos_c = dt_format.find("C");
-      int64 channle = c->Value(c->Dim(c->input(0), pos_c - 1));
-      if (channle != kChannle) {
+      int64 channel = c->Value(c->Dim(c->input(0), pos_c - 1));
+      if (channel != kChannel) {
         return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got",
-                                       channle);
+                                       channel);
       }
-
       /* fixed to resize to 960 * 960 */
       const int64_t kResizedH = 960;
       const int64_t kResizedW = 960;
@@ -334,9 +331,9 @@ REGISTER_OP("DenseImageWarpGrad")
       if (dt_format == "NHWC") {
         out_dims[0] = c->MakeDim(kResizedH);
         out_dims[1] = c->MakeDim(kResizedW);
-        out_dims[2] = c->MakeDim(channle);
+        out_dims[2] = c->MakeDim(channel);
       } else {
-        out_dims[0] = c->MakeDim(channle);
+        out_dims[0] = c->MakeDim(channel);
         out_dims[1] = c->MakeDim(kResizedH);
         out_dims[2] = c->MakeDim(kResizedW);
       }
@@ -363,7 +360,6 @@ REGISTER_OP("DenseImageWarpGrad")
       }
       const int64_t k1 = size[0];
       const int64_t k2 = size[1];
-
       std::string dt_format;
       const std::set<std::string> kVaildFormat = {"NHWC", "NCHW"};
       if (!c->GetAttr("data_format", &dt_format).ok()) {
@@ -373,32 +369,27 @@ REGISTER_OP("DenseImageWarpGrad")
         return errors::InvalidArgument("Invalid data format string: ",
                                        dt_format);
       }
-      
       const int32 kImgShapeRank = 1;
       if (c->Rank(c->input(0)) != kImgShapeRank) {
         return errors::InvalidArgument("Invalid images shape: must be 1, bug got: ",
                                        c->Rank(c->input(0)));
       }
-
       const int32 kImgOffsetShapeRank = 1;
       if (c->Rank(c->input(1)) != kImgOffsetShapeRank) {
         return errors::InvalidArgument("Invalid images offset shape: must be 1, bug got: ",
                                        c->Rank(c->input(1)));
       }
-
       const int32 kImgSizeShapeRank = 2;
       if (c->Rank(c->input(2)) != kImgSizeShapeRank) {
         return errors::InvalidArgument("Invalid images size shape: must be 2, bug got: ",
                                        c->Rank(c->input(2)));
       }
-      
       // the second dim of imgs size must be 3 
       const int32 kImgSizeShape = 3;
       if (c->Value(c->Dim(c->input(2), 1)) != kImgSizeShape) {
         return errors::InvalidArgument("Invalid image size shape: must be 3, bug got: ",
                                        c->Value(c->Dim(c->input(2), 1)));
       }
-
       const int32_t kRank = 4;
       std::vector<DimensionHandle> out_dims(kRank);
       auto imgs_offset = c->input(1);
@@ -428,19 +419,11 @@ REGISTER_OP("BatchDilatePolys")
          .Output("dilated_polys_data:int32")
          .Output("dilated_polys_offset:int32")
          .Output("dilated_polys_size:int32")
-         .SetShapeFn([](shape_inference::InferenceContext *c){
-           auto input_shape0=c->input(0);
-           auto input_shape1=c->input(1);
-           auto input_shape2=c->input(2);
-           auto input_shape3=c->input(3);
-           auto input_shape4=c->input(4);
-           auto input_shape5=c->input(5);
-           auto input_shape6=c->input(6);
-           auto input_shape7=c->input(7);
-           c->set_output(0,c->Vector(c->UnknownDim()));
-           c->set_output(1,c->Vector(c->UnknownDim()));
-           c->set_output(2,c->Vector(c->UnknownDim()));
-           return Status::OK();                 
+         .SetShapeFn([](shape_inference::InferenceContext *c) {
+           c->set_output(0, c->Vector(c->UnknownDim()));
+           c->set_output(1, c->Vector(c->UnknownDim()));
+           c->set_output(2, c->Vector(c->UnknownDim()));
+           return Status::OK();
          });
 
 REGISTER_OP("OCRFindContours")
@@ -449,17 +432,18 @@ REGISTER_OP("OCRFindContours")
          .Output("polys_offset:int32")
          .Output("polys_size:int32")
          .Attr("value_mode:int = 0")
-         .SetShapeFn([](shape_inference::InferenceContext *c){
-           c->set_output(0,c->Vector(c->UnknownDim()));
-           c->set_output(1,c->Vector(c->UnknownDim()));
-           c->set_output(2,c->Vector(c->UnknownDim()));
-           return Status::OK();                 
+         .SetShapeFn([](shape_inference::InferenceContext *c) {
+           c->set_output(0, c->Vector(c->UnknownDim()));
+           c->set_output(1, c->Vector(c->UnknownDim()));
+           c->set_output(2, c->Vector(c->UnknownDim()));
+           return Status::OK();
          });
 
 REGISTER_OP("Dequeue")
     .Input("queue_id: uint32")
     .Output("data: output_type")
-    .Attr("output_type: {float16, float32, float64, int8, uint8, int16, uint16, int32, uint32, int64, uint64} = DT_UINT8")
+    .Attr("output_type: {float16, float32, float64, int8, uint8,"
+          "int16, uint16, int32, uint32, int64, uint64} = DT_UINT8")
     .Attr("output_shape: list(int)")
     .Attr("queue_name: string = ''")
     .SetShapeFn([](shape_inference::InferenceContext *c) {

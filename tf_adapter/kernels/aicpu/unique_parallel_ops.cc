@@ -36,20 +36,20 @@ namespace tensorflow {
 template <typename T, typename TIndex>
 class UniqueParallelOp : public OpKernel {
  public:
-  explicit UniqueParallelOp(OpKernelConstruction *context) 
+  explicit UniqueParallelOp(OpKernelConstruction *context)
     : OpKernel(context) {}
-  ~UniqueParallelOp() {}
+  ~UniqueParallelOp() override = default;
   void Compute(OpKernelContext *context) override {
     const Tensor &input_tensor = context->input(0);
     OP_REQUIRES(context,
       input_tensor.NumElements() <= std::numeric_limits<int32>::max(),
         errors::InvalidArgument("unique does not support input tensors larger than ",
-          std::numeric_limits<int32>::max(), " elements"));
+                                std::numeric_limits<int32>::max(), " elements"));
     OP_REQUIRES(context, TensorShapeUtils::IsVector(input_tensor.shape()),
       errors::InvalidArgument("unique expects a 1D vector."));
     OP_REQUIRES(context, (input_tensor.dtype() == DT_INT32 || input_tensor.dtype() == DT_INT64),
       errors::InvalidArgument("input tensor should be int32 or int64, but got ",
-        DataTypeString(input_tensor.dtype())));
+                              DataTypeString(input_tensor.dtype())));
     auto input_vec = input_tensor.vec<T>();
     int64 total = static_cast<int64>(input_vec.size());
     Tensor* index_tensor = nullptr;
