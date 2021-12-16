@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "npu_env.h"
+#include "npu_hdc.h"
 #include "npu_unwrap.h"
 #include "npu_device_register.h"
 
@@ -33,7 +34,9 @@ namespace {
 class EagerOpResult {
  public:
   explicit EagerOpResult(std::vector<TFE_TensorHandle *> outputs) : outputs_(outputs) {}
+
   EagerOpResult() = default;
+
   ~EagerOpResult() {
     for (auto output : outputs_) {
       TFE_DeleteTensorHandle(output);
@@ -233,4 +236,30 @@ TEST_F(ST_NpuDevice, eager_iterator_v2_op) {
     .Input(dataset_result->Get(0))
     .Input(iterator_result->Get(0))
     .RunExpectStatus(TF_OK);
+}
+
+TEST(NpuManagedBuffer, Assemble) {
+  NpuManagedBuffer *npu_buffer = nullptr;
+  EXPECT_TRUE(NpuManagedBuffer::Create(ge::FORMAT_NC1HWC0, {1, 1, 1, 1, 16}, ge::DT_FLOAT, ge::FORMAT_NHWC,
+                                       {1, 1, 1, 1}, &npu_buffer)
+                .ok());
+  const tensorflow::Tensor cpu_tensor(tensorflow::DT_FLOAT, {1, 1, 1, 1});
+  EXPECT_TRUE(npu_buffer->AssembleFrom(&cpu_tensor).ok());
+
+  const tensorflow::Tensor dst_tensor(tensorflow::DT_FLOAT, {1, 1, 1, 1});
+  EXPECT_TRUE(npu_buffer->AssembleTo(&dst_tensor).ok());
+}
+
+TEST(NpuHdc, RecvTensorByAcl) {
+  std::shared_ptr<HdcChannel> guarded_channel;
+  EXPECT_TRUE(HdcChannel::Create(0, "hdc", &guarded_channel).ok());
+  EXPECT_TRUE(guarded_channel->SendTensors({tensorflow::Tensor("abc")}).ok());
+  EXPECT_FALSE(
+    guarded_channel->SendTensors({tensorflow::Tensor(tensorflow::DT_STRING, tensorflow::TensorShape({1, 1}))}).ok());
+  EXPECT_FALSE(
+    guarded_channel->SendTensors({tensorflow::Tensor(tensorflow::DT_RESOURCE, tensorflow::TensorShape{})}).ok());
+  std::vector<tensorflow::Tensor> tensors;
+  EXPECT_TRUE(guarded_channel->RecvTensors(tensors).ok());
+  EXPECT_TRUE(guarded_channel->NotifyFinish().ok());
+  EXPECT_TRUE(guarded_channel->NotifyAbnormal().ok());
 }

@@ -86,6 +86,13 @@ Status ModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto, 
   tensorflow::GraphConstructorOptions opts;
   opts.allow_internal_ops = true;
   tensorflow::ConvertGraphDefToGraph(opts, graph_def, graph->graph.get());
+  for (const auto &node : graph->graph->op_nodes()) {
+    for (const auto &attr : node->attrs()) {
+      if (attr.second.has_func()) {
+        callback(attr.second.func().name());
+      }
+    }
+  }
   return ge::SUCCESS;
 }
 }  // namespace domi

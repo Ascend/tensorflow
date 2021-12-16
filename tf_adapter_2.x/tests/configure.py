@@ -21,6 +21,7 @@ from __future__ import print_function
 import os
 import subprocess
 import sys
+from distutils import sysconfig
 
 try:
     from shutil import which
@@ -95,6 +96,14 @@ def setup_python(env_path):
         # Write tools/python_bin_path.sh
         with open(real_config_path('PYTHON_BIN_PATH'), 'w') as f:
             f.write(python_bin_path)
+
+        with open(real_config_path('PYTHON_LD_LIBRARY'), 'w') as f:
+            sys_vars = sysconfig.get_config_vars()
+            if os.path.isfile(os.path.join(sys_vars['LIBPL'], sys_vars['LDLIBRARY'])):
+                f.write(os.path.join(sys_vars['LIBPL'], sys_vars['LDLIBRARY']))
+            else:
+                f.write(os.path.join(sys_vars['LIBDIR'], sys_vars['LDLIBRARY']))
+
         with open(real_config_path('COMPILE_FLAGS'), 'w') as f:
             for flag in compile_args[2:-1]:
                 f.write("".join([flag, '\n']))

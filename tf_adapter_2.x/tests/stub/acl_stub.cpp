@@ -181,6 +181,11 @@ aclError acltdtSendTensor(const acltdtChannelHandle *handle, const acltdtDataset
 }
 
 aclError acltdtReceiveTensor(const acltdtChannelHandle *handle, acltdtDataset *dataset, int32_t timeout) {
+  std::vector<int64_t> dims;
+  dims.resize(4, 1);
+  float value = 0.0;
+  acltdtAddDataItem(
+    dataset, acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, dims.data(), dims.size(), ACL_FLOAT, &value, sizeof(float)));
   return ACL_ERROR_NONE;
 }
 

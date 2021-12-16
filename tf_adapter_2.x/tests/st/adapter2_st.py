@@ -321,5 +321,27 @@ class Adapter2St(unittest.TestCase):
         train_loop()
 
 
+class Adapter2St_EnvGeStaticMemory(unittest.TestCase):
+    def test_dropout_v3(self):
+        @tf.function
+        def f(x):
+            noise_shape = tf.shape(x)
+            gen_out = npu_device.gen_npu_ops.drop_out_gen_mask_v3(noise_shape, tf.constant(0.1), 0, 0)
+            npu_device.gen_npu_ops.drop_out_do_mask_v3(x, gen_out, tf.constant(0.1))
+            gen_out = npu_device.gen_npu_ops.drop_out_gen_mask_v3(noise_shape, tf.constant(0.1), 0, 0)
+            npu_device.gen_npu_ops.drop_out_do_mask_v3(x, gen_out, tf.constant(0.1))
+            gen_out = npu_device.gen_npu_ops.drop_out_gen_mask_v3(noise_shape, tf.constant(0.1), 0, 0)
+            npu_device.gen_npu_ops.drop_out_do_mask_v3(x, gen_out, tf.constant(0.1))
+            gen_out = npu_device.gen_npu_ops.drop_out_gen_mask_v3(noise_shape, tf.constant(0.1), 0, 0)
+            npu_device.gen_npu_ops.drop_out_do_mask_v3(x, gen_out, tf.constant(0.1))
+            gen_out = npu_device.gen_npu_ops.drop_out_gen_mask_v3(noise_shape, tf.constant(0.1), 0, 0)
+            npu_device.gen_npu_ops.drop_out_do_mask_v3(x, gen_out, tf.constant(0.1))
+
+        f(tf.constant([[0.1]]))
+
+    def test_op_in_static_memory(self):
+        self.assertEqual(tf.add(1, 1), tf.constant(2))
+
+
 if __name__ == '__main__':
     unittest.main()

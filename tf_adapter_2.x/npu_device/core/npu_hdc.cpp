@@ -331,6 +331,13 @@ tensorflow::Status HdcChannel::SendTensors(const std::vector<tensorflow::Tensor>
 }
 
 /**
+ * @brief: recv tensors
+ */
+tensorflow::Status HdcChannel::RecvTensors(std::vector<tensorflow::Tensor> &tensors) {
+  return RecvTensorByAcl(handle_, tensors);
+}
+
+/**
  * @brief: notify finish
  */
 tensorflow::Status HdcChannel::NotifyFinish() { return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_END_OF_SEQUENCE, {}); }
