@@ -16,7 +16,7 @@
 
 #ifndef TENSORFLOW_TF_ADAPTER_KERNELS_DATA_ITEM_DELEVER_H
 #define TENSORFLOW_TF_ADAPTER_KERNELS_DATA_ITEM_DELEVER_H
-#include <string.h>
+#include <cstring>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/un.h>
@@ -34,16 +34,16 @@
 
 namespace tensorflow {
 namespace data {
-static constexpr char const *SOCKET_SERVER_PATH = "/tmp/server";
-static constexpr char const *MESSAGE_HEAD = "head_check";
-static constexpr int QLEN = 8;
-static constexpr int HEAD_INFO_SIZE = 3;
-static constexpr int ITEM_INFO_SIZE = 9;
-static constexpr int MAX_TRY_TIMES = 300;
-static constexpr size_t UINT32_SIZE = sizeof(uint32_t);
-static constexpr size_t UINT64_SIZE = sizeof(uint64_t);
-static constexpr size_t CHAR_SIZE = sizeof(char);
-static constexpr size_t DATA_TYPE_SIZE = sizeof(tdt::TdtDataType);
+constexpr char const *SOCKET_SERVER_PATH = "/tmp/server";
+constexpr char const *MESSAGE_HEAD = "head_check";
+constexpr int QLEN = 8;
+constexpr int HEAD_INFO_SIZE = 3;
+constexpr int ITEM_INFO_SIZE = 9;
+constexpr int MAX_TRY_TIMES = 300;
+constexpr size_t UINT32_SIZE = sizeof(uint32_t);
+constexpr size_t UINT64_SIZE = sizeof(uint64_t);
+constexpr size_t CHAR_SIZE = sizeof(char);
+constexpr size_t DATA_TYPE_SIZE = sizeof(tdt::TdtDataType);
 
 class DataItemDeliver {
  public:
@@ -59,15 +59,15 @@ class DataItemDeliver {
  private:
   Status InitSocketClient(int device_id);
   Status SendDataVec(std::vector<tdt::DataItem> &data_items, int fd);
-  Status CreateSockAddr(struct sockaddr_un &sockaddr, const char *path,
-                        int local_rank_id);
-  uint64_t Recv(void *buffer, size_t data_len);
+  Status CreateSockAddr(struct sockaddr_un &sock_addr, const char *path,
+                        int device_id) const;
+  uint64_t Recv(void *buffer, size_t data_len) const;
   template <typename T>
   Status GetDataLen(T &value, size_t size);
   Status GetTensorType(tdt::TdtDataType &data_type);
   Status GetTensorData(uint64_t &data_len, std::shared_ptr<void> &data_ptr);
   Status GetTensorString(std::string &str);
-  void SocketSend(struct iovec temp_items[], int vec_size, int fd);
+  void SocketSend(struct iovec temp_items[], int vector_size, int fd) const;
   Status CheckHead(const char *check_value);
 
   mutex client_list_mu_;
@@ -141,7 +141,8 @@ Status DataItemDeliver::InitSocketClient(int device_id) {
   int try_times = 0;
   int ret = 0;
   while (true) {
-    ret = connect(fd, (struct sockaddr *)&peer_addr, sizeof(peer_addr));
+    ret = connect(fd, reinterpret_cast<struct sockaddr *>(&peer_addr),
+                  sizeof(peer_addr));
     if (ret >= 0) {
       break;
     }
@@ -178,7 +179,8 @@ Status DataItemDeliver::InitSocketServer() {
   }
   unlink(local_addr_.sun_path);
   socklen_t addr_size = sizeof(local_addr_);
-  if (bind(fd, (struct sockaddr *)&local_addr_, addr_size) < 0) {
+  if (bind(fd, reinterpret_cast<struct sockaddr *>(&local_addr_),
+           addr_size) < 0) {
     ADP_LOG(ERROR) << "Bind fd failed:" << strerror(errno) << "(errno:" << errno
                    << ")";
     LOG(ERROR) << "Bind fd failed:" << strerror(errno) << "(errno:" << errno
@@ -196,7 +198,8 @@ Status DataItemDeliver::InitSocketServer() {
   }
   int try_times = 0;
   while (true) {
-    server_fd_ = accept(fd, (struct sockaddr *)&local_addr_, &addr_size);
+    server_fd_ = accept(fd, reinterpret_cast<struct sockaddr *>(&local_addr_),
+                        &addr_size);
     if (server_fd_ != -1) {
       break;
     }
@@ -278,7 +281,7 @@ Status DataItemDeliver::RecvDataVec(std::vector<tdt::DataItem> &items) {
   return Status::OK();
 }
 
-uint64_t DataItemDeliver::Recv(void *buffer, size_t data_len) {
+uint64_t DataItemDeliver::Recv(void *buffer, size_t data_len) const {
   int ret = -1;
   uint64_t buf_pos = 0;
   while (data_len > 0) {
@@ -411,7 +414,7 @@ Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
   uint32_t head_size = (strlen(MESSAGE_HEAD) + 1) * CHAR_SIZE;
   head_info[0].iov_base = &head_size;
   head_info[0].iov_len = UINT32_SIZE;
-  head_info[1].iov_base = const_cast<char*>(MESSAGE_HEAD);
+  head_info[1].iov_base = const_cast<char *>(MESSAGE_HEAD);
   head_info[1].iov_len = head_size;
   head_info[2].iov_base = &vector_size;
   head_info[2].iov_len = UINT32_SIZE;
@@ -456,7 +459,7 @@ Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
   return Status::OK();
 }
 Status DataItemDeliver::CreateSockAddr(struct sockaddr_un &sock_addr,
-                                       const char *path, int device_id) {
+    const char *path, int device_id) const {
   sock_addr.sun_family = AF_UNIX;
   int len = 0;
   if (-1 == (len = snprintf_s(sock_addr.sun_path, sizeof(sock_addr.sun_path),
@@ -469,7 +472,7 @@ Status DataItemDeliver::CreateSockAddr(struct sockaddr_un &sock_addr,
   return Status::OK();
 }
 void DataItemDeliver::SocketSend(struct iovec temp_items[], int vector_size,
-                                   int fd) {
+                                 int fd) const {
   int sendn = writev(fd, temp_items, vector_size);
   // if salve first reach max step, socket will be closed, correspond to
   // Recv WARNING
