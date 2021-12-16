@@ -15,13 +15,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorflow.contrib.util import loader
-from tensorflow.python.framework import load_library
 from tensorflow.python.framework import ops
-from tensorflow.python.platform import resource_loader
 from npu_bridge.helper import helper
 
-gen_npu_cpu_ops = helper.get_gen_ops();
+gen_npu_cpu_ops = helper.get_gen_ops()
 
 
 ## 提供embeddingrankid功能
@@ -31,12 +28,14 @@ gen_npu_cpu_ops = helper.get_gen_ops();
 #  @param mode string类型，embeddingrankid的操作类型，可以为”mod”,”order”;数据存储的方式。
 #  @return 对输入addr_tensor，index_tensor执行完embeddingrankid操作之后的结果tensor
 def embeddingrankid(addr_tensor, index, row_memory=320, mode='mod'):
+    """embed rank index"""
     result = gen_npu_cpu_ops.embedding_rank_id(
-        addr_table=addr_tensor,
-        index=index,
-        row_memory=row_memory,
-        mode=mode)
+        addr_table = addr_tensor,
+        index = index,
+        row_memory = row_memory,
+        mode = mode)
     return result
+
 
 ## 提供embeddinglocalindex功能
 #  @param addr_tensor tensorflow的tensor类型，embeddinglocalindex操作的输入；
@@ -45,12 +44,14 @@ def embeddingrankid(addr_tensor, index, row_memory=320, mode='mod'):
 #  @param mode string类型，embeddinglocalindex的操作类型，可以为”mod”,”order”;数据存储的方式。
 #  @return 对输入addr_tensor，index_tensor执行完embeddinglocalindex操作之后的结果tensor
 def embedding_local_index(addr_tensor, index, row_memory=320, mode='mod'):
+    """embed local index"""
     result = gen_npu_cpu_ops.embedding_local_index(
-        addr_table=addr_tensor,
-        index=index,
-        row_memory=row_memory,
-        mode=mode)
+        addr_table = addr_tensor,
+        index = index,
+        row_memory = row_memory,
+        mode = mode)
     return result
+
 
 ## 提供RandomChoiceWithMask功能
 #  @param x bool 类型
@@ -59,33 +60,39 @@ def embedding_local_index(addr_tensor, index, row_memory=320, mode='mod'):
 #  @param seed2 int类型
 #  @return y int32类型 mask bool 类型
 def randomchoicewithmask(x, count, seed=0, seed2=0):
+    """random choice with mask"""
     result = gen_npu_cpu_ops.random_choice_with_mask(
-        x=x,
-        count=count,
-        seed=seed,
-        seed2=seed2)
+        x = x,
+        count = count,
+        seed = seed,
+        seed2 = seed2)
     return result
+
 
 ## 提供DenseImageWarp功能
 #  @param image tensor类型
 #  @param flow tensor类型
 #  @return y tensor类型
 def dense_image_warp(image, flow, name=None):
+    """dense image warp"""
     result = gen_npu_cpu_ops.dense_image_warp(
-        image=image,
-        flow=flow,
-        name=name
+        image = image,
+        flow = flow,
+        name = name
     )
     return result
+
 
 ## DenseImageWarp的梯度函数
 @ops.RegisterGradient("DenseImageWarp")
 def dense_image_warp_grad(op, grad):
+    """dense image warp grad"""
     image = op.inputs[0]
     flow = op.inputs[1]
     grad_image, grad_flow = gen_npu_cpu_ops.dense_image_warp_grad(
         grad, image, flow)
     return [grad_image, grad_flow]
+
 
 ## 提供BatchEnqueue功能
 #  @param x uint8 类型
@@ -96,14 +103,16 @@ def dense_image_warp_grad(op, grad):
 #  @param pad_mode string 类型
 #  @return enqueue_count int64类型
 def batch_enqueue(x, queue_id=0, batch_size=8, queue_name="", queue_depth=100, pad_mode="REPLICATE"):
+    """batch enqueue"""
     result = gen_npu_cpu_ops.batch_enqueue(
-        x=x,
-        queue_id=queue_id,
-        batch_size=batch_size,
-        queue_name=queue_name,
-        queue_depth=queue_depth,
-        pad_mode=pad_mode)
+        x = x,
+        queue_id = queue_id,
+        batch_size = batch_size,
+        queue_name = queue_name,
+        queue_depth = queue_depth,
+        pad_mode = pad_mode)
     return result
+
 
 ## 提供OCRRecognitionPreHandle功能
 #  @param imgs_data uint8 类型
@@ -115,27 +124,32 @@ def batch_enqueue(x, queue_id=0, batch_size=8, queue_name="", queue_depth=100, p
 #  @param data_format string 类型
 #  @param pad_mode string 类型
 #  @return imgs,imgs_relation,imgs_lang,imgs_piece_fillers uint8,int32,int32,int32 类型
-def ocr_recognition_pre_handle(imgs_data, imgs_offset, imgs_size, langs, langs_score, batch_size=8, data_format="NHWC", pad_mode="REPLICATE"):
+def ocr_recognition_pre_handle(imgs_data, imgs_offset, imgs_size, langs, langs_score, \
+                               batch_size=8, data_format="NHWC", pad_mode="REPLICATE"):
+    """recognize ocr pre-handle"""
     result = gen_npu_cpu_ops.ocr_recognition_pre_handle(
-        imgs_data=imgs_data,
-        imgs_offset=imgs_offset,
-        imgs_size=imgs_size,
-        langs=langs,
-        langs_score=langs_score,
-        batch_size=batch_size,
-        data_format=data_format,
-        pad_mode=pad_mode)
+        imgs_data = imgs_data,
+        imgs_offset = imgs_offset,
+        imgs_size = imgs_size,
+        langs = langs,
+        langs_score = langs_score,
+        batch_size = batch_size,
+        data_format = data_format,
+        pad_mode = pad_mode)
     return result
+
 
 ## 提供OCRDetectionPreHandle功能
 #  @param img uint8 类型
 #  @param data_format string 类型
 #  @return resized_img,h_scale,w_scale uint8,float32,float32 类型
 def ocr_detection_pre_handle(img, data_format="NHWC"):
+    """ocr detection pre-handle"""
     result = gen_npu_cpu_ops.ocr_detection_pre_handle(
-        img=img,
-        data_format=data_format)
+        img = img,
+        data_format = data_format)
     return result
+
 
 ## 提供OCRIdentifyPreHandle功能
 #  @param imgs_data uint8 类型
@@ -145,13 +159,15 @@ def ocr_detection_pre_handle(img, data_format="NHWC"):
 #  @param data_format string 类型
 #  @return resized_imgs, uint8 类型
 def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format="NHWC"):
+    """ocr identification pre-handle"""
     result = gen_npu_cpu_ops.ocr_identify_pre_handle(
-        imgs_data=imgs_data,
-        imgs_offset=imgs_offset,
-        imgs_size=imgs_size,
-        size=size,
-        data_format=data_format)
+        imgs_data = imgs_data,
+        imgs_offset = imgs_offset,
+        imgs_size = imgs_size,
+        size = size,
+        data_format = data_format)
     return result
+
 
 ## 提供BatchDilatePolys功能
 #  @param polys_data int32 类型
@@ -165,17 +181,20 @@ def ocr_identify_pre_handle(imgs_data, imgs_offset, imgs_size, size, data_format
 #  @return dilated_polys_data int32 类型
 #  @return dilated_polys_offset int32 类型
 #  @return dilated_polys_size int32 类型
-def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, min_area_thr, score_thr, expand_scale):
+def batch_dilate_polys(polys_data, polys_offset, polys_size, score, \
+                       min_border, min_area_thr, score_thr, expand_scale):
+    """batch dilate poly"""
     result = gen_npu_cpu_ops.batch_dilate_polys(
-        polys_data=polys_data, 
-        polys_offset=polys_offset,
-        polys_size=polys_size,
-        score=score,
-        min_border=min_border,
-        min_area_thr=min_area_thr,
-        score_thr=score_thr,
-        expand_scale=expand_scale)
+        polys_data = polys_data,
+        polys_offset = polys_offset,
+        polys_size = polys_size,
+        score = score,
+        min_border = min_border,
+        min_area_thr = min_area_thr,
+        score_thr = score_thr,
+        expand_scale = expand_scale)
     return result
+
 
 ## 提供OCRFindContours功能
 #  @param img uint8 类型
@@ -184,8 +203,10 @@ def batch_dilate_polys(polys_data, polys_offset, polys_size, score, min_border, 
 #  @return polys_offset int32 类型
 #  @return polys_size int32 类型
 def ocr_find_contours(img, value_mode=0):
-    result = gen_npu_cpu_ops.ocr_find_contours(img=img,value_mode=value_mode)
+    """ocr find contours"""
+    result = gen_npu_cpu_ops.ocr_find_contours(img=img, value_mode=value_mode)
     return result
+
 
 ## 提供Dequeue功能
 #  @param queue_id uint32 类型
@@ -194,12 +215,14 @@ def ocr_find_contours(img, value_mode=0):
 #  @param queue_name string 类型
 #  @return data 根据output_type确定类型
 def dequeue(queue_id, output_type, output_shape, queue_name=""):
+    """dequeue"""
     result = gen_npu_cpu_ops.dequeue(
-        queue_id=queue_id,
-        output_type=output_type,
-        output_shape=output_shape,
-        queue_name=queue_name)
+        queue_id = queue_id,
+        output_type = output_type,
+        output_shape = output_shape,
+        queue_name = queue_name)
     return result
+
 
 ## 提供OCRDetectionPostHandle功能
 #  @param img uint8 类型
@@ -209,13 +232,15 @@ def dequeue(queue_id, output_type, output_shape, queue_name=""):
 #  @param data_format string 类型
 #  @return imgs_data,imgs_offset,imgs_size,rect_points uint8,int32,int32,int32 类型
 def ocr_detection_post_handle(img, polys_data, polys_offset, polys_size, data_format="NHWC"):
+    """orc detection post-handle"""
     result = gen_npu_cpu_ops.ocr_detection_post_handle(
-        img=img,
-        polys_data=polys_data,
-        polys_offset=polys_offset,
-        polys_size=polys_size,
-        data_format=data_format)
+        img = img,
+        polys_data = polys_data,
+        polys_offset = polys_offset,
+        polys_size = polys_size,
+        data_format = data_format)
     return result
+
 
 ## 提供ResizeAndClipPolys功能
 #  @param polys_data int32 类型
@@ -227,12 +252,13 @@ def ocr_detection_post_handle(img, polys_data, polys_offset, polys_size, data_fo
 #  @param img_w int32 类型
 #  @return clipped_polys_data,clipped_polys_offset,clipped_polys_size int32,int32,int32 类型
 def resize_and_clip_polys(polys_data, polys_offset, polys_size, h_scale, w_scale, img_h, img_w):
+    """resize and clip polys"""
     result = gen_npu_cpu_ops.resize_and_clip_polys(
-        polys_data=polys_data,
-        polys_offset=polys_offset,
-        polys_size=polys_size,
-        h_scale=h_scale,
-        w_scale=w_scale,
-        img_h=img_h,
-        img_w=img_w)
+        polys_data = polys_data,
+        polys_offset = polys_offset,
+        polys_size = polys_size,
+        h_scale = h_scale,
+        w_scale = w_scale,
+        img_h = img_h,
+        img_w = img_w)
     return result
