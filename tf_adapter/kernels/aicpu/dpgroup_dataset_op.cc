@@ -29,7 +29,7 @@ class DPGroupDatasetOp : public DatasetOpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
   }
-  ~DPGroupDatasetOp() {}
+  ~DPGroupDatasetOp() override = default;
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
     CHECK_NOT_NULL(ctx);
     CHECK_NOT_NULL(output);
@@ -77,7 +77,7 @@ class DPGroupDatasetOp : public DatasetOpKernel {
     class Iterator : public DatasetIterator<Dataset> {
      public:
       explicit Iterator(const Params &params) : DatasetIterator<Dataset>(params) {}
-      ~Iterator() {}
+      ~Iterator() override = default;
       Status Initialize(IteratorContext *ctx) override {
         REQUIRES_NOT_NULL(ctx);
         ADP_LOG(INFO) << "Start to initialize iterator of DPGroupDatasetOp";
