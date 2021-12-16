@@ -449,8 +449,7 @@ const std::set<std::string> ir_builder_suppported_options = {INPUT_FORMAT,
                                                              OP_BANK_UPDATE,
                                                              PERFORMANCE_MODE,
                                                              SHAPE_GENERALIZED_BUILD_MODE,
-                                                             MODIFY_MIXLIST,
-                                                             HCCL_TIMEOUT};
+                                                             MODIFY_MIXLIST};
 
 // for interface: aclgrphParse
 const std::set<std::string> ir_parser_suppported_options = {
