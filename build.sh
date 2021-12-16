@@ -153,7 +153,9 @@ main() {
     lcov -c -d ${CMAKE_PATH}/tf_adapter/tests/ut/ -o coverage/tmp.info
     lcov -r coverage/tmp.info '*/tests/*' '*/nlohmann_json-src/*' '*/tensorflow-src/*' \
       '*/inc/*' '*/output/*' '*/usr/*' '*/Eigen/*' '*/absl/*' '*/google/*' '*/tensorflow/core/*' \
-      -o coverage/coverage.info
+      -o adapter1_coverage.info
+    bash ${BASE_PATH}/tf_adapter_2.x/tests/CI_Build adapter2_ut
+    lcov -o coverage/coverage.info -a ${BASE_PATH}/tf_adapter_2.x/tests/build/ut/ut.coverage -a adapter1_coverage.info
   fi
   if [[ "X$ENABLE_TFADAPTER_ST" = "Xon" ]]; then
     cd ${BASE_PATH}
@@ -172,7 +174,9 @@ main() {
     lcov -c -d ${CMAKE_PATH}/tf_adapter/tests/st/ -o coverage/tmp.info
     lcov -r coverage/tmp.info '*/tests/*' '*/nlohmann_json-src/*' '*/tensorflow-src/*' \
       '*/inc/*' '*/output/*' '*/usr/*' '*/Eigen/*' '*/absl/*' '*/google/*' '*/tensorflow/core/*' \
-      -o coverage/coverage.info
+      -o adapter1_coverage.info
+    bash ${BASE_PATH}/tf_adapter_2.x/tests/CI_Build adapter2_st
+    lcov -o coverage/coverage.info -a ${BASE_PATH}/tf_adapter_2.x/tests/build/st/st.coverage -a adapter1_coverage.info
   fi
   logging "---------------- tfadapter build finished ----------------"
 }
