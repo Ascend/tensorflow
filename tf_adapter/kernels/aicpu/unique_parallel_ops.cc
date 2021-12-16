@@ -59,8 +59,8 @@ class UniqueParallelOp : public OpKernel {
 
     const int64 CPU_NUMS = 16;
     std::atomic<TIndex> count_num(0);
-    Tensor output_temp(input_tensor.dtype(), TensorShape({total}));
-    auto output_temp_flat = output_temp.flat<T>();
+    Tensor temp_output(input_tensor.dtype(), TensorShape({total}));
+    auto temp_output_flat = temp_output.flat<T>();
     tensorflow::thread::ThreadPool thread_work(context->env(), "unique_parallel", CPU_NUMS);
     std::function<void(int64, int)> shards = [&](int64 total, int cur) {
       std::unordered_map<T, TIndex> unique_map;
@@ -72,7 +72,7 @@ class UniqueParallelOp : public OpKernel {
           if (unique_map.find(input_vec(i)) == unique_map.end()) {
             j = count_num++;
             unique_map[input_vec(i)] = j;
-            output_temp_flat(j) = input_vec(i);
+            temp_output_flat(j) = input_vec(i);
           }
           index_vec(i) = unique_map[input_vec(i)];
         }
@@ -80,9 +80,9 @@ class UniqueParallelOp : public OpKernel {
     };
     ParallelFor(thread_work, total, CPU_NUMS, shards);
     Tensor *output_tensor = nullptr;
-    OP_REQUIRES_OK(context, context->allocate_output(0,
-      TensorShape({count_num}), &output_tensor));
-    *output_tensor = output_temp.Slice(0, count_num);
+    OP_REQUIRES_OK(context,
+                   context->allocate_output(0, TensorShape({count_num}), &output_tensor));
+    *output_tensor = temp_output.Slice(0, count_num);
   }
  private:
   void ParallelFor(tensorflow::thread::ThreadPool& thread_work,

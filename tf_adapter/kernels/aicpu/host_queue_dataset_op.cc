@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include "tdt/tdt_host_interface.h"
 #include "tensorflow/core/framework/partial_tensor_shape.h"
 #include "tensorflow/core/framework/stats_aggregator.h"
@@ -77,7 +76,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     ADP_LOG(INFO) << "Init tdt host success.";
     tdt_release = false;
   }
-  ~HostQueueDatasetOp() {
+  ~HostQueueDatasetOp() override {
     ADP_LOG(INFO) << "Start to destroy tdt.";
     if (!tdt_release) {
       int32_t tdt_status = TdtInFeedDestroy(device_id_);
