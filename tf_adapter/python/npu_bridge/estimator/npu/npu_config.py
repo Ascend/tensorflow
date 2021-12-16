@@ -17,19 +17,17 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from tensorflow.python.util import compat_internal
-from tensorflow.python.platform import gfile
-
+from enum import Enum
+import json
 import os
 import re
-import json
-from enum import Enum
-from npu_bridge.estimator.npu import util
+from tensorflow.python.util import compat_internal
+from tensorflow.python.platform import gfile
 from tensorflow.python.estimator import run_config as run_config_lib
 from tensorflow.distribute.experimental import ParameterServerStrategy
 from tensorflow.contrib.distribute import DistributeConfig
 from tensorflow.python.training import server_lib
-
+from npu_bridge.estimator.npu import util
 
 
 class NPURunConfig(run_config_lib.RunConfig):
@@ -159,7 +157,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         tf_config = json.loads(os.environ.get(run_config_lib._TF_CONFIG_ENV, '{}'))
         tmp_cluster_spec = server_lib.ClusterSpec(tf_config.get(run_config_lib._CLUSTER_KEY, {}))
         if ((tmp_cluster_spec and not isinstance(distribute, ParameterServerStrategy)) or
-            (not tmp_cluster_spec and isinstance(distribute, ParameterServerStrategy))):
+                (not tmp_cluster_spec and isinstance(distribute, ParameterServerStrategy))):
             raise ValueError('"cluster" and "distribute" must all be set in ps mode')
         if tmp_cluster_spec and mix_compile_mode is False:
             raise ValueError(
@@ -206,7 +204,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._compress_weight_conf = compress_weight_conf
         self._op_compiler_cache_mode = op_compiler_cache_mode
         self._op_compiler_cache_dir = op_compiler_cache_dir
-        self._debug_dir=debug_dir
+        self._debug_dir = debug_dir
         self._hcom_multi_mode = hcom_multi_mode
         self._dynamic_input = dynamic_input
         self._dynamic_graph_execute_mode = dynamic_graph_execute_mode
@@ -236,12 +234,12 @@ class NPURunConfig(run_config_lib.RunConfig):
             eval_distribute=eval_distribute)
 
     def _get_save_checkpoints_steps(self, save_checkpoints_secs, save_checkpoints_steps):
-        if save_checkpoints_secs==None and save_checkpoints_steps==None :
+        if save_checkpoints_secs == None and save_checkpoints_steps == None:
             return 100
         return save_checkpoints_steps
 
     def _get_dump_config(self, dump_config):
-        if dump_config is not None and  not isinstance(dump_config, DumpConfig):
+        if dump_config is not None and not isinstance(dump_config, DumpConfig):
             raise ValueError(
                 '`dump_config` must be provided with type `DumpConfig`')
         return dump_config
@@ -263,9 +261,10 @@ class NPURunConfig(run_config_lib.RunConfig):
         return experimental_distribute
 
     def _get_dynamic_input_config(self, dynamic_input_config):
-        if dynamic_input_config is not None and  not isinstance(dynamic_input_config, DynamicInputConfig):
+        if dynamic_input_config is not None and not isinstance(dynamic_input_config, DynamicInputConfig):
             raise ValueError('dynamic_input_config must be provided with type DynamicInputConfig')
         return dynamic_input_config
+
 
 class ProfilingConfig():
     """Profiling config with NPU support."""
@@ -283,8 +282,10 @@ class ProfilingConfig():
         self._enable_profiling = enable_profiling
         self._profiling_options = profiling_options
 
+
 class DumpConfig():
     """Dump Config with NPU support."""
+
     def __init__(self,
                  enable_dump=False,
                  dump_path=None,
@@ -310,6 +311,7 @@ class DumpConfig():
         self._enable_dump_debug = enable_dump_debug
         self._dump_debug_mode = dump_debug_mode
 
+
 class NpuExecutePlacement(Enum):
     """npu execute place option. """
     ALL = "all"
@@ -319,8 +321,10 @@ class NpuExecutePlacement(Enum):
     DVPP = "dvpp"
     HOST = "host"
 
+
 class DynamicInputConfig():
     """dynamic dims and input shape config with npu support"""
+
     def __init__(self, input_shape, dynamic_dims, dynamic_node_type):
         """
         Constructs a DynamicInputConfig.

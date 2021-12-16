@@ -17,23 +17,24 @@
 
 import tensorflow as tf
 
-def npu_dynamic_rnn(cell,
-            inputs,
-            initial_state=None,
-            dtype=None,
-            sequence_length=None,
-            scope=None):
-  """Creates a high performance neural network specified by RNNCell `cell`.
-  """
-  # tf origin static_rnn
-  inputs = tf.unstack(inputs, axis=0)
-  encoder_outputs , encoder_state = tf.nn.static_rnn(
-    cell,
-    inputs,
-    initial_state=initial_state,
-    dtype=dtype,
-    sequence_length=sequence_length,
-    scope=scope)
-  encoder_outputs = tf.stack(encoder_outputs, axis=0)
 
-  return encoder_outputs, encoder_state
+def npu_dynamic_rnn(cell,
+                    inputs,
+                    initial_state=None,
+                    dtype=None,
+                    sequence_length=None,
+                    scope=None):
+    """Creates a high performance neural network specified by RNNCell `cell`.
+    """
+    # tf origin static_rnn
+    inputs = tf.unstack(inputs, axis=0)
+    encoder_outputs, encoder_state = tf.nn.static_rnn(
+        cell,
+        inputs,
+        initial_state=initial_state,
+        dtype=dtype,
+        sequence_length=sequence_length,
+        scope=scope)
+    encoder_outputs = tf.stack(encoder_outputs, axis=0)
+
+    return encoder_outputs, encoder_state
