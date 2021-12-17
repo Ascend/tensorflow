@@ -21,7 +21,6 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import nn
 from npu_bridge.estimator import npu_ops
 
-
 def dropout_call(self, inputs, training=None):
     """Make Keras Dropout to execute NPU dropout"""
     if training is None:
@@ -40,12 +39,11 @@ def dropout_call(self, inputs, training=None):
                 inputs,
                 noise_shape=self._get_noise_shape(inputs),
                 seed=self.seed,
-                keep_prob=1 - self.rate)
+                keep_prob=1-self.rate)
 
     output = tf_utils.smart_cond(training,
                                  dropped_inputs,
                                  lambda: array_ops.identity(inputs))
     return output
-
 
 Dropout.call = dropout_call

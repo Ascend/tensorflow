@@ -18,7 +18,6 @@ import json
 import time
 import os
 
-
 def _init():
     global _global_dict
     _global_dict = {}
@@ -30,12 +29,10 @@ def _init():
     value = "_npu_" + time.strftime('%Y%m%d%H%M%S')
     set_value('timestap', value)
 
-
 def set_value(key, value):
     _global_dict[key] = value
 
-
-def get_value(key, def_value=None):
+def get_value(key, def_value = None):
     try:
         return _global_dict[key]
     except KeyError:

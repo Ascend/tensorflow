@@ -20,7 +20,6 @@ from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import nn_ops
 from npu_bridge.helper import helper
-
 gen_npu_ops = helper.get_gen_ops()
 
 

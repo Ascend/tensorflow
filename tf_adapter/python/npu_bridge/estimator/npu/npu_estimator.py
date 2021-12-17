@@ -19,17 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import sys
-import collections
-import copy
-import json
-import threading
-import signal
-import random
-import string
-import six
-from six.moves import xrange
-from six.moves import queue as Queue
 import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
@@ -51,6 +40,19 @@ from npu_bridge.estimator.npu.npu_hook import *
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.estimator import npu_ops
 from npu_bridge.estimator.npu.npu_saver import *
+
+import six
+from six.moves import queue as Queue
+from six.moves import xrange
+import collections
+import copy
+import os
+import signal
+import sys
+import threading
+import json
+import random
+import string
 
 
 def no_check_override():

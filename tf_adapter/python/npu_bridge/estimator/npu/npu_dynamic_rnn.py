@@ -298,7 +298,7 @@ class DynamicRNN(_DynamicBasic):
              init_h=None,
              init_c=None,
              weight=None,
-             bias=None):
+             bias=None,):
         """Dynamic RNN.
         """
         super(DynamicRNN, self).call(x, seq_length=seq_length)

@@ -16,15 +16,14 @@
 # ============================================================================
 import os
 import sys
-import tkinter as tk
-from tkinter.filedialog import askopenfilename
-from tkinter.filedialog import askdirectory
-from tkinter import ttk
 import pandas as pd
+import tkinter as tk
+from tkinter.filedialog import askdirectory
+from tkinter.filedialog import askopenfilename
 from tkintertable import TableCanvas
+from tkinter import ttk
 import util_global
 from conver import conver
-
 
 class Analyse(object):
     def __init__(self, parent):
@@ -189,7 +188,7 @@ class Analyse(object):
         table.show()
         table.addColumn('6')
         table.addColumn('7')
-        for i in range(len(file_name) - 10):
+        for i in range(len(file_name)-10):
             table.addRow()
 
         for i in range(len(file_name)):
@@ -210,7 +209,6 @@ class Analyse(object):
         table.model.columnlabels['7'] = '说明'
 
         table.show()
-
 
 if __name__ == '__main__':
     root = tk.Tk()

@@ -15,7 +15,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import os
 from npu_bridge.estimator.npu.npu_config import NPURunConfig
 from npu_bridge.estimator.npu.npu_config import ProfilingConfig
 from npu_bridge.estimator.npu.npu_config import DumpConfig
@@ -63,6 +62,7 @@ from hccl.split.api import set_split_strategy_by_idx
 from hccl.split.api import set_split_strategy_by_size
 
 import tensorflow as tf
+import os
 
 experimental_options = {
     "disable_model_pruning": False,
@@ -75,13 +75,11 @@ experimental_options = {
     "layout_optimizer": RewriterConfig.ON
 }
 
-
 def npu_hooks_append(hooks_list=[]):
     if (not isinstance(hooks_list, list)):
         hooks_list = []
     hooks_list.append(NPUBroadcastGlobalVariablesHook(0, int(os.getenv('RANK_ID', '0'))))
     return hooks_list
-
 
 def npu_callbacks_append(callbacks_list=[]):
     if (not isinstance(callbacks_list, list)):
@@ -89,10 +87,8 @@ def npu_callbacks_append(callbacks_list=[]):
     callbacks_list.append(NPUBroadcastGlobalVariablesCallback(0))
     return callbacks_list
 
-
-def npu_config_proto(config_proto=None):
-    if (not isinstance(config_proto, config_pb2.ConfigProto)) or (
-    not issubclass(type(config_proto), config_pb2.ConfigProto)):
+def npu_config_proto(config_proto = None):
+    if (not isinstance(config_proto, config_pb2.ConfigProto)) or (not issubclass(type(config_proto), config_pb2.ConfigProto)):
         config_proto = config_pb2.ConfigProto()
 
     npu_optimizer = None
@@ -111,31 +107,24 @@ def npu_config_proto(config_proto=None):
     config_proto.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return config_proto
 
-
-def npu_graph_options(graph_options=None):
-    if (not isinstance(graph_options, config_pb2.GraphOptions)) or (
-    not issubclass(type(graph_options), config_pb2.GraphOptions)):
+def npu_graph_options(graph_options = None):
+    if (not isinstance(graph_options, config_pb2.GraphOptions)) or (not issubclass(type(graph_options), config_pb2.GraphOptions)):
         graph_options = config_pb2.GraphOptions()
     graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return graph_options
 
-
-def npu_optimizer_options(optimizer_options=None):
-    if (not isinstance(optimizer_options, config_pb2.OptimizerOptions)) or (
-    not issubclass(type(optimizer_options), config_pb2.OptimizerOptions)):
+def npu_optimizer_options(optimizer_options = None):
+    if (not isinstance(optimizer_options, config_pb2.OptimizerOptions)) or (not issubclass(type(optimizer_options), config_pb2.OptimizerOptions)):
         optimizer_options = config_pb2.OptimizerOptions()
     optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return optimizer_options
 
-
 def npu_run_config_init(run_config=None):
-    if ((not isinstance(run_config, tf.estimator.RunConfig)) and (
-    not issubclass(type(run_config), tf.estimator.RunConfig))):
+    if ((not isinstance(run_config, tf.estimator.RunConfig)) and (not issubclass(type(run_config), tf.estimator.RunConfig))):
         run_config = tf.estimator.RunConfig()
     if (isinstance(run_config, tf.estimator.RunConfig) or issubclass(type(run_config), tf.estimator.RunConfig)):
         run_config.__dict__['_session_config'] = npu_config_proto(run_config.session_config)
     return run_config
-
 
 def set_keras_session_npu_config(config=None):
     from tensorflow.python.keras import backend
@@ -159,7 +148,6 @@ def set_keras_session_npu_config(config=None):
     sess = session.Session(config=config)
     backend.set_session(sess)
     return sess
-
 
 def init_resource(config=None):
     if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
@@ -194,40 +182,31 @@ def init_resource(config=None):
     util.set_value("npu_rank_size", npu_rank_size)
     return sess, npu_shutdown
 
-
 def shutdown_resource(sess, npu_shutdown):
     sess.run(npu_shutdown)
-
 
 def close_session(sess):
     sess.close()
 
-
 def get_npu_rank_id():
     return util.get_value("npu_rank_id", 0)
-
 
 def get_npu_local_rank_id():
     return util.get_value("npu_local_rank_id", 0)
 
-
 def get_npu_rank_size():
     return util.get_value("npu_rank_size", 1)
 
-
 class NpuEmptyHook(session_run_hook.SessionRunHook):
     pass
-
 
 def npu_keras_optimizer(opt):
     npu_opt = KerasDistributeOptimizer(opt)
     return npu_opt
 
-
 def npu_tf_optimizer(opt):
     npu_opt = NPUDistributedOptimizer(opt)
     return npu_opt
-
 
 def npu_clear_session(config=None):
     from tensorflow.python.keras import backend

@@ -25,7 +25,6 @@ import pandas as pd
 from file_op import get_api_statistic
 from file_op import adjust_index
 
-
 def conver():
     print("Begin conver, input file: " + util_global.get_value('input') + '\n')
     out_path = util_global.get_value('output')
@@ -41,7 +40,7 @@ def conver():
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(util_global.get_value('input'))[1])
             file_path = os.path.join(path, file_name).replace('\\', '/')
-            content = "".join(["Begin conver file: ", file_path])
+            content = "".join(["Begin conver file: " , file_path])
             print(content)
             if file_name.endswith(".py"):
                 util_global.set_value('path', file_path)
