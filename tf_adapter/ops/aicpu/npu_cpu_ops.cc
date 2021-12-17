@@ -321,7 +321,7 @@ REGISTER_OP("DenseImageWarpGrad")
       size_t pos_c = dt_format.find("C") - 1;
       size_t pos_h = dt_format.find("H") - 1;
       size_t pos_w = dt_format.find("W") - 1;
-      int64 channle = c->Value(c->Dim(c->input(0), pos_c));
+      int64 channel = c->Value(c->Dim(c->input(0), pos_c));
       const int64_t kChannel = 3;
       if (channel != kChannel) {
         return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got",
@@ -343,7 +343,7 @@ REGISTER_OP("DenseImageWarpGrad")
       std::vector<DimensionHandle> out_dims(kRank);
       out_dims[pos_h] = c->MakeDim(resize);
       out_dims[pos_w] = c->MakeDim(resize);
-      out_dims[pos_c] = c->MakeDim(channle);
+      out_dims[pos_c] = c->MakeDim(channel);
       c->set_output(0, c->MakeShape(out_dims));
       c->set_output(1, c->Scalar());
       c->set_output(2, c->Scalar());
