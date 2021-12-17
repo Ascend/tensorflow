@@ -838,10 +838,10 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(Node *topo_en
   }
 
   // Prune for the final optimized graph
-  ADP_LOG(INFO) << "Start to prune final optimized graph";
+  ADP_LOG(INFO) << "Start to prune final optimized graph.";
 
   RemoveIsolatedNode(graph_, isolated_nodes);
-  ADP_LOG(INFO) << "Start to assign unassigned node on default device";
+  ADP_LOG(INFO) << "Start to assign unassigned node on default device.";
   // We do pass after assign, so we must assign all new added nodes
   for (Node *n : graph_->op_nodes()) {
     if (n->assigned_device_name().empty()) {
@@ -880,7 +880,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     TF_DO_CHECK_OK(WriteTextProto(Env::Default(), pmodel_path, before_graphdef), ERROR);
   }
 
-  ADP_LOG(INFO) << "Start to optimize dp_init topological graph";
+  ADP_LOG(INFO) << "Start to optimize dp_init topological graph.";
   for (Node *topo_end : topo_ends) {
     // Get all edges that should be replace with HostQueue->DeviceQueue
     ADP_LOG(INFO) << "Start to find split edges, topo_end node is : " << topo_end->name() << ", op is "
@@ -895,7 +895,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
                    ERROR);
   }
 
-  ADP_LOG(INFO) << "End optimize dp_init topological graph";
+  ADP_LOG(INFO) << "End optimize dp_init topological graph.";
   if (need_print != nullptr && strcmp("1", need_print) == 0) {
     GraphDef after_graphdef;
     (*g)->ToGraphDef(&after_graphdef);
@@ -1001,7 +1001,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
     if (n->type_string() == "DvppDataset") {
       uint32_t device_id = 0;
       (void) GetEnvDeviceID(device_id);
-      n->AddAttr("channel_name", "device" + std::to_string(device_id) + "_" + channel_name);
+      n->AddAttr("queue_name", "device" + std::to_string(device_id) + "_" + channel_name);
       NpuAttrs::SetUseAdpStatus(channel_name, true);
       ADP_LOG(INFO) << "The graph include DvppDataset, set channel_name:"
                     << channel_name << ", skip DpTfToGEConversionPass.";
@@ -1044,7 +1044,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
   // For any pre-partitioning phase, graph is stored in options.graph.
   process_graph(graph, func_lib, all_options);
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(INFO) << "DpTfToGEConversionPassImpl Run success. [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "DpTfToGEConversionPassImpl Run success. [" << ((endTime - startTime) / kMicrosToMillis) << " ms].";
 
   return Status::OK();
 }
