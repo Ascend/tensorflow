@@ -57,7 +57,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
     op_type = node->type_string();
     if (op_name.find("_Broadcast_Weight_Update_Sharding") != std::string::npos) {
       weight_update_sharding = true;
-      if (npu_loss_scale == true) {
+      if (npu_loss_scale) {
         break;
       }
     }
@@ -72,9 +72,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
 
   if (weight_update_sharding) {
     int64 startTime = InferShapeUtil::GetCurrentTimestap();
-    char *need_print = getenv("PRINT_MODEL");
-
-    if (need_print != nullptr && strcmp("1", need_print) == 0) {
+    if (kDumpGraph) {
       GraphDef ori_graph_def;
       graphIn->ToGraphDef(&ori_graph_def);
       string ori_model_path = GetDumpPath() + "BeforeWeightUpdateSharding_";
@@ -201,7 +199,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
       }
     }
 
-    if (need_print != nullptr && strcmp("1", need_print) == 0) {
+    if (kDumpGraph) {
       GraphDef omg_graph_def;
       graphIn->ToGraphDef(&omg_graph_def);
       string tmpmodel_path = GetDumpPath() + "AfterWeightUpdateSharding_";

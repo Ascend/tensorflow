@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <mutex>
+#include <regex>
+#include <iostream>
 #include "tdt/index_transform.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/npu_attrs.h"
@@ -21,9 +24,7 @@
 #include "tensorflow/core/util/env_var.h"
 #include "securec.h"
 #include "mmpa/mmpa_api.h"
-#include <mutex>
-#include <regex>
-#include <iostream>
+
 namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
@@ -35,9 +36,16 @@ extern const bool kIsNewDataTransfer = []() -> bool {
   return is_new_data_transfer;
 }();
 
+extern const bool kDumpGraph = []() -> bool {
+  bool print_model = false;
+  tensorflow::ReadBoolFromEnvVar("PRINT_MODEL", false, &print_model);
+  return print_model;
+}();
+
 std::string GetDumpPath() {
-  char *npu_collect_path = std::getenv("NPU_COLLECT_PATH");
-  if (npu_collect_path != nullptr) {
+  std::string npu_collect_path;
+  (void)ReadStringFromEnvVar("NPU_COLLECT_PATH", "", &npu_collect_path);
+  if (!npu_collect_path.empty()) {
     std::string collect_path_str(npu_collect_path);
     collect_path_str.erase(0, collect_path_str.find_first_not_of(" "));
     collect_path_str.erase(collect_path_str.find_last_not_of(" ") + 1);
@@ -74,13 +82,15 @@ std::string GetDumpPath() {
 Status GetEnvDeviceID(uint32_t &device_id) {
   int64 phy_device_id = -1;
   int64 logic_device_id = -1;
-  const char* tmp_ascend_device_id = std::getenv("ASCEND_DEVICE_ID");
-  std::string env_ascend_device_id(tmp_ascend_device_id == nullptr ? "" : tmp_ascend_device_id);
-  const char* tmp_device_id = std::getenv("DEVICE_ID");
-  std::string env_device_id(tmp_device_id == nullptr ? "" : tmp_device_id);
+  std::string env_ascend_device_id;
+  (void)ReadStringFromEnvVar("ASCEND_DEVICE_ID", "", &env_ascend_device_id);
+  std::string env_device_id;
+  (void)ReadStringFromEnvVar("DEVICE_ID", "", &env_device_id);
   if (env_ascend_device_id.empty() && env_device_id.empty()) {
-    ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set session_device_id, session_device_id has a higher priority";
-    LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set session_device_id, session_device_id has a higher priority";
+    ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set "
+                        "session_device_id, session_device_id has a higher priority";
+    LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set "
+                    "session_device_id, session_device_id has a higher priority";
   } else if (!env_ascend_device_id.empty()) {
     if (!strings::safe_strto64(env_ascend_device_id, &logic_device_id)) {
       return errors::InvalidArgument("ASCEND_DEVICE_ID is valid, not digit.");
@@ -245,7 +255,7 @@ inline Status CheckLocalRankId(int local_rank_id) {
   return Status::OK();
 }
 
-inline Status CheckDeviceList(std::string local_device_list) {
+inline Status CheckDeviceList(const std::string &local_device_list) {
   std::string tmp_device_list = local_device_list + ",";
   std::regex pattern("(\\d{1,},)+");
   if (!regex_match(tmp_device_list, pattern)) {
@@ -299,7 +309,8 @@ void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
 
 bool NpuAttrs::IsDatasetExecuteInDevice(std::string iterator_name) {
   if (dataset_execute_info_.count(iterator_name) > 0) {
-    ADP_LOG(INFO) << "get data pre-process graph: " << iterator_name << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
+    ADP_LOG(INFO) << "get data pre-process graph: " << iterator_name
+                  << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
     return dataset_execute_info_[iterator_name];
   } else {
     return false;
@@ -308,7 +319,8 @@ bool NpuAttrs::IsDatasetExecuteInDevice(std::string iterator_name) {
 
 void NpuAttrs::SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool is_dataset_execute_device) {
   dataset_execute_info_[iterator_name] = is_dataset_execute_device;
-  ADP_LOG(INFO) << "data pre-process graph: " << iterator_name << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
+  ADP_LOG(INFO) << "data pre-process graph: " << iterator_name
+                << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
 }
 
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {
@@ -504,7 +516,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
   }
 
-
   if (precision_mode.empty()) {
     init_options[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
   } else {
@@ -589,7 +600,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
           }
-          if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+          if (params.count("dynamic_inputs_shape_range")) {
+            dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s();
+          }
         }
       }
       if (params.count("local_rank_id")) {
@@ -614,10 +627,14 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   }
   if (!do_npu_optimizer) {
     if ((const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options() != nullptr &&
-        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->mutable_rewrite_options() != nullptr) {
-        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->
-                                     mutable_rewrite_options()->set_remapping(RewriterConfig::OFF);
-        }
+        (const_cast<SessionOptions *>(options.session_options))
+            ->config.mutable_graph_options()
+            ->mutable_rewrite_options() != nullptr) {
+      (const_cast<SessionOptions *>(options.session_options))
+        ->config.mutable_graph_options()
+        ->mutable_rewrite_options()
+        ->set_remapping(RewriterConfig::OFF);
+    }
   }
   // pass options
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
@@ -715,7 +732,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string in_out_pair_flag = std::to_string(true);
   std::string in_out_pair;
   Status s = Status::OK();
-  
+
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
   auto use_off_line_value = attrs.Find("_use_off_line");
@@ -731,7 +748,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
-  
+
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
     if (enable_data_pre_proc_value != nullptr) { enable_dp = enable_data_pre_proc_value->s(); }
@@ -799,7 +816,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string local_device_list;
   std::string in_out_pair_flag = std::to_string(true);
   std::string in_out_pair;
-  Status s = Status::OK();
 
   std::string variable_format_optimize = std::to_string(true);
   std::string hcom_parallel = std::to_string(false);
@@ -861,7 +877,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
-  
+
   auto variable_format_optimize_value = attrs.Find("_variable_format_optimize");
   auto hcom_parallel_value = attrs.Find("_hcom_parallel");
   auto graph_memory_max_size_value = attrs.Find("_graph_memory_max_size");
@@ -1351,7 +1367,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
               return errors::Internal("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.");
             }
           }
-          if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+          if (params.count("dynamic_inputs_shape_range")) {
+            dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s();
+          }
         }
       }
       if (params.count("local_rank_id")) {
@@ -1462,9 +1480,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         if (params.count("precision_mode") && params.at("precision_mode").s() == "allow_mix_precision") {
           modify_mixlist = params.at("modify_mixlist").s();
         } else {
-          ADP_LOG(ERROR) << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
-          LOG(ERROR) << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
-          return errors::Internal("modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
+          ADP_LOG(ERROR)
+            << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
+          LOG(ERROR)
+            << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
+          return errors::Internal(
+              "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
         }
       }
       if (params.count("op_precision_mode")) {

@@ -17,6 +17,8 @@
 #ifndef TENSORFLOW_NPU_ATTRS_H_
 #define TENSORFLOW_NPU_ATTRS_H_
 
+#include <map>
+#include <string>
 #include "ge/ge_api_types.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/framework/attr_value.pb.h"
@@ -24,8 +26,7 @@
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/public/session_options.h"
 #include "tensorflow/core/util/env_var.h"
-#include <map>
-#include <string>
+
 
 // single load all npu mode
 namespace tensorflow {
@@ -33,6 +34,7 @@ std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
 extern const bool kIsNewDataTransfer;
+extern const bool kDumpGraph;
 
 class NpuAttrs {
  public:

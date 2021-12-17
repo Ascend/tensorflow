@@ -143,7 +143,6 @@ class DpTfToGEConversionPassImpl {
   bool RunPass(std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
                std::map<std::string, std::string> all_options);
   inline bool IsMakeIteratorNode(const Node *n) const;
-  inline bool IsDeviceQueueDatasetNode() const;
   inline bool IsIteratorNode(const Node *n) const;
   inline bool IsSkipDataset(const Node *n) const;
   inline bool IsGeSupportDataset(const Node *n) const;
@@ -204,16 +203,6 @@ class DpTfToGEConversionPassImpl {
 
 inline bool DpTfToGEConversionPassImpl::IsMakeIteratorNode(const Node *n) const {
   return str_util::StartsWith(n->type_string(), DP_INIT_GRAPH_MARK);
-}
-
-inline bool DpTfToGEConversionPassImpl::IsDeviceQueueDatasetNode() const {
-  for (const Node *n : graph_->op_nodes()) {
-    if (str_util::StartsWith(n->type_string(), DP_INIT_DEVICEQUEUE_MARK)
-        || str_util::StartsWith(n->type_string(), DP_INIT_QUEUE_MARK)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 inline bool DpTfToGEConversionPassImpl::IsIteratorNode(const Node *n) const {
@@ -871,8 +860,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
     return true;
   }
 
-  const char *need_print = getenv("PRINT_MODEL");
-  if (nullptr != need_print && strcmp("1", need_print) == 0) {
+  if (kDumpGraph) {
     GraphDef before_graphdef;
     (*g)->ToGraphDef(&before_graphdef);
     string pre_model_path = GetDumpPath() + "BeforeSubGraph_dp_";
@@ -895,8 +883,8 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
                    ERROR);
   }
 
-  ADP_LOG(INFO) << "End optimize dp_init topological graph.";
-  if (need_print != nullptr && strcmp("1", need_print) == 0) {
+  ADP_LOG(INFO) << "End optimize dp_init topological graph";
+  if (kDumpGraph) {
     GraphDef after_graphdef;
     (*g)->ToGraphDef(&after_graphdef);
     string suffix_model_path = GetDumpPath() + "AfterSubGraph_dp_";
