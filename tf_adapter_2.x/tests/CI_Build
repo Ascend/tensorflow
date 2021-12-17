@@ -17,6 +17,7 @@ source /home/jenkins/tensorflow24/.env/bin/activate
 
 bash configure
 
+rm -rf build
 mkdir build
 cd build
 
