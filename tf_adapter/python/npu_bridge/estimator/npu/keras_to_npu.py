@@ -18,7 +18,6 @@ from tensorflow.python.keras.estimator import model_to_estimator
 from tensorflow_estimator.python.estimator import run_config
 from npu_bridge.estimator.npu.npu_estimator import NPUEstimator
 
-
 def model_to_npu_estimator(keras_model=None,
                            keras_model_path=None,
                            custom_objects=None,

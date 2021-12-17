@@ -26,26 +26,21 @@ from tensorflow.python.keras.engine.input_spec import InputSpec
 from tensorflow.python.keras.utils import tf_utils
 from npu_bridge.helper import helper
 from npu_bridge.estimator.npu_aicore_ops import prelu
-
 gen_npu_ops = helper.get_gen_ops()
-
 
 def lamb_apply_optimizer_assign(input0, input1, input2, input3, mul0_x, mul1_x,
                                 mul2_x, mul3_x, add2_y, steps, do_use_weight, weight_decay_rate, name=None):
     if context.executing_eagerly():
-        raise RuntimeError("tf.lamb_apply_optimizer_assign() is not compatible with "
-                           "eager execution.")
-    update, nextv, nextm = gen_npu_ops.lamb_apply_optimizer_assign(input0, input1, input2, input3, mul0_x, mul1_x,
-                                                                   mul2_x,
-                                                                   mul3_x, add2_y, steps, do_use_weight,
-                                                                   weight_decay_rate, name)
+      raise RuntimeError("tf.lamb_apply_optimizer_assign() is not compatible with "
+                        "eager execution.")
+    update, nextv, nextm = gen_npu_ops.lamb_apply_optimizer_assign(input0, input1, input2, input3, mul0_x, mul1_x, mul2_x,
+                                                     mul3_x, add2_y, steps, do_use_weight, weight_decay_rate, name)
     return update, nextv, nextm
-
 
 def lamb_apply_weight_assign(input0, input1, input2, input3, input4, name=None):
     if context.executing_eagerly():
-        raise RuntimeError("tf.lamb_apply_weight_assign() is not compatible with "
-                           "eager execution.")
+      raise RuntimeError("tf.lamb_apply_weight_assign() is not compatible with "
+                        "eager execution.")
     result = gen_npu_ops.lamb_apply_weight_assign(input0, input1, input2, input3, input4, name)
     return result
 

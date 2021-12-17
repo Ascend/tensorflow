@@ -16,22 +16,11 @@
 # ============================================================================
 import ast
 import copy
-from inspect import signature
 import pasta
 import util_global
-from util import log_msg
-from util import log_warning
-from util import log_success_report
-from util import log_hvd_distributed_mode_error
-from util import log_strategy_distributed_mode_error
-from tf_func_def import TrainSpec
-from tf_func_def import EvalSpec
-from tf_func_def import Estimator
-from tf_func_def import Model
-from tf_func_def import Session
-from tf_func_def import InteractiveSession
-from tf_func_def import Supervisor
-from tf_func_def import MonitoredTrainingSession
+from util import *
+from tf_func_def import *
+from inspect import signature
 
 tf_func_map = {"tf.estimator.TrainSpec": TrainSpec,
                "tf.estimator.EvalSpec": EvalSpec,
@@ -44,13 +33,11 @@ tf_func_map = {"tf.estimator.TrainSpec": TrainSpec,
                "tf.train.Supervisor.managed_session": Supervisor.managed_session,
                "tf.train.MonitoredTrainingSession": MonitoredTrainingSession}
 
-
 def attribute(node):
     log_success_report(getattr(node, "lineno", "None"), node.attr)
     node = ast.Name(id=util_global.get_value(node.attr)[0], ctx=ast.Load())
     util_global.set_value('need_conver', True)
     return node
-
 
 def import_from(node):
     if node.module:
@@ -79,7 +66,6 @@ def import_from(node):
     util_global.set_value('need_conver', True)
     return node
 
-
 def ast_import(node):
     for value in node.names:
         if isinstance(value, ast.alias):
@@ -96,19 +82,18 @@ def ast_import(node):
     util_global.set_value('need_conver', True)
     return node
 
-
 def ast_function_def(node):
     log_success_report(getattr(node, "lineno", "None"), node.name)
     arg_name = node.args.args[0].arg
     node.body = [ast.Return(value=ast.Call(
-        func=ast.Attribute(value=ast.Name(id=util_global.get_value(node.name)[0],
-                                          ctx=ast.Load()), attr='gelu', ctx=ast.Load()),
-        args=[ast.Name(id=arg_name, ctx=ast.Load())],
-        keywords=[]))]
+                                            func=ast.Attribute(value=ast.Name(id=util_global.get_value(node.name)[0],
+                                                               ctx=ast.Load()), attr='gelu',
+                                                               ctx=ast.Load()),
+                                            args=[ast.Name(id=arg_name, ctx=ast.Load())],
+                                            keywords=[]))]
 
     util_global.set_value('need_conver', True)
     return node
-
 
 def ast_if(node):
     if isinstance(node.test, ast.Compare):
@@ -121,9 +106,8 @@ def ast_if(node):
                     close_sess_call = ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
                                                args=[ast.Name(id="npu_keras_sess", ctx=ast.Load())], keywords=[])
                     keras_sess_assign = ast.Assign(targets=[ast.Name(id="npu_keras_sess", ctx=ast.Store())],
-                                                   value=ast.Call(
-                                                       func=ast.Name(id="set_keras_session_npu_config", ctx=ast.Load()),
-                                                       args=[], keywords=[]))
+                                                   value=ast.Call(func=ast.Name(id="set_keras_session_npu_config", ctx=ast.Load()),
+                                                                  args=[], keywords=[]))
                     node.body = [keras_sess_assign] + node.body + [ast.Expr(value=close_sess_call)]
                     util_global.set_value('need_conver', True)
                 if util_global.get_value("distributed_mode", "") == "horovod":
@@ -133,17 +117,13 @@ def ast_if(node):
                     init_assign = ast.Assign(targets=[ast.Tuple(elts=[ast.Name(id="npu_sess", ctx=ast.Store()),
                                                                       ast.Name(id="npu_shutdown", ctx=ast.Store())],
                                                                 ctx=ast.Store())],
-                                             value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[],
-                                                            keywords=[]))
+                                             value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[], keywords=[]))
                     shutdown_call = ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
-                                             args=[ast.Name(id="npu_sess", ctx=ast.Load()),
-                                                   ast.Name(id="npu_shutdown", ctx=ast.Load())],
+                                             args=[ast.Name(id="npu_sess", ctx=ast.Load()), ast.Name(id="npu_shutdown", ctx=ast.Load())],
                                              keywords=[])
-                    node.body = [init_assign] + node.body + [ast.Expr(value=shutdown_call),
-                                                             ast.Expr(value=close_sess_call)]
+                    node.body = [init_assign] + node.body + [ast.Expr(value=shutdown_call), ast.Expr(value=close_sess_call)]
                     util_global.set_value('need_conver', True)
                 return node
-
 
 def check_func_arguments(origin_func, node_args, node_keywords, is_class_func):
     func_args = [] if not is_class_func else [origin_func]
@@ -161,12 +141,10 @@ def check_func_arguments(origin_func, node_args, node_keywords, is_class_func):
     else:
         return True
 
-
 def add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_func, npu_func_args):
     param_node = None
-    if ((not util_global.get_value("distributed_mode", "") or
-         util_global.get_value("distributed_mode", "") == "horovod") and
-            (param_name == "callbacks" or param_name == "hooks" or param_name == "optimizer")):
+    if ((not util_global.get_value("distributed_mode", "") or util_global.get_value("distributed_mode", "") == "horovod") and
+       (param_name == "callbacks" or param_name == "hooks" or param_name == "optimizer")):
         return node
     log_param_msg = "".join([org_func_name, " add npu ", param_name])
     log_msg(getattr(node, "lineno", "None"), log_param_msg)
@@ -185,29 +163,24 @@ def add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_fun
             ast.copy_location(new_value, param_node.value)
             param_node.value = new_value
         else:
-            node.keywords.append(ast.keyword(arg=param_name,
-                                             value=ast.Call(func=ast.Name(id=npu_func, ctx=ast.Load()), args=[],
-                                                            keywords=[
-                                                                ast.keyword(arg=npu_func_args, value=param_node)])))
+            node.keywords.append(ast.keyword(arg=param_name, value=ast.Call(func=ast.Name(id=npu_func, ctx=ast.Load()),
+                                                                            args=[], keywords=[ast.keyword(arg=npu_func_args, value=param_node)])))
     else:
         node.keywords.append(ast.keyword(arg=param_name, value=pasta.parse("".join([npu_func, "()"]))))
     return node
 
-
 def match_func_params_and_convert(node, origin_func, org_func_name, param_name, is_class_func):
-    npu_func_map = {"config": ["npu_config_proto", "config_proto"],
-                    "hooks": ["npu_hooks_append", "hooks_list"],
-                    "callbacks": ["npu_callbacks_append", "callbacks_list"],
-                    "optimizer": ["npu_distributed_optimizer_wrapper", "optimizer"]}
+    npu_func_map = {"config":["npu_config_proto", "config_proto"],
+                    "hooks":["npu_hooks_append", "hooks_list"],
+                    "callbacks":["npu_callbacks_append", "callbacks_list"],
+                    "optimizer":["npu_distributed_optimizer_wrapper", "optimizer"]}
     param_index = None
     for index, param in enumerate(signature(origin_func).parameters):
         if param == param_name:
             param_index = index if not is_class_func else index - 1
     if param_index is not None:
-        node = add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_func_map[param_name][0],
-                                      npu_func_map[param_name][1])
+        node = add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_func_map[param_name][0], npu_func_map[param_name][1])
     return node
-
 
 def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is_class_func=None):
     if not check_func_arguments(origin_func, node.args, node.keywords, is_class_func):
@@ -216,12 +189,11 @@ def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is
         content = "".join([util_global.get_value('path'), ":", str(getattr(node, "lineno", "None"))])
         while True:
             message = input("Check if the train function in " + content + " is the Estimator train function. If yes, "
-                            "enter 'y' to perform distributed porting on the train function. if no, enter 'n': ")
+                            "enter 'y' to perform distributed porting on the train function. if no, enter 'n': " )
             if message == "y":
                 break
             elif message == "n":
-                log_warning("".join(["The train func in ", content,
-                                     " is user-defined functions, will not perform distributed porting"]))
+                log_warning("".join(["The train func in ", content, " is user-defined functions, will not perform distributed porting"]))
                 return node
             else:
                 print("Input is error, Please enter 'y' or 'n'.")
@@ -231,10 +203,9 @@ def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is
     util_global.set_value('need_conver', True)
     return node
 
-
 def convert_dynamic_loss_scale(node):
     log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.DynamicLossScale"
-                                             " to ExponentialUpdateLossScaleManager")
+                    " to ExponentialUpdateLossScaleManager")
     node.func = ast.Name(id="ExponentialUpdateLossScaleManager", ctx=ast.Load())
 
     def check_arg(node):
@@ -242,12 +213,9 @@ def convert_dynamic_loss_scale(node):
         increment_period = None
         multiplier = None
         for index, arg in enumerate(node.args):
-            if index == 0:
-                initial_loss_scale = arg
-            if index == 1:
-                increment_period = arg
-            if index == 2:
-                multiplier = arg
+            if index == 0: initial_loss_scale = arg
+            if index == 1: increment_period = arg
+            if index == 2: multiplier = arg
         for keyword in node.keywords:
             if keyword.arg == "initial_loss_scale":
                 keyword.arg = "init_loss_scale"
@@ -280,12 +248,11 @@ def convert_dynamic_loss_scale(node):
     util_global.set_value('need_conver', True)
     return node
 
-
 def convert_loss_scale_api(node):
     if isinstance(node.func, ast.Attribute):
         if node.func.attr == "FixedLossScale":
             log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.FixedLossScale"
-                                                     " to FixedLossScaleManager")
+                    " to FixedLossScaleManager")
             node.func = ast.Name(id="FixedLossScaleManager", ctx=ast.Load())
             if len(node.keywords) == 1:
                 node.keywords[0].arg = "loss_scale"
@@ -295,14 +262,12 @@ def convert_loss_scale_api(node):
             return convert_dynamic_loss_scale(node)
         if node.func.attr == "MixedPrecisionLossScaleOptimizer":
             log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.MixedPrecisionLossScaleOptimizer"
-                                                     " to NPULossScaleOptimizer")
+                    " to NPULossScaleOptimizer")
             node.func = ast.Name(id="NPULossScaleOptimizer", ctx=ast.Load())
             for keyword in node.keywords:
-                if keyword.arg == "loss_scale":
-                    keyword.arg = "loss_scale_manager"
+                if keyword.arg == "loss_scale": keyword.arg = "loss_scale_manager"
             util_global.set_value('need_conver', True)
             return node
-
 
 def convert_hvd_distributed_api(node):
     log_msg(getattr(node, "lineno", "None"), 'change hvd.DistributedOptimizer to npu_distributed_optimizer_wrapper')
@@ -321,7 +286,6 @@ def convert_hvd_distributed_api(node):
     util_global.set_value('need_conver', True)
     return node
 
-
 def convert_tf_gradient_distributed(node):
     content = "".join([util_global.get_value('path'), ":", str(getattr(node, "lineno", "None")),
                        " is tf.gradient api, tool inserts npu_allreduce after computing grads by default.",
@@ -332,21 +296,18 @@ def convert_tf_gradient_distributed(node):
     util_global.set_value("need_conver", True)
     return new_node
 
-
 def convert_distributed_strategy_apis(node):
     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
         if ("Optimizer" in node.func.attr and node.func.attr != "ScipyOptimizerInterface" and
-                node.func.attr != "MixedPrecisionLossScaleOptimizer"):
+            node.func.attr != "MixedPrecisionLossScaleOptimizer"):
             log_msg(getattr(node, "lineno", "None"), "add npu distribute optimizer to tensorflow optimizer")
-            new_node = ast.Call(func=ast.Name(id="npu_distributed_optimizer_wrapper", ctx=ast.Load()), args=[node],
-                                keywords=[])
+            new_node = ast.Call(func=ast.Name(id="npu_distributed_optimizer_wrapper", ctx=ast.Load()), args=[node], keywords=[])
             ast.copy_location(new_node, node)
             util_global.set_value('need_conver', True)
             return new_node
     if isinstance(node.func, ast.Name) and "Optimizer" in node.func.id and node.func.id != "NPULossScaleOptimizer":
         log_msg(getattr(node, "lineno", "None"), "add npu distribute optimizer to tensorflow optimizer")
-        new_node = ast.Call(func=ast.Name(id="npu_distributed_optimizer_wrapper", ctx=ast.Load()), args=[node],
-                            keywords=[])
+        new_node = ast.Call(func=ast.Name(id="npu_distributed_optimizer_wrapper", ctx=ast.Load()), args=[node], keywords=[])
         ast.copy_location(new_node, node)
         util_global.set_value('need_conver', True)
         return new_node
@@ -357,23 +318,19 @@ def convert_distributed_strategy_apis(node):
     if isinstance(node.func, ast.Attribute) and node.func.attr == "train":
         if isinstance(node.func.value, ast.Attribute) and node.func.value.attr == "learning":
             return node
-        return convert_origin_func_to_npu(node, tf_func_map["tf.estimator.Estimator.train"],
-                                          "Estimator.train", ["hooks"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.estimator.Estimator.train"], "Estimator.train", ["hooks"], True)
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'compile'):
         if isinstance(node.func.value, ast.Name) and node.func.value.id == "re":
             return node
-        return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.compile"],
-                                          "Model.compile", ["optimizer"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.compile"], "Model.compile", ["optimizer"], True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == "fit":
         return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.fit"], "Model.fit", ["callbacks"], True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == "fit_generator":
-        return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.fit_generator"],
-                                          "Model.fit_generator", ["callbacks"], True)
+        return convert_origin_func_to_npu(node, tf_func_map["tf.keras.Model.fit_generator"], "Model.fit_generator", ["callbacks"], True)
     if isinstance(node.func, ast.Attribute) and node.func.attr == "gradients" and \
-            isinstance(node.func.value, ast.Name) and node.func.value.id == "tf":
+       isinstance(node.func.value, ast.Name) and node.func.value.id == "tf":
         return convert_tf_gradient_distributed(node)
     return node
-
 
 def ast_call(node):
     distributed_mode = util_global.get_value("distributed_mode", "")
@@ -381,8 +338,7 @@ def ast_call(node):
     is_not_horovod = (distributed_mode == "tf_strategy" or distributed_mode == "")
     convert_loss_scale_api(node)
     if _call_name_match(node.func, "set_experimental_options"):
-        log_msg(getattr(node, 'lineno', 'None'),
-                'change set_experimental_options(*) to set_experimental_options(experimental_options)')
+        log_msg(getattr(node, 'lineno', 'None'), 'change set_experimental_options(*) to set_experimental_options(experimental_options)')
         node.args = [ast.Name(id='experimental_options', ctx=ast.Load())]
         node.keywords = []
         util_global.set_value('need_conver', True)
@@ -390,8 +346,8 @@ def ast_call(node):
         log_msg(getattr(node, 'lineno', 'None'), "change check_available_gpus() to ['/device:CPU:0']")
         util_global.set_value('need_conver', True)
         return ast.List(elts=[ast.Str(s="/device:CPU:0")], ctx=ast.Load())
-    if ((isinstance(node.func, ast.Name) and node.func.id == 'GraphOptions') or
-            (isinstance(node.func, ast.Attribute) and node.func.attr == 'GraphOptions')):
+    if (isinstance(node.func, ast.Name) and node.func.id == 'GraphOptions') or \
+       (isinstance(node.func, ast.Attribute) and node.func.attr == 'GraphOptions'):
         log_success_report(getattr(node, 'lineno', 'None'), 'GraphOptions()')
         src = copy.deepcopy(node)
         node.func = ast.Name(id='npu_graph_options', ctx=ast.Load())
@@ -401,7 +357,7 @@ def ast_call(node):
         util_global.set_value('need_conver', True)
         return node
     if (isinstance(node.func, ast.Name) and node.func.id == 'OptimizerOptions') or \
-            (isinstance(node.func, ast.Attribute) and node.func.attr == 'OptimizerOptions'):
+       (isinstance(node.func, ast.Attribute) and node.func.attr == 'OptimizerOptions'):
         log_success_report(getattr(node, 'lineno', 'None'), 'OptimizerOptions()')
         src = copy.deepcopy(node)
         node.func = ast.Name(id='npu_optimizer_options', ctx=ast.Load())
@@ -413,15 +369,13 @@ def ast_call(node):
     if _call_name_match(node.func, "Session"):
         return convert_origin_func_to_npu(node, tf_func_map["tf.Session"], "tf.Session", ["config"])
     if _call_name_match(node.func, "InteractiveSession"):
-        return convert_origin_func_to_npu(node, tf_func_map["tf.InteractiveSession"],
-                                          "tf.InteractiveSession", ["config"])
+        return convert_origin_func_to_npu(node, tf_func_map["tf.InteractiveSession"], "tf.InteractiveSession", ["config"])
     if isinstance(node.func, ast.Attribute) and node.func.attr == "BroadcastGlobalVariablesHook":
         if isinstance(node.func.value, ast.Name) and node.func.value.id == "hvd":
             if is_not_horovod:
                 log_strategy_distributed_mode_error(node)
                 return node
-            log_msg(getattr(node, "lineno", "None"),
-                    'change hvd.BroadcastGlobalVariablesHook to NPUBroadcastGlobalVariablesHook')
+            log_msg(getattr(node, "lineno", "None"), 'change hvd.BroadcastGlobalVariablesHook to NPUBroadcastGlobalVariablesHook')
             node = pasta.parse("NPUBroadcastGlobalVariablesHook(0, int(os.getenv('RANK_ID', '0')))")
             util_global.set_value('need_conver', True)
             return node
@@ -430,8 +384,7 @@ def ast_call(node):
             if is_not_horovod:
                 log_strategy_distributed_mode_error(node)
                 return node
-            log_msg(getattr(node, "lineno", "None"),
-                    'change hvd.callbacks.BroadcastGlobalVariablesCallback to NPUBroadcastGlobalVariablesCallback')
+            log_msg(getattr(node, "lineno", "None"), 'change hvd.callbacks.BroadcastGlobalVariablesCallback to NPUBroadcastGlobalVariablesCallback')
             node = pasta.parse("NPUBroadcastGlobalVariablesCallback(root_rank=0)")
             util_global.set_value('need_conver', True)
             return node
@@ -457,7 +410,7 @@ def ast_call(node):
                 if keyword.arg == "noise_shape":
                     return node
             log_success_report(getattr(node, "lineno", "None"), 'dropout')
-            node.func = ast.Attribute(value=ast.Name(id='npu_ops', ctx=ast.Load()), attr='dropout', ctx=ast.Load())
+            node.func=ast.Attribute(value=ast.Name(id='npu_ops', ctx=ast.Load()), attr='dropout', ctx=ast.Load())
             keywords_new = []
             for keyword in node.keywords:
                 if keyword.arg != 'rate':
@@ -468,16 +421,14 @@ def ast_call(node):
             node.keywords = keywords_new
             util_global.set_value('need_conver', True)
         return node
-    if isinstance(node.func, ast.Attribute) and \
-            ((node.func.attr == 'map_and_batch') or
-             (node.func.attr == 'batch' and (not isinstance(node.func.value, ast.Attribute) or (
-                     isinstance(node.func.value, ast.Attribute) and node.func.value.attr != 'train')))):
+    if isinstance(node.func, ast.Attribute) and ((node.func.attr == 'map_and_batch') or (node.func.attr == 'batch'
+        and (not isinstance(node.func.value, ast.Attribute) or (isinstance(node.func.value, ast.Attribute) and node.func.value.attr != 'train')))):
         exist = False
         for keyword in node.keywords:
             if keyword.arg == 'drop_remainder':
                 exist = True
                 if ((isinstance(keyword.value, ast.NameConstant) and keyword.value.value != True) or
-                        (not isinstance(keyword.value, ast.NameConstant))):
+                   (not isinstance(keyword.value, ast.NameConstant))):
                     log_success_report(getattr(node, "lineno", "None"), node.func.attr)
                     keyword.value = pasta.parse('True')
                     util_global.set_value('need_conver', True)
@@ -488,21 +439,19 @@ def ast_call(node):
             util_global.set_value('need_conver', True)
         return node
     if (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and
-            node.func.value.id == 'tf' and node.func.attr == 'device'):
+        node.func.value.id == 'tf' and node.func.attr == 'device'):
         log_success_report(getattr(node, "lineno", "None"), node.func.attr)
         node.args = [ast.Str(s='/cpu:0')]
         util_global.set_value('need_conver', True)
         return node
-    if isinstance(node.func, ast.Attribute) and \
-            (node.func.attr == "get_distribution_strategy" or
-             node.func.attr == "MirroredStrategy" or
-             node.func.attr == "MultiWorkerMirroredStrategy"):
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == "get_distribution_strategy" or
+        node.func.attr == "MirroredStrategy" or node.func.attr == "MultiWorkerMirroredStrategy"):
         if is_not_strategy:
             log_hvd_distributed_mode_error(node)
             return node
         log_success_report(getattr(node, "lineno", "None"), node.func.attr)
         new_func = ast.Attribute(value=ast.Name(id="npu_strategy", ctx=ast.Load()),
-                                 attr="NPUStrategy", ctx=ast.Load())
+                                  attr="NPUStrategy", ctx=ast.Load())
         ast.copy_location(new_func, node.func)
         node.func = new_func
         node.keywords = []
@@ -510,7 +459,7 @@ def ast_call(node):
         util_global.set_value('need_conver', True)
         return node
     if (isinstance(node.func, ast.Attribute) and (node.func.attr == 'RunConfig')) and \
-            (_call_name_match(node.func.value, 'estimator') or _call_name_match(node.func.value, 'tpu')):
+        (_call_name_match(node.func.value, 'estimator') or _call_name_match(node.func.value, 'tpu')):
         if node.keywords.count("train_distribute") or node.keywords.count("eval_distribute"):
             if is_not_strategy:
                 log_hvd_distributed_mode_error(node)
@@ -525,15 +474,14 @@ def ast_call(node):
             node.keywords.append(ast.keyword(arg='save_summary_steps', value=pasta.parse('0')))
         return node
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator') and \
-            ((isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'tpu')) or
-             (isinstance(node.func.value, ast.Name) and (node.func.value.id == 'tpu'))):
+        ((isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'tpu')) or
+        (isinstance(node.func.value, ast.Name) and (node.func.value.id == 'tpu'))):
         add_eval_on_tpu = True
         add_use_tpu = True
         add_export_to_tpu = True
         for keyword in node.keywords:
             if (keyword.arg == 'eval_on_tpu') or (keyword.arg == 'use_tpu') or (keyword.arg == 'export_to_tpu'):
-                if (not isinstance(keyword.value, ast.NameConstant)) or \
-                        (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value != False)):
+                if (not isinstance(keyword.value, ast.NameConstant)) or (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value != False)):
                     log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(' + keyword.arg + '=*)')
                     keyword.value = pasta.parse('False')
                     util_global.set_value('need_conver', True)
@@ -601,8 +549,8 @@ def ast_call(node):
                 return node
     for estimator in util_global.get_value('Estimators', []):
         if (isinstance(node.func, ast.Attribute) and (node.func.attr == estimator)) \
-                or (isinstance(node.func, ast.Name) and (node.func.id == estimator)):
-            log_msg(getattr(node, 'lineno'), "".join([estimator, '() add config=npu_run_config_init()']))
+            or (isinstance(node.func, ast.Name) and (node.func.id == estimator)):
+            log_msg(getattr(node, 'lineno'), "".join([estimator , '() add config=npu_run_config_init()']))
             config = None
             for keyword in node.keywords:
                 if keyword.arg == 'config':
@@ -625,20 +573,16 @@ def ast_call(node):
                         args=[], keywords=[])
         util_global.set_value('need_conver', True)
     if _call_name_match(node.func, "MonitoredTrainingSession"):
-        return convert_origin_func_to_npu(node, tf_func_map["tf.train.MonitoredTrainingSession"],
-                                          "MonitoredTrainingSession", ["config", "hooks"])
+        return convert_origin_func_to_npu(node, tf_func_map["tf.train.MonitoredTrainingSession"], "MonitoredTrainingSession", ["config", "hooks"])
     if isinstance(node.func, ast.Attribute) and node.func.attr == "managed_session":
-        return convert_origin_func_to_npu(node, tf_func_map["tf.train.Supervisor.managed_session"],
-                                          "managed_session", ["config"], True)
-    if distributed_mode == "tf_strategy":  # this cond should be placed at the end of the Call function.
+        return convert_origin_func_to_npu(node, tf_func_map["tf.train.Supervisor.managed_session"], "managed_session", ["config"], True)
+    if distributed_mode == "tf_strategy": # this cond should be placed at the end of the Call function.
         return convert_distributed_strategy_apis(node)
     return node
-
 
 def _call_name_match(call_func, call_name):
     return (isinstance(call_func, ast.Attribute) and (call_func.attr == call_name)) or \
            (isinstance(call_func, ast.Name) and call_func.id == call_name)
-
 
 def insert_npu_import(r_node):
     npu_alias = ast.alias(name='*', asname=None)
@@ -664,7 +608,6 @@ def insert_npu_import(r_node):
         r_node.body.insert(import_index, npu_import)
         log_msg(import_index, "from npu_bridge.npu_init import *")
 
-
 def insert_keras_dropout_import(r_node):
     npu_alias = ast.alias(name='npu_convert_dropout', asname=None)
     npu_import = ast.ImportFrom(module='npu_bridge.estimator.npu', names=[npu_alias], level=0)
@@ -680,7 +623,6 @@ def insert_keras_dropout_import(r_node):
     r_node.body.insert(n, npu_import)
     log_msg(n, "from npu_bridge.estimator.npu import npu_convert_dropout")
 
-
 def insert_npu_resource_init(r_node):
     n = 0
     lenline = len(r_node.body)
@@ -695,21 +637,17 @@ def insert_npu_resource_init(r_node):
         init_assign = ast.Assign(targets=[ast.Tuple(elts=[ast.Name(id="npu_sess", ctx=ast.Store()),
                                                           ast.Name(id="npu_shutdown", ctx=ast.Store())],
                                                     ctx=ast.Store())],
-                                 value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[],
-                                                keywords=[]))
+                                 value=ast.Call(func=ast.Name(id="init_resource", ctx=ast.Load()), args=[], keywords=[]))
         r_node.body.insert(n, init_assign)
-
 
 def insert_npu_resource_shutdown(r_node):
     shutdown_call = ast.Expr(value=ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
-                                            args=[ast.Name(id="npu_sess", ctx=ast.Load()),
-                                                  ast.Name(id="npu_shutdown", ctx=ast.Load())],
+                                            args=[ast.Name(id="npu_sess", ctx=ast.Load()), ast.Name(id="npu_shutdown", ctx=ast.Load())],
                                             keywords=[]))
     close_sess_call = ast.Expr(value=ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
                                               args=[ast.Name(id="npu_sess", ctx=ast.Load())], keywords=[]))
     r_node.body.append(shutdown_call)
     r_node.body.append(close_sess_call)
-
 
 def insert_keras_sess_npu_config(r_node):
     n = 0
@@ -727,15 +665,13 @@ def insert_keras_sess_npu_config(r_node):
                                                       args=[], keywords=[]))
         r_node.body.insert(n, keras_sess_assign)
 
-
 def insert_keras_sess_close(r_node):
     close_sess_call = ast.Expr(value=ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
                                               args=[ast.Name(id="npu_keras_sess", ctx=ast.Load())], keywords=[]))
     r_node.body.append(close_sess_call)
 
-
 # Format printing for locate
-def node_tree(node: str):
+def node_tree(node:str):
     str2list = list(node.replace(' ', ''))
     count = 0
     for i, e in enumerate(str2list):

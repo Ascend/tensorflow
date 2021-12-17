@@ -16,9 +16,9 @@
 # ==============================================================================
 
 import os
-import threading
-import time
 from six.moves import queue as Queue
+import time
+import threading
 
 import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2

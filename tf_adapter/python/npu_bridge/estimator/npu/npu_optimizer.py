@@ -43,7 +43,6 @@ from npu_bridge.helper import helper
 
 gen_npu_ops = helper.get_gen_ops()
 
-
 def allreduce(tensor, average=True):
     """
     Perform an allreduce on a tf.Tensor or tf.IndexedSlices.
@@ -208,8 +207,8 @@ class NPUOptimizer(optimizer.Optimizer):
                 return self._opt.apply_gradients(grads_and_vars, global_step, name)
 
             update_variables = control_flow_ops.cond(self._is_overall_finite,
-                                                     true_apply_grads_fn,
-                                                     gen_control_flow_ops.no_op)
+                                                    true_apply_grads_fn,
+                                                    gen_control_flow_ops.no_op)
 
             # Potentially adjust gradient scale in case of finite gradients.
             return control_flow_ops.group(

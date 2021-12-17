@@ -25,7 +25,6 @@ from absl import logging
 
 from npu_device.npu_device import global_npu_ctx
 
-
 class GroupingVars():
     def __init__(self, variables, rank_size):
         self._vars = []
@@ -44,7 +43,6 @@ class GroupingVars():
             return
 
         left_vars = list(self._vars)
-
         def get_average(size):
             large_number_list = []
             average_size = 0
@@ -70,7 +68,7 @@ class GroupingVars():
 
         j = -1
         while True:
-            j = j + 1
+            j = j+1
             total_number = number - j
             if total_number == 0:
                 break
@@ -113,7 +111,6 @@ class GroupingVars():
                 gid = item.root_rank_id
         return gid
 
-
 @npu_compat_function
 def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
@@ -135,7 +132,7 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
             local_grads_and_vars.append((grad, var))
     apply_res = apply_func(local_grads_and_vars, *args, **kwargs)
     with ops.get_default_graph()._attr_scope(
-            {"_weight_update_grouping": attr_value_pb2.AttrValue(b=True)}):
+        { "_weight_update_grouping": attr_value_pb2.AttrValue(b=True) }):
         for i in range(len(variables)):
             var = variables[i]
             rank_id = grouping_vars.get_gid_by_var(var)
@@ -146,7 +143,6 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
             op_list.append(grad)
     op_list.append(apply_res)
     return tf.group(op_list)
-
 
 @npu_compat_function
 def grouping_broadcast(variables):

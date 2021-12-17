@@ -23,7 +23,6 @@ import pandas as pd
 from visit_by_ast import get_tf_enume
 from visit_by_ast import get_unsupport_api
 
-
 def before_clear():
     exit_folder = os.path.exists(util_global.get_value('output'))
     if exit_folder:
@@ -32,35 +31,29 @@ def before_clear():
     if exit_folder:
         shutil.rmtree(util_global.get_value('report'))
 
-
 def mkdir(path):
     folder = os.path.exists(path)
     if not folder:
         os.makedirs(path)
 
-
 def mkdir_and_copyfile(srcfile, dstpath, file_name):
     mkdir(dstpath)
     shutil.copyfile(os.path.join(srcfile, file_name), os.path.join(dstpath, file_name))
 
-
 def write_output_after_conver(out_file, dst_content):
     with open(out_file, 'w') as file:
         file.write(dst_content)
-
 
 def write_report_after_conver(new_file_path, report_file, dst_content):
     mkdir(new_file_path)
     with open(os.path.join(new_file_path, report_file), 'w') as file:
         file.write(dst_content)
 
-
 def get_bit_val(value, index):
     if value & (1 << index):
         return 1
     else:
         return 0
-
 
 def write_report_terminator(content):
     report_path = util_global.get_value('report')
@@ -77,14 +70,12 @@ def write_report_terminator(content):
         times = times - 1
     util_global.set_value('report_file_status', 0)
 
-
 def write_conver_report(content, file):
     report_path = util_global.get_value('report')
     mkdir(report_path)
     with open(os.path.join(report_path, file), 'a') as file:
         file.write(content)
         file.write("\r\n")
-
 
 def check_warning(lineno, api_msg):
     # raise warning when api is related to element range check
@@ -97,7 +88,6 @@ def check_warning(lineno, api_msg):
         subprocess.run(["cd", "."], shell=True)
         print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
         write_conver_report(content, util_global.get_value('report_file')[1])
-
 
 def log_failed_api(lineno, api_msg, is_third_party):
     subprocess.run(["cd", "."], shell=True)
@@ -123,13 +113,11 @@ def log_failed_api(lineno, api_msg, is_third_party):
         print("".join(["\033[1;31mERROR\033[0m:", content]), flush=True)
     write_conver_report(content, util_global.get_value('report_file')[1])
 
-
 def abs_join(abs1, abs2):
     abs2 = os.fspath(abs2)
     abs2 = os.path.splitdrive(abs2)[1]
     abs2 = abs2.strip('\\/') or abs2
     return os.path.join(abs1, abs2)
-
 
 def scan_file(path, file_name, api, lineno):
     api_list = pd.read_excel(util_global.get_value('list'), sheet_name=0)
@@ -185,7 +173,7 @@ def scan_file(path, file_name, api, lineno):
                 # print error message when api is unsupported on npu
                 api_support_type = api_support[api_name.index(class_name)]
                 if api_support_type == '分析中（特性商用时不应该存在）' or \
-                        api_support_type == '不支持（无迁移方案，建议用户不使用）':
+                    api_support_type == '不支持（无迁移方案，建议用户不使用）':
                     log_failed_api(lineno[i], class_name, is_third_party=False)
 
     # record unsupported api
@@ -211,7 +199,6 @@ def scan_file(path, file_name, api, lineno):
         report = report.append(analyse_result)
         util_global.set_value('generate_dir_report', report)
 
-
 def adjust_index():
     report = util_global.get_value('generate_dir_report')
     index_column = []
@@ -220,7 +207,6 @@ def adjust_index():
     report.index = index_column
     report.index.name = '序号'
     util_global.set_value('generate_dir_report', report)
-
 
 def get_api_statistic(analysis_report):
     code_api = analysis_report['API名'].values.tolist()
@@ -243,14 +229,14 @@ def get_api_statistic(analysis_report):
                    "Compatible: {}, " \
                    "Deprecated: {}, " \
                    "Analysing: {}".format(len(code_api),
-                                          support_type.count('支持（无需迁移）'),
-                                          support_type.count('工具迁移后API功能支持'),
-                                          support_type.count('工具迁移后训练功能打通'),
-                                          support_type.count('不支持（不影响迁移，用户无需干预）'),
-                                          support_type.count('不支持（无迁移方案，建议用户不使用）'),
-                                          support_type.count('兼容类'),
-                                          support_type.count('废弃类'),
-                                          support_type.count('分析中（特性商用时不应该存在）'))
+                   support_type.count('支持（无需迁移）'),
+                   support_type.count('工具迁移后API功能支持'),
+                   support_type.count('工具迁移后训练功能打通'),
+                   support_type.count('不支持（不影响迁移，用户无需干预）'),
+                   support_type.count('不支持（无迁移方案，建议用户不使用）'),
+                   support_type.count('兼容类'),
+                   support_type.count('废弃类'),
+                   support_type.count('分析中（特性商用时不应该存在）'))
 
     api_eliminate_dup = "2.After eliminate duplicate: Total API: {}, in which Support: {}, " \
                         "API support after migration: {}, " \
@@ -260,14 +246,14 @@ def get_api_statistic(analysis_report):
                         "Compatible: {}, " \
                         "Deprecated: {}, " \
                         "Analysing: {}".format(len(eliminate_dup_api),
-                                               eliminate_dup_type.count('支持（无需迁移）'),
-                                               eliminate_dup_type.count('工具迁移后API功能支持'),
-                                               eliminate_dup_type.count('工具迁移后训练功能打通'),
-                                               eliminate_dup_type.count('不支持（不影响迁移，用户无需干预）'),
-                                               eliminate_dup_type.count('不支持（无迁移方案，建议用户不使用）'),
-                                               eliminate_dup_type.count('兼容类'),
-                                               eliminate_dup_type.count('废弃类'),
-                                               eliminate_dup_type.count('分析中（特性商用时不应该存在）'))
+                        eliminate_dup_type.count('支持（无需迁移）'),
+                        eliminate_dup_type.count('工具迁移后API功能支持'),
+                        eliminate_dup_type.count('工具迁移后训练功能打通'),
+                        eliminate_dup_type.count('不支持（不影响迁移，用户无需干预）'),
+                        eliminate_dup_type.count('不支持（无迁移方案，建议用户不使用）'),
+                        eliminate_dup_type.count('兼容类'),
+                        eliminate_dup_type.count('废弃类'),
+                        eliminate_dup_type.count('分析中（特性商用时不应该存在）'))
     content = (api_analysis + '\n' + api_eliminate_dup)
     print(content)
     write_conver_report(content, 'api_brief_report.txt')

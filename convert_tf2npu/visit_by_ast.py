@@ -17,7 +17,6 @@
 import ast
 import util_global
 
-
 class VisitCall(ast.NodeVisitor):
     def __init__(self):
         self._in_call = False
@@ -45,7 +44,6 @@ class VisitCall(ast.NodeVisitor):
             self._current_visit = []
         self.generic_visit(node)
 
-
 class VisitAttr(ast.NodeVisitor):
     def __init__(self):
         self._in_attr = False
@@ -67,7 +65,6 @@ class VisitAttr(ast.NodeVisitor):
             self._in_attr = False
             self._current_visit = []
         self.generic_visit(node)
-
 
 class VisitUnsupportImport(ast.NodeVisitor):
     def __init__(self):
@@ -103,7 +100,6 @@ class VisitUnsupportImport(ast.NodeVisitor):
                         self.imports.append(self.modules[0])
         self.generic_visit(node)
 
-
 def get_tf_api(file_name):
     util_global.set_value('use_keras_dropout', False)
     with open(file_name, 'r', encoding='utf-8') as file:
@@ -121,7 +117,7 @@ def get_tf_api(file_name):
                          'tf.keras.layers.SpatialDropout3D']
     for module in import_list:
         for i in range(len(visitor.call_nodes)):
-            if "".join([module, '.']) in visitor.call_nodes[i] and visitor.call_nodes[i].split('.')[0] == module:
+            if "".join([module , '.']) in visitor.call_nodes[i] and visitor.call_nodes[i].split('.')[0] == module:
                 api.append(visitor.call_nodes[i])
                 lineno.append(visitor.line_nos[i])
 
@@ -129,7 +125,6 @@ def get_tf_api(file_name):
             if visitor.call_nodes[i] in keras_dropout_api:
                 util_global.set_value('use_keras_dropout', True)
     return api, lineno
-
 
 def get_tf_enume(file_name, enume_list):
     with open(file_name, 'r', encoding='utf-8') as file:
@@ -147,7 +142,6 @@ def get_tf_enume(file_name, enume_list):
             lineno.append(visitor.line_nos[i])
     return api, lineno
 
-
 def get_unsupport_api(file_name):
     with open(file_name, 'r', encoding='utf-8') as file:
         source = file.read()
@@ -157,7 +151,7 @@ def get_unsupport_api(file_name):
     unsupportor = VisitUnsupportImport()
     unsupportor.visit(tree)
 
-    # get unsupport api
+    #get unsupport api
     api = []
     lineno = []
     module = []

@@ -23,20 +23,18 @@ from tensorflow.python.distribute import one_device_strategy
 from hccl.manage.api import get_rank_size
 from hccl.manage.api import get_rank_id
 
-
 class NPUExtended(one_device_strategy.OneDeviceExtended):
-    def __init__(self, container_strategy, device):
-        super(NPUExtended, self).__init__(container_strategy, device)
+  def __init__(self, container_strategy, device):
+    super(NPUExtended, self).__init__(container_strategy, device)
 
-    def _experimental_distribute_dataset(self, dataset):
-        return dataset.shard(get_rank_size(), get_rank_id())
+  def _experimental_distribute_dataset(self, dataset):
+    return dataset.shard(get_rank_size(), get_rank_id())
 
-    @property
-    def _num_replicas_in_sync(self):
-        rank_size = os.getenv("RANK_SIZE", "1")
-        return int(rank_size)
-
+  @property
+  def _num_replicas_in_sync(self):
+    rank_size  = os.getenv("RANK_SIZE", "1")
+    return int(rank_size)
 
 class NPUStrategy(distribute_lib.StrategyV1):
-    def __init__(self, device="/cpu:0"):
-        super(NPUStrategy, self).__init__(NPUExtended(self, device))
+  def __init__(self, device="/cpu:0"):
+    super(NPUStrategy, self).__init__(NPUExtended(self, device))
