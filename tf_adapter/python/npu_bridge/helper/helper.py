@@ -15,9 +15,10 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
 import tensorflow
 import npu_bridge
-import os
+
 try:
     npu_bridge_handle = tensorflow.load_op_library(os.path.dirname(npu_bridge.__file__) + "/_tf_adapter.so")
 except Exception as e:

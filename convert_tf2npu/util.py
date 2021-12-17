@@ -14,14 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import util_global
-from file_op import write_conver_report
+
 import os
 import subprocess
+import util_global
+from file_op import write_conver_report
+
 
 def log_msg(lineno, msg):
     content = util_global.get_value('path') + ':' + str(lineno) + ' ' + msg
     write_conver_report(content, util_global.get_value('report_file')[0])
+
 
 def log_info(lineno, msg, file):
     content = (util_global.get_value('path', '') + ':' + str(lineno) +
@@ -30,10 +33,12 @@ def log_info(lineno, msg, file):
     print(content)
     write_conver_report(content, file)
 
+
 def log_warning(msg):
     subprocess.run(["cd", "."], shell=True)
     print("".join(["\033[1;33mWARNING\033[0m:", msg]))
     write_conver_report(msg, util_global.get_value('report_file')[0])
+
 
 def log_success_report(lineno, msg):
     content = (util_global.get_value('path', '') + ':' + str(lineno) +
@@ -42,12 +47,14 @@ def log_success_report(lineno, msg):
     write_conver_report(content, util_global.get_value('report_file')[0])
     util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b1))
 
+
 def log_failed_report(lineno, msg):
     content = "".join([util_global.get_value('path'), ":", str(lineno), " ", msg, " is not support migration."])
     subprocess.run(["cd", "."], shell=True)
     print("".join(["\033[1;31mERROR\033[0m:", content]))
     write_conver_report(content, util_global.get_value('report_file')[1])
     util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b10))
+
 
 def log_migration_report(lineno, msg):
     content = (util_global.get_value('path', '') + ':' + str(lineno) + ' "' + msg +
@@ -56,6 +63,7 @@ def log_migration_report(lineno, msg):
     print(content)
     write_conver_report(content, util_global.get_value('report_file')[2])
     util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b100))
+
 
 def ask_the_distributed_mode(node, prompt, warning_msg):
     while not util_global.get_value('already_check_distributed_mode_arg', False):
@@ -72,6 +80,7 @@ def ask_the_distributed_mode(node, prompt, warning_msg):
         else:
             print("Input is error, please enter 'exit' or 'c' or 'continue'.")
 
+
 def log_hvd_distributed_mode_error(node):
     if not util_global.get_value("distributed_mode", ""):
         prompt = ("As the '-d' option is not included, distributed porting will not be performed. "
@@ -79,11 +88,13 @@ def log_hvd_distributed_mode_error(node):
         warning_msg = " is tf_strategy api. As the '-d' option is not included, distributed porting will not be performed."
         ask_the_distributed_mode(node, prompt, warning_msg)
     else:
-        prompt = ("The '-d' argument conflicts with the Tensorflow distributed strategy in your script, which means that Tensorflow "
-                  "distributed porting will not be performed. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
+        prompt = (
+            "The '-d' argument conflicts with the Tensorflow distributed strategy in your script, which means that Tensorflow "
+            "distributed porting will not be performed. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         warning_msg = " is tf_strategy api. The '-d' argument conflicts with the Tensorflow distributed strategy"
         ask_the_distributed_mode(node, prompt, warning_msg)
     util_global.set_value('already_check_distributed_mode_arg', True)
+
 
 def log_strategy_distributed_mode_error(node):
     if not util_global.get_value("distributed_mode", ""):
@@ -92,17 +103,20 @@ def log_strategy_distributed_mode_error(node):
         warning_msg = " is horovod api. As the '-d' option is not included, distributed porting will not be performed."
         ask_the_distributed_mode(node, prompt, warning_msg)
     else:
-        prompt = ("The '-d' argument conflicts with the Horovod distributed strategy in your script, which means that Horovod "
-                  "distributed porting will not be performed. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
+        prompt = (
+            "The '-d' argument conflicts with the Horovod distributed strategy in your script, which means that Horovod "
+            "distributed porting will not be performed. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         warning_msg = " is horovod api. The '-d' argument conflicts with the Horovod distributed strategy in your script"
         ask_the_distributed_mode(node, prompt, warning_msg)
     util_global.set_value('already_check_distributed_mode_arg', True)
 
+
 def log_warning_main_arg_not_set():
     while not util_global.get_value('already_check_main_arg', False):
-        message = input("As your script contains Horovod or Keras API, ensure that the Python entry script contains the main function "
-                        "and the '-m' option is included to avoid porting failures. "
-                        "Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
+        message = input(
+            "As your script contains Horovod or Keras API, ensure that the Python entry script contains the main function "
+            "and the '-m' option is included to avoid porting failures. "
+            "Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         if message == "continue" or message == "c":
             break
         elif message == "exit":
