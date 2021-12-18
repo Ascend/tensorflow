@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include "tensorflow/core/framework/bounds_check.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/shape_inference.h"
@@ -26,14 +24,14 @@ namespace tensorflow {
 class EmbeddingRankIdOpKernel : public OpKernel {
  public:
   explicit EmbeddingRankIdOpKernel(OpKernelConstruction *context) : OpKernel(context) {}
-  ~EmbeddingRankIdOpKernel() {}
+  ~EmbeddingRankIdOpKernel() override {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingRankIdOp Compute."; }
 };
 
 class EmbeddingLocalIndexOpKernel : public OpKernel {
  public:
   explicit EmbeddingLocalIndexOpKernel(OpKernelConstruction *context) : OpKernel(context) {}
-  ~EmbeddingLocalIndexOpKernel() {}
+  ~EmbeddingLocalIndexOpKernel() override {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingLocalIndexOp Compute."; }
 };
 
@@ -76,8 +74,7 @@ class DeformableOffsetsOp : public OpKernel {
   explicit DeformableOffsetsOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DeformableOffsetsOp() override {}
   void Compute(OpKernelContext *context) override {
-    ADP_LOG(INFO) << "DeformableOffsetsOp Compute, num_inputs: "
-              << context->num_inputs();
+    ADP_LOG(INFO) << "DeformableOffsetsOp Compute, num_inputs: " << context->num_inputs();
   }
   bool IsExpensive() override { return false; }
 };
@@ -88,8 +85,7 @@ class DeformableOffsetsGradOp : public OpKernel {
   explicit DeformableOffsetsGradOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DeformableOffsetsGradOp() override {}
   void Compute(OpKernelContext *context) override {
-    ADP_LOG(INFO) << "DeformableOffsetsGradOp Compute, num_inputs: "
-              << context->num_inputs();
+    ADP_LOG(INFO) << "DeformableOffsetsGradOp Compute, num_inputs: " << context->num_inputs();
   }
   bool IsExpensive() override { return false; }
 };
@@ -150,16 +146,16 @@ class OCRIdentifyPreHandleOp : public OpKernel {
 };
 
 class BatchDilatePolysOp : public OpKernel {
-  public :
+  public:
   explicit BatchDilatePolysOp(OpKernelConstruction *context):OpKernel(context){}
-  ~BatchDilatePolysOp() override{}
+  ~BatchDilatePolysOp() override {}
   void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"BatchDilatePolysOp Compute";}
 };
 
 class OCRFindContoursOp : public OpKernel {
-  public :
+  public:
   explicit OCRFindContoursOp(OpKernelConstruction *context):OpKernel(context){}
-  ~OCRFindContoursOp() override{}
+  ~OCRFindContoursOp() override {}
   void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"OCRFindContoursOp Compute";}
 };
 

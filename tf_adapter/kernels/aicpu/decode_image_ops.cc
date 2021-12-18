@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include "soft_dp/ExternalSoftDp.h"
+#include <dlfcn.h>
 #include "tensorflow/core/framework/op_kernel.h"
+#include "soft_dp/ExternalSoftDp.h"
 #include "tf_adapter/util/plugin_load_manager.h"
 #include "tf_adapter/common/adp_logger.h"
-#include <dlfcn.h>
 
 namespace tensorflow {
 using fDecodeAndResizeJpeg = uint32_t (*)(SoftDpProcsessInfo &);
 using fDecodeAndCropAndResizeJpeg = uint32_t (*)(SoftDpProcsessInfo &, DpCropInfo &);
 class DecodeImageOp : public OpKernel {
  public:
-  explicit DecodeImageOp(OpKernelConstruction *context) : OpKernel(context) {
-    crop_ = false;
+  explicit DecodeImageOp(OpKernelConstruction *context) : OpKernel(context), crop_(false)  {
     if (type_string() == "DecodeAndResizeJpeg") {
       crop_ = false;
     } else if (type_string() == "DecodeAndCropAndResizeJpeg") {
