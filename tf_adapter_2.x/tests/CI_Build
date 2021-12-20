@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+CONFIGURE_DIR=$(dirname "$0")
+cd "${CONFIGURE_DIR}"
+
+TARGET="$1"
+
+if [ ! -f "/home/jenkins/tensorflow24/.env/bin/activate" ];then
+  echo "No venv for tensorflow2.x installed, skip CI build"
+  exit 0
+fi
+
+source /home/jenkins/tensorflow24/.env/bin/activate
+
+bash configure
+
+rm -rf build
+mkdir build
+cd build
+
+cmake ..
+
+make "${TARGET}" -j8
+
+deactivate

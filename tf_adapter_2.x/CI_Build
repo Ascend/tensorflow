@@ -28,7 +28,10 @@ export ASCEND_INSTALLED_PATH="$ASCEND_CUSTOM_PATH"
 
 echo "Configuration finished"
 
-chmod +x compile
-./compile
+rm -rf build
+mkdir build
+cd build
+cmake ..
+make -j8
 
 deactivate
