@@ -31,7 +31,7 @@ class GEOPDatasetOp : public DatasetOpKernel {
     FunctionMetadata::Params params;
     OP_REQUIRES_OK(ctx, FunctionMetadata::Create(ctx, "f", params, &func_metadata_));
   }
-  ~GEOPDatasetOp() {
+  ~GEOPDatasetOp() override {
     if (f_handle_ != kInvalidHandle && lib_ != nullptr) {
       ADP_LOG(INFO) << "Release function handle:" << f_handle_ << " owned by node instance:" << name();
       Status s = lib_->ReleaseHandle(f_handle_);
@@ -89,7 +89,7 @@ class GEOPDatasetOp : public DatasetOpKernel {
     class Iterator : public DatasetIterator<Dataset> {
      public:
       explicit Iterator(const Params &params) : DatasetIterator<Dataset>(params) {}
-      ~Iterator() {}
+      ~Iterator() override = default;
       Status Initialize(IteratorContext *ctx) override {
         ADP_LOG(INFO) << "Start to initialize iterator of GEOPDatasetOp";
         REQUIRES_NOT_NULL(ctx);
@@ -141,7 +141,8 @@ class GEOPDatasetOp : public DatasetOpKernel {
         return s;
       }
 
-      void AddSessionInfo(const FunctionLibraryDefinition &flib_def, std::string func_name, std::string session) {
+      void AddSessionInfo(const FunctionLibraryDefinition &flib_def, std::string func_name,
+                          std::string session) const {
         FunctionDef *fdef = const_cast<FunctionDef *>(flib_def.Find(func_name));
         if (fdef != nullptr) {
           for (NodeDef &ndef : *fdef->mutable_node_def()) {

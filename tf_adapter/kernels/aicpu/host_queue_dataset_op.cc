@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <dlfcn.h>
 #include <thread>
+#include <dlfcn.h>
 #include <vector>
 #include "unistd.h"
 #include "acl/acl_tdt.h"
@@ -79,7 +79,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     }
     tdt_release = false;
   }
-  ~HostQueueDatasetOp() {
+  ~HostQueueDatasetOp() override {
     ADP_LOG(INFO) << "Start to destroy tdt.";
     if (kIsNewDataTransfer) {
       return;

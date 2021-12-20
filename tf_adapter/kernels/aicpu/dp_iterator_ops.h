@@ -19,8 +19,6 @@
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/framework/dataset.h"
-#include "tensorflow/core/framework/partial_tensor_shape.h"
-#include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/kernels/data/captured_function.h"
 
 namespace tensorflow {
@@ -28,7 +26,7 @@ namespace data {
 class DpMakeIteratorOp : public OpKernel {
  public:
   explicit DpMakeIteratorOp(OpKernelConstruction *ctx) : OpKernel(ctx) {}
-  ~DpMakeIteratorOp() {}
+  ~DpMakeIteratorOp() override = default;
   void Compute(OpKernelContext *ctx) override;
 };
 
