@@ -180,6 +180,13 @@ class DequeueOp : public OpKernel {
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DequeueOp Compute"; }
 };
 
+class NonZeroWithValueShapeOp : public OpKernel {
+ public:
+  explicit NonZeroWithValueShapeOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~NonZeroWithValueShapeOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "NonZeroWithValueShapeOp Compute"; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);
@@ -196,6 +203,7 @@ REGISTER_KERNEL_BUILDER(Name("OCRFindContours").Device(DEVICE_CPU), OCRFindConto
 REGISTER_KERNEL_BUILDER(Name("OCRDetectionPostHandle").Device(DEVICE_CPU), OCRDetectionPostHandleOp);
 REGISTER_KERNEL_BUILDER(Name("ResizeAndClipPolys").Device(DEVICE_CPU), ResizeAndClipPolysOp);
 REGISTER_KERNEL_BUILDER(Name("Dequeue").Device(DEVICE_CPU), DequeueOp);
+REGISTER_KERNEL_BUILDER(Name("NonZeroWithValueShape").Device(DEVICE_CPU), NonZeroWithValueShapeOp);
 
 #define REGISTER_KERNEL(type)                                \
 REGISTER_KERNEL_BUILDER(Name("DeformableOffsets")            \
