@@ -115,6 +115,7 @@ const char *const PERFORMANCE_MODE = "ge.performance_mode";
 const char *const SHAPE_GENERALIZED_BUILD_MODE = "ge.shape_generalized_build_mode";
 const char *const MODIFY_MIXLIST = "ge.exec.modify_mixlist";
 const char *const OP_PRECISION_MODE = "ge.exec.op_precision_mode";
+const char *const HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
 }  // namespace configure_option
 // Configure stream num by Session constructor options param,
 // its value should be int32_t type, default value is "1"
@@ -335,6 +336,8 @@ const std::string MODIFY_MIXLIST = "ge.exec.modify_mixlist";
 
 const std::string OP_PRECISION_MODE = "ge.exec.op_precision_mode";
 
+const std::string HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
+
 // Graph run mode
 enum GraphRunMode { PREDICTION = 0, TRAIN };
 
@@ -416,6 +419,7 @@ static const char *const PERFORMANCE_MODE = ge::PERFORMANCE_MODE.c_str();
 static const char *const SHAPE_GENERALIZED_BUILD_MODE = ge::SHAPE_GENERALIZED_BUILD_MODE.c_str();
 static const char *const MODIFY_MIXLIST = ge::MODIFY_MIXLIST.c_str();
 static const char *const OP_PRECISION_MODE = ge::OP_PRECISION_MODE.c_str();
+static const char *const HCCL_TIMEOUT = ge::HCCL_TIMEOUT.c_str();
 
 // for interface: aclgrphBuildModel
 #ifdef __GNUC__

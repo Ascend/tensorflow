@@ -319,6 +319,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string modify_mixlist;
   std::string op_precision_mode;
   std::string graph_run_mode = "1";
+  std::string hccl_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -371,6 +372,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     ctx->GetAttr("_modify_mixlist", &modify_mixlist);
     ctx->GetAttr("_op_precision_mode", &op_precision_mode);
     ctx->GetAttr("_graph_run_mode", &graph_run_mode);
+    ctx->GetAttr("_hccl_timeout", &hccl_timeout);
   }
 
   // session options
@@ -402,6 +404,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   sess_options[ge::MODIFY_MIXLIST] = modify_mixlist;
   sess_options["ge.exec.op_precision_mode"] = op_precision_mode;
   sess_options[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
+  sess_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
 
   return sess_options;
 }
@@ -447,6 +450,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string device_type = "default_device_type";
+  std::string hccl_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -470,6 +474,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_select_implmode", &op_select_implmode);
     ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
     ctx->GetAttr("_device_type", &device_type);
+    ctx->GetAttr("_hccl_timeout", &hccl_timeout);
   }
 
 
@@ -498,6 +503,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
   init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
   init_options["ge.deviceType"] = device_type;
+  init_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
 
   return init_options;
 }
@@ -808,6 +814,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string modify_mixlist;
   std::string op_precision_mode;
   std::string device_type = "default_device_type";
+  std::string hccl_timeout;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -864,6 +871,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto modify_mixlist_value = attrs.Find("_modify_mixlist");
   auto op_precision_mode_value = attrs.Find("_op_precision_mode");
   auto device_type_value = attrs.Find("_device_type");
+  auto hccl_timeout_value = attrs.Find("_hccl_timeout");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -1000,6 +1008,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (modify_mixlist_value != nullptr) {
       modify_mixlist = modify_mixlist_value->s();
     }
+    if (hccl_timeout_value != nullptr) {
+      hccl_timeout = hccl_timeout_value->s();
+    }
     if (op_precision_mode_value != nullptr) {
       op_precision_mode = op_precision_mode_value->s();
     }
@@ -1062,6 +1073,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["modify_mixlist"] = modify_mixlist;
   all_options["op_precision_mode"] = op_precision_mode;
   all_options["device_type"] = device_type;
+  all_options["hccl_timeout"] = hccl_timeout;
 
   return all_options;
 }
@@ -1092,6 +1104,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
   std::string stream_max_parallel_num;
+  std::string hccl_timeout;
 
   std::map<std::string, std::string> init_options;
   bool is_tailing_optimization = false;
@@ -1412,6 +1425,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         op_precision_mode = params.at("op_precision_mode").s();
       }
       if (params.count("device_type")) { device_type = params.at("device_type").s(); }
+      if (params.count("hccl_timeout")) { hccl_timeout = params.at("hccl_timeout").s(); }
     }
   }
 
@@ -1443,6 +1457,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["session_device_id"] = std::to_string(session_device_id);
   sess_options["modify_mixlist"] = modify_mixlist;
   sess_options["op_precision_mode"] = op_precision_mode;
+  sess_options["hccl_timeout"] = hccl_timeout;
 
   init_options["precision_mode"] = precision_mode;
   init_options["profiling_mode"] = std::to_string(profiling_mode);
