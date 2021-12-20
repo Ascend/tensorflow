@@ -61,7 +61,7 @@ class DataItemDeliver {
   Status SendDataVec(std::vector<tdt::DataItem> &data_items, int fd);
   Status CreateSockAddr(struct sockaddr_un &sock_addr, const char *path,
                         int device_id) const;
-  uint64_t Recv(void *buffer, size_t data_len) const;
+  uint64_t Recv(uint8_t *buffer, size_t data_len) const;
   template <typename T>
   Status GetDataLen(T &value, size_t size);
   Status GetTensorType(tdt::TdtDataType &data_type);
@@ -220,7 +220,7 @@ Status DataItemDeliver::InitSocketServer() {
 
 Status DataItemDeliver::CheckHead(const char *check_value) {
   uint32_t head_size = 0;
-  uint64_t recvn = Recv(&head_size, UINT32_SIZE);
+  uint64_t recvn = Recv(reinterpret_cast<uint8_t *>(&head_size), UINT32_SIZE);
   if (recvn != static_cast<uint64_t>(UINT32_SIZE)) {
     ADP_LOG(ERROR) << "Failed to recv head length.";
     LOG(ERROR) << "Failed to recv head length.";
@@ -232,7 +232,7 @@ Status DataItemDeliver::CheckHead(const char *check_value) {
     LOG(ERROR) << "Failed to malloc head buffer.";
     return errors::Internal("Failed to malloc head buffer.");
   }
-  recvn = Recv(head, head_size);
+  recvn = Recv(reinterpret_cast<uint8_t *>(head), head_size);
   if (recvn != static_cast<uint64_t>(head_size)) {
     free(head);
     ADP_LOG(ERROR) << "Failed to recv head value.";
@@ -281,14 +281,14 @@ Status DataItemDeliver::RecvDataVec(std::vector<tdt::DataItem> &items) {
   return Status::OK();
 }
 
-uint64_t DataItemDeliver::Recv(void *buffer, size_t data_len) const {
+uint64_t DataItemDeliver::Recv(uint8_t *buffer, size_t data_len) const {
   int ret = -1;
   uint64_t buf_pos = 0;
   while (data_len > 0) {
     do {
       ret = recv(server_fd_,
-          reinterpret_cast<void *>(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(buffer)) + buf_pos),
-          data_len, 0);
+                 reinterpret_cast<void *>(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(buffer)) + buf_pos),
+                 data_len, 0);
     } while ((ret == -1) && (errno == EINTR));
     if (ret == 0) {
       // if master first reach max step ,socket will be close. correspond to
@@ -313,7 +313,7 @@ uint64_t DataItemDeliver::Recv(void *buffer, size_t data_len) const {
 
 template <typename T>
 Status DataItemDeliver::GetDataLen(T &value, size_t size) {
-  uint64_t recvn = Recv(&value, size);
+  uint64_t recvn = Recv(reinterpret_cast<uint8_t *>(&value), size);
   if (recvn != static_cast<uint64_t>(size)) {
     return errors::Internal("Failed to recv data length.");
   }
@@ -321,7 +321,7 @@ Status DataItemDeliver::GetDataLen(T &value, size_t size) {
 }
 
 Status DataItemDeliver::GetTensorType(tdt::TdtDataType &data_type) {
-  uint64_t recvn = Recv(&data_type, UINT32_SIZE);
+  uint64_t recvn = Recv(reinterpret_cast<uint8_t *>(&data_type), UINT32_SIZE);
   if (recvn != static_cast<uint64_t>(UINT32_SIZE)) {
     return errors::Internal("Failed to recv data length.");
   }
@@ -347,7 +347,7 @@ Status DataItemDeliver::GetTensorData(uint64_t &data_len,
     LOG(ERROR) << "Failed to reset buff memory. size:" << data_len;
     return errors::Internal("Failed to reset buff memory.");
   }
-  uint64_t recvn = Recv(buff, data_len);
+  uint64_t recvn = Recv(reinterpret_cast<uint8_t *>(buff), data_len);
   if (recvn != data_len) {
     free(buff);
     ADP_LOG(ERROR) << "Failed to receive data.";
@@ -377,7 +377,7 @@ Status DataItemDeliver::GetTensorString(std::string &str) {
     LOG(ERROR) << "Failed to reset buff memory.";
     return errors::Internal("Failed to reset buff memory.");
   }
-  uint64_t recvn = Recv(buff, size);
+  uint64_t recvn = Recv(reinterpret_cast<uint8_t *>(buff), size);
   if (recvn != static_cast<uint64_t>(size)) {
     free(buff);
     ADP_LOG(ERROR) << "Failed to receive data.";

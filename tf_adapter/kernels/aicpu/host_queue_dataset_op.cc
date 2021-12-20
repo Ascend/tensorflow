@@ -40,13 +40,13 @@ namespace data {
 namespace {
 using namespace std;
 using namespace tdt;
-const static uint32_t kMaxValue = 128U;
-const static size_t kMaxDepth = 128UL;
-const static int64_t kUnknownShapeDepth = 3LL;
+const uint32_t kMaxValue = 128U;
+const size_t kMaxDepth = 128UL;
+const int64_t kUnknownShapeDepth = 3LL;
 // total memory usage controlled below 2G
 const uint64_t kTotalBytes = 2147483648ULL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
-const static int32_t kSleepTime = 1;
+const int32_t kSleepTime = 1;
 std::atomic<bool> tdt_release(false);
 
 class HostQueueDatasetOp : public DatasetOpKernel {
