@@ -1,5 +1,5 @@
 #include <memory>
-#include "tf_adapter/kernels/npu_cpu_ops.cc"
+#include "tf_adapter/kernels/aicpu/npu_cpu_ops.cc"
 #include "gtest/gtest.h"
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/framework/attr_value_util.h"
