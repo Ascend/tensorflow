@@ -262,3 +262,15 @@ def resize_and_clip_polys(polys_data, polys_offset, polys_size, h_scale, w_scale
         img_h = img_h,
         img_w = img_w)
     return result
+
+## 提供NonZeroWithValueShape功能
+#  @param value double, float, float16, int8, unit8, int16, unit16, int32, unit32, int64, unit64, bool 类型
+#  @param index int32 类型
+#  @param count int32 类型
+#  @return out_value,out_index double, float, float16, int8, unit8, int16, unit16, int32, unit32, int64, unit64, bool,int32,int32 类型
+def non_zero_with_value_shape(value, index, count):
+    result = gen_npu_cpu_ops.non_zero_with_value_shape(
+        value = value,
+        index = index,
+        count = count)
+    return result
