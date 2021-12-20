@@ -23,7 +23,7 @@ namespace tensorflow {
 namespace data {
 namespace {
 class GEOPDatasetOp : public DatasetOpKernel {
- public:
+public:
   explicit GEOPDatasetOp(OpKernelConstruction *ctx)
     : DatasetOpKernel(ctx),
       f_handle_(kInvalidHandle),
@@ -49,9 +49,9 @@ class GEOPDatasetOp : public DatasetOpKernel {
     OP_REQUIRES(ctx, *output != nullptr, errors::Internal("Failed new dataset of GEOPDatasetOp"));
   }
 
- private:
+private:
   class Dataset : public DatasetBase {
-   public:
+  public:
     explicit Dataset(OpKernelContext *ctx, GEOPDatasetOp *op_kernel)
         : DatasetBase(DatasetContext(ctx)), op_kernel_(op_kernel), tf_session_(ctx->session_handle()) {}
 
@@ -80,14 +80,14 @@ class GEOPDatasetOp : public DatasetOpKernel {
     GEOPDatasetOp *op_kernel_;
     std::string tf_session_;
 
-   protected:
+  protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
       return Status::OK();
     }
 
-   private:
+  private:
     class Iterator : public DatasetIterator<Dataset> {
-     public:
+    public:
       explicit Iterator(const Params &params) : DatasetIterator<Dataset>(params) {}
       ~Iterator() override = default;
       Status Initialize(IteratorContext *ctx) override {
@@ -160,12 +160,12 @@ class GEOPDatasetOp : public DatasetOpKernel {
         return Status::OK();
       }
 
-     protected:
+    protected:
       Status SaveInternal(IteratorStateWriter *writer) override { return Status::OK(); }
 
       Status RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override { return Status::OK(); }
 
-     private:
+    private:
       mutex mu_;
     };
   };

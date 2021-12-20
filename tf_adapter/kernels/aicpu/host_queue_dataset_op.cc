@@ -51,9 +51,9 @@ std::atomic<bool> tdt_release(false);
 
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
-  explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx) {
+  explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx),
+      local_rank_id_(0U), device_id_(0U) {
     // ctx is not nullptr
-    device_id_ = 0U;
     std::string tmp_rank_id;
     std::string tmp_device_list;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
