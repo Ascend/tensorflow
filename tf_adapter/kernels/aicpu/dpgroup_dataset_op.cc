@@ -23,7 +23,7 @@ namespace tensorflow {
 namespace data {
 namespace {
 class DPGroupDatasetOp : public DatasetOpKernel {
- public:
+public:
   explicit DPGroupDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx) {
     CHECK_NOT_NULL(ctx);
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
@@ -43,9 +43,9 @@ class DPGroupDatasetOp : public DatasetOpKernel {
     OP_REQUIRES(ctx, *output != nullptr, errors::Internal("Failed new dataset of DPGroupDatasetOp"));
   }
 
- private:
+private:
   class Dataset : public DatasetBase {
-   public:
+  public:
     explicit Dataset(OpKernelContext *ctx, const std::vector<DatasetBase *> &inputs, const DataTypeVector &output_types,
                      const std::vector<PartialTensorShape> &output_shapes)
         : DatasetBase(DatasetContext(ctx)), inputs_(inputs) {
@@ -68,14 +68,14 @@ class DPGroupDatasetOp : public DatasetOpKernel {
 
     string DebugString() const override { return "DPGroupDatasetOp::Dataset"; }
 
-   protected:
+  protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
       return Status::OK();
     }
 
-   private:
+  private:
     class Iterator : public DatasetIterator<Dataset> {
-     public:
+    public:
       explicit Iterator(const Params &params) : DatasetIterator<Dataset>(params) {}
       ~Iterator() override = default;
       Status Initialize(IteratorContext *ctx) override {
@@ -97,12 +97,12 @@ class DPGroupDatasetOp : public DatasetOpKernel {
         return Status::OK();
       }
 
-     protected:
+    protected:
       Status SaveInternal(IteratorStateWriter *writer) override { return Status::OK(); }
 
       Status RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override { return Status::OK(); }
 
-     private:
+    private:
       mutex mu_;
       std::vector<std::unique_ptr<IteratorBase>> input_impls_ GUARDED_BY(mu_);
     };

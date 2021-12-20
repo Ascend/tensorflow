@@ -35,26 +35,24 @@
 namespace tensorflow {
 template <typename T, typename TIndex>
 class UniqueParallelOp : public OpKernel {
- public:
+public:
   explicit UniqueParallelOp(OpKernelConstruction *context)
     : OpKernel(context) {}
   ~UniqueParallelOp() override = default;
   void Compute(OpKernelContext *context) override {
     const Tensor &input_tensor = context->input(0);
-    OP_REQUIRES(context,
-      input_tensor.NumElements() <= std::numeric_limits<int32>::max(),
-        errors::InvalidArgument("unique does not support input tensors larger than ",
-                                std::numeric_limits<int32>::max(), " elements"));
+    OP_REQUIRES(context, input_tensor.NumElements() <= std::numeric_limits<int32>::max(),
+                errors::InvalidArgument("unique does not support input tensors larger than ",
+                                        std::numeric_limits<int32>::max(), " elements"));
     OP_REQUIRES(context, TensorShapeUtils::IsVector(input_tensor.shape()),
-      errors::InvalidArgument("unique expects a 1D vector."));
+                errors::InvalidArgument("unique expects a 1D vector."));
     OP_REQUIRES(context, (input_tensor.dtype() == DT_INT32 || input_tensor.dtype() == DT_INT64),
-      errors::InvalidArgument("input tensor should be int32 or int64, but got ",
-                              DataTypeString(input_tensor.dtype())));
+                errors::InvalidArgument("input tensor should be int32 or int64, but got ",
+                                        DataTypeString(input_tensor.dtype())));
     auto input_vec = input_tensor.vec<T>();
     int64 total = static_cast<int64>(input_vec.size());
     Tensor* index_tensor = nullptr;
-    OP_REQUIRES_OK(context, context->allocate_output(1,
-      TensorShape({input_vec.size()}), &index_tensor));
+    OP_REQUIRES_OK(context, context->allocate_output(1, TensorShape({input_vec.size()}), &index_tensor));
     auto index_vec = index_tensor->vec<TIndex>();
 
     const int64 CPU_NUMS = 16;
@@ -84,7 +82,7 @@ class UniqueParallelOp : public OpKernel {
                    context->allocate_output(0, TensorShape({count_num}), &output_tensor));
     *output_tensor = temp_output.Slice(0, count_num);
   }
- private:
+private:
   void ParallelFor(tensorflow::thread::ThreadPool& thread_work,
     int64 total, const int cpu_nums, std::function<void(int64, int)>& fn) {
     CHECK_GE(total, 0);
