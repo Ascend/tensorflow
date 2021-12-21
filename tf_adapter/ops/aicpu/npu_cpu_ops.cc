@@ -327,7 +327,7 @@ REGISTER_OP("DenseImageWarpGrad")
         return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got",
                                        channel);
       }
-      
+
       const int64_t kMinSize = 480;
       const int64_t kMidSize = 960;
       const int64_t kMaxSize = 1920;
