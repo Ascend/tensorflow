@@ -370,41 +370,6 @@ REGISTER_OP("BasicLSTMCellInputGrad")
       return Status::OK();
     });
 
-REGISTER_OP("DecodeAndResizeJpeg")
-    .Input("contents: string")
-    .Input("resize: int32")
-    .Output("image: uint8")
-    .SetShapeFn([](InferenceContext *c) {
-      const Tensor *rezise = c->input_tensor(1);
-      DimensionHandle h;
-      DimensionHandle w;
-      if (rezise != nullptr) {
-        auto rezise_vec = rezise->vec<int32>();
-        h = c->MakeDim(rezise_vec(0));
-        w = c->MakeDim(rezise_vec(1));
-      }
-      c->set_output(0, c->MakeShape({h, w, 3}));
-      return Status::OK();
-    });
-
-REGISTER_OP("DecodeAndCropAndResizeJpeg")
-    .Input("contents: string")
-    .Input("crop_size: int32")
-    .Input("resize: int32")
-    .Output("image: uint8")
-    .SetShapeFn([](InferenceContext *c) {
-      const Tensor *rezise = c->input_tensor(2);
-      DimensionHandle h;
-      DimensionHandle w;
-      if (rezise != nullptr) {
-        auto rezise_vec = rezise->vec<int32>();
-        h = c->MakeDim(rezise_vec(0));
-        w = c->MakeDim(rezise_vec(1));
-      }
-      c->set_output(0, c->MakeShape({h, w, 3}));
-      return Status::OK();
-    });
-
 REGISTER_OP("AdamApplyOneAssign")
     .Input("input0: T")
     .Input("input1: T")
@@ -480,7 +445,6 @@ REGISTER_OP("NpuOnnxGraphOp")
     .Attr("Tout: list(type) >= 0")
     .Attr("model_path: string")
     .SetShapeFn(shape_inference::UnknownShape);
-
 
 REGISTER_OP("KMeansCentroids")
     .Input("x: T")

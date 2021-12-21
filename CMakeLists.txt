@@ -26,7 +26,6 @@ if (ENABLE_OPEN_SRC)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/toolchain)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/toolchain/tuning_tool)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/external)
-    include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/soft_dp)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/parser/inc)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/parser/inc/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/graphengine/inc)
@@ -149,8 +148,6 @@ else()
         ${TOP_DIR}/inc/
         ${TOP_DIR}/inc/external/
         ${TOP_DIR}/inc/common/
-        ${TOP_DIR}/soft_dp/
-        ${TOP_DIR}/ace/execfwk/soft_dp/
         ${TOP_DIR}/graphengine/inc/
         ${TOP_DIR}/graphengine/inc/external/
         ${TOP_DIR}/metadef/inc/
@@ -184,7 +181,6 @@ else()
         $<BUILD_INTERFACE:slog_headers>
         $<BUILD_INTERFACE:msprof_headers>
         $<BUILD_INTERFACE:aoe_headers>
-        $<BUILD_INTERFACE:soft_dp_headers>
         $<BUILD_INTERFACE:runtime_headers>
         $<BUILD_INTERFACE:tdt_headers>
         -Wl,--no-as-needed
@@ -220,10 +216,10 @@ else()
     ###################################################################################################
     add_custom_target(
         hw_npu_bridge_1.15.0 ALL
-        DEPENDS tensorflow_framework pywrap_tensorflow_internal tf_adapter SoftDp ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl
+        DEPENDS tensorflow_framework pywrap_tensorflow_internal tf_adapter ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl
     )
 
-    # package _tf_adapter.so and libSoftDp.so in npu_bridge-xxx.whl
+    # package _tf_adapter.so in npu_bridge-xxx.whl
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl
         COMMAND echo "package whl start"
@@ -231,8 +227,6 @@ else()
         && cp -r ${BASE_DIR}/tf_adapter/python/. ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && cp -r ${BASE_DIR}/convert_tf2npu ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         && cp -r ${CMAKE_CURRENT_BINARY_DIR}/_tf_adapter.so ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
-        && cp -r $<TARGET_FILE:SoftDp> ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
-        # && cp -r ${CMAKE_CURRENT_BINARY_DIR}/../../../../../soft_dp/libSoftDp.so ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         && cd ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && ${HI_PYTHON} setup.py bdist_wheel >/dev/null
         && cp -f dist/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
