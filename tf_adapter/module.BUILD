@@ -16,8 +16,8 @@ cc_library(
         "hccl/**/*.h", "hccl/**/*.hpp",
         "tdt/**/*.h", "tdt/**/*.hpp",
         "runtime/**/*.h", "runtime/**/*.hpp",
-        "external/**/*.h", "soft_dp/**/*.h",
-        "mmpa/**/*.h", "toolchain/**/*.h"
+        "external/**/*.h", "mmpa/**/*.h",
+        "toolchain/**/*.h"
     ]),
 )
 

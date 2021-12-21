@@ -43,7 +43,6 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../"
 TOP_DIR="$(cd ../ && pwd)"
 INSTALL_DIR="${TOP_DIR}/out/${PRODUCT}/host"
 OUTPUT_DIR="${INSTALL_DIR}/obj/tf_adapter"
-SOFT_DP_DIR="${INSTALL_DIR}/obj/lib"
 mkdir -p "${OUTPUT_DIR}/genfiles"
 mkdir -p "${OUTPUT_DIR}/wheel"
 
@@ -63,7 +62,6 @@ sed -i "s|TF_PACKAGE_PATH|"${TF_PACKAGE_PATH}"|g" WORKSPACE
 
 cp -r tf_adapter/python/. "${OUTPUT_DIR}/wheel"
 cp -f bazel-bin/tf_adapter/_tf_adapter.so "${OUTPUT_DIR}/wheel/npu_bridge"
-cp ${SOFT_DP_DIR}/libSoftDp.so "${OUTPUT_DIR}/wheel/npu_bridge"
 
 cd "${OUTPUT_DIR}/wheel"
 "${PYTHON_BIN_PATH}" setup.py bdist_wheel >/dev/null
