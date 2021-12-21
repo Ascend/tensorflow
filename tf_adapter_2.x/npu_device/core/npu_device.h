@@ -212,6 +212,10 @@ class NpuDevice {
   std::map<std::string, std::string> device_options;
 
  private:
+  NpuDevice() = default;
+  ~NpuDevice() = default;
+  TF_DISALLOW_COPY_AND_ASSIGN(NpuDevice);
+
   static HashKey Hash(const TensorDataTypes &types) {
     if (types.empty()) {
       return 0;

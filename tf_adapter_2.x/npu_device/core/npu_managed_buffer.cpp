@@ -299,7 +299,7 @@ void NpuManagedBuffer::Destroy(NpuManagedBuffer *buf) { delete buf; }
  * @param tensor: tensorflow tensor
  * @return: tensorflow status
  */
-tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor) {
+tensorflow::Status NpuManagedBuffer::AssembleTo(tensorflow::Tensor *tensor) {
   NPU_REQUIRES_OK(npu::global::RtsCtx::EnsureInitialized());
   NPU_REQUIRES(tensor != nullptr,
                tensorflow::errors::InvalidArgument("Failed assemble npu buffer to cpu as dst cpu tensor is nullptr"));
@@ -314,13 +314,14 @@ tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor
     return tensorflow::Status::OK();
   }
   if (SameRepresentation()) {
-    NPU_REQUIRES_OK(DToH(const_cast<char *>(tensor->tensor_data().data()), tensor->TotalBytes()));
+    NPU_REQUIRES_OK(DToH(tensor->data(), tensor->TotalBytes()));
+
   } else {
     NpuManagedBuffer *buf;
     NPU_REQUIRES_OK(Create(origin_format_, origin_shape_, origin_data_type_, &buf));
     NpuManagedBuffer::Guarder guarder(buf);
     NPU_REQUIRES_OK(TransRepresentationOnNpu(buf));
-    buf->DToH(const_cast<char *>(tensor->tensor_data().data()), tensor->TotalBytes());
+    buf->DToH(tensor->data(), tensor->TotalBytes());
   }
   return tensorflow::Status::OK();
 }
@@ -345,12 +346,12 @@ tensorflow::Status NpuManagedBuffer::AssembleFrom(const tensorflow::Tensor *tens
     return tensorflow::Status::OK();
   }
   if (SameRepresentation()) {
-    NPU_REQUIRES_OK(HToD(const_cast<char *>(tensor->tensor_data().data()), tensor->TotalBytes()));
+    NPU_REQUIRES_OK(HToD(tensor->data(), tensor->TotalBytes()));
   } else {
     NpuManagedBuffer *buf;
     NPU_REQUIRES_OK(Create(origin_format_, origin_shape_, origin_data_type_, &buf));
     NpuManagedBuffer::Guarder guarder(buf);
-    NPU_REQUIRES_OK(buf->HToD(const_cast<char *>(tensor->tensor_data().data()), tensor->TotalBytes()));
+    NPU_REQUIRES_OK(buf->HToD(tensor->data(), tensor->TotalBytes()));
     NPU_REQUIRES_OK(buf->TransRepresentationOnNpu(this));
   }
   return tensorflow::Status::OK();
@@ -394,7 +395,7 @@ tensorflow::Status NpuManagedBuffer::TransRepresentationOnNpu(NpuManagedBuffer *
  * @param host_data: host data
  * @param size: data size
  */
-tensorflow::Status NpuManagedBuffer::HToD(void *host_data, size_t size) {
+tensorflow::Status NpuManagedBuffer::HToD(const void *host_data, size_t size) {
   NPU_REQUIRES(size <= size_, tensorflow::errors::Internal("Failed copy host buffer to npu as size mismatch npu ",
                                                            size_, " vs. cpu ", size));
   NPU_REQUIRES_ACL_OK("Acl rt-memcpy host to device failed",

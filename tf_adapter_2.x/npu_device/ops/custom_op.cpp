@@ -27,7 +27,6 @@
 #include "tensorflow/core/util/env_var.h"
 
 namespace tensorflow {
-
 REGISTER_OP("SendH2D")
   .Input("inputs: Tin")
   .Attr("channel_name: string")

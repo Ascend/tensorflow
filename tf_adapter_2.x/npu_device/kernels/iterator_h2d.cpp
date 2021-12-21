@@ -79,8 +79,8 @@ class IteratorH2D : public OpKernel {
     int64_t consumed = 0;
     while (nums == 0 || consumed++ < nums) {
       components.clear();
-      Status status = iterator->GetNext(ctx, &components, &end_of_sequence);
 
+      Status status = iterator->GetNext(ctx, &components, &end_of_sequence);
       if (!status.ok()) {
         for (const auto &channel : channels_) {
           OP_REQUIRES_OK(ctx, channel->NotifyAbnormal());

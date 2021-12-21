@@ -255,7 +255,6 @@ class OptimizeStageGraphDumper {
   std::string graph_;
   int counter_;
 };
-
 }  // namespace
 
 /**
@@ -772,7 +771,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
         if (node->input_type(i) != tensorflow::DT_RESOURCE) {
           graph->AddEdge(edge->src(), edge->src_output(), pruned_node, pruned_input_index++);
           DLOG() << "Add edge from " << edge->src()->name() << ":" << edge->src_output() << " to "
-                 << pruned_node->name() << ":" << pruned_input_index - 1;
+                 << pruned_node->name() << ":" << (pruned_input_index - 1);
         }
       }
       for (auto edge : node->out_edges()) {
@@ -976,7 +975,9 @@ TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandl
   NPU_CTX_REQUIRES_RETURN(status, local_handle != nullptr, tensorflow::errors::Internal("Failed create local handle"),
                           nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(local_handle, &local_tensor), nullptr);
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleTo(local_tensor), local_handle);
+  NPU_CTX_REQUIRES_OK_RETURN(
+    status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleTo(const_cast<tensorflow::Tensor *>(local_tensor)),
+    local_handle);
   return local_handle;
 }
 
@@ -1249,7 +1250,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
       graph_dumper.DumpWithSubGraphs("after_mark_node_shape", optimize_graph->ToGraphDefDebug(), lib_def);
     }
 
-    DLOG() << op_name << " remained input index (0-" << num_inputs - 1 << ") -> " << VecToString(remain_indexes);
+    DLOG() << op_name << " remained input index (0-" << (num_inputs - 1) << ") -> " << VecToString(remain_indexes);
     auto lambda = [remain_indexes](int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) {
       for (auto index : remain_indexes) {
         pruned.push_back(inputs[index]);
@@ -1590,13 +1591,14 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
     }
   }
   /******************************************模拟NPU执行Start************************************/
-  // TODO:下面换成真实的ACL调用即可，当前直接FallbackCPU
+  // 下面换成真实的ACL调用即可，当前直接FallbackCPU
   // npu_inputs 指向NPU内存的TFE_TensorHandle**
   // outputs 指向NPU内存的TFE_TensorHandle**
   // parser_ndef 打了输入输出描述的ndef，需要优化，后续直接存储ACL的结构体
   // output_shapes 临时变量，算子的输出shape
   // spec
-  // 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes()，不一定包含OutputShapes()(因为有的算子inferShape依赖输入的值（如reshape），输出shape需要使用上面的output_shapes临时变量)
+  // 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes()，
+  // 不一定包含OutputShapes()(因为有的算子inferShape依赖输入的值（如reshape），输出shape需要使用上面的output_shapes临时变量)
 
   /*
    从TFE_TensorHandle*获取NpuManagedBuffer:
@@ -1649,9 +1651,9 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
 namespace {
 tensorflow::Node *AddVarInitToGraph(TFE_Context *context, std::string name, tensorflow::Tensor tensor,
                                     tensorflow::Graph *graph, TF_Status *status) {
-  tensorflow::Node *variable;
-  tensorflow::Node *value;
-  tensorflow::Node *assign_variable;
+  tensorflow::Node *variable = nullptr;
+  tensorflow::Node *value = nullptr;
+  tensorflow::Node *assign_variable = nullptr;
 
   NPU_CTX_REQUIRES_OK_RETURN(status,
                              tensorflow::NodeBuilder(name, "VarHandleOp")
@@ -1810,7 +1812,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
     npu_inputs[i] = input;
   }
 
-  // TODO:这里根据小循环策略修改值
+  // 这里根据小循环策略修改值
   int64_t iterations_per_loop = 1;
   if (spec->NeedLoop()) {
     iterations_per_loop = npu::global::g_npu_loop_size;
@@ -1959,7 +1961,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                                             ge_tensor.GetSize(), " mismatch with expected ", cpu_tensor.TotalBytes()));
           return;
         }
-        memcpy(const_cast<char *>(cpu_tensor.tensor_data().data()), ge_tensor.GetData(), ge_tensor.GetSize());
+        memcpy(cpu_tensor.data(), ge_tensor.GetData(), ge_tensor.GetSize());
         outputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
       }
 
@@ -2471,7 +2473,7 @@ bool NpuDevice::MirroredIterator(const tensorflow::ResourceHandle &src) {
 }
 
 bool NpuDevice::Mirrored(const tensorflow::ResourceHandle &src) {
-  // TODO:可能后续还有其他需要mirror的资源，外层判断资源兼容时务必使用这个接口
+  // 可能后续还有其他需要mirror的资源，外层判断资源兼容时务必使用这个接口
   return iterator_mirrors_.find(src) != iterator_mirrors_.end();
 }
 
@@ -2510,9 +2512,9 @@ tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::
         std::unique_ptr<tensorflow::FunctionBody> fbody;
         NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
         std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
-        bool changed = false;
-        NPU_REQUIRES_OK(TailingOptimize(context, fbody->graph, changed));
-        if (changed) {
+        bool optimized = false;
+        NPU_REQUIRES_OK(TailingOptimize(context, fbody->graph, optimized));
+        if (optimized) {
           tensorflow::FunctionDef optimized_fdef;
           auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
             for (const auto &control_ret : fdef->control_ret()) {
@@ -2605,9 +2607,9 @@ tensorflow::Status NpuDevice::WeightUpdateGroupingOptimize(TFE_Context *context,
         std::unique_ptr<tensorflow::FunctionBody> fbody;
         NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
         std::map<int, std::shared_ptr<IteratorResourceProvider>> unused_host_resources;
-        bool changed = false;
-        NPU_REQUIRES_OK(WeightUpdateGroupingOptimize(context, fbody->graph, changed));
-        if (changed) {
+        bool optimized = false;
+        NPU_REQUIRES_OK(WeightUpdateGroupingOptimize(context, fbody->graph, optimized));
+        if (optimized) {
           tensorflow::FunctionDef optimized_fdef;
           auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
             for (const auto &control_ret : fdef->control_ret()) {

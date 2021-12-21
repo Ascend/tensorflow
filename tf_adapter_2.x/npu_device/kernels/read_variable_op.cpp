@@ -34,6 +34,7 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace {
 class ReadVariableGraphBuilder {
  public:
   static tensorflow::GraphDef GetGraph(const tensorflow::ResourceHandle resource, TF_Status *status) {
@@ -90,6 +91,7 @@ class ReadVariableGraphBuilder {
     return gdef;
   }
 };
+}  // namespace
 
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                         const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
