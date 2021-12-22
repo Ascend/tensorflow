@@ -24,7 +24,9 @@ using fDecodeAndResizeJpeg = uint32_t (*)(SoftDpProcsessInfo &);
 using fDecodeAndCropAndResizeJpeg = uint32_t (*)(SoftDpProcsessInfo &, DpCropInfo &);
 class DecodeImageOp : public OpKernel {
  public:
-  explicit DecodeImageOp(OpKernelConstruction *context) : OpKernel(context), crop_(false)  {
+  explicit DecodeImageOp(OpKernelConstruction *context) :
+      OpKernel(context), crop_(false), handle_(nullptr), decode_resize_(nullptr),
+      decode_crop_resize_(nullptr)  {
     if (type_string() == "DecodeAndResizeJpeg") {
       crop_ = false;
     } else if (type_string() == "DecodeAndCropAndResizeJpeg") {

@@ -47,9 +47,9 @@ std::atomic<bool> tdt_release(false);
 
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
-  explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx) {
+  explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx),
+      local_rank_id_(0), device_id_(0) {
     // ctx is not nullptr
-    device_id_ = 0;
     std::string tmp_rank_id;
     std::string tmp_device_list;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
@@ -389,7 +389,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         if (dataset()->local_rank_id_ == 0) {
           TF_RETURN_IF_ERROR(data_deliver_->ParallelInitSocketClient());
-        } else if(dataset()->local_rank_id_ > 0) {
+        } else if (dataset()->local_rank_id_ > 0) {
           TF_RETURN_IF_ERROR(data_deliver_->InitSocketServer());
         }
         {
