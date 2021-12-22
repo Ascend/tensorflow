@@ -54,18 +54,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx),
       local_rank_id_(0U), device_id_(0U) {
     // ctx is not nullptr
-    std::string tmp_rank_id;
-    std::string tmp_device_list;
+    std::string local_rank_id;
+    std::string local_device_list;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &tmp_rank_id));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &tmp_device_list));
-    ADP_LOG(INFO) << "Get local rank id:" << tmp_rank_id << ", local device list:" << tmp_device_list;
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &local_rank_id));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &local_device_list));
+    ADP_LOG(INFO) << "Get local rank id:" << local_rank_id << ", local device list:" << local_device_list;
     // local rank id range 0-7
-    local_rank_id_ = std::atoi(tmp_rank_id.c_str());
-    for (size_t i = 0UL; i < tmp_device_list.size(); i += 2UL) {
-      int device_id = std::atoi(&tmp_device_list[i]);
+    local_rank_id_ = std::atoi(local_rank_id.c_str());
+    for (size_t i = 0UL; i < local_device_list.size(); i += 2UL) {
+      int device_id = std::atoi(&local_device_list[i]);
       OP_REQUIRES(ctx, device_id >= 0U, errors::InvalidArgument("device id should be >= 0."));
       local_device_list_.push_back(device_id);
     }
@@ -257,8 +257,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Slave SendDataThread exit.";
       }
 
-      Status SendData(const vector<Tensor> &args,
-                      const acltdtTensorType &data_type) {
+      Status SendData(const vector<Tensor> &args, const acltdtTensorType &data_type) {
         bool is_need_resend = false;
         Status status = Status::OK();
         do {
