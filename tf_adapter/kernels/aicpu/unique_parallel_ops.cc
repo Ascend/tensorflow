@@ -17,6 +17,7 @@
 #include <vector>
 #include <atomic>
 #include <unordered_map>
+#include "tf_adapter/common/common.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -27,7 +28,6 @@
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/lib/core/threadpool.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
-#include "tf_adapter/common/common.h"
 
 #define EIGEN_USE_THREADS
 #define EIGEN_CXX11_TENSOR_TENSOR_DEVICE_THREAD_POOL_H
@@ -50,13 +50,13 @@ public:
                 errors::InvalidArgument("input tensor should be int32 or int64, but got ",
                                         DataTypeString(input_tensor.dtype())));
     auto input_vec = input_tensor.vec<T>();
+    int64 total = static_cast<int64>(input_vec.size());
     Tensor* index_tensor = nullptr;
     OP_REQUIRES_OK(context, context->allocate_output(1, TensorShape({input_vec.size()}), &index_tensor));
-    
+    auto index_vec = index_tensor->vec<TIndex>();
+
     const int64 CPU_NUMS = 16;
     std::atomic<TIndex> count_num(0);
-    auto index_vec = index_tensor->vec<TIndex>();
-    int64 total = static_cast<int64>(input_vec.size());
     Tensor temp_output(input_tensor.dtype(), TensorShape({total}));
     auto temp_output_flat = temp_output.flat<T>();
     tensorflow::thread::ThreadPool thread_work(context->env(), "unique_parallel", CPU_NUMS);
