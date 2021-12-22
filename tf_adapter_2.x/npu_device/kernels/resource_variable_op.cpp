@@ -34,6 +34,7 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace {
 class AssignVariableGraphBuilder {
  public:
   static tensorflow::GraphDef GetGraph(const std::string &op_name, const std::string &container_name,
@@ -81,9 +82,6 @@ class AssignVariableGraphBuilder {
     return gdef;
   }
 };
-
-namespace {
-
 void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                           const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
                           TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
@@ -117,7 +115,6 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
 
   dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_init_graph, 1, &value_handle, num_outputs, outputs, status);
 }
-
 }  // namespace
 
 static auto kernel_assign = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,

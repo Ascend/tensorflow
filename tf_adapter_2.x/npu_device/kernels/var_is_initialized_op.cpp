@@ -37,7 +37,7 @@
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                         const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  // TODO:这里需要先判断下是否已经初始化
+  // 这里需要先判断下是否已经初始化
   tensorflow::Tensor tensor(tensorflow::DT_BOOL, {});
   tensor.scalar<bool>()() = true;
   outputs[0] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensor));

@@ -52,7 +52,7 @@ class NpuManagedBuffer {
 
   // 将当前buffer管理的NPU内存上的数据填充到输入的CPU Tensor的数据地址上，CPU
   // Tensor的格式和type与buffer的成员origin_data_type_和origin_format_一致
-  tensorflow::Status AssembleTo(const tensorflow::Tensor *tensor);
+  tensorflow::Status AssembleTo(tensorflow::Tensor *tensor);
 
   bool SameRepresentation() { return origin_format_ == format_ && origin_data_type_ == data_type_; }
 
@@ -71,7 +71,7 @@ class NpuManagedBuffer {
   NpuManagedBuffer() = default;
   ~NpuManagedBuffer();
   tensorflow::Status TransRepresentationOnNpu(NpuManagedBuffer *dst_buff);  // 在NPU上完成从存储到原始的格式和类型转换
-  tensorflow::Status HToD(void *host_data, size_t size);  // 将输入的Host内存搬运到管理的NPU内存上
+  tensorflow::Status HToD(const void *host_data, size_t size);  // 将输入的Host内存搬运到管理的NPU内存上
   tensorflow::Status DToH(void *host_data, size_t max_len);  // 将管理的NPU内存上的数据搬运到输入的Host内存上
 
   ge::DataType origin_data_type_{};  // 原始数据类型，即对应的CPU Tensor的数据类型

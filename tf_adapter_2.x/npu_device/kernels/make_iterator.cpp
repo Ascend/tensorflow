@@ -34,6 +34,7 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace {
 class MakeIteratorGraphBuilder {
  public:
   static tensorflow::GraphDef GetGraph(std::string container_name, std::string shared_name, TensorPartialShapes shapes,
@@ -102,6 +103,7 @@ class MakeIteratorGraphBuilder {
     return gdef;
   }
 };
+}  // namespace
 
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
                         int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
@@ -125,7 +127,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
       dev->RunGeGraphPin2CpuAnonymous(context, "dp_init_" + handle.name(), dp_init_graph, num_inputs, inputs, 0,
                                       nullptr, status);
       if (TF_GetCode(status) != TF_OK) return;
-      // TODO:针对推荐网络，Provider需要支持1对N的传输，默认只向资源所处的Device发送
+      // 针对推荐网络，Provider需要支持1对N的传输，默认只向资源所处的Device发送
       dev->CreateIteratorProvider(context, tensor, {dev->device_id}, status);
       if (TF_GetCode(status) != TF_OK) return;
     }

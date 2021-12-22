@@ -246,7 +246,7 @@ TEST(NpuManagedBuffer, Assemble) {
   const tensorflow::Tensor cpu_tensor(tensorflow::DT_FLOAT, {1, 1, 1, 1});
   EXPECT_TRUE(npu_buffer->AssembleFrom(&cpu_tensor).ok());
 
-  const tensorflow::Tensor dst_tensor(tensorflow::DT_FLOAT, {1, 1, 1, 1});
+  tensorflow::Tensor dst_tensor(tensorflow::DT_FLOAT, {1, 1, 1, 1});
   EXPECT_TRUE(npu_buffer->AssembleTo(&dst_tensor).ok());
 }
 

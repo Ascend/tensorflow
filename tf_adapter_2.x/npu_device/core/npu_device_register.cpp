@@ -23,7 +23,6 @@
 #include "npu_utils.h"
 
 namespace {
-
 TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status,
                                         void *device_info) {
   auto *dev = reinterpret_cast<NpuDevice *>(device_info);
