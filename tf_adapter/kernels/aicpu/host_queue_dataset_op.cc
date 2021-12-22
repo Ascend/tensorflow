@@ -40,32 +40,32 @@ namespace data {
 namespace {
 using namespace std;
 using namespace tdt;
-const static uint32_t kMaxValue = 128U;
-const static size_t kMaxDepth = 128UL;
-const static int64_t kUnknownShapeDepth = 3LL;
+const uint32_t kMaxValue = 128U;
+const size_t kMaxDepth = 128UL;
+const int64_t kUnknownShapeDepth = 3LL;
 // total memory usage controlled below 2G
 const uint64_t kTotalBytes = 2147483648ULL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
-const static int32_t kSleepTime = 1;
+const int32_t kSleepTime = 1;
 std::atomic<bool> tdt_release(false);
 
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
-  explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx) {
+  explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx),
+      local_rank_id_(0U), device_id_(0U) {
     // ctx is not nullptr
-    device_id_ = 0U;
-    std::string tmp_rank_id;
-    std::string tmp_device_list;
+    std::string local_rank_id;
+    std::string local_device_list;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &tmp_rank_id));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &tmp_device_list));
-    ADP_LOG(INFO) << "Get local rank id:" << tmp_rank_id << ", local device list:" << tmp_device_list;
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &local_rank_id));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &local_device_list));
+    ADP_LOG(INFO) << "Get local rank id:" << local_rank_id << ", local device list:" << local_device_list;
     // local rank id range 0-7
-    local_rank_id_ = std::atoi(tmp_rank_id.c_str());
-    for (size_t i = 0UL; i < tmp_device_list.size(); i += 2UL) {
-      int device_id = std::atoi(&tmp_device_list[i]);
+    local_rank_id_ = std::atoi(local_rank_id.c_str());
+    for (size_t i = 0UL; i < local_device_list.size(); i += 2UL) {
+      int device_id = std::atoi(&local_device_list[i]);
       OP_REQUIRES(ctx, device_id >= 0U, errors::InvalidArgument("device id should be >= 0."));
       local_device_list_.push_back(device_id);
     }
@@ -257,8 +257,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Slave SendDataThread exit.";
       }
 
-      Status SendData(const vector<Tensor> &args,
-                      const acltdtTensorType &data_type) {
+      Status SendData(const vector<Tensor> &args, const acltdtTensorType &data_type) {
         bool is_need_resend = false;
         Status status = Status::OK();
         do {
