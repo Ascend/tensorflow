@@ -317,26 +317,33 @@ REGISTER_OP("DenseImageWarpGrad")
         return errors::InvalidArgument("Invalid image shape: shape rank must be 3, but got",
                                        imgRank);
       }
+
+      size_t pos_c = dt_format.find("C") - 1;
+      size_t pos_h = dt_format.find("H") - 1;
+      size_t pos_w = dt_format.find("W") - 1;
+      int64 channel = c->Value(c->Dim(c->input(0), pos_c));
       const int64_t kChannel = 3;
-      size_t pos_c = dt_format.find("C");
-      int64 channel = c->Value(c->Dim(c->input(0), pos_c - 1));
       if (channel != kChannel) {
         return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got",
                                        channel);
       }
-      /* fixed to resize to 960 * 960 */
-      const int64_t kResizedH = 960;
-      const int64_t kResizedW = 960;
-      std::vector<DimensionHandle> out_dims(kRank);
-      if (dt_format == "NHWC") {
-        out_dims[0] = c->MakeDim(kResizedH);
-        out_dims[1] = c->MakeDim(kResizedW);
-        out_dims[2] = c->MakeDim(channel);
+
+      const int64_t kMinSize = 480;
+      const int64_t kMidSize = 960;
+      const int64_t kMaxSize = 1920;
+      const int64_t kLongSizeLow = 720;
+      const int64_t kLongSizeHigh = 1440;
+      int64_t resize;
+      if (c->ValueKnown(c->Dim(c->input(0), pos_h)) && c->ValueKnown(c->Dim(c->input(0), pos_w))) {
+        int64_t longSize = std::max(c->Value(c->Dim(c->input(0), pos_h)), c->Value(c->Dim(c->input(0), pos_w)));
+        resize = (longSize <= kLongSizeLow) ? kMinSize : ((longSize <= kLongSizeHigh) ? kMidSize : kMaxSize);
       } else {
-        out_dims[0] = c->MakeDim(channel);
-        out_dims[1] = c->MakeDim(kResizedH);
-        out_dims[2] = c->MakeDim(kResizedW);
+        resize = c->Value(c->UnknownDim());
       }
+      std::vector<DimensionHandle> out_dims(kRank);
+      out_dims[pos_h] = c->MakeDim(resize);
+      out_dims[pos_w] = c->MakeDim(resize);
+      out_dims[pos_c] = c->MakeDim(channel);
       c->set_output(0, c->MakeShape(out_dims));
       c->set_output(1, c->Scalar());
       c->set_output(2, c->Scalar());
