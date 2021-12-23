@@ -14,23 +14,40 @@
  * limitations under the License.
  */
 
-#include "toolchain/tuning_tool/tune_api.h"
+#include "toolchain/tuning_tool/aoe_tuning_api.h"
 
-extern "C" AoeStatus AoeOnlineInitialize(ge::Session *session, const std::map<std::string, std::string> &option) {
-  if (option.empty()) {
-    return AOE_FALLURE;
-  }
-  return AOE_SUCCESS;
+namespace Aoe {
+extern "C" Aoe::AoeStatus AoeInitialize(const std::map<Aoe::AscendString, Aoe::AscendString> &globalOptions) {
+  return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeOnlineFinalize() {
-  return AOE_SUCCESS;
+extern "C" Aoe::AoeStatus AoeFinalize() {
+  return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeOnlineTuning(ge::Graph &tuningGraph, std::vector<ge::Graph> &dependGraph,
-    ge::Session *session, const std::map<std::string, std::string> &option) {
-  if (option.empty()) {
-    return AOE_FALLURE;
-  }
-  return AOE_SUCCESS;
+extern "C" Aoe::AoeStatus AoeCreateSession(const std::map<Aoe::AscendString, Aoe::AscendString> &sessionOptions,
+                                           Aoe::SessionId &SessionId) {
+  return Aoe::AOE_SUCCESS;
 }
+
+extern "C" Aoe::AoeStatus AoeDestroySession(Aoe::SessionId SessionId) {
+  return Aoe::AOE_SUCCESS;
+}
+
+extern "C" Aoe::AoeStatus AoeSetGeSession(Aoe::SessionId SessionId, ge::Session* geSession) {
+  return Aoe::AOE_SUCCESS;
+}
+
+extern "C" Aoe::AoeStatus AoeSetDependGraphs(Aoe::SessionId SessionId, std::vector<ge::Graph> &dependGraph) {
+  return Aoe::AOE_SUCCESS;
+}
+
+extern "C" Aoe::AoeStatus AoeSetTuningGraph(Aoe::SessionId SessionId, ge::Graph &tuningGraph) {
+  return Aoe::AOE_SUCCESS;
+}
+
+extern "C" Aoe::AoeStatus AoeTuningGraph(Aoe::SessionId SessionId,
+                                         const std::map<Aoe::AscendString, Aoe::AscendString> &tuningOptions) {
+  return Aoe::AOE_SUCCESS;
+}
+} // namespace Aoe
