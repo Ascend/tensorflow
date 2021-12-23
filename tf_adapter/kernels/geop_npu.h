@@ -27,22 +27,15 @@
 #include "ge/ge_api_types.h"
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
+#include "tune_api.h"
 #include <unordered_map>
 #include <atomic>
-#include "external/graph/ascend_string.h"
-#include "aoe_tuning_api.h"
 
 namespace tensorflow {
-using SessionId = uint64_t;
-// aoe mode
-using AoeInitializeFunc = Aoe::AoeStatus (*)(const std::map<Aoe::AscendString, Aoe::AscendString> &);
-using AoeFinalizeFunc = Aoe::AoeStatus (*)();
-using AoeCreateSessionFunc = Aoe::AoeStatus (*)(const std::map<Aoe::AscendString, Aoe::AscendString> &, SessionId &);
-using AoeDestroySessionFunc = Aoe::AoeStatus (*)(SessionId);
-using AoeSetGeSessionFunc = Aoe::AoeStatus (*)(SessionId , ge::Session*);
-using AoeSetDependGraphFunc = Aoe::AoeStatus (*)(SessionId , std::vector<ge::Graph>&);
-using AoeSetTuningGraphFunc = Aoe::AoeStatus (*)(SessionId , ge::Graph &);
-using AoeTuningGraphFunc = Aoe::AoeStatus (*)(SessionId , const std::map<Aoe::AscendString, Aoe::AscendString> &);
+using AoeTuningFunc = AoeStatus (*)(ge::Graph &, std::vector<ge::Graph> &, ge::Session *,
+                      const std::map<std::string, std::string> &);
+using AoeInitFunc = AoeStatus (*)(ge::Session *, const std::map<std::string, std::string> &);
+using AoeFinalizeFunc = AoeStatus (*)();
 
 class GeOp : public AsyncOpKernel {
  public:
@@ -151,26 +144,20 @@ class GeOp : public AsyncOpKernel {
   std::map<int, TensorShape> outputs_shape_;
   std::string is_train_graph_;
   void *handle_;
+  AoeTuningFunc aoe_tuning_;
   std::vector<Node*> dynamic_shape_nodes_;
   std::string dynamic_input_;
   std::string dynamic_graph_execute_mode_;
   std::string data_inputs_shape_range_;
   std::string getnext_inputs_shape_range_;
   bool need_compile_graph_first_;
+  AoeInitFunc aoe_init_;
+  AoeFinalizeFunc aoe_finalize_;
   std::map<string, string> tune_options_;
   std::string is_dynamic_getnext_;
   std::string placeholder_index_;
-  std::atomic_flag tuned_flag_;
 
-  SessionId session_id_;
-  AoeInitializeFunc aoe_initialize_;
-  AoeFinalizeFunc aoe_finalize_;
-  AoeCreateSessionFunc aoe_create_session_;
-  AoeDestroySessionFunc aoe_destroy_session_;
-  AoeSetGeSessionFunc aoe_set_gesession_;
-  AoeSetDependGraphFunc aoe_set_dependgraphs_;
-  AoeSetTuningGraphFunc aoe_set_tuninggraph_;
-  AoeTuningGraphFunc aoe_tuning_graph_;
+  std::atomic_flag tuned_flag_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_

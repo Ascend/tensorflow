@@ -23,7 +23,6 @@ file(GLOB_RECURSE ST_SOURCES
     ${TFADAPTER_DIR}/tf_adapter/optimizers/*.cc
     ${TFADAPTER_DIR}/tf_adapter/util/*.cc
     ${TFADAPTER_DIR}/tf_adapter/kernels/*.cc
-    ${TFADAPTER_DIR}/tf_adapter/tests/depends/aoe/src/aoe_stub.cc
     "optimizers/testcase/*.cc"
     "kernels/testcase/*.cc"
     "util/testcase/*.cc"
