@@ -284,10 +284,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     aoe_initialize_ = (AoeInitializeFunc)mmDlsym(handle_, "AoeInitialize");
     OP_REQUIRES(ctx, aoe_initialize_ != nullptr ,
                 errors::InvalidArgument("dlsym Aoe initialize API failed, ", mmDlerror()));
-    // aoe finalize
-    aoe_finalize_ = (AoeFinalizeFunc)mmDlsym(handle_, "AoeFinalize");
-    OP_REQUIRES(ctx, aoe_initialize_ != nullptr ,
-                errors::InvalidArgument("dlsym Aoe Finalize API failed, ", mmDlerror()));
     // aoe create session
     aoe_create_session_ = (AoeCreateSessionFunc)mmDlsym(handle_, "AoeCreateSession");
     OP_REQUIRES(ctx, aoe_create_session_ != nullptr ,
@@ -583,7 +579,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       return;
     }
     auto input_vec_aoe = input_vec;
-    if (RunTuning(input_vec_aoe, ctx) != 0) {
+    auto tuning_ret = RunTuning(input_vec_aoe, ctx);
+    auto destroy_ret = (*aoe_destroy_session_)(session_id_);
+    auto ret = (tuning_ret == Aoe::AOE_SUCCESS) ? destroy_ret : tuning_ret;
+    if (ret != 0) {
       ADP_LOG(ERROR) << "RunTuning fail.";
       done();
       return;
