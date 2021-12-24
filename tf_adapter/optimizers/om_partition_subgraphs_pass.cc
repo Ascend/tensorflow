@@ -245,7 +245,6 @@ Status SetIteratorShardName(Node *node) {
 }
 
 bool IsWithoutNpuScope(const NodeDef &node_def) {
-  if (!compile_mode) { return false; }
   if (node_def.attr().count(ATTR_VALUE_SCOPE_NAME)) { return node_def.attr().at(ATTR_VALUE_SCOPE_NAME).b(); }
   return false;
 }
