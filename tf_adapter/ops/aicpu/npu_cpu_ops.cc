@@ -518,8 +518,8 @@ REGISTER_OP("OCRDetectionPostHandle")
     .Attr("T: {double, float, float16, int8, uint8, int16, uint16, int32, uint32, int64, uint64, bool}")
 
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-      c->set_output(0, c->Vector(c->UnknownDim())); 
-      c->set_output(1, c->Vector(c->UnknownDim())); 
+      c->set_output(0, c->Vector(c->UnknownDim()));
+      c->set_output(1, c->Vector(c->UnknownDim()));
       return Status::OK();
     });
 }  // namespace tensorflow
