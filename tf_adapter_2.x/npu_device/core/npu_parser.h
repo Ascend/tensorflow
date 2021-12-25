@@ -28,7 +28,6 @@
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/tf_status.h"
 
 namespace {
 const std::string kInputDesc = "input_tensor_desc";

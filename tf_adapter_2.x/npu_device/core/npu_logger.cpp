@@ -15,25 +15,17 @@
  */
 
 #include "npu_logger.h"
-#include "tensorflow/c/eager/c_api.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "tensorflow/c/eager/abstract_tensor_handle.h"
 
-// clang-format off
-#include "tensorflow/core/platform/platform.h"
-// clang-format on
-
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
-#include "tensorflow/c/c_api.h"
 #include "tensorflow/c/c_api_internal.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/eager/immediate_execution_operation.h"
 #include "tensorflow/c/eager/immediate_execution_tensor_handle.h"
 #include "tensorflow/c/eager/tfe_context_internal.h"
@@ -68,22 +60,18 @@
 #include "tensorflow/core/lib/gtl/flatmap.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/platform/blocking_counter.h"
-#include "tensorflow/core/platform/casts.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/notification.h"
 #include "tensorflow/core/platform/random.h"
 #include "tensorflow/core/platform/refcount.h"
 #include "tensorflow/core/platform/stringpiece.h"
-#include "tensorflow/core/platform/thread_annotations.h"
 #include "tensorflow/core/profiler/lib/traceme.h"
-#include "tensorflow/core/public/version.h"
 #include "tensorflow/core/util/device_name_utils.h"
 #include "tensorflow/core/util/env_var.h"
 #include "tensorflow/core/graph/algorithm.h"
 #include "tensorflow/core/framework/graph_to_functiondef.h"
 
-#include "npu_micros.h"
 #include "npu_managed_buffer.h"
 #include "npu_unwrap.h"
 #include "npu_logger.h"
@@ -116,22 +104,22 @@ class ProfManager {
   ~ProfManager() {
     std::lock_guard<std::mutex> lk(mu_);
     LOG(INFO) << "All nodes executed by acl";
-    for (auto iter = op_records_.begin(); iter != op_records_.end(); iter++) {
+    for (auto iter = op_records_.cbegin(); iter != op_records_.cend(); iter++) {
       LOG(INFO) << iter->first << ":" << iter->second;
     }
 
     LOG(INFO) << "All stateful nodes executed by acl";
-    for (auto iter = stateful_shape_op_records_.begin(); iter != stateful_shape_op_records_.end(); iter++) {
+    for (auto iter = stateful_shape_op_records_.cbegin(); iter != stateful_shape_op_records_.cend(); iter++) {
       LOG(INFO) << iter->first << ":" << iter->second;
     }
 
     LOG(INFO) << "All unknown shape nodes executed by acl";
-    for (auto iter = unknown_shape_op_records_.begin(); iter != unknown_shape_op_records_.end(); iter++) {
+    for (auto iter = unknown_shape_op_records_.cbegin(); iter != unknown_shape_op_records_.cend(); iter++) {
       LOG(INFO) << iter->first << ":" << iter->second;
     }
 
     LOG(INFO) << "All nodes' shape and type detail executed by acl";
-    for (auto iter = op_shape_records_.begin(); iter != op_shape_records_.end(); iter++) {
+    for (auto iter = op_shape_records_.cbegin(); iter != op_shape_records_.cend(); iter++) {
       std::stringstream ss;
       ss << std::endl << iter->first << ":";
       for (auto status : iter->second) {

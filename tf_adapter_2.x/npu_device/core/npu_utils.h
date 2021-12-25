@@ -70,23 +70,19 @@
 #include "tensorflow/core/lib/gtl/flatmap.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/platform/blocking_counter.h"
-#include "tensorflow/core/platform/casts.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/notification.h"
 #include "tensorflow/core/platform/random.h"
 #include "tensorflow/core/platform/refcount.h"
 #include "tensorflow/core/platform/stringpiece.h"
-#include "tensorflow/core/platform/thread_annotations.h"
 #include "tensorflow/core/profiler/lib/traceme.h"
-#include "tensorflow/core/public/version.h"
 #include "tensorflow/core/util/device_name_utils.h"
 #include "tensorflow/core/util/env_var.h"
 #include "tensorflow/core/graph/algorithm.h"
 #include "tensorflow/core/framework/graph_to_functiondef.h"
 
 #include "npu_env.h"
-#include "npu_micros.h"
 #include "npu_unwrap.h"
 
 #include "acl/acl_base.h"
@@ -96,7 +92,7 @@
  * @brief: is npu tensor handle or not
  * @param handle: tensor handle
  */
-__attribute__((unused)) static bool IsNpuTensorHandle(tensorflow::TensorHandle *handle) {
+__attribute__((unused)) static bool IsNpuTensorHandle(const tensorflow::TensorHandle *handle) {
   tensorflow::Status status;
   tensorflow::DeviceNameUtils::ParsedName parsed_name;
   return tensorflow::DeviceNameUtils::ParseFullName(handle->DeviceName(&status), &parsed_name) &&
@@ -107,7 +103,7 @@ __attribute__((unused)) static bool IsNpuTensorHandle(tensorflow::TensorHandle *
  * @brief: is cpu tensor handle or not
  * @param handle: tensor handle
  */
-__attribute__((unused)) static bool IsCpuTensorHandle(tensorflow::TensorHandle *handle) {
+__attribute__((unused)) static bool IsCpuTensorHandle(const tensorflow::TensorHandle *handle) {
   tensorflow::Status status;
   tensorflow::DeviceNameUtils::ParsedName parsed_name;
   return tensorflow::DeviceNameUtils::ParseFullName(handle->DeviceName(&status), &parsed_name) &&

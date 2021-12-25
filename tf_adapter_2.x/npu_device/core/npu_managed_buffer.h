@@ -22,14 +22,13 @@
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/tf_status.h"
 #include "tensorflow/core/framework/tensor.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/status.h"
 
 #include "graph/types.h"
 
+namespace npu {
 class NpuManagedBuffer {
  public:
   static void Destroy(NpuManagedBuffer *buf);
@@ -54,7 +53,7 @@ class NpuManagedBuffer {
   // Tensor的格式和type与buffer的成员origin_data_type_和origin_format_一致
   tensorflow::Status AssembleTo(tensorflow::Tensor *tensor);
 
-  bool SameRepresentation() { return origin_format_ == format_ && origin_data_type_ == data_type_; }
+  bool SameRepresentation() const { return origin_format_ == format_ && origin_data_type_ == data_type_; }
 
   std::string DebugString() const;
 
@@ -72,7 +71,7 @@ class NpuManagedBuffer {
   ~NpuManagedBuffer();
   tensorflow::Status TransRepresentationOnNpu(NpuManagedBuffer *dst_buff);  // 在NPU上完成从存储到原始的格式和类型转换
   tensorflow::Status HToD(const void *host_data, size_t size);  // 将输入的Host内存搬运到管理的NPU内存上
-  tensorflow::Status DToH(void *host_data, size_t max_len);  // 将管理的NPU内存上的数据搬运到输入的Host内存上
+  tensorflow::Status DToH(void *host_data, size_t size) const;  // 将管理的NPU内存上的数据搬运到输入的Host内存上
 
   ge::DataType origin_data_type_{};  // 原始数据类型，即对应的CPU Tensor的数据类型
   ge::Format origin_format_{};  // 原始内存排布，即对应的CPU Tensor的维度信息，一般都是ND，可能是NCHW或者NHWC
@@ -89,7 +88,10 @@ class NpuManagedBuffer {
 
 // NpuManagedBuffer是Host的对象，是CPU Tensor管理的对象，是NPU内存的Host句柄，应当在析构函数中释放NPU内存
 __attribute__((unused)) static void NpuManagedBufferDeallocator(void *data, size_t len, void *arg) {
+  TF_UNUSED_VARIABLE(len);
+  TF_UNUSED_VARIABLE(arg);
   NpuManagedBuffer::Destroy(reinterpret_cast<NpuManagedBuffer *>(data));
 }
+} // end npu
 
 #endif  // TENSORFLOW_NPU_TENSOR_H

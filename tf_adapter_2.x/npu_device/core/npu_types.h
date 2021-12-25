@@ -17,10 +17,8 @@
 #ifndef TENSORFLOW_NPU_TYPES_H
 #define TENSORFLOW_NPU_TYPES_H
 
-#include "tensorflow/c/c_api.h"
 #include "tensorflow/c/c_api_internal.h"
 #include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/eager/c_api_internal.h"
 
 using TensorPartialShapes = tensorflow::gtl::InlinedVector<tensorflow::PartialTensorShape, 4>;
 using TensorShapes = tensorflow::gtl::InlinedVector<tensorflow::TensorShape, 4>;

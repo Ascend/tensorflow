@@ -17,7 +17,8 @@
 #include "npu_hdc.h"
 #include "npu_micros.h"
 
-tensorflow::Status MappingTfDtypeToAcl(tensorflow::DataType tf_type, aclDataType &acl_type);
+namespace {
+tensorflow::Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type);
 
 tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type);
 
@@ -28,7 +29,7 @@ tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::v
                                               bool call_by_channel_receive);
 
 tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
-                                              acltdtDataset **acl_dataset);
+                                              acltdtDataset **output_acl_dataset);
 
 tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
                                               acltdtDataset *acl_dataset);
@@ -305,7 +306,9 @@ tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTenso
 
   return tensorflow::Status::OK();
 }
+}  // end namespace
 
+namespace npu {
 /**
  * @brief: create hdc channel
  * @param device_id: device id
@@ -326,26 +329,30 @@ HdcChannel::~HdcChannel() { Destroy(); }
 /**
  * @brief: send tensors
  */
-tensorflow::Status HdcChannel::SendTensors(const std::vector<tensorflow::Tensor> &tensors) {
+tensorflow::Status HdcChannel::SendTensors(const std::vector<tensorflow::Tensor> &tensors) const {
   return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_TENSOR, tensors);
 }
 
 /**
  * @brief: recv tensors
  */
-tensorflow::Status HdcChannel::RecvTensors(std::vector<tensorflow::Tensor> &tensors) {
+tensorflow::Status HdcChannel::RecvTensors(std::vector<tensorflow::Tensor> &tensors) const {
   return RecvTensorByAcl(handle_, tensors);
 }
 
 /**
  * @brief: notify finish
  */
-tensorflow::Status HdcChannel::NotifyFinish() { return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_END_OF_SEQUENCE, {}); }
+tensorflow::Status HdcChannel::NotifyFinish() const {
+  return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_END_OF_SEQUENCE, {});
+}
 
 /**
  * @brief: notify abnormal
  */
-tensorflow::Status HdcChannel::NotifyAbnormal() { return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_ABNORMAL, {}); }
+tensorflow::Status HdcChannel::NotifyAbnormal() const {
+  return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_ABNORMAL, {});
+}
 
 /**
  * @brief: destroy hdc channel
@@ -373,3 +380,4 @@ tensorflow::Status HdcChannel::Init() {
   }
   return tensorflow::Status::OK();
 }
+} // end npu

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "npu_global.h"
 #include "npu_managed_buffer.h"
+#include "npu_global.h"
 #include "npu_logger.h"
 #include "npu_micros.h"
 #include "npu_utils.h"
@@ -41,6 +41,7 @@ class NpuMemory {
     return tensorflow::Status::OK();
   }
   static void Free(void *memory, size_t size, void *arg) {
+    TF_UNUSED_VARIABLE(arg);
     npu::global::dev_memory_shared_lock.lock_shared();
     if (!npu::global::dev_memory_released) {
       if (aclrtFree(memory) == ACL_ERROR_NONE) {
@@ -111,6 +112,7 @@ tensorflow::Status CreateTransFormatAttr(ge::Format src, ge::Format dst, std::sh
 }
 
 tensorflow::Status CreateCastDtypeAttr(ge::DataType src, ge::DataType dst, std::shared_ptr<aclopAttr> *attr) {
+  TF_UNUSED_VARIABLE(src);
   aclopAttr *acl_attr = aclopCreateAttr();
   NPU_REQUIRES(acl_attr != nullptr, tensorflow::errors::Internal(""));
   attr->reset(acl_attr, [](aclopAttr *attr) { aclopDestroyAttr(attr); });
@@ -177,6 +179,7 @@ tensorflow::Status ScheduleTransFormatTask(aclrtStream stream, ge::DataType src_
 }
 }  // namespace
 
+namespace npu {
 NpuManagedBuffer::~NpuManagedBuffer() {
   if (deallocator_ && size_ > 0) {
     deallocator_(data_, size_, deallocator_arg_);
@@ -208,9 +211,9 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format fmt, const tensorflow::Te
  * @param data_type: ge data type
  * @param buf: npu managed buffer
  */
-tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &dims, ge::DataType data_type,
-                                            NpuManagedBuffer **buf) {
-  return Create(format, dims, data_type, format, dims, buf);
+tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
+                                            ge::DataType data_type, NpuManagedBuffer **buf) {
+  return Create(format, shape, data_type, format, shape, buf);
 }
 
 /**
@@ -261,7 +264,7 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
  * @param addr: point to save data
  * @param size: data size
  * @param arg: deallocator arg
- * @param deallocator: point to deallocator function 
+ * @param deallocator: point to deallocator function
  * @param buf: npu managed buffer
  */
 tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
@@ -315,7 +318,6 @@ tensorflow::Status NpuManagedBuffer::AssembleTo(tensorflow::Tensor *tensor) {
   }
   if (SameRepresentation()) {
     NPU_REQUIRES_OK(DToH(tensor->data(), tensor->TotalBytes()));
-
   } else {
     NpuManagedBuffer *buf;
     NPU_REQUIRES_OK(Create(origin_format_, origin_shape_, origin_data_type_, &buf));
@@ -408,7 +410,7 @@ tensorflow::Status NpuManagedBuffer::HToD(const void *host_data, size_t size) {
  * @param host_data: host data
  * @param size: data size
  */
-tensorflow::Status NpuManagedBuffer::DToH(void *host_data, size_t size) {
+tensorflow::Status NpuManagedBuffer::DToH(void *host_data, size_t size) const {
   NPU_REQUIRES(size >= size_, tensorflow::errors::Internal("Failed copy npu buffer to host as size mismatch npu ",
                                                            size_, " vs. cpu ", size));
   NPU_REQUIRES_ACL_OK("Acl rt-memcpy device to host failed",
@@ -430,3 +432,4 @@ std::string NpuManagedBuffer::DebugString() const {
      << tensorflow::DataTypeString(storage_type) << VecToString(shape_);
   return ss.str();
 }
+} // end npu

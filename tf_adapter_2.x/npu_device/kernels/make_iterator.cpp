@@ -15,7 +15,6 @@
  */
 
 #include <memory>
-#include <utility>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -108,6 +107,10 @@ class MakeIteratorGraphBuilder {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
                         int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
                         TF_Status *status) {
+  TF_UNUSED_VARIABLE(op_name);
+  TF_UNUSED_VARIABLE(attributes);
+  TF_UNUSED_VARIABLE(num_outputs);
+  TF_UNUSED_VARIABLE(outputs);
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
     if (npu::UnwrapHandle(input)->DataType() == tensorflow::DT_RESOURCE) {
@@ -118,7 +121,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
       TensorDataTypes types;
       NPU_CTX_REQUIRES_OK(status, dev->GetMirroredIteratorShapesAndTypes(handle, shapes, types));
       auto dp_init_graph = MakeIteratorGraphBuilder::GetGraph(handle.container(), handle.name(), shapes, types, status);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
       if (kDumpExecutionDetail || kDumpGraph) {
         std::string file_name = "dp_init_" + handle.name() + ".pbtxt";
         LOG(INFO) << "NPU Dump mirrored resource init graph to: " << file_name;
@@ -126,10 +129,10 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
       }
       dev->RunGeGraphPin2CpuAnonymous(context, "dp_init_" + handle.name(), dp_init_graph, num_inputs, inputs, 0,
                                       nullptr, status);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
       // 针对推荐网络，Provider需要支持1对N的传输，默认只向资源所处的Device发送
       dev->CreateIteratorProvider(context, tensor, {dev->device_id}, status);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
     }
   }
 };
