@@ -516,8 +516,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         if (acl_status != ACL_SUCCESS) {
           return errors::InvalidArgument("Set device failed.", acl_status);
         }
-        std::string channel_name = std::to_string(channel_name_dict(dataset()->tf_session_ + dataset()->channel_name_ + "_device_" +
-                       std::to_string(dataset()->device_id_)));
+        std::string channel_name = std::to_string(channel_name_dict(dataset()->tf_session_ +
+                                                  dataset()->channel_name_ +
+                                                  "_device_" +
+                                                  std::to_string(dataset()->device_id_)));
         acl_handle_ = acltdtCreateChannelWithCapacity(dataset()->device_id_, channel_name.c_str(), channel_depth);
         if (acl_handle_ == nullptr) {
           ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
