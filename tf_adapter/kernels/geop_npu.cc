@@ -669,7 +669,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     domi::GetContext().format = ge::GetParserContext().format;
 
     ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success, kernel_name:" << geop_name
-                  << " ,tf session: " << tf_session_ << " ,graph id: " << cache_graph_id;
+                  << " ,tf session: " << tf_session_ << " ,graph id: " << cache_graph_id
+                  << ", iteration_per_loop:" << iteration_per_loop_
+                  << ", need iteration:" << this->need_iteration_;
 
     size_t nodes = compute_graph->GetAllNodesSize();
     if (nodes == 0) {
@@ -1062,23 +1064,28 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
     // add shape node to get getnext node real shape
     if (dynamic_node_type == "0" && node->type_string() == "IteratorGetNext") {
       dynamic_shape_nodes_.emplace_back(node);
-      int i = 0;
+      std::set<int> out_index;
       for (auto out_edge : node->out_edges()) {
         if (!out_edge->IsControlEdge()) {
-          std::string shape_name = "getnext_shape_" + std::to_string(i);
-          Node *shape_node = nullptr;
-          TF_CHECK_OK(NodeBuilder(shape_name, "Shape")
-                      .Input(node, out_edge->src_output())
-                      .Device(node->def().device())
-                      .Finalize(&graph, &shape_node));
-          std::string identity_name = "shape_identity_" + std::to_string(i);
-          Node *identity_node = nullptr;
-          TF_CHECK_OK(NodeBuilder(identity_name, "Identity")
-                      .Input(shape_node, 0)
-                      .Device(shape_node->def().device())
-                      .Finalize(&graph, &identity_node));
+          std::string msg = "Src:" + out_edge->src()->name() + ":" + std::to_string(out_edge->src_output()) +
+            ", Dst:" + out_edge->dst()->name() + ":" + std::to_string(out_edge->dst_input());
+          ADP_LOG(INFO) << "[GEOP] GetNext node in out info:" << msg;
+          out_index.insert(out_edge->src_output());
         }
-        i++;
+      }
+      for (int idx : out_index) {
+        std::string shape_name = "getnext_shape_" + std::to_string(idx);
+        Node *shape_node = nullptr;
+        TF_CHECK_OK(NodeBuilder(shape_name, "Shape")
+                    .Input(node, idx)
+                    .Device(node->def().device())
+                    .Finalize(&graph, &shape_node));
+        std::string identity_name = "shape_identity_" + std::to_string(idx);
+        Node *identity_node = nullptr;
+        TF_CHECK_OK(NodeBuilder(identity_name, "Identity")
+                    .Input(shape_node, 0)
+                    .Device(shape_node->def().device())
+                    .Finalize(&graph, &identity_node));
       }
     }
     // count data args and getnext args for dynamic dims
