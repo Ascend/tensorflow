@@ -48,7 +48,7 @@ LOCAL_SHARED_LIBRARIES := \
 npu_bridge_shared_libraries := \
 $(addprefix $(HOST_OUT_INTERMEDIATE_LIBRARIES)/, \
 $(addsuffix $(TARGET_SHLIB_SUFFIX), \
-$(LOCAL_SHARED_LIBRARIES) \
+$(LOCAL_SHARED_LIBRARIES))) \
 
 .PHONY: $(HOST_OUT_ROOT)/npu_bridge-1.15.0-py3-none-any.whl
 $(HOST_OUT_ROOT)/npu_bridge-1.15.0-py3-none-any.whl:$(npu_bridge_shared_libraries)
