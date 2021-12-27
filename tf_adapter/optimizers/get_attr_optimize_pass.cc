@@ -69,9 +69,8 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
   }
 
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
-  char *need_print = getenv("PRINT_MODEL");
 
-  if (need_print != nullptr && strcmp("1", need_print) == 0) {
+  if (kDumpGraph) {
     GraphDef ori_graph_def;
     options.graph->get()->ToGraphDef(&ori_graph_def);
     string ori_model_path = GetDumpPath() + "BeforeGetAttrOptimize_";
@@ -104,7 +103,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
     }
   }
 
-  if (need_print != nullptr && strcmp("1", need_print) == 0) {
+  if (kDumpGraph) {
     GraphDef omg_graph_def;
     options.graph->get()->ToGraphDef(&omg_graph_def);
     string tmpmodel_path = GetDumpPath() + "AfterGetAttrOptimize_";

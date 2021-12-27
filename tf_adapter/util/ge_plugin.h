@@ -16,10 +16,10 @@
 #ifndef TENSORFLOW_GE_PLUGIN_H_
 #define TENSORFLOW_GE_PLUGIN_H_
 
-#include "tensorflow/core/platform/types.h"
 #include <map>
 #include <mutex>
 #include <string>
+#include "tensorflow/core/platform/types.h"
 using tensorflow::int64;
 
 // Singleton class for manage the relationship between
@@ -41,7 +41,7 @@ class GePlugin {
 
   ~GePlugin();
 
-  uint64_t GetFusionTensorSize();
+  uint64_t GetFusionTensorSize() const;
 
 
   uint32_t device_id_;

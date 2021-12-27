@@ -278,31 +278,30 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
 
   if ((!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty())) {
     handle_ = mmDlopen("libaoe_tuning.so", MMPA_RTLD_NOW);
-    OP_REQUIRES(ctx, handle_ != nullptr,
-      errors::InvalidArgument("libaoe_tuning.so dlopen failed, ", mmDlerror()));
+    OP_REQUIRES(ctx, handle_ != nullptr, errors::InvalidArgument("libaoe_tuning.so dlopen failed, ", mmDlerror()));
     // aoe init
     aoe_initialize_ = (AoeInitializeFunc)mmDlsym(handle_, "AoeInitialize");
-    OP_REQUIRES(ctx, aoe_initialize_ != nullptr ,
+    OP_REQUIRES(ctx, aoe_initialize_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe initialize API failed, ", mmDlerror()));
     // aoe finalize
     aoe_finalize_ = (AoeFinalizeFunc)mmDlsym(handle_, "AoeFinalize");
-    OP_REQUIRES(ctx, aoe_initialize_ != nullptr ,
+    OP_REQUIRES(ctx, aoe_initialize_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe Finalize API failed, ", mmDlerror()));
     // aoe create session
     aoe_create_session_ = (AoeCreateSessionFunc)mmDlsym(handle_, "AoeCreateSession");
-    OP_REQUIRES(ctx, aoe_create_session_ != nullptr ,
+    OP_REQUIRES(ctx, aoe_create_session_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe create session API failed, ", mmDlerror()));
     // aoe destroy session
     aoe_destroy_session_ = (AoeDestroySessionFunc)mmDlsym(handle_, "AoeDestroySession");
-    OP_REQUIRES(ctx, aoe_destroy_session_ != nullptr ,
+    OP_REQUIRES(ctx, aoe_destroy_session_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe destroy session API failed, ", mmDlerror()));
     // aoe set session
     aoe_set_gesession_ = (AoeSetGeSessionFunc)mmDlsym(handle_, "AoeSetGeSession");
-    OP_REQUIRES(ctx, aoe_set_gesession_ != nullptr ,
+    OP_REQUIRES(ctx, aoe_set_gesession_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set session API failed, ", mmDlerror()));
     // aoe set depend graphs
     aoe_set_dependgraphs_ = (AoeSetDependGraphFunc)mmDlsym(handle_, "AoeSetDependGraphs");
-    OP_REQUIRES(ctx, aoe_set_dependgraphs_ != nullptr ,
+    OP_REQUIRES(ctx, aoe_set_dependgraphs_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set depend graphs API failed, ", mmDlerror()));
     // aoe set tuning graph
     aoe_set_tuninggraph_ = (AoeSetTuningGraphFunc)mmDlsym(handle_, "AoeSetTuningGraph");
@@ -623,15 +622,13 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_), done);
 
     /* if graph is init verify graph, return */
-    if (this->is_initialized_graph_ == true) {
+    if (this->is_initialized_graph_) {
       Tensor initialized_tensor(ctx->expected_output_dtype(0), TensorShape({0}));
       ctx->set_output(0, initialized_tensor);
       done();
       return;
     }
-
-    char *need_print = getenv("PRINT_MODEL");
-    if (need_print != nullptr && strcmp("1", need_print) == 0) {
+    if (kDumpGraph) {
       string tmpmodel_path = GetDumpPath() + "TF_";
       string tmodel_path = tmpmodel_path + geop_name.c_str() + ".pbtxt";
       Status status_out = WriteTextProto(Env::Default(), tmodel_path, ori_graph_def);
@@ -978,9 +975,9 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
       return ret;
     }
 
-    if(node->type_string() == "NpuOnnxGraphOp") {
+    if (node->type_string() == "NpuOnnxGraphOp") {
       ret = this->ParseOnnxGraphOpAttr(node);
-      if(!ret.ok()) {
+      if (!ret.ok()) {
         LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, "<< ret.error_message();
         return ret;
       }
@@ -1032,7 +1029,7 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) {
   parser_params.insert({ge::AscendString(ge::ir_option::OUTPUT), ge::AscendString(subgrph_name.c_str())});
   if (ge::SUCCESS != ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph)) {
     LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Parse Failed.";
-    return errors::Internal("[GEOP] node: %s Onnx Model Parse Failed.",node->name());
+    return errors::Internal("[GEOP] node: %s Onnx Model Parse Failed.", node->name());
   }
 
   // rename the nodes in subgraph of onnx model
@@ -1321,8 +1318,8 @@ std::string GeOp::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::
     sub_graph_def->release_library();
     sub_graph_def->mutable_versions()->clear_min_consumer();
   }
-  char *need_print = getenv("PRINT_MODEL");
-  if (need_print != nullptr && strcmp("1", need_print) == 0) {
+
+  if (kDumpGraph) {
     string tmpmodel_path = GetDumpPath() + "TF_Subgraph_";
     string tmodel_path = tmpmodel_path + graph.c_str() + ".pbtxt";
     Status status_out = WriteTextProto(Env::Default(), tmodel_path, *sub_graph_def);
