@@ -308,24 +308,21 @@ REGISTER_OP("DenseImageWarpGrad")
         dt_format = "NHWC";
       }
       if (kVaildFormat.find(dt_format) == kVaildFormat.end()) {
-        return errors::InvalidArgument("Invalid data format string: ",
-                                       dt_format);
+        return errors::InvalidArgument("Invalid data format string: ", dt_format);
       }
       const int32_t kRank = 3;
       int32 imgRank = c->Rank(c->input(0));
       if (imgRank != kRank) {
-        return errors::InvalidArgument("Invalid image shape: shape rank must be 3, but got",
-                                       imgRank);
+        return errors::InvalidArgument("Invalid image shape: shape rank must be 3, but got ", imgRank);
       }
 
-      size_t pos_c = dt_format.find("C") - 1;
-      size_t pos_h = dt_format.find("H") - 1;
-      size_t pos_w = dt_format.find("W") - 1;
-      int64 channel = c->Value(c->Dim(c->input(0), pos_c));
+      size_t cPos = dt_format.find("C") - 1;
+      size_t hPos = dt_format.find("H") - 1;
+      size_t wPos = dt_format.find("W") - 1;
+      int64 channel = c->Value(c->Dim(c->input(0), cPos));
       const int64_t kChannel = 3;
       if (channel != kChannel) {
-        return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got",
-                                       channel);
+        return errors::InvalidArgument("Invalid image shape: shape channel must be 3, but got ", channel);
       }
 
       const int64_t kMinSize = 480;
@@ -334,16 +331,16 @@ REGISTER_OP("DenseImageWarpGrad")
       const int64_t kLongSizeLow = 720;
       const int64_t kLongSizeHigh = 1440;
       int64_t resize;
-      if (c->ValueKnown(c->Dim(c->input(0), pos_h)) && c->ValueKnown(c->Dim(c->input(0), pos_w))) {
-        int64_t longSize = std::max(c->Value(c->Dim(c->input(0), pos_h)), c->Value(c->Dim(c->input(0), pos_w)));
+      if (c->ValueKnown(c->Dim(c->input(0), hPos)) && c->ValueKnown(c->Dim(c->input(0), wPos))) {
+        int64_t longSize = std::max(c->Value(c->Dim(c->input(0), hPos)), c->Value(c->Dim(c->input(0), wPos)));
         resize = (longSize <= kLongSizeLow) ? kMinSize : ((longSize <= kLongSizeHigh) ? kMidSize : kMaxSize);
       } else {
         resize = c->Value(c->UnknownDim());
       }
       std::vector<DimensionHandle> out_dims(kRank);
-      out_dims[pos_h] = c->MakeDim(resize);
-      out_dims[pos_w] = c->MakeDim(resize);
-      out_dims[pos_c] = c->MakeDim(channel);
+      out_dims[cPos] = c->MakeDim(channel);
+      out_dims[hPos] = c->MakeDim(resize);
+      out_dims[wPos] = c->MakeDim(resize);
       c->set_output(0, c->MakeShape(out_dims));
       c->set_output(1, c->Scalar());
       c->set_output(2, c->Scalar());
