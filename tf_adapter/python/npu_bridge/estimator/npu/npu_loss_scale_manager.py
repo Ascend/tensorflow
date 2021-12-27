@@ -41,6 +41,7 @@ class FixedLossScaleManager(lsm_lib.FixedLossScaleManager):
         super(FixedLossScaleManager, self).__init__(loss_scale=loss_scale)
 
     def get_enable_overflow_check(self):
+        """Enable overflow check"""
         return self._enable_overflow_check
 
 
@@ -64,6 +65,7 @@ class ExponentialUpdateLossScaleManager(lsm_lib.ExponentialUpdateLossScaleManage
             decr_ratio=decr_ratio)
 
     def update_loss_scale(self, finite_grads):
+        """Used to update loss scale"""
         def update_if_finite_grads():
             def increase_loss_scale():
                 incr_result_finite = gen_math_ops.less(self._loss_scale, (3.4e+38) / self._incr_ratio)

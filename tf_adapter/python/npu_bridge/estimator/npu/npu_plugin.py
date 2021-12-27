@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""NPU plugin for Tensorflow"""
+
 import json
 import os
 from hccl.manage.api import get_local_rank_size
@@ -36,21 +38,25 @@ __option_exec_option_exec_hccl_flag = str(tf_adapter.OPTION_EXEC_HCCL_FLAG)
 
 
 def init_op_compiler_cache_mode(init, op_compiler_cache_mode):
+    """Initialize op compiler cache mode"""
     if op_compiler_cache_mode is not None:
         init["ge.op_compiler_cache_mode"] = op_compiler_cache_mode
 
 
 def init_op_compiler_cache_dir(init, op_compiler_cache_dir):
+    """Initialize op compiler cache directory"""
     if op_compiler_cache_dir is not None:
         init["ge.op_compiler_cache_dir"] = op_compiler_cache_dir
 
 
 def init_debug_dir(init, debug_dir):
+    """Initialize debug directory"""
     if debug_dir is not None:
         init["ge.debugDir"] = debug_dir
 
 
 def check_graph_run_mode(graph_run_mode):
+    """Verify graph run mode"""
     if graph_run_mode > 1:
         raise ValueError('"graph_run_mode" value must be 0 or 1')
 
@@ -70,6 +76,7 @@ def npu_resource_init(graph_run_mode=1,
                       debug_dir=None,
                       hcom_multi_mode=False,
                       distribute_config=None):
+    """Initialize NPU resource"""
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
     check_graph_run_mode(graph_run_mode)
     util.check_nonnegative_integer(enable_exception_dump, "enable_exception_dump")
@@ -126,10 +133,12 @@ def npu_resource_init(graph_run_mode=1,
 
 
 def npu_resource_shutdown():
+    """Shutdown NPU resource"""
     tf_adapter.PluginFinalize()
 
 
 def npu_close():
+    """NPU closing"""
     tf_adapter.NpuClose()
 
 
@@ -220,6 +229,7 @@ def malloc_shared_memory(var_name, shape, data_type):
 
 
 def get_rdma_cache(data_type, shape, name="rdma_w"):
+    """Get rdma cache"""
     with npu_scope.npu_mem_type_scope():
         return variable_scope.get_variable(name=name, shape=shape, dtype=data_type,
                                            initializer=init_ops.zeros_initializer())

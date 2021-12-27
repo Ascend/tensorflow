@@ -81,11 +81,13 @@ def centralization(x, axes, name=None):
 
 @ops.RegisterGradient("PRelu")
 def prelu_grad(op, grad):
+    """Gradient for prelu"""
     dx, da = npu_aicore_ops.p_relu_grad(grad, op.inputs[0], op.inputs[1])
     return [dx, da]
 
 
 def prelu(x, weight):
+    """prelu op"""
     return npu_aicore_ops.p_relu(x, weight)
 
 
@@ -133,8 +135,8 @@ def nonzero(x, transpose=False, output_type=dtypes.int64, name=None):
     """
     nonezero op
     Return the indices of the elementes that are non-zero.
-    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes in that dimension.
-    The values in a are always tested and returned in row-major ,C-style order.
+    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes
+    in that dimension. The values in a are always tested and returned in row-major ,C-style order.
 
     """
     x = ops.convert_to_tensor(x, name="x")
@@ -146,8 +148,8 @@ def nonzerowithvalue(x, transpose=False, output_type=dtypes.int64, name=None):
     """
     nonezero op
     Return the indices of the elementes that are non-zero.
-    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes in that dimension.
-    The values in a are always tested and returned in row-major ,C-style order.
+    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes
+    in that dimension. The values in a are always tested and returned in row-major ,C-style order.
 
     """
     x = ops.convert_to_tensor(x, name="x")

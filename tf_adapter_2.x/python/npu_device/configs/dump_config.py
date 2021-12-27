@@ -13,11 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""Configuration for dumping NPU data"""
+
 from npu_device.configs.option_base import OptionValue
 from npu_device.configs.option_base import NpuBaseConfig
 
 
 class NpuDumpConfig(NpuBaseConfig):
+    """Config for dumping npu training data"""
     def __init__(self):
         self.enable_dump = OptionValue(False, [True, False])
         self.dump_path = OptionValue(None, None)

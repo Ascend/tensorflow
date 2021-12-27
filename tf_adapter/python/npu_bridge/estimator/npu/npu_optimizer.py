@@ -93,6 +93,7 @@ def allreduce(tensor, average=True):
 
 
 def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
+    """NPU implemented reduce"""
     basic = NPUBasics("")
     size = basic.size()
     # the tensor is the instance of tf.IndexedSlices
@@ -116,7 +117,7 @@ def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
     else:
         logging.debug("HcomReduce...")
         local_rank_id = os.getenv('DEVICE_ID')
-        if local_rank_id == None or int(local_rank_id) < 0:
+        if local_rank_id is None or int(local_rank_id) < 0:
             raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
 
         summed_tensor = hccl_ops.reduce(tensor, "sum", root_rank, fusion, fusion_id)
@@ -199,6 +200,7 @@ class NPUOptimizer(optimizer.Optimizer):
             return averaged_gradients
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
+        """Apply gradients on variables"""
         if self._is_loss_scale:
             if not self._is_tailing_optimization:
                 grads = [g for (g, _) in grads_and_vars]
@@ -326,6 +328,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         return averaged_gradients
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
+        """Apply gradients on variables"""
         rank_size = os.getenv('RANK_SIZE')
         if rank_size == None or int(rank_size) <= 1:
             return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
@@ -423,6 +426,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         self._optimizer.get_gradients = new_get_gradient
 
     def get_updates(self, loss, params):
+        """Get updated loss and parameters"""
         return self._optimizer.get_updates(loss, params)
 
     def _compute_gradients(self, loss, var_list, grad_loss=None):
@@ -438,9 +442,11 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         return averaged_grads
 
     def apply_gradients(self, grads_and_vars, name=None):
+        """Apply gradients on variables"""
         return self._optimizer.apply_gradients(grads_and_vars, name)
 
     def get_config(self):
+        """Get optimizer configuration"""
         config = {
             "optimizer": self._optimizer
         }
@@ -546,6 +552,7 @@ def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl
 
 
 def npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
+    """NPU implemented allreduce"""
     if isinstance(values, (list, tuple,)):
         return _npu_allreduce(values, reduction, fusion, fusion_id, group)
     else:

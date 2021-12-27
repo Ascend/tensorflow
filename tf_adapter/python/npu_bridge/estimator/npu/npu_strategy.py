@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""NPU distributed strategy"""
+
 import os
 import tensorflow as tf
 from tensorflow.python.distribute import distribute_lib
@@ -25,6 +27,7 @@ from hccl.manage.api import get_rank_id
 
 
 class NPUExtended(one_device_strategy.OneDeviceExtended):
+    """NPU implemented oneDevice strategy"""
     def __init__(self, container_strategy, device):
         super(NPUExtended, self).__init__(container_strategy, device)
 
@@ -38,5 +41,6 @@ class NPUExtended(one_device_strategy.OneDeviceExtended):
 
 
 class NPUStrategy(distribute_lib.StrategyV1):
+    """NPU distribute strategy"""
     def __init__(self, device="/cpu:0"):
         super(NPUStrategy, self).__init__(NPUExtended(self, device))

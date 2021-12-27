@@ -14,6 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Construct NPU configurations"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -249,7 +251,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         return dump_config
 
     def _get_horovod_mode(self, horovod_mode):
-        if isinstance(horovod_mode, bool) == False:
+        if isinstance(horovod_mode, bool) is False:
             raise ValueError('"horovod_mode" type must be bool')
         return horovod_mode
 

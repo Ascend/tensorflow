@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""main function to convert user scripts"""
+
 import os
 import util_global
 from conver_by_ast import conver_ast
@@ -27,6 +30,7 @@ from file_op import adjust_index
 
 
 def conver():
+    """The entry point to convert Tensorflow script"""
     print("Begin conver, input file: " + util_global.get_value('input') + '\n')
     out_path = util_global.get_value('output')
     dst_path = os.path.split(util_global.get_value('input').rstrip('\\/'))[-1]

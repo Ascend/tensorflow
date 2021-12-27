@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Public functions for NPU estimator"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -157,6 +159,7 @@ def check_aoe_mode(aoe_mode):
 
 
 def register_func(var_name):
+    """Resiger function to NPU"""
     ops.register_proto_function(
         '{}_{}'.format(_NPU_RUNCONFIG, var_name),
         proto_type=variable_pb2.VariableDef,
@@ -165,6 +168,7 @@ def register_func(var_name):
 
 
 def create_or_get_var(var_name):
+    """Create or get variable"""
     graph = ops.get_default_graph()
     collection_name = '{}_{}'.format(_NPU_RUNCONFIG, var_name)
     iter_vars = graph.get_collection(collection_name)
@@ -285,7 +289,9 @@ def variable_initializer_in_host(var_list):
 
 
 def fair_division(inputs, number):
+    """Calculate fain division"""
     def get_sum(list):
+        """Calculate sum"""
         res = 0
         for item in list:
             res += item.size
@@ -359,6 +365,7 @@ def fair_division(inputs, number):
 
 
 class GradDivisionItem():
+    """Class for processing gradient and value"""
     def __init__(self, grad, var):
         self.grad = grad
         self.var = var
@@ -380,6 +387,7 @@ _GRADIENTS_AND_VARS = []
 
 
 def add_grads_and_vars(grads_and_vars, rank_size):
+    """Accumulate gradients and variables"""
     global _GRADIENTS_AND_VARS
     _GRADIENTS_AND_VARS.clear()
     for grad, var in grads_and_vars:
@@ -390,6 +398,7 @@ def add_grads_and_vars(grads_and_vars, rank_size):
 
 
 def get_gid_by_grad(grad):
+    """Get gradient id by grad"""
     gid = -1
     global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
@@ -399,6 +408,7 @@ def get_gid_by_grad(grad):
 
 
 def get_gid_by_weight(weight):
+    """Get gradient id by weight"""
     gid = -1
     global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
@@ -408,6 +418,7 @@ def get_gid_by_weight(weight):
 
 
 def get_all_grad_item():
+    """Get all gradients"""
     global _GRADIENTS_AND_VARS
     return _GRADIENTS_AND_VARS
 
@@ -467,19 +478,23 @@ def set_graph_exec_config(fetch, dynamic_input=False,
 
 
 def npu_compile(sess, *fetches):
+    """Compile NPU fetches"""
     sess.run(fetches)
 
 
 def global_dict_init():
+    """Initialize global dictionary"""
     global _global_dict
     _global_dict = {}
 
 
 def set_value(key, value):
+    """Set value by key"""
     _global_dict[key] = value
 
 
 def get_value(key, def_value=None):
+    """Get value by key"""
     try:
         return _global_dict[key]
     except KeyError:
@@ -502,15 +517,18 @@ def keep_tensors_dtypes(graph, input_tensors):
 
 
 def set_op_tensor_max_range(tensor, max_shape):
-  if isinstance(tensor, ops.Operation):
-    tensor._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
-  else:
-    tensor.op._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
+    """Set max range for op tensor"""
+    if isinstance(tensor, ops.Operation):
+        tensor._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
+    else:
+        tensor.op._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
 
 def set_op_input_tensor_multi_dims(tensor, input_shape, input_dims):
+    """Set multi dimensions for op input tensor"""
     if isinstance(tensor, ops.Operation):
         tensor._set_attr("_subgraph_multi_dims_input_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(input_shape)))
         tensor._set_attr("_subgraph_multi_dims_input_dims", attr_value_pb2.AttrValue(s=compat.as_bytes(input_dims)))
     else:
-        tensor.op._set_attr("_subgraph_multi_dims_input_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(input_shape)))
+        tensor.op._set_attr("_subgraph_multi_dims_input_shape",
+                            attr_value_pb2.AttrValue(s=compat.as_bytes(input_shape)))
         tensor.op._set_attr("_subgraph_multi_dims_input_dims", attr_value_pb2.AttrValue(s=compat.as_bytes(input_dims)))

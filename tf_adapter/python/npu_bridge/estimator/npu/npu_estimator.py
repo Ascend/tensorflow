@@ -14,6 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Functions for NPU estimator"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -54,6 +56,7 @@ from npu_bridge.estimator.npu.npu_saver import *
 
 
 def no_check_override():
+    """Without checking override"""
     class _Manager:
         def __init__(self):
             pass
@@ -192,6 +195,7 @@ class _OutfeedHostCall(object):
         return npu_ops.outfeed_enqueue_op(inputs=tensors, channel_name=self._channel_name)
 
     def record(self, host_calls):
+        """Used to record host_calls"""
         for name, host_call in host_calls.items():
             host_fn, tensor_list_or_dict = host_call
             self._names.append(name)

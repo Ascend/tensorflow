@@ -13,8 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""NPU training ops"""
+
 from npu_device import gen_npu_ops
 
 
 def foo():
+    """test for training ops"""
     pass

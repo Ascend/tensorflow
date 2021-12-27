@@ -121,6 +121,7 @@ def deformable_conv2d(  # pylint: disable=redefined-builtin
 
 @ops.RegisterGradient("DeformableOffsets")
 def deformable_offsets_grad(op, grad):
+    """NPU implemented gradient for deformable_offsets"""
     x = op.inputs[0]
     offsets = op.inputs[1]
     strides = op.get_attr("strides")

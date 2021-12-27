@@ -13,7 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""NPU basic configurations"""
+
 class OptionValue(object):
+    """Options for setting npu basic configurations"""
     def __init__(self, default, optional):
         self.__default = default
         self.__optional = optional
@@ -21,14 +25,17 @@ class OptionValue(object):
 
     @property
     def default(self):
+        """Return property"""
         return self.__default
 
     @property
     def optional(self):
+        """Return property"""
         return self.__optional
 
     @property
     def value(self):
+        """Return option value"""
         if self.__value is None:
             return None
         if str(self.__value) == str(True):
@@ -46,7 +53,7 @@ class OptionValue(object):
 
 
 class NpuBaseConfig(object):
-
+    """NPU basic configurations"""
     def __init__(self):
         self._fixed_attrs = []
         for k, v in self.__dict__.items():
@@ -66,6 +73,7 @@ class NpuBaseConfig(object):
             super().__setattr__(key, value)
 
     def as_dict(self):
+        """Return updated option in dictionary format"""
         options = dict()
         for k, v in self.__dict__.items():
             if k in self._fixed_attrs:

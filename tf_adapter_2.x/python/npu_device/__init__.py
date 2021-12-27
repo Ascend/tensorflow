@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""import files when initiating"""
+
 from npu_device.npu_device import open
 from npu_device.npu_device import npu_compat_function
 from npu_device.npu_device import gen_npu_ops

@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Description: Common depends and micro defines for and only for data preprocess module
+
+"""Common depends and micro defines for and only for data preprocess module"""
 
 import os
 import tensorflow as tf
@@ -27,6 +28,7 @@ from npu_device.npu_device import global_npu_ctx
 
 
 class GroupingVars():
+    """Class for grouping variables"""
     def __init__(self, variables, rank_size):
         self._vars = []
         for var in variables:
@@ -107,6 +109,7 @@ class GroupingVars():
             return size
 
     def get_gid_by_var(self, var):
+        """Get gradient id by variable"""
         gid = -1
         for item in self._vars:
             if item.var is var:
@@ -116,6 +119,7 @@ class GroupingVars():
 
 @npu_compat_function
 def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
+    """NPU implemented gradients on grouping"""
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         return apply_func(grads_and_vars, *args, **kwargs)
 
@@ -150,6 +154,7 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
 
 @npu_compat_function
 def grouping_broadcast(variables):
+    """Grouping broadcast on cluster"""
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip grouping broadcast as current process is not npu cluster worker")
         return variables

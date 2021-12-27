@@ -14,6 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""generate static check makefile"""
+
 import os
 import sys
 import string
@@ -25,6 +27,7 @@ source_suffix = ["c", "cpp", "cc", "cce"]
 
 
 def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir=""):
+    """Generate gcc command"""
     gcc_cmd_set = {}
     lint_cmd_set = {}
     lines = []
@@ -125,10 +128,12 @@ def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir="")
             c_flags_list.append("-DLINUX_PC_LINT")
             c_flags = " ".join(c_flags_list)
             if compiler.startswith("aarch64-linux-gnu"):
-                wine_str = "export LINT_PATH=%s/vendor/hisi/llt/ci/tools/pc-lint;wine $(LINT_PATH)/LINT-NT.EXE %s $(LINT_PATH)/davinci_arm64.lnt %s" % (
+                wine_str = "export LINT_PATH=%s/vendor/hisi/llt/ci/tools/pc-lint;" \
+                           "wine $(LINT_PATH)/LINT-NT.EXE %s $(LINT_PATH)/davinci_arm64.lnt %s" % (
                     code_top_dir, c_flags, cpp_file)
             else:
-                wine_str = "export LINT_PATH=%s/vendor/hisi/llt/ci/tools/pc-lint;wine $(LINT_PATH)/LINT-NT.EXE %s $(LINT_PATH)/davinci_x86.lnt %s" % (
+                wine_str = "export LINT_PATH=%s/vendor/hisi/llt/ci/tools/pc-lint;" \
+                           "wine $(LINT_PATH)/LINT-NT.EXE %s $(LINT_PATH)/davinci_x86.lnt %s" % (
                     code_top_dir, c_flags, cpp_file)
 
             rest_option = " ".join(rest_list)
@@ -141,6 +146,7 @@ def get_gcc_cmd(input_file, cpp_file_list, code_top_dir, custom_code_top_dir="")
 
 
 def walkDir(top_dir, directory):
+    """Visit all the subdirectory"""
     fileArray = []
     for root, dirs, files in os.walk(directory):
         for name in files:
@@ -150,6 +156,7 @@ def walkDir(top_dir, directory):
 
 
 def get_cpp_file_list(top_dir, input_file, custom_code_top_dir=""):
+    """Get cpp file list under directory"""
     cpp_file_list = []
     lines = []
     with open(input_file, "r") as file:
@@ -171,6 +178,7 @@ def get_cpp_file_list(top_dir, input_file, custom_code_top_dir=""):
 
 
 def main():
+    """Program entry point"""
     analysis_file = sys.argv[1]
     cpp_file = sys.argv[2]
     output_file = sys.argv[3]

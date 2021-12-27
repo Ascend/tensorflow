@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""User access to initiate script migration"""
+
 import os
 import sys
 import getopt
@@ -23,6 +26,7 @@ from conver import conver
 
 
 def get_para_input(arg):
+    """Get input directory parameter"""
     input_dir = os.path.abspath(arg)
     if str(input_dir).endswith('/'):
         input_dir = input_dir[:-1]
@@ -31,6 +35,7 @@ def get_para_input(arg):
 
 
 def get_para_output(arg):
+    """Get output directory parameter"""
     output = os.path.abspath(arg)
     if str(output).endswith('/'):
         output = output[:-1]
@@ -39,6 +44,7 @@ def get_para_output(arg):
 
 
 def get_para_report(arg, report_suffix):
+    """Get report directory parameter"""
     report = os.path.abspath(arg)
     if str(report).endswith('/'):
         report = report[:-1]
@@ -48,6 +54,7 @@ def get_para_report(arg, report_suffix):
 
 
 def get_para_main(arg):
+    """Get absolute path for main.py"""
     main_file = ""
     if os.path.isfile(arg):
         main_file = os.path.abspath(arg)
@@ -61,12 +68,14 @@ def get_para_main(arg):
 
 
 def get_para_distributed_mode(arg):
+    """Get distributed mode parameter"""
     if arg not in ["horovod", "tf_strategy"]:
         raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")
     return arg
 
 
 def para_check_and_set(argv):
+    """Verify validation and set parameters"""
     input_dir = "npu_input"
     support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
     output = "output" + util_global.get_value('timestap')

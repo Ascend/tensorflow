@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""Basic class to transform ast node"""
+
 import os
 import sys
 import ast
@@ -29,11 +32,13 @@ from visit_by_ast import get_tf_api
 
 
 class ConverByAst(ast.NodeTransformer):
+    """Class for transforming python ast node"""
     def generic_visit(self, node):
         ast.NodeTransformer.generic_visit(self, node)
         return node
 
     def visit_Attribute(self, node):
+        """Visit and transform attr node"""
         self.generic_visit(node)
         if node.attr == "keras":
             util_global.set_value('is_keras_net', True)
@@ -47,37 +52,44 @@ class ConverByAst(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node):
+        """Visit and transform function def node"""
         if node.name == 'gelu':
             return ast_function_def(node)
         self.generic_visit(node)
         return node
 
     def visit_Call(self, node):
+        """Visit and transform call node"""
         self.generic_visit(node)
         node = ast_call(node)
         return node
 
     def visit_ImportFrom(self, node):
+        """Visit and transform importfrom node"""
         self.generic_visit(node)
         node = import_from(node)
         return node
 
     def visit_Import(self, node):
+        """Visit and transform import node"""
         self.generic_visit(node)
         node = ast_import(node)
         return node
 
     def visit_Assign(self, node):
+        """Visit and transform assign node"""
         self.generic_visit(node)
         return node
 
     def visit_If(self, node):
+        """Visit and transform if node"""
         self.generic_visit(node)
         ast_if(node)
         return node
 
 
 def conver(r_node, out_path_dst, file_name):
+    """Add necessary imported modules"""
     if file_name != "__init__.py":
         insert_npu_import(r_node)
     if util_global.get_value('use_keras_dropout', False):
@@ -99,6 +111,7 @@ def conver(r_node, out_path_dst, file_name):
 
 
 def conver_ast(path, out_path_dst, file_name):
+    """Convert script by python ast"""
     util_global.set_value('need_conver', False)
     util_global.set_value('is_keras_net', False)
     util_global.set_value('has_hvd_api', False)
