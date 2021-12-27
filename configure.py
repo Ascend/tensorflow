@@ -116,20 +116,20 @@ def setup_python():
                   python_bin_path)
             continue
         # Write tools/python_bin_path.sh
-        with os.fdopen(os.open(real_config_path('PYTHON_BIN_PATH'), os.O_RDWR), 'w') as f:
+        with open(real_config_path('PYTHON_BIN_PATH'), 'w') as f:
             f.write(python_bin_path)
-        with os.fdopen(os.open(real_config_path('COMPILE_FLAGS'), os.O_RDWR), 'w') as f:
+        with open(real_config_path('COMPILE_FLAGS'), 'w') as f:
             for flag in compile_args[2:-1]:
                 f.write("".join([flag, '\n']))
             f.write("".join(["-I", compile_args[-1], '\n']))
         print('tensorflow path: %s.' % compile_args[1])
-        with os.fdopen(os.open(real_config_path('LINK_FLAGS'), os.O_RDWR), 'w') as f:
+        with open(real_config_path('LINK_FLAGS'), 'w') as f:
             f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))
             f.write(os.path.join(compile_args[1], 'python', '_pywrap_tensorflow_internal.so\n'))
-        with os.fdopen(os.open(real_config_path('UT_LINK_FLAGS'), os.O_RDWR), 'w') as f:
+        with open(real_config_path('UT_LINK_FLAGS'), 'w') as f:
             f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))
             f.write(os.path.join(compile_args[1], 'python', '_pywrap_tensorflow_internal.so\n'))
-        with os.fdopen(os.open(real_config_path('ST_LINK_FLAGS'), os.O_RDWR), 'w') as f:
+        with open(real_config_path('ST_LINK_FLAGS'), 'w') as f:
             f.write(os.path.join(compile_args[1], 'libtensorflow_framework.so.1\n'))
             f.write(os.path.join(compile_args[1], 'python', '_pywrap_tensorflow_internal.so\n'))
         break
@@ -150,7 +150,7 @@ def setup_ascend(env_path):
         elif not os.path.exists(ascend_path):
             print('Invalid ascend path: %s cannot be found.' % ascend_path)
     print('ascend path: %s.' % ascend_path)
-    with os.fdopen(os.open(real_config_path('LINK_FLAGS'), os.O_RDWR), 'a') as f:
+    with open(real_config_path('LINK_FLAGS'), 'a') as f:
         if 'ALL_IN_ONE_ENABLE' in os.environ:
             f.write(os.path.join(ascend_path, "compiler", "lib64", "libge_runner.so\n"))
             f.write(os.path.join(ascend_path, "compiler", "lib64", "libfmk_parser.so\n"))
@@ -207,7 +207,7 @@ def setup_swig():
             print('%s is not executable.  Is it the swig binary?' % swig_path)
             continue
 
-    with os.fdopen(os.open(real_config_path('SWIG_BIN_PATH'), os.O_RDWR), 'w') as f:
+    with open(real_config_path('SWIG_BIN_PATH'), 'w') as f:
         f.write(swig_path)
 
 
