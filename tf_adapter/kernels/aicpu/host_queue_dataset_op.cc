@@ -66,7 +66,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     local_rank_id_ = std::atoi(local_rank_id.c_str());
     for (size_t i = 0UL; i < local_device_list.size(); i += 2UL) {
       int device_id = std::atoi(&local_device_list[i]);
-      OP_REQUIRES(ctx, device_id >= 0U, errors::InvalidArgument("device id should be >= 0."));
+      OP_REQUIRES(ctx, device_id >= 0, errors::InvalidArgument("device id should be >= 0."));
       local_device_list_.push_back(device_id);
     }
     ADP_LOG(INFO) << "Start to init channel.";
@@ -118,8 +118,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes, const int &local_rank_id,
             const std::vector<uint32_t> &local_device_list, const uint32_t &device_id, const string &tf_session)
         : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName), output_types_(outputTypes),
-          output_shapes_(outputShapes), local_rank_id_(local_rank_id), local_device_list_(local_device_list),
-          device_id_(device_id), tf_session_(tf_session) {
+          output_shapes_(outputShapes), tf_session_(tf_session), local_rank_id_(local_rank_id),
+          local_device_list_(local_device_list), device_id_(device_id) {
       for (const auto &input : inputs_) { input->Ref(); }
     }
 
@@ -258,8 +258,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       Status SendData(const vector<Tensor> &args, const acltdtTensorType &data_type) {
+        Status status;
         bool is_need_resend = false;
-        Status status = Status::OK();
         do {
           {
            mutex_lock lck(mu_);
@@ -464,8 +464,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                                  [this, new_ctx]() { SendDataThreadForMbuf(new_ctx); }));
             }
           }
-          return Status::OK();
         }
+        return Status::OK();
       }
 
       int64_t GetTensorElementNum(size_t index) {
@@ -611,9 +611,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     };
     const std::vector<DatasetBase *> inputs_;
     std::string channel_name_;
-    std::string tf_session_;
     const DataTypeVector output_types_;
     const vector<PartialTensorShape> output_shapes_;
+    std::string tf_session_;
     int local_rank_id_;
     std::vector<uint32_t> local_device_list_;
     uint32_t device_id_;
