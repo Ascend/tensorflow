@@ -134,5 +134,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
   }
 };
 
+namespace npu {
 NPU_REGISTER_FALLBACK_HOOK("MakeIterator", kernel);
 NPU_REGISTER_FALLBACK_HOOK("MultiDeviceIteratorInit", kernel);
+}  // namespace npu

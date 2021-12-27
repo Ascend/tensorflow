@@ -163,7 +163,7 @@ class FuncSpec : public TaskSpec {
     std::function<void(int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &)>;
   FuncSpec(const tensorflow::OpRegistrationData *op_spec, tensorflow::NodeDef ndef, uint64_t ge_graph_id,
            std::unique_ptr<const tensorflow::GraphDef> graph, PruneInputsFunc prune_func,
-           std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources, std::string reason = "")
+           std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> dependent_host_resources, std::string reason = "")
       : ge_graph_id_(ge_graph_id),
         graph_(std::move(graph)),
         prune_func_(std::move(prune_func)),
@@ -183,7 +183,7 @@ class FuncSpec : public TaskSpec {
 
   uint64_t GeGraphId() const { return ge_graph_id_; }
 
-  const std::map<int, std::shared_ptr<IteratorResourceProvider>> &DependentHostResources() const {
+  const std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> &DependentHostResources() const {
     return dependent_host_resources_;
   }
 
