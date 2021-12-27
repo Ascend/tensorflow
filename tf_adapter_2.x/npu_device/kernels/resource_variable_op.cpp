@@ -141,6 +141,8 @@ static auto kernel_assign_sub = [](TFE_Context *context, NpuDevice *dev, const n
                        num_outputs, outputs, status);
 };
 
+namespace npu {
 NPU_REGISTER_CUSTOM_KERNEL("AssignVariableOp", kernel_assign);
 NPU_REGISTER_CUSTOM_KERNEL("AssignAddVariableOp", kernel_assign_add);
 NPU_REGISTER_CUSTOM_KERNEL("AssignSubVariableOp", kernel_assign_sub);
+}  // namespace npu

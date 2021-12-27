@@ -17,10 +17,6 @@
 #include "tensorflow/core/platform/logging.h"
 
 #include "npu_device.h"
-#include "npu_logger.h"
-#include "npu_micros.h"
-#include "npu_unwrap.h"
-#include "npu_utils.h"
 
 namespace {
 TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status,
@@ -51,7 +47,7 @@ TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle
 
 void NpuDeviceExecute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s, void *device_info) {
   auto *dev = reinterpret_cast<NpuDevice *>(device_info);
-  dev->Execute(op, num_outputs, outputs, s);
+  dev->Execute(op, *num_outputs, outputs, s);
 }
 
 void DeleteNpuDevice(void *device_info) { NpuDevice::DeleteDevice(device_info); }
@@ -75,8 +71,8 @@ std::vector<NpuDevice *> devices_instances;
  * @param device_index: device index
  * @param device_options: device options
  */
-std::string CreateDevice(TFE_Context *context, const char *name, int device_index,
-                         const std::map<std::string, std::string> &device_options) {
+extern std::string CreateDevice(TFE_Context *context, const char *name, int device_index,
+                                const std::map<std::string, std::string> &device_options) {
   const static std::string kSucceed;
 
   NpuDevice *device = nullptr;
@@ -99,7 +95,7 @@ std::string CreateDevice(TFE_Context *context, const char *name, int device_inde
 /**
  * @breif: release device resource
  */
-void ReleaseDeviceResource() {
+extern void ReleaseDeviceResource() {
   for (auto device : devices_instances) {
     device->ReleaseResource();
   }

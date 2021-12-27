@@ -43,4 +43,6 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec 
   outputs[0] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensor));
 };
 
+namespace npu {
 NPU_REGISTER_CUSTOM_KERNEL("VarIsInitializedOp", kernel);
+}
