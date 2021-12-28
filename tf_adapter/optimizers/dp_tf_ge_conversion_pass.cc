@@ -347,7 +347,9 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
                                        "optimize");
       }
       // GE supported node, continue find
-      if (IsDeviceSupportedOp(e->src()->def())) {
+      if (kIsHeterogeneous) {
+        if (!IsIteratorNode(e->src())) split_edges.push_back(last_edge);
+      } else if (IsDeviceSupportedOp(e->src()->def())) {
         Status s = GetSplitEdges(e->src(), split_edges, last_edge);
         if (!s.ok()) { return s; }
       } else {  // GE unsupported node, this is a split edge
@@ -383,14 +385,20 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
     REQUIRES_NOT_NULL(e->src());
     REQUIRES_NOT_NULL(e->dst());
     bool need_add_device_dataset = false;
-    if (kIsNewDataTransfer && IsGeSupportDataset(e->dst())) { need_add_device_dataset = true; }
+    if (kIsHeterogeneous) {
+      need_add_device_dataset = false;
+    } else if ((!kIsNewDataTransfer) || (IsGeSupportDataset(e->dst()))) {
+      need_add_device_dataset = true;
+    } else {
+      need_add_device_dataset = false;
+    }
 
     std::string local_rank_id = all_options["local_rank_id"];
     std::string local_device_list = all_options["local_device_list"];
     std::string channel_name;
     if (local_rank_id == "-1") {
       REQUIRES_NOT_NULL(iterator_node);
-      if (kIsNewDataTransfer && !need_add_device_dataset) {
+      if (!need_add_device_dataset) {
         channel_name = iterator_node->name();
       } else {
         channel_name = "Queue_" + GetEdgeName(e) + "_" + GetRandomName();
@@ -420,7 +428,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
                     .Finalize(graph_, &queue_node_host));
     REQUIRES_NOT_NULL(queue_node_host);
 
-    if (kIsNewDataTransfer && !need_add_device_dataset) { return Status::OK(); }
+    if (!need_add_device_dataset) { return Status::OK(); }
 
     device_queue_name = "DeviceQueue_" + channel_name;
     ADP_LOG(INFO) << "Add_" << device_queue_name;
@@ -708,7 +716,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetFunctionLibrary(FunctionLibrary
                                                                  const std::string &fn_geop_dataset,
                                                                  std::map<std::string, std::string> &all_options) {
   FunctionDefLibrary fdeflib;
-  if (kIsNewDataTransfer && device_channel_name.empty()) {
+  if (device_channel_name.empty()) {
     // GEOP node should created by function of geopDataset
     ADP_LOG(INFO) << "No Dataset node can be computed in device, GeOpDataset func is null.";
     FunctionDef *fd = fdeflib.add_function();

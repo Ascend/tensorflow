@@ -35,10 +35,12 @@ Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
 extern const bool kIsNewDataTransfer;
 extern const bool kDumpGraph;
+extern const bool kIsHeterogeneous;
 
 class NpuAttrs {
  public:
   // This method returns instance Pointers
+  static std::map<std::string, std::string> GetInitOptions();
   static std::map<std::string, std::string> GetInitOptions(OpKernelConstruction *ctx);
   static std::map<std::string, std::string> GetDefaultInitOptions();
   static std::map<std::string, std::string> GetSessOptions(OpKernelConstruction *ctx);
@@ -59,6 +61,7 @@ class NpuAttrs {
   static std::map<int32_t, bool> turn_on_tdt_info_;
   static std::map<std::string, bool> use_adp_info_;
   static std::map<std::string, bool> dataset_execute_info_;
+  static std::map<std::string, std::string> init_options_;
 };
 }  // namespace tensorflow
 

@@ -44,7 +44,6 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
 Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string channel_name);
 
 acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id, const std::string channel_name, const size_t capacity);
-
 } // namespace tensorflow
 
 #endif // TENSORFLOW_ACL_CHANNEL_H_

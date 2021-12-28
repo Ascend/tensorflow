@@ -883,6 +883,50 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
   }
 }
 
+void GeOp::BuildQueueDataAndGetNextFromQueue(Graph &graph, Node *getnext_node, const std::string &channel_name) {
+  Node *get_next_from_queue = nullptr;
+  Node *queue_data = nullptr;
+  std::string get_next_from_queue_name = "get_next_from_queue_" + getnext_node->name();
+  std::string queue_data_name = "queue_data_" + getnext_node->name();
+  auto get_next_attrs = getnext_node->def().attr();
+  TF_CHECK_OK(NodeBuilder(queue_data_name, "QueueData")
+                          .Device(getnext_node->def().device())
+                          .Attr("index", 0)
+                          .Attr("T", DT_UINT8)
+                          .Attr("queue_name", channel_name)
+                          .Attr("output_types", get_next_attrs["output_types"])
+                          .Attr("output_shapes", get_next_attrs["output_shapes"])
+                          .Finalize(&graph, &queue_data));
+
+  TF_CHECK_OK(NodeBuilder(get_next_from_queue_name, "GetNextFromQueue")
+                          .Input(NodeBuilder::NodeOut(queue_data, 0))
+                          .Device(getnext_node->def().device())
+                          .Attr("output_types", get_next_attrs["output_types"])
+                          .Attr("output_shapes", get_next_attrs["output_shapes"])
+                          .Finalize(&graph, &get_next_from_queue));
+
+  for (auto out_edge : getnext_node->out_edges()) {
+    CHECK_NOT_NULL(out_edge);
+    graph.AddEdge(get_next_from_queue, out_edge->src_output(), out_edge->dst(), out_edge->dst_input());
+  }
+
+  const OpDef &queue_data_op_def = queue_data->op_def();
+  NodeDef &queue_data_node_def = const_cast<NodeDef &>(queue_data->def());
+  std::string queue_data_op_def_string;
+  queue_data_op_def.SerializeToString(&queue_data_op_def_string);
+  tensorflow::AttrValue queue_data_attr;
+  queue_data_attr.set_s(queue_data_op_def_string);
+  queue_data_node_def.mutable_attr()->insert({"op_def", queue_data_attr});
+
+  const OpDef &get_next_op_def = get_next_from_queue->op_def();
+  NodeDef &get_next_node_def = const_cast<NodeDef &>(get_next_from_queue->def());
+  std::string get_next_op_def_string;
+  get_next_op_def.SerializeToString(&get_next_op_def_string);
+  tensorflow::AttrValue get_next_attr;
+  get_next_attr.set_s(get_next_op_def_string);
+  get_next_node_def.mutable_attr()->insert({"op_def", get_next_attr});
+}
+
 void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
   std::vector<Node *> remove_nodes;
   for (Node *node : graph.nodes()) {
@@ -905,7 +949,11 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
       (void)GetEnvDeviceID(device_id);
       std::string channel_name = std::to_string(std::hash<std::string>{}(tf_session_ + iterator_name +
           "_device_" + std::to_string(device_id)));
-      if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
+      if (kIsHeterogeneous) {
+        BuildQueueDataAndGetNextFromQueue(graph, node, channel_name);
+        remove_nodes.push_back(node);
+        remove_nodes.push_back(iterator_node);
+      } else if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
         if (dynamic_input_ == "1") { node_def.set_op("DynamicGetNext"); }
       } else {
         Node *aicpu_getnext = nullptr;

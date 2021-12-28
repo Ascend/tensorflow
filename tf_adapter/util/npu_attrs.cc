@@ -18,6 +18,7 @@
 #include <regex>
 #include <iostream>
 #include "tdt/index_transform.h"
+#include "runtime/config.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tensorflow/core/lib/strings/str_util.h"
@@ -29,6 +30,8 @@ namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
+std::map<std::string, std::string> NpuAttrs::init_options_;
+const static int32_t kRuntimeTypeHeterogeneous = 1;
 
 extern const bool kIsNewDataTransfer = []() -> bool {
   bool is_new_data_transfer = false;
@@ -40,6 +43,12 @@ extern const bool kDumpGraph = []() -> bool {
   bool print_model = false;
   tensorflow::ReadBoolFromEnvVar("PRINT_MODEL", false, &print_model);
   return print_model;
+}();
+
+extern const bool kIsHeterogeneous = []() -> bool {
+  int32_t is_heterogeneous = 0;
+  (void)rtGetIsHeterogenous(&is_heterogeneous); 
+  return is_heterogeneous == kRuntimeTypeHeterogeneous;
 }();
 
 std::string GetDumpPath() {
@@ -264,21 +273,6 @@ inline Status CheckDeviceList(const std::string &local_device_list) {
   return Status::OK();
 }
 
-inline Status checkEnableDp(bool enable_dp) {
-  const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
-  bool tdt_init = true;
-  if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
-    tdt_init = false;
-  }
-
-  if (enable_dp && !tdt_init) {
-    return errors::InvalidArgument("In the environment, "
-            "'ASCEND_TDT_UNINIT' must be 0 when parameter 'enable_data_pre_proc' is set to true");
-  } else {
-    return Status::OK();
-  }
-}
-
 bool NpuAttrs::GetUseTdtStatus(int32_t device_id) {
   if (turn_on_tdt_info_.count(device_id) > 0) {
     ADP_LOG(INFO) << "get device: " << device_id << " turn_on_tdt_info_: " << turn_on_tdt_info_[device_id];
@@ -460,7 +454,6 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 }
 
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction *ctx) {
-  std::map<std::string, std::string> init_options;
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = std::to_string(false);
   std::string profiling_options;
@@ -517,36 +510,40 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   }
 
   if (precision_mode.empty()) {
-    init_options[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
+    init_options_[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
   } else {
-    init_options[ge::PRECISION_MODE] = precision_mode;
+    init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-  init_options[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
-  init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
-  init_options[ge::AUTO_TUNE_MODE] = auto_tune_mode;
-  init_options[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
-  init_options[ge::OP_DEBUG_LEVEL] = op_debug_level;
-  init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
-  init_options["ge.exec.enable_exception_dump"] = enable_exception_dump;
-  init_options["ge.jobType"] = aoe_mode;
-  init_options["ge.tuningPath"] = work_path;
-  init_options["distribute_config"] = distribute_config;
-  init_options["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
-  init_options["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
-  init_options["ge.debugDir"] = debug_dir;
-  init_options["ge.hcomMultiMode"] = hcom_multi_mode;
-  init_options[ge::MODIFY_MIXLIST] = modify_mixlist;
-  init_options["ge.fusionSwitchFile"] = fusion_switch_file;
-  init_options[ge::OP_PRECISION_MODE] = op_precision_mode;
-  init_options[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
-  init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
-  init_options["ge.deviceType"] = device_type;
-  init_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
-  init_options["ge.exec.opWaitTimeout"] = op_wait_timeout;
-  init_options["ge.exec.opExecuteTimeout"] = op_execute_timeout;
-  if (!soc_config.empty()) { init_options["ge.socVersion"] = soc_config; }
+  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
+  init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
+  init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
+  init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
+  init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
+  init_options_[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
+  init_options_["ge.exec.enable_exception_dump"] = enable_exception_dump;
+  init_options_["ge.jobType"] = aoe_mode;
+  init_options_["ge.tuningPath"] = work_path;
+  init_options_["distribute_config"] = distribute_config;
+  init_options_["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
+  init_options_["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
+  init_options_["ge.debugDir"] = debug_dir;
+  init_options_["ge.hcomMultiMode"] = hcom_multi_mode;
+  init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
+  init_options_["ge.fusionSwitchFile"] = fusion_switch_file;
+  init_options_[ge::OP_PRECISION_MODE] = op_precision_mode;
+  init_options_[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
+  init_options_[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
+  init_options_["ge.deviceType"] = device_type;
+  init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
+  init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
+  init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
+  if (!soc_config.empty()) { init_options_["ge.socVersion"] = soc_config; }
 
-  return init_options;
+  return init_options_;
+}
+
+std::map<std::string, std::string> NpuAttrs::GetInitOptions() {
+  return init_options_;
 }
 
 std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizationPassOptions &options) {
@@ -574,11 +571,6 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       const auto &params = custom_optimizer.parameter_map();
       if (params.count("enable_data_pre_proc")) {
         enable_dp = params.at("enable_data_pre_proc").b();
-        Status s = checkEnableDp(enable_dp);
-        if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
-          LOG(FATAL) << s.error_message();
-        }
       }
       if (params.count("use_off_line")) { use_off_line = params.at("use_off_line").b(); }
       if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
@@ -1165,7 +1157,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string soc_config;
   std::string hccl_timeout;
 
-  std::map<std::string, std::string> init_options;
   bool is_tailing_optimization = false;
   std::string precision_mode;
   bool profiling_mode = false;
@@ -1528,24 +1519,30 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["op_precision_mode"] = op_precision_mode;
   sess_options["hccl_timeout"] = hccl_timeout;
 
-  init_options["precision_mode"] = precision_mode;
-  init_options["profiling_mode"] = std::to_string(profiling_mode);
-  init_options["profiling_options"] = profiling_options;
-  init_options["auto_tune_mode"] = auto_tune_mode;
-  init_options["graph_run_mode"] = std::to_string(graph_run_mode);
-  init_options["op_debug_level"] = std::to_string(op_debug_level);
-  init_options["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
-  init_options["enable_exception_dump"] = std::to_string(enable_exception_dump);
-  init_options["aoe_mode"] = aoe_mode;
-  init_options["work_path"] = work_path;
-  init_options["distribute_config"] = distribute_config;
-  init_options["op_compiler_cache_mode"] = op_compiler_cache_mode;
-  init_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
-  init_options["debug_dir"] = debug_dir;
-  init_options["device_type"] = device_type;
-  init_options["soc_config"] = soc_config;
-  init_options["op_wait_timeout"] = op_wait_timeout;
-  init_options["op_execute_timeout"] = op_execute_timeout;
+  init_options_["precision_mode"] = precision_mode;
+  if (precision_mode.empty()) {
+    init_options_[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
+  } else {
+    init_options_[ge::PRECISION_MODE] = precision_mode;
+  }
+  init_options_["profiling_mode"] = std::to_string(profiling_mode);
+  init_options_["profiling_options"] = profiling_options;
+  init_options_["auto_tune_mode"] = auto_tune_mode;
+  init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
+  init_options_["op_debug_level"] = std::to_string(op_debug_level);
+  init_options_["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
+  init_options_["enable_exception_dump"] = std::to_string(enable_exception_dump);
+  init_options_["aoe_mode"] = aoe_mode;
+  init_options_["work_path"] = work_path;
+  init_options_["distribute_config"] = distribute_config;
+  init_options_["op_compiler_cache_mode"] = op_compiler_cache_mode;
+  init_options_["op_compiler_cache_dir"] = op_compiler_cache_dir;
+  init_options_["debug_dir"] = debug_dir;
+  init_options_["device_type"] = device_type;
+  init_options_["soc_config"] = soc_config;
+  if (!soc_config.empty()) { init_options_["ge.socVersion"] = soc_config; }
+  init_options_["op_wait_timeout"] = op_wait_timeout;
+  init_options_["op_execute_timeout"] = op_execute_timeout;
 
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);
@@ -1573,7 +1570,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
     attr_name = std::string("_") + option.first;
     node->AddAttr(attr_name, option.second);
   }
-  for (const auto &option : init_options) {
+  for (const auto &option : init_options_) {
     attr_name = std::string("_") + option.first;
     node->AddAttr(attr_name, option.second);
   }

@@ -83,4 +83,22 @@ REGISTER_OP("DynamicGetNextV2")
     .Attr("channel_name: string")
     .SetIsStateful()
     .SetShapeFn(tensorflow::shape_inference::ScalarShape);
+
+REGISTER_OP("GetNextFromQueue")
+    .Input("data: uint8")
+    .Output("components: output_types")
+    .Attr("output_types: list(type) >= 1")
+    .Attr("output_shapes: list(shape) >= 1")
+    .SetIsStateful()
+    .SetShapeFn(tensorflow::shape_inference::ScalarShape);
+
+REGISTER_OP("QueueData")
+    .Output("output: T")
+    .Attr("index: int >= 0")
+    .Attr("T: type")
+    .Attr("queue_name: string")
+    .Attr("output_types: list(type) >= 1")
+    .Attr("output_shapes: list(shape) >= 1")
+    .SetIsStateful()
+    .SetShapeFn(tensorflow::shape_inference::ScalarShape);
 }  // namespace tensorflow

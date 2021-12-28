@@ -111,6 +111,8 @@ class GeOp : public AsyncOpKernel {
 
   void ProcessDpOpFuncDef(Node *node);
 
+  void BuildQueueDataAndGetNextFromQueue(Graph &graph, Node *getnext_node, const std::string &channel_name);
+
   void HandleDpOpAndGetNextNodes(Graph &graph);
 
   void ChangeChannelNameAttr(NodeDef &node_def);
