@@ -251,7 +251,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         return dump_config
 
     def _get_horovod_mode(self, horovod_mode):
-        if isinstance(horovod_mode, bool) is False:
+        if not isinstance(horovod_mode, bool):
             raise ValueError('"horovod_mode" type must be bool')
         return horovod_mode
 
