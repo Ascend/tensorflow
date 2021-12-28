@@ -116,6 +116,8 @@ const char *const SHAPE_GENERALIZED_BUILD_MODE = "ge.shape_generalized_build_mod
 const char *const MODIFY_MIXLIST = "ge.exec.modify_mixlist";
 const char *const OP_PRECISION_MODE = "ge.exec.op_precision_mode";
 const char *const HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
+const char *const OP_WAIT_TIMEOUT = "ge.exec.opWaitTimeout";
+const char *const OP_EXECUTE_TIMEOUT = "ge.exec.opExecuteTimeout";
 }  // namespace configure_option
 // Configure stream num by Session constructor options param,
 // its value should be int32_t type, default value is "1"
@@ -336,6 +338,10 @@ const std::string MODIFY_MIXLIST = "ge.exec.modify_mixlist";
 
 const std::string OP_PRECISION_MODE = "ge.exec.op_precision_mode";
 
+const std::string OP_WAIT_TIMEOUT = "ge.exec.opWaitTimeout";
+
+const std::string OP_EXECUTE_TIMEOUT = "ge.exec.opExecuteTimeout";
+
 const std::string HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
 
 // Graph run mode
@@ -420,6 +426,8 @@ static const char *const SHAPE_GENERALIZED_BUILD_MODE = ge::SHAPE_GENERALIZED_BU
 static const char *const MODIFY_MIXLIST = ge::MODIFY_MIXLIST.c_str();
 static const char *const OP_PRECISION_MODE = ge::OP_PRECISION_MODE.c_str();
 static const char *const HCCL_TIMEOUT = ge::HCCL_TIMEOUT.c_str();
+static const char *const OP_WAIT_TIMEOUT = ge::OP_WAIT_TIMEOUT.c_str();
+static const char *const OP_EXECUTE_TIMEOUT = ge::OP_EXECUTE_TIMEOUT.c_str();
 
 // for interface: aclgrphBuildModel
 #ifdef __GNUC__

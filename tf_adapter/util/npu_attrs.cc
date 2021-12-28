@@ -451,6 +451,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string optypelist_for_implmode;
   std::string device_type = "default_device_type";
   std::string hccl_timeout;
+  std::string op_wait_timeout;
+  std::string op_execute_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -475,6 +477,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
     ctx->GetAttr("_device_type", &device_type);
     ctx->GetAttr("_hccl_timeout", &hccl_timeout);
+    ctx->GetAttr("_op_wait_timeout", &op_wait_timeout);
+    ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
   }
 
 
@@ -504,6 +508,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
   init_options["ge.deviceType"] = device_type;
   init_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
+  init_options["ge.exec.opWaitTimeout"] = op_wait_timeout;
+  init_options["ge.exec.opExecuteTimeout"] = op_execute_timeout;
 
   return init_options;
 }
@@ -815,6 +821,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string op_precision_mode;
   std::string device_type = "default_device_type";
   std::string hccl_timeout;
+  std::string op_wait_timeout;
+  std::string op_execute_timeout;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -872,6 +880,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto op_precision_mode_value = attrs.Find("_op_precision_mode");
   auto device_type_value = attrs.Find("_device_type");
   auto hccl_timeout_value = attrs.Find("_hccl_timeout");
+  auto op_wait_timeout_value = attrs.Find("_op_wait_timeout");
+  auto op_execute_timeout_value = attrs.Find("_op_execute_timeout");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -1015,6 +1025,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
       op_precision_mode = op_precision_mode_value->s();
     }
     if (device_type_value != nullptr) { device_type = device_type_value->s(); }
+    if (op_wait_timeout_value != nullptr) { op_wait_timeout = op_wait_timeout_value->s(); }
+    if (op_execute_timeout_value != nullptr) { op_execute_timeout = op_execute_timeout_value->s(); }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1074,6 +1086,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["op_precision_mode"] = op_precision_mode;
   all_options["device_type"] = device_type;
   all_options["hccl_timeout"] = hccl_timeout;
+  all_options["op_wait_timeout"] = op_wait_timeout;
+  all_options["op_execute_timeout"] = op_execute_timeout;
 
   return all_options;
 }
@@ -1154,6 +1168,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string modify_mixlist;
   std::string op_precision_mode;
   std::string device_type = "default_device_type";
+  std::string op_wait_timeout;
+  std::string op_execute_timeout;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1426,6 +1442,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("device_type")) { device_type = params.at("device_type").s(); }
       if (params.count("hccl_timeout")) { hccl_timeout = params.at("hccl_timeout").s(); }
+      if (params.count("op_wait_timeout")) { op_wait_timeout = params.at("op_wait_timeout").s(); }
+      if (params.count("op_execute_timeout")) { op_execute_timeout = params.at("op_execute_timeout").s(); }
     }
   }
 
@@ -1474,6 +1492,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options["debug_dir"] = debug_dir;
   init_options["device_type"] = device_type;
+  init_options["op_wait_timeout"] = op_wait_timeout;
+  init_options["op_execute_timeout"] = op_execute_timeout;
 
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);

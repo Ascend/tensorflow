@@ -705,6 +705,8 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["local_device_list"].s = tf.compat.as_bytes(config._local_device_list)
         custom_op.parameter_map["device_type"].s = tf.compat.as_bytes(config._device_type)
         custom_op.parameter_map["hccl_timeout"].s = tf.compat.as_bytes(config._hccl_timeout)
+        custom_op.parameter_map["op_wait_timeout"].s = tf.compat.as_bytes(config._op_wait_timeout)
+        custom_op.parameter_map["op_execute_timeout"].s = tf.compat.as_bytes(config._op_execute_timeout)
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)
