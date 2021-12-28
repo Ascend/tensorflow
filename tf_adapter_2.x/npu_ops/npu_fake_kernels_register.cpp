@@ -16,9 +16,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
-#include "tensorflow/c/c_api.h"
 #include "tensorflow/c/c_api_internal.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/eager/c_api_internal.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/op.h"

@@ -239,9 +239,9 @@ TEST_F(ST_NpuDevice, eager_iterator_v2_op) {
 }
 
 TEST(NpuManagedBuffer, Assemble) {
-  NpuManagedBuffer *npu_buffer = nullptr;
-  EXPECT_TRUE(NpuManagedBuffer::Create(ge::FORMAT_NC1HWC0, {1, 1, 1, 1, 16}, ge::DT_FLOAT, ge::FORMAT_NHWC,
-                                       {1, 1, 1, 1}, &npu_buffer)
+  npu::NpuManagedBuffer *npu_buffer = nullptr;
+  EXPECT_TRUE(npu::NpuManagedBuffer::Create(ge::FORMAT_NC1HWC0, {1, 1, 1, 1, 16}, ge::DT_FLOAT, ge::FORMAT_NHWC,
+                                            {1, 1, 1, 1}, &npu_buffer)
                 .ok());
   const tensorflow::Tensor cpu_tensor(tensorflow::DT_FLOAT, {1, 1, 1, 1});
   EXPECT_TRUE(npu_buffer->AssembleFrom(&cpu_tensor).ok());
@@ -251,8 +251,8 @@ TEST(NpuManagedBuffer, Assemble) {
 }
 
 TEST(NpuHdc, RecvTensorByAcl) {
-  std::shared_ptr<HdcChannel> guarded_channel;
-  EXPECT_TRUE(HdcChannel::Create(0, "hdc", &guarded_channel).ok());
+  std::shared_ptr<npu::HdcChannel> guarded_channel;
+  EXPECT_TRUE(npu::HdcChannel::Create(0, "hdc", &guarded_channel).ok());
   EXPECT_TRUE(guarded_channel->SendTensors({tensorflow::Tensor("abc")}).ok());
   EXPECT_FALSE(
     guarded_channel->SendTensors({tensorflow::Tensor(tensorflow::DT_STRING, tensorflow::TensorShape({1, 1}))}).ok());

@@ -29,15 +29,15 @@
 #define NPU_CTX_REQUIRES(CTX, EXP, STATUS)  \
   do {                                      \
     if (!TF_PREDICT_TRUE(EXP)) {            \
-      CTX->status = STATUS;                 \
-      LOG(ERROR) << CTX->status.ToString(); \
+      (CTX)->status = (STATUS);                 \
+      LOG(ERROR) << (CTX)->status.ToString(); \
       return;                               \
     }                                       \
   } while (0)
 
 #define NPU_CTX_REQUIRES_OK_RETURN(CTX, EXP, RET) \
   do {                                            \
-    CTX->status = (EXP);                          \
+    (CTX)->status = (EXP);                          \
     if (TF_PREDICT_FALSE(!CTX->status.ok())) {    \
       LOG(ERROR) << CTX->status.ToString();       \
       return RET;                                 \
@@ -47,8 +47,8 @@
 #define NPU_CTX_REQUIRES_RETURN(CTX, EXP, STATUS, RET) \
   do {                                                 \
     if (TF_PREDICT_FALSE(!(EXP))) {                    \
-      CTX->status = (STATUS);                          \
-      LOG(ERROR) << CTX->status.ToString();            \
+      (CTX)->status = (STATUS);                          \
+      LOG(ERROR) << (CTX)->status.ToString();            \
       return RET;                                      \
     }                                                  \
   } while (0)
@@ -93,8 +93,8 @@
       if (err_msg.empty()) {                                            \
         err_msg = "<unknown error> code:" + std::to_string(_status);    \
       }                                                                 \
-      CTX->status = tensorflow::errors::Internal(PREFIX, ":", err_msg); \
-      LOG(ERROR) << CTX->status.ToString();                             \
+      (CTX)->status = tensorflow::errors::Internal(PREFIX, ":", err_msg); \
+      LOG(ERROR) << (CTX)->status.ToString();                             \
       return RET;                                                       \
     }                                                                   \
   } while (0)

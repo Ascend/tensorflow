@@ -15,7 +15,6 @@
  */
 
 #include <memory>
-#include <utility>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -85,6 +84,10 @@ class AssignVariableGraphBuilder {
 void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                           const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
                           TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  TF_UNUSED_VARIABLE(spec);
+  TF_UNUSED_VARIABLE(output_shapes);
+  TF_UNUSED_VARIABLE(parser_ndef);
+  TF_UNUSED_VARIABLE(num_inputs);
   const tensorflow::Tensor *handle = nullptr;
   const tensorflow::Tensor *value = nullptr;
 
@@ -92,7 +95,7 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
   TFE_TensorHandle *value_handle = inputs[1];
   if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[1]))) {
     value_handle = dev->CopyTensorD2H(context, inputs[1], status);
-    if (TF_GetCode(status) != TF_OK) return;
+    if (TF_GetCode(status) != TF_OK) { return; }
     scope_handle_deleter.Guard(value_handle);
   }
 

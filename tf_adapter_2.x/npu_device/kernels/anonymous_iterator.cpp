@@ -15,7 +15,6 @@
  */
 
 #include <memory>
-#include <utility>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -36,6 +35,10 @@
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
                         int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
                         TF_Status *status) {
+  TF_UNUSED_VARIABLE(context);
+  TF_UNUSED_VARIABLE(op_name);
+  TF_UNUSED_VARIABLE(num_inputs);
+  TF_UNUSED_VARIABLE(inputs);
   for (int i = 0; i < num_outputs; ++i) {
     TFE_TensorHandle *retval = outputs[i];
     if (npu::UnwrapHandle(retval)->DataType() == tensorflow::DT_RESOURCE) {

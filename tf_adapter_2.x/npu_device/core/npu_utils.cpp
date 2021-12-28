@@ -14,4 +14,3 @@
  * limitations under the License.
  */
 
-#include "npu_utils.h"
