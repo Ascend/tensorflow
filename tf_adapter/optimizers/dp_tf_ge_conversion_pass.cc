@@ -348,7 +348,7 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
       }
       // GE supported node, continue find
       if (kIsHeterogeneous) {
-        if (!IsIteratorNode(e->src()) split_edges.push_back(last_edge);
+        if (!IsIteratorNode(e->src())) split_edges.push_back(last_edge);
       } else if (IsDeviceSupportedOp(e->src()->def())) {
         Status s = GetSplitEdges(e->src(), split_edges, last_edge);
         if (!s.ok()) { return s; }
