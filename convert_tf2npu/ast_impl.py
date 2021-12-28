@@ -86,7 +86,7 @@ def import_from(node):
 
 
 def ast_import(node):
-    """NPU implemented import"""
+    """Modify import module"""
     for value in node.names:
         if isinstance(value, ast.alias):
             values = value.name.split(".")
@@ -104,7 +104,7 @@ def ast_import(node):
 
 
 def ast_function_def(node):
-    """NPU implemented function_def"""
+    """Modify node based on function_def"""
     log_success_report(getattr(node, "lineno", "None"), node.name)
     arg_name = node.args.args[0].arg
     node.body = [ast.Return(value=ast.Call(
@@ -118,7 +118,7 @@ def ast_function_def(node):
 
 
 def ast_if(node):
-    """NPU implemented session configuration"""
+    """Modify node based on if statement"""
     if isinstance(node.test, ast.Compare):
         if len(node.test.comparators) == 1 and isinstance(node.test.comparators[0], ast.Str):
             if node.test.comparators[0].s == "__main__":
@@ -154,7 +154,7 @@ def ast_if(node):
 
 
 def check_func_arguments(origin_func, node_args, node_keywords, is_class_func):
-    """Chech function arguments"""
+    """Check function arguments"""
     func_args = [] if not is_class_func else [origin_func]
     func_keywords = {}
     for node_arg in node_args:

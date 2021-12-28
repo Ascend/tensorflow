@@ -15,7 +15,7 @@
 # limitations under the License.
 # ============================================================================
 
-"""User access to initiate script migration"""
+"""Entry point to initiate script migration"""
 
 import os
 import sys
