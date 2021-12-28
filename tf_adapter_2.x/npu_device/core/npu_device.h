@@ -42,8 +42,8 @@ class NpuDevice {
   using DoneCallback = std::function<void(tensorflow::Status)>;
 
  public:
-  static std::string CreateDevice(const char *name, int device_index,
-                                  const std::map<std::string, std::string> &device_options, NpuDevice **device);
+  static std::string CreateDevice(const char *name, int device_index, const std::map<std::string, std::string> &options,
+                                  NpuDevice **device);
 
   static void DeleteDevice(void *device);
 
@@ -60,20 +60,20 @@ class NpuDevice {
 
   tensorflow::Status ValidateOutput(const char *op_name, const TensorDataTypes &data_types);
 
-  void PruneFunction(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature = false);
+  static void PruneFunction(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature = false);
 
-  void FixGraphArgRetvalIndex(tensorflow::Graph *graph);
+  static void FixGraphArgRetvalIndex(tensorflow::Graph *graph);
 
   tensorflow::Status TransResourceInput2GraphNode(
     TFE_Context *context, tensorflow::Graph *graph, int num_inputs, TFE_TensorHandle **inputs,
-    std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources);
+    std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> &dependent_host_resources);
 
   tensorflow::Status TailingOptimize(TFE_Context *context, tensorflow::Graph *graph, bool &changed);
 
   tensorflow::Status WeightUpdateGroupingOptimize(TFE_Context *context, tensorflow::Graph *graph, bool &changed);
 
-  tensorflow::Status MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
-                                            TFE_TensorHandle **inputs);
+  static tensorflow::Status MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
+                                                   TFE_TensorHandle **inputs);
 
   TFE_TensorHandle *NewDeviceTensorHandle(TFE_Context *context, ge::Format fmt, const tensorflow::TensorShape &shape,
                                           tensorflow::DataType type, TF_Status *status);
@@ -81,7 +81,7 @@ class NpuDevice {
   TFE_TensorHandle *NewDeviceResourceHandle(TFE_Context *context, const tensorflow::TensorShape &shape,
                                             TF_Status *status);
 
-  TFE_TensorHandle *CopyTensorD2H(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status);
+  TFE_TensorHandle *CopyTensorD2H(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status) const;
 
   TFE_TensorHandle *CopyTensorH2D(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status);
 
@@ -91,24 +91,24 @@ class NpuDevice {
                        TFE_TensorHandle **inputs, std::shared_ptr<const npu::TaskSpec> *spec, TF_Status *s);
 
   void FallbackCPU(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes, int num_inputs,
-                   TFE_TensorHandle **inputs, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
+                   TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
 
   void FallbackCPU(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
-                   int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
+                   int num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
 
   // NPU Device对外的顶层方法
-  void Execute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s);
+  void Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **outputs, TF_Status *s);
 
   void Run(TFE_Context *context, std::shared_ptr<const npu::TaskSpec> spec, int num_inputs, TFE_TensorHandle **inputs,
-           int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
+           int num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
 
-  void RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs, int *num_outputs,
+  void RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
              TFE_TensorHandle **outputs, TF_Status *status);
 
   void SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *status);
 
-  void RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
-                int *num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
+  void RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf_num_inputs, TFE_TensorHandle **tf_inputs,
+                int num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
 
   void RunGeGraphAnonymous(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &gdef,
                            int num_inputs, TFE_TensorHandle **inputs, bool pin_to_npu, int num_outputs,
@@ -128,7 +128,7 @@ class NpuDevice {
   uint64_t AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name, const tensorflow::GraphDef &def,
                       TF_Status *status);
 
-  tensorflow::Status GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
+  tensorflow::Status GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *origin_graph, int num_inputs,
                                       TFE_TensorHandle **inputs, bool &loop, bool &builtin_loop,
                                       tensorflow::GraphDef *def);
 
@@ -172,7 +172,7 @@ class NpuDevice {
     const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
     uint64_t ge_graph_id, std::unique_ptr<const tensorflow::GraphDef> graph,
     const npu::FuncSpec::PruneInputsFunc &prune_func,
-    const std::map<int, std::shared_ptr<IteratorResourceProvider>> &dependent_host_resources,
+    const std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> &dependent_host_resources,
     const std::string &reason);
 
   std::shared_ptr<const npu::TaskSpec> CacheOpSpec(const char *op, const tensorflow::OpRegistrationData *op_spec,
@@ -183,9 +183,9 @@ class NpuDevice {
                                                    const tensorflow::NodeDef &ndef, const TensorShapes &input_shapes,
                                                    const std::string &reason);
 
-  bool Supported(const std::string &op);
+  bool Supported(const std::string &op) const;
 
-  bool SupportedResourceGenerator(const std::string &op);
+  bool SupportedResourceGenerator(const std::string &op) const;
 
   void RecordIteratorMirror(const tensorflow::ResourceHandle &src, const TensorPartialShapes &shapes,
                             const TensorDataTypes &types);
@@ -257,7 +257,8 @@ class NpuDevice {
   CachedFuncSpecs cached_func_specs_;
   std::map<tensorflow::ResourceHandle, std::pair<TensorPartialShapes, TensorDataTypes>, ResourceCompare>
     iterator_mirrors_;
-  std::map<tensorflow::ResourceHandle, std::shared_ptr<IteratorResourceProvider>, ResourceCompare> iterator_providers_;
+  std::map<tensorflow::ResourceHandle, std::shared_ptr<npu::IteratorResourceProvider>, ResourceCompare>
+    iterator_providers_;
 };
 
 #endif  // TENSORFLOW_C_EAGER_CUSTOM_DEVICE_TESTUTIL_H_

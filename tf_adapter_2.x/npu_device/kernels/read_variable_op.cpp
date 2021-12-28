@@ -116,4 +116,6 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec 
   dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_read_graph, 0, nullptr, num_outputs, outputs, status);
 };
 
+namespace npu {
 NPU_REGISTER_CUSTOM_KERNEL("ReadVariableOp", kernel);
+}

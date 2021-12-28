@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
+#include "npu_device_register.h"
+
 #include "tensorflow/core/platform/logging.h"
 
 #include "npu_device.h"
-#include "npu_logger.h"
-#include "npu_micros.h"
-#include "npu_unwrap.h"
-#include "npu_utils.h"
 
 namespace {
 
@@ -52,7 +50,7 @@ TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle
 
 void NpuDeviceExecute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s, void *device_info) {
   auto *dev = reinterpret_cast<NpuDevice *>(device_info);
-  dev->Execute(op, num_outputs, outputs, s);
+  dev->Execute(op, *num_outputs, outputs, s);
 }
 
 void DeleteNpuDevice(void *device_info) { NpuDevice::DeleteDevice(device_info); }
@@ -104,4 +102,5 @@ void ReleaseDeviceResource() {
   for (auto device : devices_instances) {
     device->ReleaseResource();
   }
+  devices_instances.clear();
 }
