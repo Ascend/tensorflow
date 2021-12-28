@@ -347,8 +347,8 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
                                        "optimize");
       }
       // GE supported node, continue find
-      if (kIsHeterogeneous && !IsIteratorNode(e->src())) {
-        split_edges.push_back(last_edge);
+      if (kIsHeterogeneous) {
+        if (!IsIteratorNode(e->src()) split_edges.push_back(last_edge);
       } else if (IsDeviceSupportedOp(e->src()->def())) {
         Status s = GetSplitEdges(e->src(), split_edges, last_edge);
         if (!s.ok()) { return s; }
@@ -387,8 +387,10 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
     bool need_add_device_dataset = false;
     if (kIsHeterogeneous) {
       need_add_device_dataset = false;
-    } else if (!kIsNewDataTransfer || IsGeSupportDataset(e->dst())) {
+    } else if ((!kIsNewDataTransfer) || (IsGeSupportDataset(e->dst()))) {
       need_add_device_dataset = true;
+    } else {
+      need_add_device_dataset = false;
     }
 
     std::string local_rank_id = all_options["local_rank_id"];

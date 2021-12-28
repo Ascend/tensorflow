@@ -374,7 +374,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             ADP_LOG(ERROR) << "Send data failed." << status.ToString();
             return;
           }
-          if (data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE || data_type == ACL_TENSOR_DATA_ABNORMAL) {
+          if ((data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) || (data_type == ACL_TENSOR_DATA_ABNORMAL)) {
             std::string data_type_str = data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE ? "end of sequence" : "abnormal";
             {
               mutex_lock lck(mu_);
@@ -608,7 +608,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         try {
           input_impls_.resize(dataset()->inputs_.size());
         } catch (...) { return errors::InvalidArgument("HostQueueDataset resize failed."); }
-        if (dataset()->channel_type_ != ChannelType::TDT && (!CreateChannel().ok())) {
+        if ((dataset()->channel_type_ != ChannelType::TDT) && (!CreateChannel().ok())) {
           return errors::InvalidArgument("Call CreatChannel queue failed");
         }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
