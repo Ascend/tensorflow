@@ -113,6 +113,7 @@ def setup_python(env_path):
 
 
 def setup_ascend(env_path):
+    """Get ascend install path."""
     default_ascend_path = os.path.realpath("/usr/local/Ascend")
     ask_ascend_path = ('Please specify the location of ascend. [Default is '
                        '%s]\n(You can make this quiet by set env [ASCEND_INSTALLED_PATH]): ') % default_ascend_path
