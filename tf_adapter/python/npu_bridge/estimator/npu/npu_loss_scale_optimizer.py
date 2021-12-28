@@ -15,7 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
-# Optimizer for mixed precision training for Davinci NPU.
+"""Optimizer for mixed precision training for Davinci NPU."""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -37,6 +38,7 @@ gen_npu_ops = helper.get_gen_ops();
 
 
 class NPULossScaleOptimizer(lso.LossScaleOptimizer):
+    """NPU implemented loss scale optimizer"""
     def __init__(self, opt, loss_scale_manager, is_distributed=False):
         """Construct a loss scaling optimizer.
         """

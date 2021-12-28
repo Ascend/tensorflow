@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Functions used when initializing NPU classes"""
+
 import os
 from npu_bridge.estimator.npu.npu_config import NPURunConfig
 from npu_bridge.estimator.npu.npu_config import ProfilingConfig
@@ -77,6 +79,7 @@ experimental_options = {
 
 
 def npu_hooks_append(hooks_list=[]):
+    """Append NPU hooks"""
     if (not isinstance(hooks_list, list)):
         hooks_list = []
     hooks_list.append(NPUBroadcastGlobalVariablesHook(0, int(os.getenv('RANK_ID', '0'))))
@@ -84,6 +87,7 @@ def npu_hooks_append(hooks_list=[]):
 
 
 def npu_callbacks_append(callbacks_list=[]):
+    """Appand NPU callback functions"""
     if (not isinstance(callbacks_list, list)):
         callbacks_list = []
     callbacks_list.append(NPUBroadcastGlobalVariablesCallback(0))
@@ -91,6 +95,7 @@ def npu_callbacks_append(callbacks_list=[]):
 
 
 def npu_config_proto(config_proto=None):
+    """Construct NPU configuration proto"""
     if (not isinstance(config_proto, config_pb2.ConfigProto)) or (
     not issubclass(type(config_proto), config_pb2.ConfigProto)):
         config_proto = config_pb2.ConfigProto()
@@ -113,6 +118,7 @@ def npu_config_proto(config_proto=None):
 
 
 def npu_graph_options(graph_options=None):
+    """Set NPU graph options"""
     if (not isinstance(graph_options, config_pb2.GraphOptions)) or (
     not issubclass(type(graph_options), config_pb2.GraphOptions)):
         graph_options = config_pb2.GraphOptions()
@@ -121,6 +127,7 @@ def npu_graph_options(graph_options=None):
 
 
 def npu_optimizer_options(optimizer_options=None):
+    """Set NPU optimizer options"""
     if (not isinstance(optimizer_options, config_pb2.OptimizerOptions)) or (
     not issubclass(type(optimizer_options), config_pb2.OptimizerOptions)):
         optimizer_options = config_pb2.OptimizerOptions()
@@ -129,6 +136,7 @@ def npu_optimizer_options(optimizer_options=None):
 
 
 def npu_run_config_init(run_config=None):
+    """Initialize NPU run configuration"""
     if ((not isinstance(run_config, tf.estimator.RunConfig)) and (
     not issubclass(type(run_config), tf.estimator.RunConfig))):
         run_config = tf.estimator.RunConfig()
@@ -138,6 +146,7 @@ def npu_run_config_init(run_config=None):
 
 
 def set_keras_session_npu_config(config=None):
+    """Set NPU keras session configuration"""
     from tensorflow.python.keras import backend
     if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
         config = config_pb2.ConfigProto()
@@ -162,6 +171,7 @@ def set_keras_session_npu_config(config=None):
 
 
 def init_resource(config=None):
+    """Initialize NPU resource"""
     if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
         config = config_pb2.ConfigProto()
 
@@ -196,40 +206,49 @@ def init_resource(config=None):
 
 
 def shutdown_resource(sess, npu_shutdown):
+    """Shutdown NPU resource"""
     sess.run(npu_shutdown)
 
 
 def close_session(sess):
+    """Close NPU session"""
     sess.close()
 
 
 def get_npu_rank_id():
+    """Get NPU rank id"""
     return util.get_value("npu_rank_id", 0)
 
 
 def get_npu_local_rank_id():
+    """Get NPU local rank id"""
     return util.get_value("npu_local_rank_id", 0)
 
 
 def get_npu_rank_size():
+    """Get NPU rank size"""
     return util.get_value("npu_rank_size", 1)
 
 
 class NpuEmptyHook(session_run_hook.SessionRunHook):
+    """Construct an empty SessionRunHook"""
     pass
 
 
 def npu_keras_optimizer(opt):
+    """Set NPU keras optimizer"""
     npu_opt = KerasDistributeOptimizer(opt)
     return npu_opt
 
 
 def npu_tf_optimizer(opt):
+    """Set NPU Tensorflow optimizer"""
     npu_opt = NPUDistributedOptimizer(opt)
     return npu_opt
 
 
 def npu_clear_session(config=None):
+    """Clear NPU session"""
     from tensorflow.python.keras import backend
     backend.clear_session()
     backend.set_session(session.Session(config=npu_config_proto(config)))

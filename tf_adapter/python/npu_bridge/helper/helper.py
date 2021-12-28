@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Generate npu_bridge handle"""
+
 import os
 import tensorflow
 import npu_bridge
@@ -24,6 +26,7 @@ try:
 except Exception as e:
     print(str(e))
 def get_gen_ops():
+    """Get npu_bridge handle"""
     return npu_bridge_handle
 
 version = 'v1.15.0'

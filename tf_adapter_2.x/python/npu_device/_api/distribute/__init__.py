@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""import files when initiating"""
+
 from npu_device.distribute.hccl import all_reduce
 from npu_device.distribute.hccl import broadcast
 from npu_device.distribute.hccl import npu_distributed_keras_optimizer_wrapper

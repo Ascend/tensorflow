@@ -15,6 +15,8 @@
 # limitations under the License.
 # ============================================================================
 
+"""Basic configurations for installing Tensorflow adaptor"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -36,11 +38,13 @@ _OPEN_UT = "OPEN_UT"
 
 
 def run_command(cmd):
+    """Execute command"""
     output = subprocess.check_output(cmd)
     return output.decode('UTF-8').strip()
 
 
 def get_input(question):
+    """Get response from user keyboard input"""
     try:
         try:
             answer = raw_input(question)
@@ -52,6 +56,7 @@ def get_input(question):
 
 
 def real_config_path(file):
+    """Get complete file path"""
     return os.path.join("tools", file)
 
 
@@ -97,8 +102,9 @@ def setup_python():
         try:
             compile_args = run_command([
                 python_bin_path, '-c',
-                'import distutils.sysconfig; import tensorflow as tf; print(tf.__version__ + "|" + tf.sysconfig.get_lib('
-                ') + "|" + "|".join(tf.sysconfig.get_compile_flags()) + "|" + distutils.sysconfig.get_python_inc())'
+                'import distutils.sysconfig; import tensorflow as tf; print(tf.__version__ + "|" + '
+                'tf.sysconfig.get_lib('') + "|" + "|".join(tf.sysconfig.get_compile_flags()) + "|" + '
+                'distutils.sysconfig.get_python_inc())'
             ]).split("|")
             if not compile_args[0].startswith(_COMPAT_TENSORFLOW_VERSION):
                 print('Invalid python path: %s compat tensorflow version is %s'
@@ -206,6 +212,7 @@ def setup_swig():
 
 
 def main():
+    """Entry point for configuration"""
     env_snapshot = dict(os.environ)
     setup_python()
     if not env_snapshot.get(_OPEN_UT):

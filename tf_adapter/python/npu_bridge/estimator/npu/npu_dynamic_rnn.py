@@ -14,6 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""NPU impletemented RNN"""
+
 import os
 import math
 import tensorflow as tf
@@ -70,34 +72,42 @@ class _DynamicBasic(base_layer.Layer):
 
     @property
     def direction(self):
+        """Return property"""
         return self._direction
 
     @property
     def cell_depth(self):
+        """Return property"""
         return self._cell_depth
 
     @property
     def keep_prob(self):
+        """Return property"""
         return self._keep_prob
 
     @property
     def cell_clip(self):
+        """Return property"""
         return self._cell_clip
 
     @property
     def num_proj(self):
+        """Return property"""
         return self._num_proj
 
     @property
     def time_major(self):
+        """Return property"""
         return self._time_major
 
     @property
     def activation(self):
+        """Return property"""
         return self._activation
 
     @property
     def is_training(self):
+        """Return property"""
         return self._is_training
 
     def check_direction(self):
@@ -107,6 +117,7 @@ class _DynamicBasic(base_layer.Layer):
                              (self._direction, DYNAMIC_RNN_UNIDIRECTION, DYNAMIC_RNN_BIDIRECTION))
 
     def build(self, input_shape):
+        """Build class"""
         time_size = input_shape[0].value
         batch_size = input_shape[1].value
         if time_size is None:
@@ -171,13 +182,16 @@ class DynamicGRUV2(_DynamicBasic):
 
     @property
     def gate_order(self):
+        """Return property"""
         return self._gate_order
 
     @property
     def reset_after(self):
+        """Return property"""
         return self._reset_after
 
     def build(self, input_shape):
+        """Build class"""
         if input_shape[2].value is None:
             raise ValueError("Expected input_shape[2] to be known, saw shape: input_size.")
         input_size = input_shape[2].value
@@ -262,17 +276,21 @@ class DynamicRNN(_DynamicBasic):
 
     @property
     def cell_type(self):
+        """Return property"""
         return self._cell_type
 
     @property
     def use_peephole(self):
+        """Return property"""
         return self._use_peephole
 
     @property
     def forget_bias(self):
+        """Return property"""
         return self._forget_bias
 
     def build(self, input_shape):
+        """Build class"""
         batch_size = input_shape[1].value
         if batch_size is None:
             batch_size = 16

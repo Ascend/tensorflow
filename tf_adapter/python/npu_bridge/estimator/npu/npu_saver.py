@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Definition for NPU saver"""
+
 from tensorflow.python.training.saver import BulkSaverBuilder
 from tensorflow.python.training.saver import Saver
 from npu_bridge.estimator.npu import util
@@ -31,6 +33,7 @@ from tensorflow.python.ops import variables
 
 
 class NPUBulkSaverBuilder(BulkSaverBuilder):
+    """Class to build NPU builker saver"""
     def _build_internal(self,
                         names_to_saveables,
                         reshape=False,
@@ -155,6 +158,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
 
 
 class NPUSaver(Saver):
+    """NPU saver for saving checkpoints"""
     def _build(self, checkpoint_path, build_save, build_restore):
         if not self.saver_def or context.executing_eagerly():
             if self._builder is None:

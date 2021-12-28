@@ -13,4 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""import files when initiating"""
+
 from npu_device.ops.train_ops import foo

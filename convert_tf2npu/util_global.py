@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""functions for global varabiles manegement"""
+
 import json
 import time
 import os
@@ -32,10 +35,12 @@ def _init():
 
 
 def set_value(key, value):
+    """Set value for global dictionary"""
     _global_dict[key] = value
 
 
 def get_value(key, def_value=None):
+    """Get value by key from global dictionary"""
     try:
         return _global_dict[key]
     except KeyError:

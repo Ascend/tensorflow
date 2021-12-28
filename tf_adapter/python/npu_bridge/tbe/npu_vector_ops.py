@@ -32,6 +32,7 @@ gen_npu_ops = helper.get_gen_ops()
 
 def lamb_apply_optimizer_assign(input0, input1, input2, input3, mul0_x, mul1_x,
                                 mul2_x, mul3_x, add2_y, steps, do_use_weight, weight_decay_rate, name=None):
+    """NPU implemented lamb_apply_optimizer_assign"""
     if context.executing_eagerly():
         raise RuntimeError("tf.lamb_apply_optimizer_assign() is not compatible with "
                            "eager execution.")
@@ -43,6 +44,7 @@ def lamb_apply_optimizer_assign(input0, input1, input2, input3, mul0_x, mul1_x,
 
 
 def lamb_apply_weight_assign(input0, input1, input2, input3, input4, name=None):
+    """NPU implemented lamb_apply_weight_assign"""
     if context.executing_eagerly():
         raise RuntimeError("tf.lamb_apply_weight_assign() is not compatible with "
                            "eager execution.")
@@ -51,7 +53,7 @@ def lamb_apply_weight_assign(input0, input1, input2, input3, input4, name=None):
 
 
 class PReLU(Layer):
-
+    """NPU implemented PReLU class"""
     def __init__(self,
                  alpha_initializer='zeros',
                  alpha_regularizer=None,
@@ -67,6 +69,7 @@ class PReLU(Layer):
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape):
+        """Build class"""
         param_shape = list(input_shape[1:])
         if self.shared_axes is not None:
             for i in self.shared_axes:
@@ -83,4 +86,5 @@ class PReLU(Layer):
         self.built = True
 
     def call(self, inputs):
+        """Construct a  prelu layer"""
         return prelu(inputs, self.alpha)

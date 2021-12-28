@@ -14,6 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""NPU impletmented dropout"""
+
 from tensorflow.python.keras import backend
 from tensorflow.python.keras.utils import tf_utils
 from tensorflow.python.keras.layers.core import Dropout

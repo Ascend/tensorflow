@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""Entry point to initiate script migration on Windows platform"""
+
 import os
 import sys
 import tkinter as tk
@@ -27,6 +30,7 @@ from conver import conver
 
 
 class Analyse(object):
+    """Use Tkinter to display ayalysis result"""
     def __init__(self, parent):
         self.root = parent
         self.root.title("Tensorflow1.15 API Analysis")
@@ -59,33 +63,41 @@ class Analyse(object):
         tk.Button(self.root, text="退出", command=exit).grid(row=5, column=1, padx=10, pady=10, stick=tk.E)
 
     def hide(self):
+        """Do not display root window"""
         self.root.withdraw()
 
     def show(self):
+        """Show updated information to window"""
         self.root.update()
         self.root.deiconify()
 
     def back_to_main(self, new_frame):
+        """Back to root window"""
         new_frame.destroy()
         self.show()
 
     def select_script_path(self):
+        """Select input script directory"""
         path_ = askdirectory()
         self.script_path.set(path_)
 
     def select_report_path(self):
+        """Select report directory"""
         path_ = askdirectory()
         self.report_path.set(path_)
 
     def select_output_path(self):
+        """Select output directory"""
         path_ = askdirectory()
         self.output_path.set(path_)
 
     def select_main_file(self):
+        """Select main file for keras script"""
         main_file_ = askopenfilename()
         self.main_file.set(main_file_)
 
     def get_output_dir(self):
+        """Get selected output directory"""
         output = "output" + util_global.get_value('timestap')
         if self.output_path.get():
             output = self.output_path.get()
@@ -95,6 +107,7 @@ class Analyse(object):
         return output
 
     def get_main_file(self):
+        """Get selected main file"""
         main_file = ""
         if self.main_file.get():
             main_file = self.main_file.get()
@@ -108,6 +121,7 @@ class Analyse(object):
         return main_file
 
     def get_report_dir(self):
+        """Get selected report directory"""
         report = "report" + util_global.get_value('timestap')
         report_suffix = report
         if self.report_path.get():
@@ -119,12 +133,14 @@ class Analyse(object):
         return report
 
     def get_distributed_mode(self):
+        """Get selected distributed mode"""
         distributed_mode = ""
         if self.distributed_mode.get():
             distributed_mode = self.distributed_mode.get()
         return distributed_mode
 
     def analyse(self):
+        """Initiate API analysis"""
         util_global._init()
 
         # verify input arguments

@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""NPU implemented rnn"""
+
 import tensorflow as tf
 
 

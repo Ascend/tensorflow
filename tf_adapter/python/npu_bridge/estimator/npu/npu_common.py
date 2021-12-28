@@ -147,6 +147,7 @@ class NPUBasics(object):
 
     @property
     def jobinfo(self):
+        """Return property"""
         return self._job_info
 
     def size(self):

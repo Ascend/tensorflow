@@ -38,9 +38,11 @@ class FuncIntfSpec:
         self.func_list = {}
 
     def add_func_spec(self, func_info):
+        """function specification"""
         self.func_list[func_info.func_name] = func_info
 
     def add_class_spec(self, spec):
+        """class specification"""
         self.class_list[spec.class_name] = spec
 
     def print_detail(self):
@@ -74,6 +76,7 @@ class ClassIntfSpec:
         self.class_list = {}
 
     def add_func_spec(self, func_info: FuncIntfSpec):
+        """function specification"""
         self.func_list[func_info.func_name] = func_info
 
     def add_class_spec(self, spec):
@@ -153,6 +156,7 @@ def get_tree_idx_2(str_info: str):
 
 
 def get_tree_idx_final(str_info: str):
+    """获取索引"""
     global last_tree_idx
     global last_tab_str
     if last_tree_idx == 1:
@@ -298,6 +302,7 @@ def get_spec_info_list():
 
 
 def get_spec_from_file(file_path, is_defined_file=False):
+    """从文件中获取接口规范"""
     with open(file_path) as ff:
         lines = ff.readlines()
 
