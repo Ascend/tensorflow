@@ -20,6 +20,7 @@
 #include "acl/acl_tdt.h"
 #include "acl/acl.h"
 #include "tdt/tdt_host_interface.h"
+#include "runtime/config.h"
 #include "tensorflow/core/framework/partial_tensor_shape.h"
 #include "tensorflow/core/framework/stats_aggregator.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -34,7 +35,10 @@
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/kernels/aicpu/data_item_deliver.h"
 #include "tf_adapter/util/acl_channel.h"
+#include "tf_adapter/util/host_queue.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter_2.x/npu_device/core/npu_micros.h"
+
 namespace tensorflow {
 namespace data {
 namespace {
@@ -48,6 +52,12 @@ const uint64_t kTotalBytes = 2147483648ULL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 const int32_t kSleepTime = 1;
 std::atomic<bool> tdt_release(false);
+
+enum class ChannelType {
+  TDT = 0,
+  ACL_QUEUE = 1,
+  HOST_QUEUE = 2
+};
 
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
@@ -69,33 +79,46 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       OP_REQUIRES(ctx, device_id >= 0, errors::InvalidArgument("device id should be >= 0."));
       local_device_list_.push_back(device_id);
     }
+    GetChannelType(channel_type_);
     ADP_LOG(INFO) << "Start to init channel.";
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
-    if (!kIsNewDataTransfer) {
+    if (channel_type_ == ChannelType::TDT) {
       int32_t tdt_status = TdtInFeedInit(device_id_);
-      OP_REQUIRES(ctx, tdt_status == 0,
-                  errors::InvalidArgument("Tdt client init failed."));
+      OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
       ADP_LOG(INFO) << "Init tdt host success.";
     }
     tdt_release = false;
   }
+
   ~HostQueueDatasetOp() override {
-    ADP_LOG(INFO) << "Start to destroy tdt.";
-    if (kIsNewDataTransfer) {
+    if (tdt_release || (channel_type_ != ChannelType::TDT)) {
       return;
     }
-    if (!tdt_release) {
-      int32_t tdt_status = TdtInFeedDestroy(device_id_);
-      if (tdt_status != 0) {
-        ADP_LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
-        LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
-      } else {
-        ADP_LOG(INFO) << "Tdt client close success.";
-        tdt_release = true;
-        NpuAttrs::SetUseTdtStatus(device_id_, false);
-      }
+
+    ADP_LOG(INFO) << "Start to destroy tdt.";
+    int32_t tdt_status = TdtInFeedDestroy(device_id_);
+    if (tdt_status != 0) {
+      ADP_LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
+      LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
+    } else {
+      ADP_LOG(INFO) << "Tdt client close success.";
+      tdt_release = true;
+      NpuAttrs::SetUseTdtStatus(device_id_, false);
     }
   }
+
+  void GetChannelType(ChannelType &type) {
+    ADP_LOG(INFO) << "kIsNewDataTransfer is " << kIsNewDataTransfer;
+    if (kIsHeterogeneous) {
+      type = ChannelType::HOST_QUEUE;
+    } else if (kIsNewDataTransfer) {
+      type = ChannelType::ACL_QUEUE;
+    } else {
+      type = ChannelType::TDT;
+    }
+    ADP_LOG(INFO) << "host queue channel type is " << static_cast<int>(type);
+  }
+
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
     std::vector<DatasetBase *> inputs;
     tf_session_ = ctx->session_handle();
@@ -106,7 +129,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       inputs.push_back(input);
     }
     *output = new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_, local_rank_id_,
-                                    local_device_list_, device_id_, tf_session_);
+                                    local_device_list_, device_id_, tf_session_, channel_type_);
     OP_REQUIRES(ctx, *output != nullptr,
                 errors::InvalidArgument("Data process host queue dataset op: new dataset failed."));
   }
@@ -116,15 +139,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
    public:
     Dataset(OpKernelContext *ctx, const std::vector<DatasetBase *> &inputs, const string &channelName,
             const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes, const int &local_rank_id,
-            const std::vector<uint32_t> &local_device_list, const uint32_t &device_id, const string &tf_session)
+            const std::vector<uint32_t> &local_device_list, const uint32_t &device_id, const string &tf_session,
+            const ChannelType &channel_type)
         : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName), output_types_(outputTypes),
           output_shapes_(outputShapes), tf_session_(tf_session), local_rank_id_(local_rank_id),
-          local_device_list_(local_device_list), device_id_(device_id) {
+          local_device_list_(local_device_list), device_id_(device_id), channel_type_(channel_type) {
       for (const auto &input : inputs_) { input->Ref(); }
     }
 
     ~Dataset() override {
-      for (const auto &input : inputs_) { input->Unref(); }
+      for (const auto &input : inputs_) {
+        input->Unref();
+      }
     }
 
     unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
@@ -136,17 +162,17 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
     string DebugString() const override { return "HostQueueDatasetOp::Dataset"; }
 
-  protected:
+   protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
       return Status::OK();
     }
 
-  private:
+   private:
     class Iterator : public DatasetIterator<Dataset> {
      public:
       explicit Iterator(const Params &params) : DatasetIterator<Dataset>(params) {
-          data_deliver_ = new (nothrow) DataItemDeliver(dataset()->local_rank_id_, dataset()->device_id_,
-                                              dataset()->local_device_list_, dataset()->channel_name_);
+        data_deliver_ = new (nothrow) DataItemDeliver(dataset()->local_rank_id_, dataset()->device_id_,
+                                                      dataset()->local_device_list_, dataset()->channel_name_);
       }
 
       ~Iterator() override {
@@ -155,7 +181,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         {
           mutex_lock lck(mu_);
           finish_send_ = true;
-          if (kIsNewDataTransfer) {
+          if (dataset()->channel_type_ != ChannelType::TDT) {
             while (!cancelled_) {
               destory_var_.wait(lck);
             }
@@ -163,20 +189,27 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         // wait for tdt destory for sleeping one second
         sleep(kSleepTime);
-        if (!kIsNewDataTransfer) {
+        if (dataset()->channel_type_ == ChannelType::TDT) {
           mutex_lock lck(mu_);
           cancelled_ = true;
         }
         cond_var_.notify_all();
         delete data_deliver_;
-        if (kIsNewDataTransfer) {
-          ADP_LOG(INFO) << "Start to destroy channel.";
+
+        ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
+      }
+
+      void DestroyQueue() {
+        ADP_LOG(INFO) << "Start to destroy queue";
+        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
           aclError acl_status = acltdtDestroyChannel(acl_handle_);
           if (acl_status != ACL_ERROR_NONE) {
-            ADP_LOG(ERROR) << "Desrory Channel failed.";
+            ADP_LOG(ERROR) << "call acltdtDestroyChannel failed, ret=" << acl_status;
           }
+        } else {
+          HostQueueDestroy(queue_id_);
         }
-        ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
+        ADP_LOG(INFO) << "End to destroy queue";
       }
 
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
@@ -201,9 +234,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if (dataset()->local_rank_id_ > 0) {
             ADP_LOG(INFO) << "Do not need to GetNext.";
             return;
-          } else {
-            buffer_element.status = input_impls_[1]->GetNext(ctx.get(), &args, &end_of_sequence);
           }
+
+          buffer_element.status = input_impls_[1]->GetNext(ctx.get(), &args, &end_of_sequence);
           if (!buffer_element.status.ok() || (buffer_element.status.ok() && end_of_sequence)) {
             if (!buffer_element.status.ok()) {
               ADP_LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
@@ -218,7 +251,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             cond_var_.notify_all();
             return;
           }
-
           {
             mutex_lock lck(mu_);
             for (auto &tensor : args) {
@@ -238,6 +270,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
         }
       }
+
       void SendDataThread() {
         std::vector<DataItem> items;
         while (data_deliver_->RecvDataVec(items).ok()) {
@@ -257,15 +290,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Slave SendDataThread exit.";
       }
 
-      Status SendData(const vector<Tensor> &args, const acltdtTensorType &data_type) {
+      Status SendDataByAclQueue(const vector<Tensor> &args, const acltdtTensorType &data_type) {
         Status status;
         bool is_need_resend = false;
         do {
           {
-           mutex_lock lck(mu_);
-           if (finish_send_) {
-             break;
-           }
+            mutex_lock lck(mu_);
+            if (finish_send_) {
+              break;
+            }
           }
           if (is_need_resend) {
             sleep(kSleepTime);
@@ -275,7 +308,28 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         return status;
       }
 
-      void SendDataThreadForMbuf(const std::shared_ptr<IteratorContext> &ctx) {
+      Status SendDataByHostQueue(const vector<Tensor> &args, const acltdtTensorType &data_type) {
+        bool is_need_resend = false;
+        void *buff = nullptr;
+        Status status = Status::OK();
+        TF_RETURN_IF_ERROR(MappingTensor2Buff(data_type, args, buff));
+        do {
+          {
+            mutex_lock lck(mu_);
+            if (finish_send_) {
+              HostQueueFreeBuff(buff);
+              break;
+            }
+          }
+          if (is_need_resend) {
+            sleep(kSleepTime);
+          }
+          status = HostQueueSendData(queue_id_, buff, is_need_resend);
+        } while (status.ok() && is_need_resend);
+        return status;
+      }
+
+      void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
         ADP_LOG(INFO) << "Begin to send data.";
         while (true) {
           std::vector<Tensor> args;
@@ -304,7 +358,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               total_bytes_ -= tensor.TotalBytes();
             }
           }
-          Status status = SendData(args, data_type);
+          Status status = Status::OK();
+          if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+            status = SendDataByAclQueue(args, data_type);
+          } else {
+            status = SendDataByHostQueue(args, data_type);
+          }
           if (!status.ok()) {
             {
               mutex_lock lck(mu_);
@@ -312,18 +371,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             }
             destory_var_.notify_all();
             cond_var_.notify_all();
-            ADP_LOG(ERROR) << "Send data failed."<< status.ToString();
+            ADP_LOG(ERROR) << "Send data failed." << status.ToString();
             return;
           }
           if (data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE || data_type == ACL_TENSOR_DATA_ABNORMAL) {
-            std::string  data_type_str = data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE ? "end of sequence" : "abnormal";
+            std::string data_type_str = data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE ? "end of sequence" : "abnormal";
             {
               mutex_lock lck(mu_);
               cancelled_ = true;
             }
             destory_var_.notify_all();
             cond_var_.notify_all();
-            ADP_LOG(INFO) << "Send "<< data_type_str <<" data success.";
+            ADP_LOG(INFO) << "Send " << data_type_str << " data success.";
             return;
           }
           cond_var_.notify_all();
@@ -357,12 +416,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 ADP_LOG(ERROR) << "Get data failed " << buffer_.front().status.ToString();
                 LOG(ERROR) << "Get data failed " << buffer_.front().status.ToString();
               }
-              end_item. tensorName_ = "";
-              end_item. tensorShape_ = "";
-              end_item. tensorType_ = "";
+              end_item.tensorName_ = "";
+              end_item.tensorShape_ = "";
+              end_item.tensorType_ = "";
               std::shared_ptr<void> data(nullptr);
-              end_item. dataLen_ = 0;
-              end_item. dataPtr_ = data;
+              end_item.dataLen_ = 0;
+              end_item.dataPtr_ = data;
               items.emplace_back(end_item);
               data_deliver_->ParallelSendDataVec(items);
               int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items, dataset()->device_id_);
@@ -388,7 +447,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             if (DataTypeCanUseMemcpy(tensor.dtype())) {
               data_item.dataLen_ = tensor.tensor_data().size();
               data_item.dataPtr_ =
-                  std::shared_ptr<void>(const_cast<char *>(tensor.tensor_data().data()), [](void *elem) {});
+                std::shared_ptr<void>(const_cast<char *>(tensor.tensor_data().data()), [](void *elem) {});
             } else if (tensor.dtype() == DT_STRING) {
               if (tensor.dims() != 0) {
                 ADP_LOG(ERROR) << "input of DT_STRING type should be scalar,"
@@ -441,7 +500,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           REQUIRES_NOT_NULL(new_ctx);
           REQUIRES_NOT_NULL(ctx->env());
           receive_thread_.reset(
-              ctx->env()->StartThread({}, "receive_thread", [this, new_ctx]() { GetDataThread(new_ctx); }));
+            ctx->env()->StartThread({}, "receive_thread", [this, new_ctx]() { GetDataThread(new_ctx); }));
         }
         return Status::OK();
       }
@@ -451,17 +510,17 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           std::shared_ptr<IteratorContext> new_ctx(new (std::nothrow) IteratorContext(*ctx));
           REQUIRES_NOT_NULL(new_ctx);
           REQUIRES_NOT_NULL(ctx->env());
-          if (!kIsNewDataTransfer) {
+          if (dataset()->channel_type_ == ChannelType::TDT) {
             if (dataset()->local_rank_id_ <= 0) {
-              send_thread_.reset(ctx->env()->StartThread({}, "send_thread",
-                                 [this, new_ctx]() { SendDataThread(new_ctx); }));
+              send_thread_.reset(
+                ctx->env()->StartThread({}, "send_thread", [this, new_ctx]() { SendDataThread(new_ctx); }));
             } else {
               send_thread_.reset(ctx->env()->StartThread({}, "send_thread", [this]() { SendDataThread(); }));
             }
           } else {
             if (dataset()->local_rank_id_ <= 0) {
-              send_thread_.reset(ctx->env()->StartThread({}, "send_thread",
-                                 [this, new_ctx]() { SendDataThreadForMbuf(new_ctx); }));
+              send_thread_.reset(
+                ctx->env()->StartThread({}, "send_thread", [this, new_ctx]() { SendDataByQueueThread(new_ctx); }));
             }
           }
         }
@@ -489,7 +548,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         for (size_t i = 0UL; i < output_shape_size; i++) {
           DataType tensor_data = dataset()->output_types_.at(i);
           if (tensor_data == DT_STRING || (dataset()->output_shapes_[i].unknown_rank())) {
-            ADP_LOG(INFO)<<"Current tensor type is DT_STRING or output shape is unknown shape";
+            ADP_LOG(INFO) << "Current tensor type is DT_STRING or output shape is unknown shape";
             return kUnknownShapeDepth;
           }
           int64_t element_num = GetTensorElementNum(i);
@@ -503,14 +562,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       Status CreateChannel() {
-        size_t channel_depth = 0UL;
-        int64_t current_channel_depth = GetChannelDepth();
-        if (current_channel_depth <= 0LL) {
-          ADP_LOG(ERROR) << "Current data size is unsupported";
-          return errors::InvalidArgument("Current data size is unsupported");
-        }
-        channel_depth = std::min(static_cast<size_t>(current_channel_depth), kMaxDepth);
-        ADP_LOG(INFO) << "Channel depth is "<< channel_depth;
         std::hash<std::string> channel_name_dict;
         auto acl_status = aclrtSetDevice(static_cast<int32_t>(dataset()->device_id_));
         if (acl_status != ACL_SUCCESS) {
@@ -520,6 +571,20 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                                                   dataset()->channel_name_ +
                                                   "_device_" +
                                                   std::to_string(dataset()->device_id_)));
+        ADP_LOG(INFO) << "Channel name is " << channel_name;
+        size_t channel_depth = 0UL;
+        int64_t current_channel_depth = GetChannelDepth();
+        if (current_channel_depth <= 0LL) {
+          ADP_LOG(ERROR) << "Current data size is unsupported";
+          return errors::InvalidArgument("Current data size is unsupported");
+        }
+        channel_depth = std::min(static_cast<size_t>(current_channel_depth), kMaxDepth);
+        ADP_LOG(INFO) << "Channel depth is " << channel_depth;
+
+        if (dataset()->channel_type_ == ChannelType::HOST_QUEUE) {
+          return HostQueueInit(channel_name, channel_depth, queue_id_);
+        }
+
         acl_handle_ = acltdtCreateChannelWithCapacity(dataset()->device_id_, channel_name.c_str(), channel_depth);
         if (acl_handle_ == nullptr) {
           ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
@@ -543,14 +608,14 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         try {
           input_impls_.resize(dataset()->inputs_.size());
         } catch (...) { return errors::InvalidArgument("HostQueueDataset resize failed."); }
-        if (kIsNewDataTransfer && (!CreateChannel().ok())) {
+        if (dataset()->channel_type_ != ChannelType::TDT && (!CreateChannel().ok())) {
           return errors::InvalidArgument("Call CreatChannel queue failed");
         }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
           TF_RETURN_IF_ERROR(
               dataset()->inputs_[i]->MakeIterator(ctx, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i]));
         }
-        if (!kIsNewDataTransfer) {
+        if (dataset()->channel_type_ == ChannelType::TDT) {
           if (dataset()->local_rank_id_ == 0) {
             TF_RETURN_IF_ERROR(data_deliver_->ParallelInitSocketClient());
           } else if (dataset()->local_rank_id_ > 0) {
@@ -594,7 +659,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       std::vector<std::unique_ptr<IteratorBase>> input_impls_ GUARDED_BY(mu_);
       condition_variable cond_var_;
       condition_variable destory_var_;
-      string prefix_end_;
       std::deque<BufferElement> buffer_ GUARDED_BY(mu_);
       bool cancelled_ GUARDED_BY(mu_) = true;
       bool finish_send_ GUARDED_BY(mu_) = false;
@@ -607,7 +671,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       std::unique_ptr<Thread> receive_thread_ GUARDED_BY(mu_);
       std::unique_ptr<Thread> send_thread_ GUARDED_BY(mu_);
       DataItemDeliver *data_deliver_;
-      acltdtChannelHandle* acl_handle_;
+      acltdtChannelHandle *acl_handle_;
+      uint32_t queue_id_;
     };
     const std::vector<DatasetBase *> inputs_;
     std::string channel_name_;
@@ -617,6 +682,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     int local_rank_id_;
     std::vector<uint32_t> local_device_list_;
     uint32_t device_id_;
+    ChannelType channel_type_;
   };
   std::string channel_name_;
   DataTypeVector output_types_;
@@ -625,6 +691,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   int local_rank_id_;
   std::vector<uint32_t> local_device_list_;
   uint32_t device_id_;
+  ChannelType channel_type_;
 };
 
 REGISTER_KERNEL_BUILDER(Name("HostQueueDataset").Device(DEVICE_CPU), HostQueueDatasetOp);
