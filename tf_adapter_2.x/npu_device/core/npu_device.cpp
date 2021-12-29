@@ -258,6 +258,7 @@ class OptimizeStageGraphDumper {
 };
 }  // namespace
 
+namespace npu {
 /**
  * @brief: create iterator providev
  * @param context: tfe context
@@ -452,7 +453,7 @@ tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs,
  * @param op_name: op name
  * @param data_types: tensor data types
  */
-tensorflow::Status NpuDevice::ValidateOutput(const char *op_name, const TensorDataTypes &data_types) {
+tensorflow::Status NpuDevice::ValidateOutput(const char *op_name, const TensorDataTypes &data_types) const {
   for (size_t i = 0; i < data_types.size(); i++) {
     auto data_type = data_types[i];
     if (data_type == tensorflow::DT_RESOURCE) {
@@ -1025,7 +1026,8 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
   const tensorflow::Tensor *npu_tensor = nullptr;
 
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(npu_handle, &npu_tensor), nullptr);
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleFrom(local_tensor), npu_handle);
+  NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleFrom(local_tensor),
+                             npu_handle);
   return npu_handle;
 }
 
@@ -1041,7 +1043,7 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
  */
 tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
                                          const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
-                                         TensorPartialShapes &shapes, bool &requested_input_value) {
+                                         TensorPartialShapes &shapes, bool &requested_input_value) const {
   requested_input_value = false;
   NPU_REQUIRES(op_reg_data->shape_inference_fn,
                tensorflow::errors::Unimplemented("No infer shape function registered for op ", ndef.op()));
@@ -1580,14 +1582,10 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   for (size_t i = 0; i < output_types.size(); ++i) {
     if (output_types[i] == tensorflow::DT_RESOURCE) {
       outputs[i] = NewDeviceResourceHandle(context, output_shapes[i], status);
-      if (TF_GetCode(status) != TF_OK) {
-        return;
-      }
+      if (TF_GetCode(status) != TF_OK) return;
     } else {
       outputs[i] = NewDeviceTensorHandle(context, Format::FORMAT_ND, output_shapes[i], output_types[i], status);
-      if (TF_GetCode(status) != TF_OK) {
-        return;
-      }
+      if (TF_GetCode(status) != TF_OK) return;
     }
   }
   /******************************************模拟NPU执行Start************************************/
@@ -2695,3 +2693,4 @@ tensorflow::Status NpuDevice::WeightUpdateGroupingOptimize(TFE_Context *context,
 
   return tensorflow::Status::OK();
 }
+}  // namespace npu
