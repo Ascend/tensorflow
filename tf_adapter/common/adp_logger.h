@@ -17,14 +17,13 @@
 #ifndef TENSORFLOW_ADP_LOGGER_H
 #define TENSORFLOW_ADP_LOGGER_H
 
-#include <iostream>
 #include <sstream>
 #include <string>
-#include <stdlib.h>
 
 #define FMK_MODULE_NAME static_cast<int>(FMK)
-#define ADP_MODULE_NAME "TF_ADAPTER"
 
+namespace npu {
+const std::string ADP_MODULE_NAME = "TF_ADAPTER";
 const int ADP_DEBUG = 0;
 const int ADP_INFO = 1;
 const int ADP_WARNING = 2;
@@ -32,26 +31,25 @@ const int ADP_ERROR = 3;
 const int ADP_EVENT = 16;
 const int ADP_FATAL = 32;
 
-
 class AdapterLogger : public std::basic_ostringstream<char> {
  public:
-  AdapterLogger(const char* fname, int line, int severity) {
-    *this << " [" << fname << ":" << line << "]" << " ";
-    severity_ = severity;
+  AdapterLogger(const char *fname, int line, int severity) : severity_(severity) {
+    *this << " [" << fname << ":" << line << "]"
+          << " ";
   }
-  ~AdapterLogger();
+  ~AdapterLogger() override;
 
  private:
   int severity_;
 };
+}  // namespace npu
 
+#define ADP_LOG_INFO npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_INFO)
+#define ADP_LOG_WARNING npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_WARNING)
+#define ADP_LOG_ERROR npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_ERROR)
+#define ADP_LOG_EVENT npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_EVENT)
+#define ADP_LOG_DEBUG npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_DEBUG)
+#define ADP_LOG_FATAL npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_FATAL)
 
-#define _ADP_LOG_INFO AdapterLogger(__FILE__, __LINE__, ADP_INFO)
-#define _ADP_LOG_WARNING AdapterLogger(__FILE__, __LINE__, ADP_WARNING)
-#define _ADP_LOG_ERROR AdapterLogger(__FILE__, __LINE__, ADP_ERROR)
-#define _ADP_LOG_EVENT AdapterLogger(__FILE__, __LINE__, ADP_EVENT)
-#define _ADP_LOG_DEBUG AdapterLogger(__FILE__, __LINE__, ADP_DEBUG)
-#define _ADP_LOG_FATAL AdapterLogger(__FILE__, __LINE__, ADP_FATAL)
-
-#define ADP_LOG(LEVEL) _ADP_LOG_##LEVEL
+#define ADP_LOG(LEVEL) ADP_LOG_##LEVEL
 #endif

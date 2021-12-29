@@ -27,8 +27,8 @@ class SetVarFormatPass : public GraphOptimizationPass {
  public:
   Status Run(const GraphOptimizationPassOptions &options) override;
   Status AssignFormatToVarOutNodes(Node *node);
-  Status GetFormat(Node *node, string &format);
-  Status AssignApplyMomentumInNodesFormat(Node *node, const string &var_format);
+  Status GetFormat(const Node *node, string &format) const;
+  Status AssignApplyMomentumInNodesFormat(const Node *node, const string &var_format) const;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_OM_SET_VAR_FORMAT_PASS_H_

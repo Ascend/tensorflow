@@ -57,7 +57,9 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
       graph_run_num++;
     }
     int64 startTime = InferShapeUtil::GetCurrentTimestap();
-    if (graph == nullptr) { continue; }
+    if (graph == nullptr) {
+      continue;
+    }
 
     bool findMarkNoNeed = false;
     for (Node *n : graph->get()->nodes()) {
@@ -68,7 +70,9 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
         break;
       }
     }
-    if (findMarkNoNeed) { continue; }
+    if (findMarkNoNeed) {
+      continue;
+    }
 
     std::map<std::string, std::string> pass_options;
     pass_options = NpuAttrs::GetDefaultPassOptions();
@@ -115,7 +119,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
     }
     int64 endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "AddInputPass subgraph_" << std::to_string(graph_num) << " success. ["
-              << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+                  << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   }
 
   return Status::OK();

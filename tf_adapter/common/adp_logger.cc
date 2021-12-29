@@ -18,6 +18,7 @@
 #include "toolchain/slog.h"
 #include "toolchain/plog.h"
 
+namespace npu {
 AdapterLogger::~AdapterLogger(){
   if (severity_ == ADP_FATAL) {
     DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, ADP_ERROR, "%s", str().c_str());
@@ -26,3 +27,4 @@ AdapterLogger::~AdapterLogger(){
     DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
   }
 }
+}  // namespace npu
