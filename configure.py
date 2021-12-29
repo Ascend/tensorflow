@@ -23,7 +23,6 @@ from __future__ import print_function
 
 import os
 import subprocess
-import sys
 
 try:
     from shutil import which
@@ -69,7 +68,7 @@ def setup_python():
         custom_python_bin_path = default_python_bin_path
         compile_args = run_command([
             custom_python_bin_path, '--version'])
-        if not _COMPAT_PYTHON_VERSION in compile_args:
+        if _COMPAT_PYTHON_VERSION not in compile_args:
             print('Invalid default python version: %s, only support Python 3.7.' % compile_args)
             ask_python_bin_path = ('Please specify the location of python with valid '
                                    'tensorflow 1.15.0 site-packages installed. [Default '
@@ -180,7 +179,7 @@ def setup_swig():
         custom_swig_path = default_swig_path
         compile_args = run_command([
             custom_swig_path, '-version'])
-        if not _COMPAT_SWIG_VERSION in compile_args:
+        if _COMPAT_SWIG_VERSION not in compile_args:
             print('Invalid default python version: %s.' % compile_args)
             ask_swig_path = ('Please specify the location of swig. [Default is '
                              '%s]\n(Please enter the correct swig path: ') % default_swig_path

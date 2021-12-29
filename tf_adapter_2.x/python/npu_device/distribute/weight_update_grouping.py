@@ -16,14 +16,12 @@
 
 """Common depends and micro defines for and only for data preprocess module"""
 
-import os
+from absl import logging
 import tensorflow as tf
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops
 from npu_device.distribute import hccl
 from npu_device.npu_device import npu_compat_function
-from absl import logging
-
 from npu_device.npu_device import global_npu_ctx
 
 

@@ -25,10 +25,8 @@ from __future__ import print_function
 
 import os
 import tensorflow as tf
-from tensorflow.python.eager import context
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import gen_control_flow_ops
-from tensorflow.python.ops.cond_v2 import cond_v2
 from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer
@@ -38,7 +36,6 @@ from tensorflow.python.platform import tf_logging as logging
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.estimator.npu import util
 from npu_bridge.hccl import hccl_ops
-from npu_bridge.estimator import npu_ops
 from npu_bridge.helper import helper
 
 gen_npu_ops = helper.get_gen_ops()
@@ -92,7 +89,7 @@ def allreduce(tensor, average=True):
         return new_tensor
 
 
-def reduce(tensor, var, root_rank, average=True, fusion=0, fusion_id=-1):
+def reduce(tensor, root_rank, average=True, fusion=0, fusion_id=-1):
     """NPU implemented reduce"""
     basic = NPUBasics("")
     size = basic.size()
@@ -156,6 +153,7 @@ class NPUOptimizer(optimizer.Optimizer):
         self._is_distributed = is_distributed
         self._is_loss_scale = is_loss_scale
         self._is_tailing_optimization = is_tailing_optimization
+        self._is_overall_finite = None
         if is_loss_scale and loss_scale_manager is None:
             raise ValueError("is_loss_scale is True, loss_scale_manager can not be None")
         if name is None:
@@ -279,7 +277,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
     average gradient values before applying gradients to model weights.
     """
 
-    def __init__(self, optimizer,
+    def __init__(self, tf_optimizer,
                  is_weight_update_sharding=False,
                  name=None):
         """
@@ -289,15 +287,15 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         across all the hcom ranks.
 
         Args:
-            optimizer: Optimizer to use for computing gradients and applying updates.
+            tf_optimizer: Optimizer to use for computing gradients and applying updates.
             name: Optional name prefix for the operations created when applying
                 gradients. Defaults to "Distributed" followed by the provided
                 optimizer type.
                 See Optimizer.__init__ for more info.
         """
         if name is None:
-            name = "Distributed{}".format(type(optimizer).__name__)
-        self._optimizer = optimizer
+            name = "Distributed{}".format(type(tf_optimizer).__name__)
+        self._optimizer = tf_optimizer
         self._is_weight_update_sharding = is_weight_update_sharding
         super(NPUDistributedOptimizer, self).__init__(name=name, use_locking=False)
 
@@ -311,7 +309,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         logging.debug("compute_gradients...")
         gradients = self._optimizer.compute_gradients(*args, **kwargs)
         rank_size = os.getenv('RANK_SIZE')
-        if rank_size == None or int(rank_size) <= 1:
+        if rank_size is None or int(rank_size) <= 1:
             return gradients
 
         averaged_gradients = []
@@ -330,7 +328,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
         """Apply gradients on variables"""
         rank_size = os.getenv('RANK_SIZE')
-        if rank_size == None or int(rank_size) <= 1:
+        if rank_size is None or int(rank_size) <= 1:
             return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
 
         if self._is_weight_update_sharding:
@@ -354,7 +352,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
                                                    global_step, name):
         op_list = []
         local_rank_id = os.getenv('DEVICE_ID')
-        if local_rank_id == None or int(local_rank_id) < 0:
+        if local_rank_id is None or int(local_rank_id) < 0:
             raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
         local_grads_and_vars = []
         for grad, var in grads_and_vars:
@@ -380,7 +378,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
     def _averaged_gradients_if_weight_update_sharding(self, gradients, rank_size):
         averaged_gradients = []
         local_rank_id = os.getenv('DEVICE_ID')
-        if local_rank_id == None or int(local_rank_id) < 0:
+        if local_rank_id is None or int(local_rank_id) < 0:
             raise ValueError('Please set the correct RANK_ID value, current RANK_ID is:', local_rank_id)
         util.add_grads_and_vars(gradients, int(rank_size))
         with tf.name_scope(self._name + "_Reduce_Weight_Update_Sharding"):
@@ -397,7 +395,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
     average gradient values before applying gradients to model weights.
     """
 
-    def __init__(self, optimizer, name="NpuKerasOptimizer", **kwargs):
+    def __init__(self, tf_optimizer, name="NpuKerasOptimizer", **kwargs):
         """
         Construct a new KerasDistributeOptimizer, which uses another optimizer
         under the hood for computing single-process gradient values and
@@ -405,16 +403,16 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         across all the hcom ranks.
 
         Args:
-            optimizer: Optimizer to use for get_updates gradients.
+            tf_optimizer: Optimizer to use for get_updates gradients.
         """
         super(KerasDistributeOptimizer, self).__init__(name, **kwargs)
-        self._optimizer = optimizer
+        self._optimizer = tf_optimizer
         old_get_gradient = self._optimizer.get_gradients
 
         def new_get_gradient(loss, params):
             grads = old_get_gradient(loss, params)
             rank_size = os.getenv('RANK_SIZE', '1')
-            if rank_size == None or int(rank_size) <= 1:
+            if rank_size is None or int(rank_size) <= 1:
                 return grads
             averaged_grads = []
             with tf.name_scope(name + "_Allreduce"):
@@ -432,7 +430,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
     def _compute_gradients(self, loss, var_list, grad_loss=None):
         gradients = self._optimizer._compute_gradients(loss, var_list, grad_loss)
         rank_size = os.getenv('RANK_SIZE', '1')
-        if rank_size == None or int(rank_size) <= 1:
+        if rank_size is None or int(rank_size) <= 1:
             return gradients
         averaged_grads = []
         with tf.name_scope(self._name + "_Allreduce"):
@@ -454,16 +452,16 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def npu_distributed_optimizer_wrapper(optimizer):
+def npu_distributed_optimizer_wrapper(tf_optimizer):
     """
     An optimizer that wraps Optimizer, using an allreduce to
     average gradient values before applying gradients to model weights.
     """
-    if isinstance(optimizer, str):
-        optimizer = optimizers.get(optimizer)
+    if isinstance(tf_optimizer, str):
+        tf_optimizer = optimizers.get(tf_optimizer)
     rank_size = os.getenv('RANK_SIZE')
-    if hasattr(optimizer, "compute_gradients"):
-        org_compute_gradients = optimizer.compute_gradients
+    if hasattr(tf_optimizer, "compute_gradients"):
+        org_compute_gradients = tf_optimizer.compute_gradients
 
         def _npu_compute_gradients(*args, **kwargs):
             """
@@ -471,7 +469,7 @@ def npu_distributed_optimizer_wrapper(optimizer):
             allreduce the gradients before returning them.
             """
             gradients = org_compute_gradients(*args, **kwargs)
-            if rank_size == None or int(rank_size) <= 1:
+            if rank_size is None or int(rank_size) <= 1:
                 return gradients
             averaged_gradients = []
             with tf.name_scope("Npu_Distributed_optimizer_Allreduce"):
@@ -480,14 +478,14 @@ def npu_distributed_optimizer_wrapper(optimizer):
                     averaged_gradients.append((avg_grad, var))
             return averaged_gradients
 
-        optimizer.compute_gradients = _npu_compute_gradients
+        tf_optimizer.compute_gradients = _npu_compute_gradients
 
-    if hasattr(optimizer, "get_gradients"):
-        org_get_gradients = optimizer.get_gradients
+    if hasattr(tf_optimizer, "get_gradients"):
+        org_get_gradients = tf_optimizer.get_gradients
 
         def _npu_get_gradients(loss, params):
             grads = org_get_gradients(loss, params)
-            if rank_size == None or int(rank_size) <= 1:
+            if rank_size is None or int(rank_size) <= 1:
                 return grads
             averaged_grads = []
             with tf.name_scope("Npu_Distributed_optimizer_get_grads_Allreduce"):
@@ -496,14 +494,14 @@ def npu_distributed_optimizer_wrapper(optimizer):
                     averaged_grads.append(avg_grad)
             return averaged_grads
 
-        optimizer.get_gradients = _npu_get_gradients
+        tf_optimizer.get_gradients = _npu_get_gradients
 
-    if hasattr(optimizer, "_compute_gradients"):
-        org_compute_gradients = optimizer._compute_gradients
+    if hasattr(tf_optimizer, "_compute_gradients"):
+        org_compute_gradients = tf_optimizer._compute_gradients
 
         def _npu_compute_gradients(loss, var_list, grad_loss=None):
             gradients = org_compute_gradients(loss, var_list, grad_loss)
-            if rank_size == None or int(rank_size) <= 1:
+            if rank_size is None or int(rank_size) <= 1:
                 return gradients
             averaged_grads = []
             with tf.name_scope("Npu_Distributed_optimizer_compute_grads_Allreduce"):
@@ -512,9 +510,9 @@ def npu_distributed_optimizer_wrapper(optimizer):
                     averaged_grads.append((avg_grad, var))
             return averaged_grads
 
-        optimizer._compute_gradients = _npu_compute_gradients
+        tf_optimizer._compute_gradients = _npu_compute_gradients
 
-    return optimizer
+    return tf_optimizer
 
 
 def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):

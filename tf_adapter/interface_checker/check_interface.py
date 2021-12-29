@@ -14,9 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-    check interface
-"""
+"""check interface"""
+
 import os
 
 # 获取接口规范的目录
@@ -460,10 +459,10 @@ def compare_class_spec(spec1: ClassIntfSpec, spec2: ClassIntfSpec, file_name1=""
     func_list_1 = spec1.func_list
     func_list_2 = spec2.func_list
     # remove private func api
-    func_names_1 = sorted([x for x in func_list_1.keys() if x == "__init__" or x == "__new__" \
-                           or not x.startswith("__") and not x.startswith("_")])
-    func_names_2 = sorted([x for x in func_list_2.keys() if x == "__init__" or x == "__new__" \
-                           or not x.startswith("__") and not x.startswith("_")])
+    func_names_1 = sorted(x for x in func_list_1.keys() if x == "__init__" or x == "__new__" \
+                           or not x.startswith("__") and not x.startswith("_"))
+    func_names_2 = sorted(x for x in func_list_2.keys() if x == "__init__" or x == "__new__" \
+                           or not x.startswith("__") and not x.startswith("_"))
     if spec1.supper_classes != spec2.supper_classes:
         print("[EEEE] compare class: \"%s\", supper_classes is different in interface define: \"%s\","
               " in source file: \"%s\"" % (spec1.class_name, spec1.supper_classes, spec2.supper_classes))

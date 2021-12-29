@@ -29,7 +29,7 @@ import util_global
 from conver import conver
 
 
-class Analyse(object):
+class Analyse:
     """Use Tkinter to display ayalysis result"""
     def __init__(self, parent):
         self.root = parent
@@ -158,7 +158,7 @@ class Analyse(object):
         main_file = self.get_main_file()
         distributed_mode = self.get_distributed_mode()
 
-        if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
+        if input_dir in output or input_dir in report:
             print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
             sys.exit(2)
 

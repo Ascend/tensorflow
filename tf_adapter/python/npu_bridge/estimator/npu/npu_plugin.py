@@ -17,14 +17,11 @@
 
 """NPU plugin for Tensorflow"""
 
-import json
-import os
 from hccl.manage.api import get_local_rank_size
 from hccl.manage.api import get_rank_id
 from npu_bridge import tf_adapter
 from npu_bridge.estimator.npu import util
 from npu_bridge.estimator.npu import npu_scope
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import init_ops
 

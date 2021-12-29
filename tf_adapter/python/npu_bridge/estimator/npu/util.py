@@ -99,7 +99,7 @@ def format_string(value, name):
     return str(value)
 
 
-def check_profiling_options(profiling_options=[]):
+def check_profiling_options(profiling_options=None):
     """Check profiling options .
     Args:
         profiling_options: Profiling options.
@@ -232,6 +232,11 @@ class IterationPerLoop():
     """
     An object provide two API to create and set iterations_per_loop
     """
+    def __init__(self):
+        self._const_one = None
+        self._const_zero = None
+        self._loop_cond_var = None
+        self._iterations_per_loop_var = None
 
     def create_iteration_per_loop_var(self, train_op):
         """
@@ -290,37 +295,30 @@ def variable_initializer_in_host(var_list):
 
 def fair_division(inputs, number):
     """Calculate fain division"""
-    def get_sum(list):
+    def get_sum(input_list):
         """Calculate sum"""
         res = 0
-        for item in list:
+        for item in input_list:
             res += item.size
         return res
 
-    def get_left_input_sum(list):
-        res = 0
-        for item in list:
-            if item.root_rank_id < 0:
-                res += item.size
-        return res
-
-    def get_average(list, size):
+    def get_average(input_list, size):
         large_number_list = []
         average_size = 0
         res = 0
         if size == 1:
-            for item in list:
+            for item in input_list:
                 if item.root_rank_id < 0:
                     res += item.size
             return res
         while True:
             res = 0
             find_large_number = False
-            for item in list:
+            for item in input_list:
                 if item not in large_number_list and item.root_rank_id < 0:
                     res += item.size
             average_size = res // (size - len(large_number_list))
-            for item in list:
+            for item in input_list:
                 if item not in large_number_list and item.root_rank_id < 0 and item.size > res - item.size:
                     find_large_number = True
                     large_number_list.append(item)
@@ -452,7 +450,7 @@ def set_graph_exec_config(fetch, dynamic_input=False,
             fetch.op._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
             fetch.op._set_attr("_is_train_graph", is_train_graph_attr)
 
-    if dynamic_graph_execute_mode != "lazy_recompile" and dynamic_graph_execute_mode != "dynamic_execute":
+    if dynamic_graph_execute_mode not in ("lazy_recompile", "dynamic_execute"):
         raise ValueError("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute")
     dynamic_input_attr = attr_value_pb2.AttrValue(b=dynamic_input)
     dynamic_graph_execute_mode_attr = attr_value_pb2.AttrValue(s=compat.as_bytes(dynamic_graph_execute_mode))
@@ -522,6 +520,7 @@ def set_op_tensor_max_range(tensor, max_shape):
         tensor._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
     else:
         tensor.op._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
+
 
 def set_op_input_tensor_multi_dims(tensor, input_shape, input_dims):
     """Set multi dimensions for op input tensor"""

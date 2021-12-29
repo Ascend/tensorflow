@@ -87,7 +87,7 @@ def deformable_conv2d(  # pylint: disable=redefined-builtin
     if context.executing_eagerly():
         raise RuntimeError("tf.deformable_conv2d() is not compatible with "
                            "eager execution.")
-    if modulated != True:
+    if not modulated:
         raise RuntimeError("tf.deformable_conv2d() only supports "
                            "modulated is True currently")
     if groups != 1:

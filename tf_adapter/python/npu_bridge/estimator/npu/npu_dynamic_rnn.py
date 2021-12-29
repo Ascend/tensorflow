@@ -16,15 +16,12 @@
 
 """NPU impletemented RNN"""
 
-import os
 import math
-import tensorflow as tf
 from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import tensor_shape
-from npu_bridge.helper import helper
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import array_ops
+from npu_bridge.helper import helper
 
 gen_npu_ops = helper.get_gen_ops()
 

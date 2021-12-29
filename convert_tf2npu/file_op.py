@@ -19,7 +19,6 @@
 
 import os
 import re
-import subprocess
 import shutil
 import util_global
 import pandas as pd
@@ -52,15 +51,15 @@ def mkdir_and_copyfile(srcfile, dstpath, file_name):
 
 def write_output_after_conver(out_file, dst_content):
     """Write content to output file"""
-    with open(out_file, 'w') as file:
-        file.write(dst_content)
+    with open(out_file, 'w') as output_file:
+        output_file.write(dst_content)
 
 
 def write_report_after_conver(new_file_path, report_file, dst_content):
     """Write content to report file"""
     mkdir(new_file_path)
-    with open(os.path.join(new_file_path, report_file), 'w') as file:
-        file.write(dst_content)
+    with open(os.path.join(new_file_path, report_file), 'w') as reports:
+        reports.write(dst_content)
 
 
 def get_bit_val(value, index):
@@ -92,9 +91,9 @@ def write_conver_report(content, file):
     """Add content to existed report file"""
     report_path = util_global.get_value('report')
     mkdir(report_path)
-    with open(os.path.join(report_path, file), 'a') as file:
-        file.write(content)
-        file.write("\r\n")
+    with open(os.path.join(report_path, file), 'a') as report_file:
+        report_file.write(content)
+        report_file.write("\r\n")
 
 
 def check_warning(lineno, api_msg):
@@ -105,14 +104,14 @@ def check_warning(lineno, api_msg):
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", You used tensorflow api: ",
                            api_msg, ", It is suggested to use npu api. Please refer to the online document: ",
                            doc_msg])
-        subprocess.run(["cd", "."], shell=True)
+        os.system("cd .")
         print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
         write_conver_report(content, util_global.get_value('report_file')[1])
 
 
 def log_failed_api(lineno, api_msg, is_third_party):
     """Log message for NPU unsupported APIs"""
-    subprocess.run(["cd", "."], shell=True)
+    os.system("cd .")
     if is_third_party:
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
                            ", Please modify user scripts manually."])
@@ -171,12 +170,11 @@ def scan_file(path, file_name, api, lineno):
 
             api_support_type = api_support[api_name.index(name)]
             # print warning message of npu supported api
-            if api_support_type == '支持（无需迁移）' or api_support_type == '兼容类':
+            if api_support_type in ('支持（无需迁移）', '兼容类'):
                 check_warning(lineno[i], name)
 
             # print error message when api is unsupported on npu
-            if api_support_type == '分析中（特性商用时不应该存在）' or \
-                    api_support_type == '不支持（无迁移方案，建议用户不使用）':
+            if api_support_type in ('分析中（特性商用时不应该存在）', '不支持（无迁移方案，建议用户不使用）'):
                 log_failed_api(lineno[i], name, is_third_party=False)
 
     # search for tf enumeration
@@ -198,8 +196,7 @@ def scan_file(path, file_name, api, lineno):
 
                 # print error message when api is unsupported on npu
                 api_support_type = api_support[api_name.index(class_name)]
-                if api_support_type == '分析中（特性商用时不应该存在）' or \
-                        api_support_type == '不支持（无迁移方案，建议用户不使用）':
+                if api_support_type in ('分析中（特性商用时不应该存在）', '不支持（无迁移方案，建议用户不使用）'):
                     log_failed_api(lineno[i], class_name, is_third_party=False)
 
     # record unsupported api
@@ -221,7 +218,7 @@ def scan_file(path, file_name, api, lineno):
 
     # when there are tf apis used in script, analysis report will be generated
     report = util_global.get_value('generate_dir_report')
-    if len(script_name):
+    if script_name:
         report = report.append(analyse_result)
         util_global.set_value('generate_dir_report', report)
 

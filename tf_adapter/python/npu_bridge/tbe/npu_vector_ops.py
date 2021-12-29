@@ -16,7 +16,6 @@
 # ==============================================================================
 
 """Ops for aicore cube."""
-from tensorflow import Tensor
 from tensorflow.python.eager import context
 from tensorflow.python.keras import constraints
 from tensorflow.python.keras import initializers
@@ -66,6 +65,9 @@ class PReLU(Layer):
         self.alpha_regularizer = regularizers.get(alpha_regularizer)
         self.alpha_constraint = constraints.get(alpha_constraint)
         self.shared_axes = shared_axes
+        self.alpha = None
+        self.input_spec = None
+        self.built = None
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape):

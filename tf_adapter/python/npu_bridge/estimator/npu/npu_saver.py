@@ -17,19 +17,17 @@
 
 """Definition for NPU saver"""
 
+import tensorflow as tf
 from tensorflow.python.training.saver import BulkSaverBuilder
 from tensorflow.python.training.saver import Saver
-from npu_bridge.estimator.npu import util
-import tensorflow as tf
-from npu_bridge.hccl import hccl_ops
-from tensorflow.python.platform import tf_logging as logging
-
 from tensorflow.python.eager import context
 from tensorflow.python.training.saving import saveable_object_util
 from tensorflow.core.protobuf import saver_pb2
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import variables
+from npu_bridge.estimator.npu import util
+from npu_bridge.hccl import hccl_ops
 
 
 class NPUBulkSaverBuilder(BulkSaverBuilder):
@@ -40,7 +38,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
                         sharded=False,
                         max_to_keep=5,
                         keep_checkpoint_every_n_hours=10000.0,
-                        name=None,
+                        op_name=None,
                         restore_sequentially=False,
                         filename="model",
                         build_save=True,
@@ -56,7 +54,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
         if max_to_keep is None:
             max_to_keep = 0
 
-        with ops.name_scope(name, "save",
+        with ops.name_scope(op_name, "save",
                             [saveable.op for saveable in saveables]) as name:
             # Add a placeholder string tensor for the filename.
             filename_tensor = array_ops.placeholder_with_default(
@@ -159,6 +157,9 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
 
 class NPUSaver(Saver):
     """NPU saver for saving checkpoints"""
+    def __init__(self):
+        self._builder = None
+
     def _build(self, checkpoint_path, build_save, build_restore):
         if not self.saver_def or context.executing_eagerly():
             if self._builder is None:

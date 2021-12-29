@@ -22,9 +22,6 @@ from __future__ import print_function
 
 import os
 import json
-from ctypes import cdll
-from ctypes import c_uint
-from ctypes import byref
 
 from tensorflow.python.platform import tf_logging as logging
 from npu_bridge.estimator.npu import util as util_lib
@@ -196,7 +193,7 @@ class NPUBasics(object):
             logging.warning('Warning:job config file does not exist')
 
             job_id = os.getenv('JOB_ID', "")
-            if (job_id == ""):
+            if job_id == "":
                 logging.error('Error:can not get job config from env')
                 return None
 
@@ -205,14 +202,14 @@ class NPUBasics(object):
             rank_table_file = os.getenv('RANK_TABLE_FILE', "")
 
             identity = os.getenv('POD_NAME', "")
-            if (identity == ""):
+            if identity == "":
                 identity = os.getenv('RANK_ID', "")
 
             checkpoint_dir = os.getenv('LOCAL_CHECKPOINT_DIR', "")
 
             # cann't get rank_size from env, set to default 1
             rank_size = os.getenv('RANK_SIZE', '1')
-            if (rank_size.isdigit() is False):
+            if rank_size.isdigit() is False:
                 print("set rank_size to default 1")
                 rank_size = 1
 
