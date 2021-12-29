@@ -129,6 +129,7 @@ class GeOp : public AsyncOpKernel {
   static const std::string SubGraph;
 
   static mutex mu_;
+  static std::atomic_flag tuned_initialize_flag_;
 
   bool init_flag_;
   bool build_flag_;

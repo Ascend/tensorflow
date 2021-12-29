@@ -357,6 +357,7 @@ void GeOp::Finalize() {
               return;
             }
           }
+          tuned_initialize_flag_.clear();
           GePlugin::GetInstance()->Finalize();
           ADP_LOG(INFO) << "[GEOP] GePlugin Finalize success";
         } else {
@@ -534,8 +535,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         tune_options_.insert({"work_path", init_options_["ge.tuningPath"]});
         tune_options_.insert({"job_type", init_options_["ge.jobType"]});
         // aoe ini
-        static std::atomic_flag tuned_initialize_flag = ATOMIC_FLAG_INIT;
-        if (!tuned_initialize_flag.test_and_set()) {
+        if (!tuned_initialize_flag_.test_and_set()) {
           std::map<Aoe::AscendString, Aoe::AscendString> global_options;
           global_options.insert({Aoe::AscendString("work_path"),
                                  Aoe::AscendString(init_options_["ge.tuningPath"].c_str())});
@@ -1694,6 +1694,7 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
 
 namespace tensorflow {
 mutex GeOp::mu_(LINKER_INITIALIZED);
+std::atomic_flag GeOp::tuned_initialize_flag_ = ATOMIC_FLAG_INIT;
 
 const std::string GeOp::INPUT_DESC = "input_tensor_desc";
 const std::string GeOp::OUTPUT_DESC = "output_tensor_desc";
