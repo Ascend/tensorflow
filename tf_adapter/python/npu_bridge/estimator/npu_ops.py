@@ -20,24 +20,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import threading
-import os
 import numbers
-import tensorflow as tf
 
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops.nn_ops import _get_noise_shape
-from tensorflow.python.framework import tensor_shape
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
-from tensorflow.contrib.util import loader
 from tensorflow.python.eager import context
-from tensorflow.python.framework import device
-from tensorflow.python.platform import resource_loader
-from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 from npu_bridge.helper import helper
+from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 gen_npu_ops = helper.get_gen_ops()
 
@@ -79,7 +70,7 @@ def initialize_system(name=None):
     Returns:
         The npu init ops which will open the NPU system using `Session.run`.
     """
-    return NPUInit(name);
+    return NPUInit(name)
 
 
 def shutdown_system(name=None):

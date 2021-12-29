@@ -24,11 +24,6 @@ import os
 import subprocess
 import sys
 
-try:
-    from shutil import which
-except ImportError:
-    from distutils.spawn import find_executable as which
-
 _COMPAT_TENSORFLOW_VERSION = "2.4"
 _PYTHON_BIN_PATH_ENV = "ADAPTER_TARGET_PYTHON_PATH"
 _ASCEND_INSTALLED_PATH_ENV = "ASCEND_INSTALLED_PATH"
@@ -105,8 +100,8 @@ def setup_python(env_path):
             f.write(python_bin_path)
         with open(real_config_path('COMPILE_FLAGS'), 'w') as f:
             for flag in compile_args[2:-1]:
-                f.write("".join([flag , '\n']))
-            f.write("".join(["-I" , compile_args[-1] , '\n']))
+                f.write("".join([flag, '\n']))
+            f.write("".join(["-I", compile_args[-1] , '\n']))
         with open(real_config_path('TF_INSTALLED_PATH'), 'w') as f:
             f.write(compile_args[1])
         break
@@ -129,7 +124,7 @@ def setup_ascend(env_path):
         # Check if the path is valid
         if os.path.isdir(ascend_path) and os.access(ascend_path, os.X_OK):
             break
-        elif not os.path.exists(ascend_path):
+        if not os.path.exists(ascend_path):
             print('Invalid ascend path: %s cannot be found.' % ascend_path)
 
     with open(real_config_path('ASCEND_INSTALLED_PATH'), 'w') as f:

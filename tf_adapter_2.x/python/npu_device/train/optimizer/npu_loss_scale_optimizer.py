@@ -47,8 +47,7 @@ def _npu_finite_status_after_executed(executed_ops):
             with tf.control_dependencies([assign_float_status]):
                 reduced_status = all_reduce(current_status, 'sum', fusion=0)
             return tf.reduce_all(tf.equal(reduced_status, finite_status))
-        else:
-            return tf.reduce_all(tf.equal(current_status, finite_status))
+        return tf.reduce_all(tf.equal(current_status, finite_status))
 
 
 def _npu_compat_loss_scale_update(m, grads):

@@ -20,14 +20,26 @@
 import os
 import sys
 import ast
-import subprocess
 import pasta
 import util_global
 from file_op import write_output_after_conver
 from file_op import write_report_after_conver
 from file_op import scan_file
-from util import *
-from ast_impl import *
+from util import log_warning_main_arg_not_set
+from ast_impl import log_strategy_distributed_mode_error
+from ast_impl import node_tree
+from ast_impl import attribute
+from ast_impl import ast_function_def
+from ast_impl import ast_call
+from ast_impl import import_from
+from ast_impl import ast_import
+from ast_impl import ast_if
+from ast_impl import insert_npu_import
+from ast_impl import insert_npu_resource_init
+from ast_impl import insert_npu_resource_shutdown
+from ast_impl import insert_keras_dropout_import
+from ast_impl import insert_keras_sess_npu_config
+from ast_impl import insert_keras_sess_close
 from visit_by_ast import get_tf_api
 
 
@@ -45,7 +57,7 @@ class ConverByAst(ast.NodeTransformer):
         if node.attr in util_global.get_value('hvd'):
             distributed_mode = util_global.get_value("distributed_mode", "")
             if isinstance(node.value, ast.Name) and 'hvd' in str(node.value.id):
-                if distributed_mode == "tf_strategy" or distributed_mode == "":
+                if distributed_mode in ("tf_strategy", ""):
                     log_strategy_distributed_mode_error(node)
                     return node
                 return attribute(node)
@@ -127,7 +139,7 @@ def conver_ast(path, out_path_dst, file_name):
         print(repr(e))
         content = ("There is a format problem in the script, please check the python code "
                    "specification or whether it is converted to a linux file through 'dos2unix'")
-        subprocess.run(["cd", "."], shell=True)
+        os.system("cd .")
         print("".join(["\033[1;31mERROR\033[0m:", content]))
         return
 
