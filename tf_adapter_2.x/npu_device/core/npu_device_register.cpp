@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "npu_device_register.h"
+
 #include "tensorflow/core/platform/logging.h"
 
 #include "npu_device.h"
@@ -21,7 +23,7 @@
 namespace {
 TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status,
                                         void *device_info) {
-  auto *dev = reinterpret_cast<NpuDevice *>(device_info);
+  auto *dev = reinterpret_cast<npu::NpuDevice *>(device_info);
   tensorflow::Status tf_status;
   LOG(INFO) << "[CopyTensorToNpuDevice] Copy tensor from " << tensorflow::unwrap(tensor)->DeviceName(&tf_status)
             << " to " << dev->device_name;
@@ -32,7 +34,7 @@ TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *
 
 TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle *tensor,
                                           const char *target_device_name, TF_Status *status, void *device_info) {
-  auto *dev = reinterpret_cast<NpuDevice *>(device_info);
+  auto *dev = reinterpret_cast<npu::NpuDevice *>(device_info);
   DLOG() << "[CopyTensorFromNpuDevice] Copy tensor from " << dev->device_name << " to " << target_device_name;
   // 输入的TensorHandle是NPU的，应当先进行NPU->CPU的传输，再调用TFE_TensorHandleCopyToDevice防止可能的NPU->GPU传输
   // 一旦Copy动作发生，需要进行stream同步。如果是NPU->NPU的拷贝（理论上不应该发生），可以不同步。
@@ -46,11 +48,11 @@ TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle
 }
 
 void NpuDeviceExecute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s, void *device_info) {
-  auto *dev = reinterpret_cast<NpuDevice *>(device_info);
+  auto *dev = reinterpret_cast<npu::NpuDevice *>(device_info);
   dev->Execute(op, *num_outputs, outputs, s);
 }
 
-void DeleteNpuDevice(void *device_info) { NpuDevice::DeleteDevice(device_info); }
+void DeleteNpuDevice(void *device_info) { npu::NpuDevice::DeleteDevice(device_info); }
 
 void RegisterNpuDevice(TFE_Context *context, const char *name, void *device_info, TF_Status *status) {
   TFE_CustomDevice custom_device;
@@ -61,9 +63,10 @@ void RegisterNpuDevice(TFE_Context *context, const char *name, void *device_info
   TFE_RegisterCustomDevice(context, custom_device, name, device_info, status);
 }
 
-std::vector<NpuDevice *> devices_instances;
+std::vector<npu::NpuDevice *> devices_instances;
 }  // namespace
 
+namespace npu {
 /**
  * @breif: create device
  * @param context: context
@@ -71,8 +74,8 @@ std::vector<NpuDevice *> devices_instances;
  * @param device_index: device index
  * @param device_options: device options
  */
-extern std::string CreateDevice(TFE_Context *context, const char *name, int device_index,
-                                const std::map<std::string, std::string> &device_options) {
+std::string CreateDevice(TFE_Context *context, const char *name, int device_index,
+                         const std::map<std::string, std::string> &device_options) {
   const static std::string kSucceed;
 
   NpuDevice *device = nullptr;
@@ -95,9 +98,10 @@ extern std::string CreateDevice(TFE_Context *context, const char *name, int devi
 /**
  * @breif: release device resource
  */
-extern void ReleaseDeviceResource() {
+void ReleaseDeviceResource() {
   for (auto device : devices_instances) {
     device->ReleaseResource();
   }
   devices_instances.clear();
 }
+}  // namespace npu

@@ -32,6 +32,7 @@
 #include "npu_unwrap.h"
 #include "npu_utils.h"
 
+namespace npu {
 class NpuDevice {
   using HashKey = uint64_t;
 
@@ -56,9 +57,9 @@ class NpuDevice {
 
   tensorflow::Status InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
                                 const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
-                                TensorPartialShapes &shapes, bool &requested_input_value);
+                                TensorPartialShapes &shapes, bool &requested_input_value) const;
 
-  tensorflow::Status ValidateOutput(const char *op_name, const TensorDataTypes &data_types);
+  tensorflow::Status ValidateOutput(const char *op_name, const TensorDataTypes &data_types) const;
 
   static void PruneFunction(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature = false);
 
@@ -128,9 +129,9 @@ class NpuDevice {
   uint64_t AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name, const tensorflow::GraphDef &def,
                       TF_Status *status);
 
-  tensorflow::Status GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *origin_graph, int num_inputs,
-                                      TFE_TensorHandle **inputs, bool &loop, bool &builtin_loop,
-                                      tensorflow::GraphDef *def);
+  static tensorflow::Status GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *origin_graph, int num_inputs,
+                                             TFE_TensorHandle **inputs, bool &loop, bool &builtin_loop,
+                                             tensorflow::GraphDef *def);
 
   uint64_t AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
                            const tensorflow::GraphDef &def, bool loop, TF_Status *status);
@@ -261,7 +262,9 @@ class NpuDevice {
   CachedFuncSpecs cached_func_specs_;
   std::map<tensorflow::ResourceHandle, std::pair<TensorPartialShapes, TensorDataTypes>, ResourceCompare>
     iterator_mirrors_;
-  std::map<tensorflow::ResourceHandle, std::shared_ptr<npu::IteratorResourceProvider>, ResourceCompare> iterator_providers_;
+  std::map<tensorflow::ResourceHandle, std::shared_ptr<npu::IteratorResourceProvider>, ResourceCompare>
+    iterator_providers_;
 };
+}  // namespace npu
 
 #endif  // TENSORFLOW_C_EAGER_CUSTOM_DEVICE_TESTUTIL_H_

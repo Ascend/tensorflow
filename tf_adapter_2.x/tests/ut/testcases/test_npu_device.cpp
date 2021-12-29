@@ -134,7 +134,7 @@ class ST_NpuDevice : public ::testing::Test {
     TFE_ContextOptions *opts = TFE_NewContextOptions();
     context = TFE_NewContext(opts, status);
     TFE_DeleteContextOptions(opts);
-    CreateDevice(context, kNpuDeviceName, kNpuDeviceIndex, kDeviceOptions);
+    npu::CreateDevice(context, kNpuDeviceName, kNpuDeviceIndex, kDeviceOptions);
 
     for (const auto &function_def : FunctionStrLibrary::Instance().Get()) {
       TFE_ContextAddFunctionDef(context, function_def.data(), function_def.size(), status);
@@ -143,7 +143,7 @@ class ST_NpuDevice : public ::testing::Test {
   }
 
   void TearDown() override {
-    ReleaseDeviceResource();
+    npu::ReleaseDeviceResource();
     TFE_DeleteContext(context);
     TF_DeleteStatus(status);
   }

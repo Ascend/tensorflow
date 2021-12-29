@@ -81,9 +81,11 @@ class AssignVariableGraphBuilder {
     return gdef;
   }
 };
-void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
-                          const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
-                          TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+
+void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, npu::NpuDevice *dev,
+                          const npu::OpSpec *spec, const TensorShapes &output_shapes,
+                          const tensorflow::NodeDef &parser_ndef, int num_inputs, TFE_TensorHandle **inputs,
+                          int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   TF_UNUSED_VARIABLE(spec);
   TF_UNUSED_VARIABLE(output_shapes);
   TF_UNUSED_VARIABLE(parser_ndef);
@@ -95,7 +97,7 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
   TFE_TensorHandle *value_handle = inputs[1];
   if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[1]))) {
     value_handle = dev->CopyTensorD2H(context, inputs[1], status);
-    if (TF_GetCode(status) != TF_OK) { return; }
+    if (TF_GetCode(status) != TF_OK) return;
     scope_handle_deleter.Guard(value_handle);
   }
 
@@ -106,9 +108,7 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
          << value->DebugString();
   auto var_init_graph =
     AssignVariableGraphBuilder::GetGraph(op_name, resource.container(), resource.name(), *value, status);
-  if (TF_GetCode(status) != TF_OK) {
-    return;
-  }
+  if (TF_GetCode(status) != TF_OK) return;
   std::string graph_name = op_name + "_" + resource.name();
   if (kDumpExecutionDetail && kDumpGraph) {
     std::string file_name = graph_name + ".pbtxt";
@@ -120,6 +120,7 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
 }
 }  // namespace
 
+namespace npu {
 static auto kernel_assign = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                                const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef,
                                int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
@@ -144,7 +145,6 @@ static auto kernel_assign_sub = [](TFE_Context *context, NpuDevice *dev, const n
                        num_outputs, outputs, status);
 };
 
-namespace npu {
 NPU_REGISTER_CUSTOM_KERNEL("AssignVariableOp", kernel_assign);
 NPU_REGISTER_CUSTOM_KERNEL("AssignAddVariableOp", kernel_assign_add);
 NPU_REGISTER_CUSTOM_KERNEL("AssignSubVariableOp", kernel_assign_sub);
