@@ -91,7 +91,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  modify_mixlist=None,
                  op_precision_mode=None,
                  device_type="default_device_type",
-                 hccl_timeout="600"
+                 hccl_timeout="600",
                  op_wait_timeout="120",
                  op_execute_timeout="90"
                  ):
