@@ -79,7 +79,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       OP_REQUIRES(ctx, device_id >= 0, errors::InvalidArgument("device id should be >= 0."));
       local_device_list_.push_back(device_id);
     }
-    GetChannelType();
+    SetChannelType();
     ADP_LOG(INFO) << "Start to init channel.";
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
     if (channel_type_ == ChannelType::TDT) {
@@ -107,7 +107,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     }
   }
 
-  void GetChannelType() {
+  void SetChannelType() {
     ADP_LOG(INFO) << "kIsNewDataTransfer is " << kIsNewDataTransfer;
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
