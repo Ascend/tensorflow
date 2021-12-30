@@ -24,16 +24,10 @@
 #include "tf_adapter/util/generate_report.h"
 using json = nlohmann::json;
 
-#define LIKELY(x) __builtin_expect(!!(x), 1)
-#define UNLIKELY(x) __builtin_expect(!!(x), 0)
-
 const static std::string kOpsInfoJson = "/framework/built-in/tensorflow/npu_supported_ops.json";
 const static std::string kGray = "isGray";
 const static std::string kHeavy = "isHeavy";
-/**
- * @brief: This method returns different instance Pointers in mixed mode and in the full sink model
- * @param is_mix: is mix compile mode or not
- */
+
 NpuOpsIdentifier *NpuOpsIdentifier::GetInstance(bool is_mix) {
   if (is_mix) {
     static json mixJson;
@@ -73,7 +67,9 @@ int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) {
   if (jsonConfigFileStream.is_open()) {
     try {
       jsonConfigFileStream >> root;
-      for (auto i = root.begin(); i != root.end(); ++i) { opsCnt++; }
+      for (auto i = root.begin(); i != root.end(); ++i) {
+        opsCnt++;
+      }
     } catch (json::exception &e) {
       ADP_LOG(INFO) << e.what();
       jsonConfigFileStream.close();
@@ -91,22 +87,20 @@ int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) {
 bool NpuOpsIdentifier::IsNpuSupported(const char *op_name, const std::string &node_name) {
   return NpuOpsIdentifier::IsNpuSupported(std::string(op_name), node_name);
 }
-/**
- * @brief: is npu supported or not
- * @param op_name: op type
- * @param node_name: node name
- */
+
 bool NpuOpsIdentifier::IsNpuSupported(const std::string &op_name, const std::string &node_name) {
   bool declared = ops_info_[op_name].is_object();
   if (!declared) {
     tensorflow::GenerateReport::Details infos;
     static const std::string message = "This op is not exsit on npu.";
-    infos.code = tensorflow::GenerateReport::TypeNoDefine;
+    infos.code = static_cast<int>(tensorflow::GenerateReport::ReasonCode::TypeNoDefine);
     infos.message = message;
     tensorflow::GenerateReport::GetInstance()->AddUnSupportedInfo(node_name, op_name, infos);
     return false;
   }
-  if (is_mix_ && ops_info_[op_name][kGray].is_boolean()) { return !ops_info_[op_name][kGray]; }
+  if (is_mix_ && ops_info_[op_name][kGray].is_boolean()) {
+    return !ops_info_[op_name][kGray];
+  }
   return true;
 }
 // Determine if the node is performance-sensitive on NPU, this should
@@ -124,11 +118,10 @@ bool NpuOpsIdentifier::IsPerformanceSensitive(const char *op) {
 bool NpuOpsIdentifier::IsPerformanceSensitive(const std::string &op) {
   if (ops_info_.find(op) != ops_info_.end()) {
     if (ops_info_[op].is_object()) {
-      if (ops_info_[op][kHeavy].is_boolean()) { return ops_info_[op][kHeavy]; }
+      if (ops_info_[op][kHeavy].is_boolean()) {
+        return ops_info_[op][kHeavy];
+      }
     }
   }
   return false;
 }
-
-#undef LIKELY
-#undef UNLIKELY

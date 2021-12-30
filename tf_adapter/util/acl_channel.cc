@@ -1,30 +1,32 @@
-/* Copyright (C) 2021. Huawei Technologies Co., Ltd. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2021. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
-
-#include "tf_adapter/common/common.h"
-#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/acl_channel.h"
-#include "acl/error_codes/rt_error_codes.h"
 #include "securec.h"
+#include "acl/error_codes/rt_error_codes.h"
+#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 namespace tensorflow {
 
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
-      {DT_FLOAT, ACL_FLOAT}, {DT_HALF, ACL_FLOAT16}, {DT_INT8, ACL_INT8}, {DT_INT32, ACL_INT32},
-      {DT_UINT8, ACL_UINT8}, {DT_INT16, ACL_INT16}, {DT_UINT16, ACL_UINT16}, {DT_UINT32, ACL_UINT32},
-      {DT_INT64, ACL_INT64}, {DT_UINT64, ACL_UINT64}, {DT_DOUBLE, ACL_DOUBLE}, {DT_BOOL, ACL_BOOL},
+      {DT_FLOAT, ACL_FLOAT},  {DT_HALF, ACL_FLOAT16},  {DT_INT8, ACL_INT8},     {DT_INT32, ACL_INT32},
+      {DT_UINT8, ACL_UINT8},  {DT_INT16, ACL_INT16},   {DT_UINT16, ACL_UINT16}, {DT_UINT32, ACL_UINT32},
+      {DT_INT64, ACL_INT64},  {DT_UINT64, ACL_UINT64}, {DT_DOUBLE, ACL_DOUBLE}, {DT_BOOL, ACL_BOOL},
       {DT_STRING, ACL_STRING}};
   auto found = type_mapping.find(tf_type);
   if (found == type_mapping.end()) {
@@ -36,12 +38,14 @@ Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_
 
 Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) {
   const static std::map<aclDataType, tensorflow::DataType> type_mapping = {
-      {ACL_FLOAT, DT_FLOAT}, {ACL_FLOAT16, DT_HALF}, {ACL_INT8, DT_INT8}, {ACL_INT32, DT_INT32},
-      {ACL_UINT8, DT_UINT8}, {ACL_INT16, DT_INT16}, {ACL_UINT16, DT_UINT16}, {ACL_UINT32, DT_UINT32},
-      {ACL_INT64, DT_INT64}, {ACL_UINT64, DT_UINT64}, {ACL_DOUBLE, DT_DOUBLE}, {ACL_BOOL, DT_BOOL},
+      {ACL_FLOAT, DT_FLOAT},  {ACL_FLOAT16, DT_HALF},  {ACL_INT8, DT_INT8},     {ACL_INT32, DT_INT32},
+      {ACL_UINT8, DT_UINT8},  {ACL_INT16, DT_INT16},   {ACL_UINT16, DT_UINT16}, {ACL_UINT32, DT_UINT32},
+      {ACL_INT64, DT_INT64},  {ACL_UINT64, DT_UINT64}, {ACL_DOUBLE, DT_DOUBLE}, {ACL_BOOL, DT_BOOL},
       {ACL_STRING, DT_STRING}};
   auto found = type_mapping.find(acl_type);
-  if (found == type_mapping.end()) { return errors::Internal("Acl channel receive unsupported data type", acl_type); }
+  if (found == type_mapping.end()) {
+    return errors::Internal("Acl channel receive unsupported data type", acl_type);
+  }
   tf_type = found->second;
   return Status::OK();
 }
@@ -63,12 +67,16 @@ Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<Tensor> &tenso
   size_t dim_num = acltdtGetDimNumFromItem(item);
   size_t acl_data_len = acltdtGetDataSizeFromItem(item);
   char *acl_data = reinterpret_cast<char *>(acltdtGetDataAddrFromItem(item));
-  if (acl_data == nullptr) { return errors::Internal("Acl get data addr from item failed when receive tensor data."); }
+  if (acl_data == nullptr) {
+    return errors::Internal("Acl get data addr from item failed when receive tensor data.");
+  }
   if (!kIsNewDataTransfer && call_by_channel_receive) {
     acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str());
   }
   if (tf_type == DT_STRING) {
-    if (dim_num != 0) { return errors::Internal("Acl channel receive unsupported non-scalar string type"); }
+    if (dim_num != 0) {
+      return errors::Internal("Acl channel receive unsupported non-scalar string type");
+    }
     Tensor tensor(tf_type, TensorShape({}));
     tensor.scalar<string>()() = std::move(string(acl_data, acl_data_len));
     tensors.emplace_back(std::move(tensor));
@@ -79,13 +87,15 @@ Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<Tensor> &tenso
       return errors::Internal("Failed get dim-size from acl channel data");
     }
     TensorShape tf_shape;
-    for (auto dim : dims) { tf_shape.AddDim(dim); }
+    for (auto dim : dims) {
+      tf_shape.AddDim(dim);
+    }
     Tensor tensor = Tensor(tf_type, tf_shape);
     auto tensor_data = const_cast<char *>(tensor.tensor_data().data());
     auto tensor_size = tensor.tensor_data().size();
     if (tensor_size != acl_data_len) {
-      return errors::Internal("Acl channel receive size mismatch tensor size acl:",
-                              acl_data_len, "vs. tf:", tensor_size);
+      return errors::Internal("Acl channel receive size mismatch tensor size acl:", acl_data_len,
+                              "vs. tf:", tensor_size);
     }
     do {
       auto copy_size = (tensor_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : tensor_size;
@@ -99,7 +109,9 @@ Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<Tensor> &tenso
       acl_data += copy_size;
     } while (tensor_size > 0);
     tensors.emplace_back(std::move(tensor));
-  } else { return errors::InvalidArgument("Acl channel receive uncopyable tf data type", DataTypeString(tf_type)); }
+  } else {
+    return errors::InvalidArgument("Acl channel receive uncopyable tf data type", DataTypeString(tf_type));
+  }
   return Status::OK();
 }
 
@@ -118,7 +130,9 @@ Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<Tensor
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
                                   acltdtDataset **output_acl_dataset) {
   auto acl_dataset = acltdtCreateDataset();
-  if (acl_dataset == nullptr) { return errors::Internal("Acl create tensor dataset failed"); }
+  if (acl_dataset == nullptr) {
+    return errors::Internal("Acl create tensor dataset failed");
+  }
   auto status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset);
   if (!status.ok()) {
     ADAPTER_LOG_IF_ERROR(DestroyAclDataset(acl_dataset));
@@ -132,7 +146,9 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
                                   acltdtDataset *acl_dataset) {
   if (TF_PREDICT_FALSE(acl_type != ACL_TENSOR_DATA_TENSOR)) {
     acltdtDataItem *acl_data = acltdtCreateDataItem(acl_type, nullptr, 0, ACL_BOOL /* whatever */, nullptr, 0);
-    if (acl_data == nullptr) { return errors::Internal("Acl create tensor item failed when send end-of-sequence."); }
+    if (acl_data == nullptr) {
+      return errors::Internal("Acl create tensor item failed when send end-of-sequence.");
+    }
     if (acltdtAddDataItem(acl_dataset, acl_data) != ACL_ERROR_NONE) {
       if (acltdtDestroyDataItem(acl_data) != ACL_ERROR_NONE) {
         LOG(ERROR) << "Acl destroy tensor data item failed when send data with type "
@@ -192,7 +208,9 @@ Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item) {
 
 Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<Tensor> &tensors) {
   auto acl_dataset = acltdtCreateDataset();
-  if (acl_dataset == nullptr) { return errors::Internal("Failed create acl channel."); }
+  if (acl_dataset == nullptr) {
+    return errors::Internal("Failed create acl channel.");
+  }
   auto acl_status = acltdtReceiveTensor(acl_handle, acl_dataset, -1 /* no timeout */);
 
   if (acl_status != ACL_ERROR_NONE && acl_status != ACL_ERROR_RT_QUEUE_EMPTY) {
@@ -216,7 +234,7 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
                         const std::vector<Tensor> &tensors, bool &is_need_resend) {
   acltdtDataset *acl_dataset = nullptr;
   TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset));
-
+  const int32_t kTimeOut = 1000;
   auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, kTimeOut);
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status == ACL_ERROR_RT_QUEUE_EMPTY || acl_status == ACL_ERROR_RT_QUEUE_FULL) {
@@ -230,8 +248,7 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
   return Status::OK();
 }
 
-acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id,
-                                             const std::string channel_name,
+acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id, const std::string &channel_name,
                                              const size_t capacity) {
   if (kIsNewDataTransfer) {
     return acltdtCreateChannelWithCapacity(device_id, channel_name.c_str(), capacity);
@@ -240,7 +257,7 @@ acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id,
   return acltdtCreateChannel(device_id, (kReceivePrefix + channel_name).c_str());
 }
 
-Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string channel_name) {
+Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string &channel_name) {
   if (kIsNewDataTransfer) {
     if (acltdtDestroyChannel(*handle) != ACL_ERROR_NONE) {
       return errors::Internal("Failed destroy acl data channel for host queue:", channel_name);
@@ -256,4 +273,4 @@ Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string chann
   return Status::OK();
 }
 
-} // namespace tensorflow
+}  // namespace tensorflow

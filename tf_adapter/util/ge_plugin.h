@@ -24,11 +24,12 @@ using tensorflow::int64;
 
 // Singleton class for manage the relationship between
 // tf session and ge session
+// namespace tensorflow {
 class GePlugin {
  public:
   static GePlugin *GetInstance();
 
-  void Init(std::map<std::string, std::string> &init_options, bool is_global = false);
+  void Init(std::map<std::string, std::string> &init_options, const bool is_global = false);
 
   void Finalize();
 
@@ -43,11 +44,12 @@ class GePlugin {
 
   uint64_t GetFusionTensorSize() const;
 
-
   uint32_t device_id_;
   bool isInit_;
   bool isGlobal_;
   std::map<std::string, std::string> init_options_;
   std::mutex mutex_;
 };
+// } // tensorflow
+
 #endif

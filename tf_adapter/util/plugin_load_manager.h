@@ -24,7 +24,7 @@ namespace tensorflow {
 class PluginLoadManager {
  public:
   static void *DlOpen(const std::string &path);
-  static void *DlSym(void *handle, const std::string &fun_name);
+  static void *DlSym(void *handle, const std::string &func_name);
   static std::string GetTFPluginRealPath();
 };
 }  // namespace tensorflow

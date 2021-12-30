@@ -17,12 +17,12 @@
 #ifndef TENSORFLOW_SESSION_MANAGER_H_
 #define TENSORFLOW_SESSION_MANAGER_H_
 
-#include "ge/ge_api.h"
-#include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/platform/mutex.h"
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include "ge/ge_api.h"
+#include "tensorflow/core/framework/op_kernel.h"
+#include "tensorflow/core/platform/mutex.h"
 
 // Singleton class for manage the relationship between
 // tf session and ge session
@@ -49,10 +49,10 @@ class SessionManager {
 
  private:
   // Create a ge session to run the compute graph divided by tf session.
-  bool CreateGeSession(const std::string &session, ge::Session *&ge_session,
+  bool CreateGeSession(const std::string &tf_session, ge::Session *&ge_session,
                        std::map<std::string, std::string> &sess_options);
   // Print ge session options
-  void PrintGeSessionOptions(std::map<std::string, std::string> &sess_options);
+  void PrintGeSessionOptions(std::map<std::string, std::string> &sess_options) const;
   // Mapping relationship between tf session and ge session.
   std::unordered_map<std::string, ge::Session *> ge_sessions_;
   // cache ge nontraining graphs

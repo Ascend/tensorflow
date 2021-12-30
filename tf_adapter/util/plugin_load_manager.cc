@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include "tf_adapter/common/adp_logger.h"
-#include "tf_adapter/util/plugin_load_manager.h"
-#include "tensorflow/core/platform/env.h"
 #include <climits>
 #include <dlfcn.h>
+#include "tf_adapter/util/plugin_load_manager.h"
+#include "tf_adapter/common/adp_logger.h"
+#include "tensorflow/core/platform/env.h"
 
 namespace tensorflow {
 void *PluginLoadManager::DlOpen(const std::string &path) {

@@ -28,11 +28,13 @@
 #include "tf_adapter/util/npu_plugin.h"
 using json = nlohmann::json;
 
-using namespace tensorflow;
 using namespace tdt;
-constexpr int kFatalSleepTime = 3000;
+using namespace tensorflow;
 namespace {
-inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
+const int kFatalSleepTime = 3000;
+inline string ToString(ge::Status status) {
+  return ::ge::StatusFactory::Instance()->GetErrDesc(status);
+}
 void GeFinalize() {
   // ge finalize
   ge::Status status = ge::GEFinalize();
@@ -73,11 +75,6 @@ GePlugin *GePlugin::GetInstance() {
   return &instance;
 }
 
-/**
- * @brief: init ge plugin
- * @param init_options: init options
- * @param is_global: is global mode or not
- */
 void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_global) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (isInit_) {
@@ -86,7 +83,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   }
   init_options_ = init_options;
   std::string tf_config;
-  (void)ReadStringFromEnvVar("TF_CONFIG", "", &tf_config);
+  (void) ReadStringFromEnvVar("TF_CONFIG", "", &tf_config);
   int exec_hccl_flag = 1;
   if (!tf_config.empty()) {
     json config_info;
@@ -119,7 +116,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] device id : " << init_options[ge::OPTION_EXEC_DEVICE_ID];
 
   std::string env_job_id;
-  (void)ReadStringFromEnvVar("JOB_ID", "", &env_job_id);
+  (void) ReadStringFromEnvVar("JOB_ID", "", &env_job_id);
   if (!env_job_id.empty()) {
     init_options[ge::OPTION_EXEC_JOB_ID] = env_job_id;
   } else {
@@ -128,7 +125,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   }
 
   int64 rankSizeNum = 1;
-  (void)ReadInt64FromEnvVar("RANK_SIZE", 1, &rankSizeNum);
+  (void) ReadInt64FromEnvVar("RANK_SIZE", 1, &rankSizeNum);
   if (rankSizeNum > UINT32_MAX) {
     rankSizeNum = UINT32_MAX;
     ADP_LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
@@ -138,19 +135,19 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   bool is_use_hcom = false;
   bool deploy_mode = false;
   std::string env_rank_table_file;
-  (void)ReadStringFromEnvVar("RANK_TABLE_FILE", "", &env_rank_table_file);
+  (void) ReadStringFromEnvVar("RANK_TABLE_FILE", "", &env_rank_table_file);
   if (!env_rank_table_file.empty() && (rankSizeNum > 0)) {
     ADP_LOG(INFO) << "[GePlugin] env RANK_TABLE_FILE:" << env_rank_table_file;
     is_use_hcom = true;
     init_options[ge::OPTION_EXEC_RANK_TABLE_FILE] = env_rank_table_file;
     std::string env_pod_name;
-    (void)ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
+    (void) ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
     if (!env_pod_name.empty()) {
       deploy_mode = true;
       init_options[ge::OPTION_EXEC_POD_NAME] = env_pod_name;
     } else {
       std::string env_rank_id;
-      (void)ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
+      (void) ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
       if (!env_rank_id.empty()) {
         ADP_LOG(INFO) << "[GePlugin] env RANK_ID:" << env_rank_id;
         deploy_mode = false;
@@ -221,7 +218,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] optypelist_for_implmode :" << init_options[ge::OPTYPELIST_FOR_IMPLMODE];
 
   bool tdt_uninit_env = false;
-  (void)ReadBoolFromEnvVar("ASCEND_TDT_UNINIT", false, &tdt_uninit_env);
+  (void) ReadBoolFromEnvVar("ASCEND_TDT_UNINIT", false, &tdt_uninit_env);
   if (!tdt_uninit_env) {
     // Open TsdClient first, then call GEInitialize
     ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";
@@ -258,16 +255,10 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   isGlobal_ = is_global;
 }
 
-/**
- * @brief: get init options
- */
 std::map<std::string, std::string> GePlugin::GetInitOptions() {
   return init_options_;
 }
 
-/**
- * @brief: get fusion tensor size
- */
 uint64_t GePlugin::GetFusionTensorSize() const {
   const int64 fusion_tensor_size_default = 524288000;
   int64 fusion_tensor_size = fusion_tensor_size_default;
@@ -278,9 +269,6 @@ uint64_t GePlugin::GetFusionTensorSize() const {
   return static_cast<uint64_t>(fusion_tensor_size_default);
 }
 
-/**
- * @brief: ge plugin finalize
- */
 void GePlugin::Finalize() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!isInit_) {
@@ -307,38 +295,25 @@ void GePlugin::Finalize() {
   isInit_ = false;
 }
 
-/**
- * @brief: is global mode or not
- */
 bool GePlugin::IsGlobal() {
   std::lock_guard<std::mutex> lock(mutex_);
   return isGlobal_;
 }
 
-/**
- * @brief: init plugin
- * @param init_options: init options
- */
 void PluginInit(std::map<std::string, std::string> &init_options) {
   GePlugin::GetInstance()->Init(init_options, true);
   ADP_LOG(INFO) << "[GePlugin] npu plugin init success";
 }
 
-/**
- * @brief: finalize plugin
- */
 void PluginFinalize() {
   GePlugin::GetInstance()->Finalize();
   ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success";
 }
 
-/**
- * @brief: close npu
- */
 void NpuClose() {
   GeFinalize();
   uint32_t device_id = 0;
-  (void)GetEnvDeviceID(device_id);
+  (void) GetEnvDeviceID(device_id);
   if (NpuAttrs::GetUseTdtStatus(device_id)) {
     ADP_LOG(INFO) << "[GePlugin] the process has turned on TDT resource, finalize resource at exit.";
     int32_t tdt_status = TdtInFeedDestroy(device_id);
@@ -353,10 +328,6 @@ void NpuClose() {
   ADP_LOG(INFO) << "[GePlugin] npu finalize resource success";
 }
 
-/**
- * @brief: init rdma pool
- * @param size: rdma pool size
- */
 int32_t InitRdmaPool(size_t size) {
   ge::Status ret = ge::InitRdmaPool(size);
   if (ret != ge::SUCCESS) {
@@ -368,10 +339,6 @@ int32_t InitRdmaPool(size_t size) {
   return 0;
 }
 
-/**
- * @brief: register rdma remote addr
- * @param var_info: host var infor
- */
 int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info) {
   ge::Status ret = ge::RdmaRemoteRegister(var_info);
   if (ret != ge::SUCCESS) {
@@ -383,11 +350,6 @@ int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info) {
   return 0;
 }
 
-/**
- * @brief: rdma init and register
- * @param var_info: variable info
- * @param size: size
- */
 int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t size) {
   ge::Status ret = ge::InitRdmaPool(size);
   if (ret != ge::SUCCESS) {
@@ -406,12 +368,6 @@ int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t
   return 0;
 }
 
-/**
- * @brief: get variable addr and size
- * @param var_name: variable name
- * @param base_addr: base addr
- * @param var_size: variable size
- */
 int32_t GetVarAddrAndSize(const string &var_name, uint64_t &base_addr, uint64_t &var_size) {
   ge::Status ret = ge::GetVarBaseAddrAndSize(var_name, base_addr, var_size);
   if (ret != ge::SUCCESS) {
@@ -423,12 +379,6 @@ int32_t GetVarAddrAndSize(const string &var_name, uint64_t &base_addr, uint64_t 
   return 0;
 }
 
-/**
- * @brief: malloc shared memory
- * @param tensor_info: tensor info
- * @param dev_addr: dev addr
- * @param memory_size: memory size
- */
 int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, uint64_t &memory_size) {
   ge::Status ret = ge::MallocSharedMemory(tensor_info, dev_addr, memory_size);
   if (ret != ge::SUCCESS) {

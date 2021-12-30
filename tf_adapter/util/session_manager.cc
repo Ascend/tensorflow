@@ -96,9 +96,11 @@ bool SessionManager::CreateGeSession(const std::string &tf_session, ge::Session 
 }
 
 // Returns True if any ge session exist.
-bool SessionManager::IsGeSessionExist() { return !ge_sessions_.empty(); }
+bool SessionManager::IsGeSessionExist() {
+  return !ge_sessions_.empty();
+}
 
-void SessionManager::PrintGeSessionOptions(std::map<std::string, std::string> &sess_options) {
+void SessionManager::PrintGeSessionOptions(std::map<std::string, std::string> &sess_options) const {
   // variable acceleration configuration
   ADP_LOG(INFO) << "[GEOP] variable_acceleration :" << sess_options["ge.exec.variable_acc"];
   // hcom parallel
