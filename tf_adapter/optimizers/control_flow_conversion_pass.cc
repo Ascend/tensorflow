@@ -31,7 +31,9 @@ Status ControlFlowConversionPass::Run(const GraphOptimizationPassOptions &option
   if (options.partition_graphs != nullptr) {
     return errors::Internal("Lowering If/While ops should happen before partitioning.");
   }
-  if (options.graph == nullptr || options.session_options == nullptr) { return Status::OK(); }
+  if (options.graph == nullptr || options.session_options == nullptr) {
+    return Status::OK();
+  }
 
   Graph *graph = options.graph->get();
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
@@ -56,18 +58,23 @@ Status ControlFlowConversionPass::Run(const GraphOptimizationPassOptions &option
   // Delete _lower_using_switch_merge before LowerFunctionalOpsPass
   for (int i = 2; i < graph->num_node_ids(); ++i) {
     Node *n = graph->FindNodeId(i);
-    if (n == nullptr) { continue; }
-    if (n->IsIfNode() || n->type_string() == "Case" || n->IsWhileNode()) { n->ClearAttr(kLowerUsingSwitchMergeAttr); }
+    if (n == nullptr) {
+      continue;
+    }
+    if (n->IsIfNode() || n->type_string() == "Case" || n->IsWhileNode()) {
+      n->ClearAttr(kLowerUsingSwitchMergeAttr);
+    }
   }
 
   std::vector<string> function_names = flib_def->ListFunctionNames();
   for (const std::string &func_name : function_names) {
     const FunctionDef *fdef = flib_def->Find(func_name);
-    if (fdef != nullptr) {
-      for (NodeDef ndef : fdef->node_def()) {
-        if (ndef.op() == "If" || ndef.op() == "Case" || ndef.op() == "While") {
-          ndef.mutable_attr()->erase(kLowerUsingSwitchMergeAttr);
-        }
+    if (fdef == nullptr) {
+      continue;
+    }
+    for (NodeDef ndef : fdef->node_def()) {
+      if (ndef.op() == "If" || ndef.op() == "Case" || ndef.op() == "While") {
+        ndef.mutable_attr()->erase(kLowerUsingSwitchMergeAttr);
       }
     }
   }

@@ -28,9 +28,10 @@ REGISTER_OP("AscendQuant")
     .Input("x: T")
     .Output("y: T")
     .SetIsStateful()
-    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext *c) {
       c->set_output(0, c->input(0));
-      return Status::OK(); });
+      return Status::OK();
+    });
 
 REGISTER_OP("AscendWeightQuant")
     .Attr("T: {float16, float32, float64}")
@@ -39,9 +40,10 @@ REGISTER_OP("AscendWeightQuant")
     .Input("offset_w: int8")
     .Output("y: T")
     .SetIsStateful()
-    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext *c) {
       c->set_output(0, c->input(0));
-      return Status::OK(); });
+      return Status::OK();
+    });
 
 REGISTER_OP("AscendDequant")
     .Attr("T: {float16, float32, float64}")
@@ -51,9 +53,10 @@ REGISTER_OP("AscendDequant")
     .Input("deq_scale: uint64")
     .Output("y: T")
     .SetIsStateful()
-    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext *c) {
       c->set_output(0, c->input(0));
-      return Status::OK(); });
+      return Status::OK();
+    });
 
 REGISTER_OP("AscendAntiQuant")
     .Attr("T: {float16, float32, float64}")
@@ -62,7 +65,8 @@ REGISTER_OP("AscendAntiQuant")
     .Input("x: T")
     .Output("y: T")
     .SetIsStateful()
-    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext *c) {
       c->set_output(0, c->input(0));
-      return Status::OK(); });
+      return Status::OK();
+    });
 }  // namespace tensorflow

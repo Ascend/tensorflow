@@ -35,7 +35,9 @@
   }
 
 #define REQUIRES_STATUS_OK(s)                                                                                          \
-  if (!s.ok()) { return s; }
+  if (!(s).ok()) {                                                                                                     \
+    return (s);                                                                                                        \
+  }
 
-#define ADAPTER_ENV_MAX_LENTH 1024 * 1024
+constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;
 #endif  // TENSORFLOW_COMMON_COMMON_H_

@@ -58,7 +58,9 @@ REGISTER_OP("LARS")
     .Attr("hyperpara: float = 0.001")
     .Attr("epsilon: float = 0.00001")
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-      for (int i = 0; i < ((c->num_inputs() - 1) / 2); i++) { c->set_output(i, c->input(i)); }
+      for (int i = 0; i < ((c->num_inputs() - 1) / 2); i++) {
+        c->set_output(i, c->input(i));
+      }
       return Status::OK();
     })
     .Doc(R"doc(
@@ -192,7 +194,9 @@ REGISTER_OP("DropOutGenMask")
 
       // align to 128 and around up
       int64 n128Bits = bitCount / 128;
-      if ((bitCount % 128) != 0) { n128Bits++; }
+      if ((bitCount % 128) != 0) {
+        n128Bits++;
+      }
 
       // transfer 128 bit count to byte count if shape is full know
       int64 nBytes = n128Bits * 16;
@@ -217,7 +221,7 @@ REGISTER_OP("DropOutGenMaskV3")
       TF_RETURN_IF_ERROR(c->WithRankAtMost(c->input(1), 0, &unused));
       ShapeHandle input_shape_handle;
       TF_RETURN_IF_ERROR(c->MakeShapeFromShapeTensor(0, &input_shape_handle));
-      if(!c->FullyDefined(input_shape_handle)) {
+      if (!c->FullyDefined(input_shape_handle)) {
         ShapeHandle out = c->UnknownShape();
         c->set_output(0, out);
         return Status::OK();
@@ -230,34 +234,25 @@ REGISTER_OP("DropOutGenMaskV3")
         tmp_dim_handle = c->Dim(input_shape_handle, -2);
         int64 second_last_dim = c->Value(tmp_dim_handle);
         const int64 align = 16;
-        if (last_dim % align == 0 && second_last_dim % align ==0) {
+        if ((last_dim % align == 0) && (second_last_dim % align == 0)) {
           last_dim /= align;
           second_last_dim /= align;
           tmp_dim_handle = c->MakeDim(last_dim);
           ShapeHandle out_shape_handle;
-          TF_RETURN_IF_ERROR(c->ReplaceDim(input_shape_handle,
-                                           -2,
-                                           tmp_dim_handle,
-                                           &out_shape_handle));
+          TF_RETURN_IF_ERROR(c->ReplaceDim(input_shape_handle, -2, tmp_dim_handle, &out_shape_handle));
           tmp_dim_handle = c->MakeDim(second_last_dim);
-          TF_RETURN_IF_ERROR(c->ReplaceDim(out_shape_handle,
-                                           -1,
-                                           tmp_dim_handle,
-                                           &out_shape_handle));
-          ShapeHandle tmp_shape_handle = c->Matrix(align , align);
-          TF_RETURN_IF_ERROR(c->Concatenate(out_shape_handle,
-                                            tmp_shape_handle,
-                                            &out_shape_handle));
+          TF_RETURN_IF_ERROR(c->ReplaceDim(out_shape_handle, -1, tmp_dim_handle, &out_shape_handle));
+          ShapeHandle tmp_shape_handle = c->Matrix(align, align);
+          TF_RETURN_IF_ERROR(c->Concatenate(out_shape_handle, tmp_shape_handle, &out_shape_handle));
           c->set_output(0, out_shape_handle);
           return Status::OK();
-        } 
+        }
       }
 
       DimensionHandle input_dim_handle = c->NumElements(input_shape_handle);
       uint64 random_count = static_cast<uint64>(c->Value(input_dim_handle));
-      if(random_count > (INT64_MAX - 15)) {
-        return errors::InvalidArgument("Required random count[", random_count,
-            "] exceed INT64_MAX - 15");
+      if (random_count > (INT64_MAX - 15)) {
+        return errors::InvalidArgument("Required random count[", random_count, "] exceed INT64_MAX - 15");
       }
       // align to 16
       random_count = (random_count + 15) & (~15);
@@ -464,7 +459,7 @@ REGISTER_OP("KMeansCentroids")
       auto d = c->Dim(input_y_shape, 1);
       c->set_output(0, c->MakeShape({n, d}));
       c->set_output(1, c->MakeShape({n, 1}));
-      c->set_output(2, c->MakeShape({1,}));
+      c->set_output(2, c->MakeShape({1}));
       return Status::OK();
     });
 
@@ -483,7 +478,7 @@ REGISTER_OP("KMeansCentroidsV2")
       auto d = c->Dim(input_y_shape, 1);
       c->set_output(0, c->MakeShape({n, d}));
       c->set_output(1, c->MakeShape({n, 1}));
-      c->set_output(2, c->MakeShape({1,}));
+      c->set_output(2, c->MakeShape({1}));
       return Status::OK();
     });
 }  // namespace

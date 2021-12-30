@@ -17,7 +17,6 @@
 #include "tf_adapter/optimizers/om_set_var_format_pass.h"
 
 #include <memory>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -46,21 +45,25 @@ const std::string KEY_APPLY_MOMENTUM_OP_VALUE = "ApplyMomentum";
 static void AddNodeVarFormat(Node *node, const string &var_format) {
   if (var_format == KEY_4D_ATTR_VALUE) {
     const AttrValue *attr_value = node->attrs().Find(KEY_NEW_ATTR_NAME);
-    if (attr_value == nullptr) { node->AddAttr(KEY_NEW_ATTR_NAME, var_format); }
+    if (attr_value == nullptr) {
+      node->AddAttr(KEY_NEW_ATTR_NAME, var_format);
+    }
     return;
   }
 
   node->AddAttr(KEY_NEW_ATTR_NAME, var_format);
 }
 
-Status SetVarFormatPass::AssignApplyMomentumInNodesFormat(Node *node, const string &var_format) {
-  if (node == nullptr) { return Status::OK(); }
+Status SetVarFormatPass::AssignApplyMomentumInNodesFormat(const Node *node, const string &var_format) const {
+  if (node == nullptr) {
+    return Status::OK();
+  }
   for (const Edge *in_edge : node->in_edges()) {
     REQUIRES_NOT_NULL(in_edge);
     Node *src_node = in_edge->src();
     REQUIRES_NOT_NULL(src_node);
-    bool is_momentum_op = (in_edge->dst_input() == 1)
-        && ((src_node->type_string() == KEY_VAR_HANDLE_OP_VALUE) || (src_node->type_string() == KEY_VARIABLE_V2_VALUE));
+    bool is_momentum_op = (in_edge->dst_input() == 1) &&
+        ((src_node->type_string() == KEY_VAR_HANDLE_OP_VALUE) || (src_node->type_string() == KEY_VARIABLE_V2_VALUE));
     if (is_momentum_op) {
       AddNodeVarFormat(src_node, var_format);
 
@@ -76,14 +79,14 @@ Status SetVarFormatPass::AssignApplyMomentumInNodesFormat(Node *node, const stri
   return Status::OK();
 }
 
-Status SetVarFormatPass::GetFormat(Node *node, string &format) {
+Status SetVarFormatPass::GetFormat(const Node *node, string &format) const {
   for (const Edge *out : node->out_edges()) {
     REQUIRES_NOT_NULL(out);
     Node *dst_node = out->dst();
     REQUIRES_NOT_NULL(dst_node);
-    bool is_fz_node = (out->dst_input() == 1)
-        && ((dst_node->type_string() == KEY_CONV2D_OP_VALUE) || (dst_node->type_string() == KEY_MATMUL_OP_VALUE)
-            || (dst_node->type_string() == KEY_CONV2D_BACKPROP_INPUT_VALUE));
+    bool is_fz_node = (out->dst_input() == 1) &&
+        ((dst_node->type_string() == KEY_CONV2D_OP_VALUE) || (dst_node->type_string() == KEY_MATMUL_OP_VALUE) ||
+         (dst_node->type_string() == KEY_CONV2D_BACKPROP_INPUT_VALUE));
     if (is_fz_node) {
       format = KEY_FZ_ATTR_VALUE;
       return Status::OK();
@@ -103,7 +106,9 @@ Status SetVarFormatPass::AssignFormatToVarOutNodes(Node *node) {
         (dst_node->type_string() == KEY_IDENTITY_OP_VALUE) || (dst_node->type_string() == KEY_READ_VARIABLE_OP_VALUE);
     if (is_read_var_node) {
       Status status = GetFormat(dst_node, var_format);
-      if (!status.ok()) { return status; }
+      if (!status.ok()) {
+        return status;
+      }
     }
   }
 
@@ -114,9 +119,11 @@ Status SetVarFormatPass::AssignFormatToVarOutNodes(Node *node) {
     Node *dst_node = out->dst();
     REQUIRES_NOT_NULL(dst_node);
     AddNodeVarFormat(dst_node, var_format);
-    bool is_apply_momentum_node = dst_node->type_string() == KEY_APPLY_MOMENTUM_OP_VALUE
-        || dst_node->type_string() == KEY_RESOURCE_APPLY_MOMENTUM_OP_VALUE;
-    if (is_apply_momentum_node) { apply_momentum = dst_node; }
+    bool is_apply_momentum_node = dst_node->type_string() == KEY_APPLY_MOMENTUM_OP_VALUE ||
+        dst_node->type_string() == KEY_RESOURCE_APPLY_MOMENTUM_OP_VALUE;
+    if (is_apply_momentum_node) {
+      apply_momentum = dst_node;
+    }
   }
 
   TF_RETURN_IF_ERROR(AssignApplyMomentumInNodesFormat(apply_momentum, var_format));
@@ -126,7 +133,9 @@ Status SetVarFormatPass::AssignFormatToVarOutNodes(Node *node) {
 
 Status SetVarFormatPass::Run(const GraphOptimizationPassOptions &options) {
   Graph *graph_in = (options.graph)->get();
-  if (graph_in == nullptr || options.session_options == nullptr) { return Status::OK(); }
+  if (graph_in == nullptr || options.session_options == nullptr) {
+    return Status::OK();
+  }
 
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
   std::string job = pass_options["job"];
@@ -136,8 +145,8 @@ Status SetVarFormatPass::Run(const GraphOptimizationPassOptions &options) {
   }
 
   for (Node *node : graph_in->op_nodes()) {
-    if ((node != nullptr)
-        && ((node->type_string() == KEY_VAR_HANDLE_OP_VALUE) || (node->type_string() == KEY_VARIABLE_V2_VALUE))) {
+    if ((node != nullptr) &&
+        ((node->type_string() == KEY_VAR_HANDLE_OP_VALUE) || (node->type_string() == KEY_VARIABLE_V2_VALUE))) {
       AssignFormatToVarOutNodes(node);
     }
   }
