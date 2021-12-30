@@ -17,6 +17,7 @@
 #ifndef TENSORFLOW_NPU_DP_H
 #define TENSORFLOW_NPU_DP_H
 
+#include <queue>
 #include <utility>
 
 #include "tensorflow/c/c_api.h"
