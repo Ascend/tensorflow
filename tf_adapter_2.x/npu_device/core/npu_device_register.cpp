@@ -23,7 +23,7 @@
 namespace {
 TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status,
                                         void *device_info) {
-  auto *dev = reinterpret_cast<npu::NpuDevice *>(device_info);
+  auto *dev = static_cast<npu::NpuDevice *>(device_info);
   tensorflow::Status tf_status;
   LOG(INFO) << "[CopyTensorToNpuDevice] Copy tensor from " << tensorflow::unwrap(tensor)->DeviceName(&tf_status)
             << " to " << dev->device_name;
@@ -34,7 +34,7 @@ TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *
 
 TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle *tensor,
                                           const char *target_device_name, TF_Status *status, void *device_info) {
-  auto *dev = reinterpret_cast<npu::NpuDevice *>(device_info);
+  auto *dev = static_cast<npu::NpuDevice *>(device_info);
   DLOG() << "[CopyTensorFromNpuDevice] Copy tensor from " << dev->device_name << " to " << target_device_name;
   // 输入的TensorHandle是NPU的，应当先进行NPU->CPU的传输，再调用TFE_TensorHandleCopyToDevice防止可能的NPU->GPU传输
   // 一旦Copy动作发生，需要进行stream同步。如果是NPU->NPU的拷贝（理论上不应该发生），可以不同步。
@@ -48,7 +48,7 @@ TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle
 }
 
 void NpuDeviceExecute(const TFE_Op *op, int *num_outputs, TFE_TensorHandle **outputs, TF_Status *s, void *device_info) {
-  auto *dev = reinterpret_cast<npu::NpuDevice *>(device_info);
+  auto *dev = static_cast<npu::NpuDevice *>(device_info);
   dev->Execute(op, *num_outputs, outputs, s);
 }
 

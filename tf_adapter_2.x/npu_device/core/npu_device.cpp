@@ -363,7 +363,7 @@ void NpuDevice::DeleteDevice(void *device) {
   if (device == nullptr) {
     return;
   }
-  auto npu_device = reinterpret_cast<NpuDevice *>(device);
+  auto npu_device = static_cast<NpuDevice *>(device);
   delete npu_device->ge_session_;
   delete npu_device;
 }
@@ -1893,7 +1893,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       dims.emplace_back(dim_size);
     }
     input.SetTensorDesc(ge::TensorDesc(ge::Shape(dims), ge::FORMAT_ND, ge_type));
-    input.SetData(reinterpret_cast<const uint8_t *>(tensor->tensor_data().data()), tensor->TotalBytes());
+    input.SetData(static_cast<const uint8_t *>(tensor->data()), tensor->TotalBytes());
     ge_inputs.emplace_back(input);
     DLOG() << "    input " << i << " ge enum " << ge_type << " tf type " << tensorflow::DataTypeString(tensor->dtype())
            << VecToString(dims);
