@@ -154,7 +154,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     }
 
     unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return unique_ptr<IteratorBase>(new (nothrow) Iterator({this, strings::StrCat(prefix, "::HostQueue")}));
+      return unique_ptr<IteratorBase>(new (nothrow) Iterator({this, CatStr(prefix, "::HostQueue")}));
     }
 
     const DataTypeVector &output_dtypes() const override { return output_types_; }
@@ -613,7 +613,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
           TF_RETURN_IF_ERROR(
-              dataset()->inputs_[i]->MakeIterator(ctx, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i]));
+              dataset()->inputs_[i]->MakeIterator(ctx, CatStr(prefix(), "[", i, "]"), &input_impls_[i]));
         }
         if (dataset()->channel_type_ == ChannelType::TDT) {
           if (dataset()->local_rank_id_ == 0) {

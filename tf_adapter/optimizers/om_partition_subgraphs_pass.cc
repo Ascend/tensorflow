@@ -77,7 +77,7 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
       REQUIRES_NOT_NULL(argdef);
       argdef->set_type(type);
       argdef->set_name(node->name());
-      tensorRenaming[strings::StrCat(node->name(), ":0")] = node->name();
+      tensorRenaming[CatStr(node->name(), ":0")] = node->name();
       continue;
     }
 
@@ -93,7 +93,7 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
       argdef->set_name(node->name());
       const Edge *edge = nullptr;
       TF_CHECK_OK(node->input_edge(0, &edge));
-      returnValues[node->name()] = strings::StrCat(edge->src()->name(), ":", edge->src_output());
+      returnValues[node->name()] = CatStr(edge->src()->name(), ":", edge->src_output());
       continue;
     }
 
@@ -129,14 +129,14 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
     for (auto edge : inEdges) {
       REQUIRES_NOT_NULL(edge);
       REQUIRES_NOT_NULL(edge->src());
-      nodeDef->add_input(strings::StrCat(edge->src()->name(), ":", edge->src_output()));
+      nodeDef->add_input(CatStr(edge->src()->name(), ":", edge->src_output()));
     }
 
     // Add control inputs
     for (const Edge *edge : ctrlEdges) {
       REQUIRES_NOT_NULL(edge);
       REQUIRES_NOT_NULL(edge->src());
-      nodeDef->add_input(strings::StrCat("^", edge->src()->name()));
+      nodeDef->add_input(CatStr("^", edge->src()->name()));
     }
 
     // Populate tensorRenaming.
@@ -144,8 +144,8 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
     TF_RETURN_IF_ERROR(NameRangesForNode(*node, node->op_def(), nullptr, &outputRanges));
     for (const auto &output : outputRanges) {
       for (int i = output.second.first; i < output.second.second; ++i) {
-        const string tensorName = strings::StrCat(nodeDef->name(), ":", output.first, ":", i - output.second.first);
-        tensorRenaming[strings::StrCat(node->name(), ":", i)] = tensorName;
+        const string tensorName = CatStr(nodeDef->name(), ":", output.first, ":", i - output.second.first);
+        tensorRenaming[CatStr(node->name(), ":", i)] = tensorName;
       }
     }
   }
@@ -168,7 +168,7 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
           return errors::InvalidArgument("Could not remap control input ", i, ", '", nodeDef->input(i), "', of node '",
                                          nodeDef->name(), "' in function ", name);
         }
-        *nodeDef->mutable_input(i) = strings::StrCat("^", inputCtrlName);
+        *nodeDef->mutable_input(i) = CatStr("^", inputCtrlName);
       } else {
         const auto iter = tensorRenaming.find(nodeDef->input(i));
         if (iter == tensorRenaming.end()) {
@@ -991,8 +991,8 @@ Status MarkForPartition(std::unique_ptr<Graph> *graph_in, int &clusterNum, bool 
     clusterSet.insert(cluster->index);
     string op_prefix = "GeOp";
 
-    string name = strings::StrCat(string(op_prefix), std::to_string(graph_num), string("_"),
-                                  std::to_string(clusterSequenceNum++));
+    string name = CatStr(string(op_prefix), std::to_string(graph_num), string("_"),
+                         std::to_string(clusterSequenceNum++));
     clusterInfo[cluster->index] = std::make_pair(name, cluster->nodes.size());
     for (auto node : cluster->nodes) {
       if (!NodeIsCandidateForClustering(node, &npuSupportCandidates)) {
@@ -1162,7 +1162,7 @@ Node *AddIdentityNode(Graph *graph, const Edge *edge, const string &srcName, int
   // edge is not nullptr
   if (edge->src() == nullptr) { return nullptr; }
   NodeDef identityDef;
-  NodeDefBuilder builder(strings::StrCat(edge->src()->name(), "_dummyIdentity"), "Identity");
+  NodeDefBuilder builder(CatStr(edge->src()->name(), "_dummyIdentity"), "Identity");
   DataType dtype = BaseType(edge->src()->output_type(edge->src_output()));
   builder.Attr("T", dtype);
   builder.Input(srcName, srcIndex, dtype);
@@ -1440,7 +1440,7 @@ Status OMSplitter::Subgraph::RecordArg(const Edge *edge, const std::unordered_ma
   int argIndex = iter->second;
   if (inserted) {
     NodeDef argNodeDef;
-    NodeDefBuilder builder(strings::StrCat(srcNode->name(), "_", srcSlot, "_arg"), ARG_OP);
+    NodeDefBuilder builder(CatStr(srcNode->name(), "_", srcSlot, "_arg"), ARG_OP);
     DataType dtype = edge->dst()->input_type(edge->dst_input());
     builder.Attr("T", dtype);
     builder.Attr("index", argIndex);
@@ -1477,7 +1477,7 @@ Status OMSplitter::Subgraph::RecordResult(const Edge *edge,
   int retIndex = iter->second;
   if (inserted) {
     NodeDef retNodeDef;
-    NodeDefBuilder builder(strings::StrCat(srcNode->name(), "_", srcSlot, "_retval"), RET_OP);
+    NodeDefBuilder builder(CatStr(srcNode->name(), "_", srcSlot, "_retval"), RET_OP);
     DataType dtype = BaseType(srcNode->output_type(srcSlot));
     builder.Attr("T", dtype);
     builder.Attr("index", retIndex);

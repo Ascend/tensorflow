@@ -25,6 +25,7 @@
 #include "tensorflow/core/util/env_var.h"
 
 #include "npu_env.h"
+#include "npu_utils.h"
 
 #define DLOG() \
   if (kDumpExecutionDetail) LOG(INFO)
@@ -41,7 +42,7 @@ class Timer : public std::basic_ostringstream<char> {
  public:
   template <typename... Args>
   explicit Timer(Args... args) {
-    *this << tensorflow::strings::StrCat(args...) << " cost ";
+    *this << CatStr(args...) << " cost ";
   };
   ~Timer() override = default;
   void Start() {

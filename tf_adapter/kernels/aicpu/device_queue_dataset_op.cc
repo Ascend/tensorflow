@@ -53,7 +53,7 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
     ~Dataset() override = default;
 
     std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return std::unique_ptr<IteratorBase>(new Iterator({this, strings::StrCat(prefix, "::DeviceQueue")}));
+      return std::unique_ptr<IteratorBase>(new Iterator({this, CatStr(prefix, "::DeviceQueue")}));
     }
 
     const DataTypeVector &output_dtypes() const override { return outputTypes_; }

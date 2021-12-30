@@ -1171,7 +1171,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
   bool is_function_op = op_reg_data->is_function_op;
   // 判断当前算子是否是NPU Device声明支持的算子
   if (!is_function_op && !Supported(op_name)) {
-    *spec = CacheOpSpec(op_name, op_reg_data, ndef, {}, tensorflow::strings::StrCat("Op unsupported by NPU"));
+    *spec = CacheOpSpec(op_name, op_reg_data, ndef, {}, CatStr("Op unsupported by NPU"));
     return;
   }
   // 这里获取输出的dataType，对于常规算子，通过NodeDef的T属性确定，对于function op，则是在ret上自带

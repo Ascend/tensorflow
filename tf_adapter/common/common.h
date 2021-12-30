@@ -17,8 +17,10 @@
 #ifndef TENSORFLOW_COMMON_COMMON_H_
 #define TENSORFLOW_COMMON_COMMON_H_
 
+#include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/env.h"
 #include "tf_adapter/common/adp_logger.h"
+#include <string>
 
 #define CHECK_NOT_NULL(v)                                                                                              \
   if ((v) == nullptr) {                                                                                                \
@@ -47,5 +49,37 @@ constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;
     if (TF_PREDICT_FALSE(!status.ok()))                                                                                \
       LOG(INFO) << status.ToString();                                                                                  \
   } while (0)
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a) {
+  return StrCat(a);
+}
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b) {
+  return StrCat(a, b);
+}
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c) {
+  return StrCat(a, b, c);
+}
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c,
+                          const tensorflow::strings::AlphaNum &d) {
+  return StrCat(a, b, c, d);
+}
+
+template <typename... AV>
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c,
+                          const tensorflow::strings::AlphaNum &d,
+                          const tensorflow::strings::AlphaNum &e,
+                          const AV &... args) {
+  return StrCat(a, b, c, d, e, args...);
+}
 
 #endif  // TENSORFLOW_COMMON_COMMON_H_

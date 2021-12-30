@@ -77,12 +77,44 @@
 #include "tensorflow/core/util/env_var.h"
 #include "tensorflow/core/graph/algorithm.h"
 #include "tensorflow/core/framework/graph_to_functiondef.h"
-
+#include "tensorflow/core/lib/strings/strcat.h"
 #include "npu_env.h"
 #include "npu_unwrap.h"
 
 #include "acl/acl_base.h"
 #include "graph/types.h"
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a) {
+  return StrCat(a);
+}
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b) {
+  return StrCat(a, b);
+}
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c) {
+  return StrCat(a, b, c);
+}
+
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c,
+                          const tensorflow::strings::AlphaNum &d) {
+  return StrCat(a, b, c, d);
+}
+
+template <typename... AV>
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
+                          const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c,
+                          const tensorflow::strings::AlphaNum &d,
+                          const tensorflow::strings::AlphaNum &e,
+                          const AV &... args) {
+  return StrCat(a, b, c, d, e, args...);
+}
 
 /**
  * @brief: is npu tensor handle or not
