@@ -14,9 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-    check interface
-"""
+"""check interface"""
+
 import os
 
 # 获取接口规范的目录
@@ -137,11 +136,9 @@ def get_tree_idx(str_info: str):
     python代码的缩进其实没有规定多大，只要同一层次的缩进是一样的就可以。
     这里假定我们的代码格式是规范的，按照4/2个空格来做
     """
-    global last_tab_str
     if str_info.startswith(last_tab_str):
         return 1 + get_tree_idx(str_info[len(last_tab_str):])
-    else:
-        return 1
+    return 1
 
 
 def get_tree_idx_2(str_info: str):
@@ -151,8 +148,7 @@ def get_tree_idx_2(str_info: str):
     TAB_STR = "  "
     if str_info.startswith(TAB_STR):
         return 1 + get_tree_idx_2(str_info[2:])
-    else:
-        return 1
+    return 1
 
 
 def get_tree_idx_final(str_info: str):
@@ -460,10 +456,10 @@ def compare_class_spec(spec1: ClassIntfSpec, spec2: ClassIntfSpec, file_name1=""
     func_list_1 = spec1.func_list
     func_list_2 = spec2.func_list
     # remove private func api
-    func_names_1 = sorted([x for x in func_list_1.keys() if x == "__init__" or x == "__new__" \
-                           or not x.startswith("__") and not x.startswith("_")])
-    func_names_2 = sorted([x for x in func_list_2.keys() if x == "__init__" or x == "__new__" \
-                           or not x.startswith("__") and not x.startswith("_")])
+    func_names_1 = sorted(x for x in func_list_1.keys() if x == "__init__" or x == "__new__" \
+                           or not x.startswith("__") and not x.startswith("_"))
+    func_names_2 = sorted(x for x in func_list_2.keys() if x == "__init__" or x == "__new__" \
+                           or not x.startswith("__") and not x.startswith("_"))
     if spec1.supper_classes != spec2.supper_classes:
         print("[EEEE] compare class: \"%s\", supper_classes is different in interface define: \"%s\","
               " in source file: \"%s\"" % (spec1.class_name, spec1.supper_classes, spec2.supper_classes))

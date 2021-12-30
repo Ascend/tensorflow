@@ -26,7 +26,6 @@ from tensorflow.python.eager import context
 from tensorflow.python.eager import def_function
 from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import ops
-from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.util import tf_contextlib
 
 from npu_device.configs.npu_config import NpuConfig
@@ -106,9 +105,9 @@ def open(device_id=None):
     ctx.ensure_initialized()
 
     if device_id is None:
-        device_id = int(os.getenv("ASCEND_DEVICE_ID", 0))
+        device_id = int(os.getenv("ASCEND_DEVICE_ID", '0'))
 
-    workers_num = int(os.getenv('RANK_SIZE', 1))
+    workers_num = int(os.getenv('RANK_SIZE', '1'))
     if workers_num > 1:
         env_rank_table = os.getenv("RANK_TABLE_FILE")
         env_worker_id = os.getenv('RANK_ID')
@@ -123,7 +122,7 @@ def open(device_id=None):
 
     device_options = {}
     error_message = _npu_device_backends.Open(ctx._handle, NPU, device_id, global_kw_options, device_options)
-    if len(error_message):
+    if error_message:
         raise RuntimeError("Failed open npu device %s : %s" % (str(device_id), error_message))
 
     if workers_num > 1:
@@ -149,7 +148,6 @@ _global_npu_ctx = None
 
 def global_npu_ctx():
     """Get global NPU context"""
-    global _global_npu_ctx
     return _global_npu_ctx
 
 
@@ -189,11 +187,10 @@ def npu_compat_function(func=None, *args, **kwargs):
 
     if func is not None:
         return never_nested_decorator(func)
-    else:
-        return never_nested_decorator
+    return never_nested_decorator
 
 
-class NpuDeviceHandle(object):
+class NpuDeviceHandle:
     """Class for creating handle of NPU device"""
     def __init__(self, ctx, device_id, device_options, workers_num, worker_id):
         self._ctx = ctx

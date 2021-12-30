@@ -21,20 +21,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
 import tensorflow as tf
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import gen_control_flow_ops
-from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import optimizer
+from tensorflow.contrib.mixed_precision.python import loss_scale_optimizer as lso
 from npu_bridge.hccl import hccl_ops
 from npu_bridge.estimator.npu.npu_loss_scale_manager import FixedLossScaleManager
-from tensorflow.contrib.mixed_precision.python import loss_scale_optimizer as lso
-
 from npu_bridge.helper import helper
 
-gen_npu_ops = helper.get_gen_ops();
+gen_npu_ops = helper.get_gen_ops()
 
 
 class NPULossScaleOptimizer(lso.LossScaleOptimizer):

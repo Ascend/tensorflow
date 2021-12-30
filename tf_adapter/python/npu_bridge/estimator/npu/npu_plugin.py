@@ -17,14 +17,11 @@
 
 """NPU plugin for Tensorflow"""
 
-import json
-import os
 from hccl.manage.api import get_local_rank_size
 from hccl.manage.api import get_rank_id
 from npu_bridge import tf_adapter
 from npu_bridge.estimator.npu import util
 from npu_bridge.estimator.npu import npu_scope
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import init_ops
 
@@ -92,8 +89,7 @@ def npu_resource_init(graph_run_mode=1,
     if enable_profiling:
         if profiling_options is None:
             raise ValueError('profiling_options must be set when use profiling')
-        else:
-            init[__option_exec_profiling_options] = str(profiling_options)
+        init[__option_exec_profiling_options] = str(profiling_options)
 
     if auto_tune_mode is not None:
         init[__auto_tune_mode] = str(auto_tune_mode)

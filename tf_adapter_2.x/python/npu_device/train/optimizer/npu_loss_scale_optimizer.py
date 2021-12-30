@@ -47,8 +47,7 @@ def _npu_finite_status_after_executed(executed_ops):
             with tf.control_dependencies([assign_float_status]):
                 reduced_status = all_reduce(current_status, 'sum', fusion=0)
             return tf.reduce_all(tf.equal(reduced_status, finite_status))
-        else:
-            return tf.reduce_all(tf.equal(current_status, finite_status))
+        return tf.reduce_all(tf.equal(current_status, finite_status))
 
 
 def _npu_compat_loss_scale_update(m, grads):
@@ -109,10 +108,10 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
             super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
 
         grads_and_vars = tuple(grads_and_vars)  # grads_and_vars origin type is zip and can only be iter once
-        grads = [g for g, _ in grads_and_vars]
+        grads = (g for g, _ in grads_and_vars)
 
         def apply_fn():
-            wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
+            wrapped_vars = _UnwrapPreventer(v for _, v in grads_and_vars)
             return self._apply_gradients(grads, wrapped_vars, name, experimental_aggregate_gradients)
 
         def do_not_apply_fn():

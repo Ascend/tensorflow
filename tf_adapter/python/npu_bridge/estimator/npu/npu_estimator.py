@@ -23,43 +23,38 @@ from __future__ import print_function
 import os
 import sys
 import collections
-import copy
 import json
-import threading
-import signal
 import random
 import string
 import six
-from six.moves import xrange
-from six.moves import queue as Queue
 import tensorflow as tf
-from tensorflow.core.protobuf import config_pb2
-from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import constant_op
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.estimator import estimator as estimator_lib
-from tensorflow.python.estimator import util as estimator_util
 from tensorflow.python.estimator import model_fn as model_fn_lib
-from tensorflow.python.training import session_run_hook
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import tf_inspect
 
 from npu_bridge.estimator.npu import util
 from npu_bridge.estimator.npu.npu_config import NPURunConfig
-from npu_bridge.estimator.npu.npu_hook import *
+from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook
+from npu_bridge.estimator.npu.npu_hook import NPUCheckpointSaverHook
+from npu_bridge.estimator.npu.npu_hook import SetIterationsVarHook
+from npu_bridge.estimator.npu.npu_hook import NPULogOutfeedSessionHook
+from npu_bridge.estimator.npu.npu_hook import NPUInfeedOutfeedSessionHook
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.estimator import npu_ops
-from npu_bridge.estimator.npu.npu_saver import *
+from npu_bridge.estimator.npu.npu_saver import NPUSaver
 
 
 def no_check_override():
     """Without checking override"""
     class _Manager:
         def __init__(self):
-            pass
+            self.__orign = None
 
         def __enter__(self):
             self.__orign = estimator_lib.Estimator._assert_members_are_not_overridden
@@ -83,7 +78,7 @@ def _wrap_computation_in_while_loop(iterations_per_loop_var, op_fn):
         parallel_iterations=1)
 
 
-class _OutfeedHostCall(object):
+class _OutfeedHostCall:
     def __init__(self, channel_name):
         self._channel_name = str(channel_name)
         self._names = []
@@ -386,7 +381,7 @@ class NPUEstimator(estimator_lib.Estimator):
                                        '`NPUEstimatorSpec` or `EstimatorSpec`. Got {}'.format(type(estimator_spec)))
                 # 1. NPUBroadcastGlobalVariablesHook
                 rank_size = os.getenv('RANK_SIZE')
-                if rank_size != None and rank_size.isdigit() and int(rank_size) > 1 and not config.horovod_mode:
+                if rank_size and rank_size.isdigit() and int(rank_size) > 1 and not config.horovod_mode:
                     npu_hooks.append(
                         NPUBroadcastGlobalVariablesHook(self.__device_info._root_rank, self.__device_info._index))
 
@@ -463,7 +458,7 @@ class NPUEstimator(estimator_lib.Estimator):
 
         return _model_fn
 
-    def __check_profiling_options(self, profiling_options=[]):
+    def __check_profiling_options(self, profiling_options=None):
         """Check profiling options .
         Args:
             profiling_options: Profiling options.
@@ -509,9 +504,8 @@ class NPUEstimator(estimator_lib.Estimator):
             if config._profiling_config._enable_profiling:
                 if config._profiling_config._profiling_options is None:
                     raise ValueError('profiling_options must be set when use profiling')
-                else:
-                    custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(
-                        config._profiling_config._profiling_options)
+                custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(
+                    config._profiling_config._profiling_options)
 
     def __load_mix_precision(self, config, custom_op):
         """Load mix precision config ,and add to custom_optimizers
@@ -583,10 +577,9 @@ class NPUEstimator(estimator_lib.Estimator):
         if config._stream_max_parallel_num is not None:
             custom_op.parameter_map["stream_max_parallel_num"].s = tf.compat.as_bytes(config._stream_max_parallel_num)
 
-    def __load_ps_mode_config(self, config, custom_op):
+    def __load_ps_mode_config(self, custom_op):
         """Load stream_max_parallel_num config ,and add to custom_optimizers
         Args:
-            config: NPURunConfig.
             custom_op: Customer optimizers.
         """
         config_info = json.loads(os.environ.get('TF_CONFIG') or '{}')
@@ -645,8 +638,10 @@ class NPUEstimator(estimator_lib.Estimator):
                 custom_op.parameter_map["distribute_config"].s = tf.compat.as_bytes(config._distribute_config)
 
     def __load_graph_optimizers(self, config):
-        """Change the session config and load the graph optimizers:
-        GradFusionOptimizer and OMPartitionSubgraphsPass."""
+        """
+        Change the session config and load the graph optimizers:
+        GradFusionOptimizer and OMPartitionSubgraphsPass.
+        """
 
         if config.session_config is None:
             config = config.replace(session_config=tf.ConfigProto())
@@ -776,8 +771,8 @@ class NPUEstimator(estimator_lib.Estimator):
         model_dir = model_dir or config.model_dir
         if model_dir is None:
             while True:
-                model_dir = "model_dir_" + \
-                            "".join(random.sample(string.ascii_letters + string.digits, 10))
+                model_dir = "model_dir_{}".format(
+                            "".join(random.sample(string.ascii_letters + string.digits, 10)))
                 cwd = os.getcwd()
                 model_dir = os.path.join(cwd, model_dir)
                 if not tf.io.gfile.exists(model_dir):

@@ -86,7 +86,7 @@ class VisitUnsupportImport(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node):
         """Visit importfrom node"""
-        if node.module != None:
+        if node.module:
             self.modules = node.module.split('.')
         for value in node.names:
             if isinstance(value, ast.alias):
@@ -107,7 +107,7 @@ class VisitUnsupportImport(ast.NodeVisitor):
                     break
                 if self.modules[0] in self.unsupport:
                     self.import_modules.append(self.modules[0])
-                    if value.asname != None:
+                    if value.asname:
                         self.imports.append(value.asname)
                     else:
                         self.imports.append(self.modules[0])
