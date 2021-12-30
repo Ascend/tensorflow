@@ -79,7 +79,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       OP_REQUIRES(ctx, device_id >= 0, errors::InvalidArgument("device id should be >= 0."));
       local_device_list_.push_back(device_id);
     }
-    GetChannelType(channel_type_);
+    SetChannelType();
     ADP_LOG(INFO) << "Start to init channel.";
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
     if (channel_type_ == ChannelType::TDT) {
@@ -107,16 +107,16 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     }
   }
 
-  void GetChannelType(ChannelType &type) {
+  void SetChannelType() {
     ADP_LOG(INFO) << "kIsNewDataTransfer is " << kIsNewDataTransfer;
     if (kIsHeterogeneous) {
-      type = ChannelType::HOST_QUEUE;
+      channel_type_ = ChannelType::HOST_QUEUE;
     } else if (kIsNewDataTransfer) {
-      type = ChannelType::ACL_QUEUE;
+      channel_type_ = ChannelType::ACL_QUEUE;
     } else {
-      type = ChannelType::TDT;
+      channel_type_ = ChannelType::TDT;
     }
-    ADP_LOG(INFO) << "host queue channel type is " << static_cast<int>(type);
+    ADP_LOG(INFO) << "host queue channel type is " << static_cast<int>(channel_type_);
   }
 
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
@@ -311,7 +311,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       Status SendDataByHostQueue(const vector<Tensor> &args, const acltdtTensorType &data_type) {
         bool is_need_resend = false;
         void *buff = nullptr;
-        Status status = Status::OK();
+        Status status;
         TF_RETURN_IF_ERROR(MappingTensor2Buff(data_type, args, buff));
         do {
           {
@@ -358,7 +358,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               total_bytes_ -= tensor.TotalBytes();
             }
           }
-          Status status = Status::OK();
+          Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
             status = SendDataByAclQueue(args, data_type);
           } else {
