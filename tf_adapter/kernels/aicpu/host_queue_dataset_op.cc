@@ -116,7 +116,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     } else {
       channel_type_ = ChannelType::TDT;
     }
-    ADP_LOG(INFO) << "host queue channel type is " << static_cast<int>(type);
+    ADP_LOG(INFO) << "host queue channel type is " << static_cast<int>(channel_type_);
   }
 
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
