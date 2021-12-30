@@ -34,6 +34,7 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace npu {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                         const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
@@ -43,6 +44,5 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec 
   outputs[0] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(tensor));
 };
 
-namespace npu {
 NPU_REGISTER_CUSTOM_KERNEL("VarIsInitializedOp", kernel);
-}
+}  // namespace npu

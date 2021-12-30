@@ -91,6 +91,7 @@ class ReadVariableGraphBuilder {
   }
 };
 
+namespace npu {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                         const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
@@ -116,6 +117,5 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec 
   dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_read_graph, 0, nullptr, num_outputs, outputs, status);
 };
 
-namespace npu {
 NPU_REGISTER_CUSTOM_KERNEL("ReadVariableOp", kernel);
-}
+}  // namespace npu

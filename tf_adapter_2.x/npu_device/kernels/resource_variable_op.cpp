@@ -84,9 +84,10 @@ class AssignVariableGraphBuilder {
 
 namespace {
 
-void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
-                          const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
-                          TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, npu::NpuDevice *dev,
+                          const npu::OpSpec *spec, const TensorShapes &output_shapes,
+                          const tensorflow::NodeDef &parser_ndef, int num_inputs, TFE_TensorHandle **inputs,
+                          int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   const tensorflow::Tensor *handle = nullptr;
   const tensorflow::Tensor *value = nullptr;
 
@@ -120,6 +121,7 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
 
 }  // namespace
 
+namespace npu {
 static auto kernel_assign = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                                const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef,
                                int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
@@ -144,8 +146,7 @@ static auto kernel_assign_sub = [](TFE_Context *context, NpuDevice *dev, const n
                        num_outputs, outputs, status);
 };
 
-namespace npu {
 NPU_REGISTER_CUSTOM_KERNEL("AssignVariableOp", kernel_assign);
 NPU_REGISTER_CUSTOM_KERNEL("AssignAddVariableOp", kernel_assign_add);
 NPU_REGISTER_CUSTOM_KERNEL("AssignSubVariableOp", kernel_assign_sub);
-}
+}  // namespace npu

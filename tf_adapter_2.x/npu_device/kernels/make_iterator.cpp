@@ -103,6 +103,7 @@ class MakeIteratorGraphBuilder {
   }
 };
 
+namespace npu {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
                         int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
                         TF_Status *status) {
@@ -132,7 +133,6 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
   }
 };
 
-namespace npu {
 NPU_REGISTER_FALLBACK_HOOK("MakeIterator", kernel);
 NPU_REGISTER_FALLBACK_HOOK("MultiDeviceIteratorInit", kernel);
-}
+}  // namespace npu

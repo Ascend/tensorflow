@@ -22,9 +22,11 @@
 
 #include "tensorflow/c/eager/c_api.h"
 
+namespace npu {
 std::string CreateDevice(TFE_Context *context, const char *device_name, int device_index,
                          const std::map<std::string, std::string> &device_options);
 
 void ReleaseDeviceResource();
+}  // namespace npu
 
 #endif  // TENSORFLOW_C_EAGER_NPU_DEVICE_TESTUTIL_H_
