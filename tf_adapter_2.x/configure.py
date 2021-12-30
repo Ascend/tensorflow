@@ -124,7 +124,7 @@ def setup_ascend(env_path):
         # Check if the path is valid
         if os.path.isdir(ascend_path) and os.access(ascend_path, os.X_OK):
             break
-        elif not os.path.exists(ascend_path):
+        if not os.path.exists(ascend_path):
             print('Invalid ascend path: %s cannot be found.' % ascend_path)
 
     with open(real_config_path('ASCEND_INSTALLED_PATH'), 'w') as f:

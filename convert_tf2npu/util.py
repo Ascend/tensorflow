@@ -84,10 +84,9 @@ def ask_the_distributed_mode(node, prompt, warning_msg):
             write_conver_report(content, util_global.get_value('report_file')[1])
             util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b10))
             break
-        elif message == "exit":
+        if message == "exit":
             sys.exit()
-        else:
-            print("Input is error, please enter 'exit' or 'c' or 'continue'.")
+        print("Input is error, please enter 'exit' or 'c' or 'continue'.")
 
 
 def log_hvd_distributed_mode_error(node):
@@ -135,8 +134,7 @@ def log_warning_main_arg_not_set():
             "Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
         if message in ("continue", "c"):
             break
-        elif message == "exit":
+        if message == "exit":
             sys.exit()
-        else:
-            print("Input is error, please enter 'exit' or 'c' or 'continue'.")
+        print("Input is error, please enter 'exit' or 'c' or 'continue'.")
     util_global.set_value('already_check_main_arg', True)

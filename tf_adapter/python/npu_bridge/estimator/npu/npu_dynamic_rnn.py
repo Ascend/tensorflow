@@ -339,5 +339,4 @@ class DynamicRNN(_DynamicBasic):
         if seq_length is None:
             self._args.pop("seq_length")
             return gen_npu_ops.dynamic_rnn_v2(**self._args)
-        else:
-            return gen_npu_ops.dynamic_rnn(**self._args)
+        return gen_npu_ops.dynamic_rnn(**self._args)

@@ -136,11 +136,9 @@ def get_tree_idx(str_info: str):
     python代码的缩进其实没有规定多大，只要同一层次的缩进是一样的就可以。
     这里假定我们的代码格式是规范的，按照4/2个空格来做
     """
-    global last_tab_str
     if str_info.startswith(last_tab_str):
         return 1 + get_tree_idx(str_info[len(last_tab_str):])
-    else:
-        return 1
+    return 1
 
 
 def get_tree_idx_2(str_info: str):
@@ -150,8 +148,7 @@ def get_tree_idx_2(str_info: str):
     TAB_STR = "  "
     if str_info.startswith(TAB_STR):
         return 1 + get_tree_idx_2(str_info[2:])
-    else:
-        return 1
+    return 1
 
 
 def get_tree_idx_final(str_info: str):

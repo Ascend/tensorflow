@@ -40,10 +40,9 @@ class OptionValue:
             return None
         if str(self.__value) == str(True):
             return "1"
-        elif str(self.__value) == str(False):
+        if str(self.__value) == str(False):
             return "0"
-        else:
-            return str(self.__value)
+        return str(self.__value)
 
     @value.setter
     def value(self, v):

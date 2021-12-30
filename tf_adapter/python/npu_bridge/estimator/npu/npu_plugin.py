@@ -89,8 +89,7 @@ def npu_resource_init(graph_run_mode=1,
     if enable_profiling:
         if profiling_options is None:
             raise ValueError('profiling_options must be set when use profiling')
-        else:
-            init[__option_exec_profiling_options] = str(profiling_options)
+        init[__option_exec_profiling_options] = str(profiling_options)
 
     if auto_tune_mode is not None:
         init[__auto_tune_mode] = str(auto_tune_mode)

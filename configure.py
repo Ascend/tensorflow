@@ -146,7 +146,7 @@ def setup_ascend(env_path):
         # Check if the path is valid
         if os.path.isdir(ascend_path) and os.access(ascend_path, os.X_OK):
             break
-        elif not os.path.exists(ascend_path):
+        if not os.path.exists(ascend_path):
             print('Invalid ascend path: %s cannot be found.' % ascend_path)
     print('ascend path: %s.' % ascend_path)
     with open(real_config_path('LINK_FLAGS'), 'a') as f:
@@ -199,12 +199,10 @@ def setup_swig():
         # Check if the path is valid
         if os.path.isfile(swig_path) and os.access(swig_path, os.X_OK):
             break
-        elif not os.path.exists(swig_path):
+        if not os.path.exists(swig_path):
             print('Invalid swig path: %s cannot be found.' % swig_path)
             continue
-        else:
-            print('%s is not executable.  Is it the swig binary?' % swig_path)
-            continue
+        print('%s is not executable.  Is it the swig binary?' % swig_path)
 
     with open(real_config_path('SWIG_BIN_PATH'), 'w') as f:
         f.write(swig_path)

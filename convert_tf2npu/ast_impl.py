@@ -231,12 +231,11 @@ def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is
                             "enter 'y' to perform distributed porting on the train function. if no, enter 'n': ")
             if message == "y":
                 break
-            elif message == "n":
+            if message == "n":
                 log_warning("".join(["The train func in ", content,
                                      " is user-defined functions, will not perform distributed porting"]))
                 return node
-            else:
-                print("Input is error, Please enter 'y' or 'n'.")
+            print("Input is error, Please enter 'y' or 'n'.")
     for param_name in params_list:
         node = match_func_params_and_convert(node, origin_func, org_func_name, param_name, is_class_func)
 
@@ -671,14 +670,13 @@ def insert_npu_import(r_node):
             log_msg(i, "from npu_bridge.npu_init import *")
             is_insert = True
             break
-        elif isinstance(r_node.body[i], ast.ImportFrom):
+        if isinstance(r_node.body[i], ast.ImportFrom):
             if r_node.body[i].module != "__future__":
                 r_node.body.insert(i, npu_import)
                 log_msg(i, "from npu_bridge.npu_init import *")
                 is_insert = True
                 break
-            else:
-                import_index = i + 1
+            import_index = i + 1
     if not is_insert:
         r_node.body.insert(import_index, npu_import)
         log_msg(import_index, "from npu_bridge.npu_init import *")

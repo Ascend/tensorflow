@@ -131,7 +131,7 @@ def para_check_and_set(argv):
     if input_dir == "npu_input":
         raise ValueError("Please check -i or --input.")
 
-    if input_dir in output or input_dir in report:
+    if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
         print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
         sys.exit(2)
 

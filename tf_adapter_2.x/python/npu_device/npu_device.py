@@ -148,7 +148,6 @@ _global_npu_ctx = None
 
 def global_npu_ctx():
     """Get global NPU context"""
-    global _global_npu_ctx
     return _global_npu_ctx
 
 
@@ -188,8 +187,7 @@ def npu_compat_function(func=None, *args, **kwargs):
 
     if func is not None:
         return never_nested_decorator(func)
-    else:
-        return never_nested_decorator
+    return never_nested_decorator
 
 
 class NpuDeviceHandle:

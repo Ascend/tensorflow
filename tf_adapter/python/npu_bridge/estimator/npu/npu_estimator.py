@@ -504,9 +504,8 @@ class NPUEstimator(estimator_lib.Estimator):
             if config._profiling_config._enable_profiling:
                 if config._profiling_config._profiling_options is None:
                     raise ValueError('profiling_options must be set when use profiling')
-                else:
-                    custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(
-                        config._profiling_config._profiling_options)
+                custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(
+                    config._profiling_config._profiling_options)
 
     def __load_mix_precision(self, config, custom_op):
         """Load mix precision config ,and add to custom_optimizers
@@ -772,8 +771,8 @@ class NPUEstimator(estimator_lib.Estimator):
         model_dir = model_dir or config.model_dir
         if model_dir is None:
             while True:
-                model_dir = "model_dir_" + \
-                            "".join(random.sample(string.ascii_letters + string.digits, 10))
+                model_dir = "model_dir_{}".format(
+                            "".join(random.sample(string.ascii_letters + string.digits, 10)))
                 cwd = os.getcwd()
                 model_dir = os.path.join(cwd, model_dir)
                 if not tf.io.gfile.exists(model_dir):

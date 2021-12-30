@@ -38,7 +38,7 @@ class GroupingVars():
     def _fair_division(self, number):
         if number > len(self._vars) or number < 0:
             raise ValueError("'number' is greater than the number of vars or 'number' is less than 0. ")
-        elif number == len(self._vars):
+        if number == len(self._vars):
             for i in range(len(self._vars)):
                 self._vars[i].root_rank_id = i
             return

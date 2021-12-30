@@ -51,23 +51,22 @@ def mkdir_and_copyfile(srcfile, dstpath, file_name):
 
 def write_output_after_conver(out_file, dst_content):
     """Write content to output file"""
-    with open(out_file, 'w') as output_file:
-        output_file.write(dst_content)
+    with open(out_file, 'w') as f:
+        f.write(dst_content)
 
 
 def write_report_after_conver(new_file_path, report_file, dst_content):
     """Write content to report file"""
     mkdir(new_file_path)
-    with open(os.path.join(new_file_path, report_file), 'w') as reports:
-        reports.write(dst_content)
+    with open(os.path.join(new_file_path, report_file), 'w') as f:
+        f.write(dst_content)
 
 
 def get_bit_val(value, index):
     """Return 0 or 1 based on value"""
     if value & (1 << index):
         return 1
-    else:
-        return 0
+    return 0
 
 
 def write_report_terminator(content):
@@ -91,9 +90,9 @@ def write_conver_report(content, file):
     """Add content to existed report file"""
     report_path = util_global.get_value('report')
     mkdir(report_path)
-    with open(os.path.join(report_path, file), 'a') as report_file:
-        report_file.write(content)
-        report_file.write("\r\n")
+    with open(os.path.join(report_path, file), 'a') as f:
+        f.write(content)
+        f.write("\r\n")
 
 
 def check_warning(lineno, api_msg):

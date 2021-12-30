@@ -174,7 +174,7 @@ def create_or_get_var(var_name):
     iter_vars = graph.get_collection(collection_name)
     if len(iter_vars) == 1:
         return iter_vars[0]
-    elif len(iter_vars) > 1:
+    if len(iter_vars) > 1:
         raise RuntimeError('Multiple var in collection.')
     ignore_existing = False
     if training_util.get_global_step() is None:
@@ -328,7 +328,7 @@ def fair_division(inputs, number):
 
     if number > len(inputs) or number < 0:
         raise ValueError("'number' is greater than the number of inputs or 'number' is less than 0. ")
-    elif number == len(inputs):
+    if number == len(inputs):
         for i in range(len(inputs)):
             inputs[i].root_rank_id = i
         return inputs
@@ -398,7 +398,6 @@ def add_grads_and_vars(grads_and_vars, rank_size):
 def get_gid_by_grad(grad):
     """Get gradient id by grad"""
     gid = -1
-    global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
         if item.grad.name == grad.name:
             gid = item.root_rank_id
@@ -408,7 +407,6 @@ def get_gid_by_grad(grad):
 def get_gid_by_weight(weight):
     """Get gradient id by weight"""
     gid = -1
-    global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
         if item.var.name == weight.name:
             gid = item.root_rank_id
@@ -417,7 +415,6 @@ def get_gid_by_weight(weight):
 
 def get_all_grad_item():
     """Get all gradients"""
-    global _GRADIENTS_AND_VARS
     return _GRADIENTS_AND_VARS
 
 
