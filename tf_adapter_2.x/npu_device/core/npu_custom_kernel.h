@@ -119,6 +119,7 @@ class CustomKernelReceiver {
     CustomKernelRegistry::Instance().RegisterHook(spec.op, spec.func);
   }
 };
+}  // namespace npu
 
 #define NPU_REGISTER_CUSTOM_KERNEL(name, func) NPU_REGISTER_CUSTOM_KERNEL_1(__COUNTER__, name, func)
 #define NPU_REGISTER_CUSTOM_KERNEL_1(ctr, name, func) NPU_REGISTER_CUSTOM_KERNEL_2(ctr, name, func)
@@ -129,5 +130,5 @@ class CustomKernelReceiver {
 #define NPU_REGISTER_FALLBACK_HOOK_1(ctr, name, func) NPU_REGISTER_FALLBACK_HOOK_2(ctr, name, func)
 #define NPU_REGISTER_FALLBACK_HOOK_2(ctr, name, func) \
   static CustomKernelReceiver __preserved_op##ctr(FallbackHookSpec(name, func))
-}  // namespace npu
+
 #endif  // TENSORFLOW_NPU_CUSTOM_KERNEL_H

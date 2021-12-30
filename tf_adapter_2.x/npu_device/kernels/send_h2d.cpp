@@ -29,7 +29,7 @@
 #include "npu_hdc.h"
 
 using namespace tensorflow;
-
+namespace npu {
 class SendH2D : public OpKernel {
  public:
   explicit SendH2D(OpKernelConstruction *ctx) : OpKernel(ctx) {
@@ -71,3 +71,4 @@ class SendH2D : public OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("SendH2D").Device(DEVICE_CPU).Priority(3), SendH2D);
+}  // namespace npu

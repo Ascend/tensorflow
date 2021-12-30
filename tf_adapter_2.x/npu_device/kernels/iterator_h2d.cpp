@@ -30,7 +30,7 @@
 #include "npu_hdc.h"
 
 using namespace tensorflow;
-
+namespace npu {
 class IteratorH2D : public OpKernel {
  public:
   explicit IteratorH2D(OpKernelConstruction *ctx) : OpKernel(ctx) {
@@ -114,3 +114,4 @@ class IteratorH2D : public OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("IteratorH2D").Device(DEVICE_CPU).Priority(3), IteratorH2D);
+}  // namespace npu

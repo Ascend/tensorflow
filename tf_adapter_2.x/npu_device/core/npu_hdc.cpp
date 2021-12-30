@@ -84,12 +84,12 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
   TF_RETURN_IF_ERROR(MappingAclDtypeToTf(acltdtGetDataTypeFromItem(item), tf_type));
   size_t dim_num = acltdtGetDimNumFromItem(item);
   size_t acl_data_len = acltdtGetDataSizeFromItem(item);
-  char *acl_data = reinterpret_cast<char *>(acltdtGetDataAddrFromItem(item));
+  const char *acl_data = static_cast<char *>(acltdtGetDataAddrFromItem(item));
   if (acl_data == nullptr) {
     return tensorflow::errors::Internal("Failed get data addr from item");
   }
   if (call_by_channel_receive) {
-    acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str());
+    acl_data = reinterpret_cast<const std::string *>(acl_data)->c_str();
   }
   if (tf_type == tensorflow::DT_STRING) {
     if (dim_num != 0) {
@@ -109,7 +109,7 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
       tf_shape.AddDim(dim);
     }
     tensorflow::Tensor tensor = tensorflow::Tensor(tf_type, tf_shape);
-    auto tensor_data = const_cast<char *>(tensor.tensor_data().data());
+    auto tensor_data = tensor.data();
     auto tensor_size = tensor.tensor_data().size();
     if (tensor_size != acl_data_len) {
       return tensorflow::errors::Internal("Hdc channel receive size mismatch tensor size acl:", acl_data_len,
@@ -236,15 +236,15 @@ tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const s
     acltdtDataItem *acl_data = nullptr;
     if (DataTypeCanUseMemcpy(tensor.dtype())) {
       auto dims = tensor.shape().dim_sizes();
-      acl_data = acltdtCreateDataItem(
-        ACL_TENSOR_DATA_TENSOR, (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())), dims.size(),
-        acl_data_type, const_cast<char *>(tensor.tensor_data().data()), tensor.tensor_data().size());
+      acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR,
+                                      (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())),
+                                      dims.size(), acl_data_type, tensor.data(), tensor.tensor_data().size());
     } else if (tensor.dtype() == tensorflow::DT_STRING) {
       if (tensor.dims() != 0) {
         return tensorflow::errors::Internal("Acl send got unexpected non-scalar string tensor with dim ",
                                             tensor.dims());
       }
-      auto value = reinterpret_cast<tensorflow::tstring *>(const_cast<char *>(tensor.tensor_data().data()));
+      auto value = static_cast<tensorflow::tstring *>(tensor.data());
       // for scalar type, *dims is nullptr and dim_num is 0
       acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, nullptr, 0, acl_data_type,
                                       const_cast<char *>(value->c_str()), value->size());
@@ -380,4 +380,4 @@ tensorflow::Status HdcChannel::Init() {
   }
   return tensorflow::Status::OK();
 }
-} // end npu
+}  // namespace npu

@@ -45,6 +45,6 @@ class HdcChannel {
   std::string name_;
   std::atomic_bool destroyed_{false};
 };
-} // end namespace npu
+}  // end namespace npu
 
 #endif  // TENSORFLOW_NPU_HDC_H

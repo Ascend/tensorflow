@@ -33,6 +33,7 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace npu {
 namespace {
 class MakeIteratorGraphBuilder {
  public:
@@ -104,7 +105,6 @@ class MakeIteratorGraphBuilder {
 };
 }  // namespace
 
-namespace npu {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
                         int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
                         TF_Status *status) {
@@ -114,9 +114,9 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
   TF_UNUSED_VARIABLE(outputs);
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
-    if (npu::UnwrapHandle(input)->DataType() == tensorflow::DT_RESOURCE) {
+    if (UnwrapHandle(input)->DataType() == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(input, &tensor));
+      NPU_CTX_REQUIRES_OK(status, UnwrapTensor(input, &tensor));
       auto handle = tensor->scalar<tensorflow::ResourceHandle>()();
       TensorPartialShapes shapes;
       TensorDataTypes types;
