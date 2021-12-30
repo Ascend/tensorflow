@@ -33,9 +33,9 @@ class GenerateReport {
 
   Status AddUnSupportedInfo(const std::string &name, const std::string &type, const Details &infos);
 
-  Status AddUnSupportedInfo(Node *node, Details &infos);
+  Status AddUnSupportedInfo(const Node *node, Details &infos);
 
-  Status DeleteUnSupportedInfo(Node *node);
+  Status DeleteUnSupportedInfo(const Node *node);
 
   Status SaveUnsupportedInfo();
 

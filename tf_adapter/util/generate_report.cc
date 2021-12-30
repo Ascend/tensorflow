@@ -52,7 +52,7 @@ GenerateReport *GenerateReport::GetInstance() {
   return &generate_report;
 }
 
-Status GenerateReport::AddUnSupportedInfo(Node *node, Details &infos) {
+Status GenerateReport::AddUnSupportedInfo(const Node *node, Details &infos) {
   return GenerateReport::AddUnSupportedInfo(node->name(), node->type_string(), infos);
 }
 
@@ -69,7 +69,7 @@ Status GenerateReport::AddUnSupportedInfo(const std::string &name, const std::st
   return Status::OK();
 }
 
-Status GenerateReport::DeleteUnSupportedInfo(Node *node) {
+Status GenerateReport::DeleteUnSupportedInfo(const Node *node) {
   auto info_iter = check_info_map_.find(node->name());
   if (info_iter == check_info_map_.end()) {
     return Status::OK();

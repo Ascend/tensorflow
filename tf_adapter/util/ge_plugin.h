@@ -24,7 +24,6 @@ using tensorflow::int64;
 
 // Singleton class for manage the relationship between
 // tf session and ge session
-// namespace tensorflow {
 class GePlugin {
  public:
   static GePlugin *GetInstance();
