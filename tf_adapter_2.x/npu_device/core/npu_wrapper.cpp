@@ -162,14 +162,14 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             LOG(INFO) << "  " << option.first << ":" << option.second;
           }
           // Currently only support global basic options
-          auto status = CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
+          auto status = npu::CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
           pybind11::gil_scoped_acquire acquire;
           return status;
         });
 
   m.def("Close", []() {
     pybind11::gil_scoped_release release;
-    ReleaseDeviceResource();
+    npu::ReleaseDeviceResource();
     if (graph_engine_started.exchange(false)) {
       auto ge_status = ge::ParserFinalize();
       if (ge_status != ge::SUCCESS) {

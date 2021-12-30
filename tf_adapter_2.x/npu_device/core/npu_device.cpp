@@ -259,6 +259,7 @@ class OptimizeStageGraphDumper {
 
 }  // namespace
 
+namespace npu {
 /**
  * @brief: create iterator providev
  * @param context: tfe context
@@ -363,7 +364,7 @@ void NpuDevice::DeleteDevice(void *device) {
   if (device == nullptr) {
     return;
   }
-  auto npu_device = reinterpret_cast<NpuDevice *>(device);
+  auto npu_device = static_cast<NpuDevice *>(device);
   delete npu_device->ge_session_;
   delete npu_device;
 }
@@ -453,7 +454,7 @@ tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs,
  * @param op_name: op name
  * @param data_types: tensor data types
  */
-tensorflow::Status NpuDevice::ValidateOutput(const char *op_name, const TensorDataTypes &data_types) {
+tensorflow::Status NpuDevice::ValidateOutput(const char *op_name, const TensorDataTypes &data_types) const {
   for (size_t i = 0; i < data_types.size(); i++) {
     auto data_type = data_types[i];
     if (data_type == tensorflow::DT_RESOURCE) {
@@ -1041,7 +1042,7 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
  */
 tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
                                          const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
-                                         TensorPartialShapes &shapes, bool &requested_input_value) {
+                                         TensorPartialShapes &shapes, bool &requested_input_value) const {
   requested_input_value = false;
   NPU_REQUIRES(op_reg_data->shape_inference_fn,
                tensorflow::errors::Unimplemented("No infer shape function registered for op ", ndef.op()));
@@ -1894,7 +1895,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       dims.emplace_back(dim_size);
     }
     input.SetTensorDesc(ge::TensorDesc(ge::Shape(dims), ge::FORMAT_ND, ge_type));
-    input.SetData(reinterpret_cast<const uint8_t *>(tensor->tensor_data().data()), tensor->TotalBytes());
+    input.SetData(static_cast<const uint8_t *>(tensor->data()), tensor->TotalBytes());
     ge_inputs.emplace_back(input);
     DLOG() << "    input " << i << " ge enum " << ge_type << " tf type " << tensorflow::DataTypeString(tensor->dtype())
            << VecToString(dims);
@@ -2694,3 +2695,4 @@ tensorflow::Status NpuDevice::WeightUpdateGroupingOptimize(TFE_Context *context,
 
   return tensorflow::Status::OK();
 }
+}  // namespace npu
