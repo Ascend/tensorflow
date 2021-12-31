@@ -74,22 +74,22 @@ class GeOp : public AsyncOpKernel {
   Status GenerateDesc(Node *&node);
 
   // parse onnx model in tensorflow node
-  Status ParseOnnxGraphOpAttr(Node *&node);
+  Status ParseOnnxGraphOpAttr(Node *&node) const;
 
-  Status DomiFormatFromString(std::string format, int32_t &domi_format);
+  Status DomiFormatFromString(std::string format, int32_t &domi_format) const;
 
  private:
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
   int InitRebuildFlag(uint32_t cache_graph_id);
 
-  bool IncrementGraphIdCount(std::string &tf_session, uint32_t &graph_id);
+  bool IncrementGraphIdCount(uint32_t &graph_id);
 
-  bool DecrementGraphIdCount(std::string &tf_session, uint32_t &graph_id);
+  bool DecrementGraphIdCount(const std::string &tf_session, uint32_t &graph_id);
 
-  void ClearGraphIdCount(std::string &tf_session);
+  void ClearGraphIdCount();
 
-  void GetExecGraphId(OpKernelContext *ctx, uint32_t &cache_graph_id,
+  void GetExecGraphId(uint32_t &cache_graph_id,
                       std::vector<std::string> input_shapes);
 
   void GetMsTuneConfig(std::map<std::string, std::string> init_options);
@@ -103,19 +103,20 @@ class GeOp : public AsyncOpKernel {
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                         std::vector<std::string> &input_shapes);
-  int RunTuning(std::vector<Tensor> &input_vec, OpKernelContext *ctx);
+  int RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const ctx);
 
   std::string BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::string &graph);
 
   void SetDynamicInput();
 
-  void ProcessDpOpFuncDef(Node *node);
+  void ProcessDpOpFuncDef(Node *node) const;
 
-  void BuildQueueDataAndGetNextFromQueue(Graph &graph, Node *getnext_node, const std::string &channel_name);
+  void BuildQueueDataAndGetNextFromQueue(Graph &graph, const Node *const getnext_node,
+                                         const std::string &channel_name) const;
 
   void HandleDpOpAndGetNextNodes(Graph &graph);
 
-  void ChangeChannelNameAttr(NodeDef &node_def);
+  void ChangeChannelNameAttr(NodeDef &node_def) const;
 
  private:
   static const std::string INPUT_DESC;
