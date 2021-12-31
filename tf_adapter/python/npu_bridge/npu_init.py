@@ -49,7 +49,7 @@ experimental_options = {
 }
 
 
-def npu_hooks_append(hooks_list=None):
+def npu_hooks_append(hooks_list=()):
     """Append NPU hooks"""
     if not isinstance(hooks_list, list):
         hooks_list = []
@@ -57,7 +57,7 @@ def npu_hooks_append(hooks_list=None):
     return hooks_list
 
 
-def npu_callbacks_append(callbacks_list=None):
+def npu_callbacks_append(callbacks_list=()):
     """Appand NPU callback functions"""
     if not isinstance(callbacks_list, list):
         callbacks_list = []
