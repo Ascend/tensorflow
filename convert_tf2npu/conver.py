@@ -18,13 +18,13 @@
 """main function to convert user scripts"""
 
 import os
-import pandas as pd
 import util_global
 from conver_by_ast import conver_ast
 from file_op import mkdir
 from file_op import mkdir_and_copyfile
 from file_op import write_report_terminator
 from file_op import abs_join
+import pandas as pd
 from file_op import get_api_statistic
 from file_op import adjust_index
 

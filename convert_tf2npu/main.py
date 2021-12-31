@@ -21,6 +21,7 @@ import os
 import sys
 import getopt
 import util_global
+from file_op import before_clear
 from conver import conver
 
 

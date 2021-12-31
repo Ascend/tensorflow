@@ -17,8 +17,8 @@
 
 """Public functions for logging messages"""
 
-import sys
 import os
+import subprocess
 import util_global
 from file_op import write_conver_report
 
@@ -40,7 +40,7 @@ def log_info(lineno, msg, file):
 
 def log_warning(msg):
     """Log warning during conversion"""
-    os.system("cd .")
+    subprocess.run(["cd", "."], shell=True)
     print("".join(["\033[1;33mWARNING\033[0m:", msg]))
     write_conver_report(msg, util_global.get_value('report_file')[0])
 
@@ -57,7 +57,7 @@ def log_success_report(lineno, msg):
 def log_failed_report(lineno, msg):
     """Log fail report"""
     content = "".join([util_global.get_value('path'), ":", str(lineno), " ", msg, " is not support migration."])
-    os.system("cd .")
+    subprocess.run(["cd", "."], shell=True)
     print("".join(["\033[1;31mERROR\033[0m:", content]))
     write_conver_report(content, util_global.get_value('report_file')[1])
     util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b10))
@@ -77,16 +77,17 @@ def ask_the_distributed_mode(node, prompt, warning_msg):
     """Ask user to specify distributed mode"""
     while not util_global.get_value('already_check_distributed_mode_arg', False):
         message = input(prompt)
-        if message in ("c", "continue"):
+        if message == "c" or message == "continue":
             content = "".join([util_global.get_value('path'), ":", str(getattr(node, 'lineno')), warning_msg])
-            os.system("cd .")
+            subprocess.run(["cd", "."], shell=True)
             print("".join(["\033[1;33mWARNING\033[0m:", content]))
             write_conver_report(content, util_global.get_value('report_file')[1])
             util_global.set_value('report_file_status', (util_global.get_value('report_file_status') | 0b10))
             break
-        if message == "exit":
-            sys.exit()
-        print("Input is error, please enter 'exit' or 'c' or 'continue'.")
+        elif message == "exit":
+            exit(0)
+        else:
+            print("Input is error, please enter 'exit' or 'c' or 'continue'.")
 
 
 def log_hvd_distributed_mode_error(node):
@@ -132,9 +133,10 @@ def log_warning_main_arg_not_set():
             "As your script contains Horovod or Keras API, ensure that the Python entry script contains "
             "the main function and the '-m' option is included to avoid porting failures. "
             "Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
-        if message in ("continue", "c"):
+        if message == "continue" or message == "c":
             break
-        if message == "exit":
-            sys.exit()
-        print("Input is error, please enter 'exit' or 'c' or 'continue'.")
+        elif message == "exit":
+            exit(0)
+        else:
+            print("Input is error, please enter 'exit' or 'c' or 'continue'.")
     util_global.set_value('already_check_main_arg', True)

@@ -22,6 +22,9 @@ from __future__ import print_function
 from enum import Enum
 import json
 import os
+import re
+from tensorflow.python.util import compat_internal
+from tensorflow.python.platform import gfile
 from tensorflow.python.estimator import run_config as run_config_lib
 from tensorflow.distribute.experimental import ParameterServerStrategy
 from tensorflow.contrib.distribute import DistributeConfig
@@ -150,7 +153,7 @@ class NPURunConfig(run_config_lib.RunConfig):
 
         # Check iterations_per_loop.
         util.check_positive_integer(iterations_per_loop, "iterations_per_loop")
-        if not isinstance(mix_compile_mode, bool):
+        if isinstance(mix_compile_mode, bool) == False:
             raise ValueError('"mix_compile_mode" type must be bool')
         if mix_compile_mode is True and iterations_per_loop != 1:
             raise ValueError(
@@ -237,7 +240,7 @@ class NPURunConfig(run_config_lib.RunConfig):
             eval_distribute=eval_distribute)
 
     def _get_save_checkpoints_steps(self, save_checkpoints_secs, save_checkpoints_steps):
-        if save_checkpoints_secs is None and save_checkpoints_steps is None:
+        if save_checkpoints_secs == None and save_checkpoints_steps == None:
             return 100
         return save_checkpoints_steps
 

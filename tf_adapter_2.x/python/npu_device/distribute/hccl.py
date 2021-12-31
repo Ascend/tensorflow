@@ -74,7 +74,8 @@ def all_reduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_wor
 
     if isinstance(values, (list, tuple,)):
         return _all_reduce(values, reduction, fusion, fusion_id, group)
-    return _all_reduce([values], reduction, fusion, fusion_id, group)[0]
+    else:
+        return _all_reduce([values], reduction, fusion, fusion_id, group)[0]
 
 
 @npu_compat_function

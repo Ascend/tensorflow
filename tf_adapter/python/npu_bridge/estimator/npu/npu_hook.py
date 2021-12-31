@@ -100,7 +100,7 @@ class NPUBroadcastGlobalVariablesHook(session_run_hook.SessionRunHook):
         if (not self._bcast_op or self._bcast_op.graph != tf.get_default_graph()) and self._rank_size > 1:
             self._bcast_op = broadcast_global_variables(self._root_rank, self._index)
 
-    def after_create_session(self, session):
+    def after_create_session(self, session, coord):
         """Call when session is created"""
         if self._rank_size > 1:
             logging.info("NPUBroadcastGlobalVariablesHook run...")
@@ -142,10 +142,6 @@ class SetIterationsVarHook(session_run_hook.SessionRunHook):
     """Hook to set iteration variables."""
     def __init__(self, iterations_per_loop=None):
         self._iterations_per_loop = iterations_per_loop
-        self._iterations_per_loop_var = None
-        self._const_one = None
-        self._const_zero = None
-        self._loop_cond_var = None
 
     def begin(self):
         """Call when session hook begins"""
@@ -154,7 +150,7 @@ class SetIterationsVarHook(session_run_hook.SessionRunHook):
         self._const_zero = util.create_or_get_var(_CONST_ZERO)
         self._const_one = util.create_or_get_var(_CONST_ONE)
 
-    def after_create_session(self, session):
+    def after_create_session(self, session, coord):
         """Call when session is created"""
         self._iterations_per_loop_var.load(self._iterations_per_loop - 1, session=session)
         self._loop_cond_var.load(0, session=session)
@@ -164,7 +160,7 @@ class SetIterationsVarHook(session_run_hook.SessionRunHook):
         print(session.run(self._iterations_per_loop_var))
 
 
-def broadcast_global_variables(root_rank):
+def broadcast_global_variables(root_rank, index):
     """Broadcasts all global variables from root rank to all other processes.
     Arguments:
         root_rank: rank of the process from which global variables will be broadcasted
@@ -182,11 +178,11 @@ def broadcast_global_variables(root_rank):
     return tf.group(op_list)
 
 
-class _SIGNAL:
+class _SIGNAL(object):
     STOP = -1
 
 
-class _OpQueueContext:
+class _OpQueueContext(object):
     """Manages work queue and thread for a infeed/outfeed thread."""
     def __init__(self, name, target, args):
         self._name = name
@@ -199,15 +195,11 @@ class _OpQueueContext:
     def stop(self):
         self._queue.put(_SIGNAL.STOP)
 
-
 class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
     """Hook to logout feed session"""
     def __init__(self, output_stream):
         self._output_stream = output_stream
         self._stopped = False
-        self._dequeue_ops = None
-        self._outfeed_controller = None
-        self._finalize_ops = None
 
     def begin(self):
         """Call when session hook begins"""
@@ -218,7 +210,7 @@ class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
                 output_shapes=[()])
         self._dequeue_ops = tf.print(outfeed_log_tensors, output_stream=self._output_stream)
 
-    def _run_outfeed(self, session):
+    def _run_outfeed(self, queue_ctx, session):
         logging.info('Starting log outfeed thread controller.')
         while True:
             try:
@@ -227,7 +219,7 @@ class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
                 logging.info('Log outfeed thread finished')
                 break
 
-    def after_create_session(self, session):
+    def after_create_session(self, session, coord):
         """Call when session is created"""
         self._outfeed_controller = _OpQueueContext(
             name='LogOutfeedController', target=self._run_outfeed, args=(session,))
@@ -236,9 +228,8 @@ class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
         """Call at the end of session hook"""
         if not self._stopped:
             self._stopped = True
-            if self._finalize_ops:
+            if len(self._finalize_ops):
                 session.run(self._finalize_ops)
-
 
 class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
     """Hook to in feed out feed session"""
@@ -249,9 +240,6 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         self._channel_name = channel_name
         self._finished = False
         self._stopped = False
-        self._init_ops = None
-        self._outfeed_controller = None
-        self._finalize_ops = None
 
     def begin(self):
         """Call when session hook begins"""
@@ -264,7 +252,7 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         for op in summary_writer_init_ops:
             self._finalize_ops.append(contrib_summary.flush(writer=op.inputs[0]))
 
-    def _run_outfeed(self, session):
+    def _run_outfeed(self, queue_ctx, session):
         logging.info('Starting outfeed thread controller.')
         while True:
             try:
@@ -274,7 +262,7 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
                 break
         logging.info('Outfeed thread finished, shutting down')
 
-    def after_create_session(self, session):
+    def after_create_session(self, session, coord):
         """Call when session is created"""
         logging.info('Init NPU system')
         start = time.time()
@@ -293,9 +281,8 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         logging.info('Shutdown NPU system.')
         if not self._stopped:
             self._stopped = True
-            if self._finalize_ops:
+            if len(self._finalize_ops):
                 session.run(self._finalize_ops)
-
 
 class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):
     """call output_fn to print tensors every N steps or at end."""
@@ -339,7 +326,7 @@ class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):
         if self._tensors is not None:
             super(NPUOutputTensorHook, self).begin()
 
-    def before_run(self):
+    def before_run(self, run_context):
         """Call before session will run"""
         logging.info("NPUOutputTensorHook before_run...", self._tensors)
         if self._tensors is not None:
@@ -356,10 +343,10 @@ class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):
         if self._iter_count % self._output_every_n_steps == 0:
             self._call_output_fn()
 
-    def end(self):
+    def end(self, session):
         """Call at the end of session hook"""
         logging.info("NPUOutputTensorHook end...")
-        if self._output_list:
+        if self._output_list is not None and len(self._output_list):
             self._call_output_fn()
 
     def _stash_outputs(self, tensor_values):

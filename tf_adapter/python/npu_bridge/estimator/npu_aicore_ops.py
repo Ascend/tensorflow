@@ -22,14 +22,21 @@ from __future__ import division
 from __future__ import print_function
 
 import numbers
+from tensorflow.contrib.util import loader
+from tensorflow.python.platform import resource_loader
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
+from tensorflow.python.ops import array_ops
 from tensorflow.python.ops.nn_ops import _get_noise_shape
+from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import dtypes
+from tensorflow.python.eager import context
+from tensorflow.python.framework import device
+from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 from npu_bridge.helper import helper
 
-npu_aicore_ops = helper.get_gen_ops()
+npu_aicore_ops = helper.get_gen_ops();
 
 DEFAULT_GRAPH_SEED = 87654321
 _MAXINT32 = 2 ** 31 - 1

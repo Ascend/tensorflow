@@ -99,7 +99,7 @@ def format_string(value, name):
     return str(value)
 
 
-def check_profiling_options(profiling_options=None):
+def check_profiling_options(profiling_options=[]):
     """Check profiling options .
     Args:
         profiling_options: Profiling options.
@@ -174,7 +174,7 @@ def create_or_get_var(var_name):
     iter_vars = graph.get_collection(collection_name)
     if len(iter_vars) == 1:
         return iter_vars[0]
-    if len(iter_vars) > 1:
+    elif len(iter_vars) > 1:
         raise RuntimeError('Multiple var in collection.')
     ignore_existing = False
     if training_util.get_global_step() is None:
@@ -232,11 +232,6 @@ class IterationPerLoop():
     """
     An object provide two API to create and set iterations_per_loop
     """
-    def __init__(self):
-        self._const_one = None
-        self._const_zero = None
-        self._loop_cond_var = None
-        self._iterations_per_loop_var = None
 
     def create_iteration_per_loop_var(self, train_op):
         """
@@ -295,30 +290,37 @@ def variable_initializer_in_host(var_list):
 
 def fair_division(inputs, number):
     """Calculate fain division"""
-    def get_sum(input_list):
+    def get_sum(list):
         """Calculate sum"""
         res = 0
-        for item in input_list:
+        for item in list:
             res += item.size
         return res
 
-    def get_average(input_list, size):
+    def get_left_input_sum(list):
+        res = 0
+        for item in list:
+            if item.root_rank_id < 0:
+                res += item.size
+        return res
+
+    def get_average(list, size):
         large_number_list = []
         average_size = 0
         res = 0
         if size == 1:
-            for item in input_list:
+            for item in list:
                 if item.root_rank_id < 0:
                     res += item.size
             return res
         while True:
             res = 0
             find_large_number = False
-            for item in input_list:
+            for item in list:
                 if item not in large_number_list and item.root_rank_id < 0:
                     res += item.size
             average_size = res // (size - len(large_number_list))
-            for item in input_list:
+            for item in list:
                 if item not in large_number_list and item.root_rank_id < 0 and item.size > res - item.size:
                     find_large_number = True
                     large_number_list.append(item)
@@ -328,7 +330,7 @@ def fair_division(inputs, number):
 
     if number > len(inputs) or number < 0:
         raise ValueError("'number' is greater than the number of inputs or 'number' is less than 0. ")
-    if number == len(inputs):
+    elif number == len(inputs):
         for i in range(len(inputs)):
             inputs[i].root_rank_id = i
         return inputs
@@ -398,6 +400,7 @@ def add_grads_and_vars(grads_and_vars, rank_size):
 def get_gid_by_grad(grad):
     """Get gradient id by grad"""
     gid = -1
+    global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
         if item.grad.name == grad.name:
             gid = item.root_rank_id
@@ -407,6 +410,7 @@ def get_gid_by_grad(grad):
 def get_gid_by_weight(weight):
     """Get gradient id by weight"""
     gid = -1
+    global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
         if item.var.name == weight.name:
             gid = item.root_rank_id
@@ -415,6 +419,7 @@ def get_gid_by_weight(weight):
 
 def get_all_grad_item():
     """Get all gradients"""
+    global _GRADIENTS_AND_VARS
     return _GRADIENTS_AND_VARS
 
 
@@ -447,7 +452,7 @@ def set_graph_exec_config(fetch, dynamic_input=False,
             fetch.op._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
             fetch.op._set_attr("_is_train_graph", is_train_graph_attr)
 
-    if dynamic_graph_execute_mode not in ("lazy_recompile", "dynamic_execute"):
+    if dynamic_graph_execute_mode != "lazy_recompile" and dynamic_graph_execute_mode != "dynamic_execute":
         raise ValueError("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute")
     dynamic_input_attr = attr_value_pb2.AttrValue(b=dynamic_input)
     dynamic_graph_execute_mode_attr = attr_value_pb2.AttrValue(s=compat.as_bytes(dynamic_graph_execute_mode))
@@ -517,7 +522,6 @@ def set_op_tensor_max_range(tensor, max_shape):
         tensor._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
     else:
         tensor.op._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
-
 
 def set_op_input_tensor_multi_dims(tensor, input_shape, input_dims):
     """Set multi dimensions for op input tensor"""

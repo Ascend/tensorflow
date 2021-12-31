@@ -15,3 +15,10 @@
 # ==============================================================================
 
 """NPU training ops"""
+
+from npu_device import gen_npu_ops
+
+
+def foo():
+    """test for training ops"""
+    pass

@@ -16,7 +16,7 @@
 
 """NPU basic configurations"""
 
-class OptionValue:
+class OptionValue(object):
     """Options for setting npu basic configurations"""
     def __init__(self, default, optional):
         self.__default = default
@@ -40,9 +40,10 @@ class OptionValue:
             return None
         if str(self.__value) == str(True):
             return "1"
-        if str(self.__value) == str(False):
+        elif str(self.__value) == str(False):
             return "0"
-        return str(self.__value)
+        else:
+            return str(self.__value)
 
     @value.setter
     def value(self, v):
@@ -51,7 +52,7 @@ class OptionValue:
         self.__value = v
 
 
-class NpuBaseConfig:
+class NpuBaseConfig(object):
     """NPU basic configurations"""
     def __init__(self):
         self._fixed_attrs = []
@@ -73,7 +74,7 @@ class NpuBaseConfig:
 
     def as_dict(self):
         """Return updated option in dictionary format"""
-        options = {}
+        options = dict()
         for k, v in self.__dict__.items():
             if k in self._fixed_attrs:
                 if isinstance(v, OptionValue) and v.value is not None:

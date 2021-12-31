@@ -176,7 +176,7 @@ def add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_fun
     param_node = None
     if ((not util_global.get_value("distributed_mode", "") or
          util_global.get_value("distributed_mode", "") == "horovod") and
-            (param_name in ("callbacks", "hooks", "optimizer"))):
+            (param_name == "callbacks" or param_name == "hooks" or param_name == "optimizer")):
         return node
     log_param_msg = "".join([org_func_name, " add npu ", param_name])
     log_msg(getattr(node, "lineno", "None"), log_param_msg)
@@ -231,11 +231,12 @@ def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is
                             "enter 'y' to perform distributed porting on the train function. if no, enter 'n': ")
             if message == "y":
                 break
-            if message == "n":
+            elif message == "n":
                 log_warning("".join(["The train func in ", content,
                                      " is user-defined functions, will not perform distributed porting"]))
                 return node
-            print("Input is error, Please enter 'y' or 'n'.")
+            else:
+                print("Input is error, Please enter 'y' or 'n'.")
     for param_name in params_list:
         node = match_func_params_and_convert(node, origin_func, org_func_name, param_name, is_class_func)
 
@@ -394,8 +395,8 @@ def convert_distributed_strategy_apis(node):
 def ast_call(node):
     """Visit and transform ast call node"""
     distributed_mode = util_global.get_value("distributed_mode", "")
-    is_not_strategy = distributed_mode in ("horovod", "")
-    is_not_horovod = distributed_mode in ("tf_strategy", "")
+    is_not_strategy = (distributed_mode == "horovod" or distributed_mode == "")
+    is_not_horovod = (distributed_mode == "tf_strategy" or distributed_mode == "")
     convert_loss_scale_api(node)
     if _call_name_match(node.func, "set_experimental_options"):
         log_msg(getattr(node, 'lineno', 'None'),
@@ -493,7 +494,7 @@ def ast_call(node):
         for keyword in node.keywords:
             if keyword.arg == 'drop_remainder':
                 exist = True
-                if ((isinstance(keyword.value, ast.NameConstant) and not keyword.value.value) or
+                if ((isinstance(keyword.value, ast.NameConstant) and keyword.value.value != True) or
                         (not isinstance(keyword.value, ast.NameConstant))):
                     log_success_report(getattr(node, "lineno", "None"), node.func.attr)
                     keyword.value = pasta.parse('True')
@@ -550,7 +551,7 @@ def ast_call(node):
         for keyword in node.keywords:
             if (keyword.arg == 'eval_on_tpu') or (keyword.arg == 'use_tpu') or (keyword.arg == 'export_to_tpu'):
                 if (not isinstance(keyword.value, ast.NameConstant)) or \
-                        (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value)):
+                        (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value != False)):
                     log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(' + keyword.arg + '=*)')
                     keyword.value = pasta.parse('False')
                     util_global.set_value('need_conver', True)
@@ -670,13 +671,14 @@ def insert_npu_import(r_node):
             log_msg(i, "from npu_bridge.npu_init import *")
             is_insert = True
             break
-        if isinstance(r_node.body[i], ast.ImportFrom):
+        elif isinstance(r_node.body[i], ast.ImportFrom):
             if r_node.body[i].module != "__future__":
                 r_node.body.insert(i, npu_import)
                 log_msg(i, "from npu_bridge.npu_init import *")
                 is_insert = True
                 break
-            import_index = i + 1
+            else:
+                import_index = i + 1
     if not is_insert:
         r_node.body.insert(import_index, npu_import)
         log_msg(import_index, "from npu_bridge.npu_init import *")
@@ -707,7 +709,7 @@ def insert_npu_resource_init(r_node):
     while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
         n += 1
 
-    while n < lenline and isinstance(r_node.body[n], (ast.ImportFrom, ast.Import)):
+    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
         n += 1
 
     if n < lenline:
@@ -739,7 +741,7 @@ def insert_keras_sess_npu_config(r_node):
     while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
         n += 1
 
-    while n < lenline and isinstance(r_node.body[n], (ast.ImportFrom, ast.Import)):
+    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
         n += 1
 
     if n < lenline:

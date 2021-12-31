@@ -29,7 +29,7 @@ import util_global
 from conver import conver
 
 
-class Analyse:
+class Analyse(object):
     """Use Tkinter to display ayalysis result"""
     def __init__(self, parent):
         self.root = parent

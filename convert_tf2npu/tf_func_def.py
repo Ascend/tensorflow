@@ -22,14 +22,12 @@ USE_DEFAULT = object()
 
 class TrainSpec(object):
     """Configuration for training"""
-    @staticmethod
     def __new__(cls, input_fn, max_steps=None, hooks=None):
         pass
 
 
 class EvalSpec(object):
     """Configuration for evaluation"""
-    @staticmethod
     def __new__(cls,
                 input_fn,
                 steps=100,

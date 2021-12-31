@@ -26,4 +26,4 @@ from npu_bridge.hccl import hccl_ops
 from npu_bridge.estimator.npu.npu_plugin import npu_close
 
 atexit.register(npu_close)
-__all__ = (_s for _s in dir() if not _s.startswith('_'))
+__all__ = [_s for _s in dir() if not _s.startswith('_')]
