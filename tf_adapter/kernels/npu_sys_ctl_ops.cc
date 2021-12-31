@@ -17,10 +17,8 @@
 #ifndef TENSORFLOW_NPU_SYS_CTL_OPS_H_
 #define TENSORFLOW_NPU_SYS_CTL_OPS_H_
 
-#include <dlfcn.h>
 #include <fstream>
 #include <sys/time.h>
-#include <unistd.h>
 
 #include "framework/common/fmk_error_codes.h"
 #include "framework/common/ge_inner_error_codes.h"
@@ -38,6 +36,8 @@
 namespace tensorflow {
 inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
 
+static const int64 kSecondToMillis = 1000000;
+
 static int64 GetCurrentTimestamp() {
   struct timeval tv;
   int ret = gettimeofday(&tv, nullptr);
@@ -46,7 +46,7 @@ static int64 GetCurrentTimestamp() {
     LOG(ERROR) << "Func gettimeofday failed, ret:" << ret;
     return 0;
   }
-  int64 timestamp = tv.tv_usec + tv.tv_sec * 1000000;
+  int64 timestamp = tv.tv_usec + tv.tv_sec * kSecondToMillis;
   return timestamp;
 }
 static mutex g_mu(LINKER_INITIALIZED);
