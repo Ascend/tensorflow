@@ -18,12 +18,11 @@
 #define TENSORFLOW_ADP_LOGGER_H
 
 #include <sstream>
-#include <string>
 
 #define FMK_MODULE_NAME static_cast<int>(FMK)
 
 namespace npu {
-const std::string ADP_MODULE_NAME = "TF_ADAPTER";
+static const char *ADP_MODULE_NAME = "TF_ADAPTER";
 const int ADP_DEBUG = 0;
 const int ADP_INFO = 1;
 const int ADP_WARNING = 2;

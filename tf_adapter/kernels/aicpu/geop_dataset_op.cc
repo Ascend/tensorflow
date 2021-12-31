@@ -62,7 +62,7 @@ private:
     std::string tf_session() const { return tf_session_; }
 
     std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return std::unique_ptr<IteratorBase>(new (std::nothrow) Iterator({this, CatStr(prefix, "::GEOP")}));
+      return std::unique_ptr<IteratorBase>(new (std::nothrow) Iterator({this, npu::CatStr(prefix, "::GEOP")}));
     }
 
     const DataTypeVector &output_dtypes() const override {

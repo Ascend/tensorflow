@@ -26,7 +26,7 @@ namespace tensorflow {
 class SetVarFormatPass : public GraphOptimizationPass {
  public:
   Status Run(const GraphOptimizationPassOptions &options) override;
-  Status AssignFormatToVarOutNodes(Node *node);
+  Status AssignFormatToVarOutNodes(Node *node) const;
   Status GetFormat(const Node *node, string &format) const;
   Status AssignApplyMomentumInNodesFormat(const Node *node, const string &var_format) const;
 };

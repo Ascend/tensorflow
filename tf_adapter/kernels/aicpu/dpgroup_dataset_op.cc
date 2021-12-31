@@ -59,7 +59,7 @@ private:
     }
 
     std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return std::unique_ptr<IteratorBase>(new (std::nothrow) Iterator({this, CatStr(prefix, "::GEOP")}));
+      return std::unique_ptr<IteratorBase>(new (std::nothrow) Iterator({this, npu::CatStr(prefix, "::GEOP")}));
     }
 
     const DataTypeVector &output_dtypes() const override { return output_types_; }
@@ -87,7 +87,7 @@ private:
         } catch (...) { return errors::InvalidArgument("input impls resize failed."); }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
           TF_RETURN_IF_ERROR(
-              dataset()->inputs_[i]->MakeIterator(ctx, CatStr(prefix(), "[", i, "]"), &input_impls_[i]));
+              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i]));
         }
         return Status::OK();
       }

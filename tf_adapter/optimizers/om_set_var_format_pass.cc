@@ -96,7 +96,7 @@ Status SetVarFormatPass::GetFormat(const Node *node, string &format) const {
   return Status::OK();
 }
 
-Status SetVarFormatPass::AssignFormatToVarOutNodes(Node *node) {
+Status SetVarFormatPass::AssignFormatToVarOutNodes(Node *node) const {
   string var_format = KEY_4D_ATTR_VALUE;
   for (const Edge *out : node->out_edges()) {
     REQUIRES_NOT_NULL(out);
