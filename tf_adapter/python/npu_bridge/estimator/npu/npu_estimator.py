@@ -458,7 +458,7 @@ class NPUEstimator(estimator_lib.Estimator):
 
         return _model_fn
 
-    def __check_profiling_options(self, profiling_options=()):
+    def __check_profiling_options(self, profiling_options=None):
         """Check profiling options .
         Args:
             profiling_options: Profiling options.
@@ -729,7 +729,7 @@ class NPUEstimator(estimator_lib.Estimator):
         # add stream_max_parallel to custom_op
         self.__load_stream_max_config(config, custom_op)
 
-        self.__load_ps_mode_config(custom_op)
+        self.__load_ps_mode_config(config, custom_op)
 
         self._load_op_performance_config(config, custom_op)
 

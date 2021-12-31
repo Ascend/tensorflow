@@ -187,7 +187,7 @@ def basic_lstm_cell(x, h, c, w, b, keep_prob, forget_bias, state_is_tuple,
 
 
 @ops.RegisterGradient("BasicLSTMCell")
-def basic_lstm_cell_grad(op, dct, dht, dit, djt, dft, dot, dtanhct):
+def basic_lstm_cell_grad(op, dct, dht):
     """NPU implemented gradient for lstm cell"""
     dgate, dct_1 = gen_npu_ops.basic_lstm_cell_c_state_grad(op.inputs[2], dht, dct, op.outputs[2], op.outputs[3],
                                                             op.outputs[4], op.outputs[5], op.outputs[6],
@@ -222,9 +222,9 @@ def adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
 
 
 @ops.RegisterGradient("DynamicGruV2")
-def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
+def dynamic_gru_v2_grad(op, dy, doutput_h):
     """NPU implemented dynamic_gru_v2"""
-    (x, weight_input, weight_hidden, bias_input, bias_hidden, seq_length, init_h) = op.inputs
+    (x, weight_input, weight_hidden, seq_length, init_h) = op.inputs
     (y, output_h, update, reset, new, hidden_new) = op.outputs
     (dw_input, dw_hidden, db_input, db_hidden, dx, dh_prev) = gen_npu_ops.dynamic_gru_v2_grad(x, weight_input,
                                                                                               weight_hidden, y, init_h,
@@ -252,7 +252,7 @@ def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
 
 
 @ops.RegisterGradient("DynamicRnn")
-def dynamic_rnn_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
+def dynamic_rnn_grad(op, dy, dh, dc):
     """NPU implemented dynamic_rnn_grad"""
     (x, w, b, seq_length, init_h, init_c) = op.inputs
     (y, output_h, output_c, i, j, f, o, tanhc) = op.outputs
@@ -272,7 +272,7 @@ def dynamic_rnn_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
 
 
 @ops.RegisterGradient("DynamicRnnV2")
-def dynamic_rnn_v2_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
+def dynamic_rnn_v2_grad(op, dy, dh, dc):
     """NPU implemented dynamic_rnn_v2_grad"""
     (x, w, b, init_h, init_c) = op.inputs
     (y, output_h, output_c, i, j, f, o, tanhc) = op.outputs

@@ -24,7 +24,7 @@ from tensorflow.python.ops import control_flow_ops
 from npu_bridge.hccl import hccl_ops
 
 
-def broadcast_global_variables(root_rank):
+def broadcast_global_variables():
     """Used to broadcast global variables"""
     variables = backend._get_variables(backend.get_graph())
     candidate_vars = []
@@ -35,7 +35,7 @@ def broadcast_global_variables(root_rank):
     if candidate_vars:
         for var in candidate_vars:
             inputs = [var]
-            outputs = hccl_ops.broadcast(tensor=inputs, root_rank=root_rank)
+            outputs = hccl_ops.broadcast(tensor=inputs, root_rank=0)
             if outputs is not None:
                 op_list.append(outputs[0].op)
                 op_list.append(state_ops.assign(var, outputs[0]))
@@ -49,7 +49,7 @@ class BroadcastGlobalVariablesCallbackImpl:
         self.root_rank = root_rank
         self.broadcast_done = False
 
-    def on_batch_begin(self, batch, logs=None):
+    def on_batch_begin(self):
         """This function is called when every batch begins"""
         if self.broadcast_done:
             return

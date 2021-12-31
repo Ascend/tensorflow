@@ -377,7 +377,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         with tf.name_scope(self._name + "_Reduce_Weight_Update_Sharding"):
             for grad, var in gradients:
                 rank_id = util.get_gid_by_grad(grad)
-                avg_grad = reduce(grad, rank_id, True, 2, rank_id) if grad is not None else None
+                avg_grad = reduce(grad, var, rank_id, True, 2, rank_id) if grad is not None else None
                 averaged_gradients.append((avg_grad, var))
         return averaged_gradients
 

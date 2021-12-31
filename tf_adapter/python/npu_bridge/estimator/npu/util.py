@@ -99,7 +99,7 @@ def format_string(value, name):
     return str(value)
 
 
-def check_profiling_options(profiling_options=()):
+def check_profiling_options(profiling_options=None):
     """Check profiling options .
     Args:
         profiling_options: Profiling options.

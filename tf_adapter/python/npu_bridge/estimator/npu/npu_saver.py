@@ -38,7 +38,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
                         sharded=False,
                         max_to_keep=5,
                         keep_checkpoint_every_n_hours=10000.0,
-                        name=None,
+                        op_name=None,
                         restore_sequentially=False,
                         filename="model",
                         build_save=True,
@@ -54,7 +54,7 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
         if max_to_keep is None:
             max_to_keep = 0
 
-        with ops.name_scope(name, "save",
+        with ops.name_scope(op_name, "save",
                             (saveable.op for saveable in saveables)) as name:
             # Add a placeholder string tensor for the filename.
             filename_tensor = array_ops.placeholder_with_default(
