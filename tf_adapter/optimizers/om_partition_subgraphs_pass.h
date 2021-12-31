@@ -37,8 +37,8 @@ Status MarkForPartition(const GraphOptimizationPassOptions &options, int &cluste
 Status OMPartitionSubgraphsInFunctions(string groupAttribute, const GraphOptimizationPassOptions &options,
                                        string graph_format);
 
-bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode,
-                         FunctionLibraryDefinition *func_lib, bool support_const = false);
+bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode, FunctionLibraryDefinition *func_lib,
+                         bool support_const = false);
 bool IsNpuSupportingNode(Node *node, bool mix_compile_mode, FunctionLibraryDefinition *func_lib,
                          bool support_const = false);
 }  // namespace OMSplitter
@@ -52,12 +52,14 @@ class OMPartitionSubgraphsPass : public GraphOptimizationPass {
  private:
   Status ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                       const OptimizationPassRegistry::Grouping pass_group_value);
-  Status AccumulateNFusion(Graph *graphIn, Node *node);
+  Status AccumulateNFusion(Graph *graphIn, Node *node) const;
   void GetGraphDynamicExecConfig(Node *node, bool enable_dp, std::map<std::string, std::string> &graph_options);
   void ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
                             std::map<std::string, std::string> &graph_options);
-  Status ProcessGetNext(Node *node, std::string enable_dp,
-                        std::vector<Node*> &remove_nodes, Graph *graphIn);
+  Status ProcessGetNext(Node *node, std::string enable_dp, std::vector<Node *> &remove_nodes, Graph *graphIn);
+  Status SplitUnaryOpsComposition(Graph *graph, Node *node) const;
+  Status CopyVarsBetweenGeOp(Graph *graph) const;
+  Status CopyConstBetweenGeOp(Graph *graph) const;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_OM_PARTITION_SUBGRAPHS_PASS_H_

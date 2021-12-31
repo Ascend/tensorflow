@@ -17,13 +17,9 @@
 #ifndef TENSORFLOW_NPU_HDC_H
 #define TENSORFLOW_NPU_HDC_H
 
-#include <utility>
-
 #include "acl/acl_tdt.h"
 #include "tensorflow/core/framework/tensor.h"
-
-#include "npu_micros.h"
-
+namespace npu {
 class HdcChannel {
  public:
   static tensorflow::Status Create(uint32_t device_id, const std::string &name,
@@ -31,11 +27,11 @@ class HdcChannel {
 
   ~HdcChannel();
 
-  tensorflow::Status SendTensors(const std::vector<tensorflow::Tensor> &tensors);
+  tensorflow::Status SendTensors(const std::vector<tensorflow::Tensor> &tensors) const;
 
-  tensorflow::Status NotifyFinish();
+  tensorflow::Status NotifyFinish() const;
 
-  tensorflow::Status NotifyAbnormal();
+  tensorflow::Status NotifyAbnormal() const;
 
   void Destroy();
 
@@ -47,5 +43,6 @@ class HdcChannel {
   std::string name_;
   std::atomic_bool destroyed_{false};
 };
+}  // end namespace npu
 
 #endif  // TENSORFLOW_NPU_HDC_H

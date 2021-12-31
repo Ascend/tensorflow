@@ -1,4 +1,5 @@
 #include "tf_adapter/kernels/geop_npu.h"
+#include "tf_adapter/util/npu_attrs.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/graph/graph_constructor.h"
 #include "tensorflow/core/public/version.h"
@@ -40,7 +41,7 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator {
 
 class GeOpTest : public testing::Test {
  protected:
-  virtual void SetUp() {}
+  virtual void SetUp() { *const_cast<bool *>(&kDumpGraph) = true; }
   virtual void TearDown() {}
 };
 class DummyDevice : public DeviceBase {
@@ -154,7 +155,6 @@ TEST_F(GeOpTest, GeOpDynamicInput1Test) {
   EXPECT_EQ(attrs["_dynamic_graph_execute_mode"].s() == "dynamic_execute", true);
 }
 TEST_F(GeOpTest, GeOpAoeTuningAndDynamicDimsTest) {
-  setenv("PRINT_MODEL", "1", true);
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_aoe_tuning_and_dynamic_dims.pbtxt";
   Tensor a(DT_INT32, TensorShape({1,}));

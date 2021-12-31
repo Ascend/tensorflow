@@ -928,15 +928,15 @@ tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tenso
 TFE_TensorHandle *NpuDevice::NewDeviceTensorHandle(TFE_Context *context, Format fmt,
                                                    const tensorflow::TensorShape &shape, tensorflow::DataType type,
                                                    TF_Status *status) {
-  NpuManagedBuffer *npu_managed_buffer;
-  NPU_CTX_REQUIRES_OK_RETURN(status, NpuManagedBuffer::Create(fmt, shape, type, &npu_managed_buffer), nullptr);
+  npu::NpuManagedBuffer *npu_managed_buffer;
+  NPU_CTX_REQUIRES_OK_RETURN(status, npu::NpuManagedBuffer::Create(fmt, shape, type, &npu_managed_buffer), nullptr);
   std::vector<int64_t> dims;
   for (auto dim_size : shape.dim_sizes()) {
     dims.emplace_back(dim_size);
   }
   return TFE_NewTensorHandleFromDeviceMemory(context, device_name.c_str(), static_cast<TF_DataType>(type), dims.data(),
                                              dims.size(), npu_managed_buffer, sizeof(npu_managed_buffer),
-                                             &NpuManagedBufferDeallocator, nullptr, status);
+                                             &npu::NpuManagedBufferDeallocator, nullptr, status);
 }
 
 /**
@@ -980,7 +980,9 @@ TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandl
   NPU_CTX_REQUIRES_RETURN(status, local_handle != nullptr, tensorflow::errors::Internal("Failed create local handle"),
                           nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(local_handle, &local_tensor), nullptr);
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleTo(local_tensor), local_handle);
+  NPU_CTX_REQUIRES_OK_RETURN(
+    status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleTo(const_cast<tensorflow::Tensor *>(local_tensor)),
+    local_handle);
   return local_handle;
 }
 
@@ -1026,7 +1028,8 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
   const tensorflow::Tensor *npu_tensor = nullptr;
 
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(npu_handle, &npu_tensor), nullptr);
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleFrom(local_tensor), npu_handle);
+  NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleFrom(local_tensor),
+                             npu_handle);
   return npu_handle;
 }
 
@@ -1616,7 +1619,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
         cpu_tensor.flat<tensorflow::ResourceHandle>()(j) = npu_tensor->flat<tensorflow::ResourceHandle>()(j);
       }
     } else {
-      NPU_CTX_REQUIRES_OK(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleTo(&cpu_tensor));
+      NPU_CTX_REQUIRES_OK(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleTo(&cpu_tensor));
     }
     acl_inputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
     scope_handle_deleter.Guard(acl_inputs[i]);
@@ -1638,7 +1641,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
           acl_tensor->flat<tensorflow::ResourceHandle>()(j);
       }
     } else {
-      NPU_CTX_REQUIRES_OK(status, npu::Unwrap<NpuManagedBuffer>(npu_tensor)->AssembleFrom(acl_tensor));
+      NPU_CTX_REQUIRES_OK(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleFrom(acl_tensor));
     }
     TFE_DeleteTensorHandle(acl_outputs[i]);
     if (TF_GetCode(status) != TF_OK) return;

@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-#include "tensorflow/core/platform/mutex.h"
-
 #include "npu_global.h"
+#include "tensorflow/core/platform/mutex.h"
 #include "npu_logger.h"
 #include "npu_micros.h"
 

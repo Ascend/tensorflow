@@ -15,7 +15,6 @@
  */
 
 #include <memory>
-#include <utility>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -34,6 +33,8 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace npu {
+namespace {
 class AssignVariableGraphBuilder {
  public:
   static tensorflow::GraphDef GetGraph(const std::string &op_name, const std::string &container_name,
@@ -82,26 +83,27 @@ class AssignVariableGraphBuilder {
   }
 };
 
-namespace {
-
-void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, npu::NpuDevice *dev,
-                          const npu::OpSpec *spec, const TensorShapes &output_shapes,
-                          const tensorflow::NodeDef &parser_ndef, int num_inputs, TFE_TensorHandle **inputs,
-                          int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuDevice *dev, const OpSpec *spec,
+                          const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
+                          TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  TF_UNUSED_VARIABLE(spec);
+  TF_UNUSED_VARIABLE(output_shapes);
+  TF_UNUSED_VARIABLE(parser_ndef);
+  TF_UNUSED_VARIABLE(num_inputs);
   const tensorflow::Tensor *handle = nullptr;
   const tensorflow::Tensor *value = nullptr;
 
   ScopeTensorHandleDeleter scope_handle_deleter;
   TFE_TensorHandle *value_handle = inputs[1];
-  if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[1]))) {
+  if (IsNpuTensorHandle(UnwrapHandle(inputs[1]))) {
     value_handle = dev->CopyTensorD2H(context, inputs[1], status);
     if (TF_GetCode(status) != TF_OK) return;
     scope_handle_deleter.Guard(value_handle);
   }
 
-  NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(inputs[0], &handle));
+  NPU_CTX_REQUIRES_OK(status, UnwrapTensor(inputs[0], &handle));
   auto resource = handle->scalar<tensorflow::ResourceHandle>()();
-  NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(value_handle, &value));
+  NPU_CTX_REQUIRES_OK(status, UnwrapTensor(value_handle, &value));
   DLOG() << "Start run " << op_name << " for resource " << resource.DebugString() << " with value "
          << value->DebugString();
   auto var_init_graph =
@@ -121,8 +123,7 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, npu:
 
 }  // namespace
 
-namespace npu {
-static auto kernel_assign = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
+static auto kernel_assign = [](TFE_Context *context, NpuDevice *dev, const OpSpec *spec,
                                const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef,
                                int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
                                TF_Status *status) {
@@ -130,7 +131,7 @@ static auto kernel_assign = [](TFE_Context *context, NpuDevice *dev, const npu::
                        num_outputs, outputs, status);
 };
 
-static auto kernel_assign_add = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
+static auto kernel_assign_add = [](TFE_Context *context, NpuDevice *dev, const OpSpec *spec,
                                    const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef,
                                    int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                                    TFE_TensorHandle **outputs, TF_Status *status) {
@@ -138,7 +139,7 @@ static auto kernel_assign_add = [](TFE_Context *context, NpuDevice *dev, const n
                        num_outputs, outputs, status);
 };
 
-static auto kernel_assign_sub = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
+static auto kernel_assign_sub = [](TFE_Context *context, NpuDevice *dev, const OpSpec *spec,
                                    const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef,
                                    int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                                    TFE_TensorHandle **outputs, TF_Status *status) {
