@@ -996,8 +996,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         if (!dump_step.empty()) {
           Status tmp_s = checkDumpStep(dump_step);
           if (!tmp_s.ok()) {
-            ADP_LOG(FATAL) << s.error_message();
-            LOG(FATAL) << s.error_message();
+            ADP_LOG(FATAL) << tmp_s.error_message();
+            LOG(FATAL) << tmp_s.error_message();
           }
         }
       }
@@ -1005,8 +1005,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         dump_mode = dump_mode_value->s();
         Status tmp_s = checkDumpMode(dump_mode);
         if (!tmp_s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
+          ADP_LOG(FATAL) << tmp_s.error_message();
+          LOG(FATAL) << tmp_s.error_message();
         }
       }
     }
@@ -1015,8 +1015,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         dump_debug_mode = dump_debug_mode_value->s();
         Status tmp_s = checkDumpDebugMode(dump_debug_mode);
         if (!tmp_s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
+          ADP_LOG(FATAL) << tmp_s.error_message();
+          LOG(FATAL) << tmp_s.error_message();
         }
       }
     }
