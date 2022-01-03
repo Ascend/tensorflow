@@ -17,8 +17,8 @@
 #ifndef TENSORFLOW_NPU_OPS_IDENTIFIER_H_
 #define TENSORFLOW_NPU_OPS_IDENTIFIER_H_
 
-#include "nlohmann/json_fwd.hpp"
 #include <string>
+#include "nlohmann/json_fwd.hpp"
 
 // Sigleton class for check weather or not a tensorflow op is supported by NPU,
 // and, weather or not a tensorflow op is performance sensitive on NPU.

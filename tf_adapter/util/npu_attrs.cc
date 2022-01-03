@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
+#include "tf_adapter/util/npu_attrs.h"
 #include <mutex>
 #include <regex>
 #include <iostream>
+#include "securec.h"
 #include "tdt/index_transform.h"
 #include "tf_adapter/common/adp_logger.h"
-#include "tf_adapter/util/npu_attrs.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
-#include "securec.h"
 #include "mmpa/mmpa_api.h"
 
 namespace tensorflow {
@@ -110,21 +110,12 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
     return;
   }
   result.clear();
-  char *buffer = new char[s.size() + 1];
-  buffer[s.size()] = '\0';
-  errno_t e = strcpy_s(buffer, s.size() + 1, s.c_str());
-  if (e != EOK) {
-    delete[] buffer;
-    return;
+  std::stringstream ss(s);
+  std::string item;
+  while (getline(ss, item, *delchar)) {
+    result.push_back(item);
   }
-  char *p_tmp = nullptr;
-  char *p = strtok_s(buffer, delchar, &p_tmp);
-  if (p != nullptr) {
-    do {
-      result.emplace_back(p);
-    } while ((p = strtok_s(nullptr, delchar, &p_tmp)));
-  }
-  delete[] buffer;
+  return;
 }
 
 inline Status checkDumpStep(const std::string &dump_step) {
@@ -1003,29 +994,29 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
       if (dump_step_value != nullptr) {
         dump_step = dump_step_value->s();
         if (!dump_step.empty()) {
-          Status s = checkDumpStep(dump_step);
-          if (!s.ok()) {
-            ADP_LOG(FATAL) << s.error_message();
-            LOG(FATAL) << s.error_message();
+          Status tmp_s = checkDumpStep(dump_step);
+          if (!tmp_s.ok()) {
+            ADP_LOG(FATAL) << tmp_s.error_message();
+            LOG(FATAL) << tmp_s.error_message();
           }
         }
       }
       if (dump_mode_value != nullptr) {
         dump_mode = dump_mode_value->s();
-        Status s = checkDumpMode(dump_mode);
-        if (!s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
+        Status tmp_s = checkDumpMode(dump_mode);
+        if (!tmp_s.ok()) {
+          ADP_LOG(FATAL) << tmp_s.error_message();
+          LOG(FATAL) << tmp_s.error_message();
         }
       }
     }
     if (enable_dump_debug != std::to_string(false)) {
       if (dump_debug_mode_value != nullptr) {
         dump_debug_mode = dump_debug_mode_value->s();
-        Status s = checkDumpDebugMode(dump_debug_mode);
-        if (!s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
+        Status tmp_s = checkDumpDebugMode(dump_debug_mode);
+        if (!tmp_s.ok()) {
+          ADP_LOG(FATAL) << tmp_s.error_message();
+          LOG(FATAL) << tmp_s.error_message();
         }
       }
     }

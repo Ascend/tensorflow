@@ -32,7 +32,9 @@ using namespace tensorflow;
 using namespace tdt;
 constexpr int kFatalSleepTime = 3000;
 namespace {
-inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
+inline string ToString(ge::Status status) {
+  return ::ge::StatusFactory::Instance()->GetErrDesc(status);
+}
 void GeFinalize() {
   // ge finalize
   ge::Status status = ge::GEFinalize();
@@ -86,7 +88,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   }
   init_options_ = init_options;
   std::string tf_config;
-  (void)ReadStringFromEnvVar("TF_CONFIG", "", &tf_config);
+  (void) ReadStringFromEnvVar("TF_CONFIG", "", &tf_config);
   int exec_hccl_flag = 1;
   if (!tf_config.empty()) {
     json config_info;
@@ -119,7 +121,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] device id : " << init_options[ge::OPTION_EXEC_DEVICE_ID];
 
   std::string env_job_id;
-  (void)ReadStringFromEnvVar("JOB_ID", "", &env_job_id);
+  (void) ReadStringFromEnvVar("JOB_ID", "", &env_job_id);
   if (!env_job_id.empty()) {
     init_options[ge::OPTION_EXEC_JOB_ID] = env_job_id;
   } else {
@@ -128,7 +130,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   }
 
   int64 rankSizeNum = 1;
-  (void)ReadInt64FromEnvVar("RANK_SIZE", 1, &rankSizeNum);
+  (void) ReadInt64FromEnvVar("RANK_SIZE", 1, &rankSizeNum);
   if (rankSizeNum > UINT32_MAX) {
     rankSizeNum = UINT32_MAX;
     ADP_LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
@@ -138,19 +140,19 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   bool is_use_hcom = false;
   bool deploy_mode = false;
   std::string env_rank_table_file;
-  (void)ReadStringFromEnvVar("RANK_TABLE_FILE", "", &env_rank_table_file);
+  (void) ReadStringFromEnvVar("RANK_TABLE_FILE", "", &env_rank_table_file);
   if (!env_rank_table_file.empty() && (rankSizeNum > 0)) {
     ADP_LOG(INFO) << "[GePlugin] env RANK_TABLE_FILE:" << env_rank_table_file;
     is_use_hcom = true;
     init_options[ge::OPTION_EXEC_RANK_TABLE_FILE] = env_rank_table_file;
     std::string env_pod_name;
-    (void)ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
+    (void) ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
     if (!env_pod_name.empty()) {
       deploy_mode = true;
       init_options[ge::OPTION_EXEC_POD_NAME] = env_pod_name;
     } else {
       std::string env_rank_id;
-      (void)ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
+      (void) ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
       if (!env_rank_id.empty()) {
         ADP_LOG(INFO) << "[GePlugin] env RANK_ID:" << env_rank_id;
         deploy_mode = false;
@@ -221,7 +223,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   ADP_LOG(INFO) << "[GePlugin] optypelist_for_implmode :" << init_options[ge::OPTYPELIST_FOR_IMPLMODE];
 
   bool tdt_uninit_env = false;
-  (void)ReadBoolFromEnvVar("ASCEND_TDT_UNINIT", false, &tdt_uninit_env);
+  (void) ReadBoolFromEnvVar("ASCEND_TDT_UNINIT", false, &tdt_uninit_env);
   if (!tdt_uninit_env) {
     // Open TsdClient first, then call GEInitialize
     ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";
@@ -338,7 +340,7 @@ void PluginFinalize() {
 void NpuClose() {
   GeFinalize();
   uint32_t device_id = 0;
-  (void)GetEnvDeviceID(device_id);
+  (void) GetEnvDeviceID(device_id);
   if (NpuAttrs::GetUseTdtStatus(device_id)) {
     ADP_LOG(INFO) << "[GePlugin] the process has turned on TDT resource, finalize resource at exit.";
     int32_t tdt_status = TdtInFeedDestroy(device_id);

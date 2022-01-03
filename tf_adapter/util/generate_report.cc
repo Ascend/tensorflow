@@ -38,11 +38,11 @@ const static std::string kKeyMessage = "message";
 
 GenerateReport::GenerateReport() {
   char current_path[PATH_MAX];
-  if (getcwd(current_path, PATH_MAX) != nullptr){
+  if (getcwd(current_path, PATH_MAX) != nullptr) {
     string path = current_path;
     path = path + "/" + kUnsupportedInfoPath;
     ADP_LOG(INFO) << "[GenerateReport] Remove check report path:" << path;
-    if (remove(path.c_str()) == 0){
+    if (remove(path.c_str()) == 0) {
       ADP_LOG(INFO) << "[GenerateReport] Succeed remove check report path:" << path;
     }
   }
@@ -53,7 +53,7 @@ GenerateReport *GenerateReport::GetInstance() {
   return &generate_report;
 }
 
-Status GenerateReport::AddUnSupportedInfo(Node *node, Details &infos) {
+Status GenerateReport::AddUnSupportedInfo(const Node *node, Details &infos) {
   return GenerateReport::AddUnSupportedInfo(node->name(), node->type_string(), infos);
 }
 
@@ -70,7 +70,7 @@ Status GenerateReport::AddUnSupportedInfo(const std::string &name, const std::st
   return Status::OK();
 }
 
-Status GenerateReport::DeleteUnSupportedInfo(Node *node) {
+Status GenerateReport::DeleteUnSupportedInfo(const Node *node) {
   auto info_iter = check_info_map_.find(node->name());
   if (info_iter == check_info_map_.end()) {
     return Status::OK();
@@ -81,7 +81,7 @@ Status GenerateReport::DeleteUnSupportedInfo(Node *node) {
 }
 
 Status GenerateReport::SaveUnsupportedInfo() {
-  if (check_info_map_.empty()){
+  if (check_info_map_.empty()) {
     ADP_LOG(INFO) << "[GenerateReport] All nodes are supported, no need to save report.";
     return Status::OK();
   }

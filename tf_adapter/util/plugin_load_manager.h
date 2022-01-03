@@ -17,14 +17,14 @@
 #ifndef TENSORFLOW_PLUGIN_LOAD_MANAGER_H_
 #define TENSORFLOW_PLUGIN_LOAD_MANAGER_H_
 
-#include "tensorflow/core/lib/core/status.h"
 #include <string>
+#include "tensorflow/core/lib/core/status.h"
 
 namespace tensorflow {
 class PluginLoadManager {
  public:
   static void *DlOpen(const std::string &path);
-  static void *DlSym(void *handle, const std::string &fun_name);
+  static void *DlSym(void *handle, const std::string &func_name);
   static std::string GetTFPluginRealPath();
 };
 }  // namespace tensorflow
