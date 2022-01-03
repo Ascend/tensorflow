@@ -90,7 +90,7 @@ class NpuManagedBuffer {
 TF_ATTRIBUTE_UNUSED static inline void NpuManagedBufferDeallocator(void *data, size_t len, void *arg) {
   TF_UNUSED_VARIABLE(len);
   TF_UNUSED_VARIABLE(arg);
-  NpuManagedBuffer::Destroy(reinterpret_cast<NpuManagedBuffer *>(data));
+  NpuManagedBuffer::Destroy(static_cast<NpuManagedBuffer *>(data));
 }
 }  // namespace npu
 
