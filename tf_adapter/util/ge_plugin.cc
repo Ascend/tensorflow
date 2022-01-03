@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <thread>
+#include "nlohmann/json.hpp"
+#include "tensorflow/core/util/env_var.h"
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/common/types.h"
 #include "framework/omg/parser/parser_api.h"
 #include "framework/omg/omg_inner_types.h"
 #include "ge/ge_api.h"
-#include "ge/ge_api_types.h"
 #include "tdt/tdt_host_interface.h"
-#include "tensorflow/core/util/env_var.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/npu_plugin.h"
-#include <thread>
-#include "nlohmann/json.hpp"
 using json = nlohmann::json;
 
 using namespace tensorflow;
@@ -87,15 +85,16 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
     return;
   }
   init_options_ = init_options;
-  const char *tf_config = std::getenv("TF_CONFIG");
+  std::string tf_config;
+  (void)ReadStringFromEnvVar("TF_CONFIG", "", &tf_config);
   int exec_hccl_flag = 1;
-  if (tf_config != nullptr) {
+  if (!tf_config.empty()) {
     json config_info;
     try {
-        config_info = json::parse(tf_config);
+      config_info = json::parse(tf_config);
     } catch (json::exception &e) {
-        ADP_LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
-        LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
+      ADP_LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
+      LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
     }
     if (config_info.is_object()) {
       if (config_info["task"]["type"] == "ps") {
@@ -119,8 +118,9 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   init_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_id_);
   ADP_LOG(INFO) << "[GePlugin] device id : " << init_options[ge::OPTION_EXEC_DEVICE_ID];
 
-  const char *env_job_id = std::getenv("JOB_ID");
-  if (env_job_id != nullptr) {
+  std::string env_job_id;
+  (void)ReadStringFromEnvVar("JOB_ID", "", &env_job_id);
+  if (!env_job_id.empty()) {
     init_options[ge::OPTION_EXEC_JOB_ID] = env_job_id;
   } else {
     ADP_LOG(WARNING) << "[GePlugin] can not find Environment variable : JOB_ID";
@@ -128,7 +128,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   }
 
   int64 rankSizeNum = 1;
-  (void) ReadInt64FromEnvVar("RANK_SIZE", 1, &rankSizeNum);
+  (void)ReadInt64FromEnvVar("RANK_SIZE", 1, &rankSizeNum);
   if (rankSizeNum > UINT32_MAX) {
     rankSizeNum = UINT32_MAX;
     ADP_LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
@@ -137,18 +137,21 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   bool is_use_hcom = false;
   bool deploy_mode = false;
-  char *env_rank_table_file = std::getenv("RANK_TABLE_FILE");
-  if ((env_rank_table_file != nullptr) && (rankSizeNum > 0)) {
+  std::string env_rank_table_file;
+  (void)ReadStringFromEnvVar("RANK_TABLE_FILE", "", &env_rank_table_file);
+  if (!env_rank_table_file.empty() && (rankSizeNum > 0)) {
     ADP_LOG(INFO) << "[GePlugin] env RANK_TABLE_FILE:" << env_rank_table_file;
     is_use_hcom = true;
     init_options[ge::OPTION_EXEC_RANK_TABLE_FILE] = env_rank_table_file;
-    char *env_pod_name = std::getenv("POD_NAME");
-    if (env_pod_name != nullptr) {
+    std::string env_pod_name;
+    (void)ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
+    if (!env_pod_name.empty()) {
       deploy_mode = true;
       init_options[ge::OPTION_EXEC_POD_NAME] = env_pod_name;
     } else {
-      char *env_rank_id = std::getenv("RANK_ID");
-      if (env_rank_id != nullptr) {
+      std::string env_rank_id;
+      (void)ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
+      if (!env_rank_id.empty()) {
         ADP_LOG(INFO) << "[GePlugin] env RANK_ID:" << env_rank_id;
         deploy_mode = false;
         init_options[ge::OPTION_EXEC_RANK_ID] = env_rank_id;
@@ -164,7 +167,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   // profiling configuration
   ADP_LOG(INFO) << "[GePlugin] profiling_mode : " << init_options[ge::OPTION_EXEC_PROFILING_MODE]
-            << ", profiling_options:" << init_options[ge::OPTION_EXEC_PROFILING_OPTIONS];
+                << ", profiling_options:" << init_options[ge::OPTION_EXEC_PROFILING_OPTIONS];
 
   // mix precision configuration
   ADP_LOG(INFO) << "[GePlugin] precision_mode : " << init_options[ge::PRECISION_MODE];
@@ -206,8 +209,8 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
     }
   }
   ADP_LOG(INFO) << "[GePlugin] aoe mode : " << init_options["ge.jobType"]
-            << ", work path : " << init_options["ge.tuningPath"]
-            << ", distribute_config : " << init_options["distribute_config"];
+                << ", work path : " << init_options["ge.tuningPath"]
+                << ", distribute_config : " << init_options["distribute_config"];
 
   ADP_LOG(INFO) << "[GePlugin] fusion_switch_file :" << init_options["ge.fusionSwitchFile"];
 
@@ -217,12 +220,9 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   ADP_LOG(INFO) << "[GePlugin] optypelist_for_implmode :" << init_options[ge::OPTYPELIST_FOR_IMPLMODE];
 
-  const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
-  bool tdt_init = true;
-  if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
-    tdt_init = false;
-  }
-  if (tdt_init) {
+  bool tdt_uninit_env = false;
+  (void)ReadBoolFromEnvVar("ASCEND_TDT_UNINIT", false, &tdt_uninit_env);
+  if (!tdt_uninit_env) {
     // Open TsdClient first, then call GEInitialize
     ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";
     int32_t ret = tdt::TdtOutFeedInit(static_cast<uint32_t>(device_id_));
@@ -268,7 +268,7 @@ std::map<std::string, std::string> GePlugin::GetInitOptions() {
 /**
  * @brief: get fusion tensor size
  */
-uint64_t GePlugin::GetFusionTensorSize() {
+uint64_t GePlugin::GetFusionTensorSize() const {
   const int64 fusion_tensor_size_default = 524288000;
   int64 fusion_tensor_size = fusion_tensor_size_default;
   Status s = ReadInt64FromEnvVar("FUSION_TENSOR_SIZE", fusion_tensor_size_default, &fusion_tensor_size);
@@ -305,7 +305,6 @@ void GePlugin::Finalize() {
     }
   }
   isInit_ = false;
-
 }
 
 /**

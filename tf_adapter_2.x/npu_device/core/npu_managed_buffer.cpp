@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "npu_global.h"
 #include "npu_managed_buffer.h"
+#include "npu_global.h"
 #include "npu_logger.h"
 #include "npu_micros.h"
 #include "npu_utils.h"
@@ -41,6 +41,7 @@ class NpuMemory {
     return tensorflow::Status::OK();
   }
   static void Free(void *memory, size_t size, void *arg) {
+    TF_UNUSED_VARIABLE(arg);
     npu::global::dev_memory_shared_lock.lock_shared();
     if (!npu::global::dev_memory_released) {
       if (aclrtFree(memory) == ACL_ERROR_NONE) {
@@ -82,8 +83,8 @@ tensorflow::Status CreateAclTensorDesc(ge::DataType dtype, ge::Format format, co
                                        std::shared_ptr<aclTensorDesc> *desc) {
   aclDataType acl_dtype = ACL_FLOAT;
   aclFormat acl_format = ACL_FORMAT_NCHW;
-  NPU_REQUIRES_OK(MapGeType2Acl(dtype, &acl_dtype));
-  NPU_REQUIRES_OK(MapGeFormat2Acl(format, &acl_format));
+  NPU_REQUIRES_OK(MapGeType2Acl(dtype, acl_dtype));
+  NPU_REQUIRES_OK(MapGeFormat2Acl(format, acl_format));
   aclTensorDesc *acl_desc = aclCreateTensorDesc(acl_dtype, shape.size(), shape.data(), acl_format);
   NPU_REQUIRES(acl_desc != nullptr, tensorflow::errors::Internal("Failed create acl tensor desc"));
   desc->reset(acl_desc, [](aclTensorDesc *desc) { aclDestroyTensorDesc(desc); });
@@ -111,6 +112,7 @@ tensorflow::Status CreateTransFormatAttr(ge::Format src, ge::Format dst, std::sh
 }
 
 tensorflow::Status CreateCastDtypeAttr(ge::DataType src, ge::DataType dst, std::shared_ptr<aclopAttr> *attr) {
+  TF_UNUSED_VARIABLE(src);
   aclopAttr *acl_attr = aclopCreateAttr();
   NPU_REQUIRES(acl_attr != nullptr, tensorflow::errors::Internal(""));
   attr->reset(acl_attr, [](aclopAttr *attr) { aclopDestroyAttr(attr); });
@@ -177,6 +179,7 @@ tensorflow::Status ScheduleTransFormatTask(aclrtStream stream, ge::DataType src_
 }
 }  // namespace
 
+namespace npu {
 NpuManagedBuffer::~NpuManagedBuffer() {
   if (deallocator_ && size_ > 0) {
     deallocator_(data_, size_, deallocator_arg_);
@@ -193,11 +196,10 @@ NpuManagedBuffer::~NpuManagedBuffer() {
 tensorflow::Status NpuManagedBuffer::Create(ge::Format fmt, const tensorflow::TensorShape &shape,
                                             tensorflow::DataType dtype, NpuManagedBuffer **buf) {
   std::vector<int64_t> dims;
-  for (auto dim_size : shape.dim_sizes()) {
-    dims.push_back(dim_size);
-  }
+  auto dim_sizes = shape.dim_sizes();
+  std::copy(dim_sizes.begin(), dim_sizes.end(), std::back_inserter(dims));
   ge::DataType ge_type;
-  NPU_REQUIRES_OK(MapTfType2Ge(dtype, &ge_type));
+  NPU_REQUIRES_OK(MapTfType2Ge(dtype, ge_type));
   return Create(fmt, dims, ge_type, buf);
 }
 
@@ -208,9 +210,9 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format fmt, const tensorflow::Te
  * @param data_type: ge data type
  * @param buf: npu managed buffer
  */
-tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &dims, ge::DataType data_type,
-                                            NpuManagedBuffer **buf) {
-  return Create(format, dims, data_type, format, dims, buf);
+tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
+                                            ge::DataType data_type, NpuManagedBuffer **buf) {
+  return Create(format, shape, data_type, format, shape, buf);
 }
 
 /**
@@ -261,7 +263,7 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
  * @param addr: point to save data
  * @param size: data size
  * @param arg: deallocator arg
- * @param deallocator: point to deallocator function 
+ * @param deallocator: point to deallocator function
  * @param buf: npu managed buffer
  */
 tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
@@ -305,7 +307,7 @@ tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor
                tensorflow::errors::InvalidArgument("Failed assemble npu buffer to cpu as dst cpu tensor is nullptr"));
   DLOG() << "Npu buffer " << DebugString() << " assemble to " << tensor->DebugString();
   tensorflow::DataType dtype;
-  NPU_REQUIRES_OK(MapGeType2Tf(origin_data_type_, &dtype));
+  NPU_REQUIRES_OK(MapGeType2Tf(origin_data_type_, dtype));
   NPU_REQUIRES(dtype == tensor->dtype(),
                tensorflow::errors::InvalidArgument("Data type mismatch when assemble npu buffer to cpu, npu ",
                                                    tensorflow::DataTypeString(dtype), " vs. cpu ",
@@ -314,7 +316,7 @@ tensorflow::Status NpuManagedBuffer::AssembleTo(const tensorflow::Tensor *tensor
     return tensorflow::Status::OK();
   }
   if (SameRepresentation()) {
-    NPU_REQUIRES_OK(DToH(const_cast<char *>(tensor->tensor_data().data()), tensor->TotalBytes()));
+    NPU_REQUIRES_OK(DToH(tensor->data(), tensor->TotalBytes()));
   } else {
     NpuManagedBuffer *buf;
     NPU_REQUIRES_OK(Create(origin_format_, origin_shape_, origin_data_type_, &buf));
@@ -336,7 +338,7 @@ tensorflow::Status NpuManagedBuffer::AssembleFrom(const tensorflow::Tensor *tens
                tensorflow::errors::InvalidArgument("Failed assemble npu buffer from cpu as dst cpu tensor is nullptr"));
   DLOG() << "Npu buffer " << DebugString() << " assemble from " << tensor->DebugString();
   tensorflow::DataType dtype;
-  NPU_REQUIRES_OK(MapGeType2Tf(origin_data_type_, &dtype));
+  NPU_REQUIRES_OK(MapGeType2Tf(origin_data_type_, dtype));
   NPU_REQUIRES(dtype == tensor->dtype(),
                tensorflow::errors::InvalidArgument("Data type mismatch when assemble npu buffer from cpu, npu ",
                                                    tensorflow::DataTypeString(dtype), " vs. cpu ",
@@ -394,7 +396,7 @@ tensorflow::Status NpuManagedBuffer::TransRepresentationOnNpu(NpuManagedBuffer *
  * @param host_data: host data
  * @param size: data size
  */
-tensorflow::Status NpuManagedBuffer::HToD(void *host_data, size_t size) {
+tensorflow::Status NpuManagedBuffer::HToD(const void *host_data, size_t size) {
   NPU_REQUIRES(size <= size_, tensorflow::errors::Internal("Failed copy host buffer to npu as size mismatch npu ",
                                                            size_, " vs. cpu ", size));
   NPU_REQUIRES_ACL_OK("Acl rt-memcpy host to device failed",
@@ -407,7 +409,7 @@ tensorflow::Status NpuManagedBuffer::HToD(void *host_data, size_t size) {
  * @param host_data: host data
  * @param size: data size
  */
-tensorflow::Status NpuManagedBuffer::DToH(void *host_data, size_t size) {
+tensorflow::Status NpuManagedBuffer::DToH(void *host_data, size_t size) const {
   NPU_REQUIRES(size >= size_, tensorflow::errors::Internal("Failed copy npu buffer to host as size mismatch npu ",
                                                            size_, " vs. cpu ", size));
   NPU_REQUIRES_ACL_OK("Acl rt-memcpy device to host failed",
@@ -422,10 +424,11 @@ std::string NpuManagedBuffer::DebugString() const {
   std::stringstream ss;
   tensorflow::DataType origin_type;
   tensorflow::DataType storage_type;
-  (void)MapGeType2Tf(origin_data_type_, &origin_type);
-  (void)MapGeType2Tf(data_type_, &storage_type);
+  (void)MapGeType2Tf(origin_data_type_, origin_type);
+  (void)MapGeType2Tf(data_type_, storage_type);
   ss << "origin " << GetFormatName(origin_format_) << " " << tensorflow::DataTypeString(origin_type)
      << VecToString(origin_shape_) << ", storage " << GetFormatName(origin_format_) << " "
      << tensorflow::DataTypeString(storage_type) << VecToString(shape_);
   return ss.str();
 }
+}  // namespace npu

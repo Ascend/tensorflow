@@ -15,7 +15,6 @@
  */
 
 #include <memory>
-#include <utility>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -34,6 +33,8 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace npu {
+namespace {
 class ReadVariableGraphBuilder {
  public:
   static tensorflow::GraphDef GetGraph(const tensorflow::ResourceHandle resource, TF_Status *status) {
@@ -90,13 +91,17 @@ class ReadVariableGraphBuilder {
     return gdef;
   }
 };
+} // namespace
 
-namespace npu {
-static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
-                        const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
-                        TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+static auto kernel = [](TFE_Context *context, NpuDevice *dev, const OpSpec *spec, const TensorShapes &output_shapes,
+                        const tensorflow::NodeDef &parser_ndef, int num_inputs, TFE_TensorHandle **inputs,
+                        int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  TF_UNUSED_VARIABLE(spec);
+  TF_UNUSED_VARIABLE(output_shapes);
+  TF_UNUSED_VARIABLE(parser_ndef);
+  TF_UNUSED_VARIABLE(num_inputs);
   const tensorflow::Tensor *handle = nullptr;
-  NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(inputs[0], &handle));
+  NPU_CTX_REQUIRES_OK(status, UnwrapTensor(inputs[0], &handle));
 
   auto resource = handle->scalar<tensorflow::ResourceHandle>()();
   NPU_CTX_REQUIRES(status, resource.dtypes_and_shapes().size() == 1,

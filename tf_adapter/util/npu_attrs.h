@@ -17,20 +17,22 @@
 #ifndef TENSORFLOW_NPU_ATTRS_H_
 #define TENSORFLOW_NPU_ATTRS_H_
 
+#include <map>
+#include <string>
 #include "ge/ge_api_types.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/graph/graph.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/public/session_options.h"
-#include <map>
-#include <string>
+#include "tensorflow/core/util/env_var.h"
 
 // single load all npu mode
 namespace tensorflow {
 std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
+extern const bool kDumpGraph;
 class NpuAttrs {
  public:
   // This method returns instance Pointers
@@ -43,11 +45,12 @@ class NpuAttrs {
   static std::map<std::string, std::string> GetAllAttrOptions(AttrSlice attrs);
   static std::map<std::string, std::string> GetDefaultPassOptions();
   static Status SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node);
-  static void LogOptions(const std::map<std::string, std::string>& options);
+  static void LogOptions(const std::map<std::string, std::string> &options);
   static bool GetUseTdtStatus(int32_t device_id);
   static void SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt);
   static bool GetUseAdpStatus(std::string iterator_name);
   static void SetUseAdpStatus(std::string iterator_name, bool is_use_adp);
+
  private:
   static std::map<int32_t, bool> turn_on_tdt_info_;
   static std::map<std::string, bool> use_adp_info_;
