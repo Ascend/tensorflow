@@ -23,15 +23,15 @@
 #include "ge_plugin.h"
 #include "framework/memory/memory_api.h"
 
-const char *const AUTO_TUNE_MODE = ge::AUTO_TUNE_MODE.c_str();
-const char *const OP_DEBUG_LEVEL = ge::OP_DEBUG_LEVEL.c_str();
+const char *const AUTO_TUNE_MODE = "ge.autoTuneMode";
+const char *const OP_DEBUG_LEVEL = "ge.opDebugLevel";
 const char *const OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES = ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES;
 const char *const OPTION_EXEC_PROFILING_MODE = ge::OPTION_EXEC_PROFILING_MODE;
 const char *const OPTION_EXEC_PROFILING_OPTIONS = ge::OPTION_EXEC_PROFILING_OPTIONS;
 const char *const OPTION_GRAPH_RUN_MODE = ge::OPTION_GRAPH_RUN_MODE;
-const char* const OPTION_EXEC_HCCL_FLAG = ge::OPTION_EXEC_HCCL_FLAG;
-const char* const OPTION_EXEC_PROFILING_FPPONIT_OPTIONS = ge::OPTION_EXEC_PROFILING_FPPONIT_OPTIONS;
-const char* const OPTION_EXEC_PROFILING_BPPONIT_OPTIONS = ge::OPTION_EXEC_PROFILING_BPPONIT_OPTIONS;
+const char *const OPTION_EXEC_HCCL_FLAG = ge::OPTION_EXEC_HCCL_FLAG;
+const char *const OPTION_EXEC_PROFILING_FPPONIT_OPTIONS = ge::OPTION_EXEC_PROFILING_FPPONIT_OPTIONS;
+const char *const OPTION_EXEC_PROFILING_BPPONIT_OPTIONS = ge::OPTION_EXEC_PROFILING_BPPONIT_OPTIONS;
 
 void PluginInit(std::map<std::string, std::string> &init_options);
 

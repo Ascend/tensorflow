@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+#include <string>
 #include "securec.h"
 #include "tdt/tdt_host_interface.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
-#include <string>
 
 namespace tensorflow {
 namespace {
@@ -30,7 +30,9 @@ Status GetTensorShape(const string &tensor_shape, TensorShape &shape) {
   string str = tensor_shape.substr(1, tensor_shape.size() - 2);
   string::size_type index = 0;
   if (!str.empty()) {
-    while ((index = str.find(' ', index)) != string::npos) { str.erase(index, 1); }
+    while ((index = str.find(' ', index)) != string::npos) {
+      str.erase(index, 1);
+    }
   }
   string split = ",";
   string::size_type pos2 = str.find(split);
@@ -38,7 +40,9 @@ Status GetTensorShape(const string &tensor_shape, TensorShape &shape) {
   while (pos2 != string::npos) {
     try {
       shape.AddDim(std::stoi(str.substr(pos1, pos2 - pos1)));
-    } catch (...) { return errors::InvalidArgument("Invalid shape string: ", tensor_shape); }
+    } catch (...) {
+      return errors::InvalidArgument("Invalid shape string: ", tensor_shape);
+    }
     // string::size_type can store the length of any string object
     pos1 = pos2 + split.size();
     pos2 = str.find(split, pos1);
@@ -46,7 +50,9 @@ Status GetTensorShape(const string &tensor_shape, TensorShape &shape) {
   if (pos1 != str.length()) {
     try {
       shape.AddDim(std::stoi(str.substr(pos1)));
-    } catch (...) { return errors::InvalidArgument("Invalid shape string: ", tensor_shape); }
+    } catch (...) {
+      return errors::InvalidArgument("Invalid shape string: ", tensor_shape);
+    }
   }
   return Status::OK();
 }
@@ -68,12 +74,16 @@ Status ConvertDataItem2Tensor(const std::vector<tdt::DataItem> &items, std::vect
     } else if (DataTypeCanUseMemcpy(type)) {
       TensorShape tensorShape;
       Status s = GetTensorShape(item.tensorShape_, tensorShape);
-      if (!s.ok()) { return s; }
+      if (!s.ok()) {
+        return s;
+      }
       Tensor result_tensor = Tensor(type, tensorShape);
       std::shared_ptr<std::string> data_str_ptr = std::static_pointer_cast<std::string>(item.dataPtr_);
       errno_t ret = memcpy_s(const_cast<char *>(result_tensor.tensor_data().data()), result_tensor.tensor_data().size(),
                              data_str_ptr->c_str(), item.dataLen_);
-      if (ret != EOK) { return errors::Unknown("memcpy failed"); }
+      if (ret != EOK) {
+        return errors::Unknown("memcpy failed");
+      }
       tensors.emplace_back(std::move(result_tensor));
     } else {
       return errors::InvalidArgument("Not support this type: ", type);
@@ -88,9 +98,15 @@ class OutfeedEnqueueOp : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     ADP_LOG(INFO) << "OutfeedEnqueueOp built";
   }
-  ~OutfeedEnqueueOp() override { ADP_LOG(INFO) << "OutfeedEnqueueOp has been destructed"; }
-  void Compute(OpKernelContext *ctx) override { ADP_LOG(INFO) << "OutfeedEnqueueOp running"; }
-  bool IsExpensive() override { return false; }
+  ~OutfeedEnqueueOp() override {
+    ADP_LOG(INFO) << "OutfeedEnqueueOp has been destructed";
+  }
+  void Compute(OpKernelContext *ctx) override {
+    ADP_LOG(INFO) << "OutfeedEnqueueOp running";
+  }
+  bool IsExpensive() override {
+    return false;
+  }
 
  private:
   std::string channel_name_;
@@ -106,7 +122,9 @@ class OutfeedDequeueOp : public OpKernel {
     OP_REQUIRES(ctx, tdt::TdtHostPreparePopData() == 0, errors::Internal("Prepare Pop Data failed"));
     ADP_LOG(INFO) << "OutfeedDequeueOp built";
   }
-  ~OutfeedDequeueOp() override { ADP_LOG(INFO) << "OutfeedDequeueOp has been destructed"; }
+  ~OutfeedDequeueOp() override {
+    ADP_LOG(INFO) << "OutfeedDequeueOp has been destructed";
+  }
   void Compute(OpKernelContext *ctx) override {
     CHECK_NOT_NULL(ctx);
     std::vector<tdt::DataItem> bundle;
@@ -118,9 +136,13 @@ class OutfeedDequeueOp : public OpKernel {
     OP_REQUIRES(
         ctx, out_tensors.size() == output_shapes_.size(),
         errors::Internal("Outfeed tensors num mismatch", out_tensors.size(), "vs. expect", output_shapes_.size()));
-    for (int i = 0; i < ctx->num_outputs(); ++i) { ctx->set_output(i, out_tensors[i]); }
+    for (int i = 0; i < ctx->num_outputs(); ++i) {
+      ctx->set_output(i, out_tensors[i]);
+    }
   }
-  bool IsExpensive() override { return false; }
+  bool IsExpensive() override {
+    return false;
+  }
 
  private:
   DataTypeVector output_types_;
@@ -134,12 +156,16 @@ class StopOutfeedDequeueOp : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     ADP_LOG(INFO) << "StopOutfeedDequeueOp built";
   }
-  ~StopOutfeedDequeueOp() override { ADP_LOG(INFO) << "StopOutfeedDequeueOp has been destructed"; }
+  ~StopOutfeedDequeueOp() override {
+    ADP_LOG(INFO) << "StopOutfeedDequeueOp has been destructed";
+  }
   void Compute(OpKernelContext *ctx) override {
     ADP_LOG(INFO) << "StopOutfeedDequeueOp running";
     OP_REQUIRES(ctx, tdt::TdtHostStop(channel_name_) == 0, errors::Internal("TdtHostStop failed"));
   }
-  bool IsExpensive() override { return false; }
+  bool IsExpensive() override {
+    return false;
+  }
 
  private:
   std::string channel_name_;

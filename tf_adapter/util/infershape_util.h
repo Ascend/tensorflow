@@ -28,44 +28,38 @@
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/public/session_options.h"
-#include <sys/time.h>
 
 namespace tensorflow {
 const std::string KEY_SHAPE = "geop_shape";
 
 class InferShapeUtil {
  public:
-  static Status InferShape(const std::vector<Tensor>& vecTensor,
-                           const FunctionLibraryDefinition *flib_def,
+  static Status InferShape(const std::vector<Tensor> &vecTensor, const FunctionLibraryDefinition *flib_def,
                            const FunctionDef *func_def, Graph *graph);
 
-  static Status GetSubGraphFromFunctionDef(const FunctionLibraryDefinition &flib_def,
-                                           const FunctionDef &func_def, Graph *graph);
+  static Status GetSubGraphFromFunctionDef(const FunctionLibraryDefinition &flib_def, const FunctionDef &func_def,
+                                           Graph *graph);
 
   static int64 GetCurrentTimestap();
-  static bool IsInitializedGraph(Node *node);
+  static bool IsInitializedGraph(const Node *node);
 
   static const int INFER_SHAPE_FIRST_TIME = 0;
   static const int INFER_SHAPE_OTHER_TIME = 1;
 
  private:
-  static Status setArgShapeFromTensorShape(std::vector<Tensor> vecTensor,
-                                           Graph *graph, const OpDef &sig,
+  static Status setArgShapeFromTensorShape(const std::vector<Tensor> vecTensor, const Graph *graph, const OpDef &sig,
                                            ShapeRefiner &shapeRef);
 
-  static Status getInputShapesOfNode(
-      ShapeRefiner &shapeRef, Node *pNode,
-      std::vector<tensorflow::shape_inference::ShapeHandle> &inputShapeVec);
+  static Status getInputShapesOfNode(ShapeRefiner &shapeRef, const Node *pNode,
+                                     std::vector<tensorflow::shape_inference::ShapeHandle> &inputShapeVec);
 
   static void setShapeOfEnterOP(ShapeRefiner &shapeRef, Node *pNode);
 
   static void setShapeOfMergeOP(ShapeRefiner &shapeRef, Node *pNode);
 
-  static void inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRef,
-                                int iTime);
+  static void inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRef, int iTime);
 
   static Status addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode);
-
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_CONTRIB_OFFLINE_TRAIN_UTIL_INFERSHAPE_H_
