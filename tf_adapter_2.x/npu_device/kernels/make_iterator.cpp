@@ -76,7 +76,7 @@ class MakeIteratorGraphBuilder {
       WriteTextProto(tensorflow::Env::Default(), file_name, graph.ToGraphDefDebug());
     }
 
-    // TODO:Tensorflow model parser bug，如果名字不是dpop开头的，则会被remove掉
+    // Tensorflow model parser bug，如果名字不是dpop开头的，则会被remove掉
     std::string func_name = "dpop_init_func_" + shared_name;
     tensorflow::FunctionDefLibrary fdef_lib;
     tensorflow::FunctionDef *fdef = fdef_lib.add_function();

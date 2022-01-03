@@ -120,7 +120,6 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
 
   dev->RunGeGraphPin2CpuAnonymous(context, graph_name, var_init_graph, 1, &value_handle, num_outputs, outputs, status);
 }
-
 }  // namespace
 
 static auto kernel_assign = [](TFE_Context *context, NpuDevice *dev, const OpSpec *spec,

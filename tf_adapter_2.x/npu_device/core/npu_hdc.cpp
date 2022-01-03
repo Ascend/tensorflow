@@ -172,7 +172,6 @@ tensorflow::Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<
     return tensorflow::errors::Internal("Failed create hdc channel.");
   }
   auto acl_status = acltdtReceiveTensor(acl_handle, acl_dataset, -1 /* no timeout */);
-
   if (acl_status != ACL_ERROR_NONE) {
     NPU_LOG_IF_ERROR(DestroyAclDataset(acl_dataset, false));
     return tensorflow::errors::Internal("Failed receive data from hdc channel, acl status:", acl_status);
@@ -297,7 +296,7 @@ tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTenso
 
   TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset));
 
-  auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, -1 /*no timeout*/);
+  auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, -1 /* no timeout */);
 
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status != ACL_ERROR_NONE) {
