@@ -27,8 +27,8 @@ class MarkNoNeedOptimizePass : public GraphOptimizationPass {
   Status Run(const GraphOptimizationPassOptions &options) override;
 
  private:
-  Status ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
-                      const OptimizationPassRegistry::Grouping pass_group_value);
+  Status ProcessGraph(const std::unique_ptr<Graph> *graph, const FunctionLibraryDefinition *func_lib,
+                      const OptimizationPassRegistry::Grouping pass_group_value) const;
 };
 
 Status MarkNoNeedOptimizePass::Run(const GraphOptimizationPassOptions &options) {
@@ -41,22 +41,29 @@ Status MarkNoNeedOptimizePass::Run(const GraphOptimizationPassOptions &options) 
     std::unique_ptr<Graph> *graph = options.graph;
     FunctionLibraryDefinition *func_lib = options.flib_def;
     s = ProcessGraph(graph, func_lib, OptimizationPassRegistry::POST_REWRITE_FOR_EXEC);
-    if (s != Status::OK()) { return s; }
+    if (s != Status::OK()) {
+      return s;
+    }
   } else if (options.partition_graphs != nullptr) {
     for (auto &pg : *options.partition_graphs) {
       std::unique_ptr<Graph> *graph = &pg.second;
       FunctionLibraryDefinition *func_lib = options.flib_def;
       s = ProcessGraph(graph, func_lib, OptimizationPassRegistry::POST_PARTITIONING);
-      if (s != Status::OK()) { return s; }
+      if (s != Status::OK()) {
+        return s;
+      }
     }
   }
 
   return Status::OK();
 }
 
-Status MarkNoNeedOptimizePass::ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
-                                            const OptimizationPassRegistry::Grouping pass_group_value) {
-  if (graph == nullptr) { return Status::OK(); }
+Status MarkNoNeedOptimizePass::ProcessGraph(const std::unique_ptr<Graph> *graph,
+                                            const FunctionLibraryDefinition *func_lib,
+                                            const OptimizationPassRegistry::Grouping pass_group_value) const {
+  if (graph == nullptr) {
+    return Status::OK();
+  }
 
   for (Node *n : graph->get()->nodes()) {
     if (n != nullptr && n->attrs().Find("_NoNeedOptimize")) {
@@ -84,7 +91,9 @@ Status MarkNoNeedOptimizePass::ProcessGraph(std::unique_ptr<Graph> *graph, Funct
   if (job == "localhost" && pass_group_value != OptimizationPassRegistry::POST_REWRITE_FOR_EXEC) {
     return Status::OK();
   }
-  if (job != "localhost" && pass_group_value != OptimizationPassRegistry::POST_PARTITIONING) { return Status::OK(); }
+  if (job != "localhost" && pass_group_value != OptimizationPassRegistry::POST_PARTITIONING) {
+    return Status::OK();
+  }
 
   bool mix_compile_mode = pass_options["mix_compile_mode"] == "1";
   int iterations_per_loop = std::atoi(pass_options["iterations_per_loop"].c_str());
@@ -93,9 +102,13 @@ Status MarkNoNeedOptimizePass::ProcessGraph(std::unique_ptr<Graph> *graph, Funct
 
   for (const auto &func_name : func_lib->ListFunctionNames()) {
     auto *fdef = const_cast<FunctionDef *>(func_lib->Find(func_name));
-    if (fdef == nullptr) continue;
+    if (fdef == nullptr) {
+      continue;
+    }
     ADP_LOG(INFO) << "Mark function as no need optimize [" << fdef->signature().name() << "]";
-    for (NodeDef &ndef : *fdef->mutable_node_def()) { (*ndef.mutable_attr())["_NoNeedOptimize"].set_b(true); }
+    for (NodeDef &ndef : *fdef->mutable_node_def()) {
+      (*ndef.mutable_attr())["_NoNeedOptimize"].set_b(true);
+    }
   }
 
   return Status::OK();

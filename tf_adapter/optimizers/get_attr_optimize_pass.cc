@@ -17,7 +17,6 @@
 #include <deque>
 #include <iostream>
 #include <memory>
-#include <numeric>
 #include <string>
 
 #include "tensorflow/core/common_runtime/function.h"

@@ -17,7 +17,6 @@
 #ifndef TENSORFLOW_CONTROL_FLOW_CONVERSION_PASS_H_
 #define TENSORFLOW_CONTROL_FLOW_CONVERSION_PASS_H_
 
-#include "absl/types/optional.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/lib/core/status.h"
 

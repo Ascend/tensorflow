@@ -22,6 +22,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/framework/graph_to_functiondef.h"
@@ -140,8 +141,8 @@ class DpTfToGEConversionPassImpl {
  private:
   Status ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                       const OptimizationPassRegistry::Grouping pass_group_value);
-  bool RunPass(std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
-               std::map<std::string, std::string> all_options);
+  bool RunPass(const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
+               std::map<std::string, std::string> &all_options);
   inline bool IsMakeIteratorNode(const Node *n) const;
   inline bool IsIteratorNode(const Node *n) const;
   inline bool IsSkipDataset(const Node *n) const;
@@ -152,12 +153,12 @@ class DpTfToGEConversionPassImpl {
   inline bool CheckNode(const std::string &op) const;
   inline bool IsDeviceSupportedOp(const NodeDef &n) const;
   inline bool IsDeviceSupportedFunc(const std::string &fn) const;
-  inline Status GetSplitEdges(const Node *n, std::vector<const Edge *> &split_edges, const Edge *e);
+  inline Status GetSplitEdges(const Node *n, std::vector<const Edge *> &split_edges, const Edge *last_edge);
   inline void RemoveSplitEdges(Node *topo_end);
   inline Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name, std::string &device_queue_name,
                                    std::map<std::string, std::string> &all_options) const;
-  bool GetNodeFuncs(const FunctionLibraryDefinition *flib_def, Node *node, std::vector<string> &node_funcs);
-  bool RemoveIsolatedNode(Graph *g, std::unordered_set<Node *> visited);
+  bool GetNodeFuncs(const FunctionLibraryDefinition *flib_def, const Node *node, std::vector<string> &node_funcs) const;
+  bool RemoveIsolatedNode(Graph *g, std::unordered_set<Node *> visited) const;
   Status RemoveNotSupportDataset(Graph *g, const std::string &device_queue_dataset,
                                  const std::string &make_iterator) const;
 
@@ -287,11 +288,11 @@ bool DpTfToGEConversionPassImpl::IsDeviceSupportedFunc(const std::string &fn) co
     return false;
   }
   // Recursive check function node
-  for (const NodeDef &node : fdef->node_def()) {
-    if (!IsDeviceSupportedOp(node)) {
-      ADP_LOG(INFO) << "Function [" << fn << "] node [" << node.name() << "] not supported by GE";
-      return false;
-    }
+  auto iter = std::find_if(fdef->node_def().begin(), fdef->node_def().end(),
+                           [this](const NodeDef &node) { return !IsDeviceSupportedOp(node); });
+  if (iter != fdef->node_def().end()) {
+    ADP_LOG(INFO) << "Function [" << fn << "] node [" << iter->name() << "] not supported by GE";
+    return false;
   }
   return true;
 }
@@ -454,8 +455,8 @@ void DpTfToGEConversionPassImpl::RemoveSplitEdges(Node *topo_end) {
   }
 }
 
-bool DpTfToGEConversionPassImpl::GetNodeFuncs(const FunctionLibraryDefinition *flib_def, Node *node,
-                                              std::vector<string> &node_funcs) {
+bool DpTfToGEConversionPassImpl::GetNodeFuncs(const FunctionLibraryDefinition *flib_def, const Node *node,
+                                              std::vector<string> &node_funcs) const {
   node_funcs.clear();
   for (auto iter = node->attrs().begin(); iter != node->attrs().end(); ++iter) {
     if (iter->second.has_func()) {
@@ -467,14 +468,15 @@ bool DpTfToGEConversionPassImpl::GetNodeFuncs(const FunctionLibraryDefinition *f
         string func_name = func_name_stack.back();
         func_name_stack.pop_back();
         const FunctionDef *fdef = flib_def->Find(func_name);
-        if (fdef != nullptr) {
-          for (const NodeDef &ndef : fdef->node_def()) {
-            for (auto &item : ndef.attr()) {
-              if (item.second.has_func()) {
-                node_funcs.push_back(item.second.func().name());
-                func_name_stack.push_back(item.second.func().name());
-                continue;
-              }
+        if (fdef == nullptr) {
+          continue;
+        }
+        for (const NodeDef &ndef : fdef->node_def()) {
+          for (auto &item : ndef.attr()) {
+            if (item.second.has_func()) {
+              node_funcs.push_back(item.second.func().name());
+              func_name_stack.push_back(item.second.func().name());
+              continue;
             }
           }
         }
@@ -485,8 +487,8 @@ bool DpTfToGEConversionPassImpl::GetNodeFuncs(const FunctionLibraryDefinition *f
   return !node_funcs.empty();
 }
 
-bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
-                                         std::map<std::string, std::string> all_options) {
+bool DpTfToGEConversionPassImpl::RunPass(const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
+                                         std::map<std::string, std::string> &all_options) {
   ADP_LOG(INFO) << ">>>> DpTfToGEConversionPassImpl::RunPass <<<<";
   // Convert just for convenient access
   split_edges_.clear();
@@ -497,12 +499,11 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
   std::vector<Node *> topo_ends;
   for (Node *node : graph_->op_nodes()) {
     if (IsMakeIteratorNode(node)) {
-      for (Node *in_node : node->in_nodes()) {
-        if (IsIteratorNode(in_node)) {
-          topo_ends.push_back(node);
-          ADP_LOG(INFO) << "Insert topo end node " << node->name();
-          break;
-        }
+      auto iter = std::find_if(node->in_nodes().begin(), node->in_nodes().end(),
+                               [this](const Node *in_node) { return IsIteratorNode(in_node); });
+      if (iter != node->in_nodes().end()) {
+        topo_ends.push_back(node);
+        ADP_LOG(INFO) << "Insert topo end node " << node->name();
       }
     }
   }
@@ -796,7 +797,7 @@ bool DpTfToGEConversionPassImpl::RunPass(std::unique_ptr<Graph> *g, FunctionLibr
   return true;
 }
 
-bool DpTfToGEConversionPassImpl::RemoveIsolatedNode(Graph *g, std::unordered_set<Node *> visited) {
+bool DpTfToGEConversionPassImpl::RemoveIsolatedNode(Graph *g, std::unordered_set<Node *> visited) const {
   // Compute set of nodes that we need to traverse in order to reach
   // the nodes in "nodes" by performing a breadth-first search from those
   // nodes, and accumulating the visited nodes.
@@ -938,8 +939,8 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
     ADP_LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is false";
     return Status::OK();
   }
-  auto process_graph = [&](std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
-                           std::map<std::string, std::string> all_options) { RunPass(g, flib, all_options); };
+  auto process_graph = [this](std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
+                              std::map<std::string, std::string> &all_options) { RunPass(g, flib, all_options); };
 
   // For any pre-partitioning phase, graph is stored in options.graph.
   process_graph(graph, func_lib, all_options);
