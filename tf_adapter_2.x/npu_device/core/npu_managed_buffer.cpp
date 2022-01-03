@@ -125,7 +125,7 @@ tensorflow::Status CreateCastDtypeAttr(ge::DataType src, ge::DataType dst, std::
 tensorflow::Status ScheduleCastDtypeTask(aclrtStream stream, ge::Format format, const std::vector<int64_t> &shape,
                                          ge::DataType src_dt, ge::DataType dst_dt, void *src_data, void *dst_data,
                                          size_t src_len, size_t dst_len) {
-  // TODO: 在一些cube格式的极端场景下，data type转换后，shape也会跟着转，这里暂时没有考虑这种场景
+  // 在一些cube格式的极端场景下，data type转换后，shape也会跟着转，这里暂时没有考虑这种场景
   std::shared_ptr<aclTensorDesc> input_desc;
   NPU_REQUIRES_OK(CreateAclTensorDesc(src_dt, format, shape, &input_desc));
   aclTensorDesc *input_descs[] = {input_desc.get()};
