@@ -20,25 +20,39 @@
 #include <iostream>
 #include <sstream>
 #include "securec.h"
+#include "acl/acl_tdt.h"
+#include "acl/acl.h"
 #include "tdt/index_transform.h"
 #include "runtime/config.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
 #include "mmpa/mmpa_api.h"
-
+#include "tf_adapter/util/ge_plugin.h"
 namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
 std::map<std::string, std::string> NpuAttrs::init_options_;
 const static int32_t kRuntimeTypeHeterogeneous = 1;
-
-extern const bool kIsNewDataTransfer = []() -> bool {
-  bool is_new_data_transfer = false;
-  tensorflow::ReadBoolFromEnvVar("IS_NEW_DATA_TRANSFER", false, &is_new_data_transfer);
-  return is_new_data_transfer;
-}();
+bool kIsNewDataTransfer = 0;
+bool GetNewDataTransferFlag() {
+  uint32_t device_id = 0U;
+  (void) GetEnvDeviceID(device_id);
+  acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
+  if (check_queue_handle != nullptr) {
+    acltdtDestroyChannel(check_queue_handle);
+    return true;
+  }
+  check_queue_handle = acltdtCreateChannel(device_id, "check_is_queue");
+  if (check_queue_handle !=nullptr) {
+    acltdtDestroyChannel(check_queue_handle);
+    return false;
+  } else {
+    ADP_LOG(ERROR) << "Create channel failed by acltdtCreateChannelWithCapacity and acltdtCreateChannel";
+  }
+  return true;
+};
 
 extern const bool kDumpGraph = []() -> bool {
   bool print_model = false;

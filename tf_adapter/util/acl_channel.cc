@@ -228,8 +228,9 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
                         const std::vector<Tensor> &tensors, bool &is_need_resend) {
   std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   acltdtDataset *acl_dataset = nullptr;
+  is_need_resend = false;
   TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset, buff_list));
-  const int32_t kTimeOut = 1000;
+  const int32_t kTimeOut = 3000;
   auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, kTimeOut);
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status == ACL_ERROR_RT_QUEUE_EMPTY || acl_status == ACL_ERROR_RT_QUEUE_FULL) {
