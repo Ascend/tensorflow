@@ -39,5 +39,8 @@
     return (s);                                                                                                        \
   }
 
+namespace npu {
 constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;
+}  // namespace npu
+
 #endif  // TENSORFLOW_COMMON_COMMON_H_

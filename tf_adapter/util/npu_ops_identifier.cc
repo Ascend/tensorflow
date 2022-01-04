@@ -47,7 +47,7 @@ NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix
   const std::string mode = is_mix ? "MIX" : "ALL";
   const char *path_env = std::getenv("ASCEND_OPP_PATH");
   std::string opsPath;
-  if (path_env != nullptr && strlen(path_env) < ADAPTER_ENV_MAX_LENTH) {
+  if (path_env != nullptr && strlen(path_env) < npu::ADAPTER_ENV_MAX_LENTH) {
     opsPath = path_env;
   } else {
     opsPath = "/usr/local/Ascend/opp";
