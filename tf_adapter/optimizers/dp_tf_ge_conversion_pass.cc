@@ -378,7 +378,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
                     .Attr("output_shapes", m_src["output_shapes"])
                     .Attr("_local_rank_id", local_rank_id)
                     .Attr("_local_device_list", local_device_list)
-                    .Finalize(&*graph_, &queue_node_host));
+                    .Finalize(graph_, &queue_node_host));
     REQUIRES_NOT_NULL(queue_node_host);
     ADP_LOG(INFO) << "Add_" << device_queue_name;
     Node *queue_node_device = nullptr;
@@ -388,7 +388,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
                     .Attr("channel_name", queue_name)
                     .Attr("output_types", type_status ? m_src["output_types"] : m_src["Toutput_types"])
                     .Attr("output_shapes", m_src["output_shapes"])
-                    .Finalize(&*graph_, &queue_node_device));
+                    .Finalize(graph_, &queue_node_device));
     REQUIRES_NOT_NULL(queue_node_device);
     // 0 means the the 0th output of queue_node_device
     REQUIRES_NOT_NULL(graph_->AddEdge(queue_node_device, 0, e->dst(), e->dst_input()));
@@ -743,12 +743,12 @@ bool DpTfToGEConversionPassImpl::RunPass(const std::unique_ptr<Graph> *g, Functi
                       .Device(DEFAULT_DEVICE)
                       .Attr("output_types", m_src["output_types"])
                       .Attr("output_shapes", m_src["output_shapes"])
-                      .Finalize(&*graph_,
+                      .Finalize(graph_,
                                 &dpgroup_dataset_node));  // Finalize geopDataset in graph_
       TF_CHECK_OK(NodeBuilder(GetRandomName("GeopDataset"), "GEOPDataset")
                       .Device(DEFAULT_DEVICE)
                       .Attr("f", f_attr)  // geopDataset function
-                      .Finalize(&*graph_,
+                      .Finalize(graph_,
                                 &geop_dataset_node));  // Finalize geopDataset in graph_
 
       for (Node *n : graph_->op_nodes()) {
@@ -774,7 +774,7 @@ bool DpTfToGEConversionPassImpl::RunPass(const std::unique_ptr<Graph> *g, Functi
     // Prune for the final optimized graph
     ADP_LOG(INFO) << "Start to prune final optimized graph";
 
-    RemoveIsolatedNode(&*graph_, isolated_nodes);
+    RemoveIsolatedNode(graph_, isolated_nodes);
     ADP_LOG(INFO) << "Start to assign unassigned node on default device";
     // We do pass after assign, so we must assign all new added nodes
     for (Node *n : (*g)->op_nodes()) {
