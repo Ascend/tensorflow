@@ -94,7 +94,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
 
 #undef PYBIND11_CHECK_PYTHON_VERSION
 #define PYBIND11_CHECK_PYTHON_VERSION
-
+namespace npu {
 PYBIND11_MODULE(_npu_device_backends, m) {
   m.def("Open",
         [](const py::handle &context, const char *device_name, int device_index,
@@ -205,3 +205,4 @@ PYBIND11_MODULE(_npu_device_backends, m) {
               << ", it will take effect in the next training loop";
   });
 };
+}
