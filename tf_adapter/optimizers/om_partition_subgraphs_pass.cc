@@ -336,7 +336,8 @@ bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode, const F
   return false;
 }
 
-bool IsNpuSupportingNode(const Node *node, bool mix_compile_mode, const FunctionLibraryDefinition *func_lib, bool support_const) {
+bool IsNpuSupportingNode(const Node *node, bool mix_compile_mode, const FunctionLibraryDefinition *func_lib,
+                         bool support_const) {
   return IsNpuSupportingNode(node->def(), mix_compile_mode, func_lib, support_const);
 }
 
@@ -485,15 +486,15 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
 
   int size = 0;
   std::set<std::string> empty;
-  for (auto &pair : pairs) {
+  for (auto &pair_inner : pairs) {
     OneGraphIOP one_graph_iop;
     static const size_t kLegalSize = 2;
-    if (pair.size() < kLegalSize) {
+    if (pair_inner.size() < kLegalSize) {
       continue;
     }
-    for (auto &in : pair[0]) {
+    for (auto &in : pair_inner[0]) {
       IOP iop(in, empty);
-      for (auto &out : pair[1]) {
+      for (auto &out : pair_inner[1]) {
         iop.second.insert(out);
       }
       ++size;
@@ -564,7 +565,7 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
   return Status::OK();
 }
 
-Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, FunctionLibraryDefinition *func_lib,
+Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, const FunctionLibraryDefinition *func_lib,
                                 bool enableDP, bool mix_compile_mode) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   compile_mode = mix_compile_mode;
@@ -1190,8 +1191,7 @@ Status MarkForPartition(std::unique_ptr<Graph> *graph_in, int &clusterNum, bool 
     return Status::OK();
   }
 
-  int minGroupSizeTemp = 1;
-  int minGroupSize = ((minGroupSizeTemp < MAX_GROUP_SIZE) ? (minGroupSizeTemp) : (1));  // default threshold is 10.
+  int minGroupSize = 1;  // default threshold is 10.
   ADP_LOG(INFO) << "All nodes in graph: " << graph->num_nodes() << ", max nodes count: " << sortedCluster[0].second
                 << " in subgraph: " << sortedCluster[0].first << " minGroupSize: " << minGroupSize;
 
@@ -1795,11 +1795,6 @@ Status OMSplitter::CopySubgraphEdges(const std::unordered_map<const Node *, Node
                                          edge->src()->name(), ":", edge->src_output(), ", dst is ",
                                          edge->dst()->name());
         }
-      }
-
-      // Ignore control edges leaving the subgraph. We will lift them onto the
-      // enclosing GEOps in BuildOutputGraph().
-      if (!edge->IsControlEdge()) {
         TF_RETURN_IF_ERROR(subgraphs_[srcSubgraphId].RecordResult(edge, nodeImages));
       }
     }
@@ -1817,11 +1812,6 @@ Status OMSplitter::CopySubgraphEdges(const std::unordered_map<const Node *, Node
                                          edge->src()->name(), ":", edge->src_output(), ", dst is ",
                                          edge->dst()->name());
         }
-      }
-
-      // Ignore control edges entering the subgraph. We will lift them onto
-      // the enclosing GEOps in BuildOutputGraph().
-      if (!edge->IsControlEdge()) {
         if (IsRefType(edge->src()->output_type(edge->src_output()))) {
           refIn_.push_back(edge);
         }
@@ -1907,6 +1897,7 @@ Status OMSplitter::AddGEOpNodes(const std::unordered_map<const Node *, Node *> &
 Status OMSplitter::FindOutputImageOfEdgeSrc(const string &srcSubgraphId, const string &dstSubgraphId,
                                             const std::unordered_map<const Node *, Node *> &nodeImages,
                                             const Node *originalSrcNode, Node **srcImage) {
+  (void)dstSubgraphId;
   if (IsInSubgraph(srcSubgraphId)) {
     // The edge is from a subgraph to a regular node in the output graph so
     // use the GEOp node output.
