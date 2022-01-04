@@ -30,7 +30,7 @@ class FastGeluOp : public tensorflow::OpKernel {
  public:
   explicit FastGeluOp(tensorflow::OpKernelConstruction *context)
       : OpKernel(context) {}
-  ~FastGeluOp() {}
+  ~FastGeluOp() override {}
   void Compute(tensorflow::OpKernelContext *context) override {
     // Grab the input tensor
     CHECK_NOT_NULL(context);
@@ -112,5 +112,3 @@ Device(tensorflow::DEVICE_CPU)
 .TypeConstraint<Eigen::half>("T"),
 FastGeluGradOp<Eigen::half>);
 }  // namespace tensorflow
-
-

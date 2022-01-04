@@ -59,16 +59,16 @@ class AscendDequantOp : public OpKernel {
       OP_REQUIRES_OK(context, context->GetAttr("ksize", &(ksize)));
       input_param.area_factor = ksize[0] * ksize[1];
       input_param.size = 0;
-      input_param.input = NULL;
-      input_param.out = NULL;
-      input_param.deqscale = NULL;
+      input_param.input = nullptr;
+      input_param.out = nullptr;
+      input_param.deqscale = nullptr;
       input_param.channel_num = 1;
       input_param.hw_size = 1;
       input_param.channel_wise = false;
       input_param.transpose = false;
   }
 
-  ~AscendDequantOp(){}
+  ~AscendDequantOp() override {}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
@@ -78,7 +78,7 @@ class AscendDequantOp : public OpKernel {
     TensorShape deqscale_tensor_shape = deqscale_tensor.shape();
 
     // Create an output tensor
-    Tensor* output_tensor = NULL;
+    Tensor* output_tensor = nullptr;
     OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
 
     // Do the computation.

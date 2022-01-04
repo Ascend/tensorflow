@@ -44,8 +44,8 @@ class AscendQuantOp : public OpKernel {
     OP_REQUIRES_OK(context, context->GetAttr("scale", &(scale)));
     OP_REQUIRES_OK(context, context->GetAttr("offset", &(offset)));
     input_param.size = 0;
-    input_param.in = NULL;
-    input_param.out = NULL;
+    input_param.in = nullptr;
+    input_param.out = nullptr;
     input_param.scale = scale;
     input_param.offset = offset;
     if (dst_type == "INT4") {
@@ -55,14 +55,14 @@ class AscendQuantOp : public OpKernel {
     }
   }
 
-  ~AscendQuantOp(){}
+  ~AscendQuantOp() override {}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
     const Tensor& input_tensor = context->input(0);
 
     // Create an output tensor
-    Tensor* output_tensor = NULL;
+    Tensor* output_tensor = nullptr;
     OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
 
     // Do the computation.

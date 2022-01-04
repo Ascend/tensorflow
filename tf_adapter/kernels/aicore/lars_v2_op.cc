@@ -69,5 +69,4 @@ class LarsV2OP : public OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("LarsV2").Device(DEVICE_CPU).TypeConstraint<float>("T"), LarsV2OP<float>);
-
 }  // namespace tensorflow
