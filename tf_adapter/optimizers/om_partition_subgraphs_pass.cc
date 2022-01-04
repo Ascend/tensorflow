@@ -271,14 +271,14 @@ bool IsWithoutNpuScope(const NodeDef &node_def) {
   return false;
 }
 
-bool IsWithoutNpuScope(Node *node) {
+bool IsWithoutNpuScope(const Node *node) {
   return IsWithoutNpuScope(node->def());
 }
 
 // Make sure we don't recurse infinitely on recursive functions.
 const int kMaxRecursionDepth = 10;
 
-bool IsNpuSupportingFunc(const string &func_name, FunctionLibraryDefinition *func_lib, int depth) {
+bool IsNpuSupportingFunc(const string &func_name, const FunctionLibraryDefinition *func_lib, int depth) {
   if (func_lib == nullptr) {
     ADP_LOG(ERROR) << "func lib is nullptr, function name is " << func_name;
     LOG(ERROR) << "func lib is nullptr, function name is " << func_name;
@@ -310,7 +310,7 @@ bool IsNpuSupportingFunc(const string &func_name, FunctionLibraryDefinition *fun
   return true;
 }
 
-bool IsNpuSupportingFunc(Node *node, FunctionLibraryDefinition *func_lib, int depth) {
+bool IsNpuSupportingFunc(const Node *node, const FunctionLibraryDefinition *func_lib, int depth) {
   for (const auto &it : node->attrs()) {
     if (it.second.has_func()) {
       string func_name = it.second.func().name();
@@ -322,7 +322,7 @@ bool IsNpuSupportingFunc(Node *node, FunctionLibraryDefinition *func_lib, int de
   return true;
 }
 
-bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode, FunctionLibraryDefinition *func_lib,
+bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode, const FunctionLibraryDefinition *func_lib,
                          bool support_const) {
   if (IsWithoutNpuScope(node_def)) {
     return false;
@@ -336,11 +336,11 @@ bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode, Functio
   return false;
 }
 
-bool IsNpuSupportingNode(Node *node, bool mix_compile_mode, FunctionLibraryDefinition *func_lib, bool support_const) {
+bool IsNpuSupportingNode(const Node *node, bool mix_compile_mode, const FunctionLibraryDefinition *func_lib, bool support_const) {
   return IsNpuSupportingNode(node->def(), mix_compile_mode, func_lib, support_const);
 }
 
-bool IsUnSupportedResource(bool mix_compile_mode, Node *node) {
+bool IsUnSupportedResource(bool mix_compile_mode, const Node *node) {
   if (!mix_compile_mode) {
     return false;
   }
@@ -775,7 +775,7 @@ Status AddRelationalConst(const Graph &graph, OrderedNodeSet *candidates) {
   return Status::OK();
 }
 
-bool GetNodeFuncs(const FunctionLibraryDefinition *flib_def, Node *node, std::vector<string> &nodeFuncs) {
+bool GetNodeFuncs(const FunctionLibraryDefinition *flib_def, const Node *node, std::vector<string> &nodeFuncs) {
   nodeFuncs.clear();
   for (const auto &iter : node->attrs()) {
     if (iter.second.has_func()) {
@@ -813,7 +813,7 @@ struct Cluster {
 };
 
 // Merges src and dst clusters of the edge
-void MergeClusters(Edge *edge, std::map<Node *, std::shared_ptr<Cluster>> &cluster_map) {
+void MergeClusters(const Edge *edge, std::map<Node *, std::shared_ptr<Cluster>> &cluster_map) {
   Node *src = edge->src();
   Node *dst = edge->dst();
 
@@ -1352,7 +1352,7 @@ class OMSplitter {
 
     ~Subgraph() = default;
 
-    Node *MakeNodeImage(const Graph *graph_in, Node *node);
+    Node *MakeNodeImage(const Graph *graph_in, const Node *node);
 
     // Returns the graph the subgraph is being built in.
     Graph *GetGraph() const;
@@ -1516,7 +1516,7 @@ int OMSplitter::Subgraph::GetResultIndexForEdge(const Edge *edge) const {
   return results_.at(NodeSlot(edge->src(), edge->src_output()));
 }
 
-Node *OMSplitter::Subgraph::MakeNodeImage(const Graph *graph_in, Node *node) {
+Node *OMSplitter::Subgraph::MakeNodeImage(const Graph *graph_in, const Node *node) {
   if (graph_ == nullptr) {
     graph_.reset(new (std::nothrow) Graph(graph_in->op_registry()));
     if (graph_ == nullptr) {
@@ -2133,7 +2133,7 @@ void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_s
   }
 }
 
-void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(Node *node, bool enable_dp,
+void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool enable_dp,
                                                          std::map<std::string, std::string> &graph_options) {
   // get attr from graph_options
   auto node_attrs = node->def().attr();
