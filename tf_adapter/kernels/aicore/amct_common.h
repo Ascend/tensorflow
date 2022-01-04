@@ -98,7 +98,7 @@ const int NULL_PTR_ERROR = 1;
 
 #define NULLPTR_CHECK(ptr)                                                                          \
   do {                                                                                              \
-    if (ptr == nullptr) {                                                                           \
+    if ((ptr) == nullptr) {                                                                           \
       return NULL_PTR_ERROR;                                                                        \
     }                                                                                               \
   } while (0)
