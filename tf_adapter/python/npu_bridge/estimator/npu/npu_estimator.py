@@ -706,9 +706,9 @@ class NPUEstimator(estimator_lib.Estimator):
         custom_op.parameter_map["device_type"].s = tf.compat.as_bytes(config._device_type)
         if config._hccl_timeout is not None:
             custom_op.parameter_map["hccl_timeout"].s = tf.compat.as_bytes(config._hccl_timeout)
-        if config._hccl_timeout is not None:
+        if config._op_wait_timeout is not None:
             custom_op.parameter_map["op_wait_timeout"].i = config._op_wait_timeout
-        if config._hccl_timeout is not None:
+        if config._op_execute_timeout is not None:
             custom_op.parameter_map["op_execute_timeout"].i = config._op_execute_timeout
 
         self.__load_session_device_id(config, custom_op)
