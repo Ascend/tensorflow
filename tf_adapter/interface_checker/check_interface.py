@@ -14,9 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-    check interface
-"""
+"""check interface"""
+
 import os
 
 # 获取接口规范的目录
@@ -140,8 +139,7 @@ def get_tree_idx(str_info: str):
     global last_tab_str
     if str_info.startswith(last_tab_str):
         return 1 + get_tree_idx(str_info[len(last_tab_str):])
-    else:
-        return 1
+    return 1
 
 
 def get_tree_idx_2(str_info: str):
@@ -151,8 +149,7 @@ def get_tree_idx_2(str_info: str):
     TAB_STR = "  "
     if str_info.startswith(TAB_STR):
         return 1 + get_tree_idx_2(str_info[2:])
-    else:
-        return 1
+    return 1
 
 
 def get_tree_idx_final(str_info: str):

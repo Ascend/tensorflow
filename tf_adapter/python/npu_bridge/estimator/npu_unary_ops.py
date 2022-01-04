@@ -21,13 +21,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.contrib.util import loader
-from tensorflow.python.platform import resource_loader
 from tensorflow.python.framework import ops
 
 from npu_bridge.helper import helper
 
-npu_unary_ops = helper.get_gen_ops();
+npu_unary_ops = helper.get_gen_ops()
 
 
 @ops.RegisterGradient("Gelu")

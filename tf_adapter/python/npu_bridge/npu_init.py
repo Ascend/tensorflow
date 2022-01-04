@@ -52,6 +52,7 @@ from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
 from tensorflow.python.client import session
 from tensorflow.python.training import session_run_hook
+from tensorflow.python.keras import backend
 
 from hccl.manage.api import create_group
 from hccl.manage.api import destroy_group
@@ -78,17 +79,17 @@ experimental_options = {
 }
 
 
-def npu_hooks_append(hooks_list=[]):
+def npu_hooks_append(hooks_list=()):
     """Append NPU hooks"""
-    if (not isinstance(hooks_list, list)):
+    if not isinstance(hooks_list, list):
         hooks_list = []
     hooks_list.append(NPUBroadcastGlobalVariablesHook(0, int(os.getenv('RANK_ID', '0'))))
     return hooks_list
 
 
-def npu_callbacks_append(callbacks_list=[]):
+def npu_callbacks_append(callbacks_list=()):
     """Appand NPU callback functions"""
-    if (not isinstance(callbacks_list, list)):
+    if not isinstance(callbacks_list, list):
         callbacks_list = []
     callbacks_list.append(NPUBroadcastGlobalVariablesCallback(0))
     return callbacks_list
@@ -147,7 +148,6 @@ def npu_run_config_init(run_config=None):
 
 def set_keras_session_npu_config(config=None):
     """Set NPU keras session configuration"""
-    from tensorflow.python.keras import backend
     if (not isinstance(config, config_pb2.ConfigProto)) or (not issubclass(type(config), config_pb2.ConfigProto)):
         config = config_pb2.ConfigProto()
 
@@ -249,6 +249,5 @@ def npu_tf_optimizer(opt):
 
 def npu_clear_session(config=None):
     """Clear NPU session"""
-    from tensorflow.python.keras import backend
     backend.clear_session()
     backend.set_session(session.Session(config=npu_config_proto(config)))

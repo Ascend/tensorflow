@@ -98,7 +98,7 @@ class NPUBroadcastGlobalVariablesHook(session_run_hook.SessionRunHook):
     def begin(self):
         """Call when session hook begins"""
         if (not self._bcast_op or self._bcast_op.graph != tf.get_default_graph()) and self._rank_size > 1:
-            self._bcast_op = broadcast_global_variables(self._root_rank, self._index)
+            self._bcast_op = broadcast_global_variables(self._root_rank)
 
     def after_create_session(self, session, coord):
         """Call when session is created"""
@@ -142,6 +142,10 @@ class SetIterationsVarHook(session_run_hook.SessionRunHook):
     """Hook to set iteration variables."""
     def __init__(self, iterations_per_loop=None):
         self._iterations_per_loop = iterations_per_loop
+        self._iterations_per_loop_var = None
+        self._const_one = None
+        self._const_zero = None
+        self._loop_cond_var = None
 
     def begin(self):
         """Call when session hook begins"""
@@ -160,7 +164,7 @@ class SetIterationsVarHook(session_run_hook.SessionRunHook):
         print(session.run(self._iterations_per_loop_var))
 
 
-def broadcast_global_variables(root_rank, index):
+def broadcast_global_variables(root_rank):
     """Broadcasts all global variables from root rank to all other processes.
     Arguments:
         root_rank: rank of the process from which global variables will be broadcasted
@@ -178,11 +182,11 @@ def broadcast_global_variables(root_rank, index):
     return tf.group(op_list)
 
 
-class _SIGNAL(object):
+class _SIGNAL:
     STOP = -1
 
 
-class _OpQueueContext(object):
+class _OpQueueContext:
     """Manages work queue and thread for a infeed/outfeed thread."""
     def __init__(self, name, target, args):
         self._name = name
@@ -195,11 +199,15 @@ class _OpQueueContext(object):
     def stop(self):
         self._queue.put(_SIGNAL.STOP)
 
+
 class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
     """Hook to logout feed session"""
     def __init__(self, output_stream):
         self._output_stream = output_stream
         self._stopped = False
+        self._dequeue_ops = None
+        self._outfeed_controller = None
+        self._finalize_ops = None
 
     def begin(self):
         """Call when session hook begins"""
@@ -228,8 +236,9 @@ class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
         """Call at the end of session hook"""
         if not self._stopped:
             self._stopped = True
-            if len(self._finalize_ops):
+            if self._finalize_ops:
                 session.run(self._finalize_ops)
+
 
 class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
     """Hook to in feed out feed session"""
@@ -240,6 +249,9 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         self._channel_name = channel_name
         self._finished = False
         self._stopped = False
+        self._init_ops = None
+        self._outfeed_controller = None
+        self._finalize_ops = None
 
     def begin(self):
         """Call when session hook begins"""
@@ -281,8 +293,9 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         logging.info('Shutdown NPU system.')
         if not self._stopped:
             self._stopped = True
-            if len(self._finalize_ops):
+            if self._finalize_ops:
                 session.run(self._finalize_ops)
+
 
 class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):
     """call output_fn to print tensors every N steps or at end."""

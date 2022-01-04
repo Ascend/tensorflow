@@ -18,7 +18,6 @@
 """NPU distributed strategy"""
 
 import os
-import tensorflow as tf
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import one_device_strategy
 
