@@ -33,7 +33,6 @@
 
 #include "npu_device.h"
 #include "npu_logger.h"
-#include "npu_micros.h"
 #include "npu_parser.h"
 #include "npu_unwrap.h"
 #include "npu_utils.h"

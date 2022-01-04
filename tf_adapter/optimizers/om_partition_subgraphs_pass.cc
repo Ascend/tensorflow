@@ -565,8 +565,8 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
   return Status::OK();
 }
 
-Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, const FunctionLibraryDefinition *func_lib,
-                                bool enableDP, bool mix_compile_mode) {
+Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
+                                const FunctionLibraryDefinition *func_lib, bool enableDP, bool mix_compile_mode) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   compile_mode = mix_compile_mode;
   std::vector<Node *> sortedNodes;
@@ -1897,7 +1897,7 @@ Status OMSplitter::AddGEOpNodes(const std::unordered_map<const Node *, Node *> &
 Status OMSplitter::FindOutputImageOfEdgeSrc(const string &srcSubgraphId, const string &dstSubgraphId,
                                             const std::unordered_map<const Node *, Node *> &nodeImages,
                                             const Node *originalSrcNode, Node **srcImage) {
-  (void)dstSubgraphId;
+  (void) dstSubgraphId;
   if (IsInSubgraph(srcSubgraphId)) {
     // The edge is from a subgraph to a regular node in the output graph so
     // use the GEOp node output.
