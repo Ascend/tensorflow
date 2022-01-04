@@ -17,9 +17,11 @@
 #ifndef TENSORFLOW_KERNELS_GEOP_NPU_H_
 #define TENSORFLOW_KERNELS_GEOP_NPU_H_
 
+#include <unordered_map>
+#include <atomic>
+
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/util/env_var.h"
 
@@ -28,8 +30,6 @@
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
 #include "tune_api.h"
-#include <unordered_map>
-#include <atomic>
 
 namespace tensorflow {
 using AoeTuningFunc = AoeStatus (*)(ge::Graph &, std::vector<ge::Graph> &, ge::Session *,
@@ -40,7 +40,7 @@ using AoeFinalizeFunc = AoeStatus (*)();
 class GeOp : public AsyncOpKernel {
  public:
   explicit GeOp(OpKernelConstruction *ctx);
-  ~GeOp();
+  ~GeOp() override;
   void ComputeAsync(OpKernelContext *ctx, DoneCallback done) override;
 
  private:
@@ -67,23 +67,22 @@ class GeOp : public AsyncOpKernel {
   Status GenerateDesc(Node *&node);
 
   // parse onnx model in tensorflow node
-  Status ParseOnnxGraphOpAttr(Node *&node);
+  Status ParseOnnxGraphOpAttr(Node *&node) const;
 
-  Status DomiFormatFromString(std::string format, int32_t &domi_format);
+  Status DomiFormatFromString(std::string format, int32_t &domi_format) const;
 
  private:
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
   int InitRebuildFlag(uint32_t cache_graph_id);
 
-  bool IncrementGraphIdCount(std::string &tf_session, uint32_t &graph_id);
+  bool IncrementGraphIdCount(uint32_t &graph_id);
 
-  bool DecrementGraphIdCount(std::string &tf_session, uint32_t &graph_id);
+  bool DecrementGraphIdCount(const std::string &tf_session, uint32_t &graph_id);
 
-  void ClearGraphIdCount(std::string &tf_session);
+  void ClearGraphIdCount();
 
-  void GetExecGraphId(OpKernelContext *ctx, uint32_t &cache_graph_id,
-                      std::vector<std::string> input_shapes);
+  void GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> input_shapes);
 
   void GetMsTuneConfig(std::map<std::string, std::string> init_options);
 
@@ -96,7 +95,7 @@ class GeOp : public AsyncOpKernel {
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                         std::vector<std::string> &input_shapes);
-  int RunTuning(std::vector<Tensor> &input_vec, OpKernelContext *ctx);
+  int RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const ctx);
 
   std::string BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::string &graph);
 
