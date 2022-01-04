@@ -4,6 +4,7 @@
 #include "mmpa/mmpa_api.h"
 #include "runtime/dev.h"
 #include "runtime/rt_mem_queue.h"
+#include "metadef/inc/graph/def_types.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"
@@ -113,7 +114,8 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
 
   size_t offset = 0UL;
   for (size_t i = 0UL; i < cnt; ++i) {
-    auto ret = memcpy_s(data + offset, total_size - offset, &items[i].ctrl_info, sizeof(ItemInfo));
+    auto ret = memcpy_s(ValueToPtr(ValueToPtr(data) + offset), total_size - offset, 
+                        &items[i].ctrl_info, sizeof(ItemInfo));
     if (ret != EOK) {
       (void)rtMbufFree(buff);
       return errors::Internal("call memcpy_s failed, ret = ", ret, ", error = ", strerror(errno));
@@ -121,7 +123,7 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
     offset += sizeof(ItemInfo);
 
     for (size_t j = 0UL; j < items[i].ctrl_info.dim_num; ++j) {
-      ret = memcpy_s(data + offset, total_size - offset, &(items[i].dims[j]), sizeof(int64_t));
+      ret = memcpy_s(ValueToPtr(ValueToPtr(data) + offset), total_size - offset, &(items[i].dims[j]), sizeof(int64_t));
       if (ret != EOK) {
         (void)rtMbufFree(buff);
         return errors::Internal("call memcpy_s failed, ret = ", ret, ", error = ", strerror(errno));
@@ -131,7 +133,8 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
 
     if (items[i].ctrl_info.data_len == 0UL) { continue; }
 
-    ret = memcpy_s(data + offset, total_size - offset, items[i].data_ptr, items[i].ctrl_info.data_len);
+    ret = memcpy_s(ValueToPtr(ValueToPtr(data) + offset), total_size - offset, 
+                   items[i].data_ptr, items[i].ctrl_info.data_len);
     if (ret != EOK) {
       (void)rtMbufFree(buff);
       return errors::Internal("call memcpy_s failed, ret = ", ret, ", error = ", strerror(errno));
