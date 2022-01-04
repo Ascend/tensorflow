@@ -4,7 +4,7 @@
 #include "mmpa/mmpa_api.h"
 #include "runtime/dev.h"
 #include "runtime/rt_mem_queue.h"
-#include "metadef/inc/graph/def_types.h"
+#include "graph/def_types.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"
