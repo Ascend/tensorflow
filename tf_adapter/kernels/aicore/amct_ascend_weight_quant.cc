@@ -50,15 +50,15 @@ class AscendWeightQuantOp : public OpKernel {
   explicit AscendWeightQuantOp(OpKernelConstruction* context) : OpKernel(context) {
     OP_REQUIRES_OK(context, context->GetAttr("dst_type", &(dst_type)));
     input_param.size = 0;
-    input_param.weight = NULL;
-    input_param.offset = NULL;
+    input_param.weight = nullptr;
+    input_param.offset = nullptr;
     input_param.channel_in_num = 1;
     input_param.channel_out_num = 1;
     input_param.channel_wise = false;
     input_param.transpose = false;
   }
 
-  ~AscendWeightQuantOp(){}
+  ~AscendWeightQuantOp() override {}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
@@ -68,7 +68,7 @@ class AscendWeightQuantOp : public OpKernel {
     TensorShape offset_tensor_shape = offset_tensor.shape();
 
     // Create an output tensor
-    Tensor* output_tensor = NULL;
+    Tensor* output_tensor = nullptr;
     OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
 
     // Do the computation.

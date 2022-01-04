@@ -21,7 +21,7 @@ template<typename T>
 class DynamicRnnOP : public OpKernel {
  public:
   explicit DynamicRnnOP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicRnnOP"; }
-  ~DynamicRnnOP() { LOG(INFO) << "del DynamicRnnOP"; }
+  ~DynamicRnnOP() override { LOG(INFO) << "del DynamicRnnOP"; }
   void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in DynamicRnnOP"; }
   bool IsExpensive() override { return false; }
 };

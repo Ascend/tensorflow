@@ -257,7 +257,6 @@ class OptimizeStageGraphDumper {
   int counter_;
 };
 }  // namespace
-
 namespace npu {
 /**
  * @brief: create iterator providev
