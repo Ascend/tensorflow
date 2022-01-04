@@ -1418,6 +1418,35 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
                 << ", input data addr:" << reinterpret_cast<uintptr_t>(data);
 }
 
+Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector)
+{
+  uint64_t total_size = 0U;
+  for (uint64_t i = 0U; i < count; i++) {
+    total_size += (string_vector[i].size() + sizeof(ge::StringHead) + 1U);
+  }
+
+  std::unique_ptr<char []> addr(new (std::nothrow) char[total_size]());
+  REQUIRES_NOT_NULL(addr);
+  ge::StringHead *string_head = reinterpret_cast<ge::StringHead *>(addr.get());
+  char *data_addr = addr.get() + count * sizeof(ge::StringHead);
+  int64_t offset = static_cast<int64_t>(count * sizeof(ge::StringHead));
+  for (uint64_t i = 0U; i < count; ++i) {
+    string_head[i].addr = offset;
+    const string &str = string_vector[i];
+    string_head[i].len = static_cast<int64_t>(str.size());
+    const auto ret = memcpy_s(data_addr, total_size - offset, str.c_str(), str.size() + 1U);
+    if (ret != EOK) {
+      ADP_LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< str.size() + 1U << " result: " << ret;
+      LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< str.size() + 1U << " result: " << ret;
+      return errors::Unknown("memcpy failed");
+    }
+    data_addr += (str.size() + 1U);
+    offset += (static_cast<int64_t>(str.size()) + 1);
+  }
+  input.SetData(reinterpret_cast<const uint8_t *>(addr.get()), total_size);
+  return Status::OK();
+}
+
 Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
                                   std::vector<Tensor> &input_vec,
                                   std::vector<std::string> &input_shapes,
@@ -1456,7 +1485,16 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
       ge_tensor_desc.SetDataType(type);
       ge_tensor_desc.SetOriginShape(ge_shape);
       input.SetTensorDesc(ge_tensor_desc);
-      input.SetData(static_cast<uint8_t *>(tensor_ptr), total_bytes, [](uint8_t *) {});
+      if (type == ge::DT_STRING) {
+        REQUIRES_NOT_NULL(tensor_ptr);
+        const uint64_t count = static_cast<uint64_t>(tensor.NumElements());
+        std::string *string_vector = static_cast<std::string *>(tensor_ptr);
+        if (AnalyzeStringInput(input, count, string_vector) != Status::OK()) {
+          return errors::Internal("The input string data analyze failed.");
+        }
+      } else {
+        input.SetData(static_cast<uint8_t *>(tensor_ptr), total_bytes, [](uint8_t *) {});
+      }
       input_shapes.push_back(input_shape);
       cur_input_shapes += input_shape;
     }

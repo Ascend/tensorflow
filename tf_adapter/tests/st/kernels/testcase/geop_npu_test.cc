@@ -315,5 +315,13 @@ TEST_F(GeOpTest, GeOpDpOpTest) {
   gtl::InlinedVector<TensorValue, 4> inputs;
   EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0_dp").ok());
 }
+TEST_F(GeOpTest, GeOpNpuStringMaxSizeTest) {
+  NodeDef node_def;
+  std::string grph_pbtxt_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_npu_onnx_graph_op_parse.pbtxt";
+
+  Tensor in(DT_STRING, TensorShape({1, 1, 5, 5}));
+  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
+  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
+}
 }
 } //end tensorflow

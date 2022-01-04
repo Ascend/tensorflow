@@ -1,0 +1,70 @@
+node {
+  name: "input"
+  op: "Placeholder"
+  attr {
+    key: "_op_max_size"
+    value {
+      i: 100000
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+        shape {
+            unknown_rank: true
+        }
+    }
+  }
+}
+node {
+  name: "DecodeJpeg"
+  op: "DecodeJpeg"
+  input: "input"
+  attr {
+    key: "acceptable_fraction"
+    value {
+      f: 1
+    }
+  }
+  attr {
+    key: "channels"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "dct_method"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "fancy_upscaling"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "ratio"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "try_recover_truncated"
+    value {
+      b: false
+    }
+  }
+}
+library {
+}
+versions {
+  producer: 134
+}

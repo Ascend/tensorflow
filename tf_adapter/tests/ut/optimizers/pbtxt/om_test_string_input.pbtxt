@@ -1,0 +1,66 @@
+node {
+  name: "DecodeJpeg"
+  op: "DecodeJpeg"
+  input: "arg_input_0_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_op_max_shape"
+    value {
+      s: "200,200,4"
+    }
+  }
+  attr {
+    key: "_op_max_size"
+    value {
+      list {
+        i: 180000
+      }
+    }
+  }
+}
+node {
+  name: "arg_input_0_0"
+  op: "_Arg"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "retval_DecodeJpeg_0_0"
+  op: "_Retval"
+  input: "DecodeJpeg"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_UINT8
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+library {
+}
+versions {
+  producer: 134
+}

@@ -62,6 +62,9 @@ class GeOp : public AsyncOpKernel {
   Status BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
                        GraphDef &graph_def, bool &is_initialize);
 
+  // Analyze sting input data
+  Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector);
+
   // prepare input tensor
   Status BuildInputTensorInfo(OpKernelContext *ctx,
                               std::vector<Tensor> &input_vec,
