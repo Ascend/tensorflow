@@ -386,7 +386,7 @@ tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int
     if (data_type == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
       (void)npu::UnwrapTensor(inputs[i], &tensor);
-      if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[i]))) {
+      if (npu::IsNpuTensorHandle(npu::UnwrapHandle(inputs[i]))) {
         has_npu = true;
         npu_index = i;
         if (has_cpu) {
@@ -427,7 +427,7 @@ tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs,
     if (data_type == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
       NPU_REQUIRES_OK(npu::UnwrapTensor(inputs[i], &tensor));
-      if (!IsNpuTensorHandle(npu::UnwrapHandle(inputs[i]))) {
+      if (!npu::IsNpuTensorHandle(npu::UnwrapHandle(inputs[i]))) {
         if (!Mirrored(tensor->scalar<tensorflow::ResourceHandle>()())) {
           tensorflow::Status status;
           std::string src_name = npu::UnwrapHandle(inputs[i])->DeviceName(&status);
@@ -579,7 +579,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
     if (node->IsArg()) {
       auto index = node->attrs().Find("index")->i();
       if (arg_is_iterator.count(index)) {
-        NPU_REQUIRES_OK(tensorflow::NodeBuilder(WrapResourceName(arg_resource_handles[index].name()), "IteratorV2")
+        NPU_REQUIRES_OK(tensorflow::NodeBuilder(npu::WrapResourceName(arg_resource_handles[index].name()), "IteratorV2")
                           .Attr("container", arg_resource_handles[index].container())
                           .Attr("shared_name", arg_resource_handles[index].name())
                           .Attr("output_types", arg_handle_dtyes[index])
@@ -588,7 +588,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
                           .Attr("_arg_index", int(index))
                           .Finalize(graph, &arg_substitutes[node]));
       } else if (arg_is_variable.count(index)) {
-        NPU_REQUIRES_OK(tensorflow::NodeBuilder(WrapResourceName(arg_resource_handles[index].name()), "VarHandleOp")
+        NPU_REQUIRES_OK(tensorflow::NodeBuilder(npu::WrapResourceName(arg_resource_handles[index].name()), "VarHandleOp")
                           .Attr("container", arg_resource_handles[index].container())
                           .Attr("shared_name", arg_resource_handles[index].name())
                           .Attr("dtype", arg_handle_dtyes[index][0])
@@ -1006,7 +1006,7 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
                                            TF_Status *status) {
   TFE_TensorHandle *local_handle = tensor;
   ScopeTensorHandleDeleter scope_handle_deleter;
-  if (!IsCpuTensorHandle(npu::UnwrapHandle(tensor))) {
+  if (!npu::IsCpuTensorHandle(npu::UnwrapHandle(tensor))) {
     local_handle = TFE_TensorHandleCopyToDevice(tensor, context, underlying_device.c_str(), status);
     scope_handle_deleter.Guard(local_handle);
   }
@@ -1091,7 +1091,7 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
   for (int i = 0; i < num_inputs; i++) {
     auto input = inputs[i];
     if (ic.requested_input_tensor(i)) {  // If requested, this must be a normal tensor
-      if (IsNpuTensorHandle(npu::UnwrapHandle(input))) {
+      if (npu::IsNpuTensorHandle(npu::UnwrapHandle(input))) {
         auto s = TF_NewStatus();
         if (s == nullptr) {
           continue;
@@ -1335,7 +1335,7 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   ScopeTensorHandleDeleter scope_handle_deleter;
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
-    if (IsNpuTensorHandle(npu::UnwrapHandle(input))) {
+    if (npu::IsNpuTensorHandle(npu::UnwrapHandle(input))) {
       input = CopyTensorD2H(context, input, status);  // 创建完成计数为1
       scope_handle_deleter.Guard(input);
       if (TF_GetCode(status) != TF_OK) return;
@@ -1542,7 +1542,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
       op_can_fallback = false;
     } else {
       for (int i = 0; i < num_inputs; ++i) {  // Should never fallback if op has npu resource input
-        if (IsNpuTensorHandle(npu::UnwrapHandle(inputs[i])) &&
+        if (npu::IsNpuTensorHandle(npu::UnwrapHandle(inputs[i])) &&
             npu::UnwrapHandle(inputs[i])->DataType() == tensorflow::DT_RESOURCE) {
           DLOG() << "Op " << spec->Op() << " not fallback cpu as it has resource input from NPU";
           op_can_fallback = false;
@@ -1564,7 +1564,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (!IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
+    if (!npu::IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
         npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
       tensorflow::Status s;
       auto src_name = npu::UnwrapHandle(input)->DeviceName(&s);
@@ -1797,7 +1797,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
+    if (npu::IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
         npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
       tensorflow::Status tf_status;
       auto src_name = npu::UnwrapHandle(input)->DeviceName(&tf_status);

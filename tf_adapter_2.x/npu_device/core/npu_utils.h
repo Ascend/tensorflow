@@ -62,7 +62,6 @@
 #include "tensorflow/core/framework/rendezvous.h"
 #include "tensorflow/core/framework/tensor_shape.pb.h"
 #include "tensorflow/core/framework/types.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/lib/gtl/flatmap.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/platform/blocking_counter.h"
@@ -84,6 +83,7 @@
 #include "acl/acl_base.h"
 #include "graph/types.h"
 
+namespace npu {
 /**
  * @brief: is npu tensor handle or not
  * @param handle: tensor handle
@@ -135,7 +135,6 @@ std::string WrapResourceName(const std::string &name);
  */
 tensorflow::Status LoadGraphDefProto(const std::string &file, tensorflow::GraphDef *def);
 
-namespace npu {
 class ScopeTensorHandleDeleter {
  public:
   ScopeTensorHandleDeleter() = default;
