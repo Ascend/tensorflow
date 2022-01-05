@@ -517,9 +517,8 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
   return Status::OK();
 }
 
-Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
-                                const FunctionLibraryDefinition *func_lib, bool enableDP,
-                                bool mix_compile_mode) {
+Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
+                                const FunctionLibraryDefinition *func_lib, bool enableDP, bool mix_compile_mode) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   compile_mode = mix_compile_mode;
   std::vector<Node *> sortedNodes;
@@ -1648,7 +1647,7 @@ Status OMSplitter::CopySubgraphEdges(const std::unordered_map<const Node *, Node
                                          edge->src()->name(), ":", edge->src_output(), ", dst is ",
                                          edge->dst()->name());
         }
-        TF_RETURN_IF_ERROR(subgraphs_[srcSubgraphId].RecordResult(edge, nodeImages)); 
+        TF_RETURN_IF_ERROR(subgraphs_[srcSubgraphId].RecordResult(edge, nodeImages));
       }
     }
 
