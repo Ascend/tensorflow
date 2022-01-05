@@ -91,9 +91,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                  modify_mixlist=None,
                  op_precision_mode=None,
                  device_type="default_device_type",
-                 hccl_timeout="600",
-                 op_wait_timeout="120",
-                 op_execute_timeout="90"
+                 hccl_timeout=None,
+                 op_wait_timeout=None,
+                 op_execute_timeout=None
                  ):
         """
         Constructs a NPUConfig.
