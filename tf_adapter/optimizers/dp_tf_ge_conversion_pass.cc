@@ -142,7 +142,7 @@ class DpTfToGEConversionPassImpl {
   Status ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                       const OptimizationPassRegistry::Grouping pass_group_value);
   bool RunPass(const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
-               std::map<std::string, std::string> &all_options);
+               const std::map<std::string, std::string> &all_options);
   inline bool IsMakeIteratorNode(const Node *n) const;
   inline bool IsIteratorNode(const Node *n) const;
   inline bool IsSkipDataset(const Node *n) const;
@@ -157,13 +157,13 @@ class DpTfToGEConversionPassImpl {
   inline Status GetSplitEdges(const Node *n, std::vector<const Edge *> &split_edges, const Edge *last_edge);
   inline void RemoveSplitEdges(Node *topo_end);
   inline Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name, std::string &device_queue_name,
-                                   std::map<std::string, std::string> &all_options) const;
+                                   const std::map<std::string, std::string> &all_options) const;
   bool GetNodeFuncs(const FunctionLibraryDefinition *flib_def, const Node *node, std::vector<string> &node_funcs) const;
   bool RemoveIsolatedNode(Graph *g, std::unordered_set<Node *> visited) const;
   Status RemoveNotSupportDataset(Graph *g, const std::string &device_queue_dataset,
                                  const std::string &make_iterator) const;
   Status AddDataTransDatasets(Node *topo_end, std::string &host_channel_name, std::string &device_channel_name,
-                              std::map<std::string, std::string> &all_options);
+                              const std::map<std::string, std::string> &all_options);
   void GetTopoEndsNodes(std::vector<Node *> &topo_ends) const;
   Status BuildDeviceDpGraph(const Node *topo_end, Graph *device_graph, const std::string &device_channel_name) const;
   Status AddAttr2DeviceNodes(const Node *topo_end, const Graph *device_graph) const;
@@ -171,14 +171,16 @@ class DpTfToGEConversionPassImpl {
                                 const string &default_device) const;
   Status AddGeopDatasetFunctionDef(FunctionDefLibrary &fdeflib, const std::string &fn_geop,
                                    const std::string &fn_geop_dataset, const string &default_device,
-                                   std::map<std::string, std::string> &all_options) const;
+                                   const std::map<std::string, std::string> &all_options) const;
   Status BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, Graph *device_graph, const std::string &fn_geop_dataset,
-                                  const string &default_device, std::map<std::string, std::string> &all_options);
+                                  const string &default_device,
+                                  const std::map<std::string, std::string> &all_options) const;
   Status AddGeOpDatasetFunctionLibrary(FunctionLibraryDefinition *flib, Node *topo_end,
                                        const std::string &device_channel_name, const std::string &fn_geop_dataset,
-                                       std::map<std::string, std::string> &all_options);
+                                       const std::map<std::string, std::string> &all_options);
   Status AddGeOpDatasetAndDpGroupDataset(const Node *topo_end, const std::string &fn_geop_dataset,
-                                         const std::string &host_channel_name, const std::string &device_channel_name);
+                                         const std::string &host_channel_name,
+                                         const std::string &device_channel_name) const;
 
   // graph num
   int graph_run_num_;
@@ -213,12 +215,12 @@ inline std::string DpTfToGEConversionPassImpl::GetEdgeName(const Edge *e) const 
   if (e == nullptr || e->src() == nullptr || e->dst() == nullptr) {
     return "invalid_edge";
   }
-  return CatStr("Edge_from_", e->src()->name(), "_out", e->src_output(), "_To_", e->dst()->name(), "_in",
-                e->dst_input());
+  return npu::CatStr("Edge_from_", e->src()->name(), "_out", e->src_output(), "_To_", e->dst()->name(), "_in",
+                     e->dst_input());
 }
 
 inline std::string DpTfToGEConversionPassImpl::GetRandomName(const std::string &prefix) const {
-  return CatStr(prefix, "_", GetRandomName());
+  return npu::CatStr(prefix, "_", GetRandomName());
 }
 
 std::string DpTfToGEConversionPassImpl::GetRandomName() const {
@@ -326,7 +328,7 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
       REQUIRES_NOT_NULL(e);
       if (!IsIteratorNode(e->src())) {
         last_edge = e;
-        ADP_LOG(INFO) << CatStr("last edge", GetEdgeName(last_edge));
+        ADP_LOG(INFO) << npu::CatStr("last edge", GetEdgeName(last_edge));
       }
     }
   }
@@ -342,15 +344,16 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
       }
       // GE supported node, continue find
       if (kIsHeterogeneous) {
-        if (!IsIteratorNode(e->src()))
+        if (!IsIteratorNode(e->src())) {
           split_edges.push_back(last_edge);
+        }
       } else if (IsDeviceSupportedOp(e->src()->def())) {
         Status s = GetSplitEdges(e->src(), split_edges, last_edge);
         if (!s.ok()) {
           return s;
         }
       } else {  // GE unsupported node, this is a split edge
-        ADP_LOG(INFO) << CatStr("Split_", GetEdgeName(e));
+        ADP_LOG(INFO) << npu::CatStr("Split_", GetEdgeName(e));
         ADP_LOG(INFO) << "Begin check split edge.";
         if (IsSkipDataset(e->dst())) {
           ADP_LOG(INFO) << "ADD last edge " << GetEdgeName(last_edge);
@@ -367,7 +370,7 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
 
 Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
                                                       std::string &device_queue_name,
-                                                      std::map<std::string, std::string> &all_options) const {
+                                                      const std::map<std::string, std::string> &all_options) const {
   ADP_LOG(INFO) << "Start to insert HostQueueDataset and DeviceQueueDataset.";
   REQUIRES_NOT_NULL(topo_end);
   const Node *iterator_node = nullptr;
@@ -388,8 +391,8 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
       need_add_device_dataset = false;
     }
 
-    std::string local_rank_id = all_options["local_rank_id"];
-    std::string local_device_list = all_options["local_device_list"];
+    std::string local_rank_id = all_options.at("local_rank_id");
+    std::string local_device_list = all_options.at("local_device_list");
     std::string channel_name;
     if (local_rank_id == "-1") {
       REQUIRES_NOT_NULL(iterator_node);
@@ -399,7 +402,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
         channel_name = "Queue_" + GetEdgeName(e) + "_" + GetRandomName();
       }
     } else {
-      channel_name = CatStr(e->src()->name(), "_index_", std::to_string(g_channel_index));
+      channel_name = npu::CatStr(e->src()->name(), "_index_", std::to_string(g_channel_index));
       g_channel_index += 1;
     }
     host_queue_name = "HostQueue_" + channel_name;
@@ -553,7 +556,7 @@ void DpTfToGEConversionPassImpl::GetTopoEndsNodes(std::vector<Node *> &topo_ends
 
 Status DpTfToGEConversionPassImpl::AddDataTransDatasets(Node *topo_end, std::string &host_channel_name,
                                                         std::string &device_channel_name,
-                                                        std::map<std::string, std::string> &all_options) {
+                                                        const std::map<std::string, std::string> &all_options) {
   const Edge *tmp_edge = nullptr;
   Status ret = GetSplitEdges(topo_end, split_edges_[topo_end], tmp_edge);
   if (!ret.ok()) {
@@ -659,10 +662,10 @@ Status DpTfToGEConversionPassImpl::AddGeopNodeFunctionDef(FunctionDefLibrary &fd
   return Status::OK();
 }
 
-Status DpTfToGEConversionPassImpl::AddGeopDatasetFunctionDef(FunctionDefLibrary &fdeflib, const std::string &fn_geop,
-                                                             const std::string &fn_geop_dataset,
-                                                             const string &default_device,
-                                                             std::map<std::string, std::string> &all_options) const {
+Status
+DpTfToGEConversionPassImpl::AddGeopDatasetFunctionDef(FunctionDefLibrary &fdeflib, const std::string &fn_geop,
+                                                      const std::string &fn_geop_dataset, const string &default_device,
+                                                      const std::map<std::string, std::string> &all_options) const {
   // GEOP node should created by function of geopDataset
   ADP_LOG(INFO) << "Start to convert geop node to geopdataset function";
   FunctionDef *fd = fdeflib.add_function();
@@ -693,10 +696,10 @@ Status DpTfToGEConversionPassImpl::AddGeopDatasetFunctionDef(FunctionDefLibrary 
   return Status::OK();
 }
 
-Status DpTfToGEConversionPassImpl::BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, Graph *device_graph,
-                                                            const std::string &fn_geop_dataset,
-                                                            const string &default_device,
-                                                            std::map<std::string, std::string> &all_options) {
+Status
+DpTfToGEConversionPassImpl::BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, Graph *device_graph,
+                                                     const std::string &fn_geop_dataset, const string &default_device,
+                                                     const std::map<std::string, std::string> &all_options) const {
   // Convert GE graph to GEOP function body
   Status ret;
   std::string fn_dpop = GetRandomName("dpop_function");
@@ -721,10 +724,9 @@ Status DpTfToGEConversionPassImpl::BuildGeOpDatasetFunction(FunctionDefLibrary &
   return ret;
 }
 
-Status DpTfToGEConversionPassImpl::AddGeOpDatasetFunctionLibrary(FunctionLibraryDefinition *flib, Node *topo_end,
-                                                                 const std::string &device_channel_name,
-                                                                 const std::string &fn_geop_dataset,
-                                                                 std::map<std::string, std::string> &all_options) {
+Status DpTfToGEConversionPassImpl::AddGeOpDatasetFunctionLibrary(
+    FunctionLibraryDefinition *flib, Node *topo_end, const std::string &device_channel_name,
+    const std::string &fn_geop_dataset, const std::map<std::string, std::string> &all_options) {
   FunctionDefLibrary fdeflib;
   if (device_channel_name.empty()) {
     // GEOP node should created by function of geopDataset
@@ -781,7 +783,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetFunctionLibrary(FunctionLibrary
 Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *topo_end,
                                                                    const std::string &fn_geop_dataset,
                                                                    const std::string &host_channel_name,
-                                                                   const std::string &device_channel_name) {
+                                                                   const std::string &device_channel_name) const {
   // Add GEOPDataset node to graph_
   std::vector<const Edge *> topo_end_input_edges(topo_end->in_edges().begin(), topo_end->in_edges().end());
 
@@ -871,7 +873,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
 }
 
 bool DpTfToGEConversionPassImpl::RunPass(const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
-                                         std::map<std::string, std::string> &all_options) {
+                                         const std::map<std::string, std::string> &all_options) {
   ADP_LOG(INFO) << ">>>> DpTfToGEConversionPassImpl::RunPass <<<<";
   // Convert just for convenient access
   split_edges_.clear();
@@ -1065,7 +1067,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
     return Status::OK();
   }
   auto process_graph = [this](std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
-                              std::map<std::string, std::string> &all_options) { RunPass(g, flib, all_options); };
+                              const std::map<std::string, std::string> &all_options) { RunPass(g, flib, all_options); };
 
   // For any pre-partitioning phase, graph is stored in options.graph.
   process_graph(graph, func_lib, all_options);
