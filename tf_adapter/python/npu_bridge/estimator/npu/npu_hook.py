@@ -197,6 +197,7 @@ class _OpQueueContext:
         self._thread.start()
 
     def stop(self):
+        """Stop work queue"""
         self._queue.put(_SIGNAL.STOP)
 
 
@@ -359,7 +360,7 @@ class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):
     def end(self, session):
         """Call at the end of session hook"""
         logging.info("NPUOutputTensorHook end...")
-        if self._output_list is not None and len(self._output_list):
+        if self._output_list is not None and self._output_list:
             self._call_output_fn()
 
     def _stash_outputs(self, tensor_values):

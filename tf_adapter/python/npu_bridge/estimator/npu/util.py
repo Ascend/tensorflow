@@ -375,8 +375,8 @@ class GradDivisionItem():
         grad_shape = self.grad.shape
         if len(grad_shape) <= 0:
             return 0
-        for i in range(len(grad_shape)):
-            size = size * int(grad_shape[i])
+        for s in grad_shape:
+            size = size * int(s)
         size = size * self.grad.dtype.size
         return size
 

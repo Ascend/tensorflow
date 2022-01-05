@@ -41,7 +41,7 @@ def conver():
     report_xlsx = os.path.join(report_dir, 'api_analysis_report.xlsx')
     util_global.set_value('generate_dir_report', pd.DataFrame())
 
-    for path, dir_list, file_list in conver_path:
+    for path, _, file_list in conver_path:
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(util_global.get_value('input'))[1])
             file_path = os.path.join(path, file_name).replace('\\', '/')

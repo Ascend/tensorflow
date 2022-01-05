@@ -101,8 +101,8 @@ class GroupingVars():
             var_shape = self.var.shape
             if len(var_shape) <= 0:
                 return 0
-            for i in range(len(var_shape)):
-                size = size * int(var_shape[i])
+            for s in var_shape:
+                size = size * int(s)
             size = size * self.var.dtype.size
             return size
 
@@ -138,8 +138,7 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     apply_res = apply_func(local_grads_and_vars, *args, **kwargs)
     with ops.get_default_graph()._attr_scope(
             {"_weight_update_grouping": attr_value_pb2.AttrValue(b=True)}):
-        for i in range(len(variables)):
-            var = variables[i]
+        for var in variables:
             rank_id = grouping_vars.get_gid_by_var(var)
             hccl.broadcast([var], rank_id, 0)
     for grad, var in grads_and_vars:

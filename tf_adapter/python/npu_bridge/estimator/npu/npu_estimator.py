@@ -381,7 +381,7 @@ class NPUEstimator(estimator_lib.Estimator):
                                        '`NPUEstimatorSpec` or `EstimatorSpec`. Got {}'.format(type(estimator_spec)))
                 # 1. NPUBroadcastGlobalVariablesHook
                 rank_size = os.getenv('RANK_SIZE')
-                if rank_size != None and rank_size.isdigit() and int(rank_size) > 1 and not config.horovod_mode:
+                if rank_size is not None and rank_size.isdigit() and int(rank_size) > 1 and not config.horovod_mode:
                     npu_hooks.append(
                         NPUBroadcastGlobalVariablesHook(self.__device_info._root_rank, self.__device_info._index))
 

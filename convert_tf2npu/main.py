@@ -84,7 +84,7 @@ def para_check_and_set(argv):
     distributed_mode = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hi:l:o:r:m:d:",
+        opts, _ = getopt.getopt(argv, "hi:l:o:r:m:d:",
                                    ["help", "input=", "list=", "output=", "report=", "main=", "distributed_mode"])
     except getopt.GetoptError:
         print('Parameter error, please check.')
