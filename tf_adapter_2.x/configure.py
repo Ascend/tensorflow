@@ -68,7 +68,6 @@ def setup_python(env_path):
             custom_python_bin_path = None
         if not python_bin_path:
             python_bin_path = default_python_bin_path
-            pass
         # Check if the path is valid
         if os.path.isfile(python_bin_path) and os.access(python_bin_path, os.X_OK):
             pass

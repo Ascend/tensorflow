@@ -24,7 +24,6 @@ from npu_bridge.estimator.npu.npu_config import DumpConfig
 from npu_bridge.estimator.npu.npu_config import DynamicInputConfig
 from npu_bridge.estimator.npu.npu_estimator import NPUEstimator
 from npu_bridge.estimator.npu.npu_estimator import NPUEstimatorSpec
-from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
 from npu_bridge.estimator.npu.npu_hook import NPUCheckpointSaverHook
 from npu_bridge.estimator.npu.npu_hook import NPUOutputTensorHook
 from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook
@@ -40,7 +39,6 @@ from npu_bridge.estimator.npu.npu_callbacks import NPUBroadcastGlobalVariablesCa
 from npu_bridge.estimator import npu_ops
 from npu_bridge.estimator.npu import npu_rnn
 from npu_bridge.estimator.npu import npu_scope
-from npu_bridge.estimator.npu import util
 from npu_bridge.estimator.npu import keras_to_npu
 from npu_bridge.estimator.npu import npu_strategy
 from npu_bridge.estimator.npu import util

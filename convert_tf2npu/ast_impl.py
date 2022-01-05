@@ -756,8 +756,8 @@ def insert_keras_sess_close(r_node):
     r_node.body.append(close_sess_call)
 
 
-# Format printing for locate
 def node_tree(node: str):
+    """Format printing for locate"""
     str2list = list(node.replace(' ', ''))
     count = 0
     for i, e in enumerate(str2list):
