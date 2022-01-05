@@ -44,8 +44,6 @@
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/errors.h"
 #include "tensorflow/core/platform/status.h"
-#include "tensorflow/core/protobuf/error_codes.pb.h"
-#include "tensorflow/core/public/version.h"
 #include "tensorflow/core/util/device_name_utils.h"
 #include "tensorflow/core/util/env_var.h"
 
