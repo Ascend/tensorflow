@@ -17,9 +17,11 @@
 #ifndef TENSORFLOW_KERNELS_GEOP_NPU_H_
 #define TENSORFLOW_KERNELS_GEOP_NPU_H_
 
+#include <unordered_map>
+#include <atomic>
+
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/util/env_var.h"
 
@@ -27,9 +29,6 @@
 #include "ge/ge_api_types.h"
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
-#include <unordered_map>
-#include <atomic>
-#include "external/graph/ascend_string.h"
 #include "aoe_tuning_api.h"
 
 namespace tensorflow {
@@ -47,7 +46,7 @@ using AoeTuningGraphFunc = Aoe::AoeStatus (*)(SessionId , const std::map<Aoe::As
 class GeOp : public AsyncOpKernel {
  public:
   explicit GeOp(OpKernelConstruction *ctx);
-  ~GeOp();
+  ~GeOp() override;
   void ComputeAsync(OpKernelContext *ctx, DoneCallback done) override;
 
  private:
@@ -112,9 +111,9 @@ class GeOp : public AsyncOpKernel {
 
   void SetDynamicInput();
 
-  void ProcessDpOpFuncDef(Node *node) const;
+  void ProcessDpOpFuncDef(const Node &node) const;
 
-  void BuildQueueDataAndGetNextFromQueue(Graph &graph, const Node *const getnext_node,
+  void BuildQueueDataAndGetNextFromQueue(Graph &graph, const Node &getnext_node,
                                          const std::string &channel_name) const;
 
   void HandleDpOpAndGetNextNodes(Graph &graph);
