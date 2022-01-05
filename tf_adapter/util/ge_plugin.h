@@ -20,7 +20,6 @@
 #include <mutex>
 #include <string>
 #include "tensorflow/core/platform/types.h"
-using tensorflow::int64;
 
 // Singleton class for manage the relationship between
 // tf session and ge session

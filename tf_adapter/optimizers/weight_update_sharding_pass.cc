@@ -99,9 +99,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
           }
         }
         std::vector<const Edge *> out_edges;
-        for (auto edge : node->out_edges()) {
-          out_edges.push_back(edge);
-        }
+        std::copy(node->out_edges().begin(), node->out_edges().end(), std::back_inserter(out_edges));
         for (auto out_edge : out_edges) {
           REQUIRES_NOT_NULL(out_edge);
           REQUIRES_NOT_NULL(out_edge->src());

@@ -17,8 +17,8 @@
 #ifndef TENSORFLOW_PLUGIN_LOAD_MANAGER_H_
 #define TENSORFLOW_PLUGIN_LOAD_MANAGER_H_
 
-#include "tensorflow/core/lib/core/status.h"
 #include <string>
+#include "tensorflow/core/lib/core/status.h"
 
 namespace tensorflow {
 class PluginLoadManager {
