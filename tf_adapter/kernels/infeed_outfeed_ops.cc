@@ -80,12 +80,10 @@ class OutfeedDequeueOp : public OpKernel {
         ADP_LOG(ERROR) << ret.error_message();
       }
     });
-
     if (TF_PREDICT_FALSE(already_cancelled)) {
       ctx->SetStatus(errors::Internal("out-feed op ", channel_name_, " called after cancelled."));
       return;
     }
-
     std::vector<Tensor> tensors;
     ADP_LOG(INFO) << "Start recv tensors by acl out-feed dequeue op " << channel_name_;
     auto status = RecvTensorByAcl(acl_handle_, tensors);
