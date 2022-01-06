@@ -16,7 +16,7 @@
 
 """Basic configration for setting up NPU device"""
 
-from setuptools import setup, Extension
+from setuptools import setup
 from setuptools import find_packages
 
 setup(name='npu_device',

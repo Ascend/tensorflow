@@ -62,7 +62,6 @@
 #include "tensorflow/core/framework/rendezvous.h"
 #include "tensorflow/core/framework/tensor_shape.pb.h"
 #include "tensorflow/core/framework/types.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/lib/gtl/flatmap.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/platform/blocking_counter.h"
@@ -84,35 +83,27 @@
 #include "acl/acl_base.h"
 #include "graph/types.h"
 
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a) {
-  return StrCat(a);
-}
+namespace npu {
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a) { return StrCat(a); }
 
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b) {
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b) {
   return StrCat(a, b);
 }
 
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b,
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
                           const tensorflow::strings::AlphaNum &c) {
   return StrCat(a, b, c);
 }
 
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b,
-                          const tensorflow::strings::AlphaNum &c,
-                          const tensorflow::strings::AlphaNum &d) {
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c, const tensorflow::strings::AlphaNum &d) {
   return StrCat(a, b, c, d);
 }
 
 template <typename... AV>
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b,
-                          const tensorflow::strings::AlphaNum &c,
-                          const tensorflow::strings::AlphaNum &d,
-                          const tensorflow::strings::AlphaNum &e,
-                          const AV &... args) {
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c, const tensorflow::strings::AlphaNum &d,
+                          const tensorflow::strings::AlphaNum &e, const AV &... args) {
   return StrCat(a, b, c, d, e, args...);
 }
 
@@ -167,7 +158,6 @@ std::string WrapResourceName(const std::string &name);
  */
 tensorflow::Status LoadGraphDefProto(const std::string &file, tensorflow::GraphDef *def);
 
-namespace npu {
 class ScopeTensorHandleDeleter {
  public:
   ScopeTensorHandleDeleter() = default;

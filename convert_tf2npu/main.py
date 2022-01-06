@@ -21,7 +21,6 @@ import os
 import sys
 import getopt
 import util_global
-from file_op import before_clear
 from conver import conver
 
 
@@ -85,7 +84,7 @@ def para_check_and_set(argv):
     distributed_mode = ""
 
     try:
-        opts, args = getopt.getopt(argv, "hi:l:o:r:m:d:",
+        opts, _ = getopt.getopt(argv, "hi:l:o:r:m:d:",
                                    ["help", "input=", "list=", "output=", "report=", "main=", "distributed_mode"])
     except getopt.GetoptError:
         print('Parameter error, please check.')

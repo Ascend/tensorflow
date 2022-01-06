@@ -17,10 +17,10 @@
 #ifndef TENSORFLOW_COMMON_COMMON_H_
 #define TENSORFLOW_COMMON_COMMON_H_
 
+#include <string>
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/env.h"
 #include "tf_adapter/common/adp_logger.h"
-#include <string>
 
 #define CHECK_NOT_NULL(v)                                                                                              \
   if ((v) == nullptr) {                                                                                                \
@@ -41,7 +41,9 @@
     return (s);                                                                                                        \
   }
 
+namespace npu {
 constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;
+}  // namespace npu
 
 #define ADAPTER_LOG_IF_ERROR(...)                                                                                      \
   do {                                                                                                                 \
@@ -50,36 +52,31 @@ constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;
       LOG(INFO) << status.ToString();                                                                                  \
   } while (0)
 
+namespace npu {
 inline std::string CatStr(const tensorflow::strings::AlphaNum &a) {
   return StrCat(a);
 }
 
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b) {
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b) {
   return StrCat(a, b);
 }
 
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b,
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
                           const tensorflow::strings::AlphaNum &c) {
   return StrCat(a, b, c);
 }
 
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b,
-                          const tensorflow::strings::AlphaNum &c,
-                          const tensorflow::strings::AlphaNum &d) {
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c, const tensorflow::strings::AlphaNum &d) {
   return StrCat(a, b, c, d);
 }
 
-template <typename... AV>
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a,
-                          const tensorflow::strings::AlphaNum &b,
-                          const tensorflow::strings::AlphaNum &c,
-                          const tensorflow::strings::AlphaNum &d,
-                          const tensorflow::strings::AlphaNum &e,
-                          const AV &... args) {
+template<typename... AV>
+inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
+                          const tensorflow::strings::AlphaNum &c, const tensorflow::strings::AlphaNum &d,
+                          const tensorflow::strings::AlphaNum &e, const AV &... args) {
   return StrCat(a, b, c, d, e, args...);
 }
+}  // namespace npu
 
 #endif  // TENSORFLOW_COMMON_COMMON_H_

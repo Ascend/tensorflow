@@ -53,6 +53,7 @@ const std::string ATTR_NAME_FRAMEWORK_FUNC_DEF = "func_def";
 const std::string ATTR_NAME_SHARED_NAME = "shared_name";
 const std::string ATTR_VALUE_SHARED_NAME = "iterator_default";
 const std::string ATTR_VALUE_SCOPE_NAME = "_without_npu_compile";
+const std::string ATTR_NAME_OP_MAX_SIZE = "_op_max_size";
 const int MAX_GROUP_SIZE = 100000;
 const uint32_t MIN_CLUSTER_SIZE = 2;
 std::atomic<bool> compile_mode(false);
@@ -77,7 +78,7 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
       REQUIRES_NOT_NULL(argdef);
       argdef->set_type(type);
       argdef->set_name(node->name());
-      tensorRenaming[CatStr(node->name(), ":0")] = node->name();
+      tensorRenaming[npu::CatStr(node->name(), ":0")] = node->name();
       continue;
     }
 
@@ -93,7 +94,7 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
       argdef->set_name(node->name());
       const Edge *edge = nullptr;
       TF_CHECK_OK(node->input_edge(0, &edge));
-      returnValues[node->name()] = CatStr(edge->src()->name(), ":", edge->src_output());
+      returnValues[node->name()] = npu::CatStr(edge->src()->name(), ":", edge->src_output());
       continue;
     }
 
@@ -129,14 +130,14 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
     for (auto edge : inEdges) {
       REQUIRES_NOT_NULL(edge);
       REQUIRES_NOT_NULL(edge->src());
-      nodeDef->add_input(CatStr(edge->src()->name(), ":", edge->src_output()));
+      nodeDef->add_input(npu::CatStr(edge->src()->name(), ":", edge->src_output()));
     }
 
     // Add control inputs
     for (const Edge *edge : ctrlEdges) {
       REQUIRES_NOT_NULL(edge);
       REQUIRES_NOT_NULL(edge->src());
-      nodeDef->add_input(CatStr("^", edge->src()->name()));
+      nodeDef->add_input(npu::CatStr("^", edge->src()->name()));
     }
 
     // Populate tensorRenaming.
@@ -144,8 +145,8 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
     TF_RETURN_IF_ERROR(NameRangesForNode(*node, node->op_def(), nullptr, &outputRanges));
     for (const auto &output : outputRanges) {
       for (int i = output.second.first; i < output.second.second; ++i) {
-        const string tensorName = CatStr(nodeDef->name(), ":", output.first, ":", i - output.second.first);
-        tensorRenaming[CatStr(node->name(), ":", i)] = tensorName;
+        const string tensorName = npu::CatStr(nodeDef->name(), ":", output.first, ":", i - output.second.first);
+        tensorRenaming[npu::CatStr(node->name(), ":", i)] = tensorName;
       }
     }
   }
@@ -168,7 +169,7 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
           return errors::InvalidArgument("Could not remap control input ", i, ", '", nodeDef->input(i), "', of node '",
                                          nodeDef->name(), "' in function ", name);
         }
-        *nodeDef->mutable_input(i) = CatStr("^", inputCtrlName);
+        *nodeDef->mutable_input(i) = npu::CatStr("^", inputCtrlName);
       } else {
         const auto iter = tensorRenaming.find(nodeDef->input(i));
         if (iter == tensorRenaming.end()) {
@@ -517,9 +518,8 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
   return Status::OK();
 }
 
-Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates, 
-                                const FunctionLibraryDefinition *func_lib, bool enableDP,
-                                bool mix_compile_mode) {
+Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
+                                const FunctionLibraryDefinition *func_lib, bool enableDP, bool mix_compile_mode) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   compile_mode = mix_compile_mode;
   std::vector<Node *> sortedNodes;
@@ -650,7 +650,9 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
                         << node->name() << " REF input.";
           continue;
         }
-        if (dtypeDst == DT_STRING || dtypeDst == DT_RESOURCE) {
+        if ((dtypeDst == DT_STRING) || (dtypeDst == DT_RESOURCE)) {
+          const AttrValue *attr_value = edge->dst()->attrs().Find(ATTR_NAME_OP_MAX_SIZE);
+          if (attr_value != nullptr) { continue; }
           if (edge->dst()->type_string() == "Assert") { continue; }
           if (node->type_string() == "Const") { continue; }
           if (candidates->erase(edge->dst()) > 0) { outSet.insert(edge->dst()); }
@@ -670,7 +672,12 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
                         << node->name() << " REF Output.";
           continue;
         }
-        if (dtypeDst == DT_STRING || dtypeDst == DT_RESOURCE) {
+        if ((dtypeDst == DT_STRING) || (dtypeDst == DT_RESOURCE)) {
+          const AttrValue *attr_value = node->attrs().Find(ATTR_NAME_OP_MAX_SIZE);
+          if (attr_value != nullptr) {
+            ADP_LOG(INFO) << "Node : " << node->name() << " add to candidates, because of had max size.";
+            continue; 
+          }
           if (candidates->erase(edge->src()) > 0) { outSet.insert(edge->src()); }
         }
       }
@@ -992,8 +999,8 @@ Status MarkForPartition(std::unique_ptr<Graph> *graph_in, int &clusterNum, bool 
     clusterSet.insert(cluster->index);
     string op_prefix = "GeOp";
 
-    string name = CatStr(string(op_prefix), std::to_string(graph_num), string("_"),
-                         std::to_string(clusterSequenceNum++));
+    string name = npu::CatStr(string(op_prefix), std::to_string(graph_num), string("_"),
+                              std::to_string(clusterSequenceNum++));
     clusterInfo[cluster->index] = std::make_pair(name, cluster->nodes.size());
     for (auto node : cluster->nodes) {
       if (!NodeIsCandidateForClustering(node, &npuSupportCandidates)) {
@@ -1162,7 +1169,7 @@ Node *AddIdentityNode(Graph *graph, const Edge *edge, const string &srcName, int
   // edge is not nullptr
   if (edge->src() == nullptr) { return nullptr; }
   NodeDef identityDef;
-  NodeDefBuilder builder(CatStr(edge->src()->name(), "_dummyIdentity"), "Identity");
+  NodeDefBuilder builder(npu::CatStr(edge->src()->name(), "_dummyIdentity"), "Identity");
   DataType dtype = BaseType(edge->src()->output_type(edge->src_output()));
   builder.Attr("T", dtype);
   builder.Input(srcName, srcIndex, dtype);
@@ -1440,7 +1447,7 @@ Status OMSplitter::Subgraph::RecordArg(const Edge *edge, const std::unordered_ma
   int argIndex = iter->second;
   if (inserted) {
     NodeDef argNodeDef;
-    NodeDefBuilder builder(CatStr(srcNode->name(), "_", srcSlot, "_arg"), ARG_OP);
+    NodeDefBuilder builder(npu::CatStr(srcNode->name(), "_", srcSlot, "_arg"), ARG_OP);
     DataType dtype = edge->dst()->input_type(edge->dst_input());
     builder.Attr("T", dtype);
     builder.Attr("index", argIndex);
@@ -1477,7 +1484,7 @@ Status OMSplitter::Subgraph::RecordResult(const Edge *edge,
   int retIndex = iter->second;
   if (inserted) {
     NodeDef retNodeDef;
-    NodeDefBuilder builder(CatStr(srcNode->name(), "_", srcSlot, "_retval"), RET_OP);
+    NodeDefBuilder builder(npu::CatStr(srcNode->name(), "_", srcSlot, "_retval"), RET_OP);
     DataType dtype = BaseType(srcNode->output_type(srcSlot));
     builder.Attr("T", dtype);
     builder.Attr("index", retIndex);
@@ -1648,7 +1655,7 @@ Status OMSplitter::CopySubgraphEdges(const std::unordered_map<const Node *, Node
                                          edge->src()->name(), ":", edge->src_output(), ", dst is ",
                                          edge->dst()->name());
         }
-        TF_RETURN_IF_ERROR(subgraphs_[srcSubgraphId].RecordResult(edge, nodeImages)); 
+        TF_RETURN_IF_ERROR(subgraphs_[srcSubgraphId].RecordResult(edge, nodeImages));
       }
     }
 

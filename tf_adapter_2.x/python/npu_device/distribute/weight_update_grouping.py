@@ -16,14 +16,12 @@
 
 """Common depends and micro defines for and only for data preprocess module"""
 
-import os
+from absl import logging
 import tensorflow as tf
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops
 from npu_device.distribute import hccl
 from npu_device.npu_device import npu_compat_function
-from absl import logging
-
 from npu_device.npu_device import global_npu_ctx
 
 
@@ -40,7 +38,7 @@ class GroupingVars():
     def _fair_division(self, number):
         if number > len(self._vars) or number < 0:
             raise ValueError("'number' is greater than the number of vars or 'number' is less than 0. ")
-        elif number == len(self._vars):
+        if number == len(self._vars):
             for i in range(len(self._vars)):
                 self._vars[i].root_rank_id = i
             return
@@ -103,8 +101,8 @@ class GroupingVars():
             var_shape = self.var.shape
             if len(var_shape) <= 0:
                 return 0
-            for i in range(len(var_shape)):
-                size = size * int(var_shape[i])
+            for s in var_shape:
+                size = size * int(s)
             size = size * self.var.dtype.size
             return size
 
@@ -140,8 +138,7 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     apply_res = apply_func(local_grads_and_vars, *args, **kwargs)
     with ops.get_default_graph()._attr_scope(
             {"_weight_update_grouping": attr_value_pb2.AttrValue(b=True)}):
-        for i in range(len(variables)):
-            var = variables[i]
+        for var in variables:
             rank_id = grouping_vars.get_gid_by_var(var)
             hccl.broadcast([var], rank_id, 0)
     for grad, var in grads_and_vars:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2021. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_OM_SET_VAR_FORMAT_PASS_H_
-#define TENSORFLOW_OM_SET_VAR_FORMAT_PASS_H_
+#ifndef TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
+#define TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
 
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/framework/function.h"
@@ -23,12 +23,13 @@
 #include "tensorflow/core/lib/core/status.h"
 
 namespace tensorflow {
-class SetVarFormatPass : public GraphOptimizationPass {
- public:
+class SetVarMaxSizePass : public GraphOptimizationPass {
+public:
+  SetVarMaxSizePass() = default;
+  ~SetVarMaxSizePass() override = default;
   Status Run(const GraphOptimizationPassOptions &options) override;
-  Status AssignFormatToVarOutNodes(Node *node) const;
-  Status GetFormat(const Node *node, string &format) const;
-  Status AssignApplyMomentumInNodesFormat(const Node *node, const string &var_format) const;
+  Status AssignMaxSizeToVarOutNodes(Node *node);
+  Status SetMaxSizeListNodes(Node *node);
 };
 }  // namespace tensorflow
-#endif  // TENSORFLOW_OM_SET_VAR_FORMAT_PASS_H_
+#endif  // TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
