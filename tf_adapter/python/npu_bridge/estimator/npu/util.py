@@ -532,7 +532,9 @@ def set_op_input_tensor_multi_dims(tensor, input_shape, input_dims):
                             attr_value_pb2.AttrValue(s=compat.as_bytes(input_shape)))
         tensor.op._set_attr("_subgraph_multi_dims_input_dims", attr_value_pb2.AttrValue(s=compat.as_bytes(input_dims)))
 
+
 def set_op_tensor_max_size(tensor, max_size):
+    """Set max size of op tensor"""
     if isinstance(tensor, ops.Operation):
         tensor._set_attr("_op_max_size", attr_value_pb2.AttrValue(i=max_size))
     else:
