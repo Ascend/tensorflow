@@ -1404,8 +1404,9 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
   ADP_LOG(INFO) << "[GEOP] Start analyze input tensor.";
   NpuGetNextOutputInfo *output_info = static_cast<NpuGetNextOutputInfo *>(tensor_ptr);
   std::vector<int64> tmp_dims;
-  std::transform(output_info->dims_.begin(), output_info->dims_.end(), std::back_inserter(tmp_dims),
-                 [](const int64_t dim) { return dim; });
+  for (int64_t dim : output_info->dims_) {
+    tmp_dims.push_back(dim);
+  }
   TensorShape input_shape(tmp_dims);
   input_shapes.push_back(input_shape.DebugString());
 
@@ -1485,8 +1486,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
     } else {
       std::vector<int64_t> dims;
       std::string input_shape = tensor.shape().DebugString();
-      std::transform(tensor.shape().dim_sizes().begin(), tensor.shape().dim_sizes().end(), std::back_inserter(dims),
-                     [](const uint32_t dim) { return static_cast<int64_t>(dim); });
+      for (uint32_t dim : tensor.shape().dim_sizes()) { dims.push_back(static_cast<int64_t>(dim)); }
       ge::Shape ge_shape(dims);
       ge::TensorDesc ge_tensor_desc(ge_shape);
       ge_tensor_desc.SetDataType(type);
