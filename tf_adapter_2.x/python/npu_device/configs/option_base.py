@@ -16,6 +16,7 @@
 
 """NPU basic configurations"""
 
+
 class OptionValue:
     """Options for setting npu basic configurations"""
     def __init__(self, default, optional):
