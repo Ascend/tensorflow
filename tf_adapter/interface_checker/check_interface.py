@@ -509,7 +509,7 @@ def compare_file_spec(spec1: FileSpec, spec2: FileSpec):
                 print("[EEEE] compare var: \"%s\" in interface define: \"%s\" not in source file：\"%s\" " \
                       % (name, spec1.spec_file_name, spec1.source_file_name))
                 compare_matched = False
-            elif not compare_global_var_spec(global_var_list_1[name1], global_var_list_2[name2], spec1.spec_file_name,
+            elif not compare_global_var_spec(global_var_list_1[name], global_var_list_2[name], spec1.spec_file_name,
                                              spec1.source_file_name):
                 compare_matched = False
         return compare_matched
