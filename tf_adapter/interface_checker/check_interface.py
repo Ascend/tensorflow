@@ -146,8 +146,8 @@ def get_tree_idx_2(str_info: str):
     """
     按照2个空格来计算
     """
-    TAB_STR = "  "
-    if str_info.startswith(TAB_STR):
+    tab_str = "  "
+    if str_info.startswith(tab_str):
         return 1 + get_tree_idx_2(str_info[2:])
     return 1
 
