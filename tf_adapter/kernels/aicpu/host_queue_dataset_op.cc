@@ -432,6 +432,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             } else {
               args = buffer_.front().value;
               buffer_.pop_front();
+              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_ << " buffer size: " << buffer_.size();
             }
           }
 
