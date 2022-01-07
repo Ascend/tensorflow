@@ -20,25 +20,6 @@ limitations under the License.
 #include "tensorflow/core/platform/mutex.h"
 
 namespace tensorflow {
-namespace {
-struct ItemInfo {
-  int32_t version;
-  int32_t data_type;
-  uint32_t cur_cnt;
-  uint32_t cnt;
-  int32_t tensor_type;
-  uint32_t dim_num;
-  char reserved[32];
-  uint64_t data_len;
-};
-
-struct DataItemInfo {
-  ItemInfo ctrl_info;
-  std::vector<int64_t> dims;
-  void *data_ptr;
-};
-}  // namespace
-
 Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &queue_id);
 
 Status MappingTensor2Buff(const acltdtTensorType &acl_type, const std::vector<tensorflow::Tensor> &tensors,

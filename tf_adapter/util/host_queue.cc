@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2022. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "tf_adapter/util/host_queue.h"
 
 #include <securec.h>
@@ -13,6 +28,23 @@
 
 namespace tensorflow {
 namespace {
+struct ItemInfo {
+  int32_t version;
+  int32_t data_type;
+  uint32_t cur_cnt;
+  uint32_t cnt;
+  int32_t tensor_type;
+  uint32_t dim_num;
+  char reserved[32];
+  uint64_t data_len;
+};
+
+struct DataItemInfo {
+  ItemInfo ctrl_info;
+  std::vector<int64_t> dims;
+  void *data_ptr;
+};
+
 const static uint32_t kMaxValue = 128U;
 const static uint32_t kMaxQueueDepth = 0x4fffffffU;
 
@@ -114,31 +146,30 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
 
   size_t offset = 0UL;
   for (size_t i = 0UL; i < cnt; ++i) {
-    auto ret = memcpy_s(ge::ValueToPtr(ge::PtrToValue(data) + offset), total_size - offset, 
-                        &items[i].ctrl_info, sizeof(ItemInfo));
+    // can not use memcpy_s here, data size may over 2G
+    // total_size is calculate by item info, could not overflow here
+    auto ret = memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &items[i].ctrl_info, sizeof(ItemInfo));
     if (ret != EOK) {
       (void)rtMbufFree(buff);
-      return errors::Internal("call memcpy_s failed, ret = ", ret, ", error = ", strerror(errno));
+      return errors::Internal("call memcpy failed, ret = ", ret, ", error = ", strerror(errno));
     }
     offset += sizeof(ItemInfo);
 
     for (size_t j = 0UL; j < items[i].ctrl_info.dim_num; ++j) {
-      ret = memcpy_s(ge::ValueToPtr(ge::PtrToValue(data) + offset), total_size - offset, 
-                     &(items[i].dims[j]), sizeof(int64_t));
+      ret = memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &(items[i].dims[j]), sizeof(int64_t));
       if (ret != EOK) {
         (void)rtMbufFree(buff);
-        return errors::Internal("call memcpy_s failed, ret = ", ret, ", error = ", strerror(errno));
+        return errors::Internal("call memcpy failed, ret = ", ret, ", error = ", strerror(errno));
       }
       offset += sizeof(int64_t);
     }
 
     if (items[i].ctrl_info.data_len == 0UL) { continue; }
 
-    ret = memcpy_s(ge::ValueToPtr(ge::PtrToValue(data) + offset), total_size - offset, 
-                   items[i].data_ptr, items[i].ctrl_info.data_len);
+    ret = memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), items[i].data_ptr, items[i].ctrl_info.data_len);
     if (ret != EOK) {
       (void)rtMbufFree(buff);
-      return errors::Internal("call memcpy_s failed, ret = ", ret, ", error = ", strerror(errno));
+      return errors::Internal("call memcpy failed, ret = ", ret, ", error = ", strerror(errno));
     }
     offset += items[i].ctrl_info.data_len;
   }
@@ -149,7 +180,6 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
 
 Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &queue_id) {
   TF_RETURN_IF_ERROR(CheckSymbols());
-  ADP_LOG(INFO) << "init ge";
   std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions();
   NpuAttrs::LogOptions(init_options);
   GePlugin::GetInstance()->Init(init_options, false);
