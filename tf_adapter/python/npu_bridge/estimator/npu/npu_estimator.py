@@ -704,7 +704,7 @@ class NPUEstimator(estimator_lib.Estimator):
         if config._soc_config is not None:
             custom_op.parameter_map["soc_config"].s = tf.compat.as_bytes(config._soc_config)
         if config._hccl_timeout is not None:
-            custom_op.parameter_map["hccl_timeout"].s = tf.compat.as_bytes(config._hccl_timeout)
+            custom_op.parameter_map["hccl_timeout"].i = config._hccl_timeout
         if config._op_wait_timeout is not None:
             custom_op.parameter_map["op_wait_timeout"].i = config._op_wait_timeout
         if config._op_execute_timeout is not None:
