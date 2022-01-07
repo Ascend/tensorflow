@@ -91,6 +91,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   ~HostQueueDatasetOp() override {
+    if (kIsHeterogeneous) {
+      HostQueueDestroy(queue_id_);
+    }
+
     if (tdt_release || (channel_type_ != ChannelType::TDT)) {
       return;
     }
@@ -128,10 +132,69 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       OP_REQUIRES_OK(ctx, GetDatasetFromVariantTensor(ctx->input(i), &input));
       inputs.push_back(input);
     }
-    *output = new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_, local_rank_id_,
-                                    local_device_list_, device_id_, tf_session_, channel_type_);
+    int64_t queue_depth = GetChannelDepth();
+    size_t channel_depth = std::min(static_cast<size_t>(queue_depth), kMaxDepth);
+    ADP_LOG(INFO) << "channel depth is " << channel_depth;
+    OP_REQUIRES(ctx, channel_depth > 0UL, errors::InvalidArgument("Current data size is unsupported."));
+    if (kIsHeterogeneous) {
+      CreateHostQueue(ctx, channel_depth);
+    }
+
+    *output =
+        new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_, local_rank_id_,
+                              local_device_list_, device_id_, tf_session_, channel_type_, channel_depth, queue_id_);
     OP_REQUIRES(ctx, *output != nullptr,
                 errors::InvalidArgument("Data process host queue dataset op: new dataset failed."));
+  }
+
+  int64_t GetTensorElementNum(size_t index) {
+    PartialTensorShape tensor_shape = output_shapes_[index];
+    int64_t element_num = 1LL;
+    for (int32_t i = 0; i < tensor_shape.dims(); i++) {
+      element_num *= tensor_shape.dim_size(i);
+    }
+    return element_num;
+  }
+
+  int64_t GetChannelDepth() {
+    size_t output_shape_size = output_shapes_.size();
+    size_t output_type_size = output_types_.size();
+    if (output_shape_size != output_type_size) {
+      ADP_LOG(ERROR) << "Output_shape_size " << output_shape_size << "is not equal to output_type_size"
+                     << output_type_size;
+      return -1LL;
+    }
+    int64_t total_size = 0LL;
+    for (size_t i = 0UL; i < output_shape_size; i++) {
+      DataType tensor_data = output_types_.at(i);
+      if (tensor_data == DT_STRING || (output_shapes_[i].unknown_rank())) {
+        ADP_LOG(INFO) << "Current tensor type is DT_STRING or output shape is unknown shape";
+        return kUnknownShapeDepth;
+      }
+      int64_t element_num = GetTensorElementNum(i);
+      total_size += (element_num * static_cast<int64_t>(DataTypeSize(output_types_.at(i))));
+    }
+    if (total_size <= 0LL) {
+      ADP_LOG(ERROR) << "Data size is <= 0, and current size is " << total_size;
+      return -1LL;
+    }
+    return (kMaxBytes / static_cast<int64_t>(total_size));
+  }
+
+  void CreateHostQueue(OpKernelContext *ctx, size_t channel_depth) {
+    std::hash<std::string> channel_name_dict;
+    std::string queue_name =
+        std::to_string(channel_name_dict(tf_session_ + channel_name_ + "_device_" + std::to_string(device_id_)));
+    if (queue_name_ == queue_name) {
+      ADP_LOG(INFO) << "The channel is already create.";
+      return;
+    }
+    ADP_LOG(INFO) << "channel name is " << queue_name;
+    ADP_LOG(INFO) << "channel name is " << channel_depth;
+    Status ret = HostQueueInit(queue_name, channel_depth, queue_id_);
+    OP_REQUIRES(ctx, ret == Status::OK(),
+                errors::InvalidArgument("Failed to create host queue."));
+    queue_name_ = queue_name;
   }
 
  private:
@@ -140,10 +203,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     Dataset(OpKernelContext *ctx, const std::vector<DatasetBase *> &inputs, const string &channelName,
             const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes, const int &local_rank_id,
             const std::vector<uint32_t> &local_device_list, const uint32_t &device_id, const string &tf_session,
-            const ChannelType &channel_type)
+            const ChannelType &channel_type, size_t channel_depth, uint32_t queue_id)
         : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName), output_types_(outputTypes),
           output_shapes_(outputShapes), tf_session_(tf_session), local_rank_id_(local_rank_id),
-          local_device_list_(local_device_list), device_id_(device_id), channel_type_(channel_type) {
+          local_device_list_(local_device_list), device_id_(device_id), channel_type_(channel_type),
+          channel_depth_(channel_depth), queue_id_(queue_id) {
       for (const auto &input : inputs_) { input->Ref(); }
     }
 
@@ -206,8 +270,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if (acl_status != ACL_ERROR_NONE) {
             ADP_LOG(ERROR) << "call acltdtDestroyChannel failed, ret=" << acl_status;
           }
-        } else {
-          HostQueueDestroy(queue_id_);
         }
         ADP_LOG(INFO) << "End to destroy queue";
       }
@@ -324,7 +386,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if (is_need_resend) {
             sleep(kSleepTime);
           }
-          status = HostQueueSendData(queue_id_, buff, is_need_resend);
+          status = HostQueueSendData(dataset()->queue_id_, buff, is_need_resend);
         } while (status.ok() && is_need_resend);
         return status;
       }
@@ -527,40 +589,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         return Status::OK();
       }
 
-      int64_t GetTensorElementNum(size_t index) {
-        PartialTensorShape tensor_shape = dataset()->output_shapes_[index];
-        int64_t element_num = 1LL;
-        for (int32_t i = 0; i < tensor_shape.dims(); i++) {
-          element_num *= tensor_shape.dim_size(i);
-        }
-        return element_num;
-      }
-
-      int64_t GetChannelDepth() {
-        size_t output_shape_size = dataset()->output_shapes_.size();
-        size_t output_type_size = dataset()->output_types_.size();
-        if (output_shape_size != output_type_size) {
-          ADP_LOG(ERROR) << "Output_shape_size " << output_shape_size << "is not equal to output_type_size"
-                         << output_type_size;
-          return -1LL;
-        }
-        int64_t total_size = 0LL;
-        for (size_t i = 0UL; i < output_shape_size; i++) {
-          DataType tensor_data = dataset()->output_types_.at(i);
-          if (tensor_data == DT_STRING || (dataset()->output_shapes_[i].unknown_rank())) {
-            ADP_LOG(INFO) << "Current tensor type is DT_STRING or output shape is unknown shape";
-            return kUnknownShapeDepth;
-          }
-          int64_t element_num = GetTensorElementNum(i);
-          total_size += (element_num * static_cast<int64_t>(DataTypeSize(dataset()->output_types_.at(i))));
-        }
-        if (total_size <= 0LL) {
-          ADP_LOG(ERROR) << "Data size is <= 0, and current size is " << total_size;
-          return -1LL;
-        }
-        return (kMaxBytes / static_cast<int64_t>(total_size));
-      }
-
       Status CreateChannel() {
         std::hash<std::string> channel_name_dict;
         auto acl_status = aclrtSetDevice(static_cast<int32_t>(dataset()->device_id_));
@@ -572,20 +600,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                                                   "_device_" +
                                                   std::to_string(dataset()->device_id_)));
         ADP_LOG(INFO) << "Channel name is " << channel_name;
-        size_t channel_depth = 0UL;
-        int64_t current_channel_depth = GetChannelDepth();
-        if (current_channel_depth <= 0LL) {
-          ADP_LOG(ERROR) << "Current data size is unsupported";
-          return errors::InvalidArgument("Current data size is unsupported");
-        }
-        channel_depth = std::min(static_cast<size_t>(current_channel_depth), kMaxDepth);
-        ADP_LOG(INFO) << "Channel depth is " << channel_depth;
 
-        if (dataset()->channel_type_ == ChannelType::HOST_QUEUE) {
-          return HostQueueInit(channel_name, channel_depth, queue_id_);
-        }
-
-        acl_handle_ = acltdtCreateChannelWithCapacity(dataset()->device_id_, channel_name.c_str(), channel_depth);
+        acl_handle_ =
+            acltdtCreateChannelWithCapacity(dataset()->device_id_, channel_name.c_str(), dataset()->channel_depth_);
         if (acl_handle_ == nullptr) {
           ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
           return errors::InvalidArgument("Call acltdtCreateChannelWithCapacity failed.");
@@ -683,6 +700,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     std::vector<uint32_t> local_device_list_;
     uint32_t device_id_;
     ChannelType channel_type_;
+    int64_t channel_depth_;
+    uint32_t queue_id_;
   };
   std::string channel_name_;
   DataTypeVector output_types_;
@@ -692,6 +711,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   std::vector<uint32_t> local_device_list_;
   uint32_t device_id_;
   ChannelType channel_type_;
+  uint32_t queue_id_;
+  std::string queue_name_;
 };
 
 REGISTER_KERNEL_BUILDER(Name("HostQueueDataset").Device(DEVICE_CPU), HostQueueDatasetOp);

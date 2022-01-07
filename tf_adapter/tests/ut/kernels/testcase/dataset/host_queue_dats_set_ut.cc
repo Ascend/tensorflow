@@ -204,7 +204,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext03) {
   TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
                                      &iterator_context));
   std::unique_ptr<IteratorBase> iterator;
-  EXPECT_TRUE(!host_queue_dataset->MakeIterator(iterator_context.get(),
+  EXPECT_TRUE(host_queue_dataset->MakeIterator(iterator_context.get(),
                                                 "Iterator", &iterator).ok());
 }
 
@@ -255,7 +255,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext04) {
   TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
                                      &iterator_context));
   std::unique_ptr<IteratorBase> iterator;
-  EXPECT_TRUE(!host_queue_dataset->MakeIterator(iterator_context.get(),
+  EXPECT_TRUE(host_queue_dataset->MakeIterator(iterator_context.get(),
                                                 "Iterator", &iterator).ok());
 }
 
@@ -479,8 +479,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext_host_queue) {
   bool end_of_sequence = false;
   std::vector<Tensor> out_tensors;
   sleep(2);
-  TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
-                                 &end_of_sequence));
+  TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors, &end_of_sequence));
   *const_cast<bool *>(&kIsHeterogeneous) = false;
 }
 
