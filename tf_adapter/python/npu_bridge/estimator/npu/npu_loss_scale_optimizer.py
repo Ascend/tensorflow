@@ -88,3 +88,6 @@ class NPULossScaleOptimizer(lso.LossScaleOptimizer):
                 issubclass(type(self._loss_scale_manager), FixedLossScaleManager):
             return self._loss_scale_manager.get_enable_overflow_check()
         return True
+
+    def __getattr__(self, attr):
+        return getattr(self._opt, attr)
