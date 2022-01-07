@@ -24,12 +24,12 @@
 
 namespace tensorflow {
 class SetVarMaxSizePass : public GraphOptimizationPass {
-public:
+ public:
   SetVarMaxSizePass() = default;
   ~SetVarMaxSizePass() override = default;
   Status Run(const GraphOptimizationPassOptions &options) override;
-  Status AssignMaxSizeToVarOutNodes(Node *node);
-  Status SetMaxSizeListNodes(Node *node);
+  Status AssignMaxSizeToVarOutNodes(const Node *node);
+  Status SetMaxSizeListNodes(Node *node) const;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
