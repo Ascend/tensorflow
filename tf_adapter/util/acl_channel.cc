@@ -21,7 +21,6 @@
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 namespace tensorflow {
-
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
       {DT_FLOAT, ACL_FLOAT},  {DT_HALF, ACL_FLOAT16},  {DT_INT8, ACL_INT8},     {DT_INT32, ACL_INT32},
@@ -212,7 +211,6 @@ Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<Tensor> &ten
     return errors::Internal("Failed create acl channel.");
   }
   auto acl_status = acltdtReceiveTensor(acl_handle, acl_dataset, -1 /* no timeout */);
-
   if (acl_status != ACL_ERROR_NONE && acl_status != ACL_ERROR_RT_QUEUE_EMPTY) {
     ADAPTER_LOG_IF_ERROR(DestroyAclDataset(acl_dataset, false));
     return errors::Internal("Failed receive data from acl channel, acl status:", acl_status);
@@ -272,5 +270,4 @@ Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string &chan
   ADP_LOG(INFO) << "Success to stop recv tensor by acl.";
   return Status::OK();
 }
-
 }  // namespace tensorflow
