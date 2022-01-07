@@ -1443,8 +1443,8 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *
     string_head[i].len = static_cast<int64_t>(str.size());
     const auto ret = memcpy_s(data_addr, total_size - offset, str.c_str(), str.size() + 1U);
     if (ret != EOK) {
-      ADP_LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< str.size() + 1U << " result: " << ret;
-      LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< str.size() + 1U << " result: " << ret;
+      ADP_LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< (str.size() + 1U) << " result: " << ret;
+      LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< (str.size() + 1U) << " result: " << ret;
       return errors::Unknown("memcpy failed");
     }
     data_addr += (str.size() + 1U);
