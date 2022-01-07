@@ -148,29 +148,17 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
   for (size_t i = 0UL; i < cnt; ++i) {
     // can not use memcpy_s here, data size may over 2G
     // total_size is calculate by item info, could not overflow here
-    auto ret = memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &items[i].ctrl_info, sizeof(ItemInfo));
-    if (ret != EOK) {
-      (void)rtMbufFree(buff);
-      return errors::Internal("call memcpy failed, ret = ", ret, ", error = ", strerror(errno));
-    }
+    memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &items[i].ctrl_info, sizeof(ItemInfo));
     offset += sizeof(ItemInfo);
 
     for (size_t j = 0UL; j < items[i].ctrl_info.dim_num; ++j) {
-      ret = memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &(items[i].dims[j]), sizeof(int64_t));
-      if (ret != EOK) {
-        (void)rtMbufFree(buff);
-        return errors::Internal("call memcpy failed, ret = ", ret, ", error = ", strerror(errno));
-      }
+      memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &(items[i].dims[j]), sizeof(int64_t));
       offset += sizeof(int64_t);
     }
 
     if (items[i].ctrl_info.data_len == 0UL) { continue; }
 
-    ret = memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), items[i].data_ptr, items[i].ctrl_info.data_len);
-    if (ret != EOK) {
-      (void)rtMbufFree(buff);
-      return errors::Internal("call memcpy failed, ret = ", ret, ", error = ", strerror(errno));
-    }
+    memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), items[i].data_ptr, items[i].ctrl_info.data_len);
     offset += items[i].ctrl_info.data_len;
   }
 
