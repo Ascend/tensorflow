@@ -17,7 +17,6 @@
 #include "tf_adapter/optimizers/om_set_var_max_size_pass.h"
 
 #include <memory>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -30,24 +29,24 @@
 namespace tensorflow {
 const std::string ATTR_NAME_OP_MAX_SIZE = "_op_max_size";
 
-Status SetVarMaxSizePass::SetMaxSizeListNodes(Node *node) {
-    std::vector<int32_t> attr_values;
-    for (const Edge *in : node->in_edges()) {
-        REQUIRES_NOT_NULL(in);
-	Node *src_node = in->src();
-	REQUIRES_NOT_NULL(src_node);
-	int32_t attr_value = 0;
-	Status s = GetNodeAttr(src_node->attrs(), ATTR_NAME_OP_MAX_SIZE, &attr_value);
-	if ((s.ok()) && (attr_value > 0)) {
-            attr_values.push_back(attr_value);
-	} else {
-	    attr_values.push_back(0);
-	}
+Status SetVarMaxSizePass::SetMaxSizeListNodes(Node *node) const {
+  std::vector<int32_t> attr_values;
+  for (const Edge *in : node->in_edges()) {
+    REQUIRES_NOT_NULL(in);
+    Node *src_node = in->src();
+    REQUIRES_NOT_NULL(src_node);
+    int32_t attr_value = 0;
+    Status s = GetNodeAttr(src_node->attrs(), ATTR_NAME_OP_MAX_SIZE, &attr_value);
+    if ((s.ok()) && (attr_value > 0)) {
+      attr_values.push_back(attr_value);
+    } else {
+      attr_values.push_back(0);
     }
-    node->AddAttr(ATTR_NAME_OP_MAX_SIZE, attr_values);
-    return Status::OK();
+  }
+  node->AddAttr(ATTR_NAME_OP_MAX_SIZE, attr_values);
+  return Status::OK();
 }
-Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(Node *node) {
+Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(const Node *node) {
   for (const Edge *out : node->out_edges()) {
     REQUIRES_NOT_NULL(out);
     Node *dst_node = out->dst();
@@ -58,7 +57,7 @@ Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(Node *node) {
       std::vector<int32_t> attr_vector;
       Status result = GetNodeAttr(dst_node->attrs(), ATTR_NAME_OP_MAX_SIZE, &attr_vector);
       if ((result.ok()) && (!attr_vector.empty())) {
-      	ADP_LOG(DEBUG) << "The node : " << dst_node->name().c_str() << " had set max size value!";
+        ADP_LOG(DEBUG) << "The node : " << dst_node->name().c_str() << " had set max size value!";
         continue;
       }
       SetMaxSizeListNodes(dst_node);
@@ -70,7 +69,9 @@ Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(Node *node) {
 
 Status SetVarMaxSizePass::Run(const GraphOptimizationPassOptions &options) {
   Graph *graph_in = (options.graph)->get();
-  if (graph_in == nullptr || options.session_options == nullptr) { return Status::OK(); }
+  if (graph_in == nullptr || options.session_options == nullptr) {
+    return Status::OK();
+  }
 
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
 
