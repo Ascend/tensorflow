@@ -52,6 +52,7 @@
 
 using Format = ge::Format;
 const static uint64_t kInvalidGeGraphId = -1;
+const static uint64_t kEmptyGeGraphId = -2;
 const static std::string kHcomAllReduce = "HcomAllReduce";
 const static std::string kHcomBroadcast = "HcomBroadcast";
 const static std::string kDropOutGenMaskV3 = "DropOutGenMaskV3";
@@ -1783,6 +1784,10 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
  */
 void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf_num_inputs,
                          TFE_TensorHandle **tf_inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  if (spec->GeGraphId() == kEmptyGeGraphId) {
+    DLOG() << "Ge graph is empty, return directly.";
+    return;
+  }
   std::vector<TFE_TensorHandle *> pruned_inputs;
   spec->PruneInputs(tf_num_inputs, tf_inputs, pruned_inputs);
   int num_inputs = pruned_inputs.size();
@@ -2035,6 +2040,10 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
   NPU_CTX_REQUIRES_GE_OK_RETURN(
     status, "NPU Parse tensorflow model",
     parser->ParseProtoWithSubgraph(def.SerializeAsString(), request_subgraph, ge_compute_graph), graph_id);
+
+  if (ge_compute_graph->GetAllNodesSize() == 0) {
+    return kEmptyGeGraphId;
+  }
 
   ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
 

@@ -5,7 +5,6 @@ if(TF_PKG_SERVER)
   FetchContent_Declare(
           secure_c
           URL ${_json_url}
-          URL_HASH MD5=ae4865cec1bfb52f7dca03f5c05ac98a
   )
 else()
   FetchContent_Declare(

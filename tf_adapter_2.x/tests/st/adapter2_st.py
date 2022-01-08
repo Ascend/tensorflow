@@ -320,6 +320,13 @@ class Adapter2St(unittest.TestCase):
         npu_device.distribute.grouping_broadcast([x, x1, x2, x3, x4])
         train_loop()
 
+    def test_empty_graph(self):
+        @tf.function
+        def f():
+            return tf.io.gfile.mkdir("./test")
+
+        f()
+
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):
     def test_dropout_v3(self):

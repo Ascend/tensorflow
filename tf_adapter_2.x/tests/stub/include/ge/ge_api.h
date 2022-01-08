@@ -84,6 +84,7 @@ class ComputeGraph {
   explicit ComputeGraph(const std::string &name) {}
   ~ComputeGraph() = default;
   std::shared_ptr<tensorflow::Graph> graph;
+  size_t GetAllNodesSize() const;
 };
 
 class Graph {
