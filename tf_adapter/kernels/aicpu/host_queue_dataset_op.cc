@@ -37,6 +37,7 @@
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/host_queue.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter/util/util.h"
 #include "tf_adapter_2.x/npu_device/core/npu_micros.h"
 
 namespace tensorflow {
@@ -438,6 +439,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           string value;
           uint64_t total_bytes = 0ULL;
           std::vector<DataItem> items;
+          std::vector<std::unique_ptr<uint8_t[]>> buff_list;
           for (auto &tensor : args) {
             DataItem data_item;
             data_item.dataType_ = TDT_TENSOR;
@@ -449,21 +451,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               data_item.dataPtr_ =
                 std::shared_ptr<void>(const_cast<char *>(tensor.tensor_data().data()), [](void *elem) {});
             } else if (tensor.dtype() == DT_STRING) {
-              if (tensor.dims() != 0) {
-                ADP_LOG(ERROR) << "input of DT_STRING type should be scalar,"
-                                  " current dims:"
-                               << tensor.dims();
-                LOG(ERROR) << "input of DT_STRING type should be scalar,"
-                              " current dims:"
-                           << tensor.dims();
+              Status s = MappingDTStringTensor2DataItem(tensor, data_item, buff_list);
+              if (!s.ok()) {
+                ADP_LOG(ERROR) << "mapping dt_stirng type tensor failed, current dims:" << tensor.dims();
+                LOG(ERROR) << "mapping dt_stirng type tensor failed, current dims:" << tensor.dims();
                 mutex_lock lck(mu_);
                 cancelled_ = true;
                 cond_var_.notify_all();
                 return;
               }
-              value = tensor.scalar<string>()();
-              data_item.dataLen_ = value.size();
-              data_item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](void *elem) {});
             } else {
               ADP_LOG(ERROR) << "Unexpected data type " << DataTypeString(tensor.dtype());
               LOG(ERROR) << "Unexpected data type " << DataTypeString(tensor.dtype());

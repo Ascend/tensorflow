@@ -24,6 +24,7 @@
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/ge_plugin.h"
+#include "tf_adapter/util/util.h"
 #include "tf_adapter_2.x/npu_device/core/npu_micros.h"
 
 namespace tensorflow {
@@ -100,6 +101,7 @@ Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector
     return AddDataItemInfo(acl_type, ACL_BOOL, nullptr, 0UL, nullptr, 0UL, items);
   }
 
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   for (auto &tensor : tensors) {
     aclDataType acl_data_type;
     TF_RETURN_IF_ERROR(MappingTfDtypeToAcl(tensor.dtype(), acl_data_type));
@@ -110,12 +112,18 @@ Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector
                                          dims.size(), const_cast<char *>(tensor.tensor_data().data()),
                                          tensor.tensor_data().size(), items));
     } else if (tensor.dtype() == DT_STRING) {
-      if (tensor.dims() != 0) {
-        return errors::Internal("got unexpected non-scalar string tensor with dim ", tensor.dims());
+      if (tensor.dims() == 0) {
+        auto value = reinterpret_cast<tensorflow::tstring *>(const_cast<char *>(tensor.tensor_data().data()));
+        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, nullptr, 0UL,
+                                           const_cast<char *>(value->c_str()), value->size(), items));
+      } else {
+        uint8_t *data_ptr = nullptr;
+        uint64_t data_size = 0UL;
+        std::vector<int64_t> dims;
+        TF_RETURN_IF_ERROR(GetDtStringTensorData(tensor, data_ptr, data_size, dims, buff_list));
+        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, dims.data(), dims.size(),
+                                           data_ptr, data_size, items));
       }
-      auto value = reinterpret_cast<tensorflow::tstring *>(const_cast<char *>(tensor.tensor_data().data()));
-      TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, nullptr, 0UL,
-                                         const_cast<char *>(value->c_str()), value->size(), items));
     } else {
       return errors::Internal("unexpected data type ", DataTypeString(tensor.dtype()));
     }

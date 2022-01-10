@@ -24,6 +24,9 @@
 #include "tf_adapter/util/host_queue.h"
 
 namespace tensorflow {
+Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t &data_size,
+                             std::vector<int64_t> &dims, std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
+
 Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
                                       std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
 

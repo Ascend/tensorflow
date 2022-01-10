@@ -7,7 +7,6 @@
 #include "inc/metadef/inc/graph/def_types.h"
 #include "securec.h"
 namespace tensorflow {
-namespace {
 Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t &data_size,
                              std::vector<int64_t> &dims, std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   for (int i = 0; i < tensor.dims(); ++i) { dims.emplace_back(tensor.dim_size(i)); }
@@ -25,16 +24,14 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
     ge::StringHead *head = reinterpret_cast<ge::StringHead *>(base_ptr + i * sizeof(ge::StringHead));
     head->addr = offset;
     head->len = tensor.flat<tstring>()(i).size();
-    auto ret = memcpy_s(base_ptr + offset, buff_size - offset, tensor.flat<tstring>()(i).data(), head->len);
-    if (ret != EOK) {
-      return errors::Internal("index: ", i, " memcpy_s failed, ret = ", ret);
-    }
+    // can not use memcpy_s here, data size may over 2G
+    // total_size is calculate by item info, could not overflow here
+    memcpy(base_ptr + offset, tensor.flat<tstring>()(i).data(), head->len);
     offset += head->len;
   }
   data_ptr = buff_list.back().get();
   data_size = buff_size;
   return Status::OK();
-}
 }
 
 Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,

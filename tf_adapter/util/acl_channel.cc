@@ -20,6 +20,7 @@
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter/util/util.h"
 namespace tensorflow {
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
@@ -158,6 +159,7 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
     }
     return Status::OK();
   }
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   for (auto &tensor : tensors) {
     aclDataType acl_data_type;
     TF_RETURN_IF_ERROR(MappingTfDtypeToAcl(tensor.dtype(), acl_data_type));
@@ -168,13 +170,7 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
           ACL_TENSOR_DATA_TENSOR, (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())),
           dims.size(), acl_data_type, const_cast<char *>(tensor.tensor_data().data()), tensor.tensor_data().size());
     } else if (tensor.dtype() == DT_STRING) {
-      if (tensor.dims() != 0) {
-        return errors::Internal("Acl send got unexpected non-scalar string tensor with dim ", tensor.dims());
-      }
-      auto value = reinterpret_cast<string *>(const_cast<char *>(tensor.tensor_data().data()));
-      // for scalar type, *dims is nullptr and dim_num is 0
-      acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, nullptr, 0, acl_data_type,
-                                      const_cast<char *>(value->c_str()), value->size());
+      TF_RETURN_IF_ERROR(MappingDtStringTensor2AclDataItem(tensor, acl_data, buff_list));
     } else {
       return errors::Internal("Acl send got unexpected data type ", DataTypeString(tensor.dtype()));
     }
