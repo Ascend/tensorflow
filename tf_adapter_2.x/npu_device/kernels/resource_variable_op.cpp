@@ -95,15 +95,15 @@ void VariableOpBaseKernel(const std::string &op_name, TFE_Context *context, NpuD
 
   ScopeTensorHandleDeleter scope_handle_deleter;
   TFE_TensorHandle *value_handle = inputs[1];
-  if (IsNpuTensorHandle(UnwrapHandle(inputs[1]))) {
+  if (IsNpuTensorHandle(inputs[1])) {
     value_handle = dev->CopyTensorD2H(context, inputs[1], status);
     if (TF_GetCode(status) != TF_OK) return;
     scope_handle_deleter.Guard(value_handle);
   }
 
-  NPU_CTX_REQUIRES_OK(status, UnwrapTensor(inputs[0], &handle));
+  NPU_CTX_REQUIRES_OK(status, GetTensorHandleTensor(inputs[0], &handle));
   auto resource = handle->scalar<tensorflow::ResourceHandle>()();
-  NPU_CTX_REQUIRES_OK(status, UnwrapTensor(value_handle, &value));
+  NPU_CTX_REQUIRES_OK(status, GetTensorHandleTensor(value_handle, &value));
   DLOG() << "Start run " << op_name << " for resource " << resource.DebugString() << " with value "
          << value->DebugString();
   auto var_init_graph =

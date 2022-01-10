@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-#include "tensorflow/c/c_api.h"
-
 #include <gtest/gtest.h>
 #include <memory>
 
+#include "tensorflow/c/eager/c_api.h"
+#include "tensorflow/core/common_runtime/eager/tensor_handle.h"
+
+#include "npu_device_register.h"
 #include "npu_env.h"
 #include "npu_hdc.h"
+#include "npu_managed_buffer.h"
+#include "npu_tensor.h"
 #include "npu_unwrap.h"
-#include "npu_device_register.h"
 
 #include "common/test_function_library.h"
 
@@ -170,12 +173,10 @@ class ST_NpuDevice : public ::testing::Test {
     auto &handle = tensor.flat<tensorflow::ResourceHandle>()(0);
     handle.set_container(container);
     handle.set_name(shared_name);
-    tensorflow::CustomDevice *custom_device = nullptr;
-    if (!npu::UnwrapCtx(context)->FindCustomDeviceFromName(kNpuDeviceName, &custom_device)) {
-      return nullptr;
-    }
-    return tensorflow::wrap(
-      tensorflow::TensorHandle::CreateLocalHandle(std::move(tensor), custom_device, npu::UnwrapCtx(context)));
+    auto npu_tensor = std::make_unique<npu::NpuTensor>(tensor);
+    TF_DataType dtype = TFE_TensorHandleDataType(npu_tensor->handle);
+    return TFE_NewCustomDeviceTensorHandle(context, kNpuDeviceName, dtype, npu_tensor.release(),
+                                           npu::NpuTensor::handle_methods, status);
   }
 
   TFE_Context *context;

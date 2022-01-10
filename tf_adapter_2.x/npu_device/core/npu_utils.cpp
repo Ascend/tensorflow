@@ -13,29 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "npu_utils.h"
 
+#include "npu_env.h"
+
 namespace npu {
-/**
- * @brief: is npu tensor handle or not
- * @param handle: tensor handle
- */
-bool IsNpuTensorHandle(const tensorflow::TensorHandle *handle) {
-  tensorflow::Status status;
-  tensorflow::DeviceNameUtils::ParsedName parsed_name;
-  return tensorflow::DeviceNameUtils::ParseFullName(handle->DeviceName(&status), &parsed_name) &&
-         parsed_name.type == "NPU";
+ScopeTensorHandleDeleter::~ScopeTensorHandleDeleter() {
+  for (auto handle : handles_) {
+    TFE_DeleteTensorHandle(handle);
+  }
 }
 
-/**
- * @brief: is cpu tensor handle or not
- * @param handle: tensor handle
- */
-bool IsCpuTensorHandle(const tensorflow::TensorHandle *handle) {
-  tensorflow::Status status;
-  tensorflow::DeviceNameUtils::ParsedName parsed_name;
-  return tensorflow::DeviceNameUtils::ParseFullName(handle->DeviceName(&status), &parsed_name) &&
-         parsed_name.type == "CPU";
+void ScopeTensorHandleDeleter::Guard(TFE_TensorHandle *handle) {
+  if (handle != nullptr) {
+    handles_.insert(handle);
+  }
 }
 
 /**
@@ -136,35 +129,12 @@ tensorflow::Status MapGeFormat2Acl(ge::Format ge_format, aclFormat &acl_format) 
   return tensorflow::Status::OK();
 }
 
-// 在GE处理中，变量名称作为唯一标识，对于shared_name是"_"开头的变量，由于tensorflow禁止变量名以"_"开头，所以无法直接将shared_name
-// 作为Node的name，对于GE，则没有这个限制，因而，这个函数需要能够屏蔽这种差异。
+// TODO:在GE处理中，变量名称作为唯一标识，对于shared_name是"_"开头的变量，由于tensorflow禁止变量名以"_"开头，所以无法直接将shared_name
+//  作为Node的name，对于GE，则没有这个限制，因而，这个函数需要能够屏蔽这种差异。
 std::string WrapResourceName(const std::string &name) {
   if (kCustomKernelEnabled) {
     return name;
   }
   return "cpu_" + name;
-}
-
-/**
- * @brief: load GraphDef proto
- * @param file: proto file path
- * @param def: point to save GraphDef
- */
-tensorflow::Status LoadGraphDefProto(const std::string &file, tensorflow::GraphDef *def) {
-  tensorflow::Status status = tensorflow::Env::Default()->FileExists(file);
-  if (!status.ok()) {
-    return status;
-  }
-  if (tensorflow::Env::Default()->IsDirectory(file).ok()) {
-    return tensorflow::errors::InvalidArgument(file, " is directory");
-  }
-  if (tensorflow::str_util::EndsWith(file, ".pb")) {
-    ReadBinaryProto(tensorflow::Env::Default(), file, def);
-  } else if (tensorflow::str_util::EndsWith(file, ".pbtxt")) {
-    ReadTextProto(tensorflow::Env::Default(), file, def);
-  } else {
-    return tensorflow::errors::InvalidArgument(file, " must ends with .pb or .pbtxt");
-  }
-  return tensorflow::Status::OK();
 }
 }  // namespace npu

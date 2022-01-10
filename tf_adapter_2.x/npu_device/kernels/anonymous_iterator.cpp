@@ -42,14 +42,14 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
   TF_UNUSED_VARIABLE(inputs);
   for (int i = 0; i < num_outputs; ++i) {
     TFE_TensorHandle *retval = outputs[i];
-    if (npu::UnwrapHandle(retval)->DataType() == tensorflow::DT_RESOURCE) {
+    if (tensorflow::unwrap(retval)->DataType() == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(retval, &tensor));
+      NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(retval, &tensor));
       std::vector<tensorflow::PartialTensorShape> vec_shapes;
       TensorPartialShapes shapes;
       TensorDataTypes types;
       tensorflow::NodeDef ndef;
-      tensorflow::unwrap(attributes)->FillAttrValueMap(ndef.mutable_attr());
+      npu::UnwrapAttrs(attributes)->FillAttrValueMap(ndef.mutable_attr());
       NPU_CTX_REQUIRES_OK(status, tensorflow::GetNodeAttr(ndef, "output_shapes", &vec_shapes));
       NPU_CTX_REQUIRES_OK(status, tensorflow::GetNodeAttr(ndef, "output_types", &types));
       for (const auto &shape : vec_shapes) {

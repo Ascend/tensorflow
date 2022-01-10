@@ -101,18 +101,17 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
 
     def apply_gradients(self,
                         grads_and_vars,
-                        name=None,
-                        experimental_aggregate_gradients=True):
+                        name=None):
         """Apply gradients on variables"""
         if global_npu_ctx() is None:
-            super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
+            super().apply_gradients(grads_and_vars, name)
 
         grads_and_vars = tuple(grads_and_vars)  # grads_and_vars origin type is zip and can only be iter once
         grads = [g for g, _ in grads_and_vars]
 
         def apply_fn():
             wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
-            return self._apply_gradients(grads, wrapped_vars, name, experimental_aggregate_gradients)
+            return self._apply_gradients(grads, wrapped_vars, name)
 
         def do_not_apply_fn():
             return self._optimizer.iterations.assign_add(1, read_value=False)

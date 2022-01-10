@@ -101,7 +101,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const OpSpec *spec
   TF_UNUSED_VARIABLE(parser_ndef);
   TF_UNUSED_VARIABLE(num_inputs);
   const tensorflow::Tensor *handle = nullptr;
-  NPU_CTX_REQUIRES_OK(status, UnwrapTensor(inputs[0], &handle));
+  NPU_CTX_REQUIRES_OK(status, GetTensorHandleTensor(inputs[0], &handle));
 
   auto resource = handle->scalar<tensorflow::ResourceHandle>()();
   NPU_CTX_REQUIRES(status, resource.dtypes_and_shapes().size() == 1,

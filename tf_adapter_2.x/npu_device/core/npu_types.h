@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_TYPES_H
-#define TENSORFLOW_NPU_TYPES_H
+#ifndef NPU_DEVICE_CORE_NPU_TYPES_H
+#define NPU_DEVICE_CORE_NPU_TYPES_H
 
 #include "tensorflow/c/c_api_internal.h"
 
@@ -30,4 +30,4 @@ using VecTensorDataTypes = tensorflow::gtl::InlinedVector<TensorDataTypes, 4>;
 
 const static tensorflow::TensorShape kScalarShape;
 }  // namespace npu
-#endif  // TENSORFLOW_NPU_TYPES_H
+#endif  // NPU_DEVICE_CORE_NPU_TYPES_H

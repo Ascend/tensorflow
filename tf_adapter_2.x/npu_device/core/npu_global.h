@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WORKSPACE_NPU_GLOBAL_H
-#define WORKSPACE_NPU_GLOBAL_H
+#ifndef NPU_DEVICE_CORE_NPU_GLOBAL_H
+#define NPU_DEVICE_CORE_NPU_GLOBAL_H
 
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/status.h"
@@ -44,4 +44,4 @@ class RtsCtx {
 }  // namespace global
 }  // namespace npu
 
-#endif  // WORKSPACE_NPU_GLOBAL_H
+#endif  // NPU_DEVICE_CORE_NPU_GLOBAL_H

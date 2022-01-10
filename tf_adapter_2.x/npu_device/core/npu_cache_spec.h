@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_CACHE_SPEC_H
-#define TENSORFLOW_NPU_CACHE_SPEC_H
+#ifndef NPU_DEVICE_CORE_NPU_CACHE_SPEC_H
+#define NPU_DEVICE_CORE_NPU_CACHE_SPEC_H
 
 #include "tensorflow/c/eager/c_api.h"
 
@@ -226,4 +226,4 @@ class FuncSpec : public TaskSpec {
 };
 }  // namespace npu
 
-#endif  // TENSORFLOW_NPU_CACHE_SPEC_H
+#endif  // NPU_DEVICE_CORE_NPU_CACHE_SPEC_H

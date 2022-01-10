@@ -13,19 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TENSORFLOW_NPU_LOGGER_H
-#define TENSORFLOW_NPU_LOGGER_H
+#ifndef NPU_DEVICE_CORE_NPU_LOGGER_H
+#define NPU_DEVICE_CORE_NPU_LOGGER_H
 
-#include "tensorflow/c/c_api.h"
-#include "tensorflow/c/eager/c_api.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/platform/env.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/util/env_var.h"
 
 #include "npu_env.h"
-#include "npu_utils.h"
 
 #define DLOG() \
   if (kDumpExecutionDetail) LOG(INFO)
@@ -42,7 +35,7 @@ class Timer : public std::basic_ostringstream<char> {
  public:
   template <typename... Args>
   explicit Timer(Args... args) {
-    *this << CatStr(args...) << " cost ";
+    *this << tensorflow::strings::StrCat(args...) << " cost ";
   };
   ~Timer() override = default;
   void Start() {
@@ -65,4 +58,4 @@ class Timer : public std::basic_ostringstream<char> {
 };
 }  // namespace npu
 
-#endif  // TENSORFLOW_NPU_DEVICE_ACL_BACKENDS_H
+#endif  // NPU_DEVICE_CORE_NPU_LOGGER_H

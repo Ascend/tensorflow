@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_MANAGED_BUFFER_H
-#define TENSORFLOW_NPU_MANAGED_BUFFER_H
+#ifndef NPU_DEVICE_CORE_NPU_MANAGED_BUFFER_H
+#define NPU_DEVICE_CORE_NPU_MANAGED_BUFFER_H
 
 #include <memory>
 
@@ -94,4 +94,4 @@ TF_ATTRIBUTE_UNUSED static inline void NpuManagedBufferDeallocator(void *data, s
 }
 }  // namespace npu
 
-#endif  // TENSORFLOW_NPU_TENSOR_H
+#endif  // NPU_DEVICE_CORE_NPU_MANAGED_BUFFER_H
