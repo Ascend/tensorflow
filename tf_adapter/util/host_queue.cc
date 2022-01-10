@@ -161,7 +161,7 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
     if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
       *end_of_sequence = kEndOfSequenceFlag;
     } else {
-      *end_of_sequence = 0;
+      *end_of_sequence = 0U;
     }
   }
 

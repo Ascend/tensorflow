@@ -91,7 +91,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   ~HostQueueDatasetOp() override {
-    if (kIsHeterogeneous) {
+    if ((kIsHeterogeneous) && (!queue_name_.empty())) {
       HostQueueDestroy(queue_id_);
     }
 
@@ -133,9 +133,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       inputs.push_back(input);
     }
     int64_t queue_depth = GetChannelDepth();
+    OP_REQUIRES(ctx, queue_depth > 0UL, errors::InvalidArgument("Current data size is unsupported."));
     size_t channel_depth = std::min(static_cast<size_t>(queue_depth), kMaxDepth);
     ADP_LOG(INFO) << "channel depth is " << channel_depth;
-    OP_REQUIRES(ctx, channel_depth > 0UL, errors::InvalidArgument("Current data size is unsupported."));
     if (kIsHeterogeneous) {
       CreateHostQueue(ctx, channel_depth);
     }
@@ -178,7 +178,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       ADP_LOG(ERROR) << "Data size is <= 0, and current size is " << total_size;
       return -1LL;
     }
-    return (kMaxBytes / static_cast<int64_t>(total_size));
+    return (kMaxBytes / total_size);
   }
 
   void CreateHostQueue(OpKernelContext *ctx, size_t channel_depth) {
