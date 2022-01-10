@@ -47,6 +47,9 @@ struct DataItemInfo {
 
 const static uint32_t kMaxValue = 128U;
 const static uint32_t kMaxQueueDepth = 0x4fffffffU;
+const static uint64_t kMbufHeadMaxSize = 256U;
+const static uint32_t kMbufHeadEndOfSequencePos = 128U;
+const static uint8_t kEndOfSequenceFlag = 0x5A;
 
 Status CheckSymbols() {
   if (rtMemQueueCreate == nullptr) { return errors::Internal("rtMemQueueCreate not found"); }
@@ -123,7 +126,7 @@ Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector
   return Status::OK();
 }
 
-Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
+Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, const acltdtTensorType &acl_type) {
   size_t cnt = items.size();
   size_t total_size = 0UL;
   for (size_t i = 0UL; i < cnt; ++i) {
@@ -142,6 +145,24 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff) {
   if (rt_error != ACL_RT_SUCCESS) {
     (void)rtMbufFree(buff);
     return errors::Internal("call rtMbufAlloc with size[", total_size, "] failed, ret = ", rt_error);
+  }
+
+  void *head_buf = nullptr;
+  uint64_t head_size = 0UL;
+  rt_error = rtMbufGetPrivInfo(buff, &head_buf, &head_size);
+  if (rt_error != ACL_RT_SUCCESS) {
+    (void)rtMbufFree(buff);
+    return errors::Internal("call rtMbufGetPrivInfo failed, ret = ", rt_error);
+  }
+  if ((head_buf != nullptr) && (head_size > kMbufHeadEndOfSequencePos)) {
+    ADP_LOG(INFO) << "host queue set end_of_sequence mbuf head.";
+    uint8_t *end_of_sequence =
+        reinterpret_cast<uint8_t *>(reinterpret_cast<uintptr_t>(head_buf) + kMbufHeadEndOfSequencePos);
+    if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
+      *end_of_sequence = kEndOfSequenceFlag;
+    } else {
+      *end_of_sequence = 0;
+    }
   }
 
   size_t offset = 0UL;
@@ -228,7 +249,7 @@ Status MappingTensor2Buff(const acltdtTensorType &acl_type, const std::vector<te
                           void *&buff) {
   std::vector<DataItemInfo> items;
   TF_RETURN_IF_ERROR(MappingTensors2DataItemInfos(acl_type, tensors, items));
-  TF_RETURN_IF_ERROR(SerializeDataItemInfo(items, buff));
+  TF_RETURN_IF_ERROR(SerializeDataItemInfo(items, buff, acl_type));
   return Status::OK();
 }
 
