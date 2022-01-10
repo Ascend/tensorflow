@@ -345,7 +345,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string modify_mixlist;
   std::string op_precision_mode;
   std::string graph_run_mode = "1";
-  std::string hccl_timeout = "600";
+  std::string hccl_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -1619,7 +1619,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         device_type = params.at("device_type").s();
       }
       if (params.count("hccl_timeout")) {
-        hccl_timeout = params.at("hccl_timeout").s();
+        hccl_timeout = std::to_string(params.at("hccl_timeout").i());
       }
       if (params.count("op_wait_timeout")) {
         op_wait_timeout = std::to_string(params.at("op_wait_timeout").i());

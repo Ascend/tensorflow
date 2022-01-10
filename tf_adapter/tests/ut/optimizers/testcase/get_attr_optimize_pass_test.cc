@@ -201,6 +201,9 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue op_execute_timeout = AttrValue();
   op_execute_timeout.set_i(1);
   (*custom_config->mutable_parameter_map())["op_execute_timeout"] = op_execute_timeout;
+  AttrValue hccl_timeout = AttrValue();
+  hccl_timeout.set_i(1);
+  (*custom_config->mutable_parameter_map())["hccl_timeout"] = hccl_timeout;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {
