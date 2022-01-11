@@ -920,10 +920,11 @@ TFE_TensorHandle *NpuDevice::NewDeviceTensorHandle(TFE_Context *context, Format 
     dims.emplace_back(dim_size);
   }
 
-  auto buf = std::make_unique<TF_ManagedBuffer>(npu_managed_buffer, sizeof(npu_managed_buffer),
-                                                &npu::NpuManagedBufferDeallocator, nullptr, false);
+  auto buf = new TF_ManagedBuffer(npu_managed_buffer, sizeof(npu_managed_buffer), &npu::NpuManagedBufferDeallocator,
+                                  nullptr, false);
+  auto npu_tensor = std::make_unique<npu::NpuTensor>(tensorflow::Tensor(type, shape, buf));
+  buf->Unref();  // buf has been ref two times at create time and when construct npu tensor
 
-  auto npu_tensor = std::make_unique<npu::NpuTensor>(tensorflow::Tensor(type, shape, buf.release()));
   TF_DataType dtype = TFE_TensorHandleDataType(npu_tensor->handle);
   return TFE_NewCustomDeviceTensorHandle(context, device_name.c_str(), dtype, npu_tensor.release(),
                                          npu::NpuTensor::handle_methods, status);
