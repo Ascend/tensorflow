@@ -99,12 +99,12 @@ Status AddDataItemInfo(acltdtTensorType tdt_data_type, int32_t tensor_type, cons
 }
 
 Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                    std::vector<DataItemInfo> &items) {
+                                    std::vector<DataItemInfo> &items,
+                                    std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (acl_type != ACL_TENSOR_DATA_TENSOR) {
     return AddDataItemInfo(acl_type, ACL_BOOL, nullptr, 0UL, nullptr, 0UL, items);
   }
 
-  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   for (auto &tensor : tensors) {
     aclDataType acl_data_type;
     TF_RETURN_IF_ERROR(MappingTfDtypeToAcl(tensor.dtype(), acl_data_type));
@@ -256,7 +256,8 @@ void HostQueueDestroy(const uint32_t &queue_id) {
 Status MappingTensor2Buff(const acltdtTensorType &acl_type, const std::vector<tensorflow::Tensor> &tensors,
                           void *&buff) {
   std::vector<DataItemInfo> items;
-  TF_RETURN_IF_ERROR(MappingTensors2DataItemInfos(acl_type, tensors, items));
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
+  TF_RETURN_IF_ERROR(MappingTensors2DataItemInfos(acl_type, tensors, items, buff_list));
   TF_RETURN_IF_ERROR(SerializeDataItemInfo(items, buff, acl_type));
   return Status::OK();
 }
