@@ -191,10 +191,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       return;
     }
     ADP_LOG(INFO) << "channel name is " << queue_name;
-    ADP_LOG(INFO) << "channel name is " << channel_depth;
+    ADP_LOG(INFO) << "channel depth is " << channel_depth;
     Status ret = HostQueueInit(queue_name, channel_depth, queue_id_);
-    OP_REQUIRES(ctx, ret == Status::OK(),
-                errors::InvalidArgument("Failed to create host queue."));
+    OP_REQUIRES(ctx, ret == Status::OK(), errors::InvalidArgument("Failed to create host queue."));
     queue_name_ = queue_name;
   }
 
@@ -260,7 +259,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         cond_var_.notify_all();
         delete data_deliver_;
-
+        DestroyQueue();
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
 
