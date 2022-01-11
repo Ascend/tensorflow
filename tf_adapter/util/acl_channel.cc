@@ -128,12 +128,13 @@ Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<Tensor
 }
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                  acltdtDataset **output_acl_dataset) {
+                                  acltdtDataset **output_acl_dataset,
+                                  std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   auto acl_dataset = acltdtCreateDataset();
   if (acl_dataset == nullptr) {
     return errors::Internal("Acl create tensor dataset failed");
   }
-  auto status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset);
+  auto status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset, buff_list);
   if (!status.ok()) {
     ADAPTER_LOG_IF_ERROR(DestroyAclDataset(acl_dataset));
     return status;
@@ -143,7 +144,7 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
 }
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                  acltdtDataset *acl_dataset) {
+                                  acltdtDataset *acl_dataset, std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (TF_PREDICT_FALSE(acl_type != ACL_TENSOR_DATA_TENSOR)) {
     acltdtDataItem *acl_data = acltdtCreateDataItem(acl_type, nullptr, 0, ACL_BOOL /* whatever */, nullptr, 0);
     if (acl_data == nullptr) {
@@ -159,7 +160,6 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
     }
     return Status::OK();
   }
-  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   for (auto &tensor : tensors) {
     aclDataType acl_data_type;
     TF_RETURN_IF_ERROR(MappingTfDtypeToAcl(tensor.dtype(), acl_data_type));
@@ -226,8 +226,9 @@ Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<Tensor> &ten
 // cases , we need to push data into dequeue to sent again.
 Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
                         const std::vector<Tensor> &tensors, bool &is_need_resend) {
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   acltdtDataset *acl_dataset = nullptr;
-  TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset));
+  TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset, buff_list));
   const int32_t kTimeOut = 1000;
   auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, kTimeOut);
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));

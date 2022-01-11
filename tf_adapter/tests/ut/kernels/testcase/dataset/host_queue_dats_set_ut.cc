@@ -542,21 +542,24 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext05_host_queue) {
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext06) {
   acltdtDataset *acl_dataset = nullptr;
-   const std::vector<Tensor> tensors;
-  EXPECT_TRUE(!AssembleTensors2AclDataset(ACL_TENSOR_DATA_END_OF_SEQUENCE, tensors, acl_dataset).ok());
+  const std::vector<Tensor> tensors;
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
+  EXPECT_TRUE(!AssembleTensors2AclDataset(ACL_TENSOR_DATA_END_OF_SEQUENCE, tensors, acl_dataset, buff_list).ok());
 }
 
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext07) {
   acltdtDataset *acl_dataset = nullptr;
-   const std::vector<Tensor> tensors = {{DT_STRING,{}}, {DT_STRING,{}}};
-  EXPECT_TRUE(!AssembleTensors2AclDataset(ACL_TENSOR_DATA_TENSOR, tensors, acl_dataset).ok());
+  const std::vector<Tensor> tensors = {{DT_STRING,{}}, {DT_STRING,{}}};
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
+  EXPECT_TRUE(!AssembleTensors2AclDataset(ACL_TENSOR_DATA_TENSOR, tensors, acl_dataset, buff_list).ok());
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext08) {
   acltdtDataset *acl_dataset = nullptr;
-   const std::vector<Tensor> tensors = {{DT_STRING,{1,2}}, {DT_STRING,{1,2}}};
-  EXPECT_TRUE(!AssembleTensors2AclDataset(ACL_TENSOR_DATA_TENSOR, tensors, acl_dataset).ok());
+  const std::vector<Tensor> tensors = {{DT_STRING,{1,2}}, {DT_STRING,{1,2}}};
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
+  EXPECT_TRUE(!AssembleTensors2AclDataset(ACL_TENSOR_DATA_TENSOR, tensors, acl_dataset, buff_list).ok());
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext09) {
