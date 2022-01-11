@@ -61,7 +61,7 @@ rtError_t rtMbufInit(rtMemBuffCfg_t *cfg) { return RT_ERROR_NONE; }
 
 rtError_t rtMbufAlloc(rtMbufPtr_t *mbuf, uint64_t size) {
   rtMbuf *buf = new rtMbuf();
-  void *data = malloc(size);
+  void *data = malloc(size+256);
   buf->data = data;
   buf->size = size;
   *mbuf = buf;
@@ -87,5 +87,11 @@ rtError_t rtMbufGetBuffSize(rtMbufPtr_t mbuf, uint64_t *size) {
 }
 
 rtError_t rtGetIsHeterogenous(int32_t *heterogeneous) {
+  return RT_ERROR_NONE;
+}
+
+rtError_t rtMbufGetPrivInfo(rtMbufPtr_t mbuf, void **priv, uint64_t *size) {
+  *priv = ((rtMbuf *)mbuf)->data;
+  *size = 256;
   return RT_ERROR_NONE;
 }
