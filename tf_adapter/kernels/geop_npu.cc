@@ -595,7 +595,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
       return;
     }
-    ADP_LOG(INFO) << "RunTuning finish.";
+    ADP_LOG(INFO) << geop_name << " RunTuning finish.";
   } else if (is_set_dynamic_config) {
     if (InitRebuildFlag(cache_graph_id) != 0) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
@@ -633,9 +633,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       return;
     }
     if (kDumpGraph) {
-      string tmpmodel_path = GetDumpPath() + "TF_";
-      string tmodel_path = tmpmodel_path + geop_name.c_str() + ".pbtxt";
-      Status status_out = WriteTextProto(Env::Default(), tmodel_path, ori_graph_def);
+      const std::string pbtxt_path = GetDumpPath() + "TF_" + geop_name.c_str() + ".pbtxt";
+      (void)WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
     }
     endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(EVENT) << "[GEOP] In GEOP computeAsync, kernel_name:" << geop_name << " ,TFadapter cost time: ["
@@ -1258,6 +1257,16 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
     return -1;
   }
 
+  if (is_initialized_graph_) {
+    ADP_LOG(INFO) << ctx->op_kernel().name() << " graph is initialized";
+    return 0;
+  }
+
+  if (kDumpGraph) {
+    const std::string pbtxt_path = GetDumpPath() + "TF_" + ctx->op_kernel().name() + "_AOE.pbtxt";
+    (void)WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
+  }
+
   // parser,  tensorflow graph to ge graph
   std::shared_ptr<domi::ModelParser> model_parser =
       domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -1380,9 +1389,8 @@ std::string GeOp::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::
   }
 
   if (kDumpGraph) {
-    string tmpmodel_path = GetDumpPath() + "TF_Subgraph_";
-    string tmodel_path = tmpmodel_path + graph.c_str() + ".pbtxt";
-    Status status_out = WriteTextProto(Env::Default(), tmodel_path, *sub_graph_def);
+    const std::string pbtxt_path = GetDumpPath() + "TF_Subgraph_" + graph.c_str() + ".pbtxt";
+    (void)WriteTextProto(Env::Default(), pbtxt_path, *sub_graph_def);
   }
   ADP_LOG(INFO) << "[GEOP] build_sub_graph exit, sub graph name is " << graph;
   return sub_graph_def->SerializeAsString();
