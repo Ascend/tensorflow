@@ -62,7 +62,7 @@ enum class ChannelType {
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
   explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx),
-      local_rank_id_(0U), device_id_(0U) {
+      local_rank_id_(0U), device_id_(0U), queue_id_(0U) {
     // ctx is not nullptr
     std::string local_rank_id;
     std::string local_device_list;
@@ -132,14 +132,16 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       OP_REQUIRES_OK(ctx, GetDatasetFromVariantTensor(ctx->input(i), &input));
       inputs.push_back(input);
     }
-    int64_t queue_depth = GetChannelDepth();
-    OP_REQUIRES(ctx, queue_depth > 0LL, errors::InvalidArgument("Current data size is unsupported."));
-    size_t channel_depth = std::min(static_cast<size_t>(queue_depth), kMaxDepth);
-    ADP_LOG(INFO) << "channel depth is " << channel_depth;
-    if (kIsHeterogeneous) {
-      CreateHostQueue(ctx, channel_depth);
+    size_t channel_depth = 0U;
+    if (channel_type_ != ChannelType::TDT) {
+      int64_t queue_depth = GetChannelDepth();
+      OP_REQUIRES(ctx, queue_depth > 0LL, errors::InvalidArgument("Current data size is unsupported."));
+      channel_depth = std::min(static_cast<size_t>(queue_depth), kMaxDepth);
+      ADP_LOG(INFO) << "channel depth is " << channel_depth;
+      if (kIsHeterogeneous) {
+        CreateHostQueue(ctx, channel_depth);
+      }
     }
-
     *output =
         new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_, local_rank_id_,
                               local_device_list_, device_id_, tf_session_, channel_type_, channel_depth, queue_id_);
