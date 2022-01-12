@@ -133,7 +133,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       inputs.push_back(input);
     }
     int64_t queue_depth = GetChannelDepth();
-    OP_REQUIRES(ctx, queue_depth > 0UL, errors::InvalidArgument("Current data size is unsupported."));
+    OP_REQUIRES(ctx, queue_depth > 0LL, errors::InvalidArgument("Current data size is unsupported."));
     size_t channel_depth = std::min(static_cast<size_t>(queue_depth), kMaxDepth);
     ADP_LOG(INFO) << "channel depth is " << channel_depth;
     if (kIsHeterogeneous) {
