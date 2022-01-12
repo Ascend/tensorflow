@@ -20,6 +20,7 @@
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter/util/util.h"
 namespace tensorflow {
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
@@ -127,12 +128,13 @@ Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<Tensor
 }
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                  acltdtDataset **output_acl_dataset) {
+                                  acltdtDataset **output_acl_dataset,
+                                  std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   auto acl_dataset = acltdtCreateDataset();
   if (acl_dataset == nullptr) {
     return errors::Internal("Acl create tensor dataset failed");
   }
-  auto status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset);
+  auto status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset, buff_list);
   if (!status.ok()) {
     ADAPTER_LOG_IF_ERROR(DestroyAclDataset(acl_dataset));
     return status;
@@ -142,7 +144,7 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
 }
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                  acltdtDataset *acl_dataset) {
+                                  acltdtDataset *acl_dataset, std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (TF_PREDICT_FALSE(acl_type != ACL_TENSOR_DATA_TENSOR)) {
     acltdtDataItem *acl_data = acltdtCreateDataItem(acl_type, nullptr, 0, ACL_BOOL /* whatever */, nullptr, 0);
     if (acl_data == nullptr) {
@@ -168,13 +170,7 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
           ACL_TENSOR_DATA_TENSOR, (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())),
           dims.size(), acl_data_type, const_cast<char *>(tensor.tensor_data().data()), tensor.tensor_data().size());
     } else if (tensor.dtype() == DT_STRING) {
-      if (tensor.dims() != 0) {
-        return errors::Internal("Acl send got unexpected non-scalar string tensor with dim ", tensor.dims());
-      }
-      auto value = reinterpret_cast<string *>(const_cast<char *>(tensor.tensor_data().data()));
-      // for scalar type, *dims is nullptr and dim_num is 0
-      acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, nullptr, 0, acl_data_type,
-                                      const_cast<char *>(value->c_str()), value->size());
+      TF_RETURN_IF_ERROR(MappingDtStringTensor2AclDataItem(tensor, acl_data, buff_list));
     } else {
       return errors::Internal("Acl send got unexpected data type ", DataTypeString(tensor.dtype()));
     }
@@ -230,8 +226,9 @@ Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<Tensor> &ten
 // cases , we need to push data into dequeue to sent again.
 Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
                         const std::vector<Tensor> &tensors, bool &is_need_resend) {
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   acltdtDataset *acl_dataset = nullptr;
-  TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset));
+  TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset, buff_list));
   const int32_t kTimeOut = 1000;
   auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, kTimeOut);
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
