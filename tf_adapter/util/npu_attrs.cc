@@ -1589,10 +1589,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         device_type = params.at("device_type").s();
       }
       if (params.count("hccl_timeout")) {
-        hccl_timeout = params.at("hccl_timeout").s();
+        hccl_timeout = std::to_string(params.at("hccl_timeout").i());
       }
       if (params.count("op_wait_timeout")) {
-        op_wait_timeout = std::to_string(params.at("op_wait_timeout").i());        
+        op_wait_timeout = std::to_string(params.at("op_wait_timeout").i());
       }
       if (params.count("op_execute_timeout")) {
         op_execute_timeout = std::to_string(params.at("op_execute_timeout").i());
