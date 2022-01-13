@@ -298,5 +298,22 @@ TEST(NpuOpsTest, TestLambApplyWeightAssignShapeFn) {
   TF_CHECK_OK(reg->shape_inference_fn(&c));
   ASSERT_EQ("[224,224]", c.DebugString(c.output(0)));
 }
+
+TEST(NpuOpsTest, TestDecodeImageV3ShapeInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DecodeImageV3", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dump", &op_def)
+                  .Attr("channels", 3)
+                  .Attr("dtype", DT_UINT8)
+                  .Attr("expand_animations", true)
+                  .Attr("dct_method", "")
+                  .Input(FakeInputStub(DT_STRING))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,
+    {TShape({0})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
 }  // namespace
 }  // namespace tensorflow

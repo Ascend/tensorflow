@@ -522,4 +522,50 @@ REGISTER_OP("OCRDetectionPostHandle")
       c->set_output(1, c->Vector(c->UnknownDim())); 
       return Status::OK();
     });
+
+    Status DecodeImageV3ShapeFn(InferenceContext* c) {
+      ShapeHandle unused;
+      int32 channels;
+      bool expand_animations;
+      DimensionHandle channels_dim;
+      std::string dct_method;
+
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
+      TF_RETURN_IF_ERROR(c->GetAttr("channels", &channels));
+      TF_RETURN_IF_ERROR(c->GetAttr("expand_animations", &expand_animations));
+      TF_RETURN_IF_ERROR(c->GetAttr("dct_method", &dct_method));
+
+      if (channels == 0) {
+        channels_dim = c->UnknownDim();
+      } else {
+        if (channels < 0) {
+          return errors::InvalidArgument("channels must be non-negative, got ",
+                                        channels);
+        }
+        channels_dim = c->MakeDim(channels);
+      }
+
+      // `expand_animations` set to true will return 4-D shapes for GIF. 3-D shapes
+      // will be returned for jpg, png, and bmp. `expand_animations` set to false
+      // will always return 3-D shapes for all (jpg, png, bmp, gif).
+      if (expand_animations) {
+        c->set_output(0, c->UnknownShape());
+        return Status::OK();
+      } else {
+        c->set_output(0,
+                      c->MakeShape({InferenceContext::kUnknownDim,
+                                    InferenceContext::kUnknownDim, channels_dim}));
+        return Status::OK();
+      }
+    }
+    REGISTER_OP("DecodeImageV3")
+    .Input("contents: string")
+    // Setting `channels` to 0 means using the inherent number of channels in
+    // the image.
+    .Attr("channels: int = 0")
+    .Attr("dtype: {uint8, uint16, float32} = DT_UINT8")
+    .Output("image: dtype")
+    .Attr("expand_animations: bool = true")
+    .Attr("dct_method: string = ''")
+    .SetShapeFn(DecodeImageV3ShapeFn);
 }  // namespace tensorflow
