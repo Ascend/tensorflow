@@ -70,7 +70,7 @@ REGISTER_OP("DynamicGruV2")
     .Attr("reset_after: bool = true")
     .Attr("is_training: bool = true")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c) {
+    .SetShapeFn([](InferenceContext *c) {
       auto input_shape = c->input(0);
       auto weight_hidden_shape = c->input(2);
       auto num_step = c->Dim(input_shape, 0);
@@ -89,8 +89,8 @@ REGISTER_OP("DynamicGruV2")
         DimensionHandle output_hidden_size;
         TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
         output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
-      }          
-      auto output_h_shape = c->MakeShape({num_step, batch_size, hidden_size});         
+      }
+      auto output_h_shape = c->MakeShape({num_step, batch_size, hidden_size});
       c->set_output(0, output_y_shape);
       c->set_output(1, output_h_shape);
       c->set_output(2, c->UnknownShape());
@@ -129,7 +129,7 @@ REGISTER_OP("DynamicGruV2Grad")
     .Attr("gate_order: string")
     .Attr("reset_after: bool = true")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c) {
+    .SetShapeFn([](InferenceContext *c) {
       auto input_shape = c->input(0);
       auto weight_hidden_shape = c->input(2);
       auto num_step = c->Dim(input_shape, 0);
@@ -137,18 +137,12 @@ REGISTER_OP("DynamicGruV2Grad")
       auto input_size = c->Dim(input_shape, 2);
       auto hidden_size = c->Dim(weight_hidden_shape, 0);
       auto hidden_size_1 = c->Dim(weight_hidden_shape, 1);
-      auto output_dw_input_shape = 
-          c->MakeShape({input_size, hidden_size_1});
-      auto output_dw_hidden_shape = 
-          c->MakeShape({hidden_size, hidden_size_1});
-      auto output_db_input_shape = 
-          c->MakeShape({hidden_size_1});
-      auto output_db_hidden_shape = 
-          c->MakeShape({hidden_size_1});
-      auto output_dx_shape = 
-          c->MakeShape({num_step, batch_size, input_size});
-      auto output_dh_prev_shape = 
-          c->MakeShape({batch_size, hidden_size});        
+      auto output_dw_input_shape = c->MakeShape({input_size, hidden_size_1});
+      auto output_dw_hidden_shape = c->MakeShape({hidden_size, hidden_size_1});
+      auto output_db_input_shape = c->MakeShape({hidden_size_1});
+      auto output_db_hidden_shape = c->MakeShape({hidden_size_1});
+      auto output_dx_shape = c->MakeShape({num_step, batch_size, input_size});
+      auto output_dh_prev_shape = c->MakeShape({batch_size, hidden_size});
       c->set_output(0, output_dw_input_shape);
       c->set_output(1, output_dw_hidden_shape);
       c->set_output(2, output_db_input_shape);
@@ -186,7 +180,7 @@ REGISTER_OP("DynamicRnn")
     .Attr("forget_bias: float = 0.0")
     .Attr("is_training: bool = true")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c) {
+    .SetShapeFn([](InferenceContext *c) {
       auto input_shape = c->input(0);
       auto num_step = c->Dim(input_shape, 0);
       auto batch_size = c->Dim(input_shape, 1);
@@ -208,11 +202,9 @@ REGISTER_OP("DynamicRnn")
         DimensionHandle output_hidden_size;
         TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
         output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
-      }          
-      auto output_h_shape = 
-          c->MakeShape({num_step, batch_size, hidden_size});
-      auto output_c_shape = 
-          c->MakeShape({num_step, batch_size, hidden_size});
+      }
+      auto output_h_shape = c->MakeShape({num_step, batch_size, hidden_size});
+      auto output_c_shape = c->MakeShape({num_step, batch_size, hidden_size});
 
       c->set_output(0, output_y_shape);
       c->set_output(1, output_h_shape);
@@ -252,7 +244,7 @@ REGISTER_OP("DynamicRnnV2")
     .Attr("forget_bias: float = 0.0")
     .Attr("is_training: bool = true")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c) {
+    .SetShapeFn([](InferenceContext *c) {
       auto input_shape = c->input(0);
       auto num_step = c->Dim(input_shape, 0);
       auto batch_size = c->Dim(input_shape, 1);
@@ -274,11 +266,9 @@ REGISTER_OP("DynamicRnnV2")
         DimensionHandle output_hidden_size;
         TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
         output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
-      }          
-      auto output_h_shape = 
-          c->MakeShape({num_step, batch_size, hidden_size});
-      auto output_c_shape = 
-          c->MakeShape({num_step, batch_size, hidden_size});
+      }
+      auto output_h_shape = c->MakeShape({num_step, batch_size, hidden_size});
+      auto output_c_shape = c->MakeShape({num_step, batch_size, hidden_size});
 
       c->set_output(0, output_y_shape);
       c->set_output(1, output_h_shape);
@@ -324,7 +314,7 @@ REGISTER_OP("DynamicRnnGrad")
     .Attr("time_major: bool = true")
     .Attr("forget_bias: float = 0.0")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c) {
+    .SetShapeFn([](InferenceContext *c) {
       auto input_shape = c->input(0);
       auto num_step = c->Dim(input_shape, 0);
       auto batch_size = c->Dim(input_shape, 1);
@@ -335,16 +325,11 @@ REGISTER_OP("DynamicRnnGrad")
       DimensionHandle hidden_size;
       TF_RETURN_IF_ERROR(c->Subtract(hidden_size_total, input_size, &hidden_size));
 
-      auto output_dx_shape = 
-          c->MakeShape({num_step, batch_size, input_size});
-      auto output_dw_shape = 
-          c->MakeShape({hidden_size_total, hidden_size_4});
-      auto output_db_shape = 
-          c->MakeShape({hidden_size_4});
-      auto output_dh_prev_shape = 
-          c->MakeShape({1, batch_size, hidden_size});
-      auto output_dc_prev_shape = 
-          c->MakeShape({1, batch_size, hidden_size});       
+      auto output_dx_shape = c->MakeShape({num_step, batch_size, input_size});
+      auto output_dw_shape = c->MakeShape({hidden_size_total, hidden_size_4});
+      auto output_db_shape = c->MakeShape({hidden_size_4});
+      auto output_dh_prev_shape = c->MakeShape({1, batch_size, hidden_size});
+      auto output_dc_prev_shape = c->MakeShape({1, batch_size, hidden_size});
       c->set_output(0, output_dw_shape);
       c->set_output(1, output_db_shape);
       c->set_output(2, output_dx_shape);
@@ -360,8 +345,8 @@ REGISTER_OP("Centralization")
     .Attr("axes: list(int)")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-        c->set_output(0, c->input(0));
-        return Status::OK();
+      c->set_output(0, c->input(0));
+      return Status::OK();
     });
 
 REGISTER_OP("PRelu")
@@ -371,8 +356,8 @@ REGISTER_OP("PRelu")
     .Attr("T: {float16, float32}")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-        c->set_output(0, c->input(0));
-        return Status::OK();
+      c->set_output(0, c->input(0));
+      return Status::OK();
     });
 
 REGISTER_OP("DropOutDoMaskV3")
@@ -396,9 +381,9 @@ REGISTER_OP("PReluGrad")
     .Attr("T: {float16, float32}")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-        c->set_output(0, c->input(0));
-        c->set_output(1, c->input(2));
-        return Status::OK();
+      c->set_output(0, c->input(0));
+      c->set_output(1, c->input(2));
+      return Status::OK();
     });
 
 REGISTER_OP("NonZero")
@@ -408,10 +393,10 @@ REGISTER_OP("NonZero")
     .Attr("T:numbertype")
     .Attr("output_type:{int32, int64} = DT_INT64")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c) {
-        auto rank = c->Rank(c->input(0));
-        c->set_output(0, c->MakeShape({rank, -1}));
-        return Status::OK();
+    .SetShapeFn([](InferenceContext *c) {
+      auto rank = c->Rank(c->input(0));
+      c->set_output(0, c->MakeShape({rank, -1}));
+      return Status::OK();
     });
 
 REGISTER_OP("NonZeroWithValue")
@@ -423,18 +408,18 @@ REGISTER_OP("NonZeroWithValue")
     .Attr("T:numbertype")
     .Attr("output_type:{int32, int64} = DT_INT32")
     .SetIsStateful()
-    .SetShapeFn([](InferenceContext* c) {
-        auto input_shape = c->input(0);
-        int64_t dim1 = c->Value(c->Dim(input_shape, 0));
-        int64_t dim2 = c->Value(c->Dim(input_shape, 1));
-        int64_t value_num = dim1 * dim2;
-        int64_t index_dim = 2 * dim1 * dim2;
-        int64_t count_dim = 1;
+    .SetShapeFn([](InferenceContext *c) {
+      auto input_shape = c->input(0);
+      int64_t dim1 = c->Value(c->Dim(input_shape, 0));
+      int64_t dim2 = c->Value(c->Dim(input_shape, 1));
+      int64_t value_num = dim1 * dim2;
+      int64_t index_dim = 2 * dim1 * dim2;
+      int64_t count_dim = 1;
 
-        c->set_output(0, c->MakeShape({c->MakeDim(value_num)}));
-        c->set_output(1, c->MakeShape({c->MakeDim(index_dim)}));
-        c->set_output(2, c->MakeShape({c->MakeDim(count_dim)}));
-	return Status::OK();
+      c->set_output(0, c->MakeShape({c->MakeDim(value_num)}));
+      c->set_output(1, c->MakeShape({c->MakeDim(index_dim)}));
+      c->set_output(2, c->MakeShape({c->MakeDim(count_dim)}));
+      return Status::OK();
     });
 
 REGISTER_OP("FusedLayerNorm")
@@ -450,32 +435,29 @@ REGISTER_OP("FusedLayerNorm")
     .Attr("epsilon: float = 0.0000001")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-        int real_dim_num = c->Rank(c->input(0));
-        int begin_norm_axis = 0;
-        TF_RETURN_IF_ERROR(c->GetAttr("begin_norm_axis", &begin_norm_axis));
-        if (begin_norm_axis < 0) {
-          begin_norm_axis += real_dim_num;
+      int real_dim_num = c->Rank(c->input(0));
+      int begin_norm_axis = 0;
+      TF_RETURN_IF_ERROR(c->GetAttr("begin_norm_axis", &begin_norm_axis));
+      if (begin_norm_axis < 0) {
+        begin_norm_axis += real_dim_num;
+      }
+      if (begin_norm_axis < 0 || begin_norm_axis >= real_dim_num) {
+        return errors::InvalidArgument("begin_norm_axis is invalid");
+      }
+      ShapeHandle input_shape_handle;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), real_dim_num, &input_shape_handle));
+      ShapeHandle out_shape_handle;
+      for (int i = 0; i < real_dim_num; ++i) {
+        DimensionHandle tmp_dim_handle = c->Dim(input_shape_handle, i);
+        if (i >= begin_norm_axis) {
+          tmp_dim_handle = c->MakeDim(1);
+          TF_RETURN_IF_ERROR(c->ReplaceDim(input_shape_handle, i, tmp_dim_handle, &out_shape_handle));
         }
-        if (begin_norm_axis < 0 || begin_norm_axis >= real_dim_num) {
-          return errors::InvalidArgument("begin_norm_axis is invalid");
-        }
-        ShapeHandle input_shape_handle;
-        TF_RETURN_IF_ERROR(c->WithRank(c->input(0), real_dim_num, &input_shape_handle));
-        ShapeHandle out_shape_handle;
-        for (int i = 0; i < real_dim_num; ++i) {
-            DimensionHandle tmp_dim_handle = c->Dim(input_shape_handle, i);
-            if (i >= begin_norm_axis) {
-                tmp_dim_handle = c->MakeDim(1);
-                TF_RETURN_IF_ERROR(c->ReplaceDim(input_shape_handle,
-                                   i,
-                                   tmp_dim_handle,
-                                   &out_shape_handle));
-            }
-        }
-        c->set_output(0, c->input(0));
-        c->set_output(1, out_shape_handle);
-        c->set_output(2, out_shape_handle);
-        return Status::OK();
+      }
+      c->set_output(0, c->input(0));
+      c->set_output(1, out_shape_handle);
+      c->set_output(2, out_shape_handle);
+      return Status::OK();
     });
 
 REGISTER_OP("FusedLayerNormGrad")
@@ -490,10 +472,10 @@ REGISTER_OP("FusedLayerNormGrad")
     .Attr("T: {float16, float32}")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-        c->set_output(0, c->input(0));
-        c->set_output(1, c->input(4));
-        c->set_output(2, c->input(4));
-        return Status::OK();
+      c->set_output(0, c->input(0));
+      c->set_output(1, c->input(4));
+      c->set_output(2, c->input(4));
+      return Status::OK();
     });
 }  // namespace
-} // namespace tensorflow
+}  // namespace tensorflow

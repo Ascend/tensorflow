@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Public functions for NPU estimator"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -97,7 +99,7 @@ def format_string(value, name):
     return str(value)
 
 
-def check_profiling_options(profiling_options=[]):
+def check_profiling_options(profiling_options=()):
     """Check profiling options .
     Args:
         profiling_options: Profiling options.
@@ -157,6 +159,7 @@ def check_aoe_mode(aoe_mode):
 
 
 def register_func(var_name):
+    """Resiger function to NPU"""
     ops.register_proto_function(
         '{}_{}'.format(_NPU_RUNCONFIG, var_name),
         proto_type=variable_pb2.VariableDef,
@@ -165,12 +168,13 @@ def register_func(var_name):
 
 
 def create_or_get_var(var_name):
+    """Create or get variable"""
     graph = ops.get_default_graph()
     collection_name = '{}_{}'.format(_NPU_RUNCONFIG, var_name)
     iter_vars = graph.get_collection(collection_name)
     if len(iter_vars) == 1:
         return iter_vars[0]
-    elif len(iter_vars) > 1:
+    if len(iter_vars) > 1:
         raise RuntimeError('Multiple var in collection.')
     ignore_existing = False
     if training_util.get_global_step() is None:
@@ -228,6 +232,11 @@ class IterationPerLoop():
     """
     An object provide two API to create and set iterations_per_loop
     """
+    def __init__(self):
+        self._const_one = None
+        self._const_zero = None
+        self._loop_cond_var = None
+        self._iterations_per_loop_var = None
 
     def create_iteration_per_loop_var(self, train_op):
         """
@@ -285,36 +294,31 @@ def variable_initializer_in_host(var_list):
 
 
 def fair_division(inputs, number):
-    def get_sum(list):
+    """Calculate fain division"""
+    def get_sum(input_list):
+        """Calculate sum"""
         res = 0
-        for item in list:
+        for item in input_list:
             res += item.size
         return res
 
-    def get_left_input_sum(list):
-        res = 0
-        for item in list:
-            if item.root_rank_id < 0:
-                res += item.size
-        return res
-
-    def get_average(list, size):
+    def get_average(input_list, size):
         large_number_list = []
         average_size = 0
         res = 0
         if size == 1:
-            for item in list:
+            for item in input_list:
                 if item.root_rank_id < 0:
                     res += item.size
             return res
         while True:
             res = 0
             find_large_number = False
-            for item in list:
+            for item in input_list:
                 if item not in large_number_list and item.root_rank_id < 0:
                     res += item.size
             average_size = res // (size - len(large_number_list))
-            for item in list:
+            for item in input_list:
                 if item not in large_number_list and item.root_rank_id < 0 and item.size > res - item.size:
                     find_large_number = True
                     large_number_list.append(item)
@@ -324,7 +328,7 @@ def fair_division(inputs, number):
 
     if number > len(inputs) or number < 0:
         raise ValueError("'number' is greater than the number of inputs or 'number' is less than 0. ")
-    elif number == len(inputs):
+    if number == len(inputs):
         for i in range(len(inputs)):
             inputs[i].root_rank_id = i
         return inputs
@@ -359,6 +363,7 @@ def fair_division(inputs, number):
 
 
 class GradDivisionItem():
+    """Class for processing gradient and value"""
     def __init__(self, grad, var):
         self.grad = grad
         self.var = var
@@ -370,8 +375,8 @@ class GradDivisionItem():
         grad_shape = self.grad.shape
         if len(grad_shape) <= 0:
             return 0
-        for i in range(len(grad_shape)):
-            size = size * int(grad_shape[i])
+        for s in grad_shape:
+            size = size * int(s)
         size = size * self.grad.dtype.size
         return size
 
@@ -380,6 +385,7 @@ _GRADIENTS_AND_VARS = []
 
 
 def add_grads_and_vars(grads_and_vars, rank_size):
+    """Accumulate gradients and variables"""
     global _GRADIENTS_AND_VARS
     _GRADIENTS_AND_VARS.clear()
     for grad, var in grads_and_vars:
@@ -390,6 +396,7 @@ def add_grads_and_vars(grads_and_vars, rank_size):
 
 
 def get_gid_by_grad(grad):
+    """Get gradient id by grad"""
     gid = -1
     global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
@@ -399,6 +406,7 @@ def get_gid_by_grad(grad):
 
 
 def get_gid_by_weight(weight):
+    """Get gradient id by weight"""
     gid = -1
     global _GRADIENTS_AND_VARS
     for item in _GRADIENTS_AND_VARS:
@@ -408,6 +416,7 @@ def get_gid_by_weight(weight):
 
 
 def get_all_grad_item():
+    """Get all gradients"""
     global _GRADIENTS_AND_VARS
     return _GRADIENTS_AND_VARS
 
@@ -441,7 +450,7 @@ def set_graph_exec_config(fetch, dynamic_input=False,
             fetch.op._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
             fetch.op._set_attr("_is_train_graph", is_train_graph_attr)
 
-    if dynamic_graph_execute_mode != "lazy_recompile" and dynamic_graph_execute_mode != "dynamic_execute":
+    if dynamic_graph_execute_mode not in ("lazy_recompile", "dynamic_execute"):
         raise ValueError("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute")
     dynamic_input_attr = attr_value_pb2.AttrValue(b=dynamic_input)
     dynamic_graph_execute_mode_attr = attr_value_pb2.AttrValue(s=compat.as_bytes(dynamic_graph_execute_mode))
@@ -467,19 +476,23 @@ def set_graph_exec_config(fetch, dynamic_input=False,
 
 
 def npu_compile(sess, *fetches):
+    """Compile NPU fetches"""
     sess.run(fetches)
 
 
 def global_dict_init():
+    """Initialize global dictionary"""
     global _global_dict
     _global_dict = {}
 
 
 def set_value(key, value):
+    """Set value by key"""
     _global_dict[key] = value
 
 
 def get_value(key, def_value=None):
+    """Get value by key"""
     try:
         return _global_dict[key]
     except KeyError:
@@ -502,15 +515,27 @@ def keep_tensors_dtypes(graph, input_tensors):
 
 
 def set_op_tensor_max_range(tensor, max_shape):
-  if isinstance(tensor, ops.Operation):
-    tensor._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
-  else:
-    tensor.op._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
+    """Set max range for op tensor"""
+    if isinstance(tensor, ops.Operation):
+        tensor._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
+    else:
+        tensor.op._set_attr("_op_max_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(max_shape)))
+
 
 def set_op_input_tensor_multi_dims(tensor, input_shape, input_dims):
+    """Set multi dimensions for op input tensor"""
     if isinstance(tensor, ops.Operation):
         tensor._set_attr("_subgraph_multi_dims_input_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(input_shape)))
         tensor._set_attr("_subgraph_multi_dims_input_dims", attr_value_pb2.AttrValue(s=compat.as_bytes(input_dims)))
     else:
-        tensor.op._set_attr("_subgraph_multi_dims_input_shape", attr_value_pb2.AttrValue(s=compat.as_bytes(input_shape)))
+        tensor.op._set_attr("_subgraph_multi_dims_input_shape",
+                            attr_value_pb2.AttrValue(s=compat.as_bytes(input_shape)))
         tensor.op._set_attr("_subgraph_multi_dims_input_dims", attr_value_pb2.AttrValue(s=compat.as_bytes(input_dims)))
+
+
+def set_op_tensor_max_size(tensor, max_size):
+    """Set max size of op tensor"""
+    if isinstance(tensor, ops.Operation):
+        tensor._set_attr("_op_max_size", attr_value_pb2.AttrValue(i=max_size))
+    else:
+        tensor.op._set_attr("_op_max_size", attr_value_pb2.AttrValue(i=max_size))

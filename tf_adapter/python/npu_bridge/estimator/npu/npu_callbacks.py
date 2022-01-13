@@ -14,6 +14,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""NPU callback functions"""
+
 import os
 from tensorflow.python import keras
 from tensorflow.python.keras import backend
@@ -23,6 +25,7 @@ from npu_bridge.hccl import hccl_ops
 
 
 def broadcast_global_variables(root_rank):
+    """Used to broadcast global variables"""
     variables = backend._get_variables(backend.get_graph())
     candidate_vars = []
     for v in variables:
@@ -32,20 +35,22 @@ def broadcast_global_variables(root_rank):
     if candidate_vars:
         for var in candidate_vars:
             inputs = [var]
-            outputs = hccl_ops.broadcast(tensor=inputs, root_rank=0)
+            outputs = hccl_ops.broadcast(tensor=inputs, root_rank=root_rank)
             if outputs is not None:
                 op_list.append(outputs[0].op)
                 op_list.append(state_ops.assign(var, outputs[0]))
     return control_flow_ops.group(op_list)
 
 
-class BroadcastGlobalVariablesCallbackImpl(object):
+class BroadcastGlobalVariablesCallbackImpl:
+    """NPU implemented global variable broadcast callback function"""
     def __init__(self, root_rank, *args):
         super(BroadcastGlobalVariablesCallbackImpl, self).__init__(*args)
         self.root_rank = root_rank
         self.broadcast_done = False
 
     def on_batch_begin(self, batch, logs=None):
+        """This function is called when every batch begins"""
         if self.broadcast_done:
             return
 

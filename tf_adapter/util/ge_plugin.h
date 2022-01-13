@@ -16,11 +16,10 @@
 #ifndef TENSORFLOW_GE_PLUGIN_H_
 #define TENSORFLOW_GE_PLUGIN_H_
 
-#include "tensorflow/core/platform/types.h"
 #include <map>
 #include <mutex>
 #include <string>
-using tensorflow::int64;
+#include "tensorflow/core/platform/types.h"
 
 // Singleton class for manage the relationship between
 // tf session and ge session
@@ -28,7 +27,7 @@ class GePlugin {
  public:
   static GePlugin *GetInstance();
 
-  void Init(std::map<std::string, std::string> &init_options, bool is_global = false);
+  void Init(std::map<std::string, std::string> &init_options, const bool is_global = false);
 
   void Finalize();
 
@@ -41,8 +40,7 @@ class GePlugin {
 
   ~GePlugin();
 
-  uint64_t GetFusionTensorSize();
-
+  uint64_t GetFusionTensorSize() const;
 
   uint32_t device_id_;
   bool isInit_;
@@ -50,4 +48,6 @@ class GePlugin {
   std::map<std::string, std::string> init_options_;
   std::mutex mutex_;
 };
+// } // tensorflow
+
 #endif

@@ -87,40 +87,40 @@ def deformable_conv2d(  # pylint: disable=redefined-builtin
     if context.executing_eagerly():
         raise RuntimeError("tf.deformable_conv2d() is not compatible with "
                            "eager execution.")
-    if modulated != True:
+    if not modulated:
         raise RuntimeError("tf.deformable_conv2d() only supports "
                            "modulated is True currently")
     if groups != 1:
         raise RuntimeError("tf.deformable_conv2d() only supports "
                            "groups is 1 currently")
 
-    else:
-        kh, kw = filter.get_shape().as_list()[:2]
-        fm_offsets = gen_npu_ops.deformable_offsets(
-            x=x,
-            offsets=offsets,
-            strides=strides,
-            pads=pads,
-            ksize=[kh, kw],
-            dilations=dilations,
-            data_format=data_format,
-            deformable_groups=deformable_groups,
-            modulated=True,
-            name=name)
+    kh, kw = filter.get_shape().as_list()[:2]
+    fm_offsets = gen_npu_ops.deformable_offsets(
+        x=x,
+        offsets=offsets,
+        strides=strides,
+        pads=pads,
+        ksize=[kh, kw],
+        dilations=dilations,
+        data_format=data_format,
+        deformable_groups=deformable_groups,
+        modulated=True,
+        name=name)
 
-        strides_conv = list(strides)
-        pos_h, pos_w = data_format.find('H'), data_format.find('W')
-        strides_conv[pos_h] = kh
-        strides_conv[pos_w] = kw
-        op_res = nn_ops.conv2d(
-            fm_offsets, filter, strides=strides_conv, padding="VALID",
-            data_format=data_format, dilations=None, name=name)
+    strides_conv = list(strides)
+    pos_h, pos_w = data_format.find('H'), data_format.find('W')
+    strides_conv[pos_h] = kh
+    strides_conv[pos_w] = kw
+    op_res = nn_ops.conv2d(
+        fm_offsets, filter, strides=strides_conv, padding="VALID",
+        data_format=data_format, dilations=None, name=name)
 
     return op_res
 
 
 @ops.RegisterGradient("DeformableOffsets")
 def deformable_offsets_grad(op, grad):
+    """NPU implemented gradient for deformable_offsets"""
     x = op.inputs[0]
     offsets = op.inputs[1]
     strides = op.get_attr("strides")

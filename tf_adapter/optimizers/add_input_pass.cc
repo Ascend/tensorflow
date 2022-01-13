@@ -57,7 +57,9 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
       graph_run_num++;
     }
     int64 startTime = InferShapeUtil::GetCurrentTimestap();
-    if (graph == nullptr) { continue; }
+    if (graph == nullptr) {
+      continue;
+    }
 
     bool findMarkNoNeed = false;
     for (Node *n : graph->get()->nodes()) {
@@ -68,7 +70,9 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
         break;
       }
     }
-    if (findMarkNoNeed) { continue; }
+    if (findMarkNoNeed) {
+      continue;
+    }
 
     std::map<std::string, std::string> pass_options;
     pass_options = NpuAttrs::GetDefaultPassOptions();
@@ -87,9 +91,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
       continue;
     }
 
-    char *need_print = getenv("PRINT_MODEL");
-
-    if (need_print != nullptr && strcmp("1", need_print) == 0) {
+    if (kDumpGraph) {
       GraphDef ori_graph_def;
       graph->get()->ToGraphDef(&ori_graph_def);
       string ori_model_path = GetDumpPath() + "BeforeSubGraph_Add_Input_";
@@ -108,7 +110,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
     TF_RETURN_IF_ERROR(ConvertGraphDefToGraph(device_opts, graph_def, device_graph.get()));
     partition.second.swap(device_graph);
 
-    if (need_print != nullptr && strcmp("1", need_print) == 0) {
+    if (kDumpGraph) {
       GraphDef omg_graph_def;
       graph->get()->ToGraphDef(&omg_graph_def);
       string tmpmodel_path = GetDumpPath() + "AfterSubGraph_Add_Input_";
@@ -117,7 +119,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
     }
     int64 endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "AddInputPass subgraph_" << std::to_string(graph_num) << " success. ["
-              << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+                  << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   }
 
   return Status::OK();

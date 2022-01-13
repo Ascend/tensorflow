@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""NPU hccl functions"""
+
 from npu_device.distribute import hccl_ops
 from npu_device.npu_device import global_npu_ctx
 from npu_device.npu_device import npu_compat_function
@@ -23,6 +26,7 @@ from absl import logging
 
 
 def shard_and_rebatch_dataset(dataset, global_bs):
+    """Generate shard of dataset and rebatch it"""
     if global_npu_ctx() is None or global_npu_ctx().workers_num <= 1:
         return dataset, global_bs
     if global_bs % global_npu_ctx().workers_num != 0:
@@ -63,14 +67,14 @@ def _all_reduce(values, reduction, fusion, fusion_id, group):
 
 
 def all_reduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
+    """NPU implemented all_reduce"""
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip all reduce as current process is not npu cluster worker")
         return values
 
     if isinstance(values, (list, tuple,)):
         return _all_reduce(values, reduction, fusion, fusion_id, group)
-    else:
-        return _all_reduce([values], reduction, fusion, fusion_id, group)[0]
+    return _all_reduce([values], reduction, fusion, fusion_id, group)[0]
 
 
 @npu_compat_function
@@ -80,6 +84,7 @@ def _broadcast(values, root_rank, fusion, fusion_id, group):
 
 
 def broadcast(values, root_rank=0, fusion=2, fusion_id=0, group="hccl_world_group"):
+    """Broadcast value among cluster"""
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip broadcast as current process is not npu cluster worker")
         return
@@ -91,6 +96,7 @@ def broadcast(values, root_rank=0, fusion=2, fusion_id=0, group="hccl_world_grou
 
 def npu_distributed_keras_optimizer_wrapper(optimizer, reduce_reduction="mean", fusion=1, fusion_id=-1,
                                             group="hccl_world_group"):
+    """NPU implemented keras optimizer"""
     optimizer = optimizers.get(optimizer)
     org_apply_gradients = optimizer.apply_gradients
 

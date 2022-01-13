@@ -17,7 +17,6 @@
 #include "tf_adapter/optimizers/weight_update_sharding_pass.h"
 
 #include <memory>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -36,8 +35,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
   if (options.graph == nullptr || options.flib_def == nullptr || options.session_options == nullptr) {
     return Status::OK();
   }
-  int graph_num;
-  graph_num = graph_run_num++;
+  int graph_num = graph_run_num++;
 
   Graph *graphIn = (options.graph)->get();
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
@@ -57,14 +55,13 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
     op_type = node->type_string();
     if (op_name.find("_Broadcast_Weight_Update_Sharding") != std::string::npos) {
       weight_update_sharding = true;
-      if (npu_loss_scale == true) {
+      if (npu_loss_scale) {
         break;
       }
     }
-    if (op_name.find("NPULossScaleOptimizer") != std::string::npos &&
-        op_type == "NpuAllocFloatStatus") {
+    if (op_name.find("NPULossScaleOptimizer") != std::string::npos && op_type == "NpuAllocFloatStatus") {
       npu_loss_scale = true;
-      if (weight_update_sharding == true) {
+      if (weight_update_sharding) {
         break;
       }
     }
@@ -72,26 +69,23 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
 
   if (weight_update_sharding) {
     int64 startTime = InferShapeUtil::GetCurrentTimestap();
-    char *need_print = getenv("PRINT_MODEL");
-
-    if (need_print != nullptr && strcmp("1", need_print) == 0) {
+    if (kDumpGraph) {
       GraphDef ori_graph_def;
       graphIn->ToGraphDef(&ori_graph_def);
-      string ori_model_path = GetDumpPath() + "BeforeWeightUpdateSharding_";
-      string omodel_path = ori_model_path + std::to_string(graph_num) + ".pbtxt";
+      std::string ori_model_path = GetDumpPath() + "BeforeWeightUpdateSharding_";
+      std::string omodel_path = ori_model_path + std::to_string(graph_num) + ".pbtxt";
       Status status_out = WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
     }
 
     std::vector<Node *> in_nodes;
-    for (Node *node : graphIn->nodes()) { in_nodes.push_back(node); }
+    std::copy(graphIn->nodes().begin(), graphIn->nodes().end(), std::back_inserter(in_nodes));
     for (int i = in_nodes.size() - 1; i >= 0; i--) {
       Node *node = in_nodes.at(i);
       REQUIRES_NOT_NULL(node);
       std::string op_type = node->type_string();
       std::string dst_name;
       std::string dst_type;
-      if (op_type == "VarHandleOp" || op_type == "Identity" ||
-          op_type == "ReadVariableOp") {
+      if (op_type == "VarHandleOp" || op_type == "Identity" || op_type == "ReadVariableOp") {
         Node *var_node = nullptr;
         Node *broadcast_node = nullptr;
         std::vector<const Edge *> remove_edges;
@@ -105,7 +99,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
           }
         }
         std::vector<const Edge *> out_edges;
-        for (auto edge : node->out_edges()) { out_edges.push_back(edge); }
+        std::copy(node->out_edges().begin(), node->out_edges().end(), std::back_inserter(out_edges));
         for (auto out_edge : out_edges) {
           REQUIRES_NOT_NULL(out_edge);
           REQUIRES_NOT_NULL(out_edge->src());
@@ -128,7 +122,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
               }
               if (find_broadcast) {
                 broadcast_node = out_edge->dst();
-                //remove edge : VarHandleOp/Identity --> broadcast
+                // remove edge : VarHandleOp/Identity --> broadcast
                 remove_edges.push_back(out_edge);
                 for (auto broadcast_edge : out_edge->dst()->out_edges()) {
                   REQUIRES_NOT_NULL(broadcast_edge);
@@ -165,14 +159,14 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
                   }
                   if (find_broadcast) {
                     broadcast_node = switch_out_edge->dst();
-                    //remove edge : Switch --> broadcast
+                    // remove edge : Switch --> broadcast
                     remove_edges.push_back(switch_out_edge);
                     for (auto broadcast_edge : switch_out_edge->dst()->out_edges()) {
                       REQUIRES_NOT_NULL(broadcast_edge);
                       REQUIRES_NOT_NULL(broadcast_edge->src());
                       REQUIRES_NOT_NULL(broadcast_edge->dst());
                       if (broadcast_edge->IsControlEdge()) {
-                        //remove edge : broadcast --> group
+                        // remove edge : broadcast --> group
                         remove_edges.push_back(broadcast_edge);
                       }
                     }
@@ -201,7 +195,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
       }
     }
 
-    if (need_print != nullptr && strcmp("1", need_print) == 0) {
+    if (kDumpGraph) {
       GraphDef omg_graph_def;
       graphIn->ToGraphDef(&omg_graph_def);
       string tmpmodel_path = GetDumpPath() + "AfterWeightUpdateSharding_";
@@ -211,10 +205,10 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
     int64 endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "WeightUpdateSharding_" << std::to_string(graph_num) << " success. ["
                   << ((endTime - startTime) / kMicrosToMillis) << " ms]";
-    }
+  }
 
   return Status::OK();
 }
 
 REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, 2, WeightUpdateShardingPass);
-} // namespace tensorflow
+}  // namespace tensorflow

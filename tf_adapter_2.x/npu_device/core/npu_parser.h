@@ -28,7 +28,6 @@
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/tf_status.h"
 
 namespace {
 const std::string kInputDesc = "input_tensor_desc";
@@ -39,8 +38,9 @@ const std::string kShape = "serialize_shape";
 const std::string kSubGraph = "SubGraph";
 }  // namespace
 
+namespace npu {
 template <typename T>
-static tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes types) {
+static inline tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes types) {
   tensorflow::AttrValue desc_attr;
   for (size_t i = 0; i < types.size(); i++) {
     auto desc = desc_attr.mutable_list()->add_func();
@@ -70,8 +70,8 @@ static tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes types) {
  * @param name: node name
  * @param ndef: tensorflow node def
  */
-static void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes types, const std::string &name,
-                         tensorflow::NodeDef *ndef) {
+static inline void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes types, const std::string &name,
+                                tensorflow::NodeDef *ndef) {
   tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), ndef);
 }
 
@@ -82,8 +82,8 @@ static void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes types, cons
  * @param name: node name
  * @param ndef: tensorflow node def
  */
-static void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::string &name,
-                         tensorflow::NodeDef *ndef) {
+static inline void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::string &name,
+                                tensorflow::NodeDef *ndef) {
   tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), ndef);
 }
 
@@ -93,7 +93,8 @@ static void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::
  * @param types: tensor data types
  * @param ndef: tensorflow node ndef
  */
-__attribute__((unused)) static void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types,
+                                                         tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
 }
 
@@ -103,7 +104,8 @@ __attribute__((unused)) static void AssembleInputDesc(TensorPartialShapes shapes
  * @param types: tensor data types
  * @param ndef: tensorflow node ndef
  */
-__attribute__((unused)) static void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types,
+                                                          tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
 }
 
@@ -113,7 +115,8 @@ __attribute__((unused)) static void AssembleOutputDesc(TensorPartialShapes shape
  * @param types: tensor data types
  * @param ndef: tensorflow node def
  */
-__attribute__((unused)) static void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types,
+                                                         tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
 }
 
@@ -123,7 +126,8 @@ __attribute__((unused)) static void AssembleInputDesc(TensorShapes shapes, Tenso
  * @param types: tensor data types
  * @param ndef: tensorflow node def
  */
-__attribute__((unused)) static void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types,
+                                                          tensorflow::NodeDef *ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
 }
 
@@ -133,7 +137,8 @@ __attribute__((unused)) static void AssembleOutputDesc(TensorShapes shapes, Tens
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-__attribute__((unused)) static void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types,
+                                                         tensorflow::Node *n) {
   n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
@@ -143,7 +148,8 @@ __attribute__((unused)) static void AssembleInputDesc(TensorShapes shapes, Tenso
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-__attribute__((unused)) static void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types,
+                                                          tensorflow::Node *n) {
   n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
@@ -153,7 +159,8 @@ __attribute__((unused)) static void AssembleOutputDesc(TensorShapes shapes, Tens
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-__attribute__((unused)) static void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types,
+                                                         tensorflow::Node *n) {
   n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
@@ -163,7 +170,8 @@ __attribute__((unused)) static void AssembleInputDesc(TensorPartialShapes shapes
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-__attribute__((unused)) static void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types,
+                                                          tensorflow::Node *n) {
   n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
@@ -172,7 +180,8 @@ __attribute__((unused)) static void AssembleOutputDesc(TensorPartialShapes shape
  * @param op_data: tensorflow op registration data
  * @param n: tensorflow node
  */
-__attribute__((unused)) static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::Node *n) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistrationData *op_data,
+                                                     tensorflow::Node *n) {
   std::string serialized_op_def;
   op_data->op_def.SerializeToString(&serialized_op_def);
   n->AddAttr("op_def", serialized_op_def);
@@ -182,7 +191,7 @@ __attribute__((unused)) static void AssembleOpDef(const tensorflow::OpRegistrati
  * @breif: assemble op def
  * @param n: tensorflow node
  */
-__attribute__((unused)) static void AssembleOpDef(tensorflow::Node *n) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::Node *n) {
   const tensorflow::OpRegistrationData *op_reg_data;
   tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
   std::string serialized_op_def;
@@ -195,7 +204,8 @@ __attribute__((unused)) static void AssembleOpDef(tensorflow::Node *n) {
  * @param op_data: tensorflow op registration data
  * @param ndef: tensorflow node def
  */
-__attribute__((unused)) static void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistrationData *op_data,
+                                                     tensorflow::NodeDef *ndef) {
   std::string serialized_op_def;
   op_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
@@ -205,12 +215,12 @@ __attribute__((unused)) static void AssembleOpDef(const tensorflow::OpRegistrati
  * @breif: assemble op def
  * @param ndef: tensorflow node def
  */
-__attribute__((unused)) static void AssembleOpDef(tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::NodeDef *ndef) {
   const tensorflow::OpRegistrationData *op_reg_data;
   tensorflow::OpRegistry::Global()->LookUp(ndef->op(), &op_reg_data);
   std::string serialized_op_def;
   op_reg_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
-
+}  // namespace npu
 #endif  // TENSORFLOW_NPU_PARSER_H

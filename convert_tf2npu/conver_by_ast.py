@@ -14,70 +14,94 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""Basic class to transform ast node"""
+
 import os
 import sys
 import ast
-import subprocess
 import pasta
 import util_global
 from file_op import write_output_after_conver
 from file_op import write_report_after_conver
 from file_op import scan_file
-from util import *
-from ast_impl import *
+from util import log_warning_main_arg_not_set
+from ast_impl import log_strategy_distributed_mode_error
+from ast_impl import node_tree
+from ast_impl import attribute
+from ast_impl import ast_function_def
+from ast_impl import ast_call
+from ast_impl import import_from
+from ast_impl import ast_import
+from ast_impl import ast_if
+from ast_impl import insert_npu_import
+from ast_impl import insert_npu_resource_init
+from ast_impl import insert_npu_resource_shutdown
+from ast_impl import insert_keras_dropout_import
+from ast_impl import insert_keras_sess_npu_config
+from ast_impl import insert_keras_sess_close
 from visit_by_ast import get_tf_api
 
 
 class ConverByAst(ast.NodeTransformer):
+    """Class for transforming python ast node"""
     def generic_visit(self, node):
         ast.NodeTransformer.generic_visit(self, node)
         return node
 
     def visit_Attribute(self, node):
+        """Visit and transform attr node"""
         self.generic_visit(node)
         if node.attr == "keras":
             util_global.set_value('is_keras_net', True)
         if node.attr in util_global.get_value('hvd'):
             distributed_mode = util_global.get_value("distributed_mode", "")
             if isinstance(node.value, ast.Name) and 'hvd' in str(node.value.id):
-                if distributed_mode == "tf_strategy" or distributed_mode == "":
+                if distributed_mode in ("tf_strategy", ""):
                     log_strategy_distributed_mode_error(node)
                     return node
                 return attribute(node)
         return node
 
     def visit_FunctionDef(self, node):
+        """Visit and transform function def node"""
         if node.name == 'gelu':
             return ast_function_def(node)
         self.generic_visit(node)
         return node
 
     def visit_Call(self, node):
+        """Visit and transform call node"""
         self.generic_visit(node)
         node = ast_call(node)
         return node
 
     def visit_ImportFrom(self, node):
+        """Visit and transform importfrom node"""
         self.generic_visit(node)
         node = import_from(node)
         return node
 
     def visit_Import(self, node):
+        """Visit and transform import node"""
         self.generic_visit(node)
         node = ast_import(node)
         return node
 
     def visit_Assign(self, node):
+        """Visit and transform assign node"""
         self.generic_visit(node)
         return node
 
     def visit_If(self, node):
+        """Visit and transform if node"""
         self.generic_visit(node)
         ast_if(node)
         return node
 
 
 def conver(r_node, out_path_dst, file_name):
+    """Add necessary imported modules"""
     if file_name != "__init__.py":
         insert_npu_import(r_node)
     if util_global.get_value('use_keras_dropout', False):
@@ -99,6 +123,7 @@ def conver(r_node, out_path_dst, file_name):
 
 
 def conver_ast(path, out_path_dst, file_name):
+    """Convert script by python ast"""
     util_global.set_value('need_conver', False)
     util_global.set_value('is_keras_net', False)
     util_global.set_value('has_hvd_api', False)
@@ -114,7 +139,7 @@ def conver_ast(path, out_path_dst, file_name):
         print(repr(e))
         content = ("There is a format problem in the script, please check the python code "
                    "specification or whether it is converted to a linux file through 'dos2unix'")
-        subprocess.run(["cd", "."], shell=True)
+        os.system("cd .")
         print("".join(["\033[1;31mERROR\033[0m:", content]))
         return
 

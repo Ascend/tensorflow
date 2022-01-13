@@ -21,7 +21,7 @@ template<typename T>
 class DynamicGruV2GradOP : public OpKernel {
  public:
   explicit DynamicGruV2GradOP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicGruV2GradOP"; }
-  ~DynamicGruV2GradOP() { LOG(INFO) << "del DynamicGruV2GradOP"; }
+  ~DynamicGruV2GradOP() override { LOG(INFO) << "del DynamicGruV2GradOP"; }
   void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in DynamicGruV2GradOP"; }
   bool IsExpensive() override { return false; }
 };

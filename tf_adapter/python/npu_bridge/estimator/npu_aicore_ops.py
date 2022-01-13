@@ -22,21 +22,15 @@ from __future__ import division
 from __future__ import print_function
 
 import numbers
-from tensorflow.contrib.util import loader
-from tensorflow.python.platform import resource_loader
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops.nn_ops import _get_noise_shape
-from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import dtypes
-from tensorflow.python.eager import context
-from tensorflow.python.framework import device
-from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 from npu_bridge.helper import helper
+from npu_bridge.estimator.npu.npu_common import NPUBasics
 
-npu_aicore_ops = helper.get_gen_ops();
+npu_aicore_ops = helper.get_gen_ops()
 
 DEFAULT_GRAPH_SEED = 87654321
 _MAXINT32 = 2 ** 31 - 1
@@ -81,11 +75,13 @@ def centralization(x, axes, name=None):
 
 @ops.RegisterGradient("PRelu")
 def prelu_grad(op, grad):
+    """Gradient for prelu"""
     dx, da = npu_aicore_ops.p_relu_grad(grad, op.inputs[0], op.inputs[1])
     return [dx, da]
 
 
 def prelu(x, weight):
+    """prelu op"""
     return npu_aicore_ops.p_relu(x, weight)
 
 
@@ -133,8 +129,8 @@ def nonzero(x, transpose=False, output_type=dtypes.int64, name=None):
     """
     nonezero op
     Return the indices of the elementes that are non-zero.
-    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes in that dimension.
-    The values in a are always tested and returned in row-major ,C-style order.
+    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes
+    in that dimension. The values in a are always tested and returned in row-major ,C-style order.
 
     """
     x = ops.convert_to_tensor(x, name="x")
@@ -146,8 +142,8 @@ def nonzerowithvalue(x, transpose=False, output_type=dtypes.int64, name=None):
     """
     nonezero op
     Return the indices of the elementes that are non-zero.
-    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes in that dimension.
-    The values in a are always tested and returned in row-major ,C-style order.
+    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes
+    in that dimension. The values in a are always tested and returned in row-major ,C-style order.
 
     """
     x = ops.convert_to_tensor(x, name="x")

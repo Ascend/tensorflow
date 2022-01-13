@@ -17,9 +17,11 @@
 #ifndef TENSORFLOW_KERNELS_GEOP_NPU_H_
 #define TENSORFLOW_KERNELS_GEOP_NPU_H_
 
+#include <unordered_map>
+#include <atomic>
+
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/util/env_var.h"
 
@@ -27,9 +29,6 @@
 #include "ge/ge_api_types.h"
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
-#include <unordered_map>
-#include <atomic>
-#include "external/graph/ascend_string.h"
 #include "aoe_tuning_api.h"
 
 namespace tensorflow {
@@ -47,7 +46,7 @@ using AoeTuningGraphFunc = Aoe::AoeStatus (*)(SessionId , const std::map<Aoe::As
 class GeOp : public AsyncOpKernel {
  public:
   explicit GeOp(OpKernelConstruction *ctx);
-  ~GeOp();
+  ~GeOp() override;
   void ComputeAsync(OpKernelContext *ctx, DoneCallback done) override;
 
  private:
@@ -62,6 +61,9 @@ class GeOp : public AsyncOpKernel {
   Status BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
                        GraphDef &graph_def, bool &is_initialize);
 
+  // Analyze sting input data
+  Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector);
+
   // prepare input tensor
   Status BuildInputTensorInfo(OpKernelContext *ctx,
                               std::vector<Tensor> &input_vec,
@@ -74,22 +76,22 @@ class GeOp : public AsyncOpKernel {
   Status GenerateDesc(Node *&node);
 
   // parse onnx model in tensorflow node
-  Status ParseOnnxGraphOpAttr(Node *&node);
+  Status ParseOnnxGraphOpAttr(Node *&node) const;
 
-  Status DomiFormatFromString(std::string format, int32_t &domi_format);
+  Status DomiFormatFromString(std::string format, int32_t &domi_format) const;
 
  private:
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
   int InitRebuildFlag(uint32_t cache_graph_id);
 
-  bool IncrementGraphIdCount(std::string &tf_session, uint32_t &graph_id);
+  bool IncrementGraphIdCount(uint32_t &graph_id);
 
-  bool DecrementGraphIdCount(std::string &tf_session, uint32_t &graph_id);
+  bool DecrementGraphIdCount(const std::string &tf_session, uint32_t &graph_id);
 
-  void ClearGraphIdCount(std::string &tf_session);
+  void ClearGraphIdCount();
 
-  void GetExecGraphId(OpKernelContext *ctx, uint32_t &cache_graph_id,
+  void GetExecGraphId(uint32_t &cache_graph_id,
                       std::vector<std::string> input_shapes);
 
   void GetMsTuneConfig(std::map<std::string, std::string> init_options);
@@ -103,17 +105,20 @@ class GeOp : public AsyncOpKernel {
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                         std::vector<std::string> &input_shapes);
-  int RunTuning(std::vector<Tensor> &input_vec, OpKernelContext *ctx);
+  int RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const ctx);
 
   std::string BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::string &graph);
 
   void SetDynamicInput();
 
-  void ProcessDpOpFuncDef(Node *node);
+  void ProcessDpOpFuncDef(const Node &node) const;
+
+  void BuildQueueDataAndGetNextFromQueue(Graph &graph, const Node &getnext_node,
+                                         const std::string &channel_name) const;
 
   void HandleDpOpAndGetNextNodes(Graph &graph);
 
-  void ChangeChannelNameAttr(NodeDef &node_def);
+  void ChangeChannelNameAttr(NodeDef &node_def) const;
 
  private:
   static const std::string INPUT_DESC;
@@ -124,6 +129,7 @@ class GeOp : public AsyncOpKernel {
   static const std::string SubGraph;
 
   static mutex mu_;
+  static std::atomic_flag tuned_initialize_flag_;
 
   bool init_flag_;
   bool build_flag_;

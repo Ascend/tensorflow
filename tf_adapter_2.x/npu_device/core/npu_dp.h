@@ -17,7 +17,7 @@
 #ifndef TENSORFLOW_NPU_DP_H
 #define TENSORFLOW_NPU_DP_H
 
-#include "tensorflow/c/c_api.h"
+#include <queue>
 #include <utility>
 
 #include "tensorflow/c/c_api.h"
@@ -38,6 +38,7 @@
 #include "npu_micros.h"
 #include "npu_types.h"
 
+namespace npu {
 class IteratorResourceProvider {
   using ConsumeFunc = std::function<tensorflow::Status(tensorflow::Tensor, int64_t nums)>;
   using DestroyFunc = std::function<tensorflow::Status()>;
@@ -115,6 +116,8 @@ class IteratorResourceProvider {
   static tensorflow::FunctionDef GetFunctionDef(std::string channel_name, std::vector<int> device_ids,
                                                 const TensorPartialShapes &shapes, const TensorDataTypes &types,
                                                 TF_Status *status) {
+    TF_UNUSED_VARIABLE(shapes);
+    TF_UNUSED_VARIABLE(types);
     tensorflow::FunctionDef fdef;
     std::unique_ptr<tensorflow::Graph> graph = std::make_unique<tensorflow::Graph>(tensorflow::OpRegistry::Global());
 
@@ -161,5 +164,5 @@ class IteratorResourceProvider {
   std::queue<Request> requests_;
   std::unique_ptr<tensorflow::Thread> worker_;
 };
-
+}  // namespace npu
 #endif  // TENSORFLOW_NPU_DP_H

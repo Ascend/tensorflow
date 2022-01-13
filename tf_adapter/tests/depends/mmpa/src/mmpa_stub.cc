@@ -79,3 +79,7 @@ INT32 mmDlclose(VOID *handle) {
   if (ret != EN_OK) { return EN_ERROR; }
   return EN_OK;
 }
+
+INT32 mmSleep(UINT32 milliSecond) {
+  return EN_OK;
+}

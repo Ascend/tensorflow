@@ -13,8 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from npu_device import gen_npu_ops
 
-
-def foo():
-    pass
+"""NPU training ops"""

@@ -15,13 +15,11 @@
  */
 
 #include <memory>
-#include <utility>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/tf_status.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/platform/logging.h"
 
 #include "absl/algorithm/container.h"
@@ -32,11 +30,20 @@
 #include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 
 #include "npu_custom_kernel.h"
-#include "npu_utils.h"
 
+namespace npu {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
                         const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  TF_UNUSED_VARIABLE(context);
+  TF_UNUSED_VARIABLE(dev);
+  TF_UNUSED_VARIABLE(spec);
+  TF_UNUSED_VARIABLE(output_shapes);
+  TF_UNUSED_VARIABLE(parser_ndef);
+  TF_UNUSED_VARIABLE(num_inputs);
+  TF_UNUSED_VARIABLE(inputs);
+  TF_UNUSED_VARIABLE(num_outputs);
+  TF_UNUSED_VARIABLE(status);
   // 这里需要先判断下是否已经初始化
   tensorflow::Tensor tensor(tensorflow::DT_BOOL, {});
   tensor.scalar<bool>()() = true;
@@ -44,3 +51,4 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec 
 };
 
 NPU_REGISTER_CUSTOM_KERNEL("VarIsInitializedOp", kernel);
+}  // namespace npu

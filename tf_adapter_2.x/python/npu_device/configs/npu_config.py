@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""Construct NPU configuration"""
+
 from npu_device.configs.dump_config import NpuDumpConfig
 from npu_device.configs.profiling_config import NpuProfilingConfig
 from npu_device.configs.option_base import OptionValue
@@ -20,7 +23,7 @@ from npu_device.configs.option_base import NpuBaseConfig
 
 
 class NpuConfig(NpuBaseConfig):
-
+    """Set NPU configuration"""
     def __init__(self):
         self.graph_run_mode = OptionValue(1, [0, 1])
         self.graph_memory_max_size = OptionValue(None, None)

@@ -15,13 +15,14 @@
 # limitations under the License.
 # ============================================================================
 
+"""Basic configurations for installing Tensorflow adaptor"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import os
 import subprocess
-import sys
 
 try:
     from shutil import which
@@ -36,11 +37,13 @@ _OPEN_UT = "OPEN_UT"
 
 
 def run_command(cmd):
+    """Execute command"""
     output = subprocess.check_output(cmd)
     return output.decode('UTF-8').strip()
 
 
 def get_input(question):
+    """Get response from user keyboard input"""
     try:
         try:
             answer = raw_input(question)
@@ -52,6 +55,7 @@ def get_input(question):
 
 
 def real_config_path(file):
+    """Get complete file path"""
     return os.path.join("tools", file)
 
 
@@ -64,7 +68,7 @@ def setup_python():
         custom_python_bin_path = default_python_bin_path
         compile_args = run_command([
             custom_python_bin_path, '--version'])
-        if not _COMPAT_PYTHON_VERSION in compile_args:
+        if _COMPAT_PYTHON_VERSION not in compile_args:
             print('Invalid default python version: %s, only support Python 3.7.' % compile_args)
             ask_python_bin_path = ('Please specify the location of python with valid '
                                    'tensorflow 1.15.0 site-packages installed. [Default '
@@ -83,7 +87,6 @@ def setup_python():
             custom_python_bin_path = None
         if not python_bin_path:
             python_bin_path = default_python_bin_path
-            pass
         # Check if the path is valid
         if os.path.isfile(python_bin_path) and os.access(python_bin_path, os.X_OK):
             pass
@@ -97,8 +100,9 @@ def setup_python():
         try:
             compile_args = run_command([
                 python_bin_path, '-c',
-                'import distutils.sysconfig; import tensorflow as tf; print(tf.__version__ + "|" + tf.sysconfig.get_lib('
-                ') + "|" + "|".join(tf.sysconfig.get_compile_flags()) + "|" + distutils.sysconfig.get_python_inc())'
+                'import distutils.sysconfig; import tensorflow as tf; print(tf.__version__ + "|" + '
+                'tf.sysconfig.get_lib('') + "|" + "|".join(tf.sysconfig.get_compile_flags()) + "|" + '
+                'distutils.sysconfig.get_python_inc())'
             ]).split("|")
             if not compile_args[0].startswith(_COMPAT_TENSORFLOW_VERSION):
                 print('Invalid python path: %s compat tensorflow version is %s'
@@ -141,7 +145,7 @@ def setup_ascend(env_path):
         # Check if the path is valid
         if os.path.isdir(ascend_path) and os.access(ascend_path, os.X_OK):
             break
-        elif not os.path.exists(ascend_path):
+        if not os.path.exists(ascend_path):
             print('Invalid ascend path: %s cannot be found.' % ascend_path)
     print('ascend path: %s.' % ascend_path)
     with open(real_config_path('LINK_FLAGS'), 'a') as f:
@@ -174,7 +178,7 @@ def setup_swig():
         custom_swig_path = default_swig_path
         compile_args = run_command([
             custom_swig_path, '-version'])
-        if not _COMPAT_SWIG_VERSION in compile_args:
+        if _COMPAT_SWIG_VERSION not in compile_args:
             print('Invalid default python version: %s.' % compile_args)
             ask_swig_path = ('Please specify the location of swig. [Default is '
                              '%s]\n(Please enter the correct swig path: ') % default_swig_path
@@ -194,7 +198,7 @@ def setup_swig():
         # Check if the path is valid
         if os.path.isfile(swig_path) and os.access(swig_path, os.X_OK):
             break
-        elif not os.path.exists(swig_path):
+        if not os.path.exists(swig_path):
             print('Invalid swig path: %s cannot be found.' % swig_path)
             continue
         else:
@@ -206,6 +210,7 @@ def setup_swig():
 
 
 def main():
+    """Entry point for configuration"""
     env_snapshot = dict(os.environ)
     setup_python()
     if not env_snapshot.get(_OPEN_UT):

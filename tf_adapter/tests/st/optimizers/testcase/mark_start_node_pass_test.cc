@@ -1,3 +1,4 @@
+#include "tf_adapter/util/npu_attrs.h"
 #include "gtest/gtest.h"
 #include "mmpa/mmpa_api.h"
 #include "tensorflow/core/graph/graph.h"
@@ -106,7 +107,7 @@ class MarkStartNodePassTest : public testing::Test {
   std::unique_ptr<Graph> graph_;
   string original_;
  protected:
-  virtual void SetUp() {}
+  virtual void SetUp() { *const_cast<bool *>(&kDumpGraph) = true; }
   virtual void TearDown() {}
 };
 

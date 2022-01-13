@@ -13,11 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""Configuration for NPU profiling"""
+
 from npu_device.configs.option_base import OptionValue
 from npu_device.configs.option_base import NpuBaseConfig
 
 
 class NpuProfilingConfig(NpuBaseConfig):
+    """"NPU profiling configurations"""
     def __init__(self):
         self.enable_profiling = OptionValue(False, [True, False])
         self.profiling_options = OptionValue(None, None)

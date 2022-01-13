@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""Operations for file processing"""
+
 import os
 import re
-import subprocess
 import shutil
 import util_global
 import pandas as pd
@@ -25,6 +27,7 @@ from visit_by_ast import get_unsupport_api
 
 
 def before_clear():
+    """Operations before clear"""
     exit_folder = os.path.exists(util_global.get_value('output'))
     if exit_folder:
         shutil.rmtree(util_global.get_value('output'))
@@ -34,35 +37,40 @@ def before_clear():
 
 
 def mkdir(path):
+    """Create new directory"""
     folder = os.path.exists(path)
     if not folder:
         os.makedirs(path)
 
 
 def mkdir_and_copyfile(srcfile, dstpath, file_name):
+    """Create directory and copy files"""
     mkdir(dstpath)
     shutil.copyfile(os.path.join(srcfile, file_name), os.path.join(dstpath, file_name))
 
 
 def write_output_after_conver(out_file, dst_content):
-    with open(out_file, 'w') as file:
-        file.write(dst_content)
+    """Write content to output file"""
+    with open(out_file, 'w') as f:
+        f.write(dst_content)
 
 
 def write_report_after_conver(new_file_path, report_file, dst_content):
+    """Write content to report file"""
     mkdir(new_file_path)
-    with open(os.path.join(new_file_path, report_file), 'w') as file:
-        file.write(dst_content)
+    with open(os.path.join(new_file_path, report_file), 'w') as f:
+        f.write(dst_content)
 
 
 def get_bit_val(value, index):
+    """Return 0 or 1 based on value"""
     if value & (1 << index):
         return 1
-    else:
-        return 0
+    return 0
 
 
 def write_report_terminator(content):
+    """Write content to report and update global variable"""
     report_path = util_global.get_value('report')
     value = util_global.get_value('report_file_status')
     times = value.bit_length()
@@ -79,28 +87,30 @@ def write_report_terminator(content):
 
 
 def write_conver_report(content, file):
+    """Add content to existed report file"""
     report_path = util_global.get_value('report')
     mkdir(report_path)
-    with open(os.path.join(report_path, file), 'a') as file:
-        file.write(content)
-        file.write("\r\n")
+    with open(os.path.join(report_path, file), 'a') as f:
+        f.write(content)
+        f.write("\r\n")
 
 
 def check_warning(lineno, api_msg):
-    # raise warning when api is related to element range check
+    """Raise warning when api is related to element range check"""
     pattern = r'tf.*.is_finite'
     if re.match(pattern, api_msg):
         doc_msg = "{}, chapter: {}".format('"Tensorflow模型迁移和训练', '"tf.is_finite接口手工迁移" and "Loss Scale"')
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", You used tensorflow api: ",
                            api_msg, ", It is suggested to use npu api. Please refer to the online document: ",
                            doc_msg])
-        subprocess.run(["cd", "."], shell=True)
+        os.system("cd .")
         print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
         write_conver_report(content, util_global.get_value('report_file')[1])
 
 
 def log_failed_api(lineno, api_msg, is_third_party):
-    subprocess.run(["cd", "."], shell=True)
+    """Log message for NPU unsupported APIs"""
+    os.system("cd .")
     if is_third_party:
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg,
                            ", Please modify user scripts manually."])
@@ -125,6 +135,7 @@ def log_failed_api(lineno, api_msg, is_third_party):
 
 
 def abs_join(abs1, abs2):
+    """Join path abs1 and abs2"""
     abs2 = os.fspath(abs2)
     abs2 = os.path.splitdrive(abs2)[1]
     abs2 = abs2.strip('\\/') or abs2
@@ -132,6 +143,7 @@ def abs_join(abs1, abs2):
 
 
 def scan_file(path, file_name, api, lineno):
+    """Scan script file to generate analysis report"""
     api_list = pd.read_excel(util_global.get_value('list'), sheet_name=0)
     api_module = api_list['模块名'].values.tolist()
     api_name = api_list['API名'].values.tolist()
@@ -157,12 +169,11 @@ def scan_file(path, file_name, api, lineno):
 
             api_support_type = api_support[api_name.index(name)]
             # print warning message of npu supported api
-            if api_support_type == '支持（无需迁移）' or api_support_type == '兼容类':
+            if api_support_type in ('支持（无需迁移）', '兼容类'):
                 check_warning(lineno[i], name)
 
             # print error message when api is unsupported on npu
-            if api_support_type == '分析中（特性商用时不应该存在）' or \
-                    api_support_type == '不支持（无迁移方案，建议用户不使用）':
+            if api_support_type in ('分析中（特性商用时不应该存在）', '不支持（无迁移方案，建议用户不使用）'):
                 log_failed_api(lineno[i], name, is_third_party=False)
 
     # search for tf enumeration
@@ -184,8 +195,7 @@ def scan_file(path, file_name, api, lineno):
 
                 # print error message when api is unsupported on npu
                 api_support_type = api_support[api_name.index(class_name)]
-                if api_support_type == '分析中（特性商用时不应该存在）' or \
-                        api_support_type == '不支持（无迁移方案，建议用户不使用）':
+                if api_support_type in ('分析中（特性商用时不应该存在）', '不支持（无迁移方案，建议用户不使用）'):
                     log_failed_api(lineno[i], class_name, is_third_party=False)
 
     # record unsupported api
@@ -207,12 +217,13 @@ def scan_file(path, file_name, api, lineno):
 
     # when there are tf apis used in script, analysis report will be generated
     report = util_global.get_value('generate_dir_report')
-    if len(script_name):
+    if script_name:
         report = report.append(analyse_result)
         util_global.set_value('generate_dir_report', report)
 
 
 def adjust_index():
+    """Adjust index column for DataFrame"""
     report = util_global.get_value('generate_dir_report')
     index_column = []
     for i in range(len(report)):
@@ -223,6 +234,7 @@ def adjust_index():
 
 
 def get_api_statistic(analysis_report):
+    """Calculate API statistics"""
     code_api = analysis_report['API名'].values.tolist()
     support_type = analysis_report['工具迁移API支持度'].values.tolist()
 

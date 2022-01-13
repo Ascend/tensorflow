@@ -20,24 +20,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import threading
-import os
 import numbers
-import tensorflow as tf
 
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops.nn_ops import _get_noise_shape
-from tensorflow.python.framework import tensor_shape
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
-from tensorflow.contrib.util import loader
 from tensorflow.python.eager import context
-from tensorflow.python.framework import device
-from tensorflow.python.platform import resource_loader
-from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 from npu_bridge.helper import helper
+from npu_bridge.estimator.npu.npu_common import NPUBasics
 
 gen_npu_ops = helper.get_gen_ops()
 
@@ -46,6 +37,7 @@ _MAXINT32 = 2 ** 31 - 1
 
 
 def NPUInit(name=None):
+    """Initiate NPU"""
     if context.executing_eagerly():
         raise RuntimeError("tf.NPUInit() is not compatible with "
                            "eager execution.")
@@ -78,7 +70,7 @@ def initialize_system(name=None):
     Returns:
         The npu init ops which will open the NPU system using `Session.run`.
     """
-    return NPUInit(name);
+    return NPUInit(name)
 
 
 def shutdown_system(name=None):
@@ -88,6 +80,7 @@ def shutdown_system(name=None):
 
 
 def LARS(inputs_w, inputs_g, weight_decay, hyperpara=0.001, epsilon=0.00001, name=None):
+    """NPU implemented LARS"""
     if context.executing_eagerly():
         raise RuntimeError("tf.LARS() is not compatible with "
                            "eager execution.")
@@ -104,6 +97,7 @@ def LARSV2(input_weight,
            epsilon=0.00001,
            use_clip=False,
            name=None):
+    """NPU implemented LARSV2"""
     if context.executing_eagerly():
         raise RuntimeError("tf.LARSV2() is not compatible with "
                            "eager execution.")
@@ -119,15 +113,18 @@ def LARSV2(input_weight,
 
 
 def outfeed_dequeue_op(channel_name, output_types, output_shapes, name=None):
+    """Operator for outfeed dequeue"""
     return gen_npu_ops.outfeed_dequeue_op(channel_name=channel_name, output_types=output_types,
                                           output_shapes=output_shapes, name=name)
 
 
 def outfeed_enqueue_op(channel_name, inputs, name=None):
+    """Operator for outfeed enqueue"""
     return gen_npu_ops.outfeed_enqueue_op(inputs=inputs, channel_name=channel_name, name=name)
 
 
 def stop_outfeed_dequeue_op(channel_name, name=None):
+    """Operator for stoping outfeed dequeue"""
     return gen_npu_ops.stop_outfeed_dequeue_op(channel_name, name)
 
 
@@ -176,6 +173,7 @@ def _DropOutDoMaskGrad(op, grad):
 
 def basic_lstm_cell(x, h, c, w, b, keep_prob, forget_bias, state_is_tuple,
                     activation, name=None):
+    """NPU implemented lstm cell"""
     if context.executing_eagerly():
         raise RuntimeError("tf.basic_lstm_cell() is not compatible with "
                            "eager execution.")
@@ -191,6 +189,7 @@ def basic_lstm_cell(x, h, c, w, b, keep_prob, forget_bias, state_is_tuple,
 
 @ops.RegisterGradient("BasicLSTMCell")
 def basic_lstm_cell_grad(op, dct, dht, dit, djt, dft, dot, dtanhct):
+    """NPU implemented gradient for lstm cell"""
     dgate, dct_1 = gen_npu_ops.basic_lstm_cell_c_state_grad(op.inputs[2], dht, dct, op.outputs[2], op.outputs[3],
                                                             op.outputs[4], op.outputs[5], op.outputs[6],
                                                             forget_bias=op.get_attr("forget_bias"),
@@ -203,6 +202,7 @@ def basic_lstm_cell_grad(op, dct, dht, dit, djt, dft, dot, dtanhct):
 
 def adam_apply_one_assign(input0, input1, input2, input3, input4,
                           mul0_x, mul1_x, mul2_x, mul3_x, add2_y, name=None):
+    """NPU implemented adam_apply_one_assign"""
     if context.executing_eagerly():
         raise RuntimeError("tf.adam_apply_one_assign() is not compatible with "
                            "eager execution.")
@@ -213,6 +213,7 @@ def adam_apply_one_assign(input0, input1, input2, input3, input4,
 
 def adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
                                      mul0_x, mul1_x, mul2_x, mul3_x, mul4_x, add2_y, name=None):
+    """NPU implemented adam_apply_one_with_decay_assign"""
     if context.executing_eagerly():
         raise RuntimeError("tf.adam_apply_one_with_decay_assign() is not compatible with "
                            "eager execution.")
@@ -223,6 +224,7 @@ def adam_apply_one_with_decay_assign(input0, input1, input2, input3, input4,
 
 @ops.RegisterGradient("DynamicGruV2")
 def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
+    """NPU implemented dynamic_gru_v2"""
     (x, weight_input, weight_hidden, bias_input, bias_hidden, seq_length, init_h) = op.inputs
     (y, output_h, update, reset, new, hidden_new) = op.outputs
     (dw_input, dw_hidden, db_input, db_hidden, dx, dh_prev) = gen_npu_ops.dynamic_gru_v2_grad(x, weight_input,
@@ -252,6 +254,7 @@ def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
 
 @ops.RegisterGradient("DynamicRnn")
 def dynamic_rnn_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
+    """NPU implemented dynamic_rnn_grad"""
     (x, w, b, seq_length, init_h, init_c) = op.inputs
     (y, output_h, output_c, i, j, f, o, tanhc) = op.outputs
     (dw, db, dx, dh_prev, dc_prev) = gen_npu_ops.dynamic_rnn_grad(x, w, b, y, init_h[-1], init_c[-1], output_h,
@@ -271,6 +274,7 @@ def dynamic_rnn_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
 
 @ops.RegisterGradient("DynamicRnnV2")
 def dynamic_rnn_v2_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
+    """NPU implemented dynamic_rnn_v2_grad"""
     (x, w, b, init_h, init_c) = op.inputs
     (y, output_h, output_c, i, j, f, o, tanhc) = op.outputs
     (dw, db, dx, dh_prev, dc_prev) = gen_npu_ops.dynamic_rnn_grad(x, w, b, y, init_h[-1], init_c[-1], output_h,
@@ -289,6 +293,7 @@ def dynamic_rnn_v2_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
 
 
 def scatter_elements(data, indices, updates, axis=0, name=None):
+    """Scatter data based on indices"""
     data = ops.convert_to_tensor(data, name="data")
     indices = ops.convert_to_tensor(indices, name="indices")
     updates = ops.convert_to_tensor(updates, name="updates")
@@ -330,5 +335,6 @@ def k_means_centroids(x, y, sum_square_y, sum_square_x, use_actual_distance=Fals
 
 
 def npu_onnx_graph_op(inputs, tout, model_path, name=None):
+    """NPU implemented onnx graph operator"""
     output = gen_npu_ops.npu_onnx_graph_op(inputs, tout, model_path, name)
     return output

@@ -15,6 +15,7 @@
  */
 
 #include "tf_adapter/util/infershape_util.h"
+#include <sys/time.h>
 #include "tensorflow/core/framework/node_def_util.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
@@ -44,8 +45,8 @@ int64 InferShapeUtil::GetCurrentTimestap() {
   return totalUsec;
 }
 
-Status InferShapeUtil::setArgShapeFromTensorShape(std::vector<Tensor> vecTensor, Graph *graph, const OpDef &sig,
-                                                  ShapeRefiner &shapeRef) {
+Status InferShapeUtil::setArgShapeFromTensorShape(const std::vector<Tensor> vecTensor, const Graph *graph,
+                                                  const OpDef &sig, ShapeRefiner &shapeRef) {
   REQUIRES_NOT_NULL(graph);
   int idx = 0;
   for (const OpDef::ArgDef &arg_def : sig.input_arg()) {
@@ -77,13 +78,15 @@ Status InferShapeUtil::GetSubGraphFromFunctionDef(const FunctionLibraryDefinitio
   InstantiationResult result;
   AttrSlice attrs(&func_def.attr());
   TF_RETURN_IF_ERROR(InstantiateFunction(
-      func_def, attrs, [&flib_def](const string &op, const OpDef **sig) {
+      func_def, attrs,
+      [&flib_def](const string &op, const OpDef **sig) {
         Status s = OpRegistry::Global()->LookUpOpDef(op, sig);
         if (!s.ok()) {
           return flib_def.LookUpOpDef(op, sig);
         }
         return s;
-      }, &result));
+      },
+      &result));
 
   ADP_LOG(INFO) << "InstantiateFunction " << func_def.signature().name() << " success.";
   GraphConstructorOptions opts;
@@ -94,28 +97,38 @@ Status InferShapeUtil::GetSubGraphFromFunctionDef(const FunctionLibraryDefinitio
   return Status::OK();
 }
 
-bool InferShapeUtil::IsInitializedGraph(Node *node) {
+bool InferShapeUtil::IsInitializedGraph(const Node *node) {
   Node *logical_not_node = nullptr;
   node->input_node(0, &logical_not_node);
-  if (logical_not_node == nullptr) { return false; }
+  if (logical_not_node == nullptr) {
+    return false;
+  }
 
   if (logical_not_node->type_string() == "Reshape") {
     Node *reshape_node = logical_not_node;
     reshape_node->input_node(0, &logical_not_node);
-    if (logical_not_node == nullptr) { return false; }
+    if (logical_not_node == nullptr) {
+      return false;
+    }
   }
-  if (logical_not_node->type_string() != "LogicalNot") { return false; }
+  if (logical_not_node->type_string() != "LogicalNot") {
+    return false;
+  }
 
   Node *stack_node = nullptr;
   logical_not_node->input_node(0, &stack_node);
-  if (stack_node == nullptr || stack_node->type_string() != "Pack") { return false; }
+  if (stack_node == nullptr || stack_node->type_string() != "Pack") {
+    return false;
+  }
 
   Node *is_var_init_node = nullptr;
   stack_node->input_node(0, &is_var_init_node);
-  if (is_var_init_node == nullptr) { return false; }
+  if (is_var_init_node == nullptr) {
+    return false;
+  }
 
-  if (is_var_init_node->type_string() == "VarIsInitializedOp"
-      || is_var_init_node->type_string() == "IsVariableInitialized") {
+  if (is_var_init_node->type_string() == "VarIsInitializedOp" ||
+      is_var_init_node->type_string() == "IsVariableInitialized") {
     ADP_LOG(INFO) << "GEOP::IsInitializedGraph";
     return true;
   }
@@ -123,12 +136,14 @@ bool InferShapeUtil::IsInitializedGraph(Node *node) {
   return false;
 }
 
-Status InferShapeUtil::getInputShapesOfNode(ShapeRefiner &shapeRef, Node *pNode,
+Status InferShapeUtil::getInputShapesOfNode(ShapeRefiner &shapeRef, const Node *pNode,
                                             std::vector<tensorflow::shape_inference::ShapeHandle> &inputShapeVec) {
   REQUIRES_NOT_NULL(pNode);
   for (const Edge *pEdge : pNode->in_edges()) {
     REQUIRES_NOT_NULL(pEdge);
-    if (pEdge->IsControlEdge()) { continue; }
+    if (pEdge->IsControlEdge()) {
+      continue;
+    }
 
     Node *pNodeIn = pEdge->src();
     tensorflow::shape_inference::InferenceContext *pCxtIn = shapeRef.GetContext(pNodeIn);
@@ -180,8 +195,10 @@ void InferShapeUtil::setShapeOfMergeOP(ShapeRefiner &shapeRef, Node *pNode) {
 
   for (const Edge *e : pNode->in_edges()) {
     CHECK_NOT_NULL(e);
-    if (e->IsControlEdge()) continue;
-    if (e->dst_input() < 0) continue;
+    if (e->IsControlEdge())
+      continue;
+    if (e->dst_input() < 0)
+      continue;
 
     if (e->src()->type_string() == "Enter" || e->src()->type_string() == "RefEnter") {
       Node *pNodeIn = e->src();
@@ -202,7 +219,9 @@ void InferShapeUtil::inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRe
   CHECK_NOT_NULL(graph);
   for (Node *pNode : graph->nodes()) {
     CHECK_NOT_NULL(pNode);
-    if (pNode->type_string() == "NoOp" || shapeRef.GetContext(pNode) != nullptr) { continue; }
+    if (pNode->type_string() == "NoOp" || shapeRef.GetContext(pNode) != nullptr) {
+      continue;
+    }
 
     Status addStatus = shapeRef.AddNode(pNode);
     if (!addStatus.ok()) {
@@ -213,8 +232,8 @@ void InferShapeUtil::inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRe
       continue;
     } else if (iTime == INFER_SHAPE_FIRST_TIME && pNode->type_string() == "Enter") {
       setShapeOfEnterOP(shapeRef, pNode);
-    } else if ((iTime == INFER_SHAPE_FIRST_TIME)
-               && ((pNode->type_string() == "Merge") || (pNode->type_string() == "RefMerge"))) {
+    } else if ((iTime == INFER_SHAPE_FIRST_TIME) &&
+               ((pNode->type_string() == "Merge") || (pNode->type_string() == "RefMerge"))) {
       setShapeOfMergeOP(shapeRef, pNode);
     }
   }
@@ -229,7 +248,9 @@ Status InferShapeUtil::addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode) {
   }
 
   int iOutNums = pCxt->num_outputs();
-  if (iOutNums <= 0) { return Status::OK(); }
+  if (iOutNums <= 0) {
+    return Status::OK();
+  }
 
   AttrSlice attrList = pNode->attrs();
   if (attrList.Find(KEY_SHAPE) != nullptr) {
@@ -263,7 +284,7 @@ Status InferShapeUtil::addShapeToAttr(ShapeRefiner &shapeRef, Node *pNode) {
 
 Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const FunctionLibraryDefinition *flib_def,
                                   const FunctionDef *func_def, Graph *graph) {
-  (void)flib_def;
+  (void) flib_def;
   REQUIRES_NOT_NULL(graph);
   REQUIRES_NOT_NULL(func_def);
   ADP_LOG(INFO) << "InferShapeUtil::InferShape";
@@ -281,13 +302,16 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
   std::unordered_set<const Edge *> needRemoveEdges;
   for (Node *pNode : graph->nodes()) {
     REQUIRES_NOT_NULL(pNode);
-    if ((pNode->type_string() != "Merge") && (pNode->type_string() != "RefMerge")) continue;
+    if ((pNode->type_string() != "Merge") && (pNode->type_string() != "RefMerge"))
+      continue;
 
     needRemoveEdges.clear();
     for (const Edge *e : pNode->in_edges()) {
       REQUIRES_NOT_NULL(e);
-      if (e->IsControlEdge()) continue;
-      if (e->dst_input() < 0) continue;
+      if (e->IsControlEdge())
+        continue;
+      if (e->dst_input() < 0)
+        continue;
 
       ADP_LOG(INFO) << "in_edges: " << e->src()->name() << " --> " << pNode->name();
       if ((e->src()->type_string() == "NextIteration") || (e->src()->type_string() == "RefNextIteration")) {
@@ -309,7 +333,9 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
   inferShapeOfGraph(graph, shapeRefinerSub, INFER_SHAPE_FIRST_TIME);
   inferShapeOfGraph(graph, shapeRefinerSub, INFER_SHAPE_OTHER_TIME);
 
-  for (Node *pNode : graph->nodes()) { TF_RETURN_IF_ERROR(addShapeToAttr(shapeRefinerSub, pNode)); }
+  for (Node *pNode : graph->nodes()) {
+    TF_RETURN_IF_ERROR(addShapeToAttr(shapeRefinerSub, pNode));
+  }
 
   for (auto &edgeInfo : NextIterationEdges) {
     graph->AddEdge(edgeInfo.src_, edgeInfo.src_output_, edgeInfo.dst_, edgeInfo.dst_input_);

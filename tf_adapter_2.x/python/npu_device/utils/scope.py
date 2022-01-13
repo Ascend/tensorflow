@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""NPU scope management"""
+
 from tensorflow.python.framework import ops
 from tensorflow.python.util import tf_contextlib
 from tensorflow.core.framework import attr_value_pb2
@@ -20,5 +23,6 @@ from tensorflow.core.framework import attr_value_pb2
 
 @tf_contextlib.contextmanager
 def keep_dtype_scope():
+    """Execute in keep_dtype_scope"""
     with ops.get_default_graph()._attr_scope({'_keep_dtype': attr_value_pb2.AttrValue(i=1)}):
         yield

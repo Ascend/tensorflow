@@ -17,7 +17,6 @@
 #include <deque>
 #include <iostream>
 #include <memory>
-#include <numeric>
 #include <string>
 
 #include "tensorflow/core/common_runtime/function.h"
@@ -37,15 +36,16 @@ static mutex graph_num_mutex(LINKER_INITIALIZED);
 
 std::set<string> StringSplit(const string &str, const string &pattern) {
   std::set<string> resultSet;
-  string::size_type pos1, pos2;
-  pos2 = str.find(pattern);
-  pos1 = 0;
+  string::size_type pos2 = str.find(pattern);
+  string::size_type pos1 = 0;
   while (pos2 != string::npos) {
     resultSet.insert(str.substr(pos1, pos2 - pos1));
     pos1 = pos2 + pattern.size();
     pos2 = str.find(pattern, pos1);
   }
-  if (pos1 != str.length()) { resultSet.insert(str.substr(pos1)); }
+  if (pos1 != str.length()) {
+    resultSet.insert(str.substr(pos1));
+  }
   return resultSet;
 }
 
@@ -54,12 +54,11 @@ class MarkStartNodePass : public GraphOptimizationPass {
   MarkStartNodePass() = default;
   ~MarkStartNodePass() override = default;
   Status Run(const GraphOptimizationPassOptions &options) override;
-  Status TraverseNode(Node *start_node);
+  Status TraverseNode(const Node *start_node);
 };
 
 Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
-  int graph_num;
-  graph_num = graph_run_num++;
+  int graph_num = graph_run_num++;
 
   if (options.graph == nullptr || options.flib_def == nullptr || options.session_options == nullptr) {
     return Status::OK();
@@ -88,9 +87,8 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
   }
 
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
-  char *need_print = getenv("PRINT_MODEL");
 
-  if (need_print != nullptr && strcmp("1", need_print) == 0) {
+  if (kDumpGraph) {
     GraphDef ori_graph_def;
     graph->get()->ToGraphDef(&ori_graph_def);
     string ori_model_path = GetDumpPath() + "BeforeMarkStartNodeAttr_";
@@ -121,7 +119,9 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
           auto n_attr_value = n->attrs().Find("_StartNodeName");
           if (n_attr_value != nullptr) {
             std::set<string> nodes_name = StringSplit(n_attr_value->s(), ";");
-            for (const auto &name : nodes_name) { start_nodes_name.insert(name); }
+            for (const auto &name : nodes_name) {
+              start_nodes_name.insert(name);
+            }
           }
           for (const auto &name : start_nodes_name) {
             start_node_name += name;
@@ -129,13 +129,15 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
           }
           n->AddAttr("_StartNodeName", start_node_name);
           Status s = TraverseNode(n);
-          if (s != Status::OK()) { return s; }
+          if (s != Status::OK()) {
+            return s;
+          }
         }
       }
     }
   }
 
-  if (need_print != nullptr && strcmp("1", need_print) == 0) {
+  if (kDumpGraph) {
     GraphDef omg_graph_def;
     graph->get()->ToGraphDef(&omg_graph_def);
     string tmpmodel_path = GetDumpPath() + "AfterMarkStartNodeAttr_";
@@ -149,7 +151,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
   return Status::OK();
 }
 
-Status MarkStartNodePass::TraverseNode(Node *start_node) {
+Status MarkStartNodePass::TraverseNode(const Node *start_node) {
   REQUIRES_NOT_NULL(start_node);
   Status s = Status::OK();
   for (Node *n : start_node->out_nodes()) {
@@ -164,7 +166,9 @@ Status MarkStartNodePass::TraverseNode(Node *start_node) {
     auto n_attr_value = n->attrs().Find("_StartNodeName");
     if (n_attr_value != nullptr) {
       std::set<string> nodes_name = StringSplit(n_attr_value->s(), ";");
-      for (const auto &name : nodes_name) { start_nodes_name.insert(name); }
+      for (const auto &name : nodes_name) {
+        start_nodes_name.insert(name);
+      }
     }
     for (const auto &name : start_nodes_name) {
       start_node_name += name;

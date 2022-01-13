@@ -15,7 +15,6 @@
  */
 
 #include <memory>
-#include <utility>
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -34,6 +33,7 @@
 #include "npu_custom_kernel.h"
 #include "npu_utils.h"
 
+namespace npu {
 namespace {
 class MakeIteratorGraphBuilder {
  public:
@@ -76,7 +76,7 @@ class MakeIteratorGraphBuilder {
       WriteTextProto(tensorflow::Env::Default(), file_name, graph.ToGraphDefDebug());
     }
 
-    // TODO:Tensorflow model parser bug，如果名字不是dpop开头的，则会被remove掉
+    // Tensorflow model parser bug，如果名字不是dpop开头的，则会被remove掉
     std::string func_name = "dpop_init_func_" + shared_name;
     tensorflow::FunctionDefLibrary fdef_lib;
     tensorflow::FunctionDef *fdef = fdef_lib.add_function();
@@ -108,11 +108,15 @@ class MakeIteratorGraphBuilder {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
                         int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
                         TF_Status *status) {
+  TF_UNUSED_VARIABLE(op_name);
+  TF_UNUSED_VARIABLE(attributes);
+  TF_UNUSED_VARIABLE(num_outputs);
+  TF_UNUSED_VARIABLE(outputs);
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
-    if (npu::UnwrapHandle(input)->DataType() == tensorflow::DT_RESOURCE) {
+    if (UnwrapHandle(input)->DataType() == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(input, &tensor));
+      NPU_CTX_REQUIRES_OK(status, UnwrapTensor(input, &tensor));
       auto handle = tensor->scalar<tensorflow::ResourceHandle>()();
       TensorPartialShapes shapes;
       TensorDataTypes types;
@@ -136,3 +140,4 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
 
 NPU_REGISTER_FALLBACK_HOOK("MakeIterator", kernel);
 NPU_REGISTER_FALLBACK_HOOK("MultiDeviceIteratorInit", kernel);
+}  // namespace npu

@@ -18,7 +18,7 @@ limitations under the License.
 #include "acl/acl_tdt.h"
 #include "tensorflow/core/framework/tensor.h"
 namespace tensorflow {
-const static int32_t kTimeOut = 1000;
+
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type);
 
 Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type);
@@ -29,22 +29,22 @@ Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<Tensor
                                   bool call_by_channel_receive);
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                  acltdtDataset **acl_dataset);
+                                  acltdtDataset **acl_dataset, std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                  acltdtDataset *acl_dataset);
+                                  acltdtDataset *acl_dataset, std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
 
 Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item = true);
 
 Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<Tensor> &tensors);
 
-Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                        bool &is_need_resend);
+Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
+                        const std::vector<Tensor> &tensors, bool &is_need_resend);
 
-Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string channel_name);
+Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string &channel_name);
 
-acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id, const std::string channel_name, const size_t capacity);
+acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id, const std::string &channel_name,
+                                             const size_t capacity);
+}  // namespace tensorflow
 
-} // namespace tensorflow
-
-#endif // TENSORFLOW_ACL_CHANNEL_H_
+#endif  // TENSORFLOW_ACL_CHANNEL_H_

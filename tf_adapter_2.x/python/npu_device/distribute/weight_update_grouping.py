@@ -13,20 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Description: Common depends and micro defines for and only for data preprocess module
 
-import os
+"""Common depends and micro defines for and only for data preprocess module"""
+
+from absl import logging
 import tensorflow as tf
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops
 from npu_device.distribute import hccl
 from npu_device.npu_device import npu_compat_function
-from absl import logging
-
 from npu_device.npu_device import global_npu_ctx
 
 
 class GroupingVars():
+    """Class for grouping variables"""
     def __init__(self, variables, rank_size):
         self._vars = []
         for var in variables:
@@ -38,7 +38,7 @@ class GroupingVars():
     def _fair_division(self, number):
         if number > len(self._vars) or number < 0:
             raise ValueError("'number' is greater than the number of vars or 'number' is less than 0. ")
-        elif number == len(self._vars):
+        if number == len(self._vars):
             for i in range(len(self._vars)):
                 self._vars[i].root_rank_id = i
             return
@@ -101,12 +101,13 @@ class GroupingVars():
             var_shape = self.var.shape
             if len(var_shape) <= 0:
                 return 0
-            for i in range(len(var_shape)):
-                size = size * int(var_shape[i])
+            for s in var_shape:
+                size = size * int(s)
             size = size * self.var.dtype.size
             return size
 
     def get_gid_by_var(self, var):
+        """Get gradient id by variable"""
         gid = -1
         for item in self._vars:
             if item.var is var:
@@ -116,6 +117,7 @@ class GroupingVars():
 
 @npu_compat_function
 def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
+    """NPU implemented gradients on grouping"""
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         return apply_func(grads_and_vars, *args, **kwargs)
 
@@ -136,8 +138,7 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
     apply_res = apply_func(local_grads_and_vars, *args, **kwargs)
     with ops.get_default_graph()._attr_scope(
             {"_weight_update_grouping": attr_value_pb2.AttrValue(b=True)}):
-        for i in range(len(variables)):
-            var = variables[i]
+        for var in variables:
             rank_id = grouping_vars.get_gid_by_var(var)
             hccl.broadcast([var], rank_id, 0)
     for grad, var in grads_and_vars:
@@ -150,6 +151,7 @@ def grouping_gradients_apply(apply_func, grads_and_vars, *args, **kwargs):
 
 @npu_compat_function
 def grouping_broadcast(variables):
+    """Grouping broadcast on cluster"""
     if global_npu_ctx() is None or not global_npu_ctx().is_cluster_worker():
         logging.info("Skip grouping broadcast as current process is not npu cluster worker")
         return variables

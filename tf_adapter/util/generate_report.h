@@ -21,26 +21,27 @@
 // Op will be written to json if it can not sink to device during one excute.
 namespace tensorflow {
 class GenerateReport {
-public:
+ public:
   struct Details {
     int code;
+
     std::string message;
   };
-  enum ReasonCode { TypeNoDefine = 1, TypeGray = 2, ScenarioProblems = 3, NotSupport = 4 };
+  enum class ReasonCode { TypeNoDefine = 1, TypeGray = 2, ScenarioProblems = 3, NotSupport = 4 };
 
   static GenerateReport *GetInstance();
 
-  Status AddUnSupportedInfo(const std::string &name, const std::string &type, Details &infos);
+  Status AddUnSupportedInfo(const std::string &name, const std::string &type, const Details &infos);
 
-  Status AddUnSupportedInfo(Node *node, Details &infos);
+  Status AddUnSupportedInfo(const Node *node, Details &infos);
 
-  Status DeleteUnSupportedInfo(Node *node);
+  Status DeleteUnSupportedInfo(const Node *node);
 
   Status SaveUnsupportedInfo();
 
   ~GenerateReport();
 
-private:
+ private:
   GenerateReport();
   struct UnSupportedInfo {
     std::string name;

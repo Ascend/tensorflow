@@ -1,3 +1,4 @@
+#include "tf_adapter/util/npu_attrs.h"
 #include "gtest/gtest.h"
 #include "mmpa/mmpa_api.h"
 #include "tensorflow/core/graph/graph.h"
@@ -93,7 +94,7 @@ class GetAttrOptimizationPassTest : public testing::Test {
   std::unique_ptr<Graph> graph_;
   string original_;
  protected:
-  virtual void SetUp() {}
+  virtual void SetUp() { *const_cast<bool *>(&kDumpGraph) = true; }
   virtual void TearDown() {}
 };
 
@@ -194,6 +195,15 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue aoe_mode = AttrValue();
   aoe_mode.set_s("1");
   (*custom_config->mutable_parameter_map())["aoe_mode"] = aoe_mode;
+  AttrValue op_wait_timeout = AttrValue();
+  op_wait_timeout.set_i(1);
+  (*custom_config->mutable_parameter_map())["op_wait_timeout"] = op_wait_timeout;
+  AttrValue op_execute_timeout = AttrValue();
+  op_execute_timeout.set_i(1);
+  (*custom_config->mutable_parameter_map())["op_execute_timeout"] = op_execute_timeout;
+  AttrValue hccl_timeout = AttrValue();
+  hccl_timeout.set_i(1);
+  (*custom_config->mutable_parameter_map())["hccl_timeout"] = hccl_timeout;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {

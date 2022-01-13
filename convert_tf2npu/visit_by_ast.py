@@ -14,11 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""Basic class to visit ast node"""
+
 import ast
 import util_global
 
 
 class VisitCall(ast.NodeVisitor):
+    """Class for visiting python ast call node"""
     def __init__(self):
         self._in_call = False
         self._current_visit = []
@@ -26,16 +30,19 @@ class VisitCall(ast.NodeVisitor):
         self.line_nos = []
 
     def visit_Call(self, node):
+        """Visit call node"""
         self._in_call = True
         self._current_visit = []
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
+        """Visit attr node"""
         if self._in_call:
             self._current_visit.append(node.attr)
         self.generic_visit(node)
 
     def visit_Name(self, node):
+        """Visit name in call node"""
         if self._in_call:
             self._current_visit.append(node.id)
             self.call_nodes.append('.'.join(self._current_visit[::-1]))
@@ -47,6 +54,7 @@ class VisitCall(ast.NodeVisitor):
 
 
 class VisitAttr(ast.NodeVisitor):
+    """Class for visiting python ast attr node"""
     def __init__(self):
         self._in_attr = False
         self._current_visit = []
@@ -54,11 +62,13 @@ class VisitAttr(ast.NodeVisitor):
         self.line_nos = []
 
     def visit_Attribute(self, node):
+        """Visit attr node"""
         self._in_attr = True
         self._current_visit.append(node.attr)
         self.generic_visit(node)
 
     def visit_Name(self, node):
+        """Visit name in attr node"""
         if self._in_attr:
             self._current_visit.append(node.id)
             self.attr_nodes.append('.'.join(self._current_visit[::-1]))
@@ -70,6 +80,7 @@ class VisitAttr(ast.NodeVisitor):
 
 
 class VisitUnsupportImport(ast.NodeVisitor):
+    """Class for visiting python ast import node"""
     def __init__(self):
         self.imports = []
         self.import_modules = []
@@ -77,7 +88,8 @@ class VisitUnsupportImport(ast.NodeVisitor):
         self.unsupport = ['cupy', 'cupyx', 'pynvml']
 
     def visit_ImportFrom(self, node):
-        if node.module != None:
+        """Visit importfrom node"""
+        if node.module is not None:
             self.modules = node.module.split('.')
         for value in node.names:
             if isinstance(value, ast.alias):
@@ -90,6 +102,7 @@ class VisitUnsupportImport(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Import(self, node):
+        """Visit import node"""
         for value in node.names:
             if isinstance(value, ast.alias):
                 self.modules = value.name.split('.')
@@ -97,7 +110,7 @@ class VisitUnsupportImport(ast.NodeVisitor):
                     break
                 if self.modules[0] in self.unsupport:
                     self.import_modules.append(self.modules[0])
-                    if value.asname != None:
+                    if value.asname is not None:
                         self.imports.append(value.asname)
                     else:
                         self.imports.append(self.modules[0])
@@ -105,6 +118,14 @@ class VisitUnsupportImport(ast.NodeVisitor):
 
 
 def get_tf_api(file_name):
+    """
+    Args:
+        file_name: script file
+
+    Returns:
+        list objects containing all the tensorflow apis extracted from file_name
+        and corrosponding line number
+    """
     util_global.set_value('use_keras_dropout', False)
     with open(file_name, 'r', encoding='utf-8') as file:
         source = file.read()
@@ -132,6 +153,15 @@ def get_tf_api(file_name):
 
 
 def get_tf_enume(file_name, enume_list):
+    """
+    Args:
+        file_name: script file
+        enume_list: list of all the Tensorflow enumeration apis
+
+    Returns:
+        list objects containing all the tensorflow enumeration apis extracted from file_name
+        and corrosponding line number
+    """
     with open(file_name, 'r', encoding='utf-8') as file:
         source = file.read()
     tree = ast.parse(source)
@@ -149,6 +179,14 @@ def get_tf_enume(file_name, enume_list):
 
 
 def get_unsupport_api(file_name):
+    """
+    Args:
+        file_name: script file
+
+    Returns:
+        list objects containing the unsupport apis and module extracted from file_name
+        and corrosponding line number
+    """
     with open(file_name, 'r', encoding='utf-8') as file:
         source = file.read()
     tree = ast.parse(source)

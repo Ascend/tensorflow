@@ -30,7 +30,7 @@
 #include "npu_hdc.h"
 
 using namespace tensorflow;
-
+namespace npu {
 class IteratorH2D : public OpKernel {
  public:
   explicit IteratorH2D(OpKernelConstruction *ctx) : OpKernel(ctx) {
@@ -48,7 +48,7 @@ class IteratorH2D : public OpKernel {
       }
       channels_.resize(device_ids_.size());
       for (size_t i = 0; i < device_ids_.size(); i++) {
-        OP_REQUIRES_OK(ctx, HdcChannel::Create(device_ids_[i], channel_name_, &channels_[i]));
+        OP_REQUIRES_OK(ctx, npu::HdcChannel::Create(device_ids_[i], channel_name_, &channels_[i]));
       }
       LOG(INFO) << "Hdc channel for iterator resource " << channel_name_ << " to device ["
                 << ss.str().substr(0, ss.str().size() - 1) << "] created";
@@ -61,7 +61,6 @@ class IteratorH2D : public OpKernel {
         channel->Destroy();
       }
     });
-
     if (cancelled) {
       ctx->SetStatus(tensorflow::errors::Internal("Iterator resource ", channel_name_, " consume after destroyed"));
       return;
@@ -110,8 +109,9 @@ class IteratorH2D : public OpKernel {
  private:
   std::string channel_name_;
   std::vector<int> device_ids_;
-  std::vector<std::shared_ptr<HdcChannel>> channels_;
+  std::vector<std::shared_ptr<npu::HdcChannel>> channels_;
   std::atomic_bool initialized_{false};
 };
 
 REGISTER_KERNEL_BUILDER(Name("IteratorH2D").Device(DEVICE_CPU).Priority(3), IteratorH2D);
+}  // namespace npu

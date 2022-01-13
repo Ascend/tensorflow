@@ -33,7 +33,6 @@
 #include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/eager/c_api_internal.h"
 #include "tensorflow/c/eager/dlpack.h"
-#include "tensorflow/c/tf_status.h"
 #include "tensorflow/c/tf_status_helper.h"
 #include "tensorflow/compiler/jit/flags.h"
 #include "tensorflow/python/eager/pywrap_tensor_conversion.h"
@@ -50,6 +49,7 @@
 #include "npu_device_register.h"
 #include "npu_global.h"
 #include "npu_micros.h"
+#include "npu_utils.h"
 
 namespace py = pybind11;
 
@@ -96,6 +96,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
 #undef PYBIND11_CHECK_PYTHON_VERSION
 #define PYBIND11_CHECK_PYTHON_VERSION
 
+namespace npu {
 PYBIND11_MODULE(_npu_device_backends, m) {
   m.def("Open",
         [](const py::handle &context, const char *device_name, int device_index,
@@ -152,7 +153,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             }
           }
 
-          std::string full_name = tensorflow::strings::StrCat(device_name, ":", device_index);
+          std::string full_name = CatStr(device_name, ":", device_index);
           tensorflow::DeviceNameUtils::ParsedName parsed_name;
           if (!tensorflow::DeviceNameUtils::ParseFullName(full_name, &parsed_name)) {
             return "Invalid npu device name " + full_name;
@@ -162,14 +163,14 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             LOG(INFO) << "  " << option.first << ":" << option.second;
           }
           // Currently only support global basic options
-          auto status = CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
+          auto status = npu::CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
           pybind11::gil_scoped_acquire acquire;
           return status;
         });
 
   m.def("Close", []() {
     pybind11::gil_scoped_release release;
-    ReleaseDeviceResource();
+    npu::ReleaseDeviceResource();
     if (graph_engine_started.exchange(false)) {
       auto ge_status = ge::ParserFinalize();
       if (ge_status != ge::SUCCESS) {
@@ -206,3 +207,4 @@ PYBIND11_MODULE(_npu_device_backends, m) {
               << ", it will take effect in the next training loop";
   });
 };
+}  // namespace npu

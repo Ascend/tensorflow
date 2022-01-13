@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""Functions used for NPU loss scale"""
+
 import tensorflow as tf
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops
@@ -44,8 +47,7 @@ def _npu_finite_status_after_executed(executed_ops):
             with tf.control_dependencies([assign_float_status]):
                 reduced_status = all_reduce(current_status, 'sum', fusion=0)
             return tf.reduce_all(tf.equal(reduced_status, finite_status))
-        else:
-            return tf.reduce_all(tf.equal(current_status, finite_status))
+        return tf.reduce_all(tf.equal(current_status, finite_status))
 
 
 def _npu_compat_loss_scale_update(m, grads):
@@ -77,6 +79,7 @@ def _npu_compat_loss_scale_update(m, grads):
 
 
 class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
+    """NPU implemented loss scale optimizer"""
     _HAS_AGGREGATE_GRAD = True
 
     def __init__(self, inner_optimizer, dynamic=True, initial_scale=None, dynamic_growth_steps=None):
@@ -93,12 +96,14 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
 
     @property
     def last_step_finite(self):
+        """Return property"""
         return self._last_step_finite
 
     def apply_gradients(self,
                         grads_and_vars,
                         name=None,
                         experimental_aggregate_gradients=True):
+        """Apply gradients on variables"""
         if global_npu_ctx() is None:
             super().apply_gradients(grads_and_vars, name, experimental_aggregate_gradients)
 

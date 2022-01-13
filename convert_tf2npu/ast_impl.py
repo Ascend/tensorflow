@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""NPU implemented abstract syntax tree"""
+
 import ast
 import copy
 from inspect import signature
@@ -46,6 +49,7 @@ tf_func_map = {"tf.estimator.TrainSpec": TrainSpec,
 
 
 def attribute(node):
+    """Modify node attribute"""
     log_success_report(getattr(node, "lineno", "None"), node.attr)
     node = ast.Name(id=util_global.get_value(node.attr)[0], ctx=ast.Load())
     util_global.set_value('need_conver', True)
@@ -53,6 +57,7 @@ def attribute(node):
 
 
 def import_from(node):
+    """Modify node based on import module"""
     if node.module:
         values = node.module.split(".")
         if "keras" in values:
@@ -81,6 +86,7 @@ def import_from(node):
 
 
 def ast_import(node):
+    """Modify import module"""
     for value in node.names:
         if isinstance(value, ast.alias):
             values = value.name.split(".")
@@ -98,6 +104,7 @@ def ast_import(node):
 
 
 def ast_function_def(node):
+    """Modify node based on function_def"""
     log_success_report(getattr(node, "lineno", "None"), node.name)
     arg_name = node.args.args[0].arg
     node.body = [ast.Return(value=ast.Call(
@@ -111,6 +118,7 @@ def ast_function_def(node):
 
 
 def ast_if(node):
+    """Modify node based on if statement"""
     if isinstance(node.test, ast.Compare):
         if len(node.test.comparators) == 1 and isinstance(node.test.comparators[0], ast.Str):
             if node.test.comparators[0].s == "__main__":
@@ -146,6 +154,7 @@ def ast_if(node):
 
 
 def check_func_arguments(origin_func, node_args, node_keywords, is_class_func):
+    """Check function arguments"""
     func_args = [] if not is_class_func else [origin_func]
     func_keywords = {}
     for node_arg in node_args:
@@ -163,10 +172,11 @@ def check_func_arguments(origin_func, node_args, node_keywords, is_class_func):
 
 
 def add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_func, npu_func_args):
+    """Add npu function to parameters"""
     param_node = None
     if ((not util_global.get_value("distributed_mode", "") or
          util_global.get_value("distributed_mode", "") == "horovod") and
-            (param_name == "callbacks" or param_name == "hooks" or param_name == "optimizer")):
+            (param_name in ("callbacks", "hooks", "optimizer"))):
         return node
     log_param_msg = "".join([org_func_name, " add npu ", param_name])
     log_msg(getattr(node, "lineno", "None"), log_param_msg)
@@ -195,6 +205,7 @@ def add_npu_func_to_params(node, param_index, org_func_name, param_name, npu_fun
 
 
 def match_func_params_and_convert(node, origin_func, org_func_name, param_name, is_class_func):
+    """Check whether function parameters is matching"""
     npu_func_map = {"config": ["npu_config_proto", "config_proto"],
                     "hooks": ["npu_hooks_append", "hooks_list"],
                     "callbacks": ["npu_callbacks_append", "callbacks_list"],
@@ -210,6 +221,7 @@ def match_func_params_and_convert(node, origin_func, org_func_name, param_name, 
 
 
 def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is_class_func=None):
+    """Convert original Tensorflow function to NPU function"""
     if not check_func_arguments(origin_func, node.args, node.keywords, is_class_func):
         return node
     if org_func_name == "Estimator.train":
@@ -219,12 +231,11 @@ def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is
                             "enter 'y' to perform distributed porting on the train function. if no, enter 'n': ")
             if message == "y":
                 break
-            elif message == "n":
+            if message == "n":
                 log_warning("".join(["The train func in ", content,
                                      " is user-defined functions, will not perform distributed porting"]))
                 return node
-            else:
-                print("Input is error, Please enter 'y' or 'n'.")
+            print("Input is error, Please enter 'y' or 'n'.")
     for param_name in params_list:
         node = match_func_params_and_convert(node, origin_func, org_func_name, param_name, is_class_func)
 
@@ -233,6 +244,7 @@ def convert_origin_func_to_npu(node, origin_func, org_func_name, params_list, is
 
 
 def convert_dynamic_loss_scale(node):
+    """Convert dynamic loss scale related Tensorflow APIs"""
     log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.DynamicLossScale"
                                              " to ExponentialUpdateLossScaleManager")
     node.func = ast.Name(id="ExponentialUpdateLossScaleManager", ctx=ast.Load())
@@ -282,6 +294,7 @@ def convert_dynamic_loss_scale(node):
 
 
 def convert_loss_scale_api(node):
+    """Convert loss scale related Tensorflow APIs"""
     if isinstance(node.func, ast.Attribute):
         if node.func.attr == "FixedLossScale":
             log_msg(getattr(node, 'lineno', 'None'), "change tf.train.experimental.FixedLossScale"
@@ -305,6 +318,7 @@ def convert_loss_scale_api(node):
 
 
 def convert_hvd_distributed_api(node):
+    """Convert horovod distributed APIs"""
     log_msg(getattr(node, "lineno", "None"), 'change hvd.DistributedOptimizer to npu_distributed_optimizer_wrapper')
     node.func = ast.Name(id="npu_distributed_optimizer_wrapper", ctx=ast.Load())
     opt_keyword = None
@@ -323,6 +337,7 @@ def convert_hvd_distributed_api(node):
 
 
 def convert_tf_gradient_distributed(node):
+    """Convert Tensorflow gradient APIs in distributed mode"""
     content = "".join([util_global.get_value('path'), ":", str(getattr(node, "lineno", "None")),
                        " is tf.gradient api, tool inserts npu_allreduce after computing grads by default.",
                        " You can adjust the allreduce position according to the algorithm"])
@@ -334,6 +349,7 @@ def convert_tf_gradient_distributed(node):
 
 
 def convert_distributed_strategy_apis(node):
+    """Convert distributed strategy API"""
     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute):
         if ("Optimizer" in node.func.attr and node.func.attr != "ScipyOptimizerInterface" and
                 node.func.attr != "MixedPrecisionLossScaleOptimizer"):
@@ -376,9 +392,10 @@ def convert_distributed_strategy_apis(node):
 
 
 def ast_call(node):
+    """Visit and transform ast call node"""
     distributed_mode = util_global.get_value("distributed_mode", "")
-    is_not_strategy = (distributed_mode == "horovod" or distributed_mode == "")
-    is_not_horovod = (distributed_mode == "tf_strategy" or distributed_mode == "")
+    is_not_strategy = distributed_mode in ("horovod", "")
+    is_not_horovod = distributed_mode in ("tf_strategy", "")
     convert_loss_scale_api(node)
     if _call_name_match(node.func, "set_experimental_options"):
         log_msg(getattr(node, 'lineno', 'None'),
@@ -476,7 +493,7 @@ def ast_call(node):
         for keyword in node.keywords:
             if keyword.arg == 'drop_remainder':
                 exist = True
-                if ((isinstance(keyword.value, ast.NameConstant) and keyword.value.value != True) or
+                if ((isinstance(keyword.value, ast.NameConstant) and not keyword.value.value) or
                         (not isinstance(keyword.value, ast.NameConstant))):
                     log_success_report(getattr(node, "lineno", "None"), node.func.attr)
                     keyword.value = pasta.parse('True')
@@ -533,7 +550,7 @@ def ast_call(node):
         for keyword in node.keywords:
             if (keyword.arg == 'eval_on_tpu') or (keyword.arg == 'use_tpu') or (keyword.arg == 'export_to_tpu'):
                 if (not isinstance(keyword.value, ast.NameConstant)) or \
-                        (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value != False)):
+                        (isinstance(keyword.value, ast.NameConstant) and (keyword.value.value)):
                     log_success_report(getattr(node, 'lineno', 'None'), 'TPUEstimator(' + keyword.arg + '=*)')
                     keyword.value = pasta.parse('False')
                     util_global.set_value('need_conver', True)
@@ -641,6 +658,7 @@ def _call_name_match(call_func, call_name):
 
 
 def insert_npu_import(r_node):
+    """Add NPU import modules"""
     npu_alias = ast.alias(name='*', asname=None)
     npu_import = ast.ImportFrom(module='npu_bridge.npu_init', names=[npu_alias], level=0)
     num = 5 if len(r_node.body) >= 5 else len(r_node.body)
@@ -652,20 +670,20 @@ def insert_npu_import(r_node):
             log_msg(i, "from npu_bridge.npu_init import *")
             is_insert = True
             break
-        elif isinstance(r_node.body[i], ast.ImportFrom):
+        if isinstance(r_node.body[i], ast.ImportFrom):
             if r_node.body[i].module != "__future__":
                 r_node.body.insert(i, npu_import)
                 log_msg(i, "from npu_bridge.npu_init import *")
                 is_insert = True
                 break
-            else:
-                import_index = i + 1
+            import_index = i + 1
     if not is_insert:
         r_node.body.insert(import_index, npu_import)
         log_msg(import_index, "from npu_bridge.npu_init import *")
 
 
 def insert_keras_dropout_import(r_node):
+    """Add keras dropout import module"""
     npu_alias = ast.alias(name='npu_convert_dropout', asname=None)
     npu_import = ast.ImportFrom(module='npu_bridge.estimator.npu', names=[npu_alias], level=0)
     n = 0
@@ -682,13 +700,14 @@ def insert_keras_dropout_import(r_node):
 
 
 def insert_npu_resource_init(r_node):
+    """Add NPU resource initial module"""
     n = 0
     lenline = len(r_node.body)
 
     while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
         n += 1
 
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
+    while n < lenline and isinstance(r_node.body[n], (ast.ImportFrom, ast.Import)):
         n += 1
 
     if n < lenline:
@@ -701,6 +720,7 @@ def insert_npu_resource_init(r_node):
 
 
 def insert_npu_resource_shutdown(r_node):
+    """Add NPU resource shutdown module"""
     shutdown_call = ast.Expr(value=ast.Call(func=ast.Name(id="shutdown_resource", ctx=ast.Load()),
                                             args=[ast.Name(id="npu_sess", ctx=ast.Load()),
                                                   ast.Name(id="npu_shutdown", ctx=ast.Load())],
@@ -712,13 +732,14 @@ def insert_npu_resource_shutdown(r_node):
 
 
 def insert_keras_sess_npu_config(r_node):
+    """Add NPU configuration for keras session"""
     n = 0
     lenline = len(r_node.body)
 
     while n < lenline and not isinstance(r_node.body[n], ast.ImportFrom) and not isinstance(r_node.body[n], ast.Import):
         n += 1
 
-    while n < lenline and (isinstance(r_node.body[n], ast.ImportFrom) or isinstance(r_node.body[n], ast.Import)):
+    while n < lenline and isinstance(r_node.body[n], (ast.ImportFrom, ast.Import)):
         n += 1
 
     if n < lenline:
@@ -729,13 +750,14 @@ def insert_keras_sess_npu_config(r_node):
 
 
 def insert_keras_sess_close(r_node):
+    """Add closing for keras session"""
     close_sess_call = ast.Expr(value=ast.Call(func=ast.Name(id="close_session", ctx=ast.Load()),
                                               args=[ast.Name(id="npu_keras_sess", ctx=ast.Load())], keywords=[]))
     r_node.body.append(close_sess_call)
 
 
-# Format printing for locate
 def node_tree(node: str):
+    """Format printing for locate"""
     str2list = list(node.replace(' ', ''))
     count = 0
     for i, e in enumerate(str2list):

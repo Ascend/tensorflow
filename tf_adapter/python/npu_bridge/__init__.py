@@ -15,6 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
+"""import files when initiating"""
+
 import atexit
 from npu_bridge.helper.helper import npu_bridge_handle
 from npu_bridge.helper.helper import version as __version__

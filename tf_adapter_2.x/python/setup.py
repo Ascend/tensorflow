@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from setuptools import setup, Extension
+
+"""Basic configration for setting up NPU device"""
+
+from setuptools import setup
 from setuptools import find_packages
 
 setup(name='npu_device',

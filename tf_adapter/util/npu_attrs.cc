@@ -14,20 +14,25 @@
  * limitations under the License.
  */
 
-#include "tdt/index_transform.h"
-#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/util/npu_attrs.h"
-#include "tensorflow/core/lib/strings/str_util.h"
-#include "tensorflow/core/util/env_var.h"
-#include "securec.h"
-#include "mmpa/mmpa_api.h"
 #include <mutex>
 #include <regex>
 #include <iostream>
+#include <sstream>
+#include "securec.h"
+#include "tdt/index_transform.h"
+#include "runtime/config.h"
+#include "tf_adapter/common/adp_logger.h"
+#include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/util/env_var.h"
+#include "mmpa/mmpa_api.h"
+
 namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
+std::map<std::string, std::string> NpuAttrs::init_options_;
+const static int32_t kRuntimeTypeHeterogeneous = 1;
 
 extern const bool kIsNewDataTransfer = []() -> bool {
   bool is_new_data_transfer = false;
@@ -35,9 +40,22 @@ extern const bool kIsNewDataTransfer = []() -> bool {
   return is_new_data_transfer;
 }();
 
+extern const bool kDumpGraph = []() -> bool {
+  bool print_model = false;
+  tensorflow::ReadBoolFromEnvVar("PRINT_MODEL", false, &print_model);
+  return print_model;
+}();
+
+extern const bool kIsHeterogeneous = []() -> bool {
+  int32_t is_heterogeneous = 0;
+  (void) rtGetIsHeterogenous(&is_heterogeneous);
+  return is_heterogeneous == kRuntimeTypeHeterogeneous;
+}();
+
 std::string GetDumpPath() {
-  char *npu_collect_path = std::getenv("NPU_COLLECT_PATH");
-  if (npu_collect_path != nullptr) {
+  std::string npu_collect_path;
+  (void) ReadStringFromEnvVar("NPU_COLLECT_PATH", "", &npu_collect_path);
+  if (!npu_collect_path.empty()) {
     std::string collect_path_str(npu_collect_path);
     collect_path_str.erase(0, collect_path_str.find_first_not_of(" "));
     collect_path_str.erase(collect_path_str.find_last_not_of(" ") + 1);
@@ -57,7 +75,7 @@ std::string GetDumpPath() {
   }
 
   std::string dump_graph_path;
-  (void)ReadStringFromEnvVar("DUMP_GRAPH_PATH", "./", &dump_graph_path);
+  (void) ReadStringFromEnvVar("DUMP_GRAPH_PATH", "./", &dump_graph_path);
   dump_graph_path.erase(0, dump_graph_path.find_first_not_of(" "));
   dump_graph_path.erase(dump_graph_path.find_last_not_of(" ") + 1);
 
@@ -74,13 +92,15 @@ std::string GetDumpPath() {
 Status GetEnvDeviceID(uint32_t &device_id) {
   int64 phy_device_id = -1;
   int64 logic_device_id = -1;
-  const char* tmp_ascend_device_id = std::getenv("ASCEND_DEVICE_ID");
-  std::string env_ascend_device_id(tmp_ascend_device_id == nullptr ? "" : tmp_ascend_device_id);
-  const char* tmp_device_id = std::getenv("DEVICE_ID");
-  std::string env_device_id(tmp_device_id == nullptr ? "" : tmp_device_id);
+  std::string env_ascend_device_id;
+  (void) ReadStringFromEnvVar("ASCEND_DEVICE_ID", "", &env_ascend_device_id);
+  std::string env_device_id;
+  (void) ReadStringFromEnvVar("DEVICE_ID", "", &env_device_id);
   if (env_ascend_device_id.empty() && env_device_id.empty()) {
-    ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set session_device_id, session_device_id has a higher priority";
-    LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set session_device_id, session_device_id has a higher priority";
+    ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set "
+                        "session_device_id, session_device_id has a higher priority";
+    LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set "
+                    "session_device_id, session_device_id has a higher priority";
   } else if (!env_ascend_device_id.empty()) {
     if (!strings::safe_strto64(env_ascend_device_id, &logic_device_id)) {
       return errors::InvalidArgument("ASCEND_DEVICE_ID is valid, not digit.");
@@ -103,21 +123,17 @@ Status GetEnvDeviceID(uint32_t &device_id) {
   return Status::OK();
 }
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar) {
-  if (s.empty()) { return; }
-  result.clear();
-  char *buffer = new char[s.size() + 1];
-  buffer[s.size()] = '\0';
-  errno_t e = strcpy_s(buffer, s.size() + 1, s.c_str());
-  if (e != EOK) {
-    delete[] buffer;
+  if (s.empty()) {
     return;
   }
-  char *p_tmp = nullptr;
-  char *p = strtok_s(buffer, delchar, &p_tmp);
-  if (p != nullptr) {
-    do { result.emplace_back(p); } while ((p = strtok_s(nullptr, delchar, &p_tmp)));
+  result.clear();
+
+  std::stringstream ss(s);
+  std::string item;
+  while (getline(ss, item, *delchar)) {
+    result.push_back(item);
   }
-  delete[] buffer;
+  return;
 }
 
 inline Status checkDumpStep(const std::string &dump_step) {
@@ -128,7 +144,9 @@ inline Status checkDumpStep(const std::string &dump_step) {
   if (regex_match(tmp_dump_step, result, pattern)) {
     Split(result.str(), match_vecs, "|");
     // 100 is the max sets of dump steps.
-    if (match_vecs.size() > 100) { return errors::InvalidArgument("dump_step only support dump <= 100 sets of data"); }
+    if (match_vecs.size() > 100) {
+      return errors::InvalidArgument("dump_step only support dump <= 100 sets of data");
+    }
     for (const auto &match_vec : match_vecs) {
       std::vector<string> tmp_vecs;
       Split(match_vec, tmp_vecs, "-");
@@ -172,7 +190,7 @@ inline Status CheckPath(const std::string &input, std::string &output) {
   if (mmIsDir(input.c_str()) != EN_OK) {
     return errors::InvalidArgument("the path ", input.c_str(), " is not directory.");
   }
-  char trusted_path[MMPA_MAX_PATH] = { "\0" };
+  char trusted_path[MMPA_MAX_PATH] = {"\0"};
   if (mmRealPath(input.c_str(), trusted_path, MMPA_MAX_PATH) != EN_OK) {
     return errors::InvalidArgument("the path ", input.c_str(), " is invalid.");
   }
@@ -184,8 +202,8 @@ inline Status CheckPath(const std::string &input, std::string &output) {
 }
 
 inline Status CheckOpImplMode(const std::string &op_select_implmode) {
-  std::set<string> op_impl_mode_list = {"high_precision", "high_performance",
-                                        "high_precision_for_all", "high_performance_for_all"};
+  std::set<string> op_impl_mode_list = {"high_precision", "high_performance", "high_precision_for_all",
+                                        "high_performance_for_all"};
 
   if (op_impl_mode_list.find(op_select_implmode) != op_impl_mode_list.end()) {
     return Status::OK();
@@ -245,28 +263,13 @@ inline Status CheckLocalRankId(int local_rank_id) {
   return Status::OK();
 }
 
-inline Status CheckDeviceList(std::string local_device_list) {
+inline Status CheckDeviceList(const std::string &local_device_list) {
   std::string tmp_device_list = local_device_list + ",";
   std::regex pattern("(\\d{1,},)+");
   if (!regex_match(tmp_device_list, pattern)) {
     return errors::InvalidArgument("local_device_list style is invalid, example:'1,2,3'");
   }
   return Status::OK();
-}
-
-inline Status checkEnableDp(bool enable_dp) {
-  const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
-  bool tdt_init = true;
-  if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
-    tdt_init = false;
-  }
-
-  if (enable_dp && !tdt_init) {
-    return errors::InvalidArgument("In the environment, "
-            "'ASCEND_TDT_UNINIT' must be 0 when parameter 'enable_data_pre_proc' is set to true");
-  } else {
-    return Status::OK();
-  }
 }
 
 bool NpuAttrs::GetUseTdtStatus(int32_t device_id) {
@@ -299,7 +302,8 @@ void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
 
 bool NpuAttrs::IsDatasetExecuteInDevice(std::string iterator_name) {
   if (dataset_execute_info_.count(iterator_name) > 0) {
-    ADP_LOG(INFO) << "get data pre-process graph: " << iterator_name << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
+    ADP_LOG(INFO) << "get data pre-process graph: " << iterator_name
+                  << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
     return dataset_execute_info_[iterator_name];
   } else {
     return false;
@@ -308,7 +312,8 @@ bool NpuAttrs::IsDatasetExecuteInDevice(std::string iterator_name) {
 
 void NpuAttrs::SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool is_dataset_execute_device) {
   dataset_execute_info_[iterator_name] = is_dataset_execute_device;
-  ADP_LOG(INFO) << "data pre-process graph: " << iterator_name << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
+  ADP_LOG(INFO) << "data pre-process graph: " << iterator_name
+                << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
 }
 
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {
@@ -400,8 +405,12 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   sess_options["ge.exec.variable_acc"] = variable_format_optimize;
   sess_options[ge::HCOM_PARALLEL] = hcom_parallel;
   sess_options[ge::STREAM_MAX_PARALLEL_NUM] = stream_max_parallel_num;
-  if (!graph_memory_max_size.empty()) { sess_options[ge::GRAPH_MEMORY_MAX_SIZE] = graph_memory_max_size; }
-  if (!variable_memory_max_size.empty()) { sess_options[ge::VARIABLE_MEMORY_MAX_SIZE] = variable_memory_max_size; }
+  if (!graph_memory_max_size.empty()) {
+    sess_options[ge::GRAPH_MEMORY_MAX_SIZE] = graph_memory_max_size;
+  }
+  if (!variable_memory_max_size.empty()) {
+    sess_options[ge::VARIABLE_MEMORY_MAX_SIZE] = variable_memory_max_size;
+  }
   sess_options[ge::OPTION_EXEC_ENABLE_DUMP] = enable_dump;
   sess_options[ge::OPTION_EXEC_DUMP_PATH] = dump_path;
   sess_options[ge::OPTION_EXEC_DUMP_STEP] = dump_step;
@@ -448,7 +457,6 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 }
 
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction *ctx) {
-  std::map<std::string, std::string> init_options;
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = std::to_string(false);
   std::string profiling_options;
@@ -504,38 +512,43 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
   }
 
-
   if (precision_mode.empty()) {
-    init_options[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
+    init_options_[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
   } else {
-    init_options[ge::PRECISION_MODE] = precision_mode;
+    init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-  init_options[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
-  init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
-  init_options[ge::AUTO_TUNE_MODE] = auto_tune_mode;
-  init_options[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
-  init_options[ge::OP_DEBUG_LEVEL] = op_debug_level;
-  init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
-  init_options["ge.exec.enable_exception_dump"] = enable_exception_dump;
-  init_options["ge.jobType"] = aoe_mode;
-  init_options["ge.tuningPath"] = work_path;
-  init_options["distribute_config"] = distribute_config;
-  init_options["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
-  init_options["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
-  init_options["ge.debugDir"] = debug_dir;
-  init_options["ge.hcomMultiMode"] = hcom_multi_mode;
-  init_options[ge::MODIFY_MIXLIST] = modify_mixlist;
-  init_options["ge.fusionSwitchFile"] = fusion_switch_file;
-  init_options[ge::OP_PRECISION_MODE] = op_precision_mode;
-  init_options[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
-  init_options[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
-  init_options["ge.deviceType"] = device_type;
-  init_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
-  init_options["ge.exec.opWitTimeout"] = op_wait_timeout;
-  init_options["ge.exec.opExecuteTimeout"] = op_execute_timeout;
-  if (!soc_config.empty()) { init_options["ge.socVersion"] = soc_config; }
+  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
+  init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
+  init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
+  init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
+  init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
+  init_options_[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
+  init_options_["ge.exec.enable_exception_dump"] = enable_exception_dump;
+  init_options_["ge.jobType"] = aoe_mode;
+  init_options_["ge.tuningPath"] = work_path;
+  init_options_["distribute_config"] = distribute_config;
+  init_options_["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
+  init_options_["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
+  init_options_["ge.debugDir"] = debug_dir;
+  init_options_["ge.hcomMultiMode"] = hcom_multi_mode;
+  init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
+  init_options_["ge.fusionSwitchFile"] = fusion_switch_file;
+  init_options_[ge::OP_PRECISION_MODE] = op_precision_mode;
+  init_options_[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
+  init_options_[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
+  init_options_["ge.deviceType"] = device_type;
+  init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
+  init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
+  init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
+  if (!soc_config.empty()) {
+    init_options_["ge.socVersion"] = soc_config;
+  }
 
-  return init_options;
+  return init_options_;
+}
+
+std::map<std::string, std::string> NpuAttrs::GetInitOptions() {
+  return init_options_;
 }
 
 std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizationPassOptions &options) {
@@ -563,22 +576,27 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       const auto &params = custom_optimizer.parameter_map();
       if (params.count("enable_data_pre_proc")) {
         enable_dp = params.at("enable_data_pre_proc").b();
-        Status s = checkEnableDp(enable_dp);
-        if (!s.ok()) {
-          ADP_LOG(ERROR) << s.error_message();
-          LOG(FATAL) << s.error_message();
-        }
       }
-      if (params.count("use_off_line")) { use_off_line = params.at("use_off_line").b(); }
-      if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
-      if (params.count("iterations_per_loop")) { iterations_per_loop = params.at("iterations_per_loop").i(); }
-      if (params.count("lower_functional_ops")) { lower_functional_ops = params.at("lower_functional_ops").b(); }
+      if (params.count("use_off_line")) {
+        use_off_line = params.at("use_off_line").b();
+      }
+      if (params.count("mix_compile_mode")) {
+        mix_compile_mode = params.at("mix_compile_mode").b();
+      }
+      if (params.count("iterations_per_loop")) {
+        iterations_per_loop = params.at("iterations_per_loop").i();
+      }
+      if (params.count("lower_functional_ops")) {
+        lower_functional_ops = params.at("lower_functional_ops").b();
+      }
       if (params.count("job")) {
         job = params.at("job").s();
       } else {
         job = "localhost";
       }
-      if (params.count("task_index")) { task_index = params.at("task_index").i(); }
+      if (params.count("task_index")) {
+        task_index = params.at("task_index").i();
+      }
       if (params.count("dynamic_input")) {
         dynamic_input = params.at("dynamic_input").b();
         if (dynamic_input) {
@@ -589,7 +607,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
           }
-          if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+          if (params.count("dynamic_inputs_shape_range")) {
+            dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s();
+          }
         }
       }
       if (params.count("local_rank_id")) {
@@ -608,16 +628,24 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
           LOG(FATAL) << s.error_message();
         }
       }
-      if (params.count("in_out_pair_flag")) { in_out_pair_flag = params.at("in_out_pair_flag").b(); }
-      if (params.count("in_out_pair")) { in_out_pair = params.at("in_out_pair").s(); }
+      if (params.count("in_out_pair_flag")) {
+        in_out_pair_flag = params.at("in_out_pair_flag").b();
+      }
+      if (params.count("in_out_pair")) {
+        in_out_pair = params.at("in_out_pair").s();
+      }
     }
   }
   if (!do_npu_optimizer) {
     if ((const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options() != nullptr &&
-        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->mutable_rewrite_options() != nullptr) {
-        (const_cast<SessionOptions *>(options.session_options))->config.mutable_graph_options()->
-                                     mutable_rewrite_options()->set_remapping(RewriterConfig::OFF);
-        }
+        (const_cast<SessionOptions *>(options.session_options))
+                ->config.mutable_graph_options()
+                ->mutable_rewrite_options() != nullptr) {
+      (const_cast<SessionOptions *>(options.session_options))
+          ->config.mutable_graph_options()
+          ->mutable_rewrite_options()
+          ->set_remapping(RewriterConfig::OFF);
+    }
   }
   // pass options
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
@@ -666,7 +694,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction
       ctx->GetAttr("_mix_compile_mode", &mix_compile_mode);
       ctx->GetAttr("_iterations_per_loop", &iterations_per_loop);
       ctx->GetAttr("_lower_functional_ops", &lower_functional_ops);
-      if (ctx->GetAttr("_job", &job) != Status::OK()) { job = "localhost"; }
+      if (ctx->GetAttr("_job", &job) != Status::OK()) {
+        job = "localhost";
+      }
       ctx->GetAttr("_task_index", &task_index);
       ctx->GetAttr("_dynamic_input", &dynamic_input);
       ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode);
@@ -715,7 +745,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   std::string in_out_pair_flag = std::to_string(true);
   std::string in_out_pair;
   Status s = Status::OK();
-  
+
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
   auto use_off_line_value = attrs.Find("_use_off_line");
@@ -731,12 +761,18 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
-  
+
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
-    if (enable_data_pre_proc_value != nullptr) { enable_dp = enable_data_pre_proc_value->s(); }
-    if (use_off_line_value != nullptr) { use_off_line = use_off_line_value->s(); }
-    if (mix_compile_mode_value != nullptr) { mix_compile_mode = mix_compile_mode_value->s(); }
+    if (enable_data_pre_proc_value != nullptr) {
+      enable_dp = enable_data_pre_proc_value->s();
+    }
+    if (use_off_line_value != nullptr) {
+      use_off_line = use_off_line_value->s();
+    }
+    if (mix_compile_mode_value != nullptr) {
+      mix_compile_mode = mix_compile_mode_value->s();
+    }
     if (iterations_per_loop_value != nullptr) {
       iterations_per_loop = iterations_per_loop_value->s();
     }
@@ -748,8 +784,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
     } else {
       job = "localhost";
     }
-    if (task_index_value != nullptr) { task_index = task_index_value->s(); }
-    if (dynamic_input_value != nullptr) { dynamic_input = dynamic_input_value->s(); }
+    if (task_index_value != nullptr) {
+      task_index = task_index_value->s();
+    }
+    if (dynamic_input_value != nullptr) {
+      dynamic_input = dynamic_input_value->s();
+    }
     if (dynamic_graph_execute_mode_value != nullptr) {
       dynamic_graph_execute_mode = dynamic_graph_execute_mode_value->s();
     }
@@ -762,8 +802,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
     if (local_device_list_value != nullptr) {
       local_device_list = local_device_list_value->s();
     }
-    if (in_out_pair_flag_value != nullptr) { in_out_pair_flag = in_out_pair_flag_value->s(); }
-    if (in_out_pair_value != nullptr) { in_out_pair = in_out_pair_value->s(); }
+    if (in_out_pair_flag_value != nullptr) {
+      in_out_pair_flag = in_out_pair_flag_value->s();
+    }
+    if (in_out_pair_value != nullptr) {
+      in_out_pair = in_out_pair_value->s();
+    }
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -799,7 +843,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string local_device_list;
   std::string in_out_pair_flag = std::to_string(true);
   std::string in_out_pair;
-  Status s = Status::OK();
 
   std::string variable_format_optimize = std::to_string(true);
   std::string hcom_parallel = std::to_string(false);
@@ -861,7 +904,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
-  
+
   auto variable_format_optimize_value = attrs.Find("_variable_format_optimize");
   auto hcom_parallel_value = attrs.Find("_hcom_parallel");
   auto graph_memory_max_size_value = attrs.Find("_graph_memory_max_size");
@@ -911,9 +954,15 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
-    if (enable_data_pre_proc_value != nullptr) { enable_dp = enable_data_pre_proc_value->s(); }
-    if (use_off_line_value != nullptr) { use_off_line = use_off_line_value->s(); }
-    if (mix_compile_mode_value != nullptr) { mix_compile_mode = mix_compile_mode_value->s(); }
+    if (enable_data_pre_proc_value != nullptr) {
+      enable_dp = enable_data_pre_proc_value->s();
+    }
+    if (use_off_line_value != nullptr) {
+      use_off_line = use_off_line_value->s();
+    }
+    if (mix_compile_mode_value != nullptr) {
+      mix_compile_mode = mix_compile_mode_value->s();
+    }
     if (iterations_per_loop_value != nullptr) {
       iterations_per_loop = iterations_per_loop_value->s();
     }
@@ -925,30 +974,44 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     } else {
       job = "localhost";
     }
-    if (task_index_value != nullptr) { task_index = task_index_value->s(); }
+    if (task_index_value != nullptr) {
+      task_index = task_index_value->s();
+    }
     if (local_rank_id_value != nullptr) {
       local_rank_id = local_rank_id_value->s();
     }
     if (local_device_list_value != nullptr) {
       local_device_list = local_device_list_value->s();
     }
-    if (in_out_pair_flag_value != nullptr) { in_out_pair_flag = in_out_pair_flag_value->s(); }
-    if (in_out_pair_value != nullptr) { in_out_pair = in_out_pair_value->s(); }
+    if (in_out_pair_flag_value != nullptr) {
+      in_out_pair_flag = in_out_pair_flag_value->s();
+    }
+    if (in_out_pair_value != nullptr) {
+      in_out_pair = in_out_pair_value->s();
+    }
 
     if (variable_format_optimize_value != nullptr) {
       variable_format_optimize = variable_format_optimize_value->s();
     }
-    if (hcom_parallel_value != nullptr) { hcom_parallel = hcom_parallel_value->s(); }
+    if (hcom_parallel_value != nullptr) {
+      hcom_parallel = hcom_parallel_value->s();
+    }
     if (graph_memory_max_size_value != nullptr) {
       graph_memory_max_size = graph_memory_max_size_value->s();
     }
     if (variable_memory_max_size_value != nullptr) {
       variable_memory_max_size = variable_memory_max_size_value->s();
     }
-    if (enable_dump_value != nullptr) { enable_dump = enable_dump_value->s(); }
-    if (enable_dump_debug_value != nullptr) { enable_dump_debug = enable_dump_debug_value->s(); }
+    if (enable_dump_value != nullptr) {
+      enable_dump = enable_dump_value->s();
+    }
+    if (enable_dump_debug_value != nullptr) {
+      enable_dump_debug = enable_dump_debug_value->s();
+    }
     if (enable_dump != std::to_string(false) || enable_dump_debug != std::to_string(false)) {
-      if (dump_path_value != nullptr) { dump_path = dump_path_value->s(); }
+      if (dump_path_value != nullptr) {
+        dump_path = dump_path_value->s();
+      }
     }
     if (enable_dump != std::to_string(false)) {
       if (dump_step_value != nullptr) {
@@ -987,12 +1050,24 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (is_tailing_optimization_value != nullptr) {
       is_tailing_optimization = is_tailing_optimization_value->s();
     }
-    if (precision_mode_value != nullptr) { precision_mode = precision_mode_value->s(); }
-    if (profiling_mode_value != nullptr) { profiling_mode = profiling_mode_value->s(); }
-    if (profiling_options_value != nullptr) { profiling_options = profiling_options_value->s(); }
-    if (auto_tune_mode_value != nullptr) { auto_tune_mode = auto_tune_mode_value->s(); }
-    if (graph_run_mode_value != nullptr) { graph_run_mode = graph_run_mode_value->s(); }
-    if (op_debug_level_value != nullptr) { op_debug_level = op_debug_level_value->s(); }
+    if (precision_mode_value != nullptr) {
+      precision_mode = precision_mode_value->s();
+    }
+    if (profiling_mode_value != nullptr) {
+      profiling_mode = profiling_mode_value->s();
+    }
+    if (profiling_options_value != nullptr) {
+      profiling_options = profiling_options_value->s();
+    }
+    if (auto_tune_mode_value != nullptr) {
+      auto_tune_mode = auto_tune_mode_value->s();
+    }
+    if (graph_run_mode_value != nullptr) {
+      graph_run_mode = graph_run_mode_value->s();
+    }
+    if (op_debug_level_value != nullptr) {
+      op_debug_level = op_debug_level_value->s();
+    }
     if (enable_scope_fusion_passes_value != nullptr) {
       enable_scope_fusion_passes = enable_scope_fusion_passes_value->s();
     }
@@ -1005,15 +1080,27 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (optypelist_for_implmode_value != nullptr) {
       optypelist_for_implmode = optypelist_for_implmode_value->s();
     }
-    if (input_shape_value != nullptr) { input_shape = input_shape_value->s(); }
-    if (dynamic_dims_value != nullptr) { dynamic_dims = dynamic_dims_value->s(); }
+    if (input_shape_value != nullptr) {
+      input_shape = input_shape_value->s();
+    }
+    if (dynamic_dims_value != nullptr) {
+      dynamic_dims = dynamic_dims_value->s();
+    }
     if (dynamic_node_type_value != nullptr) {
       dynamic_node_type = dynamic_node_type_value->s();
     }
-    if (aoe_mode_value != nullptr) { aoe_mode = aoe_mode_value->s(); }
-    if (work_path_value != nullptr) { work_path = work_path_value->s(); }
-    if (distribute_config_value != nullptr) { distribute_config = distribute_config_value->s(); }
-    if (buffer_optimize_value != nullptr) { buffer_optimize = buffer_optimize_value->s(); }
+    if (aoe_mode_value != nullptr) {
+      aoe_mode = aoe_mode_value->s();
+    }
+    if (work_path_value != nullptr) {
+      work_path = work_path_value->s();
+    }
+    if (distribute_config_value != nullptr) {
+      distribute_config = distribute_config_value->s();
+    }
+    if (buffer_optimize_value != nullptr) {
+      buffer_optimize = buffer_optimize_value->s();
+    }
     if (enable_small_channel_value != nullptr) {
       enable_small_channel = enable_small_channel_value->s();
     }
@@ -1050,17 +1137,29 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (op_precision_mode_value != nullptr) {
       op_precision_mode = op_precision_mode_value->s();
     }
-    if (device_type_value != nullptr) { device_type = device_type_value->s(); }
-    if (soc_config_value != nullptr) { soc_config = soc_config_value->s(); }
-    if (op_wait_timeout_value != nullptr) { op_wait_timeout = op_wait_timeout_value->s(); }
-    if (op_execute_timeout_value != nullptr) { op_execute_timeout = op_execute_timeout_value->s(); }
+    if (device_type_value != nullptr) {
+      device_type = device_type_value->s();
+    }
+    if (soc_config_value != nullptr) {
+      soc_config = soc_config_value->s();
+    }
+    if (op_wait_timeout_value != nullptr) {
+      op_wait_timeout = op_wait_timeout_value->s();
+    }
+    if (op_execute_timeout_value != nullptr) {
+      op_execute_timeout = op_execute_timeout_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
   all_options["hcom_parallel"] = hcom_parallel;
   all_options["stream_max_parallel_num"] = stream_max_parallel_num;
-  if (!graph_memory_max_size.empty()) { all_options["graph_memory_max_size"] = graph_memory_max_size; }
-  if (!variable_memory_max_size.empty()) { all_options["variable_memory_max_size"] = variable_memory_max_size; }
+  if (!graph_memory_max_size.empty()) {
+    all_options["graph_memory_max_size"] = graph_memory_max_size;
+  }
+  if (!variable_memory_max_size.empty()) {
+    all_options["variable_memory_max_size"] = variable_memory_max_size;
+  }
 
   all_options["enable_dump"] = enable_dump;
   all_options["dump_path"] = dump_path;
@@ -1149,7 +1248,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string soc_config;
   std::string hccl_timeout;
 
-  std::map<std::string, std::string> init_options;
   bool is_tailing_optimization = false;
   std::string precision_mode;
   bool profiling_mode = false;
@@ -1207,13 +1305,21 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("variable_format_optimize")) {
         variable_format_optimize = params.at("variable_format_optimize").b();
       }
-      if (params.count("hcom_parallel")) { hcom_parallel = params.at("hcom_parallel").b(); }
-      if (params.count("graph_memory_max_size")) { graph_memory_max_size = params.at("graph_memory_max_size").s(); }
+      if (params.count("hcom_parallel")) {
+        hcom_parallel = params.at("hcom_parallel").b();
+      }
+      if (params.count("graph_memory_max_size")) {
+        graph_memory_max_size = params.at("graph_memory_max_size").s();
+      }
       if (params.count("variable_memory_max_size")) {
         variable_memory_max_size = params.at("variable_memory_max_size").s();
       }
-      if (params.count("enable_dump")) { enable_dump = params.at("enable_dump").b(); }
-      if (params.count("enable_dump_debug")) { enable_dump_debug = params.at("enable_dump_debug").b(); }
+      if (params.count("enable_dump")) {
+        enable_dump = params.at("enable_dump").b();
+      }
+      if (params.count("enable_dump_debug")) {
+        enable_dump_debug = params.at("enable_dump_debug").b();
+      }
       if (enable_dump || enable_dump_debug) {
         if (params.count("dump_path")) {
           std::string tmp_path = params.at("dump_path").s();
@@ -1264,7 +1370,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("is_tailing_optimization")) {
         is_tailing_optimization = params.at("is_tailing_optimization").b();
       }
-      if (params.count("profiling_mode")) { profiling_mode = params.at("profiling_mode").b(); }
+      if (params.count("profiling_mode")) {
+        profiling_mode = params.at("profiling_mode").b();
+      }
       if (profiling_mode) {
         if (params.count("profiling_options")) {
           profiling_options = params.at("profiling_options").s();
@@ -1273,7 +1381,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           LOG(FATAL) << "profiling_options must be set when use profiling";
         }
       }
-      if (params.count("auto_tune_mode")) { auto_tune_mode = params.at("auto_tune_mode").s(); }
+      if (params.count("auto_tune_mode")) {
+        auto_tune_mode = params.at("auto_tune_mode").s();
+      }
       if (params.count("graph_run_mode")) {
         graph_run_mode = params.at("graph_run_mode").i();
         if (graph_run_mode > 1) {
@@ -1281,14 +1391,18 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           LOG(FATAL) << "graph_run_mode value must be 0 or 1";
         }
       }
-      if (params.count("op_debug_level")) { op_debug_level = params.at("op_debug_level").i(); }
+      if (params.count("op_debug_level")) {
+        op_debug_level = params.at("op_debug_level").i();
+      }
       if (params.count("enable_scope_fusion_passes")) {
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
 
       if (params.count("aoe_mode")) {
         aoe_mode = params.at("aoe_mode").s();
-        if (aoe_mode.empty()) { ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']"; }
+        if (aoe_mode.empty()) {
+          ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']";
+        }
       } else {
         TF_RETURN_IF_ERROR(ReadStringFromEnvVar("AOE_MODE", "", &aoe_mode));
       }
@@ -1326,20 +1440,34 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           precision_mode = "force_fp16";
         }
       }
-      if (params.count("soc_config")) { soc_config = params.at("soc_config").s(); }
+      if (params.count("soc_config")) {
+        soc_config = params.at("soc_config").s();
+      }
 
       do_npu_optimizer = true;
-      if (params.count("enable_data_pre_proc")) { enable_dp = params.at("enable_data_pre_proc").b(); }
-      if (params.count("use_off_line")) { use_off_line = params.at("use_off_line").b(); }
-      if (params.count("mix_compile_mode")) { mix_compile_mode = params.at("mix_compile_mode").b(); }
-      if (params.count("iterations_per_loop")) { iterations_per_loop = params.at("iterations_per_loop").i(); }
-      if (params.count("lower_functional_ops")) { lower_functional_ops = params.at("lower_functional_ops").b(); }
+      if (params.count("enable_data_pre_proc")) {
+        enable_dp = params.at("enable_data_pre_proc").b();
+      }
+      if (params.count("use_off_line")) {
+        use_off_line = params.at("use_off_line").b();
+      }
+      if (params.count("mix_compile_mode")) {
+        mix_compile_mode = params.at("mix_compile_mode").b();
+      }
+      if (params.count("iterations_per_loop")) {
+        iterations_per_loop = params.at("iterations_per_loop").i();
+      }
+      if (params.count("lower_functional_ops")) {
+        lower_functional_ops = params.at("lower_functional_ops").b();
+      }
       if (params.count("job")) {
         job = params.at("job").s();
       } else {
         job = "localhost";
       }
-      if (params.count("task_index")) { task_index = params.at("task_index").i(); }
+      if (params.count("task_index")) {
+        task_index = params.at("task_index").i();
+      }
       if (params.count("dynamic_input")) {
         dynamic_input = params.at("dynamic_input").b();
         if (dynamic_input) {
@@ -1351,7 +1479,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
               return errors::Internal("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.");
             }
           }
-          if (params.count("dynamic_inputs_shape_range")) { dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s(); }
+          if (params.count("dynamic_inputs_shape_range")) {
+            dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s();
+          }
         }
       }
       if (params.count("local_rank_id")) {
@@ -1372,10 +1502,16 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           return errors::Internal(s.error_message());
         }
       }
-      if (params.count("in_out_pair_flag")) { in_out_pair_flag = params.at("in_out_pair_flag").b(); }
-      if (params.count("in_out_pair")) { in_out_pair = params.at("in_out_pair").s(); }
+      if (params.count("in_out_pair_flag")) {
+        in_out_pair_flag = params.at("in_out_pair_flag").b();
+      }
+      if (params.count("in_out_pair")) {
+        in_out_pair = params.at("in_out_pair").s();
+      }
 
-      if (params.count("enable_exception_dump")) { enable_exception_dump = params.at("enable_exception_dump").i(); }
+      if (params.count("enable_exception_dump")) {
+        enable_exception_dump = params.at("enable_exception_dump").i();
+      }
       if (!params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
         op_select_implmode = "high_performance";
       } else if (params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
@@ -1397,8 +1533,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
         optypelist_for_implmode = params.at("optypelist_for_implmode").s();
       }
-      if (params.count("input_shape") && params.count("dynamic_dims") &&
-          params.count("dynamic_node_type")) {
+      if (params.count("input_shape") && params.count("dynamic_dims") && params.count("dynamic_node_type")) {
         input_shape = params.at("input_shape").s();
         Status s = CheckInputShape(input_shape);
         if (!s.ok()) {
@@ -1416,8 +1551,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           ADP_LOG(FATAL) << "dynamic_node_type should be 0 or 1.";
           LOG(FATAL) << "dynamic_node_type should be 0 or 1.";
         }
-      } else if (!params.count("input_shape") && !params.count("dynamic_dims") &&
-                 !params.count("dynamic_node_type")) {
+      } else if (!params.count("input_shape") && !params.count("dynamic_dims") && !params.count("dynamic_node_type")) {
         // the three parameters are not set normally.
       } else {
         ADP_LOG(FATAL) << "input_shape, dynamic_dims and dynamic_node_type should use together.";
@@ -1430,14 +1564,22 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           LOG(FATAL) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
         }
       }
-      if (params.count("enable_small_channel")) { enable_small_channel = params.at("enable_small_channel").i(); }
-      if (params.count("fusion_switch_file")) { fusion_switch_file = params.at("fusion_switch_file").s(); }
+      if (params.count("enable_small_channel")) {
+        enable_small_channel = params.at("enable_small_channel").i();
+      }
+      if (params.count("fusion_switch_file")) {
+        fusion_switch_file = params.at("fusion_switch_file").s();
+      }
       if (params.count("enable_compress_weight") && params.count("compress_weight_conf")) {
         ADP_LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
         LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
       }
-      if (params.count("enable_compress_weight")) { enable_compress_weight = params.at("enable_compress_weight").b(); }
-      if (params.count("compress_weight_conf")) { compress_weight_conf = params.at("compress_weight_conf").s(); }
+      if (params.count("enable_compress_weight")) {
+        enable_compress_weight = params.at("enable_compress_weight").b();
+      }
+      if (params.count("compress_weight_conf")) {
+        compress_weight_conf = params.at("compress_weight_conf").s();
+      }
       if (params.count("op_compiler_cache_mode")) {
         op_compiler_cache_mode = params.at("op_compiler_cache_mode").s();
       }
@@ -1462,18 +1604,29 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         if (params.count("precision_mode") && params.at("precision_mode").s() == "allow_mix_precision") {
           modify_mixlist = params.at("modify_mixlist").s();
         } else {
-          ADP_LOG(ERROR) << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
-          LOG(ERROR) << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
-          return errors::Internal("modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
+          ADP_LOG(ERROR)
+              << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
+          LOG(ERROR)
+              << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
+          return errors::Internal(
+              "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
         }
       }
       if (params.count("op_precision_mode")) {
         op_precision_mode = params.at("op_precision_mode").s();
       }
-      if (params.count("device_type")) { device_type = params.at("device_type").s(); }
-      if (params.count("hccl_timeout")) { hccl_timeout = params.at("hccl_timeout").s(); }
-      if (params.count("op_wait_timeout")) { hccl_timeout = params.at("op_wait_timeout").s(); }
-      if (params.count("op_execute_timeout")) { hccl_timeout = params.at("op_execute_timeout").s(); }
+      if (params.count("device_type")) {
+        device_type = params.at("device_type").s();
+      }
+      if (params.count("hccl_timeout")) {
+        hccl_timeout = std::to_string(params.at("hccl_timeout").i());
+      }
+      if (params.count("op_wait_timeout")) {
+        op_wait_timeout = std::to_string(params.at("op_wait_timeout").i());
+      }
+      if (params.count("op_execute_timeout")) {
+        op_execute_timeout = std::to_string(params.at("op_execute_timeout").i());
+      }
     }
   }
 
@@ -1481,8 +1634,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["variable_format_optimize"] = std::to_string(variable_format_optimize);
   sess_options["hcom_parallel"] = std::to_string(hcom_parallel);
   sess_options["stream_max_parallel_num"] = stream_max_parallel_num;
-  if (!graph_memory_max_size.empty()) { sess_options["graph_memory_max_size"] = graph_memory_max_size; }
-  if (!variable_memory_max_size.empty()) { sess_options["variable_memory_max_size"] = variable_memory_max_size; }
+  if (!graph_memory_max_size.empty()) {
+    sess_options["graph_memory_max_size"] = graph_memory_max_size;
+  }
+  if (!variable_memory_max_size.empty()) {
+    sess_options["variable_memory_max_size"] = variable_memory_max_size;
+  }
 
   sess_options["enable_dump"] = std::to_string(enable_dump);
   sess_options["dump_path"] = dump_path;
@@ -1507,24 +1664,32 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["op_precision_mode"] = op_precision_mode;
   sess_options["hccl_timeout"] = hccl_timeout;
 
-  init_options["precision_mode"] = precision_mode;
-  init_options["profiling_mode"] = std::to_string(profiling_mode);
-  init_options["profiling_options"] = profiling_options;
-  init_options["auto_tune_mode"] = auto_tune_mode;
-  init_options["graph_run_mode"] = std::to_string(graph_run_mode);
-  init_options["op_debug_level"] = std::to_string(op_debug_level);
-  init_options["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
-  init_options["enable_exception_dump"] = std::to_string(enable_exception_dump);
-  init_options["aoe_mode"] = aoe_mode;
-  init_options["work_path"] = work_path;
-  init_options["distribute_config"] = distribute_config;
-  init_options["op_compiler_cache_mode"] = op_compiler_cache_mode;
-  init_options["op_compiler_cache_dir"] = op_compiler_cache_dir;
-  init_options["debug_dir"] = debug_dir;
-  init_options["device_type"] = device_type;
-  init_options["soc_config"] = soc_config;
-  init_options["op_wait_timeout"] = op_wait_timeout;
-  init_options["op_execute_timeout"] = op_execute_timeout;
+  init_options_["precision_mode"] = precision_mode;
+  if (precision_mode.empty()) {
+    init_options_[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
+  } else {
+    init_options_[ge::PRECISION_MODE] = precision_mode;
+  }
+  init_options_["profiling_mode"] = std::to_string(profiling_mode);
+  init_options_["profiling_options"] = profiling_options;
+  init_options_["auto_tune_mode"] = auto_tune_mode;
+  init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
+  init_options_["op_debug_level"] = std::to_string(op_debug_level);
+  init_options_["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
+  init_options_["enable_exception_dump"] = std::to_string(enable_exception_dump);
+  init_options_["aoe_mode"] = aoe_mode;
+  init_options_["work_path"] = work_path;
+  init_options_["distribute_config"] = distribute_config;
+  init_options_["op_compiler_cache_mode"] = op_compiler_cache_mode;
+  init_options_["op_compiler_cache_dir"] = op_compiler_cache_dir;
+  init_options_["debug_dir"] = debug_dir;
+  init_options_["device_type"] = device_type;
+  init_options_["soc_config"] = soc_config;
+  if (!soc_config.empty()) {
+    init_options_["ge.socVersion"] = soc_config;
+  }
+  init_options_["op_wait_timeout"] = op_wait_timeout;
+  init_options_["op_execute_timeout"] = op_execute_timeout;
 
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);
@@ -1552,7 +1717,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
     attr_name = std::string("_") + option.first;
     node->AddAttr(attr_name, option.second);
   }
-  for (const auto &option : init_options) {
+  for (const auto &option : init_options_) {
     attr_name = std::string("_") + option.first;
     node->AddAttr(attr_name, option.second);
   }
@@ -1565,8 +1730,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   return Status::OK();
 }
 
-void NpuAttrs::LogOptions(const std::map<std::string, std::string>& options) {
-  for (const auto& option : options) {
+void NpuAttrs::LogOptions(const std::map<std::string, std::string> &options) {
+  for (const auto &option : options) {
     ADP_LOG(INFO) << option.first << ": " << option.second;
   }
 }

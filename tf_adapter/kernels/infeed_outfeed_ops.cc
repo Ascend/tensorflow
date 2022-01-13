@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+#include <string>
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
-#include <string>
 
 namespace tensorflow {
 namespace {
@@ -30,9 +30,15 @@ class OutfeedEnqueueOp : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     ADP_LOG(INFO) << "OutfeedEnqueueOp built";
   }
-  ~OutfeedEnqueueOp() override { ADP_LOG(INFO) << "OutfeedEnqueueOp has been destructed"; }
-  void Compute(OpKernelContext *ctx) override { ADP_LOG(INFO) << "OutfeedEnqueueOp running"; }
-  bool IsExpensive() override { return false; }
+  ~OutfeedEnqueueOp() override {
+    ADP_LOG(INFO) << "OutfeedEnqueueOp has been destructed";
+  }
+  void Compute(OpKernelContext *ctx) override {
+    ADP_LOG(INFO) << "OutfeedEnqueueOp running";
+  }
+  bool IsExpensive() override {
+    return false;
+  }
 
  private:
   std::string channel_name_;
@@ -70,14 +76,14 @@ class OutfeedDequeueOp : public OpKernel {
     bool already_cancelled = !cm->RegisterCallback(token, [this]() {
       ADP_LOG(INFO) << "Start run cancellation callback of out-feed dequeue op " << channel_name_;
       Status ret = StopRecvTensorByAcl(&acl_handle_, channel_name_);
-      if (!ret.ok()) { ADP_LOG(ERROR) << ret.error_message(); }
+      if (!ret.ok()) {
+        ADP_LOG(ERROR) << ret.error_message();
+      }
     });
-
     if (TF_PREDICT_FALSE(already_cancelled)) {
       ctx->SetStatus(errors::Internal("out-feed op ", channel_name_, " called after cancelled."));
       return;
     }
-
     std::vector<Tensor> tensors;
     ADP_LOG(INFO) << "Start recv tensors by acl out-feed dequeue op " << channel_name_;
     auto status = RecvTensorByAcl(acl_handle_, tensors);
@@ -88,9 +94,13 @@ class OutfeedDequeueOp : public OpKernel {
     OP_REQUIRES(ctx, tensors.size() == output_shapes_.size(),
                 errors::Internal("out-feed op ", channel_name_, " received ", tensors.size(), " tensors but expect ",
                                  output_shapes_.size(), " tensors"));
-    for (int i = 0; i < ctx->num_outputs(); ++i) { ctx->set_output(i, tensors[i]); }
+    for (int i = 0; i < ctx->num_outputs(); ++i) {
+      ctx->set_output(i, tensors[i]);
+    }
   }
-  bool IsExpensive() override { return false; }
+  bool IsExpensive() override {
+    return false;
+  }
 
  private:
   DataTypeVector output_types_;

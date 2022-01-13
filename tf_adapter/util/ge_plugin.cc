@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <thread>
+#include "nlohmann/json.hpp"
+#include "tensorflow/core/util/env_var.h"
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/common/types.h"
 #include "framework/omg/parser/parser_api.h"
 #include "framework/omg/omg_inner_types.h"
 #include "ge/ge_api.h"
-#include "ge/ge_api_types.h"
 #include "tdt/tdt_host_interface.h"
-#include "tensorflow/core/util/env_var.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/npu_plugin.h"
-#include <thread>
-#include "nlohmann/json.hpp"
 using json = nlohmann::json;
 
-using namespace tensorflow;
 using namespace tdt;
-constexpr int kFatalSleepTime = 3000;
+using namespace tensorflow;
 namespace {
-inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
+const int kFatalSleepTime = 3000;
+inline string ToString(ge::Status status) {
+  return ::ge::StatusFactory::Instance()->GetErrDesc(status);
+}
 void GeFinalize() {
   // ge finalize
   ge::Status status = ge::GEFinalize();
@@ -75,11 +75,6 @@ GePlugin *GePlugin::GetInstance() {
   return &instance;
 }
 
-/**
- * @brief: init ge plugin
- * @param init_options: init options
- * @param is_global: is global mode or not
- */
 void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_global) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (isInit_) {
@@ -87,15 +82,16 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
     return;
   }
   init_options_ = init_options;
-  const char *tf_config = std::getenv("TF_CONFIG");
+  std::string tf_config;
+  (void) ReadStringFromEnvVar("TF_CONFIG", "", &tf_config);
   int exec_hccl_flag = 1;
-  if (tf_config != nullptr) {
+  if (!tf_config.empty()) {
     json config_info;
     try {
-        config_info = json::parse(tf_config);
+      config_info = json::parse(tf_config);
     } catch (json::exception &e) {
-        ADP_LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
-        LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
+      ADP_LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
+      LOG(WARNING) << "[GePlugin] Failed to convert TF_CONFIG info from string to json ,reason: " << e.what();
     }
     if (config_info.is_object()) {
       if (config_info["task"]["type"] == "ps") {
@@ -119,8 +115,9 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   init_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_id_);
   ADP_LOG(INFO) << "[GePlugin] device id : " << init_options[ge::OPTION_EXEC_DEVICE_ID];
 
-  const char *env_job_id = std::getenv("JOB_ID");
-  if (env_job_id != nullptr) {
+  std::string env_job_id;
+  (void) ReadStringFromEnvVar("JOB_ID", "", &env_job_id);
+  if (!env_job_id.empty()) {
     init_options[ge::OPTION_EXEC_JOB_ID] = env_job_id;
   } else {
     ADP_LOG(WARNING) << "[GePlugin] can not find Environment variable : JOB_ID";
@@ -137,18 +134,21 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   bool is_use_hcom = false;
   bool deploy_mode = false;
-  char *env_rank_table_file = std::getenv("RANK_TABLE_FILE");
-  if ((env_rank_table_file != nullptr) && (rankSizeNum > 0)) {
+  std::string env_rank_table_file;
+  (void) ReadStringFromEnvVar("RANK_TABLE_FILE", "", &env_rank_table_file);
+  if (!env_rank_table_file.empty() && (rankSizeNum > 0)) {
     ADP_LOG(INFO) << "[GePlugin] env RANK_TABLE_FILE:" << env_rank_table_file;
     is_use_hcom = true;
     init_options[ge::OPTION_EXEC_RANK_TABLE_FILE] = env_rank_table_file;
-    char *env_pod_name = std::getenv("POD_NAME");
-    if (env_pod_name != nullptr) {
+    std::string env_pod_name;
+    (void) ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
+    if (!env_pod_name.empty()) {
       deploy_mode = true;
       init_options[ge::OPTION_EXEC_POD_NAME] = env_pod_name;
     } else {
-      char *env_rank_id = std::getenv("RANK_ID");
-      if (env_rank_id != nullptr) {
+      std::string env_rank_id;
+      (void) ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
+      if (!env_rank_id.empty()) {
         ADP_LOG(INFO) << "[GePlugin] env RANK_ID:" << env_rank_id;
         deploy_mode = false;
         init_options[ge::OPTION_EXEC_RANK_ID] = env_rank_id;
@@ -164,7 +164,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   // profiling configuration
   ADP_LOG(INFO) << "[GePlugin] profiling_mode : " << init_options[ge::OPTION_EXEC_PROFILING_MODE]
-            << ", profiling_options:" << init_options[ge::OPTION_EXEC_PROFILING_OPTIONS];
+                << ", profiling_options:" << init_options[ge::OPTION_EXEC_PROFILING_OPTIONS];
 
   // mix precision configuration
   ADP_LOG(INFO) << "[GePlugin] precision_mode : " << init_options[ge::PRECISION_MODE];
@@ -206,8 +206,8 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
     }
   }
   ADP_LOG(INFO) << "[GePlugin] aoe mode : " << init_options["ge.jobType"]
-            << ", work path : " << init_options["ge.tuningPath"]
-            << ", distribute_config : " << init_options["distribute_config"];
+                << ", work path : " << init_options["ge.tuningPath"]
+                << ", distribute_config : " << init_options["distribute_config"];
 
   ADP_LOG(INFO) << "[GePlugin] fusion_switch_file :" << init_options["ge.fusionSwitchFile"];
 
@@ -217,12 +217,9 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   ADP_LOG(INFO) << "[GePlugin] optypelist_for_implmode :" << init_options[ge::OPTYPELIST_FOR_IMPLMODE];
 
-  const char *tdt_uninit_env = std::getenv("ASCEND_TDT_UNINIT");
-  bool tdt_init = true;
-  if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
-    tdt_init = false;
-  }
-  if (tdt_init) {
+  bool tdt_uninit_env = false;
+  (void) ReadBoolFromEnvVar("ASCEND_TDT_UNINIT", false, &tdt_uninit_env);
+  if (!tdt_uninit_env) {
     // Open TsdClient first, then call GEInitialize
     ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";
     int32_t ret = tdt::TdtOutFeedInit(static_cast<uint32_t>(device_id_));
@@ -258,17 +255,11 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
   isGlobal_ = is_global;
 }
 
-/**
- * @brief: get init options
- */
 std::map<std::string, std::string> GePlugin::GetInitOptions() {
   return init_options_;
 }
 
-/**
- * @brief: get fusion tensor size
- */
-uint64_t GePlugin::GetFusionTensorSize() {
+uint64_t GePlugin::GetFusionTensorSize() const {
   const int64 fusion_tensor_size_default = 524288000;
   int64 fusion_tensor_size = fusion_tensor_size_default;
   Status s = ReadInt64FromEnvVar("FUSION_TENSOR_SIZE", fusion_tensor_size_default, &fusion_tensor_size);
@@ -278,9 +269,6 @@ uint64_t GePlugin::GetFusionTensorSize() {
   return static_cast<uint64_t>(fusion_tensor_size_default);
 }
 
-/**
- * @brief: ge plugin finalize
- */
 void GePlugin::Finalize() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!isInit_) {
@@ -305,41 +293,27 @@ void GePlugin::Finalize() {
     }
   }
   isInit_ = false;
-
 }
 
-/**
- * @brief: is global mode or not
- */
 bool GePlugin::IsGlobal() {
   std::lock_guard<std::mutex> lock(mutex_);
   return isGlobal_;
 }
 
-/**
- * @brief: init plugin
- * @param init_options: init options
- */
 void PluginInit(std::map<std::string, std::string> &init_options) {
   GePlugin::GetInstance()->Init(init_options, true);
   ADP_LOG(INFO) << "[GePlugin] npu plugin init success";
 }
 
-/**
- * @brief: finalize plugin
- */
 void PluginFinalize() {
   GePlugin::GetInstance()->Finalize();
   ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success";
 }
 
-/**
- * @brief: close npu
- */
 void NpuClose() {
   GeFinalize();
   uint32_t device_id = 0;
-  (void)GetEnvDeviceID(device_id);
+  (void) GetEnvDeviceID(device_id);
   if (NpuAttrs::GetUseTdtStatus(device_id)) {
     ADP_LOG(INFO) << "[GePlugin] the process has turned on TDT resource, finalize resource at exit.";
     int32_t tdt_status = TdtInFeedDestroy(device_id);
@@ -354,10 +328,6 @@ void NpuClose() {
   ADP_LOG(INFO) << "[GePlugin] npu finalize resource success";
 }
 
-/**
- * @brief: init rdma pool
- * @param size: rdma pool size
- */
 int32_t InitRdmaPool(size_t size) {
   ge::Status ret = ge::InitRdmaPool(size);
   if (ret != ge::SUCCESS) {
@@ -369,10 +339,6 @@ int32_t InitRdmaPool(size_t size) {
   return 0;
 }
 
-/**
- * @brief: register rdma remote addr
- * @param var_info: host var infor
- */
 int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info) {
   ge::Status ret = ge::RdmaRemoteRegister(var_info);
   if (ret != ge::SUCCESS) {
@@ -384,11 +350,6 @@ int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info) {
   return 0;
 }
 
-/**
- * @brief: rdma init and register
- * @param var_info: variable info
- * @param size: size
- */
 int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t size) {
   ge::Status ret = ge::InitRdmaPool(size);
   if (ret != ge::SUCCESS) {
@@ -407,12 +368,6 @@ int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t
   return 0;
 }
 
-/**
- * @brief: get variable addr and size
- * @param var_name: variable name
- * @param base_addr: base addr
- * @param var_size: variable size
- */
 int32_t GetVarAddrAndSize(const string &var_name, uint64_t &base_addr, uint64_t &var_size) {
   ge::Status ret = ge::GetVarBaseAddrAndSize(var_name, base_addr, var_size);
   if (ret != ge::SUCCESS) {
@@ -424,12 +379,6 @@ int32_t GetVarAddrAndSize(const string &var_name, uint64_t &base_addr, uint64_t 
   return 0;
 }
 
-/**
- * @brief: malloc shared memory
- * @param tensor_info: tensor info
- * @param dev_addr: dev addr
- * @param memory_size: memory size
- */
 int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, uint64_t &memory_size) {
   ge::Status ret = ge::MallocSharedMemory(tensor_info, dev_addr, memory_size);
   if (ret != ge::SUCCESS) {

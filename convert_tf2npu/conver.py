@@ -14,19 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
+"""main function to convert user scripts"""
+
 import os
+import pandas as pd
 import util_global
 from conver_by_ast import conver_ast
 from file_op import mkdir
 from file_op import mkdir_and_copyfile
 from file_op import write_report_terminator
 from file_op import abs_join
-import pandas as pd
 from file_op import get_api_statistic
 from file_op import adjust_index
 
 
 def conver():
+    """The entry point to convert Tensorflow script"""
     print("Begin conver, input file: " + util_global.get_value('input') + '\n')
     out_path = util_global.get_value('output')
     dst_path = os.path.split(util_global.get_value('input').rstrip('\\/'))[-1]
@@ -37,7 +41,7 @@ def conver():
     report_xlsx = os.path.join(report_dir, 'api_analysis_report.xlsx')
     util_global.set_value('generate_dir_report', pd.DataFrame())
 
-    for path, dir_list, file_list in conver_path:
+    for path, _, file_list in conver_path:
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(util_global.get_value('input'))[1])
             file_path = os.path.join(path, file_name).replace('\\', '/')

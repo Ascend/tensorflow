@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+"""Functions used for NPU device"""
+
 import os
 import atexit
 import threading
@@ -23,7 +26,6 @@ from tensorflow.python.eager import context
 from tensorflow.python.eager import def_function
 from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import ops
-from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.util import tf_contextlib
 
 from npu_device.configs.npu_config import NpuConfig
@@ -39,10 +41,12 @@ else:
 
 
 def stupid_repeat(word, times):
+    """Simple repeated"""
     return _npu_device_backends.StupidRepeat(word, times)
 
 
 def set_npu_loop_size(loop_size):
+    """Set loop size for NPU"""
     _npu_device_backends.SetNpuLoopSize(loop_size)
 
 
@@ -51,6 +55,7 @@ _global_options_lock = threading.Lock()
 
 
 def global_options():
+    """Set global options"""
     global _global_options
     if _global_options is None:
         with _global_options_lock:
@@ -78,6 +83,7 @@ class _ContextWithDefaultDevice(context.Context):
 
     @property
     def default_device(self):
+        """Return default device"""
         return self.__default_device
 
     @default_device.setter
@@ -92,15 +98,16 @@ def _graph_engine_warmup():
 
 
 def open(device_id=None):
+    """Initiate and return a NPU device handle"""
     global_kw_options = global_options().as_dict()
 
     ctx = _ContextWithDefaultDevice()
     ctx.ensure_initialized()
 
     if device_id is None:
-        device_id = int(os.getenv("ASCEND_DEVICE_ID", 0))
+        device_id = int(os.getenv("ASCEND_DEVICE_ID", '0'))
 
-    workers_num = int(os.getenv('RANK_SIZE', 1))
+    workers_num = int(os.getenv('RANK_SIZE', '1'))
     if workers_num > 1:
         env_rank_table = os.getenv("RANK_TABLE_FILE")
         env_worker_id = os.getenv('RANK_ID')
@@ -115,7 +122,7 @@ def open(device_id=None):
 
     device_options = {}
     error_message = _npu_device_backends.Open(ctx._handle, NPU, device_id, global_kw_options, device_options)
-    if len(error_message):
+    if error_message:
         raise RuntimeError("Failed open npu device %s : %s" % (str(device_id), error_message))
 
     if workers_num > 1:
@@ -130,6 +137,7 @@ def open(device_id=None):
 
 
 def close():
+    """Close NPU device"""
     _npu_device_backends.Close()
 
 
@@ -139,6 +147,7 @@ _global_npu_ctx = None
 
 
 def global_npu_ctx():
+    """Get global NPU context"""
     global _global_npu_ctx
     return _global_npu_ctx
 
@@ -166,6 +175,7 @@ def _never_nested_function_call(self, *func_args, **func_kwargs):
 
 
 def npu_compat_function(func=None, *args, **kwargs):
+    """NPU compatible function"""
     def never_nested_decorator(f):
         if kwargs.get('experimental_compile'):
             logging.info("Skip xla compile tf function %s on npu", f.__name__)
@@ -178,11 +188,11 @@ def npu_compat_function(func=None, *args, **kwargs):
 
     if func is not None:
         return never_nested_decorator(func)
-    else:
-        return never_nested_decorator
+    return never_nested_decorator
 
 
-class NpuDeviceHandle(object):
+class NpuDeviceHandle:
+    """Class for creating handle of NPU device"""
     def __init__(self, ctx, device_id, device_options, workers_num, worker_id):
         self._ctx = ctx
         self._device_id = device_id
@@ -192,9 +202,11 @@ class NpuDeviceHandle(object):
         self.worker_id = worker_id
 
     def name(self):
+        """Return device name"""
         return self._device_name
 
     def scope(self):
+        """Return NPU scope"""
         @tf_contextlib.contextmanager
         def _scope():
             with self._ctx.device(self._device_name):
@@ -203,9 +215,11 @@ class NpuDeviceHandle(object):
         return _scope()
 
     def is_cluster_worker(self):
+        """Whether NPU device is in cluster worker"""
         return self.workers_num > 1 and self.workers_num > self.worker_id >= 0
 
     def as_default(self):
+        """Set device as default one"""
         @tf_contextlib.contextmanager
         def combined():
             try:
