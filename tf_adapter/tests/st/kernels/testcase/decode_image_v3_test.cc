@@ -40,7 +40,7 @@ TEST(DecodeImageV3OpsTest, TestDecodeImageV3) {
                                                              input_types, input_memory_types, output_types, output_memory_types,
                                                              1, nullptr);
     DecodeImageV3Op cache(context);
-    cache.compute(ctx);
+    cache.Compute(ctx);
     delete device;
     delete node_def;
     delete op_def;
