@@ -96,7 +96,7 @@ def npu_callbacks_append(callbacks_list=()):
 def npu_config_proto(config_proto=None):
     """Construct NPU configuration proto"""
     if (not isinstance(config_proto, config_pb2.ConfigProto)) or (
-    not issubclass(type(config_proto), config_pb2.ConfigProto)):
+            not issubclass(type(config_proto), config_pb2.ConfigProto)):
         config_proto = config_pb2.ConfigProto()
 
     npu_optimizer = None
@@ -119,7 +119,7 @@ def npu_config_proto(config_proto=None):
 def npu_graph_options(graph_options=None):
     """Set NPU graph options"""
     if (not isinstance(graph_options, config_pb2.GraphOptions)) or (
-    not issubclass(type(graph_options), config_pb2.GraphOptions)):
+            not issubclass(type(graph_options), config_pb2.GraphOptions)):
         graph_options = config_pb2.GraphOptions()
     graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return graph_options
@@ -128,7 +128,7 @@ def npu_graph_options(graph_options=None):
 def npu_optimizer_options(optimizer_options=None):
     """Set NPU optimizer options"""
     if (not isinstance(optimizer_options, config_pb2.OptimizerOptions)) or (
-    not issubclass(type(optimizer_options), config_pb2.OptimizerOptions)):
+            not issubclass(type(optimizer_options), config_pb2.OptimizerOptions)):
         optimizer_options = config_pb2.OptimizerOptions()
     optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return optimizer_options
@@ -137,7 +137,7 @@ def npu_optimizer_options(optimizer_options=None):
 def npu_run_config_init(run_config=None):
     """Initialize NPU run configuration"""
     if ((not isinstance(run_config, tf.estimator.RunConfig)) and (
-    not issubclass(type(run_config), tf.estimator.RunConfig))):
+            not issubclass(type(run_config), tf.estimator.RunConfig))):
         run_config = tf.estimator.RunConfig()
     if (isinstance(run_config, tf.estimator.RunConfig) or issubclass(type(run_config), tf.estimator.RunConfig)):
         run_config.__dict__['_session_config'] = npu_config_proto(run_config.session_config)
@@ -197,9 +197,11 @@ def init_resource(config=None):
     npu_rank_id = get_rank_id()
     npu_local_rank_id = get_local_rank_id()
     npu_rank_size = get_rank_size()
+    npu_local_rank_size = get_local_rank_size()
     util.set_value("npu_rank_id", npu_rank_id)
     util.set_value("npu_local_rank_id", npu_local_rank_id)
     util.set_value("npu_rank_size", npu_rank_size)
+    util.set_value("npu_local_rank_size", npu_local_rank_size)
     return sess, npu_shutdown
 
 
@@ -226,6 +228,11 @@ def get_npu_local_rank_id():
 def get_npu_rank_size():
     """Get NPU rank size"""
     return util.get_value("npu_rank_size", 1)
+
+
+def get_npu_local_rank_size():
+    """Get NPU local rank size"""
+    return util.get_value("npu_local_rank_size", 1)
 
 
 class NpuEmptyHook(session_run_hook.SessionRunHook):
