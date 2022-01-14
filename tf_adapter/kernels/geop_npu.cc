@@ -349,7 +349,14 @@ void GeOp::Finalize() {
       if (!SessionManager::GetInstance().IsGeSessionExist()) {
         if (!GePlugin::GetInstance()->IsGlobal()) {
           if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty() &&
-              aoe_finalize_ != nullptr) {
+              aoe_finalize_ != nullptr && aoe_destroy_session_ != nullptr) {
+            for (auto &id : session_id_vector_) {
+              Aoe::AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(id);
+              if (aoe_destroy_ret != Aoe::AOE_SUCCESS) {
+                ADP_LOG(ERROR) << "exec aoe tuning func failed" << "session id"<< id << "[" << aoe_destroy_ret << "].";
+              }
+            }
+            session_id_vector_.clear();
             Aoe::AoeStatus tune_ret = (*aoe_finalize_)();
             if (tune_ret != Aoe::AOE_SUCCESS) {
               ADP_LOG(ERROR) << "[GEOP] exec aoe finalize func failed.";
@@ -549,6 +556,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         Aoe::AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
         OP_REQUIRES_ASYNC(ctx, session_ret == Aoe::AOE_SUCCESS,
                           errors::Internal("[GEOP] exec aoe create session func failed[", session_ret, "]."), done);
+        session_id_vector_.push_back(session_id_);
         // aoe set ge session
         Aoe::AoeStatus set_ret = (*aoe_set_gesession_)(session_id_, ge_session_);
         OP_REQUIRES_ASYNC(ctx, set_ret == Aoe::AOE_SUCCESS,
@@ -1338,11 +1346,6 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
     }
     ADP_LOG(INFO) << "[GEOP] aoe success[" << aoe_tune_ret << "].";
   }
-  Aoe::AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(session_id_);
-  if (aoe_destroy_ret != Aoe::AOE_SUCCESS) {
-    ADP_LOG(ERROR) << "exec aoe tuning func failed[" << aoe_destroy_ret << "].";
-    return -1;
-  }
   return 0;
 }
 
@@ -1704,6 +1707,7 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
 namespace tensorflow {
 mutex GeOp::mu_(LINKER_INITIALIZED);
 std::atomic_flag GeOp::tuned_initialize_flag_ = ATOMIC_FLAG_INIT;
+std::vector<SessionId> GeOp::session_id_vector_;
 
 const std::string GeOp::INPUT_DESC = "input_tensor_desc";
 const std::string GeOp::OUTPUT_DESC = "output_tensor_desc";
