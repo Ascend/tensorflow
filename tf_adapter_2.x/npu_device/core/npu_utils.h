@@ -21,6 +21,7 @@
 
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/graph/graph.h"
 
 #include "acl/acl_base.h"
 #include "graph/types.h"
@@ -93,6 +94,26 @@ struct ResourceCompare {
   bool operator()(const tensorflow::ResourceHandle &left, const tensorflow::ResourceHandle &right) const {
     return left.name() < right.name() || left.container() < right.container() || left.device() < right.device();
   }
+};
+
+void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g,
+                                   bool keep_signature = false);
+
+void FixGraphArgRetvalIndex(tensorflow::Graph *graph);
+
+uint64_t NextUUID();
+
+class OptimizeStageGraphDumper {
+ public:
+  explicit OptimizeStageGraphDumper(const std::string &graph) : graph_(graph), counter_(0) {}
+  void Dump(const std::string &stage, const tensorflow::GraphDef &graph_def);
+
+  void DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
+                         const tensorflow::FunctionLibraryDefinition *lib_def);
+
+ private:
+  std::string graph_;
+  int counter_;
 };
 }  // namespace npu
 

@@ -21,33 +21,20 @@
 #include <future>
 
 #include "tensorflow/core/common_runtime/eager/execute.h"
-#include "tensorflow/core/grappler/op_types.h"
 #include "tensorflow/core/platform/blocking_counter.h"
 #include "tensorflow/core/graph/algorithm.h"
 
-#include "npu_custom_kernel.h"
-#include "npu_global.h"
 #include "npu_managed_buffer.h"
 #include "npu_tensor.h"
+
+#include "optimizers/npu_algorithm.h"
+#include "optimizers/npu_optimizer_manager.h"
 
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/omg/parser/model_parser.h"
 #include "framework/omg/parser/parser_factory.h"
 
 using Format = ge::Format;
-const static uint64_t kInvalidGeGraphId = -1;
-const static uint64_t kEmptyGeGraphId = -2;
-const static std::string kHcomAllReduce = "HcomAllReduce";
-const static std::string kHcomBroadcast = "HcomBroadcast";
-const static std::string kDropOutGenMaskV3 = "DropOutGenMaskV3";
-const static std::string kDropOutDoMaskV3 = "DropOutDoMaskV3";
-const static std::string kNpuLossScaleAttr = "_npu_loss_scale";
-const static std::string kNpuAllocFloatStatusOp = "NpuAllocFloatStatus";
-const static std::string kNpuGetFloatStatusOp = "NpuGetFloatStatus";
-const static std::string kEnable = "1";
-const static std::string kWeightUpdateGroupingAttr = "_weight_update_grouping";
-const static std::string kReadVariableOp = "ReadVariableOp";
-const static std::string kAssignOp = "AssignVariableOp";
 
 namespace {
 template <typename T, typename DT>
@@ -68,178 +55,6 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
   void DeallocateRaw(void *ptr) override { Unref(); }
   std::unique_ptr<T, DT> ptr_;
-};
-
-size_t RemoveRedundantControlEdges(tensorflow::Graph *graph) {
-  std::vector<tensorflow::Edge *> edges_to_remove;
-  for (auto edge : graph->edges()) {
-    if (edge->IsControlEdge()) {
-      if ((edge->dst()->type_string() == kHcomAllReduce && edge->src()->type_string() != kNpuGetFloatStatusOp) ||
-          (edge->src()->type_string() == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
-        edges_to_remove.push_back(edge);
-      } else if (edge->src()->type_string() == kDropOutDoMaskV3 && edge->dst()->type_string() == kDropOutGenMaskV3) {
-        edges_to_remove.push_back(edge);
-      }
-    }
-  }
-
-  if (kGraphEngineGreedyMemory) {
-    for (auto node : graph->op_nodes()) {
-      if (node->type_string() == kDropOutGenMaskV3) {
-        bool is_first_dropout_mask = true;
-        for (const auto edge : node->in_edges()) {
-          if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {
-            is_first_dropout_mask = false;
-            break;
-          }
-        }
-        if (is_first_dropout_mask) {
-          DLOG() << "Tune control edges for dropout in graph engine greedy memory mode for saving device memory, "
-                 << "start with first dropout gen mask node " << node->name();
-
-          std::vector<tensorflow::Node *> dropout_gen_masks;
-          std::vector<tensorflow::Node *> dropout_do_masks;
-          std::set<tensorflow::Node *> seen_masks;
-
-          const std::function<void(tensorflow::Node *)> &enter = [&dropout_gen_masks, &dropout_do_masks,
-                                                                  &seen_masks](tensorflow::Node *node) {
-            if (node->type_string() == kDropOutGenMaskV3) {
-              for (auto edge : node->in_edges()) {
-                if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {
-                  if (seen_masks.insert(edge->src()).second) {
-                    dropout_do_masks.push_back(edge->src());
-                  }
-                }
-              }
-              if (seen_masks.insert(node).second) {
-                dropout_gen_masks.push_back(node);
-              }
-            }
-          };
-
-          tensorflow::EdgeFilter filter = [](const tensorflow::Edge &edge) {
-            return edge.dst()->type_string() == kDropOutDoMaskV3 || edge.dst()->type_string() == kDropOutGenMaskV3;
-          };
-
-          tensorflow::DFSFrom(*graph, {node}, enter, {}, {}, filter);
-
-          size_t total_size = dropout_gen_masks.size();
-          if (dropout_do_masks.size() < total_size) {
-            total_size = dropout_do_masks.size();
-          }
-          DLOG() << "Total dropout gen mask " << dropout_gen_masks.size() << " do mask " << dropout_do_masks.size();
-
-          const static size_t kDropoutCtrlDistance = 3;
-          size_t start = 0;
-          size_t end = kDropoutCtrlDistance;
-          while (end < total_size) {
-            auto &do_mask_node = dropout_do_masks[start++];
-            auto &gen_mask_node = dropout_gen_masks[end++];
-            auto edge = graph->AddControlEdge(do_mask_node, gen_mask_node);
-            if (edge != nullptr) {
-              DLOG() << "Add control edge [D->G] " << edge->DebugString();
-            } else {
-              DLOG() << "Existed control edge [D->G] " << do_mask_node->name() << " -> " << gen_mask_node->name();
-            }
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  for (auto edge : edges_to_remove) {
-    DLOG() << "Remove redundant control edge " << edge->DebugString();
-    graph->RemoveEdge(edge);
-  }
-  return edges_to_remove.size();
-}
-
-bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
-  *key = nullptr;
-  for (auto node : graph->op_nodes()) {
-    if (node->IsWhileNode()) {
-      if (*key != nullptr) {
-        DLOG() << "Skip check as no while node in graph";
-        *key = nullptr;
-        return false;
-      }
-      *key = node;
-    }
-  }
-  if (*key == nullptr) {
-    DLOG() << "Skip check as no while node in graph";
-    return false;
-  }
-  size_t reserved_nums = 0;
-  const std::function<void(const tensorflow::Node *)> &enter = [&reserved_nums](const tensorflow::Node *node) {
-    if (node->IsOp()) {
-      reserved_nums++;
-    }
-  };
-  tensorflow::ReverseDFSFrom(*graph, {*key}, enter, {}, {}, {});
-  DLOG() << "Reserved nodes " << reserved_nums << " vs. totally " << graph->num_op_nodes();
-  return static_cast<int>(reserved_nums) == graph->num_op_nodes();
-}
-
-tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef &gdef,
-                                                     const tensorflow::FunctionLibraryDefinition *lib_def) {
-  tensorflow::FunctionDefLibrary fdef_lib;
-
-  std::unordered_set<std::string> related_function_names;
-  std::queue<const tensorflow::FunctionDef *> related_functions;
-  for (const auto &n : gdef.node()) {
-    for (const auto &attr : n.attr()) {
-      if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
-        const auto *f = lib_def->Find(attr.second.func().name());
-        if (f != nullptr) {
-          *fdef_lib.add_function() = *f;
-          related_functions.push(f);
-        } else {
-          LOG(ERROR) << "Function " << attr.second.func().name() << " not found";
-        }
-      }
-    }
-  }
-
-  while (!related_functions.empty()) {
-    const auto *f = related_functions.front();
-    related_functions.pop();
-    for (const auto &n : f->node_def()) {
-      for (const auto &attr : n.attr()) {
-        if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
-          const auto *f_inner = lib_def->Find(attr.second.func().name());
-          if (f_inner != nullptr) {
-            *fdef_lib.add_function() = *f_inner;
-            related_functions.push(f_inner);
-          } else {
-            LOG(ERROR) << "Function " << attr.second.func().name() << " not found";
-          }
-        }
-      }
-    }
-  }
-  return fdef_lib;
-}
-
-class OptimizeStageGraphDumper {
- public:
-  explicit OptimizeStageGraphDumper(const std::string &graph) : graph_(graph), counter_(0) {}
-  void Dump(const std::string &stage, const tensorflow::GraphDef &graph_def) {
-    WriteTextProto(tensorflow::Env::Default(), graph_ + "." + std::to_string(counter_++) + "." + stage + ".pbtxt",
-                   graph_def);
-  }
-
-  void DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
-                         const tensorflow::FunctionLibraryDefinition *lib_def) {
-    tensorflow::GraphDef copied_graph_def = graph_def;
-    *copied_graph_def.mutable_library() = CollectGraphSubGraphs(graph_def, lib_def);
-    Dump(stage, copied_graph_def);
-  }
-
- private:
-  std::string graph_;
-  int counter_;
 };
 }  // namespace
 
@@ -296,6 +111,22 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
     std::string file_name = "dp_provider_" + resource.name() + ".pbtxt";
     WriteTextProto(tensorflow::Env::Default(), file_name, fbody->graph->ToGraphDefDebug());
   }
+}
+
+/**
+ * @brief: create iterator providev
+ * @param context: tfe context
+ * @param tensor: tensorflow tensor
+ * @param device_ids: device ids
+ * @param status: tf status
+ */
+std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(TFE_Context *context,
+                                                                         const tensorflow::ResourceHandle &resource) {
+  auto provider = iterator_providers_.find(resource);
+  if (provider == iterator_providers_.end()) {
+    return nullptr;
+  }
+  return provider->second;
 }
 
 /**
@@ -438,470 +269,20 @@ tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs,
  * @param op_name: op name
  * @param data_types: tensor data types
  */
-tensorflow::Status NpuDevice::ValidateOutput(const char *op_name, const TensorDataTypes &data_types) const {
+tensorflow::Status NpuDevice::ValidateOutputTypes(const TensorDataTypes &data_types) const {
+  return ValidateInputTypes(data_types);
+}
+
+tensorflow::Status NpuDevice::ValidateInputTypes(const TensorDataTypes &data_types) const {
   for (size_t i = 0; i < data_types.size(); i++) {
     auto data_type = data_types[i];
-    if (data_type == tensorflow::DT_RESOURCE) {
-      if (!SupportedResourceGenerator(op_name)) {
-        return tensorflow::errors::Unimplemented("Op ", op_name, " unsupported resource generator by NPU");
-      }
-    } else if (!tensorflow::DataTypeCanUseMemcpy(data_type)) {
-      return tensorflow::errors::Unimplemented("Op ", op_name, " output ", i, " unsupported type ",
+    if ((data_type != tensorflow::DT_RESOURCE) && (!tensorflow::DataTypeCanUseMemcpy(data_type))) {
+      return tensorflow::errors::Unimplemented("Output ", i, " unsupported type ",
                                                tensorflow::DataTypeString(data_type));
     }
   }
   return tensorflow::Status::OK();
 }
-
-/**
- * @brief: prune function
- * @param fdef: function def
- * @param g: graph
- * @param keep_signature: if keep signature or not
- */
-void NpuDevice::PruneFunction(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature) {
-  std::unordered_set<tensorflow::StringPiece, tensorflow::StringPieceHasher> control_ret_nodes;
-  for (const auto &control_ret : fdef.control_ret()) {
-    control_ret_nodes.insert(control_ret.second);
-  }
-
-  std::unordered_set<const tensorflow::Node *> nodes;
-  for (auto n : g->nodes()) {
-    if (n->IsControlFlow() || n->op_def().is_stateful() ||
-        (control_ret_nodes.find(n->name()) != control_ret_nodes.end())) {
-      if (n->type_string() == "VarHandleOp" || n->type_string() == "IteratorV2") {
-        continue;
-      }
-      if (!keep_signature) {
-        if (n->IsArg()) {
-          continue;
-        }
-        if (n->IsRetval() && n->attrs().Find("T")->type() == tensorflow::DT_RESOURCE) {
-          continue;
-        }
-      }
-      nodes.insert(n);
-    }
-  }
-  bool changed = PruneForReverseReachability(g, std::move(nodes));
-  if (changed) {
-    FixupSourceAndSinkEdges(g);
-  }
-}
-
-/**
- * @brief: fix graph arg return value index
- * @param graph: graph
- */
-void NpuDevice::FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
-  std::map<int, tensorflow::Node *> indexed_args;
-  std::map<int, tensorflow::Node *> indexed_retvals;
-  for (auto node : graph->nodes()) {
-    if (node->IsArg()) {
-      indexed_args[node->attrs().Find("index")->i()] = node;
-    }
-    if (node->IsRetval()) {
-      indexed_retvals[node->attrs().Find("index")->i()] = node;
-    }
-  }
-  int current_arg_index = 0;
-  for (auto indexed_arg : indexed_args) {
-    indexed_arg.second->AddAttr("index", current_arg_index++);
-  }
-
-  int current_retval_index = 0;
-  for (auto indexed_retval : indexed_retvals) {
-    indexed_retval.second->AddAttr("index", current_retval_index++);
-  }
-}
-
-/**
- * @brief: transform resource input to graph node
- * @param context: tfe context
- * @param graph: graph
- * @param num_inputs: number of inputs
- * @param inputs: tfe tensor handle inputs
- * @param dependent_host_resources: dependent host resources
- */
-tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
-  TFE_Context *context, tensorflow::Graph *graph, int num_inputs, TFE_TensorHandle **inputs,
-  std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> &dependent_host_resources) {
-  (void)RemoveRedundantControlEdges(graph);
-
-  std::set<int> arg_is_variable;
-  std::set<int> arg_is_iterator;
-
-  std::map<int, tensorflow::ResourceHandle> arg_resource_handles;
-
-  VecTensorDataTypes arg_handle_dtyes(num_inputs);
-  VecTensorPartialShapes arg_handle_shapes(num_inputs);
-
-  for (int i = 0; i < num_inputs; i++) {
-    if (inputs[i] == nullptr) {
-      continue;
-    };
-    const tensorflow::Tensor *tensor;
-    NPU_REQUIRES_OK(npu::GetTensorHandleTensor(inputs[i], &tensor));
-    if (tensor->dtype() == tensorflow::DT_RESOURCE) {
-      auto handle = tensor->flat<tensorflow::ResourceHandle>()(0);
-      arg_resource_handles[i] = handle;
-      if (MirroredIterator(handle)) {
-        GetMirroredIteratorShapesAndTypes(handle, arg_handle_shapes[i], arg_handle_dtyes[i]);
-        arg_is_iterator.insert(i);
-      } else {
-        const auto &dtypes_and_shapes = handle.dtypes_and_shapes();
-        for (auto &dtype_and_shape : dtypes_and_shapes) {
-          arg_handle_dtyes[i].push_back(dtype_and_shape.dtype);
-          arg_handle_shapes[i].push_back(dtype_and_shape.shape);
-        }
-        arg_is_variable.insert(i);
-      }
-    }
-  }
-
-  std::map<tensorflow::Node *, tensorflow::Node *> arg_substitutes;
-  for (auto node : graph->op_nodes()) {
-    if (node->IsArg()) {
-      auto index = node->attrs().Find("index")->i();
-      if (arg_is_iterator.count(index)) {
-        NPU_REQUIRES_OK(tensorflow::NodeBuilder(npu::WrapResourceName(arg_resource_handles[index].name()), "IteratorV2")
-                          .Attr("container", arg_resource_handles[index].container())
-                          .Attr("shared_name", arg_resource_handles[index].name())
-                          .Attr("output_types", arg_handle_dtyes[index])
-                          .Attr("output_shapes", arg_handle_shapes[index])
-                          .Attr("_arg_name", node->name())
-                          .Attr("_arg_index", int(index))
-                          .Finalize(graph, &arg_substitutes[node]));
-      } else if (arg_is_variable.count(index)) {
-        NPU_REQUIRES_OK(
-          tensorflow::NodeBuilder(npu::WrapResourceName(arg_resource_handles[index].name()), "VarHandleOp")
-            .Attr("container", arg_resource_handles[index].container())
-            .Attr("shared_name", arg_resource_handles[index].name())
-            .Attr("dtype", arg_handle_dtyes[index][0])
-            .Attr("shape", arg_handle_shapes[index][0])
-            .Attr("_arg_name", node->name())
-            .Attr("_arg_index", int(index))
-            .Finalize(graph, &arg_substitutes[node]));
-      }
-    }
-  }
-
-  // 这里需要把涉及的function的resource输入也一并替换了
-  std::vector<tensorflow::Node *> nodes_to_remove;
-  std::vector<tensorflow::Node *> control_flow_nodes;
-  for (auto node : graph->op_nodes()) {
-    if (node->IsRetval() && node->input_type(0) == tensorflow::DT_RESOURCE) {
-      if (kDumpExecutionDetail) {
-        const tensorflow::Edge *edge;
-        NPU_REQUIRES_OK(node->input_edge(0, &edge));
-        LOG(INFO) << "Retval " << node->def().DebugString() << " from " << edge->src()->name() << ":"
-                  << edge->src_output() << " will be removed";
-      }
-
-      nodes_to_remove.push_back(node);
-      continue;
-    }
-    if (node->IsIfNode() || node->IsCaseNode() || node->IsWhileNode() || node->IsPartitionedCall()) {
-      DLOG() << "Start pruning control flow op " << node->def().DebugString();
-      std::string func_input_name = node->IsPartitionedCall() ? "args" : "input";
-      bool need_trans_resource = false;
-      for (auto edge : node->in_edges()) {
-        if (edge->src()->IsArg() && arg_substitutes.find(edge->src()) != arg_substitutes.end()) {
-          DLOG() << node->name() << " input " << edge->src()->attrs().Find("index")->i() << " is resource arg";
-          need_trans_resource = true;
-        }
-      }
-      if (!need_trans_resource) continue;
-
-      control_flow_nodes.push_back(node);
-
-      tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-      const tensorflow::OpRegistrationData *op_reg_data;
-      NPU_REQUIRES_OK(lib_def->LookUp(node->type_string(), &op_reg_data));
-      int func_input_start = 0;
-      int func_input_end = 0;
-      for (const auto &in_arg : op_reg_data->op_def.input_arg()) {
-        func_input_start = func_input_end;
-        if (in_arg.type_list_attr().empty()) {
-          func_input_end++;
-        } else {
-          func_input_end += node->attrs().Find(in_arg.type_list_attr())->list().type_size();
-        }
-        DLOG() << node->name() << " input arg " << in_arg.name() << " range [" << func_input_start << ", "
-               << func_input_end << ")";
-        if (in_arg.name() == func_input_name) {
-          break;
-        }
-      }
-
-      std::vector<TFE_TensorHandle *> func_inputs;
-      for (int i = func_input_start; i < func_input_end; i++) {
-        const tensorflow::Edge *edge;
-        NPU_REQUIRES_OK(node->input_edge(i, &edge));
-        if (edge->src()->IsArg() && arg_substitutes.find(edge->src()) != arg_substitutes.end()) {
-          func_inputs.push_back(inputs[edge->src()->attrs().Find("index")->i()]);
-        } else {
-          func_inputs.push_back(nullptr);
-        }
-      }
-
-      for (auto &attr : node->attrs()) {
-        if (attr.second.has_func()) {
-          std::string func_name =
-            node->type_string() + "_" + attr.first + "_" + attr.second.func().name() + "_" + std::to_string(node->id());
-          const tensorflow::FunctionDef *fdef = lib_def->Find(attr.second.func().name());
-          std::unique_ptr<tensorflow::FunctionBody> fbody;
-          NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
-          std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> unused_host_resources;
-          NPU_REQUIRES_OK(TransResourceInput2GraphNode(context, fbody->graph, func_inputs.size(), func_inputs.data(),
-                                                       unused_host_resources));
-
-          // Arg节点可能会被优化掉，因而需要重新排列index
-          std::vector<int> remain_indexes;
-          for (auto n : fbody->graph->nodes()) {
-            if (n->IsArg()) {
-              remain_indexes.push_back(n->attrs().Find("index")->i());
-            }
-          }
-          FixGraphArgRetvalIndex(fbody->graph);
-          DLOG() << func_name << " remained input index [0-" << func_inputs.size() << ") -> "
-                 << VecToString(remain_indexes);
-
-          tensorflow::FunctionDef optimized_fdef;
-          auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
-            for (const auto &control_ret : fdef->control_ret()) {
-              if (control_ret.second == node->name()) {
-                return absl::make_optional(node->name());
-              }
-            }
-            return absl::nullopt;
-          };
-          NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, func_name, lookup, &optimized_fdef));
-          NPU_REQUIRES_OK(lib_def->AddFunctionDef(optimized_fdef));
-          DLOG() << "Change " << node->name() << " attr " << attr.first << " func name " << attr.second.func().name()
-                 << " to " << func_name;
-          const_cast<tensorflow::AttrValue *>(node->attrs().Find(attr.first))->mutable_func()->set_name(func_name);
-        }
-      }
-    }
-
-    std::vector<const tensorflow::Edge *> edges;
-    for (auto edge : node->in_edges()) {
-      edges.emplace_back(edge);
-    }  // You can never modify and iterator an EdgeSet
-    for (auto edge : edges) {
-      if (edge->src()->IsArg()) {
-        auto iter = arg_substitutes.find(edge->src());
-        if (iter != arg_substitutes.end()) {
-          int index = edge->src()->attrs().Find("index")->i();
-          if (arg_is_iterator.count(index)) {
-            auto provider = iterator_providers_.find(arg_resource_handles[index]);
-            NPU_REQUIRES(
-              provider != iterator_providers_.end(),
-              tensorflow::errors::Internal("Resource provider for ", arg_resource_handles[index].name(), " not found"));
-            dependent_host_resources[index] = provider->second;
-          }
-          graph->AddEdge(iter->second, 0, node, edge->dst_input());
-          graph->RemoveEdge(edge);
-        }
-      }
-    }
-  }
-
-  for (auto node : control_flow_nodes) {
-    if (node->IsWhileNode() || node->IsIfNode() || node->IsCaseNode() || node->IsPartitionedCall()) {
-      tensorflow::NodeDef ndef = node->def();
-      if (node->IsWhileNode()) {
-        int removed_nums = 0;
-        for (int i = 0; i < node->num_inputs(); i++) {
-          if (node->input_type(i) == tensorflow::DT_RESOURCE) {
-            int index = i - removed_nums;
-            removed_nums++;
-
-            ndef.mutable_input()->erase(ndef.mutable_input()->begin() + index);
-
-            auto type = ndef.mutable_attr()->at("T").mutable_list()->mutable_type();
-            type->erase(type->begin() + index);
-
-            auto shape = ndef.mutable_attr()->at("output_shapes").mutable_list()->mutable_shape();
-            shape->erase(shape->begin() + index);
-          }
-        }
-      } else if (node->IsIfNode() || node->IsCaseNode() || node->IsPartitionedCall()) {
-        int removed_nums = 0;
-        int arg_start_index = node->IsPartitionedCall() ? 0 : 1;
-        for (int i = arg_start_index; i < node->num_inputs(); i++) {
-          if (node->input_type(i) == tensorflow::DT_RESOURCE) {
-            int index = i - removed_nums;
-            removed_nums++;
-
-            ndef.mutable_input()->erase(ndef.mutable_input()->begin() + index);
-
-            auto type = ndef.mutable_attr()->at("Tin").mutable_list()->mutable_type();
-            type->erase(type->begin() + index - arg_start_index);
-          }
-        }
-      }
-      DLOG() << "Pruned control flow op " << ndef.DebugString();
-      tensorflow::Status status;
-      auto pruned_node = graph->AddNode(ndef, &status);
-      NPU_REQUIRES_OK(status);
-      int pruned_input_index = 0;
-      for (auto edge : node->in_edges()) {
-        if (edge->IsControlEdge()) {
-          graph->AddControlEdge(edge->src(), pruned_node);
-          DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
-        }
-      }
-      for (int i = 0; i < node->num_inputs(); i++) {
-        const tensorflow::Edge *edge;
-        NPU_REQUIRES_OK(node->input_edge(i, &edge));
-        if (node->input_type(i) != tensorflow::DT_RESOURCE) {
-          graph->AddEdge(edge->src(), edge->src_output(), pruned_node, pruned_input_index++);
-          DLOG() << "Add edge from " << edge->src()->name() << ":" << edge->src_output() << " to "
-                 << pruned_node->name() << ":" << (pruned_input_index - 1);
-        }
-      }
-      for (auto edge : node->out_edges()) {
-        graph->AddEdge(pruned_node, edge->src_output(), edge->dst(), edge->dst_input());
-        DLOG() << "Add edge from " << pruned_node->name() << ":" << edge->src_output() << " to " << edge->dst()->name()
-               << ":" << edge->dst_input();
-      }
-      graph->RemoveNode(node);
-    }
-  }
-  for (auto node : nodes_to_remove) {
-    graph->RemoveNode(node);
-  }
-  for (auto arg_substitute : arg_substitutes) {
-    graph->RemoveNode(arg_substitute.first);
-  }
-  return tensorflow::Status::OK();
-}
-
-/**
- * @brief: mark graph node in out desc
- * @param context: tfe context
- * @param graph: graph
- * @param num_inputs: number of inputs
- * @param inputs: tfe tensor handle inputs
- */
-tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Graph *graph, int num_inputs,
-                                                     TFE_TensorHandle **inputs) {
-  tensorflow::ShapeRefiner shape_refiner(graph->versions(), npu::UnwrapCtx(context)->FuncLibDef());
-  VecTensorShapes arg_shapes;
-  VecTensorDataTypes arg_handle_dtyes;
-  VecTensorPartialShapes arg_handle_shapes;
-  for (int i = 0; i < num_inputs; i++) {
-    const tensorflow::Tensor *tensor;
-    NPU_REQUIRES_OK(npu::GetTensorHandleTensor(inputs[i], &tensor));
-    arg_shapes.push_back({tensor->shape()});
-    TensorDataTypes handle_dtyes;
-    TensorPartialShapes handle_shapes;
-    if (tensor->dtype() == tensorflow::DT_RESOURCE) {
-      auto handle = tensor->flat<tensorflow::ResourceHandle>()(0);
-      const auto &dtypes_and_shapes = handle.dtypes_and_shapes();
-      for (auto &dtype_and_shape : dtypes_and_shapes) {
-        handle_dtyes.push_back(dtype_and_shape.dtype);
-        handle_shapes.push_back(dtype_and_shape.shape);
-      }
-    }
-    arg_handle_dtyes.push_back(handle_dtyes);
-    arg_handle_shapes.push_back(handle_shapes);
-  }
-
-  auto node_shape_inference_lambda = [&shape_refiner, num_inputs, inputs, &arg_shapes, &arg_handle_dtyes,
-                                      &arg_handle_shapes](tensorflow::Node *node) {
-    AssembleOpDef(node);
-    if (node->IsArg() && node->attrs().Find("index")) {
-      auto index = node->attrs().Find("index")->i();
-      if (index < num_inputs && !node->attrs().Find("_output_shapes")) {
-        node->AddAttr("_output_shapes", arg_shapes[index]);
-      }
-      if (index < num_inputs && tensorflow::unwrap(inputs[index])->DataType() == tensorflow::DT_RESOURCE) {
-        if (!node->attrs().Find("_handle_shapes")) {
-          node->AddAttr("_handle_shapes", arg_handle_shapes[index]);
-        }
-        if (!node->attrs().Find("_handle_dtypes")) {
-          node->AddAttr("_handle_dtypes", arg_handle_dtyes[index]);
-        }
-      }
-    }
-    auto status = shape_refiner.AddNode(node);
-    if (!status.ok()) {
-      LOG(INFO) << "  " << node->name() << "[" << node->type_string() << "] Skip infer " << status.error_message();
-      return;
-    }
-    auto node_ctx = shape_refiner.GetContext(node);
-
-    DLOG() << "Shape of node " << node->DebugString();
-    if (kDumpExecutionDetail) {
-      TensorDataTypes input_types;
-      tensorflow::InputTypesForNode(node->def(), node->op_def(), &input_types);
-      TensorPartialShapes input_shapes;
-      for (int i = 0; i < node_ctx->num_inputs(); ++i) {
-        tensorflow::TensorShapeProto proto;
-        node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
-        input_shapes.emplace_back(proto);
-        LOG(INFO) << "    input " << i << ": " << tensorflow::DataTypeString(input_types[i])
-                  << node_ctx->DebugString(node_ctx->input(i));
-      }
-    }
-
-    TensorDataTypes input_types;
-    TensorDataTypes output_types;
-    tensorflow::InOutTypesForNode(node->def(), node->op_def(), &input_types, &output_types);
-
-    if (!input_types.empty()) {
-      tensorflow::AttrValue input_desc_attrs;
-      bool input_desc_incomplete = false;
-      for (int i = 0; i < node->num_inputs(); i++) {
-        const tensorflow::Edge *edge = nullptr;
-        status = node->input_edge(i, &edge);
-        if (!status.ok()) {
-          LOG(ERROR) << status.ToString();
-          return;
-        }
-
-        auto input_attr = edge->src()->attrs().Find(kOutputDesc);
-        if (input_attr == nullptr) {
-          input_desc_incomplete = true;
-          LOG(WARNING) << node->DebugString() << " input node " << edge->src()->DebugString()
-                       << " has no desc for output " << edge->src_output();
-          break;
-        }
-        *input_desc_attrs.mutable_list()->add_func() =
-          edge->src()->attrs().Find(kOutputDesc)->list().func(edge->src_output());
-      }
-      if (!input_desc_incomplete) {
-        node->AddAttr(kInputDesc, input_desc_attrs);
-      } else {
-        TensorPartialShapes input_shapes;
-        for (int i = 0; i < node_ctx->num_inputs(); ++i) {
-          tensorflow::TensorShapeProto proto;
-          node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
-          input_shapes.emplace_back(proto);
-        }
-        AssembleInputDesc(input_shapes, input_types, node);
-      }
-    }
-
-    if (!output_types.empty()) {
-      TensorPartialShapes output_shapes;
-      for (int i = 0; i < node_ctx->num_outputs(); ++i) {
-        tensorflow::TensorShapeProto proto;
-        node_ctx->ShapeHandleToProto(node_ctx->output(i), &proto);
-        output_shapes.emplace_back(proto);
-        DLOG() << "    output " << i << ": " << tensorflow::DataTypeString(output_types[i])
-               << node_ctx->DebugString(node_ctx->output(i));
-      }
-      AssembleOutputDesc(output_shapes, output_types, node);
-    }
-  };
-  tensorflow::ReverseDFS(*graph, {}, node_shape_inference_lambda);
-  return tensorflow::Status::OK();
-}
-
 /**
  * @brief: new device tensor handle
  * @param context: tfe context
@@ -1127,6 +508,34 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
   return tensorflow::Status::OK();
 }
 
+void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef &ndef, int num_inputs,
+                                 TFE_TensorHandle **inputs, std::unique_ptr<NpuConcreteGraph> *concrete_graph,
+                                 TF_Status *s) {
+  const char *op_name = ndef.op().c_str();
+  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
+  const tensorflow::FunctionDef *fdef = lib_def->Find(op_name);
+  std::unique_ptr<tensorflow::FunctionBody> fbody;
+  FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice(&ndef.attr()), lib_def, &fbody);
+  std::unique_ptr<tensorflow::Graph> optimize_graph = std::make_unique<tensorflow::Graph>(lib_def);
+  CopyGraph(*fbody->graph, optimize_graph.get());
+
+  OptimizeStageGraphDumper graph_dumper(op_name);
+
+  NpuOptimizerManager::Instance().MetaOptimize(context, &optimize_graph, device_options, &graph_dumper);
+
+  TensorDataTypes input_dtypes;
+  TensorDataTypes output_dtypes;
+  const tensorflow::OpRegistrationData *op_reg_data;
+  NPU_CTX_REQUIRES_OK(s, lib_def->LookUp(op_name, &op_reg_data));
+  tensorflow::InOutTypesForNode(ndef, op_reg_data->op_def, &input_dtypes, &output_dtypes);
+  auto mutable_concrete_graph = std::make_unique<NpuMutableConcreteGraph>(op_name, input_dtypes, output_dtypes,
+                                                                          NextUUID(), std::move(optimize_graph));
+
+  NpuOptimizerManager::Instance().RuntimeOptimize(context, mutable_concrete_graph.get(), device_options, this,
+                                                  num_inputs, inputs, &graph_dumper);
+  *concrete_graph = std::move(mutable_concrete_graph);
+}
+
 /**
  * @brief: get or create spec
  * @param context: tfe context
@@ -1134,11 +543,11 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
  * @param attributes: tfe op attrs
  * @param num_inputs: number of inputs
  * @param inputs: tfe tensor handle inputs
- * @param spec: shared point to TaskSpec
+ * @param spec: shared point to OpExecutor
  * @param s: tf status
  */
 void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes,
-                                int num_inputs, TFE_TensorHandle **inputs, std::shared_ptr<const npu::TaskSpec> *spec,
+                                int num_inputs, TFE_TensorHandle **inputs, std::shared_ptr<const npu::OpExecutor> *spec,
                                 TF_Status *s) {
   tensorflow::NodeDef ndef;
   ndef.set_op(op_name);
@@ -1158,166 +567,9 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     return;
   }
   DLOG() << "No cached task spec for " << op_name << ", start create and cache";
-  // 上面校验resource源头的，都是不可以cache的，因为resource可能在多次调用中来自不同的设备，下面的部分是可以cache的
-  // NodeDef保存节点的属性，比较重要的，对于单算子，则会保存T属性，表达输入输出的type<T>
-  // OpRegistrationData保存算子的IR注册信息，对于单算子，则和RegisterOp传递的信息一致，对于function，则是确定了输入的dataType的
-  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-  const tensorflow::OpRegistrationData *op_reg_data;
-  NPU_CTX_REQUIRES_OK(s, lib_def->LookUp(op_name, &op_reg_data));
-  bool is_function_op = op_reg_data->is_function_op;
-  // 判断当前算子是否是NPU Device声明支持的算子
-  if (!is_function_op && !Supported(op_name)) {
-    *spec = CacheOpSpec(op_name, op_reg_data, ndef, {}, "Op unsupported by NPU");
-    return;
-  }
-  // 这里获取输出的dataType，对于常规算子，通过NodeDef的T属性确定，对于function op，则是在ret上自带
-  TensorDataTypes data_types;
-  NPU_CTX_REQUIRES_OK(s, tensorflow::OutputTypesForNode(ndef, op_reg_data->op_def, &data_types));
-  // 如果输出的dataType不支持，或者不是支持的ResourceGenerator，则fallback
-  tensorflow::Status compat_status = ValidateOutput(op_name, data_types);
-  if (!compat_status.ok()) {
-    if (is_function_op) {
-      *spec = CacheFuncSpec(op_name, op_reg_data, ndef, kInvalidGeGraphId, {}, {}, {}, compat_status.error_message());
-      return;
-    } else {
-      *spec = CacheOpSpec(op_name, op_reg_data, ndef, {}, compat_status.error_message());
-      return;
-    }
-  }
-  // 需要进行函数算子的图优化，然后再判断NPU是否兼容
-  if (is_function_op) {  // 对function_op，进行图优化，并固定缓存，如果需要fallback，也在spec中记录fallback的原因
-    const tensorflow::FunctionDef *fdef = lib_def->Find(op_name);
-    std::unique_ptr<tensorflow::Graph> optimize_graph = std::make_unique<tensorflow::Graph>(lib_def);
-    std::unique_ptr<tensorflow::FunctionBody> fbody;
-    tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
-    tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
-    FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice(&ndef.attr()), lib_def, &fbody);
-    CopyGraph(*fbody->graph, optimize_graph.get());
-
-    OptimizeStageGraphDumper graph_dumper(op_name);
-
-    if (kDumpExecutionDetail || kDumpGraph) {
-      graph_dumper.DumpWithSubGraphs("before_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
-    }
-
-    tensorflow::OptimizeGraph(flr, &optimize_graph);
-
-    if (kDumpExecutionDetail || kDumpGraph) {
-      graph_dumper.DumpWithSubGraphs("after_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
-    }
-
-    bool changed = false;
-    if (device_options[ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION] == kEnable) {
-      NPU_CTX_REQUIRES_OK(s, TailingOptimize(context, optimize_graph.get(), changed));
-
-      if (kDumpExecutionDetail || kDumpGraph) {
-        graph_dumper.DumpWithSubGraphs("after_tailing_optimize", optimize_graph->ToGraphDefDebug(), lib_def);
-      }
-    }
-
-    NPU_CTX_REQUIRES_OK(s, WeightUpdateGroupingOptimize(context, optimize_graph.get(), changed));
-    if (kDumpExecutionDetail || kDumpGraph) {
-      graph_dumper.DumpWithSubGraphs("after_weight_update_grouping_optimize", optimize_graph->ToGraphDefDebug(),
-                                     lib_def);
-    }
-
-    std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> dependent_host_resources;
-    NPU_CTX_REQUIRES_OK(
-      s, TransResourceInput2GraphNode(context, optimize_graph.get(), num_inputs, inputs, dependent_host_resources));
-
-    if (kDumpExecutionDetail || kDumpGraph) {
-      graph_dumper.DumpWithSubGraphs("after_replace_resource_inputs", optimize_graph->ToGraphDefDebug(), lib_def);
-    }
-
-    PruneFunction(*fdef, optimize_graph.get());
-
-    DLOG() << "NPU Start inferring shape for function node " << op_name;
-
-    std::vector<int> remain_indexes;
-    std::vector<TFE_TensorHandle *> pruned_inputs;
-    for (auto node : optimize_graph->nodes()) {
-      if (node->IsArg()) {
-        auto index = node->attrs().Find("index")->i();
-        remain_indexes.push_back(index);
-        pruned_inputs.push_back(inputs[index]);
-      }
-    }
-
-    MarkGraphNodeInOutDesc(context, optimize_graph.get(), num_inputs, inputs);
-    FixGraphArgRetvalIndex(optimize_graph.get());  // Arg节点可能会被优化掉，因而需要重新排列index，并且prune输入
-
-    if (kDumpExecutionDetail || kDumpGraph) {
-      graph_dumper.DumpWithSubGraphs("after_mark_node_shape", optimize_graph->ToGraphDefDebug(), lib_def);
-    }
-
-    DLOG() << op_name << " remained input index (0-" << (num_inputs - 1) << ") -> " << VecToString(remain_indexes);
-    auto lambda = [remain_indexes](int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) {
-      TF_UNUSED_VARIABLE(num_inputs);
-      for (auto index : remain_indexes) {
-        pruned.push_back(inputs[index]);
-      }
-    };
-
-    // 对于function节点，可以将resource的输入NPU兼容性作为缓存项目，校验输入是否被NPU支持，如果类型不支持，或者是CPU的Resouce类型，则不支持
-    // 如果是单算子，则不能缓存，需要在每次dev->Run的时候，校验单算子资源输入的兼容性
-    auto status = ValidateInput(op_name, pruned_inputs.size(), pruned_inputs.data());
-    if (!status.ok()) {
-      *spec = CacheFuncSpec(op_name, op_reg_data, ndef, kInvalidGeGraphId, {}, {}, {}, status.error_message());
-    } else {
-      uint64_t graph_id = kInvalidGeGraphId;
-      bool loop = false;
-      bool builtin_loop = false;
-      auto loop_graph = std::make_unique<tensorflow::GraphDef>();
-      if (!dependent_host_resources.empty()) {
-        NPU_CTX_REQUIRES_OK(s, GetAutoLoopGraph(context, optimize_graph.get(), pruned_inputs.size(),
-                                                pruned_inputs.data(), loop, builtin_loop, loop_graph.get()));
-      } else {
-        DLOG() << "Skip trans " << op_name << " to loop graph as no iterator resource dependencies";
-        optimize_graph->ToGraphDef(loop_graph.get());
-      }
-
-      LOG(INFO) << "Graph " << op_name << " can loop: " << (loop ? "true" : "false")
-                << " builtin loop: " << (builtin_loop ? "true" : "false");
-      if (kDumpExecutionDetail || kDumpGraph) {
-        graph_dumper.DumpWithSubGraphs((loop ? "LOOP" : "NON-LOOP"), *loop_graph, lib_def);
-      }
-      graph_id = AddGeGraphInner(context, NextUUID(), op_name, *loop_graph, loop, s);
-      if (TF_GetCode(s) != TF_OK) return;
-      *spec = CacheFuncSpec(op_name, op_reg_data, ndef, graph_id, std::move(loop_graph), lambda,
-                            dependent_host_resources, "");
-      static_cast<const npu::FuncSpec *>(spec->get())->SetNeedLoop(loop);
-      static_cast<const npu::FuncSpec *>(spec->get())->SetBuiltinLoop(builtin_loop);
-    }
-    return;
-  } else {
-    // 进行inferShape，输出可能是unknown shape，所以使用partial shape
-    TensorShapes input_shapes;
-    input_shapes.resize(num_inputs);
-    for (int i = 0; i < num_inputs; i++) {
-      NPU_CTX_REQUIRES_OK(s, npu::GetTensorHandleShape(inputs[i], input_shapes[i]));
-    }
-    TensorPartialShapes partial_shapes;
-    bool requested_input_value = false;
-    if (!data_types.empty()) {
-      DLOG() << "Infer shape for op " << op_name;
-      tensorflow::Status infer_status =
-        InferShape(context, op_reg_data, ndef, num_inputs, inputs, partial_shapes, requested_input_value);
-      // 如果inferShape失败，或者期望输出数量不对，则fallback回CPU，因为CPU的计算并不依赖inferShape
-      if (!infer_status.ok()) {
-        *spec = CacheOpSpec(op_name, op_reg_data, ndef, input_shapes, partial_shapes, infer_status.error_message());
-        return;
-      }
-    } else {
-      DLOG() << "Skip infer shape for non-output op " << op_name;
-    }
-    const std::string reason = ValidateInput(op_name, num_inputs, inputs).error_message();
-    if (requested_input_value) {
-      *spec = CacheOpSpec(op_name, op_reg_data, ndef, input_shapes, reason);
-    } else {
-      *spec = CacheOpSpec(op_name, op_reg_data, ndef, input_shapes, partial_shapes, reason);
-    }
-    return;
-  }
+  *spec = OpExecutor::Create(context, this, ndef, num_inputs, inputs, s);
+  if (TF_GetCode(s) != TF_OK) return;
+  CacheTaskSpec(*spec);
 }
 
 void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes, int num_inputs,
@@ -1351,12 +603,6 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   for (int i = 0; i < num_outputs; ++i) {
     outputs[i] = op_outputs[i];
   }
-
-  npu::NpuFallbackHookFunc *hook = nullptr;
-  if (npu::CustomKernelRegistry::Instance().GetFallbackHookFunc(op_name, &hook)) {
-    (*hook)(context, this, op_name, attributes, num_inputs, inputs, num_outputs, outputs, status);
-    if (TF_GetCode(status) != TF_OK) return;
-  }
 }
 
 /**
@@ -1368,16 +614,15 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
  * @param outputs: tfe tensor handle outputs
  * @param status: tf status
  */
-void NpuDevice::FallbackCPU(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
-                            int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+void NpuDevice::FallbackCPU(TFE_Context *context, const tensorflow::NodeDef &ndef, int num_inputs,
+                            TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   tensorflow::AttrBuilder attr_builder;
-  attr_builder.Reset(spec->Op().c_str());
+  attr_builder.Reset(ndef.op().c_str());
   attr_builder.BuildNodeDef();
-  auto attrs = spec->NodeDef().attr();
-  for (auto &attr : attrs) {
+  for (auto &attr : ndef.attr()) {
     attr_builder.Set(attr.first, attr.second);
   }
-  FallbackCPU(context, spec->Op().c_str(), tensorflow::wrap(&attr_builder), num_inputs, inputs, num_outputs, outputs,
+  FallbackCPU(context, ndef.op().c_str(), tensorflow::wrap(&attr_builder), num_inputs, inputs, num_outputs, outputs,
               status);
 }
 
@@ -1432,211 +677,10 @@ void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **ou
     FallbackCPU(context, op_name, attributes, inputs.size(), inputs.data(), num_outputs, outputs, s);
     return;
   }
-  std::shared_ptr<const npu::TaskSpec> spec;
+  std::shared_ptr<const npu::OpExecutor> spec;
   GetOrCreateSpec(context, op_name, attributes, inputs.size(), inputs.data(), &spec, s);
-  if (TF_GetCode(s) != TF_OK) {
-    return;
-  }
-  DLOG() << "NPU Executing " << op_name << " found cached spec";
-  if (spec->ShouldFallback()) {
-    DLOG() << "NPU Executing " << op_name << " fallback[" << spec->FallbackReason() << "]";
-    FallbackCPU(context, op_name, attributes, inputs.size(), inputs.data(), num_outputs, outputs, s);
-    if (TF_GetCode(s) != TF_OK && kDumpExecutionDetail) {
-      LOG(INFO) << "NPU Executing " << op_name << " fallback status: " << s->status.ToString();
-      std::stringstream ss;
-      ss << spec->DebugString() << std::endl;
-      for (int i = 0; i < num_inputs; i++) {
-        tensorflow::Status status;
-        const tensorflow::Tensor *tensor = nullptr;
-        tensorflow::unwrap(inputs[i])->DeviceName(&status);
-        npu::GetTensorHandleTensor(inputs[i], &tensor);
-        ss << "input " << i << " " << tensorflow::DataTypeString(tensor->dtype()) << " device "
-           << tensorflow::unwrap(inputs[i])->DeviceName(&status) << std::endl;
-      }
-      LOG(INFO) << ss.str();
-    }
-  } else {
-    DLOG() << "NPU Executing " << op_name << " dispatched to npu executor";
-    Run(context, spec, inputs.size(), inputs.data(), num_outputs, outputs, s);
-  }
-}
-
-/**
- * @brief: run
- * @param context: tfe context
- * @param spec: shared point to TaskSpec
- * @param num_inputs: number of inputs
- * @param inputs: tfe tensor handle inputs
- * @param num_outputs: number of outputs
- * @param outputs: tfe tensor handle outputs
- * @param status: tf status
- */
-void NpuDevice::Run(TFE_Context *context, std::shared_ptr<const npu::TaskSpec> spec, int num_inputs,
-                    TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  if (spec->IsFunctionOp()) {
-    DLOG() << "NPU Executor start executing function op " << spec->Op();
-    RunGraph(context, static_cast<const npu::FuncSpec *>(spec.get()), num_inputs, inputs, num_outputs, outputs, status);
-  } else {
-    DLOG() << "NPU Executor start executing normal op " << spec->Op();
-    RunOp(context, static_cast<const npu::OpSpec *>(spec.get()), num_inputs, inputs, num_outputs, outputs, status);
-  }
-}
-
-/**
- * @brief: run op
- * @param context: tfe context
- * @param spec: op spec
- * @param num_inputs: number of inputs
- * @param inputs: tfe tensor handle inputs
- * @param num_outputs: number of outputs
- * @param outputs: tfe tensor handle outputs
- * @param status: tf status
- */
-void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inputs, TFE_TensorHandle **inputs,
-                      int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  TensorShapes output_shapes;
-  tensorflow::NodeDef parser_ndef = spec->ParserNodeDef();
-  if (spec->ShouldInferShape()) {
-    DLOG() << "NPU Executing op " << spec->Op() << " need re-infer shape";
-    TensorPartialShapes partial_shapes;
-    bool unused = false;
-    bool should_fallback =
-      !InferShape(context, spec->OpRegistrationData(), spec->NodeDef(), num_inputs, inputs, partial_shapes, unused)
-         .ok();
-    if (!should_fallback) {
-      output_shapes.resize(partial_shapes.size());
-      for (size_t i = 0; i < partial_shapes.size(); i++) {
-        DLOG() << "NPU Executing op " << spec->Op() << " re-infer shape output " << i
-               << partial_shapes[i].DebugString();
-        if (!partial_shapes[i].AsTensorShape(&output_shapes[i])) {
-          should_fallback = true;
-          break;
-        }
-      }
-    }
-    if (should_fallback) {
-      DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu after re-infer shape";
-      FallbackCPU(context, spec, num_inputs, inputs, num_outputs, outputs, status);
-      return;
-    }
-    AssembleOutputDesc(output_shapes, spec->OutputTypes(), &parser_ndef);
-  } else {
-    output_shapes = spec->OutputShapes();
-  }
-
-  npu::NpuCustomKernelFunc *custom_kernel = nullptr;
-  if (npu::CustomKernelRegistry::Instance().GetCustomKernelFunc(spec->Op(), &custom_kernel)) {
-    (*custom_kernel)(context, this, spec, output_shapes, parser_ndef, num_inputs, inputs, num_outputs, outputs, status);
-    return;
-  }
-
-  if (!kExecuteOpByAcl || kGraphEngineGreedyMemory) {
-    bool op_can_fallback = true;
-    if (SupportedResourceGenerator(spec->Op())) {  // Should never fallback npu resource generator
-      DLOG() << "Op " << spec->Op() << " not fallback cpu as it is resource generator";
-      op_can_fallback = false;
-    } else {
-      for (int i = 0; i < num_inputs; ++i) {  // Should never fallback if op has npu resource input
-        if (npu::IsNpuTensorHandle(inputs[i]) && tensorflow::unwrap(inputs[i])->DataType() == tensorflow::DT_RESOURCE) {
-          DLOG() << "Op " << spec->Op() << " not fallback cpu as it has resource input from NPU";
-          op_can_fallback = false;
-          break;
-        }
-      }
-    }
-    if (op_can_fallback) {
-      DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu "
-             << (kExecuteOpByAcl ? "as single op execution by npu not enabled"
-                                 : "for saving device memory in graph engine greedy memory mode");
-      FallbackCPU(context, spec, num_inputs, inputs, num_outputs, outputs, status);
-      return;
-    }
-  }
-  // 输入如果是CPU,此时要转换成NPU
-  std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
-  ScopeTensorHandleDeleter scope_handle_deleter;
-  for (int i = 0; i < num_inputs; ++i) {
-    TFE_TensorHandle *input = inputs[i];
-    // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (!npu::IsNpuTensorHandle(input) && tensorflow::unwrap(input)->DataType() != tensorflow::DT_RESOURCE) {
-      tensorflow::Status s;
-      auto src_name = tensorflow::unwrap(input)->DeviceName(&s);
-      NPU_CTX_REQUIRES_OK(status, s);
-      DLOG() << "Copying " << spec->Op() << " input:" << i
-             << " type:" << tensorflow::DataTypeString(tensorflow::unwrap(input)->DataType()) << " to NPU from "
-             << src_name << " for acl executing";
-      // 这里需要根据算子选择输入格式了
-      input = CopyTensorH2D(context, input, Format::FORMAT_ND, status);
-      scope_handle_deleter.Guard(input);
-      if (TF_GetCode(status) != TF_OK) return;
-    }
-    npu_inputs[i] = input;
-  }
-  const auto &output_types = spec->OutputTypes();
-  for (size_t i = 0; i < output_types.size(); ++i) {
-    if (output_types[i] == tensorflow::DT_RESOURCE) {
-      outputs[i] = NewDeviceResourceHandle(context, output_shapes[i], status);
-      if (TF_GetCode(status) != TF_OK) return;
-    } else {
-      outputs[i] = NewDeviceTensorHandle(context, Format::FORMAT_ND, output_shapes[i], output_types[i], status);
-      if (TF_GetCode(status) != TF_OK) return;
-    }
-  }
-  /******************************************模拟NPU执行Start************************************/
-  // 下面换成真实的ACL调用即可，当前直接FallbackCPU
-  // npu_inputs 指向NPU内存的TFE_TensorHandle**
-  // outputs 指向NPU内存的TFE_TensorHandle**
-  // parser_ndef 打了输入输出描述的ndef，需要优化，后续直接存储ACL的结构体
-  // output_shapes 临时变量，算子的输出shape
-  // spec
-  // 待运算算子的说明信息，必定包含InputShapes(),InputTypes(),OutputTypes()，
-  // 不一定包含OutputShapes()(因为有的算子inferShape依赖输入的值（如reshape），输出shape需要使用上面的output_shapes临时变量)
-
-  /*
-   从TFE_TensorHandle*获取NpuManagedBuffer:
-      const tensorflow::Tensor *npu_tensor = nullptr;
-      NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(npu_inputs[i], &npu_tensor));
-      npu::Unwrap<NpuManagedBuffer>(npu_tensor); // 返回值就是NpuManagedBuffer*
-  */
-  std::vector<TFE_TensorHandle *> acl_inputs(num_inputs);
-  for (int i = 0; i < num_inputs; ++i) {
-    const tensorflow::Tensor *npu_tensor = nullptr;
-    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(npu_inputs[i], &npu_tensor));
-    tensorflow::Tensor cpu_tensor(npu_tensor->dtype(), npu_tensor->shape());
-    if (npu_tensor->dtype() == tensorflow::DT_RESOURCE) {
-      for (int j = 0; j < npu_tensor->NumElements(); j++) {
-        cpu_tensor.flat<tensorflow::ResourceHandle>()(j) = npu_tensor->flat<tensorflow::ResourceHandle>()(j);
-      }
-    } else {
-      NPU_CTX_REQUIRES_OK(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleTo(&cpu_tensor));
-    }
-    acl_inputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
-    scope_handle_deleter.Guard(acl_inputs[i]);
-    if (TF_GetCode(status) != TF_OK) return;
-  }
-  /**********调用CPU模拟NPU Start*************/
-  std::vector<TFE_TensorHandle *> acl_outputs(num_outputs);
-  FallbackCPU(context, spec, num_inputs, acl_inputs.data(), num_outputs, acl_outputs.data(), status);
-  if (TF_GetCode(status) != TF_OK) return;
-  /**********调用CPU模拟NPU End*************/
-  for (int i = 0; i < num_outputs; ++i) {
-    const tensorflow::Tensor *acl_tensor = nullptr;
-    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(acl_outputs[i], &acl_tensor));
-    const tensorflow::Tensor *npu_tensor = nullptr;
-    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(outputs[i], &npu_tensor));
-    if (spec->OutputTypes()[i] == tensorflow::DT_RESOURCE) {
-      for (int j = 0; j < npu_tensor->NumElements(); j++) {
-        const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j) =
-          acl_tensor->flat<tensorflow::ResourceHandle>()(j);
-      }
-    } else {
-      NPU_CTX_REQUIRES_OK(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleFrom(acl_tensor));
-    }
-    TFE_DeleteTensorHandle(acl_outputs[i]);
-    if (TF_GetCode(status) != TF_OK) return;
-  }
-  /******************************************模拟NPU执行End************************************/
-  DLOG() << "NPU Executing op " << spec->Op() << " succeed by npu excutor";
+  if (TF_GetCode(s) != TF_OK) return;
+  spec->Run(context, this, num_inputs, inputs.data(), num_outputs, outputs, s);
 }
 
 namespace {
@@ -1762,92 +806,6 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
   for (auto handle : inputs) {
     TFE_DeleteTensorHandle(handle);
   }
-}
-
-/**
- * @brief: run graph
- * @param context: tfe context
- * @param spec: func spec
- * @param tf_num_inputs: number of inputs
- * @param tf_inputs: tensor handle inputs
- * @param num_outputs: number of outputs
- * @param outputs: tfe tensor handle outputs
- * @param status: tf status
- */
-void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf_num_inputs,
-                         TFE_TensorHandle **tf_inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  if (spec->GeGraphId() == kEmptyGeGraphId) {
-    DLOG() << "Skipped run empty ge graph";
-    return;
-  }
-  std::vector<TFE_TensorHandle *> pruned_inputs;
-  spec->PruneInputs(tf_num_inputs, tf_inputs, pruned_inputs);
-  int num_inputs = pruned_inputs.size();
-  TFE_TensorHandle **inputs = pruned_inputs.data();
-  // 注意，因为GE当前执行图的时候，输入输出内存都是Host的，所以这里和ACL执行相反，如果输入是NPU，则需要转回CPU，特别的，对于资源类，当前采取的策略是资源入图
-  // 输入如果是NPU,此时要转换成CPU
-  std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
-  ScopeTensorHandleDeleter scope_handle_deleter;
-  for (int i = 0; i < num_inputs; ++i) {
-    TFE_TensorHandle *input = inputs[i];
-    // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (npu::IsNpuTensorHandle(input) && tensorflow::unwrap(input)->DataType() != tensorflow::DT_RESOURCE) {
-      tensorflow::Status tf_status;
-      auto src_name = tensorflow::unwrap(input)->DeviceName(&tf_status);
-      NPU_CTX_REQUIRES_OK(status, tf_status);
-      DLOG() << "Copying " << spec->Op() << " input:" << i
-             << " type:" << tensorflow::DataTypeString(tensorflow::unwrap(input)->DataType()) << " from " << src_name
-             << " to CPU for graph engine executing";
-      // 这里需要根据算子选择输入格式了
-      input = CopyTensorD2H(context, input, status);
-      scope_handle_deleter.Guard(input);
-      if (TF_GetCode(status) != TF_OK) return;
-    }
-    npu_inputs[i] = input;
-  }
-
-  // 这里根据小循环策略修改值
-  int64_t iterations_per_loop = 1;
-  if (spec->NeedLoop()) {
-    iterations_per_loop = npu::global::g_npu_loop_size;
-    SetNpuLoopSize(context, iterations_per_loop, status);
-    if (TF_GetCode(status) != TF_OK) return;
-  }
-
-  int64_t consume_resource_times = 1;
-  if (spec->NeedLoop() || spec->BuiltinLoop()) {
-    consume_resource_times = npu::global::g_npu_loop_size;
-  }
-  for (const auto &resource : spec->DependentHostResources()) {
-    if (spec->NeedLoop() || spec->BuiltinLoop() || kDumpExecutionDetail) {
-      LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << consume_resource_times
-                << " times";
-    }
-    const tensorflow::Tensor *tensor;
-    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(tf_inputs[resource.first], &tensor));
-    // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
-    bool need_loop = spec->NeedLoop();
-    auto done = [resource, consume_resource_times, need_loop](const tensorflow::Status &s) {
-      if (need_loop || !s.ok() || kDumpExecutionDetail) {
-        LOG(INFO) << "Iterator resource " << resource.second->Name() << " consume " << consume_resource_times
-                  << " times done with status " << s.ToString();
-      }
-    };
-    NPU_CTX_REQUIRES_OK(status, resource.second->ConsumeAsync(*tensor, consume_resource_times, done));
-  }
-
-  MaybeRebuildFuncSpecGraph(context, spec, status);
-  if (TF_GetCode(status) != TF_OK) return;
-
-  if (spec->NeedLoop() || kDumpExecutionDetail) {
-    LOG(INFO) << "Start run ge graph " << spec->GeGraphId() << " pin to cpu, loop size " << iterations_per_loop;
-  }
-  npu::Timer timer("Graph engine run ", iterations_per_loop, " times for graph ", spec->GeGraphId());
-  timer.Start();
-  spec->SetBuilt();
-  RunGeGraphPin2Cpu(context, spec->GeGraphId(), num_inputs, npu_inputs.data(), spec->OutputTypes(), num_outputs,
-                    outputs, status);
-  timer.Stop();
 }
 
 /**
@@ -2018,7 +976,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     CopyGraph(*fbody->graph, graph.get());
     tensorflow::OptimizeGraph(flr, &graph);
 
-    PruneFunction(*fdef, graph.get());
+    PruneGraphByFunctionSignature(*fdef, graph.get());
 
     MarkGraphNodeInOutDesc(context, graph.get(), 0, nullptr);
 
@@ -2068,71 +1026,6 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, co
                                TF_Status *status) {
   uint64_t graph_id = NextUUID();
   return AddGeGraph(context, graph_id, name, def, status);
-}
-
-/**
- * @brief: get auto loop graph
- * @param context: tfe context
- * @param origin_graph: tensorflow graph
- * @param num_inputs: number of inputs
- * @param inputs: tfe tensor handle
- * @param loop: is loop or not
- * @param def: tensorflow graph def
- */
-tensorflow::Status NpuDevice::GetAutoLoopGraph(TFE_Context *context, tensorflow::Graph *origin_graph, int num_inputs,
-                                               TFE_TensorHandle **inputs, bool &loop, bool &builtin_loop,
-                                               tensorflow::GraphDef *def) {
-  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-  std::unique_ptr<tensorflow::Graph> graph = std::make_unique<tensorflow::Graph>(lib_def);
-  CopyGraph(*origin_graph, graph.get());
-
-  tensorflow::Node *key;
-  if (!IsGraphNeedLoop(graph.get(), &key)) {
-    builtin_loop = (key != nullptr);
-    loop = false;
-    graph->ToGraphDef(def);
-    return tensorflow::Status::OK();
-  }
-
-  loop = true;
-
-  const auto fn_name = key->attrs().Find("body")->func().name();
-  DLOG() << "Inline while body func " << fn_name << " for node " << key->name();
-  auto builder = tensorflow::NodeBuilder(fn_name, fn_name, lib_def);
-  for (int i = 0; i < key->num_inputs(); i++) {
-    const tensorflow::Edge *edge;
-    NPU_REQUIRES_OK(key->input_edge(i, &edge));
-    builder.Input(edge->src(), edge->src_output());
-  }
-  for (auto edge : key->in_edges()) {
-    if (edge->IsControlEdge()) {
-      builder.ControlInput(edge->src());
-    }
-  }
-
-  tensorflow::Node *fn_node;
-  NPU_REQUIRES_OK(builder.Finalize(graph.get(), &fn_node));
-
-  graph->RemoveNode(key);
-  tensorflow::FixupSourceAndSinkEdges(graph.get());
-
-  tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
-  tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
-
-  tensorflow::OptimizeGraph(flr, &graph);
-
-  for (auto node : graph->op_nodes()) {
-    if (tensorflow::grappler::IsVariable(node->def())) {
-      if (node->attrs().Find("shared_name") != nullptr) {
-        DLOG() << "Change node " << node->name() << " name to " << node->attrs().Find("shared_name")->s();
-        node->set_name(node->attrs().Find("shared_name")->s());
-      }
-    }
-  }
-
-  MarkGraphNodeInOutDesc(context, graph.get(), num_inputs, inputs);
-  graph->ToGraphDef(def);
-  return tensorflow::Status::OK();
 }
 
 /**
@@ -2318,27 +1211,12 @@ void NpuDevice::RunGeGraphPin2NpuAnonymous(TFE_Context *context, const std::stri
 }
 
 /**
- * @brief: maybe rebuild func spec graph
- * @param context: tfe context
- * @param spec: func spec
- * @param status: tf status
- */
-void NpuDevice::MaybeRebuildFuncSpecGraph(TFE_Context *context, const npu::FuncSpec *spec, TF_Status *status) {
-  if (spec->Built() && GeSession()->IsGraphNeedRebuild(spec->GeGraphId())) {
-    LOG(INFO) << "Start rebuild ge graph " << spec->GeGraphId();
-    RemoveGeGraph(context, spec->GeGraphId(), status);
-    if (TF_GetCode(status) != TF_OK) return;
-    AddGeGraphInner(context, spec->GeGraphId(), spec->Op(), *spec->GraphDef(), spec->NeedLoop(), status);
-  }
-}
-
-/**
  * @brief: get cached task spec
  * @param ndef: tensorflow node def
- * @param spec: shared point to TaskSpec
+ * @param spec: shared point to OpExecutor
  * @param request_shape: if request shape or not
  */
-void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_ptr<const npu::TaskSpec> *spec,
+void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_ptr<const npu::OpExecutor> *spec,
                                   bool &request_shape) {
   *spec = nullptr;
   const auto &op = ndef.op();
@@ -2350,6 +1228,14 @@ void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_p
   *spec = cached_func_specs_[op];
 }
 
+void NpuDevice::CacheTaskSpec(std::shared_ptr<const OpExecutor> spec) {
+  if (spec->GetCacheStrategy() == CacheStrategy::BY_OP_NAME) {
+    cached_func_specs_.emplace(std::make_pair(spec->Op(), spec));
+  } else {
+    cached_op_specs_[spec->Op()][Hash(spec->NodeDef())][Hash(spec->InputShapes())] = spec;
+  }
+}
+
 /**
  * @brief: get cached task spec
  * @param ndef: tensorflow node def
@@ -2357,7 +1243,7 @@ void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_p
  * @param spec: task spec
  */
 void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, const TensorShapes &shapes,
-                                  std::shared_ptr<const npu::TaskSpec> *spec) {
+                                  std::shared_ptr<const npu::OpExecutor> *spec) {
   *spec = nullptr;
   bool request_shape = false;
   GetCachedTaskSpec(ndef, spec, request_shape);
@@ -2377,66 +1263,6 @@ void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, const TensorS
 }
 
 /**
- * @brief: cache func spec
- * @param op: op type
- * @param op_spec: tensorflow op registration data
- * @param ndef: tensorflow node def
- * @param ge_graph_id: ge graph id
- * @param graph: tensorflow graph def
- * @param prune_func: prune inputs function
- * @param dependent_host_resources: iterator resource provider
- * @param reason: cache reason
- */
-std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheFuncSpec(
-  const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef, uint64_t ge_graph_id,
-  std::unique_ptr<const tensorflow::GraphDef> graph, const npu::FuncSpec::PruneInputsFunc &prune_func,
-  const std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> &dependent_host_resources,
-  const std::string &reason) {
-  auto spec = std::make_shared<npu::FuncSpec>(op_spec, ndef, ge_graph_id, std::move(graph), prune_func,
-                                              dependent_host_resources, reason);
-  cached_func_specs_[op] = spec;
-  DLOG() << "Cache function op spec " << spec->DebugString();
-  return spec;
-}
-
-/**
- * @brief: cache op spec
- * @param op: op type
- * @param op_spec: tensorflow op registration data
- * @param ndef: tensorflow node def
- * @param input_shapes: tensor shapes
- * @param output_shapes: tensor partial shapes
- * @param reason: cache reason
- */
-std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheOpSpec(
-  const char *op, const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-  const TensorShapes &input_shapes, const TensorPartialShapes &output_shapes, const std::string &reason) {
-  auto spec = std::make_shared<npu::OpSpec>(op_spec, ndef, input_shapes, output_shapes, reason);
-  cached_op_specs_[op][Hash(ndef)][Hash(input_shapes)] = spec;
-  DLOG() << "Cache op spec " << spec->DebugString();
-  return spec;
-}
-
-/**
- * @brief: cache op spec
- * @param op: op type
- * @param op_spec: tensorflow op registration data
- * @param ndef: tensorflow node def
- * @param input_shapes: tensor shapes
- * @param reason: cache reason
- */
-std::shared_ptr<const npu::TaskSpec> NpuDevice::CacheOpSpec(const char *op,
-                                                            const tensorflow::OpRegistrationData *op_spec,
-                                                            const tensorflow::NodeDef &ndef,
-                                                            const TensorShapes &input_shapes,
-                                                            const std::string &reason) {
-  auto spec = std::make_shared<npu::OpSpec>(op_spec, ndef, input_shapes, reason);
-  cached_op_specs_[op][Hash(ndef)][Hash(input_shapes)] = spec;
-  DLOG() << "Cache op spec " << spec->DebugString();
-  return spec;
-}
-
-/**
  * @brief: if op is supported or not
  * @param op: op type
  */
@@ -2452,6 +1278,19 @@ bool NpuDevice::Supported(const std::string &op) const {
 bool NpuDevice::SupportedResourceGenerator(const std::string &op) const {
   const static std::unordered_set<std::string> kUnsupportedOps = {"VarHandleOp"};
   return kUnsupportedOps.count(op) != 0;
+}
+
+void NpuDevice::RecordResourceGeneratorDef(const tensorflow::ResourceHandle &key,
+                                           std::shared_ptr<ResourceGenerator> src) {
+  device_resources_.emplace(key, src);
+}
+
+void NpuDevice::GetResourceGeneratorDef(const tensorflow::ResourceHandle &key,
+                                        std::shared_ptr<ResourceGenerator> *src) {
+  auto iter = device_resources_.find(key);
+  if (iter != device_resources_.end()) {
+    *src = iter->second;
+  }
 }
 
 /**
@@ -2492,206 +1331,6 @@ tensorflow::Status NpuDevice::GetMirroredIteratorShapesAndTypes(const tensorflow
   }
   shapes.assign(iter->second.first.begin(), iter->second.first.end());
   types.assign(iter->second.second.begin(), iter->second.second.end());
-  return tensorflow::Status::OK();
-}
-
-/**
- * @brief: tailing optimize
- * @param context: tfe context
- * @param graph: tensorflow graph
- * @param changed: if changed or not
- */
-tensorflow::Status NpuDevice::TailingOptimize(TFE_Context *context, tensorflow::Graph *graph, bool &changed) {
-  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-
-  std::vector<tensorflow::Node *> in_nodes;
-  for (tensorflow::Node *node : graph->op_nodes()) {
-    for (auto &attr : node->attrs()) {
-      if (attr.second.has_func()) {
-        std::string func_name = attr.second.func().name();
-        const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
-        std::unique_ptr<tensorflow::FunctionBody> fbody;
-        NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
-        std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> unused_host_resources;
-        bool optimized = false;
-        NPU_REQUIRES_OK(TailingOptimize(context, fbody->graph, optimized));
-        if (optimized) {
-          tensorflow::FunctionDef optimized_fdef;
-          auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
-            for (const auto &control_ret : fdef->control_ret()) {
-              if (control_ret.second == node->name()) {
-                return absl::make_optional(node->name());
-              }
-            }
-            return absl::nullopt;
-          };
-          NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, func_name, lookup, &optimized_fdef));
-          NPU_REQUIRES_OK(lib_def->RemoveFunction(func_name));
-          NPU_REQUIRES_OK(lib_def->AddFunctionDef(optimized_fdef));
-        }
-      }
-    }
-    if (node->type_string() == kNpuAllocFloatStatusOp && node->attrs().Find(kNpuLossScaleAttr) != nullptr) {
-      std::unordered_set<const tensorflow::Edge *> edges_to_remove;
-      tensorflow::Node *last_allreduce = nullptr;
-      for (auto in_edge : node->in_edges()) {
-        if (in_edge->IsControlEdge()) {
-          if (last_allreduce == nullptr) {
-            if (in_edge->src()->type_string() == kHcomAllReduce) {
-              last_allreduce = in_edge->src();
-            }
-          }
-          edges_to_remove.insert(in_edge);
-        }
-      }
-      if (last_allreduce == nullptr || edges_to_remove.empty()) {
-        continue;
-      }
-
-      tensorflow::Node *float_status_allreduce = nullptr;
-      for (auto out_edge : node->out_edges()) {
-        if (out_edge->dst()->type_string() == kHcomAllReduce &&
-            out_edge->dst()->attrs().Find(kNpuLossScaleAttr) != nullptr) {
-          float_status_allreduce = out_edge->dst();
-          break;
-        }
-      }
-      if (float_status_allreduce == nullptr) {
-        continue;
-      }
-
-      std::unordered_set<tensorflow::Node *> grads;
-      tensorflow::Node *previous_allreduce = last_allreduce;
-      while (previous_allreduce != nullptr) {
-        const tensorflow::EdgeSet &in_edges = previous_allreduce->in_edges();
-        previous_allreduce = nullptr;
-        for (auto in_edge : in_edges) {
-          if (!in_edge->IsControlEdge()) {
-            grads.insert(in_edge->src());
-          } else if (in_edge->src()->type_string() == kHcomAllReduce) {
-            previous_allreduce = in_edge->src();
-          }
-        }
-      }
-
-      if (!grads.empty()) {
-        for (auto edge : edges_to_remove) {
-          graph->RemoveEdge(edge);
-        }
-        for (auto grad : grads) {
-          graph->AddControlEdge(grad, node);
-        }
-        graph->AddControlEdge(float_status_allreduce, last_allreduce);
-        changed = true;
-      }
-    }
-  }
-
-  return tensorflow::Status::OK();
-}
-
-/**
- * @brief: weight update grouping optimize
- * @param context: tfe context
- * @param graph: tensorflow graph
- * @param changed: if changed or not
- */
-tensorflow::Status NpuDevice::WeightUpdateGroupingOptimize(TFE_Context *context, tensorflow::Graph *graph,
-                                                           bool &changed) {
-  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-  std::vector<tensorflow::Node *> in_nodes;
-  for (tensorflow::Node *node : graph->op_nodes()) {
-    for (auto &attr : node->attrs()) {
-      if (attr.second.has_func()) {
-        std::string func_name = attr.second.func().name();
-        const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
-        std::unique_ptr<tensorflow::FunctionBody> fbody;
-        NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
-        std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> unused_host_resources;
-        bool optimized = false;
-        NPU_REQUIRES_OK(WeightUpdateGroupingOptimize(context, fbody->graph, optimized));
-        if (optimized) {
-          tensorflow::FunctionDef optimized_fdef;
-          auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
-            for (const auto &control_ret : fdef->control_ret()) {
-              if (control_ret.second == node->name()) {
-                return absl::make_optional(node->name());
-              }
-            }
-            return absl::nullopt;
-          };
-          NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, func_name, lookup, &optimized_fdef));
-          NPU_REQUIRES_OK(lib_def->RemoveFunction(func_name));
-          NPU_REQUIRES_OK(lib_def->AddFunctionDef(optimized_fdef));
-        }
-      }
-    }
-
-    if (node->type_string() == kHcomBroadcast && node->attrs().Find(kWeightUpdateGroupingAttr) != nullptr) {
-      std::unordered_set<const tensorflow::Edge *> edges_to_remove;
-      tensorflow::Node *read_var_node = nullptr;
-      for (auto in_edge : node->in_edges()) {
-        if (in_edge->IsControlEdge()) {
-          edges_to_remove.insert(in_edge);
-        } else {
-          if (node->num_inputs() == 1 && in_edge->src()->type_string() == kReadVariableOp &&
-              in_edge->src()->attrs().Find(kWeightUpdateGroupingAttr) != nullptr) {
-            read_var_node = in_edge->src();
-            edges_to_remove.insert(in_edge);
-          }
-        }
-      }
-      if (read_var_node == nullptr) {
-        continue;
-      }
-
-      NPU_REQUIRES((node->num_outputs() == 1),
-                   tensorflow::errors::Internal("When the weight_update_grouping switch is on, there can only be one "
-                                                "data edge after broadcast in the function grouping_gradients_apply"));
-      tensorflow::Node *assign_node = nullptr;
-      for (auto out_edge : node->out_edges()) {
-        if (!out_edge->IsControlEdge()) {
-          NPU_REQUIRES(
-            (out_edge->dst()->type_string() == kAssignOp &&
-             out_edge->dst()->attrs().Find(kWeightUpdateGroupingAttr) != nullptr),
-            tensorflow::errors::Internal("When the weight_update_grouping switch is on, the operator following "
-                                         "broadcast in function grouping_gradients_apply must be assign"));
-          assign_node = out_edge->dst();
-          break;
-        }
-      }
-
-      tensorflow::Node *var_node = nullptr;
-      NPU_REQUIRES_OK(assign_node->input_node(0, &var_node));
-      NPU_REQUIRES((var_node != nullptr), tensorflow::errors::Internal("Get the 0 th input of assign is nullptr"));
-
-      for (auto in_edge : assign_node->in_edges()) {
-        if (in_edge->IsControlEdge()) {
-          edges_to_remove.insert(in_edge);
-        }
-      }
-
-      tensorflow::Node *new_read_var_node = graph->CopyNode(read_var_node);
-      if (new_read_var_node == nullptr) {
-        return tensorflow::errors::Internal("Failed copy node from ", read_var_node->name());
-      }
-      new_read_var_node->set_name(read_var_node->name() + std::string("_copied"));
-
-      for (auto edge : edges_to_remove) {
-        graph->RemoveEdge(edge);
-      }
-
-      graph->AddEdge(var_node, 0, new_read_var_node, 0);
-      graph->AddEdge(new_read_var_node, 0, node, 0);
-      for (auto var_edge : var_node->out_edges()) {
-        if (var_edge->dst() != new_read_var_node && var_edge->dst() != assign_node) {
-          graph->AddControlEdge(assign_node, var_edge->dst());
-        }
-      }
-      changed = true;
-    }
-  }
-
   return tensorflow::Status::OK();
 }
 }  // namespace npu

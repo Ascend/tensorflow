@@ -16,6 +16,10 @@
 
 #include "npu_utils.h"
 
+#include <queue>
+
+#include "tensorflow/core/graph/algorithm.h"
+
 #include "npu_env.h"
 
 namespace npu {
@@ -136,5 +140,124 @@ std::string WrapResourceName(const std::string &name) {
     return name;
   }
   return "cpu_" + name;
+}
+
+tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef &gdef,
+                                                     const tensorflow::FunctionLibraryDefinition *lib_def) {
+  tensorflow::FunctionDefLibrary fdef_lib;
+
+  std::unordered_set<std::string> related_function_names;
+  std::queue<const tensorflow::FunctionDef *> related_functions;
+  for (const auto &n : gdef.node()) {
+    for (const auto &attr : n.attr()) {
+      if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
+        const auto *f = lib_def->Find(attr.second.func().name());
+        if (f != nullptr) {
+          *fdef_lib.add_function() = *f;
+          related_functions.push(f);
+        } else {
+          LOG(ERROR) << "Function " << attr.second.func().name() << " not found";
+        }
+      }
+    }
+  }
+
+  while (!related_functions.empty()) {
+    const auto *f = related_functions.front();
+    related_functions.pop();
+    for (const auto &n : f->node_def()) {
+      for (const auto &attr : n.attr()) {
+        if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
+          const auto *f_inner = lib_def->Find(attr.second.func().name());
+          if (f_inner != nullptr) {
+            *fdef_lib.add_function() = *f_inner;
+            related_functions.push(f_inner);
+          } else {
+            LOG(ERROR) << "Function " << attr.second.func().name() << " not found";
+          }
+        }
+      }
+    }
+  }
+  return fdef_lib;
+}
+
+void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::GraphDef &graph_def) {
+  WriteTextProto(tensorflow::Env::Default(), graph_ + "." + std::to_string(counter_++) + "." + stage + ".pbtxt",
+                 graph_def);
+}
+
+void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
+                                                 const tensorflow::FunctionLibraryDefinition *lib_def) {
+  tensorflow::GraphDef copied_graph_def = graph_def;
+  *copied_graph_def.mutable_library() = CollectGraphSubGraphs(graph_def, lib_def);
+  Dump(stage, copied_graph_def);
+}
+
+/**
+ * @brief: prune function
+ * @param fdef: function def
+ * @param g: graph
+ * @param keep_signature: if keep signature or not
+ */
+void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature) {
+  std::unordered_set<tensorflow::StringPiece, tensorflow::StringPieceHasher> control_ret_nodes;
+  for (const auto &control_ret : fdef.control_ret()) {
+    control_ret_nodes.insert(control_ret.second);
+  }
+
+  std::unordered_set<const tensorflow::Node *> nodes;
+  for (auto n : g->nodes()) {
+    if (n->IsControlFlow() || n->op_def().is_stateful() ||
+        (control_ret_nodes.find(n->name()) != control_ret_nodes.end())) {
+      if (n->type_string() == "VarHandleOp" || n->type_string() == "IteratorV2") {
+        continue;
+      }
+      if (!keep_signature) {
+        if (n->IsArg()) {
+          continue;
+        }
+        if (n->IsRetval() && n->attrs().Find("T")->type() == tensorflow::DT_RESOURCE) {
+          continue;
+        }
+      }
+      nodes.insert(n);
+    }
+  }
+  bool changed = tensorflow::PruneForReverseReachability(g, std::move(nodes));
+  if (changed) {
+    tensorflow::FixupSourceAndSinkEdges(g);
+  }
+}
+
+uint64_t NextUUID() {
+  static std::atomic<uint64_t> uuid{0};
+  return uuid.fetch_add(1);
+}
+
+/**
+ * @brief: fix graph arg return value index
+ * @param graph: graph
+ */
+void FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
+  std::map<int, tensorflow::Node *> indexed_args;
+  std::map<int, tensorflow::Node *> indexed_retvals;
+  for (auto node : graph->nodes()) {
+    if (node->IsArg()) {
+      indexed_args[node->attrs().Find("index")->i()] = node;
+    }
+    if (node->IsRetval()) {
+      indexed_retvals[node->attrs().Find("index")->i()] = node;
+    }
+  }
+  int current_arg_index = 0;
+  for (auto indexed_arg : indexed_args) {
+    indexed_arg.second->AddAttr("index", current_arg_index++);
+  }
+
+  int current_retval_index = 0;
+  for (auto indexed_retval : indexed_retvals) {
+    indexed_retval.second->AddAttr("index", current_retval_index++);
+  }
 }
 }  // namespace npu
