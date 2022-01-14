@@ -27,7 +27,7 @@ TEST_F(NpuCpuOpTest, TestCacheAdd) {
     delete context;
 }
 
-TEST(NpuCpuOpTest, TestDecodeImageV3) {
+TEST_F(NpuCpuOpTest, TestDecodeImageV3) {
     DataTypeSlice input_types({DT_STRING});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_UINT8});
@@ -39,8 +39,8 @@ TEST(NpuCpuOpTest, TestDecodeImageV3) {
     OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
                                                              input_types, input_memory_types, output_types, output_memory_types,
                                                              1, nullptr);
-    DecodeImageV3Op cache(context);
-    cache.Compute(ctx);
+    DecodeImageV3Op decodeImageV3Op(context);
+    decodeImageV3Op.Compute(ctx);
     delete device;
     delete node_def;
     delete op_def;
