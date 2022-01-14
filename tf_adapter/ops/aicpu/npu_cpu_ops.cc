@@ -537,7 +537,7 @@ REGISTER_OP("OCRDetectionPostHandle")
       } else {
         if (channels < 0) {
           return errors::InvalidArgument("channels must be non-negative, got ",
-                                        channels);
+                                         channels);
         }
         channels_dim = c->MakeDim(channels);
       }

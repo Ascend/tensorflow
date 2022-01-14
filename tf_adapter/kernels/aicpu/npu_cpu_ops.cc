@@ -206,7 +206,7 @@ REGISTER_KERNEL_BUILDER(Name("Dequeue").Device(DEVICE_CPU), DequeueOp);
 REGISTER_KERNEL_BUILDER(Name("NonZeroWithValueShape").Device(DEVICE_CPU), NonZeroWithValueShapeOp);
 
 class DecodeImageV3Op : public OpKernel {
- public:
+public:
   explicit DecodeImageV3Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~DecodeImageV3Op() override {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DecodeImageV3Op Compute"; }
