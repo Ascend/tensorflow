@@ -312,7 +312,7 @@ TEST(NpuOpsTest, TestDecodeImageV3ShapeInference) {
                   .Input(FakeInputStub(DT_STRING))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
-    {S({0})}, {}, {}, {});
+    {S({})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 }  // namespace
