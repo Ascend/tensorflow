@@ -163,19 +163,22 @@ def _never_nested_function_call(self, *func_args, **func_kwargs):
     if _thread_local.entrance_function is not None:
         logging.info("Inlining nested tf function %s under %s on npu", self._python_function.__name__,
                      _thread_local.entrance_function)
-        return self._python_function(*func_args, **func_kwargs)
+        try:
+            return self._python_function(*func_args, **func_kwargs)
+        except:
+            logging.info("Bypass inlining nested tf function %s under %s on npu", self._python_function.__name__,
+                         _thread_local.entrance_function)
+            return _hacked_def_function_function_call(self, *func_args, **func_kwargs)
     _thread_local.entrance_function = self._python_function.__name__
     try:
-        result = _hacked_def_function_function_call(self, *func_args, **func_kwargs)
-    except Exception as e:
-        raise e
+        return _hacked_def_function_function_call(self, *func_args, **func_kwargs)
     finally:
         _thread_local.entrance_function = None
-    return result
 
 
 def npu_compat_function(func=None, *args, **kwargs):
     """NPU compatible function"""
+
     def never_nested_decorator(f):
         if kwargs.get('experimental_compile'):
             logging.info("Skip xla compile tf function %s on npu", f.__name__)
@@ -193,6 +196,7 @@ def npu_compat_function(func=None, *args, **kwargs):
 
 class NpuDeviceHandle:
     """Class for creating handle of NPU device"""
+
     def __init__(self, ctx, device_id, device_options, workers_num, worker_id):
         self._ctx = ctx
         self._device_id = device_id
@@ -207,6 +211,7 @@ class NpuDeviceHandle:
 
     def scope(self):
         """Return NPU scope"""
+
         @tf_contextlib.contextmanager
         def _scope():
             with self._ctx.device(self._device_name):
@@ -220,6 +225,7 @@ class NpuDeviceHandle:
 
     def as_default(self):
         """Set device as default one"""
+
         @tf_contextlib.contextmanager
         def combined():
             try:

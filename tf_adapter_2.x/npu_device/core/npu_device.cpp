@@ -1777,7 +1777,7 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
 void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf_num_inputs,
                          TFE_TensorHandle **tf_inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   if (spec->GeGraphId() == kEmptyGeGraphId) {
-    DLOG() << "Ge graph is empty, return directly.";
+    DLOG() << "Skipped run empty ge graph";
     return;
   }
   std::vector<TFE_TensorHandle *> pruned_inputs;
