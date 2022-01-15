@@ -30,12 +30,12 @@ namespace tensorflow {
 const std::string ATTR_NAME_OP_MAX_SIZE = "_op_max_size";
 
 Status SetVarMaxSizePass::SetMaxSizeListNodes(Node *node) const {
-  std::vector<int32_t> attr_values;
+  std::vector<int64> attr_values;
   for (const Edge *in : node->in_edges()) {
     REQUIRES_NOT_NULL(in);
     Node *src_node = in->src();
     REQUIRES_NOT_NULL(src_node);
-    int32_t attr_value = 0;
+    int64 attr_value = 0;
     Status s = GetNodeAttr(src_node->attrs(), ATTR_NAME_OP_MAX_SIZE, &attr_value);
     if ((s.ok()) && (attr_value > 0)) {
       attr_values.push_back(attr_value);
@@ -51,10 +51,10 @@ Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(const Node *node) {
     REQUIRES_NOT_NULL(out);
     Node *dst_node = out->dst();
     REQUIRES_NOT_NULL(dst_node);
-    int32_t attr_value = 0;
+    int64 attr_value = 0;
     Status s = GetNodeAttr(node->attrs(), ATTR_NAME_OP_MAX_SIZE, &attr_value);
     if ((s.ok()) && (attr_value > 0)) {
-      std::vector<int32_t> attr_vector;
+      std::vector<int64> attr_vector;
       Status result = GetNodeAttr(dst_node->attrs(), ATTR_NAME_OP_MAX_SIZE, &attr_vector);
       if ((result.ok()) && (!attr_vector.empty())) {
         ADP_LOG(DEBUG) << "The node : " << dst_node->name().c_str() << " had set max size value!";
