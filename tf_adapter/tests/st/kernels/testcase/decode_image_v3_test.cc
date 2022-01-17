@@ -60,7 +60,7 @@ TEST(DecodeImageV3OpsTest, TestDecodeImageV3ShapeInference) {
                   .Input(FakeInputStub(DT_STRING))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,
-    {TShape({0})}, {}, {}, {});
+    {TShape({})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 }
