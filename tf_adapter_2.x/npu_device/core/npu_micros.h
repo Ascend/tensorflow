@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_MICROS_H
-#define TENSORFLOW_NPU_MICROS_H
+#ifndef NPU_DEVICE_CORE_NPU_MICROS_H
+#define NPU_DEVICE_CORE_NPU_MICROS_H
 
 #define NPU_CTX_REQUIRES_OK(CTX, ...)          \
   do {                                         \
-    CTX->status = (__VA_ARGS__);               \
+    (CTX)->status = (__VA_ARGS__);               \
     if (TF_PREDICT_FALSE(!CTX->status.ok())) { \
-      LOG(ERROR) << CTX->status.ToString();    \
+      LOG(ERROR) << (CTX)->status.ToString();    \
       return;                                  \
     }                                          \
   } while (0)
@@ -120,4 +120,4 @@
   HANDLE_FORMAT(Fz)         \
   HANDLE_FORMAT(Hz)
 
-#endif  // TENSORFLOW_NPU_MICROS_H
+#endif  // NPU_DEVICE_CORE_NPU_MICROS_H

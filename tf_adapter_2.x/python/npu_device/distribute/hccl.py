@@ -21,7 +21,6 @@ from npu_device.npu_device import global_npu_ctx
 from npu_device.npu_device import npu_compat_function
 
 import tensorflow as tf
-from tensorflow.python.keras import optimizers
 from absl import logging
 
 
@@ -97,7 +96,7 @@ def broadcast(values, root_rank=0, fusion=2, fusion_id=0, group="hccl_world_grou
 def npu_distributed_keras_optimizer_wrapper(optimizer, reduce_reduction="mean", fusion=1, fusion_id=-1,
                                             group="hccl_world_group"):
     """NPU implemented keras optimizer"""
-    optimizer = optimizers.get(optimizer)
+    optimizer = tf.keras.optimizers.get(optimizer)
     org_apply_gradients = optimizer.apply_gradients
 
     def _npu_distribute_apply_gradients(grads_and_vars, *args, **kwargs):

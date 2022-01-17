@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_ENV_H
-#define TENSORFLOW_NPU_ENV_H
+#ifndef NPU_DEVICE_CORE_NPU_ENV_H
+#define NPU_DEVICE_CORE_NPU_ENV_H
 
 #include "tensorflow/core/util/env_var.h"
 
@@ -55,4 +55,4 @@ const static bool kGraphEngineGreedyMemory = []() -> bool {
   return graph_engine_greedy_memory == 1;
 }();
 
-#endif  // TENSORFLOW_NPU_ENV_H
+#endif  // NPU_DEVICE_CORE_NPU_ENV_H

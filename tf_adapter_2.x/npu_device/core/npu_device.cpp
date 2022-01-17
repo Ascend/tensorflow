@@ -20,31 +20,15 @@
 #include <utility>
 #include <future>
 
-#include "tensorflow/c/c_api.h"
-#include "tensorflow/c/eager/c_api.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/tf_status.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
-#include "tensorflow/core/platform/logging.h"
-
-#include "absl/algorithm/container.h"
-#include "tensorflow/c/c_api_internal.h"
-#include "tensorflow/c/eager/immediate_execution_operation.h"
-#include "tensorflow/c/eager/tfe_context_internal.h"
-#include "tensorflow/c/eager/tfe_op_internal.h"
-#include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
+#include "tensorflow/core/common_runtime/eager/execute.h"
 #include "tensorflow/core/grappler/op_types.h"
-#include "tensorflow/core/platform/refcount.h"
+#include "tensorflow/core/platform/blocking_counter.h"
+#include "tensorflow/core/graph/algorithm.h"
 
 #include "npu_custom_kernel.h"
-#include "npu_dp.h"
-#include "npu_env.h"
 #include "npu_global.h"
-#include "npu_logger.h"
-#include "npu_micros.h"
-#include "npu_parser.h"
-#include "npu_unwrap.h"
-#include "npu_utils.h"
+#include "npu_managed_buffer.h"
+#include "npu_tensor.h"
 
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/omg/parser/model_parser.h"
@@ -383,16 +367,16 @@ tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int
   bool has_npu = false;
   int npu_index = 0;
   for (int i = 0; i < num_inputs; i++) {
-    auto data_type = npu::UnwrapHandle(inputs[i])->DataType();
+    auto data_type = tensorflow::unwrap(inputs[i])->DataType();
     if (data_type == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      (void)npu::UnwrapTensor(inputs[i], &tensor);
-      if (npu::IsNpuTensorHandle(npu::UnwrapHandle(inputs[i]))) {
+      (void)npu::GetTensorHandleTensor(inputs[i], &tensor);
+      if (npu::IsNpuTensorHandle(inputs[i])) {
         has_npu = true;
         npu_index = i;
         if (has_cpu) {
           const tensorflow::Tensor *cpu_tensor;
-          (void)npu::UnwrapTensor(inputs[cpu_index], &cpu_tensor);
+          (void)npu::GetTensorHandleTensor(inputs[cpu_index], &cpu_tensor);
           return tensorflow::errors::InvalidArgument(
             op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
             " on NPU but resource input ", cpu_index, " ", cpu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
@@ -403,7 +387,7 @@ tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int
         cpu_index = i;
         if (has_npu) {
           const tensorflow::Tensor *npu_tensor;
-          (void)npu::UnwrapTensor(inputs[npu_index], &npu_tensor);
+          (void)npu::GetTensorHandleTensor(inputs[npu_index], &npu_tensor);
           return tensorflow::errors::InvalidArgument(
             op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
             " on CPU but resource input ", npu_index, " ", npu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
@@ -424,14 +408,14 @@ tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int
  */
 tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs, TFE_TensorHandle **inputs) {
   for (int i = 0; i < num_inputs; i++) {
-    auto data_type = npu::UnwrapHandle(inputs[i])->DataType();
+    auto data_type = tensorflow::unwrap(inputs[i])->DataType();
     if (data_type == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      NPU_REQUIRES_OK(npu::UnwrapTensor(inputs[i], &tensor));
-      if (!npu::IsNpuTensorHandle(npu::UnwrapHandle(inputs[i]))) {
+      NPU_REQUIRES_OK(npu::GetTensorHandleTensor(inputs[i], &tensor));
+      if (!npu::IsNpuTensorHandle(inputs[i])) {
         if (!Mirrored(tensor->scalar<tensorflow::ResourceHandle>()())) {
           tensorflow::Status status;
-          std::string src_name = npu::UnwrapHandle(inputs[i])->DeviceName(&status);
+          std::string src_name = tensorflow::unwrap(inputs[i])->DeviceName(&status);
           if (!status.ok()) {
             src_name = status.ToString();
           }
@@ -557,7 +541,7 @@ tensorflow::Status NpuDevice::TransResourceInput2GraphNode(
       continue;
     };
     const tensorflow::Tensor *tensor;
-    NPU_REQUIRES_OK(npu::UnwrapTensor(inputs[i], &tensor));
+    NPU_REQUIRES_OK(npu::GetTensorHandleTensor(inputs[i], &tensor));
     if (tensor->dtype() == tensorflow::DT_RESOURCE) {
       auto handle = tensor->flat<tensorflow::ResourceHandle>()(0);
       arg_resource_handles[i] = handle;
@@ -810,7 +794,7 @@ tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tenso
   VecTensorPartialShapes arg_handle_shapes;
   for (int i = 0; i < num_inputs; i++) {
     const tensorflow::Tensor *tensor;
-    NPU_REQUIRES_OK(npu::UnwrapTensor(inputs[i], &tensor));
+    NPU_REQUIRES_OK(npu::GetTensorHandleTensor(inputs[i], &tensor));
     arg_shapes.push_back({tensor->shape()});
     TensorDataTypes handle_dtyes;
     TensorPartialShapes handle_shapes;
@@ -834,7 +818,7 @@ tensorflow::Status NpuDevice::MarkGraphNodeInOutDesc(TFE_Context *context, tenso
       if (index < num_inputs && !node->attrs().Find("_output_shapes")) {
         node->AddAttr("_output_shapes", arg_shapes[index]);
       }
-      if (index < num_inputs && npu::UnwrapHandle(inputs[index])->DataType() == tensorflow::DT_RESOURCE) {
+      if (index < num_inputs && tensorflow::unwrap(inputs[index])->DataType() == tensorflow::DT_RESOURCE) {
         if (!node->attrs().Find("_handle_shapes")) {
           node->AddAttr("_handle_shapes", arg_handle_shapes[index]);
         }
@@ -935,9 +919,15 @@ TFE_TensorHandle *NpuDevice::NewDeviceTensorHandle(TFE_Context *context, Format 
   for (auto dim_size : shape.dim_sizes()) {
     dims.emplace_back(dim_size);
   }
-  return TFE_NewTensorHandleFromDeviceMemory(context, device_name.c_str(), static_cast<TF_DataType>(type), dims.data(),
-                                             dims.size(), npu_managed_buffer, sizeof(npu_managed_buffer),
-                                             &npu::NpuManagedBufferDeallocator, nullptr, status);
+
+  auto buf = new TF_ManagedBuffer(npu_managed_buffer, sizeof(npu_managed_buffer), &npu::NpuManagedBufferDeallocator,
+                                  nullptr, false);
+  auto npu_tensor = std::make_unique<npu::NpuTensor>(tensorflow::Tensor(type, shape, buf));
+  buf->Unref();  // buf has been ref two times at create time and when construct npu tensor
+
+  TF_DataType dtype = TFE_TensorHandleDataType(npu_tensor->handle);
+  return TFE_NewCustomDeviceTensorHandle(context, device_name.c_str(), dtype, npu_tensor.release(),
+                                         npu::NpuTensor::handle_methods, status);
 }
 
 /**
@@ -948,12 +938,10 @@ TFE_TensorHandle *NpuDevice::NewDeviceTensorHandle(TFE_Context *context, Format 
  */
 TFE_TensorHandle *NpuDevice::NewDeviceResourceHandle(TFE_Context *context, const tensorflow::TensorShape &shape,
                                                      TF_Status *status) {
-  tensorflow::Tensor tensor(tensorflow::DT_RESOURCE, shape);
-  tensorflow::CustomDevice *custom_device = nullptr;
-  NPU_CTX_REQUIRES_RETURN(status, npu::UnwrapCtx(context)->FindCustomDeviceFromName(device_name, &custom_device),
-                          tensorflow::errors::Internal("No custom device registered with name ", device_name), nullptr);
-  return tensorflow::wrap(
-    tensorflow::TensorHandle::CreateLocalHandle(std::move(tensor), custom_device, npu::UnwrapCtx(context)));
+  auto npu_tensor = std::make_unique<npu::NpuTensor>(tensorflow::Tensor(tensorflow::DT_RESOURCE, shape));
+  TF_DataType dtype = TFE_TensorHandleDataType(npu_tensor->handle);
+  return TFE_NewCustomDeviceTensorHandle(context, device_name.c_str(), dtype, npu_tensor.release(),
+                                         npu::NpuTensor::handle_methods, status);
 }
 
 /**
@@ -965,7 +953,7 @@ TFE_TensorHandle *NpuDevice::NewDeviceResourceHandle(TFE_Context *context, const
 TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status) const {
   TF_UNUSED_VARIABLE(context);
   const tensorflow::Tensor *npu_tensor;
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(tensor, &npu_tensor), nullptr);
+  NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(tensor, &npu_tensor), nullptr);
 
   if (npu_tensor->dtype() == tensorflow::DT_RESOURCE) {
     tensorflow::ResourceHandle handle = npu_tensor->scalar<tensorflow::ResourceHandle>()();
@@ -979,7 +967,7 @@ TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandl
     tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(npu_tensor->dtype(), npu_tensor->shape())));
   NPU_CTX_REQUIRES_RETURN(status, local_handle != nullptr, tensorflow::errors::Internal("Failed create local handle"),
                           nullptr);
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(local_handle, &local_tensor), nullptr);
+  NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(local_handle, &local_tensor), nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(
     status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleTo(const_cast<tensorflow::Tensor *>(local_tensor)),
     local_handle);
@@ -1006,15 +994,15 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
 TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandle *tensor, Format fmt,
                                            TF_Status *status) {
   TFE_TensorHandle *local_handle = tensor;
-  ScopeTensorHandleDeleter scope_handle_deleter;
-  if (!npu::IsCpuTensorHandle(npu::UnwrapHandle(tensor))) {
+  npu::ScopeTensorHandleDeleter scope_handle_deleter;
+  if (!npu::IsCpuTensorHandle(tensor)) {
     local_handle = TFE_TensorHandleCopyToDevice(tensor, context, underlying_device.c_str(), status);
     scope_handle_deleter.Guard(local_handle);
   }
 
   if (TF_GetCode(status) != TF_OK) return nullptr;
   const tensorflow::Tensor *local_tensor = nullptr;
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(local_handle, &local_tensor), nullptr);
+  NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(local_handle, &local_tensor), nullptr);
   if (local_tensor->dtype() == tensorflow::DT_RESOURCE) {
     tensorflow::ResourceHandle handle = local_tensor->scalar<tensorflow::ResourceHandle>()();
     status->status =
@@ -1027,7 +1015,7 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
   if (TF_GetCode(status) != TF_OK) return nullptr;
   const tensorflow::Tensor *npu_tensor = nullptr;
 
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::UnwrapTensor(npu_handle, &npu_tensor), nullptr);
+  NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(npu_handle, &npu_tensor), nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleFrom(local_tensor),
                              npu_handle);
   return npu_handle;
@@ -1055,17 +1043,23 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
                                                    {}, {}, {});
   NPU_REQUIRES_OK(ic.construction_status());
   for (int i = 0; i < num_inputs; i++) {
-    auto input = npu::UnwrapHandle(inputs[i]);
-    tensorflow::shape_inference::ShapeHandle shape;
-    NPU_REQUIRES_OK(input->InferenceShape(&ic, &shape));
-    ic.SetInput(i, shape);
+    auto input = tensorflow::unwrap(inputs[i]);
+    std::vector<tensorflow::shape_inference::DimensionHandle> dims_handle;
+    int num_dims;
+    TF_RETURN_IF_ERROR(input->NumDims(&num_dims));
+    for (int j = 0; j < num_dims; j++) {
+      int64_t dim_size;
+      TF_RETURN_IF_ERROR(input->Dim(j, &dim_size));
+      dims_handle.push_back(ic.MakeDim(dim_size));
+    }
+    ic.SetInput(i, ic.MakeShape(dims_handle));
   }
 
   for (int i = 0; i < num_inputs; i++) {
     auto input = inputs[i];
-    if (npu::UnwrapHandle(input)->DataType() == tensorflow::DT_RESOURCE) {
+    if (tensorflow::unwrap(input)->DataType() == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      NPU_REQUIRES_OK(npu::UnwrapTensor(input, &tensor));
+      NPU_REQUIRES_OK(npu::GetTensorHandleTensor(input, &tensor));
       auto handle = tensor->flat<tensorflow::ResourceHandle>()(0);
       const auto &dtypes_and_shapes = handle.dtypes_and_shapes();
       std::vector<tensorflow::shape_inference::ShapeAndType> inference_shapes_and_types;
@@ -1092,7 +1086,7 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
   for (int i = 0; i < num_inputs; i++) {
     auto input = inputs[i];
     if (ic.requested_input_tensor(i)) {  // If requested, this must be a normal tensor
-      if (npu::IsNpuTensorHandle(npu::UnwrapHandle(input))) {
+      if (npu::IsNpuTensorHandle(input)) {
         auto s = TF_NewStatus();
         if (s == nullptr) {
           continue;
@@ -1106,7 +1100,7 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
         scope_handle_deleter.Guard(input);
       }
       const tensorflow::Tensor *tensor;
-      NPU_REQUIRES_OK(npu::UnwrapTensor(input, &tensor));
+      NPU_REQUIRES_OK(npu::GetTensorHandleTensor(input, &tensor));
       input_tensors[i] = tensor;
       input_requested = true;
       requested_input_value = true;
@@ -1148,14 +1142,14 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
                                 TF_Status *s) {
   tensorflow::NodeDef ndef;
   ndef.set_op(op_name);
-  tensorflow::unwrap(attributes)->FillAttrValueMap(ndef.mutable_attr());
+  npu::UnwrapAttrs(attributes)->FillAttrValueMap(ndef.mutable_attr());
   bool request_shape = false;
   GetCachedTaskSpec(ndef, spec, request_shape);
   if (request_shape) {
     TensorShapes input_shapes;
     input_shapes.resize(num_inputs);
     for (int i = 0; i < num_inputs; i++) {
-      NPU_CTX_REQUIRES_OK(s, npu::UnwrapHandle(inputs[i])->Shape(&input_shapes[i]));
+      NPU_CTX_REQUIRES_OK(s, npu::GetTensorHandleShape(inputs[i], input_shapes[i]));
     }
     GetCachedTaskSpec(ndef, input_shapes, spec);
   }
@@ -1173,7 +1167,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
   bool is_function_op = op_reg_data->is_function_op;
   // 判断当前算子是否是NPU Device声明支持的算子
   if (!is_function_op && !Supported(op_name)) {
-    *spec = CacheOpSpec(op_name, op_reg_data, ndef, {}, CatStr("Op unsupported by NPU"));
+    *spec = CacheOpSpec(op_name, op_reg_data, ndef, {}, "Op unsupported by NPU");
     return;
   }
   // 这里获取输出的dataType，对于常规算子，通过NodeDef的T属性确定，对于function op，则是在ret上自带
@@ -1300,7 +1294,7 @@ void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const
     TensorShapes input_shapes;
     input_shapes.resize(num_inputs);
     for (int i = 0; i < num_inputs; i++) {
-      NPU_CTX_REQUIRES_OK(s, npu::UnwrapHandle(inputs[i])->Shape(&input_shapes[i]));
+      NPU_CTX_REQUIRES_OK(s, npu::GetTensorHandleShape(inputs[i], input_shapes[i]));
     }
     TensorPartialShapes partial_shapes;
     bool requested_input_value = false;
@@ -1336,14 +1330,14 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   ScopeTensorHandleDeleter scope_handle_deleter;
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
-    if (npu::IsNpuTensorHandle(npu::UnwrapHandle(input))) {
+    if (npu::IsNpuTensorHandle(input)) {
       input = CopyTensorD2H(context, input, status);  // 创建完成计数为1
       scope_handle_deleter.Guard(input);
       if (TF_GetCode(status) != TF_OK) return;
     }
     if (kDumpExecutionDetail) {
       const tensorflow::Tensor *tensor = nullptr;
-      npu::UnwrapTensor(input, &tensor);
+      npu::GetTensorHandleTensor(input, &tensor);
       LOG(INFO) << "    input " << j << "  " << tensor->DebugString();
     }
     TFE_OpAddInput(op, input, status);  // add完成计数为2
@@ -1454,10 +1448,10 @@ void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **ou
       for (int i = 0; i < num_inputs; i++) {
         tensorflow::Status status;
         const tensorflow::Tensor *tensor = nullptr;
-        npu::UnwrapHandle(inputs[i])->DeviceName(&status);
-        npu::UnwrapTensor(inputs[i], &tensor);
+        tensorflow::unwrap(inputs[i])->DeviceName(&status);
+        npu::GetTensorHandleTensor(inputs[i], &tensor);
         ss << "input " << i << " " << tensorflow::DataTypeString(tensor->dtype()) << " device "
-           << npu::UnwrapHandle(inputs[i])->DeviceName(&status) << std::endl;
+           << tensorflow::unwrap(inputs[i])->DeviceName(&status) << std::endl;
       }
       LOG(INFO) << ss.str();
     }
@@ -1543,8 +1537,7 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
       op_can_fallback = false;
     } else {
       for (int i = 0; i < num_inputs; ++i) {  // Should never fallback if op has npu resource input
-        if (npu::IsNpuTensorHandle(npu::UnwrapHandle(inputs[i])) &&
-            npu::UnwrapHandle(inputs[i])->DataType() == tensorflow::DT_RESOURCE) {
+        if (npu::IsNpuTensorHandle(inputs[i]) && tensorflow::unwrap(inputs[i])->DataType() == tensorflow::DT_RESOURCE) {
           DLOG() << "Op " << spec->Op() << " not fallback cpu as it has resource input from NPU";
           op_can_fallback = false;
           break;
@@ -1565,13 +1558,12 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (!npu::IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
-        npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
+    if (!npu::IsNpuTensorHandle(input) && tensorflow::unwrap(input)->DataType() != tensorflow::DT_RESOURCE) {
       tensorflow::Status s;
-      auto src_name = npu::UnwrapHandle(input)->DeviceName(&s);
+      auto src_name = tensorflow::unwrap(input)->DeviceName(&s);
       NPU_CTX_REQUIRES_OK(status, s);
       DLOG() << "Copying " << spec->Op() << " input:" << i
-             << " type:" << tensorflow::DataTypeString(npu::UnwrapHandle(input)->DataType()) << " to NPU from "
+             << " type:" << tensorflow::DataTypeString(tensorflow::unwrap(input)->DataType()) << " to NPU from "
              << src_name << " for acl executing";
       // 这里需要根据算子选择输入格式了
       input = CopyTensorH2D(context, input, Format::FORMAT_ND, status);
@@ -1603,13 +1595,13 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   /*
    从TFE_TensorHandle*获取NpuManagedBuffer:
       const tensorflow::Tensor *npu_tensor = nullptr;
-      NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(npu_inputs[i], &npu_tensor));
+      NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(npu_inputs[i], &npu_tensor));
       npu::Unwrap<NpuManagedBuffer>(npu_tensor); // 返回值就是NpuManagedBuffer*
   */
   std::vector<TFE_TensorHandle *> acl_inputs(num_inputs);
   for (int i = 0; i < num_inputs; ++i) {
     const tensorflow::Tensor *npu_tensor = nullptr;
-    NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(npu_inputs[i], &npu_tensor));
+    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(npu_inputs[i], &npu_tensor));
     tensorflow::Tensor cpu_tensor(npu_tensor->dtype(), npu_tensor->shape());
     if (npu_tensor->dtype() == tensorflow::DT_RESOURCE) {
       for (int j = 0; j < npu_tensor->NumElements(); j++) {
@@ -1629,9 +1621,9 @@ void NpuDevice::RunOp(TFE_Context *context, const npu::OpSpec *spec, int num_inp
   /**********调用CPU模拟NPU End*************/
   for (int i = 0; i < num_outputs; ++i) {
     const tensorflow::Tensor *acl_tensor = nullptr;
-    NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(acl_outputs[i], &acl_tensor));
+    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(acl_outputs[i], &acl_tensor));
     const tensorflow::Tensor *npu_tensor = nullptr;
-    NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(outputs[i], &npu_tensor));
+    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(outputs[i], &npu_tensor));
     if (spec->OutputTypes()[i] == tensorflow::DT_RESOURCE) {
       for (int j = 0; j < npu_tensor->NumElements(); j++) {
         const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j) =
@@ -1785,7 +1777,7 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
 void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf_num_inputs,
                          TFE_TensorHandle **tf_inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   if (spec->GeGraphId() == kEmptyGeGraphId) {
-    DLOG() << "Ge graph is empty, return directly.";
+    DLOG() << "Skipped run empty ge graph";
     return;
   }
   std::vector<TFE_TensorHandle *> pruned_inputs;
@@ -1799,13 +1791,12 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
   for (int i = 0; i < num_inputs; ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
-    if (npu::IsNpuTensorHandle(npu::UnwrapHandle(input)) &&
-        npu::UnwrapHandle(input)->DataType() != tensorflow::DT_RESOURCE) {
+    if (npu::IsNpuTensorHandle(input) && tensorflow::unwrap(input)->DataType() != tensorflow::DT_RESOURCE) {
       tensorflow::Status tf_status;
-      auto src_name = npu::UnwrapHandle(input)->DeviceName(&tf_status);
+      auto src_name = tensorflow::unwrap(input)->DeviceName(&tf_status);
       NPU_CTX_REQUIRES_OK(status, tf_status);
       DLOG() << "Copying " << spec->Op() << " input:" << i
-             << " type:" << tensorflow::DataTypeString(npu::UnwrapHandle(input)->DataType()) << " from " << src_name
+             << " type:" << tensorflow::DataTypeString(tensorflow::unwrap(input)->DataType()) << " from " << src_name
              << " to CPU for graph engine executing";
       // 这里需要根据算子选择输入格式了
       input = CopyTensorD2H(context, input, status);
@@ -1833,7 +1824,7 @@ void NpuDevice::RunGraph(TFE_Context *context, const npu::FuncSpec *spec, int tf
                 << " times";
     }
     const tensorflow::Tensor *tensor;
-    NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(tf_inputs[resource.first], &tensor));
+    NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(tf_inputs[resource.first], &tensor));
     // 注意，这个callback不能引用捕获，防止中途因为消费某个资源失败而导致coredump
     bool need_loop = spec->NeedLoop();
     auto done = [resource, consume_resource_times, need_loop](const tensorflow::Status &s) {
@@ -1880,7 +1871,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
   DLOG() << "Ge graph " << graph_id << " input info";
   for (int i = 0; i < num_inputs; i++) {
     const tensorflow::Tensor *tensor = nullptr;
-    npu::UnwrapTensor(inputs[i], &tensor);
+    npu::GetTensorHandleTensor(inputs[i], &tensor);
 
     const static std::shared_ptr<domi::ModelParser> parser =
       domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);

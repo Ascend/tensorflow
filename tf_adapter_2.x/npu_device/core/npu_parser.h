@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_PARSER_H
-#define TENSORFLOW_NPU_PARSER_H
+#ifndef NPU_DEVICE_CORE_NPU_PARSER_H
+#define NPU_DEVICE_CORE_NPU_PARSER_H
 
 #include <utility>
 
@@ -223,4 +223,4 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::NodeDef *ndef) 
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
 }  // namespace npu
-#endif  // TENSORFLOW_NPU_PARSER_H
+#endif  // NPU_DEVICE_CORE_NPU_PARSER_H

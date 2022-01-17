@@ -153,7 +153,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             }
           }
 
-          std::string full_name = CatStr(device_name, ":", device_index);
+          std::string full_name = tensorflow::strings::StrCat(device_name, ":", device_index);
           tensorflow::DeviceNameUtils::ParsedName parsed_name;
           if (!tensorflow::DeviceNameUtils::ParseFullName(full_name, &parsed_name)) {
             return "Invalid npu device name " + full_name;

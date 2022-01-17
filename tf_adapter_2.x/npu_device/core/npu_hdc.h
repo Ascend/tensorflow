@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_HDC_H
-#define TENSORFLOW_NPU_HDC_H
+#ifndef NPU_DEVICE_CORE_NPU_HDC_H
+#define NPU_DEVICE_CORE_NPU_HDC_H
 
 #include "acl/acl_tdt.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -47,4 +47,4 @@ class HdcChannel {
 };
 }  // end namespace npu
 
-#endif  // TENSORFLOW_NPU_HDC_H
+#endif  // NPU_DEVICE_CORE_NPU_HDC_H

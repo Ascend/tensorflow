@@ -14,19 +14,30 @@
  * limitations under the License.
  */
 
-#ifndef NPU_DEVICE_CORE_NPU_DEVICE_REGISTER_H
-#define NPU_DEVICE_CORE_NPU_DEVICE_REGISTER_H
+#ifndef NPU_DEVICE_CORE_NPU_TENSOR_H
+#define NPU_DEVICE_CORE_NPU_TENSOR_H
 
-#include <map>
-#include <string>
-
-#include "tensorflow/c/eager/c_api.h"
+#include "tensorflow/c/eager/c_api_experimental.h"
+#include "tensorflow/core/framework/tensor.h"
 
 namespace npu {
-std::string CreateDevice(TFE_Context *context, const char *name, int device_index,
-                         const std::map<std::string, std::string> &device_options);
+struct NpuTensor {
+  TF_DISALLOW_COPY_AND_ASSIGN(NpuTensor);
 
-void ReleaseDeviceResource();
+  TFE_TensorHandle* handle;
+
+  explicit NpuTensor(const tensorflow::Tensor& tensor);
+
+  ~NpuTensor();
+
+  static int64_t Dim(void* data, int dim_index, TF_Status* status);
+
+  static int NumDims(void* data, TF_Status* status);
+
+  static void Deallocator(void* data);
+
+  static TFE_CustomDeviceTensorHandleMethods handle_methods;
+};
 }  // namespace npu
 
-#endif  // NPU_DEVICE_CORE_NPU_DEVICE_REGISTER_H
+#endif  // NPU_DEVICE_CORE_NPU_TENSOR_H

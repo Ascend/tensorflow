@@ -14,20 +14,7 @@
  * limitations under the License.
  */
 
-#include <memory>
-
-#include "tensorflow/c/c_api.h"
-#include "tensorflow/c/eager/c_api.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/tf_status.h"
-#include "tensorflow/core/platform/logging.h"
-
-#include "absl/algorithm/container.h"
-#include "tensorflow/c/c_api_internal.h"
-#include "tensorflow/c/eager/immediate_execution_operation.h"
-#include "tensorflow/c/eager/tfe_context_internal.h"
-#include "tensorflow/c/eager/tfe_op_internal.h"
-#include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
+#include "tensorflow/core/common_runtime/eager/tensor_handle.h"
 
 #include "npu_custom_kernel.h"
 
