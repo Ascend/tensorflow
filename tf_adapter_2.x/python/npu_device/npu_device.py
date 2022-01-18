@@ -26,6 +26,7 @@ from tensorflow.python.eager import context
 from tensorflow.python.eager import def_function
 from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import ops
+from tensorflow.python.ops import script_ops
 from tensorflow.python.util import tf_contextlib
 
 from npu_device.configs.npu_config import NpuConfig
@@ -194,6 +195,40 @@ def npu_compat_function(func=None, *args, **kwargs):
     return never_nested_decorator
 
 
+def _specific_device_decorator(func):
+    def wrapper(*args, **kwargs):
+        if hasattr(_thread_local, '_npu_specific_device') and _thread_local._npu_specific_device:
+            with context.device(_thread_local._npu_specific_device):
+                return func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
+class NpuCompatEagerFunc(script_ops.EagerFunc):
+    @_specific_device_decorator
+    def __call__(self, *args, **kwargs):
+        super(NpuCompatEagerFunc, self).__call__(*args, **kwargs)
+
+
+@tf_contextlib.contextmanager
+def _specific_device_ctx(device_name):
+    _thread_local._npu_specific_device = device_name
+    try:
+        yield
+    finally:
+        _thread_local._npu_specific_device = None
+
+
+def wrap_cpu_only_api(func):
+    def wrapper(*args, **kwargs):
+        with _specific_device_ctx('/job:localhost/replica:0/task:0/device:CPU:0'):
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
 class NpuDeviceHandle:
     """Class for creating handle of NPU device"""
 
@@ -227,20 +262,24 @@ class NpuDeviceHandle:
         """Set device as default one"""
 
         @tf_contextlib.contextmanager
-        def combined():
+        def _consistent_with_context_ctx():
             try:
-                with context.device(self._device_name):
+                with context.device(self._ctx.device_name):
                     yield
             except ImportError:  # ImportError: sys.meta_path is None, Python is likely shutting down
                 yield
 
-        def _f(*args, **kwargs):
-            return combined()
+        def _device_consistent_with_context(*args, **kwargs):
+            return _consistent_with_context_ctx()
 
         def_function.Function.__call__ = _never_nested_function_call
-        ops.device = _f
         def_function.function = npu_compat_function
         tf.function = npu_compat_function
+
+        ops.device = _device_consistent_with_context
+        script_ops.EagerFunc = NpuCompatEagerFunc
+
+        tf.py_function = wrap_cpu_only_api(tf.py_function)
 
         self._ctx.default_device = self._device_name
 
