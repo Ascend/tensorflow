@@ -338,6 +338,11 @@ class Adapter2St(unittest.TestCase):
         y = next(iter(ds))
         self.assertTrue(tensor_equal(y, tf.constant(2)))
 
+    def test_copy_npu_to_npu(self):
+        x = tf.add(1, 1)
+        y = x._copy()
+        self.assertTrue(tensor_equal(y, tf.constant(2)))
+
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):
     def test_dropout_v3(self):
