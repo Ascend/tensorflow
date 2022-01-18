@@ -195,36 +195,29 @@ def npu_compat_function(func=None, *args, **kwargs):
     return never_nested_decorator
 
 
-def _specific_device_decorator(func):
-    def wrapper(*args, **kwargs):
-        if hasattr(_thread_local, '_npu_specific_device') and _thread_local._npu_specific_device:
-            with context.device(_thread_local._npu_specific_device):
-                return func(*args, **kwargs)
-        else:
-            return func(*args, **kwargs)
-
-    return wrapper
-
-
 class NpuCompatEagerFunc(script_ops.EagerFunc):
-    @_specific_device_decorator
+    def __init__(self, *args, **kwargs):
+        if hasattr(_thread_local, 'npu_specific_device'):
+            self._npu_specific_device = _thread_local.npu_specific_device
+        else:
+            self._npu_specific_device = None
+        super(NpuCompatEagerFunc, self).__init__(*args, **kwargs)
+
     def __call__(self, *args, **kwargs):
-        super(NpuCompatEagerFunc, self).__call__(*args, **kwargs)
-
-
-@tf_contextlib.contextmanager
-def _specific_device_ctx(device_name):
-    _thread_local._npu_specific_device = device_name
-    try:
-        yield
-    finally:
-        _thread_local._npu_specific_device = None
+        if self._npu_specific_device:
+            with context.device(self._npu_specific_device):
+                return super(NpuCompatEagerFunc, self).__call__(*args, **kwargs)
+        else:
+            return super(NpuCompatEagerFunc, self).__call__(*args, **kwargs)
 
 
 def wrap_cpu_only_api(func):
     def wrapper(*args, **kwargs):
-        with _specific_device_ctx('/job:localhost/replica:0/task:0/device:CPU:0'):
+        _thread_local.npu_specific_device = '/job:localhost/replica:0/task:0/device:CPU:0'
+        try:
             return func(*args, **kwargs)
+        finally:
+            _thread_local.npu_specific_device = None
 
     return wrapper
 
