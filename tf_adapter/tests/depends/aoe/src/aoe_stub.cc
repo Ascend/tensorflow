@@ -31,10 +31,16 @@ extern "C" Aoe::AoeStatus AoeCreateSession(const std::map<Aoe::AscendString, Aoe
 }
 
 extern "C" Aoe::AoeStatus AoeDestroySession(Aoe::SessionId SessionId) {
+  if (SessionId >= 9999) {
+    return Aoe::AOE_FALLURE;
+  }
   return Aoe::AOE_SUCCESS;
 }
 
 extern "C" Aoe::AoeStatus AoeSetGeSession(Aoe::SessionId SessionId, ge::Session* geSession) {
+  if (SessionId >= 9999) {
+    return Aoe::AOE_FALLURE;
+  }
   return Aoe::AOE_SUCCESS;
 }
 

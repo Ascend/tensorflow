@@ -130,7 +130,6 @@ class GeOp : public AsyncOpKernel {
 
   static mutex mu_;
   static std::atomic_flag tuned_initialize_flag_;
-  static std::vector<SessionId> session_id_vector_;
 
   bool init_flag_;
   bool build_flag_;
