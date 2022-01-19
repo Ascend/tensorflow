@@ -25,6 +25,12 @@ TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *
                                         void *device_info) {
   auto *dev = static_cast<npu::NpuDevice *>(device_info);
   tensorflow::Status tf_status;
+  if (npu::IsNpuTensorHandle(tensor)) {
+    DLOG() << "[CopyTensorToNpuDevice] Ref tensor from " << tensorflow::unwrap(tensor)->DeviceName(&tf_status) << " to "
+           << dev->device_name;
+    tensorflow::unwrap(tensor)->Ref();
+    return tensor;
+  }
   LOG(INFO) << "[CopyTensorToNpuDevice] Copy tensor from " << tensorflow::unwrap(tensor)->DeviceName(&tf_status)
             << " to " << dev->device_name;
   TFE_TensorHandle *npu_handle = dev->CopyTensorH2D(context, tensor, status);

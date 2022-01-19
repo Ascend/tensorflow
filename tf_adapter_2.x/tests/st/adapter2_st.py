@@ -323,9 +323,25 @@ class Adapter2St(unittest.TestCase):
     def test_empty_graph(self):
         @tf.function
         def f():
-            return tf.io.gfile.mkdir("./test")
+            pass
 
         f()
+
+    def test_py_function(self):
+        def augment(images):
+            return tf.cast(images, tf.uint8)
+
+        ds = tf.data.Dataset.from_tensor_slices(tf.constant([2.2], dtype=tf.float32)).map(
+            lambda x: tf.py_function(augment, [x], [tf.uint8]), num_parallel_calls=1
+        )
+
+        y = next(iter(ds))
+        self.assertTrue(tensor_equal(y, tf.constant(2)))
+
+    def test_copy_npu_to_npu(self):
+        x = tf.add(1, 1)
+        y = x._copy()
+        self.assertTrue(tensor_equal(y, tf.constant(2)))
 
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):

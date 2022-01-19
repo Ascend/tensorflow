@@ -47,8 +47,13 @@ static inline tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes type
     desc->set_name(std::to_string(i));
 
     tensorflow::AttrValue shape_value;
-    for (int j = 0; j < shapes[i].dims(); j++) {
-      shape_value.mutable_list()->add_i(shapes[i].dim_size(j));
+    if (shapes[i].unknown_rank()) {
+      const static int kUnknownRankDimSize = -2;
+      shape_value.mutable_list()->add_i(kUnknownRankDimSize);
+    } else {
+      for (int j = 0; j < shapes[i].dims(); j++) {
+        shape_value.mutable_list()->add_i(shapes[i].dim_size(j));
+      }
     }
     desc->mutable_attr()->insert({kShape, shape_value});
 
