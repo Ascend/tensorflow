@@ -29,14 +29,12 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import gen_control_flow_ops
 from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.training import optimizer
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras import optimizers
 from tensorflow.python.platform import tf_logging as logging
 from npu_bridge.estimator.npu.npu_common import NPUBasics
 from npu_bridge.estimator.npu import util
 from npu_bridge.hccl import hccl_ops
-from npu_bridge.estimator import npu_ops
 from npu_bridge.helper import helper
 
 gen_npu_ops = helper.get_gen_ops()
@@ -126,7 +124,7 @@ def reduce(tensor, root_rank, average=True, fusion=0, fusion_id=-1):
     return new_tensor
 
 
-class NPUOptimizer(optimizer.Optimizer):
+class NPUOptimizer(tf.train.Optimizer):
     """An optimizer that wraps another tf.Optimizer that can using an allreduce to
     average gradient values before applying gradients to model weights when
     'is_distributed' is True. And applies loss scaling in backprop when 'is_loss_scale'
@@ -162,7 +160,7 @@ class NPUOptimizer(optimizer.Optimizer):
     def compute_gradients(self,
                           loss,
                           var_list=None,
-                          gate_gradients=optimizer.Optimizer.GATE_OP,
+                          gate_gradients=tf.train.Optimizer.GATE_OP,
                           aggregation_method=None,
                           colocate_gradients_with_ops=False,
                           grad_loss=None):
@@ -272,7 +270,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
     average gradient values before applying gradients to model weights.
     """
 
-    def __init__(self, tf_optimizer,
+    def __init__(self, optimizer,
                  is_weight_update_sharding=False,
                  name=None):
         """
@@ -282,15 +280,15 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         across all the hcom ranks.
 
         Args:
-            tf_optimizer: Optimizer to use for computing gradients and applying updates.
+            optimizer: Optimizer to use for computing gradients and applying updates.
             name: Optional name prefix for the operations created when applying
                 gradients. Defaults to "Distributed" followed by the provided
                 optimizer type.
                 See Optimizer.__init__ for more info.
         """
         if name is None:
-            name = "Distributed{}".format(type(tf_optimizer).__name__)
-        self._optimizer = tf_optimizer
+            name = "Distributed{}".format(type(optimizer).__name__)
+        self._optimizer = optimizer
         self._is_weight_update_sharding = is_weight_update_sharding
         super(NPUDistributedOptimizer, self).__init__(name=name, use_locking=False)
 
@@ -389,7 +387,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
     average gradient values before applying gradients to model weights.
     """
 
-    def __init__(self, tf_optimizer, name="NpuKerasOptimizer", **kwargs):
+    def __init__(self, optimizer, name="NpuKerasOptimizer", **kwargs):
         """
         Construct a new KerasDistributeOptimizer, which uses another optimizer
         under the hood for computing single-process gradient values and
@@ -397,10 +395,10 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         across all the hcom ranks.
 
         Args:
-            tf_optimizer: Optimizer to use for get_updates gradients.
+            optimizer: Optimizer to use for get_updates gradients.
         """
         super(KerasDistributeOptimizer, self).__init__(name, **kwargs)
-        self._optimizer = tf_optimizer
+        self._optimizer = optimizer
         old_get_gradient = self._optimizer.get_gradients
 
         def new_get_gradient(loss, params):
@@ -446,16 +444,16 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def npu_distributed_optimizer_wrapper(tf_optimizer):
+def npu_distributed_optimizer_wrapper(optimizer):
     """
     An optimizer that wraps Optimizer, using an allreduce to
     average gradient values before applying gradients to model weights.
     """
-    if isinstance(tf_optimizer, str):
-        tf_optimizer = optimizers.get(tf_optimizer)
+    if isinstance(optimizer, str):
+        optimizer = optimizers.get(optimizer)
     rank_size = os.getenv('RANK_SIZE')
-    if hasattr(tf_optimizer, "compute_gradients"):
-        org_compute_gradients = tf_optimizer.compute_gradients
+    if hasattr(optimizer, "compute_gradients"):
+        org_compute_gradients = optimizer.compute_gradients
 
         def _npu_compute_gradients(*args, **kwargs):
             """
@@ -472,10 +470,10 @@ def npu_distributed_optimizer_wrapper(tf_optimizer):
                     averaged_gradients.append((avg_grad, var))
             return averaged_gradients
 
-        tf_optimizer.compute_gradients = _npu_compute_gradients
+        optimizer.compute_gradients = _npu_compute_gradients
 
-    if hasattr(tf_optimizer, "get_gradients"):
-        org_get_gradients = tf_optimizer.get_gradients
+    if hasattr(optimizer, "get_gradients"):
+        org_get_gradients = optimizer.get_gradients
 
         def _npu_get_gradients(loss, params):
             grads = org_get_gradients(loss, params)
@@ -488,10 +486,10 @@ def npu_distributed_optimizer_wrapper(tf_optimizer):
                     averaged_grads.append(avg_grad)
             return averaged_grads
 
-        tf_optimizer.get_gradients = _npu_get_gradients
+        optimizer.get_gradients = _npu_get_gradients
 
-    if hasattr(tf_optimizer, "_compute_gradients"):
-        org_compute_gradients = tf_optimizer._compute_gradients
+    if hasattr(optimizer, "_compute_gradients"):
+        org_compute_gradients = optimizer._compute_gradients
 
         def _npu_compute_gradients(loss, var_list, grad_loss=None):
             gradients = org_compute_gradients(loss, var_list, grad_loss)
@@ -504,9 +502,9 @@ def npu_distributed_optimizer_wrapper(tf_optimizer):
                     averaged_grads.append((avg_grad, var))
             return averaged_grads
 
-        tf_optimizer._compute_gradients = _npu_compute_gradients
+        optimizer._compute_gradients = _npu_compute_gradients
 
-    return tf_optimizer
+    return optimizer
 
 
 def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_world_group"):
