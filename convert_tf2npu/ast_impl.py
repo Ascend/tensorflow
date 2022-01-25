@@ -313,6 +313,8 @@ def convert_loss_scale_api(node):
             for keyword in node.keywords:
                 if keyword.arg == "loss_scale":
                     keyword.arg = "loss_scale_manager"
+            if (len(util_global.get_value("distributed_mode", "")) != 0):
+                node.keywords.append(ast.keyword(arg="is_distributed", value=pasta.parse("True")))
             util_global.set_value('need_conver', True)
             return node
 
