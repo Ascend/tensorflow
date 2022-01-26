@@ -15,8 +15,8 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow.python.framework import ops
-import npu_bridge.helper import helper
+from tensorflow.python.framework import ops
+from npu_bridge.helper import helper
 
 gen_npu_cpu_ops = helper.get_gen_ops();
 
