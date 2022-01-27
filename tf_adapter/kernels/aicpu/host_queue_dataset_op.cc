@@ -45,12 +45,12 @@ namespace data {
 namespace {
 using namespace std;
 using namespace tdt;
-static uint32_t kMaxValue = 128U;
+const uint32_t kMaxValue = 256U;
 const size_t kMaxDepth = 128UL;
 const static int64_t kStringTypeDepth = 64LL;
 const int64_t kUnknownShapeDepth = 3LL;
 // total memory usage controlled below 2G
-const uint64_t kTotalBytes = 2147483648ULL;
+const uint64_t kTotalBytes = 2 * 2147483648ULL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 const int32_t kSleepTime = 1;
 std::atomic<bool> tdt_release(false);
@@ -101,7 +101,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       return;
     }
 
-    ADP_LOG(INFO) << "Start to destroy tdt";
+    ADP_LOG(INFO) << "Start to destroy tdt.";
     int32_t tdt_status = TdtInFeedDestroy(device_id_);
     if (tdt_status != 0) {
       ADP_LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
@@ -597,7 +597,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                                                   "_device_" +
                                                   std::to_string(dataset()->device_id_)));
         ADP_LOG(INFO) << "Channel name is :" << channel_name;
-        kMaxValue = static_cast<uint32_t>(dataset()->channel_depth_);
         acl_handle_ =
             acltdtCreateChannelWithCapacity(dataset()->device_id_, channel_name.c_str(), dataset()->channel_depth_);
         if (acl_handle_ == nullptr) {

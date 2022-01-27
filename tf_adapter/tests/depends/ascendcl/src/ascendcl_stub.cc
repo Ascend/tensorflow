@@ -75,9 +75,6 @@ aclError aclrtSetDevice(int32_t deviceId){
     return ACL_SUCCESS;
 }
 
-aclError aclrtResetDevice(int32_t deviceId){
-    return ACL_SUCCESS;
-}
 acltdtChannelHandle *acltdtCreateChannelWithCapacity(uint32_t deviceId,
                                                      const char *name,
                                                      size_t capacity) {

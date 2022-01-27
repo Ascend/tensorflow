@@ -35,10 +35,11 @@ std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
 std::map<std::string, std::string> NpuAttrs::init_options_;
 const static int32_t kRuntimeTypeHeterogeneous = 1;
-bool kIsNewDataTransfer = 0;
+bool kIsNewDataTransfer = true;
 bool GetNewDataTransferFlag() {
   uint32_t device_id = 0U;
   (void) GetEnvDeviceID(device_id);
+  auto acl_status = aclrtSetDevice(device_id);
   acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
   if (check_queue_handle != nullptr) {
     acltdtDestroyChannel(check_queue_handle);
