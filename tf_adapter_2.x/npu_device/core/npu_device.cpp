@@ -546,30 +546,32 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
  * @param spec: shared point to OpExecutor
  * @param s: tf status
  */
-void NpuDevice::GetOrCreateSpec(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes,
-                                int num_inputs, TFE_TensorHandle **inputs, std::shared_ptr<const npu::OpExecutor> *spec,
-                                TF_Status *s) {
+void NpuDevice::GetOrCreateOpExecutor(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes,
+                                      int num_inputs, TFE_TensorHandle **inputs,
+                                      std::shared_ptr<const npu::OpExecutor> *spec, TF_Status *s) {
   tensorflow::NodeDef ndef;
   ndef.set_op(op_name);
   npu::UnwrapAttrs(attributes)->FillAttrValueMap(ndef.mutable_attr());
   bool request_shape = false;
-  GetCachedTaskSpec(ndef, spec, request_shape);
+  GetOpExecutor(ndef, spec, request_shape);
   if (request_shape) {
     TensorShapes input_shapes;
     input_shapes.resize(num_inputs);
     for (int i = 0; i < num_inputs; i++) {
       NPU_CTX_REQUIRES_OK(s, npu::GetTensorHandleShape(inputs[i], input_shapes[i]));
     }
-    GetCachedTaskSpec(ndef, input_shapes, spec);
+    GetOpExecutor(ndef, input_shapes, spec);
   }
   if (*spec != nullptr) {
-    DLOG() << "Found cached task spec for " << op_name;
+    DLOG() << "Found cached " << (*spec)->Type() << " executor for " << std::endl << ndef.DebugString();
     return;
   }
-  DLOG() << "No cached task spec for " << op_name << ", start create and cache";
+  DLOG() << "No cached op executor for " << op_name << ", start create and cache";
   *spec = OpExecutor::Create(context, this, ndef, num_inputs, inputs, s);
   if (TF_GetCode(s) != TF_OK) return;
-  CacheTaskSpec(*spec);
+  DLOG() << "Cache " << (*spec)->Type() << " op_executor for " << ndef.DebugString() << std::endl
+         << (*spec)->DebugString();
+  CacheOpExecutor(*spec);
 }
 
 void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes, int num_inputs,
@@ -678,7 +680,7 @@ void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **ou
     return;
   }
   std::shared_ptr<const npu::OpExecutor> spec;
-  GetOrCreateSpec(context, op_name, attributes, inputs.size(), inputs.data(), &spec, s);
+  GetOrCreateOpExecutor(context, op_name, attributes, inputs.size(), inputs.data(), &spec, s);
   if (TF_GetCode(s) != TF_OK) return;
   spec->Run(context, this, num_inputs, inputs.data(), num_outputs, outputs, s);
 }
@@ -1211,13 +1213,13 @@ void NpuDevice::RunGeGraphPin2NpuAnonymous(TFE_Context *context, const std::stri
 }
 
 /**
- * @brief: get cached task spec
+ * @brief: get cached op executor
  * @param ndef: tensorflow node def
  * @param spec: shared point to OpExecutor
  * @param request_shape: if request shape or not
  */
-void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_ptr<const npu::OpExecutor> *spec,
-                                  bool &request_shape) {
+void NpuDevice::GetOpExecutor(const tensorflow::NodeDef &ndef, std::shared_ptr<const npu::OpExecutor> *spec,
+                              bool &request_shape) {
   *spec = nullptr;
   const auto &op = ndef.op();
   if (cached_func_specs_.find(op) == cached_func_specs_.end()) {
@@ -1228,7 +1230,7 @@ void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_p
   *spec = cached_func_specs_[op];
 }
 
-void NpuDevice::CacheTaskSpec(std::shared_ptr<const OpExecutor> spec) {
+void NpuDevice::CacheOpExecutor(std::shared_ptr<const OpExecutor> spec) {
   if (spec->GetCacheStrategy() == CacheStrategy::BY_OP_NAME) {
     cached_func_specs_.emplace(std::make_pair(spec->Op(), spec));
   } else {
@@ -1237,16 +1239,16 @@ void NpuDevice::CacheTaskSpec(std::shared_ptr<const OpExecutor> spec) {
 }
 
 /**
- * @brief: get cached task spec
+ * @brief: get cached op executor
  * @param ndef: tensorflow node def
  * @param shapes: tensor shapes
- * @param spec: task spec
+ * @param spec: op executor
  */
-void NpuDevice::GetCachedTaskSpec(const tensorflow::NodeDef &ndef, const TensorShapes &shapes,
-                                  std::shared_ptr<const npu::OpExecutor> *spec) {
+void NpuDevice::GetOpExecutor(const tensorflow::NodeDef &ndef, const TensorShapes &shapes,
+                              std::shared_ptr<const npu::OpExecutor> *spec) {
   *spec = nullptr;
   bool request_shape = false;
-  GetCachedTaskSpec(ndef, spec, request_shape);
+  GetOpExecutor(ndef, spec, request_shape);
   if (*spec != nullptr) {
     return;
   }

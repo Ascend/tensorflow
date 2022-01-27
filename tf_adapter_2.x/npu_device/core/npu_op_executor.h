@@ -45,7 +45,7 @@ class NpuDevice;
 class OpExecutor {
  public:
   static std::shared_ptr<OpExecutor> Create(TFE_Context *context, NpuDevice *device, const tensorflow::NodeDef &ndef,
-                                          int num_inputs, TFE_TensorHandle **inputs, TF_Status *s);
+                                            int num_inputs, TFE_TensorHandle **inputs, TF_Status *s);
   const std::string &Op() const { return ndef_.op(); }
   const tensorflow::NodeDef &NodeDef() const { return ndef_; }
   const TensorDataTypes &InputTypes() const { return input_dtypes_; }
@@ -65,15 +65,17 @@ class OpExecutor {
 
   std::string DebugString() const {
     std::stringstream ss;
+    ss << Type() << std::endl;
     ss << NodeDef().DebugString() << std::endl;
     ss << attached_attrs_.DebugString() << std::endl;
-    ss << OpRegistrationData()->op_def.DebugString() << std::endl;
+    if (OpRegistrationData() != nullptr) {
+      ss << OpRegistrationData()->op_def.DebugString() << std::endl;
+    }
     ss << AttachedDebugString() << std::endl;
     return ss.str();
   }
 
   virtual const std::string &Type() const = 0;
-  virtual std::string AttachedDebugString() const = 0;
 
   void Run(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
            TFE_TensorHandle **outputs, TF_Status *status) const {
@@ -85,7 +87,9 @@ class OpExecutor {
                        int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const = 0;
 
  protected:
-  OpExecutor(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef, TensorShapes input_shapes) {
+  virtual std::string AttachedDebugString() const = 0;
+  OpExecutor(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
+             TensorShapes input_shapes) {
     TensorDataTypes input_dtypes;
     TensorDataTypes output_dtypes;
     tensorflow::InOutTypesForNode(ndef, op_spec->op_def, &input_dtypes, &output_dtypes);

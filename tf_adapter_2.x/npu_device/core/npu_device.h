@@ -77,8 +77,8 @@ class NpuDevice {
 
   TFE_TensorHandle *CopyTensorH2D(TFE_Context *context, TFE_TensorHandle *tensor, ge::Format fmt, TF_Status *status);
 
-  void GetOrCreateSpec(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes, int num_inputs,
-                       TFE_TensorHandle **inputs, std::shared_ptr<const OpExecutor> *spec, TF_Status *s);
+  void GetOrCreateOpExecutor(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes, int num_inputs,
+                             TFE_TensorHandle **inputs, std::shared_ptr<const OpExecutor> *spec, TF_Status *s);
 
   void FallbackCPU(TFE_Context *context, const char *op_name, const TFE_OpAttrs *attributes, int num_inputs,
                    TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
@@ -137,12 +137,12 @@ class NpuDevice {
                               const TensorDataTypes &output_types, int num_outputs, TFE_TensorHandle **outputs,
                               DoneCallback done, TF_Status *status);
 
-  void GetCachedTaskSpec(const tensorflow::NodeDef &ndef, std::shared_ptr<const OpExecutor> *spec, bool &request_shape);
+  void GetOpExecutor(const tensorflow::NodeDef &ndef, std::shared_ptr<const OpExecutor> *spec, bool &request_shape);
 
-  void GetCachedTaskSpec(const tensorflow::NodeDef &ndef, const TensorShapes &shapes,
-                         std::shared_ptr<const OpExecutor> *spec);
+  void GetOpExecutor(const tensorflow::NodeDef &ndef, const TensorShapes &shapes,
+                     std::shared_ptr<const OpExecutor> *spec);
 
-  void CacheTaskSpec(std::shared_ptr<const OpExecutor> spec);
+  void CacheOpExecutor(std::shared_ptr<const OpExecutor> spec);
 
   bool Supported(const std::string &op) const;
   bool SupportedResourceGenerator(const std::string &op) const;

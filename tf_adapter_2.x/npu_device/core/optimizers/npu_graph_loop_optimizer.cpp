@@ -27,7 +27,7 @@ bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
   for (auto node : graph->op_nodes()) {
     if (node->IsWhileNode()) {
       if (*key != nullptr) {
-        DLOG() << "Skip check as no while node in graph";
+        DLOG() << "Skip check as multi while nodes in graph first " << (*key)->name() << " another " << node->name();
         *key = nullptr;
         return false;
       }
