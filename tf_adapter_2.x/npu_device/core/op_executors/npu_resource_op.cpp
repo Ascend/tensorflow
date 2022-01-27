@@ -190,8 +190,8 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
     tensorflow::FixupSourceAndSinkEdges(graph.get());
     MarkGraphNodeInOutDesc(context, graph.get(), pruned_inputs.size(), pruned_inputs.data());
 
-    OptimizeStageGraphDumper graph_dumper(Op());
     if (kDumpGraph && kDumpExecutionDetail) {
+      OptimizeStageGraphDumper graph_dumper(Op());
       std::string suffix = npu_resources[0].name();
       for (int i = 1; i < npu_resources.size(); i++) {
         suffix += ".";

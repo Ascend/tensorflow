@@ -519,9 +519,12 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
   std::unique_ptr<tensorflow::Graph> optimize_graph = std::make_unique<tensorflow::Graph>(lib_def);
   CopyGraph(*fbody->graph, optimize_graph.get());
 
-  OptimizeStageGraphDumper graph_dumper(op_name);
+  std::unique_ptr<OptimizeStageGraphDumper> graph_dumper = nullptr;
+  if (kDumpExecutionDetail || kDumpGraph) {
+    graph_dumper = std::make_unique<OptimizeStageGraphDumper>(op_name);
+  }
 
-  NpuOptimizerManager::Instance().MetaOptimize(context, &optimize_graph, device_options, &graph_dumper);
+  NpuOptimizerManager::Instance().MetaOptimize(context, &optimize_graph, device_options, graph_dumper.get());
 
   TensorDataTypes input_dtypes;
   TensorDataTypes output_dtypes;
@@ -532,7 +535,9 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
                                                                           NextUUID(), std::move(optimize_graph));
 
   NpuOptimizerManager::Instance().RuntimeOptimize(context, mutable_concrete_graph.get(), device_options, this,
-                                                  num_inputs, inputs, &graph_dumper);
+                                                  num_inputs, inputs, graph_dumper.get());
+  LOG(INFO) << "Concrete graph for " << op_name << " loop " << (mutable_concrete_graph->NeedLoop() ? "true" : "false")
+            << " builtin loop " << (mutable_concrete_graph->BuiltinLoop() ? "true" : "false");
   *concrete_graph = std::move(mutable_concrete_graph);
 }
 
