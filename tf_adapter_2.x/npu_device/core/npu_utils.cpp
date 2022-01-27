@@ -183,8 +183,9 @@ tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef 
 }
 
 void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::GraphDef &graph_def) {
-  WriteTextProto(tensorflow::Env::Default(), graph_ + "." + std::to_string(counter_++) + "." + stage + ".pbtxt",
-                 graph_def);
+  std::string graph_name = tensorflow::strings::StrCat(graph_, ".", counter_++, ".", stage, ".pbtxt");
+  LOG(INFO) << "Dump graph " << graph_name;
+  WriteTextProto(tensorflow::Env::Default(), graph_name, graph_def);
 }
 
 void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,

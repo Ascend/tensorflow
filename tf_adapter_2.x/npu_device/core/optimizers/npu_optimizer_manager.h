@@ -73,6 +73,7 @@ class NpuOptimizerManager {
     tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
     tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
 
+    DLOG() << "Run tensorflow meta optimize";
     tensorflow::OptimizeGraph(flr, graph);
 
     if (graph_dumper != nullptr) {
@@ -81,9 +82,11 @@ class NpuOptimizerManager {
 
     for (const auto &item : meta_optimizers_) {
       for (const auto &name2optimizer : item.second) {
+        DLOG() << "Run npu meta optimize " << name2optimizer.first;
         NPU_REQUIRES_OK(name2optimizer.second(context, graph->get(), options));
         if (graph_dumper != nullptr) {
-          graph_dumper->Dump("after_npu_meta_optimizer_" + name2optimizer.first, (*graph)->ToGraphDefDebug());
+          graph_dumper->DumpWithSubGraphs("after_npu_meta_optimizer_" + name2optimizer.first,
+                                          (*graph)->ToGraphDefDebug(), lib_def);
         }
       }
     }
@@ -93,11 +96,13 @@ class NpuOptimizerManager {
   tensorflow::Status RuntimeOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
                                      std::map<std::string, std::string> options, NpuDevice *device, int num_inputs,
                                      TFE_TensorHandle **inputs, OptimizeStageGraphDumper *dumper = nullptr) {
+    tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     for (const auto &item : runtime_optimizers_) {
       for (const auto &name2optimizer : item.second) {
+        DLOG() << "Run npu runtime optimize " << name2optimizer.first;
         NPU_REQUIRES_OK(name2optimizer.second(context, graph, options, device, num_inputs, inputs));
         if (dumper != nullptr) {
-          dumper->Dump("after_runtime_optimizer_" + name2optimizer.first, graph->GraphDef());
+          dumper->DumpWithSubGraphs("after_runtime_optimizer_" + name2optimizer.first, graph->GraphDef(), lib_def);
         }
       }
     }

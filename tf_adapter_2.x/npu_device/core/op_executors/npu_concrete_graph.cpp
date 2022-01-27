@@ -113,7 +113,7 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
   }
 
   if (!built_) {
-    LOG(INFO) << "Load ge graph " << GeGraphId() << " of op " << Op();
+    DLOG() << "Load ge graph " << GeGraphId() << " of op " << Op();
     if (kEmptyGeGraphId == device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(), NeedLoop(), status)) {
       empty_ge_graph_ = true;
     }
@@ -125,7 +125,7 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
 
 void NpuConcreteGraph::UnLoad(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
   if (!Built()) return;
-  LOG(INFO) << "Unload ge graph " << GeGraphId() << " of op " << Op();
+  DLOG() << "Unload ge graph " << GeGraphId() << " of op " << Op();
   device->RemoveGeGraph(context, GeGraphId(), status);
   if (TF_GetCode(status) != TF_OK) return;
   built_ = false;

@@ -77,8 +77,8 @@ tensorflow::Status MarkGraphNodeInOutDesc(TFE_Context *context, tensorflow::Grap
         tensorflow::TensorShapeProto proto;
         node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
         input_shapes.emplace_back(proto);
-        LOG(INFO) << "    input " << i << ": " << tensorflow::DataTypeString(input_types[i])
-                  << node_ctx->DebugString(node_ctx->input(i));
+        DLOG() << "    input " << i << ": " << tensorflow::DataTypeString(input_types[i])
+               << node_ctx->DebugString(node_ctx->input(i));
       }
     }
 
