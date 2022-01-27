@@ -35,6 +35,7 @@ void NpuResourceGeneratorOp::RunImpl(TFE_Context *context, NpuDevice *device, in
                                      int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const {
   if ((!device->SupportedResourceGenerator(Op())) || (!InputTypes().empty()) || (num_outputs != 1)) {
     device->FallbackCPU(context, NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
+    return;
   }
 
   outputs[0] = device->NewDeviceResourceHandle(context, kScalarShape, status);
