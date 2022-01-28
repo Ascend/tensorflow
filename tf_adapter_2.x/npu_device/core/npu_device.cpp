@@ -691,34 +691,28 @@ void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **ou
 }
 
 namespace {
-tensorflow::Node *AddVarInitToGraph(TFE_Context *context, std::string name, tensorflow::Tensor tensor,
-                                    tensorflow::Graph *graph, TF_Status *status) {
+tensorflow::Status AddVarInitToGraph(TFE_Context *context, std::string name, tensorflow::Tensor tensor,
+                                     tensorflow::Graph *graph) {
   TF_UNUSED_VARIABLE(context);
   tensorflow::Node *variable = nullptr;
   tensorflow::Node *value = nullptr;
   tensorflow::Node *assign_variable = nullptr;
 
-  NPU_CTX_REQUIRES_OK_RETURN(status,
-                             tensorflow::NodeBuilder(name, "VarHandleOp")
-                               .Attr("container", "")
-                               .Attr("shared_name", name)
-                               .Attr("dtype", tensor.dtype())
-                               .Attr("shape", tensor.shape())
-                               .Finalize(graph, &variable),
-                             assign_variable);
-  NPU_CTX_REQUIRES_OK_RETURN(status,
-                             tensorflow::NodeBuilder(name + "_v", "Const")
-                               .Attr("value", tensor)
-                               .Attr("dtype", tensor.dtype())
-                               .Finalize(graph, &value),
-                             assign_variable);
-  NPU_CTX_REQUIRES_OK_RETURN(status,
-                             tensorflow::NodeBuilder(name + "_op", "AssignVariableOp")
-                               .Input(variable, 0)
-                               .Input(value, 0)
-                               .Attr("dtype", tensor.dtype())
-                               .Finalize(graph, &assign_variable),
-                             assign_variable);
+  NPU_REQUIRES_OK(tensorflow::NodeBuilder(name, "VarHandleOp")
+                    .Attr("container", "")
+                    .Attr("shared_name", name)
+                    .Attr("dtype", tensor.dtype())
+                    .Attr("shape", tensor.shape())
+                    .Finalize(graph, &variable));
+  NPU_REQUIRES_OK(tensorflow::NodeBuilder(name + "_v", "Const")
+                    .Attr("value", tensor)
+                    .Attr("dtype", tensor.dtype())
+                    .Finalize(graph, &value));
+  NPU_REQUIRES_OK(tensorflow::NodeBuilder(name + "_op", "AssignVariableOp")
+                    .Input(variable, 0)
+                    .Input(value, 0)
+                    .Attr("dtype", tensor.dtype())
+                    .Finalize(graph, &assign_variable));
 
   AssembleOpDef(variable);
   AssembleOpDef(value);
@@ -728,7 +722,7 @@ tensorflow::Node *AddVarInitToGraph(TFE_Context *context, std::string name, tens
   AssembleOutputDesc(TensorShapes({tensor.shape()}), {tensor.dtype()}, value);
   AssembleInputDesc(TensorShapes({kScalarShape, tensor.shape()}), {tensorflow::DT_RESOURCE, tensor.dtype()},
                     assign_variable);
-  return assign_variable;
+  return tensorflow::Status::OK();
 }
 }  // namespace
 
@@ -751,12 +745,12 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
 
   if (!initialized.exchange(true)) {
     tensorflow::Graph graph(tensorflow::OpRegistry::Global());
-    AddVarInitToGraph(context, "npu_runconfig/loop_cond", tensorflow::Tensor(tensorflow::int64(0)), &graph, status);
-    if (TF_GetCode(status) != TF_OK) return;
-    AddVarInitToGraph(context, "npu_runconfig/one", tensorflow::Tensor(tensorflow::int64(1)), &graph, status);
-    if (TF_GetCode(status) != TF_OK) return;
-    AddVarInitToGraph(context, "npu_runconfig/zero", tensorflow::Tensor(tensorflow::int64(0)), &graph, status);
-    if (TF_GetCode(status) != TF_OK) return;
+    NPU_CTX_REQUIRES_OK(
+      status, AddVarInitToGraph(context, "npu_runconfig/loop_cond", tensorflow::Tensor(tensorflow::int64(0)), &graph));
+    NPU_CTX_REQUIRES_OK(
+      status, AddVarInitToGraph(context, "npu_runconfig/one", tensorflow::Tensor(tensorflow::int64(1)), &graph));
+    NPU_CTX_REQUIRES_OK(
+      status, AddVarInitToGraph(context, "npu_runconfig/zero", tensorflow::Tensor(tensorflow::int64(0)), &graph));
 
     RunGeGraphPin2CpuAnonymous(context, "set_npu_loop_conditions", graph.ToGraphDefDebug(), 0, nullptr, 0, nullptr,
                                status);
