@@ -65,8 +65,6 @@ tensorflow::Status MapGeType2Acl(ge::DataType ge_type, aclDataType &acl_type);
  */
 tensorflow::Status MapGeFormat2Acl(ge::Format ge_format, aclFormat &acl_format);
 
-// TODO:在GE处理中，变量名称作为唯一标识，对于shared_name是"_"开头的变量，由于tensorflow禁止变量名以"_"开头，所以无法直接将shared_name
-//  作为Node的name，对于GE，则没有这个限制，因而，这个函数需要能够屏蔽这种差异。
 std::string WrapResourceName(const std::string &name);
 
 // specify the template in utils.cpp if need
