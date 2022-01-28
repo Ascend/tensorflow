@@ -264,20 +264,22 @@ tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs,
   return tensorflow::Status::OK();
 }
 
-/**
- * @brief: validate output
- * @param op_name: op name
- * @param data_types: tensor data types
- */
 tensorflow::Status NpuDevice::ValidateOutputTypes(const TensorDataTypes &data_types) const {
-  return ValidateInputTypes(data_types);
+  for (size_t i = 0; i < data_types.size(); i++) {
+    auto data_type = data_types[i];
+    if ((data_type != tensorflow::DT_RESOURCE) && (!tensorflow::DataTypeCanUseMemcpy(data_type))) {
+      return tensorflow::errors::Unimplemented("Output ", i, " unsupported type ",
+                                               tensorflow::DataTypeString(data_type));
+    }
+  }
+  return tensorflow::Status::OK();
 }
 
 tensorflow::Status NpuDevice::ValidateInputTypes(const TensorDataTypes &data_types) const {
   for (size_t i = 0; i < data_types.size(); i++) {
     auto data_type = data_types[i];
     if ((data_type != tensorflow::DT_RESOURCE) && (!tensorflow::DataTypeCanUseMemcpy(data_type))) {
-      return tensorflow::errors::Unimplemented("Output ", i, " unsupported type ",
+      return tensorflow::errors::Unimplemented("Input ", i, " unsupported type ",
                                                tensorflow::DataTypeString(data_type));
     }
   }
@@ -642,24 +644,19 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const tensorflow::NodeDef &nde
  */
 void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **outputs, TF_Status *s) {
   auto context = TFE_OpGetContext(op, s);
-  if (TF_GetCode(s) != TF_OK) {
-    return;
-  }
+  if (TF_GetCode(s) != TF_OK) return;
+
   auto num_inputs = TFE_OpGetFlatInputCount(op, s);
-  if (TF_GetCode(s) != TF_OK) {
-    return;
-  }
+  if (TF_GetCode(s) != TF_OK) return;
+
   std::vector<TFE_TensorHandle *> inputs;
   for (int i = 0; i < num_inputs; i++) {
     inputs.push_back(TFE_OpGetFlatInput(op, i, s));
-    if (TF_GetCode(s) != TF_OK) {
-      return;
-    }
+    if (TF_GetCode(s) != TF_OK) return;
   }
   auto op_name = TFE_OpGetName(op, s);
-  if (TF_GetCode(s) != TF_OK) {
-    return;
-  }
+  if (TF_GetCode(s) != TF_OK) return;
+
   auto attributes = TFE_OpGetAttrs(op);
   DLOG() << "NPU Start executing " << op_name;
 
