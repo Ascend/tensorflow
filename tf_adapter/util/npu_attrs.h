@@ -32,7 +32,8 @@ namespace tensorflow {
 std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
-extern const bool kIsNewDataTransfer;
+bool GetNewDataTransferFlag();
+extern bool kIsNewDataTransfer;
 extern const bool kDumpGraph;
 extern const bool kIsHeterogeneous;
 
