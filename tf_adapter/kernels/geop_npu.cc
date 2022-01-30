@@ -226,6 +226,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
 GeOp::~GeOp() { Finalize(); }
 
 void GeOp::Initialize(OpKernelConstruction *ctx) {
+  mutex_lock lock{mu_};
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(INFO) << "[GEOP] Begin GeOp initialize.";
   if (init_flag_) {
