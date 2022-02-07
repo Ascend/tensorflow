@@ -210,8 +210,8 @@ tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int
           (void)npu::GetTensorHandleTensor(inputs[cpu_index], &cpu_tensor);
           return tensorflow::errors::InvalidArgument(
             op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
-            " on NPU but resource input ", cpu_index, " ", cpu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
-            " on CPU");
+            " on NPU but resource input ", cpu_index, " ",
+            cpu_tensor->scalar<tensorflow::ResourceHandle>()().DebugString(), " on CPU");
         }
       } else if (!Mirrored(tensor->scalar<tensorflow::ResourceHandle>()())) {
         has_cpu = true;
@@ -220,7 +220,7 @@ tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int
           const tensorflow::Tensor *npu_tensor;
           (void)npu::GetTensorHandleTensor(inputs[npu_index], &npu_tensor);
           return tensorflow::errors::InvalidArgument(
-            op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
+            op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().DebugString(),
             " on CPU but resource input ", npu_index, " ", npu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
             " on NPU");
         }

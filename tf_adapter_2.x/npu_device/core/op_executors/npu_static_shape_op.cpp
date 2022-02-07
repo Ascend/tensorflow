@@ -44,6 +44,11 @@ std::string NpuStaticShapeOp::AttachedDebugString() const {
 void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, const OpExecutor *spec,
                                     TensorShapes output_shapes, int num_inputs, TFE_TensorHandle **inputs,
                                     int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  if (kGraphEngineGreedyMemory) {
+    DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu in graph engine greedy memory mode";
+    device->FallbackCPU(context, spec->NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
+    return;
+  }
   // 输入如果是CPU,此时要转换成NPU
   std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
   ScopeTensorHandleDeleter scope_handle_deleter;

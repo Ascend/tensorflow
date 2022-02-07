@@ -147,7 +147,6 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
         if (def_nodes.find(generator->NodeDef()) == def_nodes.end()) {
           tensorflow::Node *node = graph->AddNode(*generator->NodeDef(), &s);
           NPU_CTX_REQUIRES_OK(status, s);
-          node->set_name(handle.name());
           def_nodes[generator->NodeDef()] = node;
         }
         NPU_CTX_REQUIRES(status, graph->AddEdge(def_nodes[generator->NodeDef()], generator->Index(), target_node, i),

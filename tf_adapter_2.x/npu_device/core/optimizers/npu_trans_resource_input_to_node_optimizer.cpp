@@ -132,7 +132,6 @@ tensorflow::Status TransResourceInput2GraphNodeInner(TFE_Context *context, tenso
         tensorflow::Status status;
         tensorflow::Node *substitute = graph->AddNode(*generator->NodeDef(), &status);
         NPU_REQUIRES_OK(status);
-        substitute->set_name(handle.name());
         substitute->AddAttr("_arg_name", node->name());
         substitute->AddAttr("_arg_index", int(index));
         arg_substitutes[node] = substitute;

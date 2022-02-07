@@ -57,7 +57,8 @@ void NpuResourceGeneratorOp::RunImpl(TFE_Context *context, NpuDevice *device, in
   auto ndef = std::make_shared<tensorflow::NodeDef>(NodeDef());
 
   tensorflow::SetAttrValue(resource.container(), &ndef->mutable_attr()->at("container"));
-  tensorflow::SetAttrValue(WrapResourceName(resource.name()), &ndef->mutable_attr()->at("shared_name"));
+  ndef->set_name(WrapResourceName(resource.name()));
+  tensorflow::SetAttrValue(ndef->name(), &ndef->mutable_attr()->at("shared_name"));
 
   device->RecordResourceGeneratorDef(resource, std::make_shared<ResourceGenerator>(ndef, 0));
   DLOG() << "Create resource " << Op() << " " << resource.DebugString() << " by " << ndef->DebugString() << " on NPU";
