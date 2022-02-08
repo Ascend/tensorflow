@@ -31,22 +31,10 @@ const static bool kDumpGraph = []() -> bool {
   return dump_graph;
 }();
 
-const static bool kCustomKernelEnabled = []() -> bool {
-  bool use_custom_kernel = true;
-  tensorflow::ReadBoolFromEnvVar("NPU_ENABLE_CUSTOM_KERNEL", true, &use_custom_kernel);
-  return use_custom_kernel;
-}();
-
 const static bool kPerfEnabled = []() -> bool {
   bool perf_enabled = false;
   tensorflow::ReadBoolFromEnvVar("NPU_ENABLE_PERF", false, &perf_enabled);
   return perf_enabled;
-}();
-
-const static bool kExecuteOpByAcl = []() -> bool {
-  bool execute_op_by_acl = true;
-  tensorflow::ReadBoolFromEnvVar("NPU_EXECUTE_OP_BY_ACL", true, &execute_op_by_acl);
-  return execute_op_by_acl;
 }();
 
 const static bool kGraphEngineGreedyMemory = []() -> bool {
