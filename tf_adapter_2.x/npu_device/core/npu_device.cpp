@@ -1265,7 +1265,7 @@ void NpuDevice::GetOpExecutor(const tensorflow::NodeDef &ndef, const TensorShape
  * @param op: op type
  */
 bool NpuDevice::Supported(const std::string &op) const {
-  const static std::unordered_set<std::string> kUnsupportedOps = {};
+  const static std::unordered_set<std::string> kUnsupportedOps = {"_EagerConst"};
   return kUnsupportedOps.count(op) == 0;
 }
 
@@ -1274,8 +1274,8 @@ bool NpuDevice::Supported(const std::string &op) const {
  * @param op: op type
  */
 bool NpuDevice::SupportedResourceGenerator(const std::string &op) const {
-  const static std::unordered_set<std::string> kUnsupportedOps = {"VarHandleOp"};
-  return kUnsupportedOps.count(op) != 0;
+  const static std::unordered_set<std::string> kSupportedOps = {"VarHandleOp"};
+  return kSupportedOps.count(op) != 0;
 }
 
 void NpuDevice::RecordResourceGeneratorDef(const tensorflow::ResourceHandle &key,

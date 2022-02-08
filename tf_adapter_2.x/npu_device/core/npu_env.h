@@ -37,12 +37,6 @@ const static bool kPerfEnabled = []() -> bool {
   return perf_enabled;
 }();
 
-const static bool kExecuteOpByAcl = []() -> bool {
-  bool execute_op_by_acl = true;
-  tensorflow::ReadBoolFromEnvVar("NPU_EXECUTE_OP_BY_ACL", true, &execute_op_by_acl);
-  return execute_op_by_acl;
-}();
-
 const static bool kGraphEngineGreedyMemory = []() -> bool {
   tensorflow::int64 graph_engine_greedy_memory = 0;
   tensorflow::ReadInt64FromEnvVar("GE_USE_STATIC_MEMORY", 0, &graph_engine_greedy_memory);
