@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "npu_optimizer_manager.h"
 #include "npu_device.h"
+#include "optimizers/npu_optimizer_manager.h"
 
 namespace {
 const static std::string kHcomBroadcast = "HcomBroadcast";

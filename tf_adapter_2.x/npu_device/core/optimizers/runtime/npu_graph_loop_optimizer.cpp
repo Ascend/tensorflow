@@ -17,9 +17,9 @@
 #include "tensorflow/core/graph/algorithm.h"
 #include "tensorflow/core/grappler/op_types.h"
 
-#include "npu_algorithm.h"
 #include "npu_device.h"
-#include "npu_optimizer_manager.h"
+#include "optimizers/npu_algorithm.h"
+#include "optimizers/npu_optimizer_manager.h"
 
 namespace {
 bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {

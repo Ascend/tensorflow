@@ -1274,7 +1274,17 @@ bool NpuDevice::Supported(const std::string &op) const {
  * @param op: op type
  */
 bool NpuDevice::SupportedResourceGenerator(const std::string &op) const {
-  const static std::unordered_set<std::string> kSupportedOps = {"VarHandleOp"};
+  const static std::unordered_set<std::string> kSupportedOps = [this]() {
+    std::unordered_set<std::string> supported = {"VarHandleOp"};
+    auto iter = device_options.find("supported_resource");
+    if (iter != device_options.end()) {
+      auto resources = tensorflow::str_util::Split(iter->second, ',');
+      for (const auto &resource : resources) {
+        supported.emplace(resource);
+      }
+    }
+    return supported;
+  }();
   return kSupportedOps.count(op) != 0;
 }
 
