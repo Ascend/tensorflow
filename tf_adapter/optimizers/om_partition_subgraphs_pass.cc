@@ -676,7 +676,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
           const AttrValue *attr_value = node->attrs().Find(ATTR_NAME_OP_MAX_SIZE);
           if (attr_value != nullptr) {
             ADP_LOG(INFO) << "Node : " << node->name() << " add to candidates, because of had max size.";
-            continue; 
+            continue;
           }
           if (candidates->erase(edge->src()) > 0) { outSet.insert(edge->src()); }
         }
@@ -2118,7 +2118,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   Graph *graph_in = graph->get();
   int getnext_node_count = 0;
   bool include_getnext = false;
-  std::vector<Node*> remove_nodes;
+  std::vector<Node *> remove_nodes;
   for (Node *node : graph_in->op_nodes()) {
     if (node->type_string() == "NPUInit") {
       std::string attr_name;
@@ -2160,10 +2160,6 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     }
     // get attr from graph options.
     GetGraphDynamicExecConfig(node, enable_dp, graph_options);
-    if (graph_options["dynamic_input"] == "1" && iterations_per_loop > 1) {
-      ADP_LOG(FATAL) << "iterations_per_loop only support 1 in dynamic input mode.";
-      LOG(FATAL) << "iterations_per_loop only support 1 in dynamic input mode.";
-    }
     string device_name;
     if (job != "localhost" && job != "ps" && job != "default") {
       device_name = std::string("/job:") + std::string(job) + std::string("/replica:0/task:")
@@ -2193,14 +2189,19 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     }
   }
 
+  if (graph_options["dynamic_input"] == "1" && graph_options["dynamic_graph_execute_mode"] == "lazy_recompile" &&
+      iterations_per_loop > 1) {
+    return errors::InvalidArgument("iterations_per_loop only support 1 in lazy_recompile mode. Current is:",
+                                   iterations_per_loop);
+  }
+
   if (graph_format_value.empty()) {
     graph_format_value = "NHWC";  // default value
   }
 
   int subgraphNum = 0;
-  TF_RETURN_IF_ERROR(
-      OMSplitter::MarkForPartition(graph, subgraphNum, mix_compile_mode, graph_num,
-                                   func_lib, pass_options, graph_options));
+  TF_RETURN_IF_ERROR(OMSplitter::MarkForPartition(graph, subgraphNum, mix_compile_mode, graph_num, func_lib,
+                                                  pass_options, graph_options));
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
   if (subgraphNum < 1) {
     ADP_LOG(INFO) << "subgraphNum is " << subgraphNum;
