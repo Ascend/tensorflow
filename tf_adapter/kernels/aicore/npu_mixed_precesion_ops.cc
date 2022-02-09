@@ -21,69 +21,69 @@
 namespace tensorflow {
 // Mixed-precisions training
 class NpuAllocFloatStatusOp : public tensorflow::OpKernel {
-  public:
-    explicit NpuAllocFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
-    ~NpuAllocFloatStatusOp() override = default;
-    void Compute(tensorflow::OpKernelContext *context) override {
-      Tensor *output_tensor = nullptr;
-      OP_REQUIRES_OK(context, context->allocate_output(0, TensorShape({1}), &output_tensor));
-      // Set the float_status tensor to be 0
-      auto flat = output_tensor->flat<float>();
-      flat(0) = 0.0;
+public:
+  explicit NpuAllocFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+  ~NpuAllocFloatStatusOp() override = default;
+  void Compute(tensorflow::OpKernelContext *context) override {
+    Tensor *output_tensor = nullptr;
+    OP_REQUIRES_OK(context, context->allocate_output(0, TensorShape({1}), &output_tensor));
+    // Set the float_status tensor to be 0
+    auto flat = output_tensor->flat<float>();
+    flat(0) = 0.0;
   }
 };
 
 REGISTER_KERNEL_BUILDER(Name("NpuAllocFloatStatus").Device(tensorflow::DEVICE_CPU), NpuAllocFloatStatusOp);
 
 class NpuGetFloatStatusOp : public tensorflow::OpKernel {
-  public:
-    explicit NpuGetFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
-    ~NpuGetFloatStatusOp() override = default;
-    void Compute(tensorflow::OpKernelContext *context) override {
-      // Grab the input tensor
-      const Tensor &input_tensor = context->input(0);
-      // Create an output tensor
-      Tensor *output_tensor = nullptr;
-      OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
-      // Set the float_status tensor to be 0
-      auto flat = output_tensor->flat<float>();
-      // For testing
-      flat(0) = 0.0;
+public:
+  explicit NpuGetFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+  ~NpuGetFloatStatusOp() override = default;
+  void Compute(tensorflow::OpKernelContext *context) override {
+    // Grab the input tensor
+    const Tensor &input_tensor = context->input(0);
+    // Create an output tensor
+    Tensor *output_tensor = nullptr;
+    OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
+    // Set the float_status tensor to be 0
+    auto flat = output_tensor->flat<float>();
+    // For testing
+    flat(0) = 0.0;
   }
 };
 
 REGISTER_KERNEL_BUILDER(Name("NpuGetFloatStatus").Device(tensorflow::DEVICE_CPU), NpuGetFloatStatusOp);
 
 class NpuGetFloatStatusV2Op : public tensorflow::OpKernel {
-  public:
-    explicit NpuGetFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
-    ~NpuGetFloatStatusV2Op() override = default;
-    void Compute(tensorflow::OpKernelContext *context) override {
-      // Grab the input tensor
-      const Tensor &input_tensor = context->input(0);
-      // Create an output tensor
-      Tensor *output_tensor = nullptr;
-      OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
+public:
+  explicit NpuGetFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+  ~NpuGetFloatStatusV2Op() override = default;
+  void Compute(tensorflow::OpKernelContext *context) override {
+    // Grab the input tensor
+    const Tensor &input_tensor = context->input(0);
+    // Create an output tensor
+    Tensor *output_tensor = nullptr;
+    OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
   }
 };
 
 REGISTER_KERNEL_BUILDER(Name("NpuGetFloatStatusV2").Device(tensorflow::DEVICE_CPU), NpuGetFloatStatusV2Op);
 
 class NpuClearFloatStatusOp : public tensorflow::OpKernel {
-  public:
-    explicit NpuClearFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
-    ~NpuClearFloatStatusOp() override = default;
-    void Compute(tensorflow::OpKernelContext *context) override {
-      // Grab the input tensor
-      const Tensor &input_tensor = context->input(0);
-      auto input = input_tensor.flat<float>();
-       // Create an output tensor
-       Tensor *output_tensor = nullptr;
-       OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
-       // Clear the status
-       auto flat = output_tensor->flat<float>();
-       // For testing
-       for (int i = 0; i < input.size(); i++) { flat(i) = 0.0; }
+public:
+  explicit NpuClearFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+  ~NpuClearFloatStatusOp() override = default;
+  void Compute(tensorflow::OpKernelContext *context) override {
+    // Grab the input tensor
+    const Tensor &input_tensor = context->input(0);
+    auto input = input_tensor.flat<float>();
+    // Create an output tensor
+    Tensor *output_tensor = nullptr;
+    OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
+    // Clear the status
+    auto flat = output_tensor->flat<float>();
+    // For testing
+    for (int i = 0; i < input.size(); i++) { flat(i) = 0.0; }
   }
 };
 
