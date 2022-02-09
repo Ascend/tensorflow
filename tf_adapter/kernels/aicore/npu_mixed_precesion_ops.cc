@@ -102,5 +102,5 @@ class NpuClearFloatStatusV2Op : public tensorflow::OpKernel {
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatusV2").Device(tensorflow::DEVICE_CPU), NpuClearFloatStatusOp);
+REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatusV2").Device(tensorflow::DEVICE_CPU), NpuClearFloatStatusV2Op);
 }  // namespace tensorflow
