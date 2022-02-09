@@ -58,6 +58,7 @@ class NpuGetFloatStatusV2Op : public tensorflow::OpKernel {
 public:
   explicit NpuGetFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuGetFloatStatusV2Op() override = default;
+  std:: cout <<  "into NPU_function ==============liyefeng" ;
   void Compute(tensorflow::OpKernelContext *context) override {
     // Grab the input tensor
     const Tensor &input_tensor = context->input(0);
