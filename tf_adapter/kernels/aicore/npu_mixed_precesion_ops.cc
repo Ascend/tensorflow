@@ -90,11 +90,11 @@ class NpuClearFloatStatusOp : public tensorflow::OpKernel {
 REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatus").Device(tensorflow::DEVICE_CPU), NpuClearFloatStatusOp);
 
 class NpuClearFloatStatusV2Op : public tensorflow::OpKernel {
-  public:
-    explicit NpuClearFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
-    ~NpuClearFloatStatusV2Op() override = default;
-    void Compute(tensorflow::OpKernelContext *context) override {
-      LOG(INFO) << "NpuClearFloatStatusV2 Compute";
+public:
+  explicit NpuClearFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+  ~NpuClearFloatStatusV2Op() override = default;
+  void Compute(tensorflow::OpKernelContext *context) override {
+    LOG(INFO) << "NpuClearFloatStatusV2 Compute";
   }
 };
 
