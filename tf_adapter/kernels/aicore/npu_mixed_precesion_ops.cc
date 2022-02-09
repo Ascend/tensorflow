@@ -44,6 +44,7 @@ public:
     const Tensor &input_tensor = context->input(0);
     // Create an output tensor
     Tensor *output_tensor = nullptr;
+    std::cout << "test to look coverage";
     OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
     // Set the float_status tensor to be 0
     auto flat = output_tensor->flat<float>();
