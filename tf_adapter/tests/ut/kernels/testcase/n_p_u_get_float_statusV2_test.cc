@@ -41,7 +41,6 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2) {
   NpuGetFloatStatusV2Op npugetfloatstatusv2(context);
   OpKernelContext *ctx = nullptr;
   npugetfloatstatusv2.Compute(ctx);
-  npugetfloatstatusv2.IsExpensive();
   delete device;
   delete node_def;
   delete op_def;
