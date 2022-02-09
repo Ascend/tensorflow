@@ -56,7 +56,7 @@ class NpuGetFloatStatusOp : public tensorflow::OpKernel {
 REGISTER_KERNEL_BUILDER(Name("NpuGetFloatStatus").Device(tensorflow::DEVICE_CPU), NpuGetFloatStatusOp);
 
 class NpuGetFloatStatusV2Op : public tensorflow::OpKernel {
-  public:
+public:
     explicit NpuGetFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
     ~NpuGetFloatStatusV2Op() override = default;
     void Compute(tensorflow::OpKernelContext *context) override {
@@ -94,7 +94,7 @@ class NpuClearFloatStatusOp : public tensorflow::OpKernel {
 REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatus").Device(tensorflow::DEVICE_CPU), NpuClearFloatStatusOp);
 
 class NpuClearFloatStatusV2Op : public tensorflow::OpKernel {
- public:
+public:
   explicit NpuClearFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuClearFloatStatusV2Op() override = default;
   void Compute(tensorflow::OpKernelContext *context) override {
