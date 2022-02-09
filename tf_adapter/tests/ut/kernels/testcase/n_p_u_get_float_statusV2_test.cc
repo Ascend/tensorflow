@@ -35,14 +35,14 @@ TEST_F(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2) {
   DeviceBase *device = new DeviceBase(Env::Default());
   NodeDef *node_def = new NodeDef();
   OpDef *op_def = new OpDef();
-  std:: cout <<  "before ==============liyefeng" ;
+  std::cout <<  "before ==============liyefeng" ;
   OpKernelConstruction *context = new OpKernelConstruction(
       DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
       input_memory_types, output_types, output_memory_types, 1, nullptr);
   NpuGetFloatStatusV2Op npugetfloatstatusv2(context);
-  std:: cout <<  "after ==============liyefeng" ;
+  std::cout <<  "after ==============liyefeng" ;
   OpKernelContext *ctx = nullptr;
-  std:: cout <<  "before  compute==============liyefeng" ;
+  std::cout <<  "before  compute==============liyefeng" ;
   npugetfloatstatusv2.Compute(ctx);
   delete device;
   delete node_def;
