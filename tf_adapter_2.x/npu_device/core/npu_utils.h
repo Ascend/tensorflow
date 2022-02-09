@@ -21,6 +21,7 @@
 
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/graph/graph.h"
 
 #include "acl/acl_base.h"
 #include "graph/types.h"
@@ -64,8 +65,6 @@ tensorflow::Status MapGeType2Acl(ge::DataType ge_type, aclDataType &acl_type);
  */
 tensorflow::Status MapGeFormat2Acl(ge::Format ge_format, aclFormat &acl_format);
 
-// TODO:在GE处理中，变量名称作为唯一标识，对于shared_name是"_"开头的变量，由于tensorflow禁止变量名以"_"开头，所以无法直接将shared_name
-//  作为Node的name，对于GE，则没有这个限制，因而，这个函数需要能够屏蔽这种差异。
 std::string WrapResourceName(const std::string &name);
 
 // specify the template in utils.cpp if need
@@ -93,6 +92,26 @@ struct ResourceCompare {
   bool operator()(const tensorflow::ResourceHandle &left, const tensorflow::ResourceHandle &right) const {
     return left.name() < right.name() || left.container() < right.container() || left.device() < right.device();
   }
+};
+
+void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g,
+                                   bool keep_signature = false);
+
+void FixGraphArgRetvalIndex(tensorflow::Graph *graph);
+
+uint64_t NextUUID();
+
+class OptimizeStageGraphDumper {
+ public:
+  explicit OptimizeStageGraphDumper(const std::string &graph) : graph_(graph), counter_(0) {}
+  void Dump(const std::string &stage, const tensorflow::GraphDef &graph_def);
+
+  void DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
+                         const tensorflow::FunctionLibraryDefinition *lib_def);
+
+ private:
+  std::string graph_;
+  int counter_;
 };
 }  // namespace npu
 

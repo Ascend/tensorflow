@@ -16,17 +16,13 @@
 
 #include "tensorflow/core/common_runtime/eager/tensor_handle.h"
 
-#include "npu_custom_kernel.h"
+#include "op_executors/npu_kernel_registry.h"
 
 namespace npu {
-static auto kernel = [](TFE_Context *context, NpuDevice *dev, const npu::OpSpec *spec,
-                        const TensorShapes &output_shapes, const tensorflow::NodeDef &parser_ndef, int num_inputs,
+static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   TF_UNUSED_VARIABLE(context);
   TF_UNUSED_VARIABLE(dev);
-  TF_UNUSED_VARIABLE(spec);
-  TF_UNUSED_VARIABLE(output_shapes);
-  TF_UNUSED_VARIABLE(parser_ndef);
   TF_UNUSED_VARIABLE(num_inputs);
   TF_UNUSED_VARIABLE(inputs);
   TF_UNUSED_VARIABLE(num_outputs);

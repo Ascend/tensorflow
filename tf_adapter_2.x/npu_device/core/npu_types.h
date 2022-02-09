@@ -18,6 +18,7 @@
 #define NPU_DEVICE_CORE_NPU_TYPES_H
 
 #include "tensorflow/c/c_api_internal.h"
+#include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 
 namespace npu {
 using TensorPartialShapes = tensorflow::gtl::InlinedVector<tensorflow::PartialTensorShape, 4>;
@@ -29,5 +30,21 @@ using VecTensorShapes = tensorflow::gtl::InlinedVector<TensorShapes, 4>;
 using VecTensorDataTypes = tensorflow::gtl::InlinedVector<TensorDataTypes, 4>;
 
 const static tensorflow::TensorShape kScalarShape;
+
+const static uint64_t kInvalidGeGraphId = -1;
+const static uint64_t kEmptyGeGraphId = -2;
+
+class ResourceGenerator {
+ public:
+  ResourceGenerator(std::shared_ptr<tensorflow::NodeDef> def, int index) : def_(def), index_(index) {}
+  std::shared_ptr<tensorflow::NodeDef> NodeDef() const { return def_; }
+  int Index() const { return index_; }
+
+ private:
+  std::shared_ptr<tensorflow::NodeDef> def_;
+  int index_;
+};
+
+enum class CacheStrategy { DEFAULT, BY_OP_NAME };
 }  // namespace npu
 #endif  // NPU_DEVICE_CORE_NPU_TYPES_H

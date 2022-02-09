@@ -16,7 +16,7 @@
 
 #include "tensorflow/core/graph/algorithm.h"
 
-#include "npu_custom_kernel.h"
+#include "op_executors/npu_kernel_registry.h"
 #include "npu_utils.h"
 
 namespace npu {
@@ -92,11 +92,8 @@ class MakeIteratorGraphBuilder {
 };
 }  // namespace
 
-static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
-                        int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
-                        TF_Status *status) {
-  TF_UNUSED_VARIABLE(op_name);
-  TF_UNUSED_VARIABLE(attributes);
+static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
+                        TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   TF_UNUSED_VARIABLE(num_outputs);
   TF_UNUSED_VARIABLE(outputs);
   for (int j = 0; j < num_inputs; ++j) {
