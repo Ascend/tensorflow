@@ -55,6 +55,22 @@ class NpuGetFloatStatusOp : public tensorflow::OpKernel {
 
 REGISTER_KERNEL_BUILDER(Name("NpuGetFloatStatus").Device(tensorflow::DEVICE_CPU), NpuGetFloatStatusOp);
 
+class NpuGetFloatStatusV2Op : public tensorflow::OpKernel {
+  public:
+    explicit NpuGetFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+    ~NpuGetFloatStatusV2Op() override = default;
+    void Compute(tensorflow::OpKernelContext *context) override {
+    // Grab the input tensor
+    const Tensor &input_tensor = context->input(0);
+
+    // Create an output tensor
+    Tensor *output_tensor = nullptr;
+    OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
+  }
+};
+
+REGISTER_KERNEL_BUILDER(Name("NpuGetFloatStatusV2").Device(tensorflow::DEVICE_CPU), NpuGetFloatStatusV2Op);
+
 class NpuClearFloatStatusOp : public tensorflow::OpKernel {
  public:
   explicit NpuClearFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
@@ -76,4 +92,15 @@ class NpuClearFloatStatusOp : public tensorflow::OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatus").Device(tensorflow::DEVICE_CPU), NpuClearFloatStatusOp);
+
+class NpuClearFloatStatusV2Op : public tensorflow::OpKernel {
+ public:
+  explicit NpuClearFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+  ~NpuClearFloatStatusV2Op() override = default;
+  void Compute(tensorflow::OpKernelContext *context) override {
+    LOG(INFO) << "NpuClearFloatStatusV2 Compute";
+  }
+};
+
+REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatusV2").Device(tensorflow::DEVICE_CPU), NpuClearFloatStatusOp);
 }  // namespace tensorflow
