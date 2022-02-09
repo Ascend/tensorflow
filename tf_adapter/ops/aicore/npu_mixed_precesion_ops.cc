@@ -82,9 +82,6 @@ REGISTER_OP("NpuClearFloatStatus")
     .SetIsStateful();
 
 REGISTER_OP("NpuClearFloatStatusV2")
-    .Input("float_status: float")
-    .Output("cleared_float_status: float")
-    .SetShapeFn(shape_inference::UnchangedShape)
     .Doc(R"doc(
     Clear the float status in the scalar buffer.
 
