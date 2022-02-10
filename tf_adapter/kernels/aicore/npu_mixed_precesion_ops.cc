@@ -84,14 +84,14 @@ public:
 
 REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatus").Device(DEVICE_CPU), NpuClearFloatStatusOp);
 
-class NpuClearFloatStatusV2Op : public tensorflow::OpKernel {
+class NpuClearFloatStatusV2Op : public OpKernel {
 public:
-  explicit NpuClearFloatStatusV2Op(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
+  explicit NpuClearFloatStatusV2Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuClearFloatStatusV2Op() override = default;
-  void Compute(tensorflow::OpKernelContext *context) override {
+  void Compute(OpKernelContext *context) override {
     LOG(INFO) << "NpuClearFloatStatusV2 Compute";
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatusV2").Device(tensorflow::DEVICE_CPU), NpuClearFloatStatusV2Op);
+REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatusV2").Device(DEVICE_CPU), NpuClearFloatStatusV2Op);
 }  // namespace tensorflow

@@ -56,8 +56,8 @@ REGISTER_OP("NpuGetFloatStatusV2")
     .Output("float_status: float")
     .SetShapeFn(shape_inference::UnchangedShape)
     .Doc(R"doc(
-    Allocate the float status tensor for getting float status from scalar buffer.
-
+    Move the value of overflow status from global workspace to GM
+    
     Arguments
         inputs: The allocated input float status tensor.
 
@@ -83,13 +83,7 @@ REGISTER_OP("NpuClearFloatStatus")
 
 REGISTER_OP("NpuClearFloatStatusV2")
     .Doc(R"doc(
-    Clear the float status in the scalar buffer.
-
-    Arguments
-        inputs: The float status tensor.
-
-    Output
-        output: The float element tensor set to zero.
+    Set the value of global workspace to 0.
     )doc")
     .SetIsStateful();
 
