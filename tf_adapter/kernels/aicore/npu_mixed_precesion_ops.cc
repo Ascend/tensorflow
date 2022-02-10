@@ -59,10 +59,6 @@ public:
   explicit NpuGetFloatStatusV2Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuGetFloatStatusV2Op() override = default;
   void Compute(OpKernelContext *context) override {
-    // Grab the input tensor
-    const Tensor &input_tensor = context->input(0);
-    // Create an output tensor
-    Tensor *output_tensor = nullptr;
     LOG(INFO) << "get into compute ---liyefeng---";
   }
 };
