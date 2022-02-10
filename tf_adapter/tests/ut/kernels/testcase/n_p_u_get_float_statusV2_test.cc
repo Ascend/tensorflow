@@ -50,5 +50,29 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2) {
   delete op_def;
   delete context;
 }
+
+TEST(NPUClearFloatStatusV2OpTest, TestNPUClearFloatStatusV2) {
+  DataTypeSlice input_types({});
+  MemoryTypeSlice input_memory_types;
+  DataTypeSlice output_types({});
+  MemoryTypeSlice output_memory_types;
+  DeviceBase *device = new DeviceBase(Env::Default());
+  NodeDef *node_def = new NodeDef();
+  OpDef *op_def = new OpDef();
+  LOG(INFO) << "before opkernelconstruction ---liyefeng---";
+  OpKernelConstruction *context = new OpKernelConstruction(
+      DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
+      input_memory_types, output_types, output_memory_types, 1, nullptr);
+  LOG(INFO) << "Before new a npugetfloatstatusv2() ---liyefeng---";
+  NpuClearFloatStatusV2Op npuclearfloatstatusv2(context);
+  OpKernelContext *ctx = nullptr;
+  LOG(INFO) << "before compute---liyefeng---";
+  npuclearfloatstatusv2.Compute(ctx);
+  delete device;
+  delete node_def;
+  delete op_def;
+  delete context;
+}
+
 } // namespace
 } // namespace tensorflow
