@@ -28,6 +28,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
 }
 
 TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2) {
+  LOG(INFO) << "get into Test ---liyefeng---";
   DataTypeSlice input_types({DT_FLOAT});
   MemoryTypeSlice input_memory_types;
   DataTypeSlice output_types({DT_FLOAT});
@@ -35,11 +36,14 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2) {
   DeviceBase *device = new DeviceBase(Env::Default());
   NodeDef *node_def = new NodeDef();
   OpDef *op_def = new OpDef();
+  LOG(INFO) << "before opkernelconstruction ---liyefeng---";
   OpKernelConstruction *context = new OpKernelConstruction(
       DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
       input_memory_types, output_types, output_memory_types, 1, nullptr);
+  LOG(INFO) << "Before new a npugetfloatstatusv2() ---liyefeng---";
   NpuGetFloatStatusV2Op npugetfloatstatusv2(context);
   OpKernelContext *ctx = nullptr;
+  LOG(INFO) << "before compute---liyefeng---";
   npugetfloatstatusv2.Compute(ctx);
   delete device;
   delete node_def;
