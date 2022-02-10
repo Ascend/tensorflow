@@ -59,7 +59,7 @@ public:
   explicit NpuGetFloatStatusV2Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuGetFloatStatusV2Op() override = default;
   void Compute(OpKernelContext *context) override {
-    LOG(INFO) << "get into compute ---liyefeng---";
+    LOG(INFO) << "NpuGetFloatStatusV2 Compute";
   }
 };
 
