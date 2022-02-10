@@ -16,7 +16,7 @@
 
 #include "tensorflow/core/graph/algorithm.h"
 #include "npu_device.h"
-#include "npu_optimizer_manager.h"
+#include "optimizers/npu_optimizer_manager.h"
 
 const static std::string kHcomAllReduce = "HcomAllReduce";
 const static std::string kDropOutGenMaskV3 = "DropOutGenMaskV3";

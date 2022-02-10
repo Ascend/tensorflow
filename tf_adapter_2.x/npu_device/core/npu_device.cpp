@@ -974,7 +974,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     CopyGraph(*fbody->graph, graph.get());
     tensorflow::OptimizeGraph(flr, &graph);
 
-    PruneGraphByFunctionSignature(*fdef, graph.get());
+    PruneGraphByFunctionSignature(*fdef, graph.get(), true);
 
     MarkGraphNodeInOutDesc(context, graph.get(), 0, nullptr);
 

@@ -214,13 +214,8 @@ void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorfl
       if (n->type_string() == "VarHandleOp" || n->type_string() == "IteratorV2") {
         continue;
       }
-      if (!keep_signature) {
-        if (n->IsArg()) {
-          continue;
-        }
-        if (n->IsRetval() && n->attrs().Find("T")->type() == tensorflow::DT_RESOURCE) {
-          continue;
-        }
+      if ((!keep_signature) && n->IsArg()) {
+        continue;
       }
       nodes.insert(n);
     }
