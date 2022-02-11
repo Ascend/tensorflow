@@ -51,6 +51,21 @@ REGISTER_OP("NpuGetFloatStatus")
     )doc")
     .SetIsStateful();
 
+REGISTER_OP("NpuGetFloatStatusV2")
+    .Input("input_float: float")
+    .Output("float_status: float")
+    .SetShapeFn(shape_inference::UnchangedShape)
+    .Doc(R"doc(
+    Move the value of overflow status from global workspace to GM
+    
+    Arguments
+        inputs: The allocated input float status tensor.
+
+    Output
+        output: The one float status element tensor.
+    )doc")
+    .SetIsStateful();
+
 REGISTER_OP("NpuClearFloatStatus")
     .Input("float_status: float")
     .Output("cleared_float_status: float")
@@ -65,4 +80,11 @@ REGISTER_OP("NpuClearFloatStatus")
         output: The float element tensor set to zero.
     )doc")
     .SetIsStateful();
+
+REGISTER_OP("NpuClearFloatStatusV2")
+    .Doc(R"doc(
+    Set the value of global workspace to 0.
+    )doc")
+    .SetIsStateful();
+
 }  // namespace tensorflow
