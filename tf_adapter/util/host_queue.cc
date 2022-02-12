@@ -16,6 +16,7 @@
 #include "tf_adapter/util/host_queue.h"
 
 #include <securec.h>
+#include <unordered_map>
 #include "mmpa/mmpa_api.h"
 #include "runtime/dev.h"
 #include "runtime/rt_mem_queue.h"
@@ -29,6 +30,9 @@
 
 namespace tensorflow {
 namespace {
+std::mutex queue_id_to_trans_id_map_mutex;
+std::unordered_map<uint32_t, uint64_t> queue_id_to_trans_id_map;
+
 struct ItemInfo {
   int32_t version;
   int32_t data_type;
@@ -48,9 +52,10 @@ struct DataItemInfo {
 
 const static uint32_t kMaxValue = 128U;
 const static uint32_t kMaxQueueDepth = 0x4fffffffU;
-const static uint64_t kMbufHeadMaxSize = 256U;
+const static uint64_t kMbufHeadMaxSize = 256UL;
 const static uint32_t kMbufHeadEndOfSequencePos = 128U;
 const static uint8_t kEndOfSequenceFlag = 0x5A;
+const static uint64_t kTransIdOffset = 64UL;
 
 Status CheckSymbols() {
   if (rtMemQueueCreate == nullptr) { return errors::Internal("rtMemQueueCreate not found"); }
@@ -63,6 +68,7 @@ Status CheckSymbols() {
   if (rtMbufFree == nullptr) { return errors::Internal("rtMbufFree not found"); }
   if (rtMbufGetBuffAddr == nullptr) { return errors::Internal("rtMbufGetBuffAddr not found"); }
   if (rtMbufGetBuffSize == nullptr) { return errors::Internal("rtMbufGetBuffSize not found"); }
+  if (rtMbufGetPrivInfo == nullptr) { return errors::Internal("rtMbufGetPrivInfo not found"); }
   return Status::OK();
 }
 
@@ -193,6 +199,18 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
 
   return Status::OK();
 }
+
+Status HostQueueSetTransId(uint32_t queue_id, void *&buff) {
+  void *head_buff = nullptr;
+  uint64_t head_size = 0UL;
+  const auto ret = rtMbufGetPrivInfo(buff, &head_buff, &head_size);
+  NPU_REQUIRES(ret == ACL_RT_SUCCESS, errors::Internal("call rtMbufGetPrivInfo failed, ret = ", ret));
+  uint64_t *trans_id = reinterpret_cast<uint64_t *>(static_cast<char *>(head_buff) + head_size - kTransIdOffset);
+  const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
+  *trans_id = ++queue_id_to_trans_id_map[queue_id];
+  ADP_LOG(INFO) << "host queue[" << queue_id << "] set trans id[" << *trans_id << "] success";
+  return Status::OK();
+}
 }  // namespace
 
 Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &queue_id) {
@@ -237,6 +255,8 @@ Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &q
   NPU_REQUIRES(((rt_error == ACL_RT_SUCCESS) || (rt_error == ACL_ERROR_RT_REPEATED_INIT)),
                errors::Internal("call rtMbufInit failed, ret=", ret));
 
+  const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
+  (void) queue_id_to_trans_id_map.insert({queue_id, 0UL});
   return Status::OK();
 }
 
@@ -251,6 +271,9 @@ void HostQueueDestroy(const uint32_t &queue_id) {
   if (rt_error != ACL_RT_SUCCESS) {
     ADP_LOG(ERROR) << "call rtMemQueueDestroy device[0] queue[" << queue_id << "] failed, ret=" << rt_error;
   }
+
+  const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
+  (void) queue_id_to_trans_id_map.erase(queue_id);
 }
 
 Status MappingTensor2Buff(const acltdtTensorType &acl_type, const std::vector<tensorflow::Tensor> &tensors,
@@ -266,6 +289,7 @@ Status HostQueueSendData(uint32_t queue_id, void *buff, bool &need_resend) {
   need_resend = false;
   auto rt_error = rtSetDevice(0);
   NPU_REQUIRES(rt_error == ACL_RT_SUCCESS, errors::Internal("call rtSetDevice device[0] failed, ret=", rt_error));
+  TF_RETURN_IF_ERROR(HostQueueSetTransId(queue_id, buff));
   rt_error = rtMemQueueEnQueue(0, queue_id, buff);
   if (rt_error == RT_ERROR_NONE) {
     return Status::OK();
