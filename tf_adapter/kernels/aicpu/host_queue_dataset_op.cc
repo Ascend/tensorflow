@@ -424,6 +424,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 total_bytes_ -= tensor.TotalBytes();
               }
             }
+            ADP_LOG(INFO) << "Host queue [" << dataset()->channel_name_
+              << "] buffer_size:" << buffer_.size() << ", data_type:" << data_type;
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
