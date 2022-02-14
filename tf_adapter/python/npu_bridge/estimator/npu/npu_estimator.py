@@ -503,7 +503,7 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["profiling_mode"].b = config._profiling_config._enable_profiling
             if config._profiling_config._enable_profiling:
                 if config._profiling_config._profiling_options is None:
-                    raise ValueError('profiling_options must be set when use profiling')
+                    config._profiling_config._profiling_options = ""
                 custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(
                     config._profiling_config._profiling_options)
 

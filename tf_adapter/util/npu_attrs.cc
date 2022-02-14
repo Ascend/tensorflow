@@ -30,6 +30,8 @@
 #include "mmpa/mmpa_api.h"
 #include "tf_adapter/util/ge_plugin.h"
 namespace tensorflow {
+const string profiling_default_options = "{\"output\":\".\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
+\"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metric\":\"PipeUtilization\",\"msproftx\":\"off\"}";
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
@@ -526,7 +528,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   } else {
     init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-
   init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
@@ -1067,6 +1068,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (profiling_options_value != nullptr) {
       profiling_options = profiling_options_value->s();
     }
+    if (profiling_mode == "1" && profiling_options.empty()) {
+      profiling_options = profiling_default_options;
+    }
     if (auto_tune_mode_value != nullptr) {
       auto_tune_mode = auto_tune_mode_value->s();
     }
@@ -1382,11 +1386,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         profiling_mode = params.at("profiling_mode").b();
       }
       if (profiling_mode) {
-        if (params.count("profiling_options")) {
+        if (params.count("profiling_options") && params.at("profiling_options").s() != "") {
           profiling_options = params.at("profiling_options").s();
         } else {
-          ADP_LOG(FATAL) << "profiling_options must be set when use profiling";
-          LOG(FATAL) << "profiling_options must be set when use profiling";
+          profiling_options = profiling_default_options;
         }
       }
       if (params.count("auto_tune_mode")) {
