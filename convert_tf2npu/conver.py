@@ -42,7 +42,12 @@ def conver():
             file_path = os.path.join(path, file_name).replace('\\', '/')
             content = "".join(["Begin conver file: " , file_path])
             print(content)
+            threshold_file_size = 10 * 1024 * 1024
             if file_name.endswith(".py"):
+                if os.path.getsize(file_path) > threshold_file_size:
+                    content = "".join(["The file:", file_path, " size is over 10M, skip convert."])
+                    print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
+                    continue
                 util_global.set_value('path', file_path)
                 mkdir(os.path.join(out_path, out_path_dst))
                 conver_ast(path, out_path_dst, file_name)
