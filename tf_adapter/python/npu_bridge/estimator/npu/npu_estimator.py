@@ -709,6 +709,8 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["op_wait_timeout"].i = config._op_wait_timeout
         if config._op_execute_timeout is not None:
             custom_op.parameter_map["op_execute_timeout"].i = config._op_execute_timeout
+        if config._HCCL_algorithm is not None:
+            custom_op.parameter_map["HCCL_algorithm"].s = tf.compat.as_bytes(config._HCCL_algorithm)
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)
