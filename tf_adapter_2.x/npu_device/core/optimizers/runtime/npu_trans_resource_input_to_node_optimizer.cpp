@@ -272,7 +272,7 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
     graph->RemoveNode(node);
     // For while body, function input and output signature must be same
     if (is_while_body_graph) {
-      DLOG() << "Remove Retval node " << index << " " << retvals[index] << " as is while body graph";
+      DLOG() << "Remove Retval node " << index << " " << retvals[index]->name() << " as is while body graph";
       graph->RemoveNode(retvals[index]);
     }
   }
