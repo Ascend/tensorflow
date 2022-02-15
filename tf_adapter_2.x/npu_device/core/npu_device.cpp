@@ -953,7 +953,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     return graph_id;
   }
 
-  auto request_subgraph = [this, name, context](const std::string &fn) -> std::string {
+  auto request_subgraph = [name, context](const std::string &fn) -> std::string {
     DLOG() << "Tensorflow model parser requesting subgraph " << fn << " for ge graph " << name;
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     const tensorflow::FunctionDef *fdef = lib_def->Find(fn);

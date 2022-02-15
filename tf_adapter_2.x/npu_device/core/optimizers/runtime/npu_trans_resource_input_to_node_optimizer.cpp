@@ -50,12 +50,14 @@ tensorflow::Status TransFunctionDef(TFE_Context *context, const std::string &fun
                                     const std::string &new_func_name,
                                     std::map<int, tensorflow::Node *> &node_substitutes,
                                     bool is_while_body_graph = false) {
+  npu::OptimizeStageGraphDumper dumper("Function." + func_name);
   DLOG() << "Start trans function " << func_name;
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
   std::unique_ptr<tensorflow::FunctionBody> fbody;
   NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
 
+  dumper.Dump("before_trans_resource", fbody->graph->ToGraphDefDebug());
   std::map<int, tensorflow::Node *> subgraph_substitutes;
   for (auto &item : node_substitutes) {
     tensorflow::Status status;
@@ -77,6 +79,8 @@ tensorflow::Status TransFunctionDef(TFE_Context *context, const std::string &fun
     }
     return absl::nullopt;
   };
+
+  dumper.Dump("after_trans_resource", fbody->graph->ToGraphDefDebug());
   NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, new_func_name, lookup, &optimized_fdef));
   NPU_REQUIRES_OK(lib_def->RemoveFunction(new_func_name));
   NPU_REQUIRES_OK(lib_def->AddFunctionDef(optimized_fdef));
