@@ -16,6 +16,7 @@
 #include <thread>
 #include <dlfcn.h>
 #include <vector>
+#include <algorithm>
 #include "unistd.h"
 #include "acl/acl_tdt.h"
 #include "acl/acl.h"
@@ -160,6 +161,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     return element_num;
   }
 
+  bool IsUnknownShape(const PartialTensorShape &output_shapes) {
+    if (output_shapes.unknown_rank()) {
+      return true;
+    }
+    for (int32_t i = 0; i < output_shapes.dims(); i++) {
+      if (output_shapes.dim_size(i) == -1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   int64_t GetChannelDepth() {
     size_t output_shape_size = output_shapes_.size();
     size_t output_type_size = output_types_.size();
@@ -175,7 +188,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Current tensor type is DT_STRING.";
         return kStringTypeDepth;
       }
-      if (output_shapes_[i].unknown_rank()) {
+      if (IsUnknownShape(output_shapes_[i])) {
         ADP_LOG(INFO) << " Output_shape is unknow shape";
         return kUnknownShapeDepth;
       }
@@ -186,7 +199,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       ADP_LOG(ERROR) << "Data size is <= 0, and current size is " << total_size;
       return -1LL;
     }
-    return (kMaxBytes / total_size);
+    return std::max(2L, (kMaxBytes / total_size));
   }
 
   void CreateHostQueue(OpKernelContext *ctx, size_t channel_depth) {
