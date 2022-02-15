@@ -48,13 +48,22 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
 
 tensorflow::Status TransFunctionDef(TFE_Context *context, const std::string &func_name,
                                     const std::string &new_func_name,
-                                    std::map<int, tensorflow::Node *> &subgraph_substitutes,
+                                    std::map<int, tensorflow::Node *> &node_substitutes,
                                     bool is_while_body_graph = false) {
   DLOG() << "Start trans function " << func_name;
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
   std::unique_ptr<tensorflow::FunctionBody> fbody;
   NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
+
+  std::map<int, tensorflow::Node *> subgraph_substitutes;
+  for (auto &item : node_substitutes) {
+    tensorflow::Status status;
+    DLOG() << "Copy arg substitute " << item.second->name() << " for function " << func_name << " input " << item.first;
+    tensorflow::Node *substitute = fbody->graph->AddNode(item.second->def(), &status);
+    NPU_REQUIRES_OK(status);
+    subgraph_substitutes.emplace(item.first, substitute);
+  }
 
   NPU_REQUIRES_OK(TransResourceInput2Node(context, fbody->graph, subgraph_substitutes, is_while_body_graph));
   npu::FixGraphArgRetvalIndex(fbody->graph);
