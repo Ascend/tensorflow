@@ -57,7 +57,7 @@ class OMPartitionSubgraphsPass : public GraphOptimizationPass {
   void ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
                             std::map<std::string, std::string> &graph_options);
   Status ProcessGetNext(Node *node, std::string enable_dp,
-                        std::vector<Node*> &remove_nodes, Graph *graphIn);
+                        std::vector<Node*> &remove_nodes, Graph *graph_in);
   Status SplitUnaryOpsComposition(Graph *graph, Node *node) const;
   Status CopyVarsBetweenGeOp(Graph *graph) const;
   Status CopyConstBetweenGeOp(Graph *graph) const;

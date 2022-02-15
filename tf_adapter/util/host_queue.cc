@@ -128,9 +128,9 @@ Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector
       } else {
         uint8_t *data_ptr = nullptr;
         uint64_t data_size = 0UL;
-        std::vector<int64_t> dims;
-        TF_RETURN_IF_ERROR(GetDtStringTensorData(tensor, data_ptr, data_size, dims, buff_list));
-        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, dims.data(), dims.size(),
+        std::vector<int64_t> str_dims;
+        TF_RETURN_IF_ERROR(GetDtStringTensorData(tensor, data_ptr, data_size, str_dims, buff_list));
+        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, str_dims.data(), str_dims.size(),
                                            data_ptr, data_size, items));
       }
     } else {

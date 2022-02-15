@@ -630,7 +630,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
 
   // Reference edge: The reference input/output of the sinking node does not sink
   while (!outSet.empty()) {
-    auto iter = outSet.begin();
+    auto iter = outSet.cbegin();
     auto node = *iter;
     if (mix_compile_mode && (node->type_string() == "Where")) {
       bool isInitializedGraph = InferShapeUtil::IsInitializedGraph(node);
@@ -1192,7 +1192,7 @@ Node *AddIdentityNode(Graph *graph, const Edge *edge, const string &srcName, int
 class OMSplitter {
  public:
   OMSplitter(string groupAttribute, Graph const *graph_in, std::map<std::string, std::string> npu_optimizer_options,
-             std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
+      std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
       : groupAttribute_(std::move(groupAttribute)), graph_in_(graph_in),
         npu_optimizer_options_(std::move(npu_optimizer_options)), pass_options_(std::move(pass_options)),
         graph_options_(std::move(graph_options)) {}
@@ -1564,6 +1564,7 @@ Status OMSplitter::Subgraph::BuildFunctionDef(const string &name, FunctionLibrar
 }
 
 Status OMSplitter::Subgraph::AddGEOpNode(const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut) {
+  (void)nodeImages;
   Status s;
   GEOpNodeInputs_ = graphOut->AddNode(GEOpNodeDef_, &s);
   if (!s.ok()) { return s; }

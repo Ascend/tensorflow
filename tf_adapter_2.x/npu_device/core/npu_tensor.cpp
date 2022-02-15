@@ -39,10 +39,10 @@ int NpuTensor::NumDims(void* data, TF_Status* status) {
 void NpuTensor::Deallocator(void* data) { delete reinterpret_cast<NpuTensor*>(data); }
 
 TFE_CustomDeviceTensorHandle NpuTensor::handle_methods = []() {
-  TFE_CustomDeviceTensorHandle handle_methods;
-  handle_methods.num_dims = &NpuTensor::NumDims;
-  handle_methods.dim = &NpuTensor::Dim;
-  handle_methods.deallocator = &NpuTensor::Deallocator;
-  return handle_methods;
+  TFE_CustomDeviceTensorHandle handle_methods_;
+  handle_methods_.num_dims = &NpuTensor::NumDims;
+  handle_methods_.dim = &NpuTensor::Dim;
+  handle_methods_.deallocator = &NpuTensor::Deallocator;
+  return handle_methods_;
 }();
 }  // namespace npu

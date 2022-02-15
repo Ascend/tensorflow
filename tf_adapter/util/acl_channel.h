@@ -29,7 +29,8 @@ Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<Tensor
                                   bool call_by_channel_receive);
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
-                                  acltdtDataset **acl_dataset, std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
+                                  acltdtDataset **output_acl_dataset,
+                                  std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
 
 Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<Tensor> &tensors,
                                   acltdtDataset *acl_dataset, std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
