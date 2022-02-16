@@ -72,6 +72,10 @@ class NpuConcreteGraph : public OpExecutor {
   bool NeedLoop() const { return need_loop_; }
   bool BuiltinLoop() const { return builtin_loop_; }
 
+  const std::map<int32_t, tensorflow::ResourceHandle> &GetNpuResources() { return npu_resources_; }
+
+  const std::map<int32_t, tensorflow::ResourceHandle> &GetMirroredResources() { return mirrored_resources_; }
+
  protected:
   void SetBuilt(bool built) const { built_ = built; }
   bool Built() const { return built_; }
@@ -84,10 +88,13 @@ class NpuConcreteGraph : public OpExecutor {
   std::unique_ptr<tensorflow::Graph> graph_;
   mutable tensorflow::GraphDef graph_def_;
   PruneInputsFunc prune_func_;
-  std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources_;
   bool mutable built_{false};
   bool mutable need_loop_{false};
   bool mutable builtin_loop_{false};
+  bool mutable is_cpu_graph_{false};
+  std::map<int32_t, tensorflow::ResourceHandle> npu_resources_;
+  std::map<int32_t, tensorflow::ResourceHandle> mirrored_resources_;
+  std::map<int, std::shared_ptr<IteratorResourceProvider>> dependent_host_resources_;
 
  private:
   bool mutable graph_def_serialized_{false};
@@ -102,15 +109,23 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
   void SetGraph(std::unique_ptr<tensorflow::Graph> graph) { graph_.swap(graph); }
   tensorflow::Graph *MutableGraph() { return graph_.get(); }
 
+  void SetPruneInputsFunc(PruneInputsFunc func) { prune_func_ = func; }
+
+  void SetNeedLoop(bool loop) { need_loop_ = loop; }
+
+  void SetBuiltinLoop(bool loop) { builtin_loop_ = loop; }
+
+  void SetIsCpuGraph(bool v) { is_cpu_graph_ = v; }
+
+  void SetNpuResources(const std::map<int32_t, tensorflow::ResourceHandle> &resources) { npu_resources_ = resources; }
+
+  void SetMirroredResources(const std::map<int32_t, tensorflow::ResourceHandle> &resources) {
+    mirrored_resources_ = resources;
+  }
+
   void SetDependentHostResources(std::map<int, std::shared_ptr<IteratorResourceProvider>> resources) {
     dependent_host_resources_ = resources;
   }
-
-  void SetPruneInputsFunc(PruneInputsFunc func) { prune_func_ = func; }
-
-  void SetNeedLoop(bool loop) const { need_loop_ = loop; }
-
-  void SetBuiltinLoop(bool loop) const { builtin_loop_ = loop; }
 };
 
 }  // namespace npu

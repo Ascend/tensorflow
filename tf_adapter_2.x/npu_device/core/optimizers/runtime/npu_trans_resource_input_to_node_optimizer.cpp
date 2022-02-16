@@ -310,25 +310,30 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
 
   std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> dependent_resources;
   std::map<int, std::pair<tensorflow::Node *, std::shared_ptr<ResourceGenerator>>> arg_generators;
+
+  auto &npu_resources = graph->GetNpuResources();
+  auto &mirrored_resources = graph->GetMirroredResources();
+
   for (auto node : mutable_graph->op_nodes()) {
     if (!node->IsArg()) continue;
     auto index = node->attrs().Find("index")->i();
-    NPU_REQUIRES(inputs[index] != nullptr, tensorflow::errors::Internal("Input ", index, " is nullptr"));
-    const tensorflow::Tensor *tensor;
-    NPU_REQUIRES_OK(npu::GetTensorHandleTensor(inputs[index], &tensor));
+    auto npu_resource = npu_resources.find(index);
+    auto mirrored_resource = mirrored_resources.find(index);
 
-    if (tensor->dtype() == tensorflow::DT_RESOURCE) {
-      arg_generators[index].first = node;
-      auto &generator = arg_generators[index].second;
-      auto handle = tensor->flat<tensorflow::ResourceHandle>()(0);
-      device->GetResourceGeneratorDef(handle, &generator);
-      NPU_REQUIRES(generator != nullptr, tensorflow::errors::Internal("Unknown npu resource ", handle.DebugString()));
-      DLOG() << "Generator of " << node->name() << " input " << index << " " << generator->NodeDef()->name();
+    if ((npu_resource == npu_resources.end()) && (mirrored_resource == mirrored_resources.end())) continue;
 
-      if (!device->MirroredIterator(handle)) continue;
+    arg_generators[index].first = node;
+    auto &generator = arg_generators[index].second;
+    bool is_mirrored = (mirrored_resource != mirrored_resources.end());
+
+    auto &handle = is_mirrored ? mirrored_resource->second : npu_resource->second;
+    device->GetResourceGeneratorDef(handle, &generator);
+    NPU_REQUIRES(generator != nullptr, tensorflow::errors::Internal("Unknown npu resource ", handle.DebugString()));
+    DLOG() << "Generator of " << node->name() << " input " << index << " " << generator->NodeDef()->name();
+
+    if (is_mirrored) {
       for (auto edge : node->out_edges()) {
-        if (edge->IsControlEdge()) continue;
-        if ((!edge->dst()->IsOp()) || edge->dst()->IsRetval()) continue;
+        if (edge->IsControlEdge() || edge->dst()->IsRetval()) continue;
         auto provider = device->GetIteratorProvider(context, handle);
         NPU_REQUIRES(provider != nullptr,
                      tensorflow::errors::Internal("Resource provider for ", handle.name(), " not found"));

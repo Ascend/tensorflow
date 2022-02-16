@@ -47,6 +47,13 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
     return std::make_shared<NpuMirroredOp>(op_reg_data, ndef, TensorShapes{}, *hook);
   }
 
+  if (op_reg_data->is_function_op) {
+    std::unique_ptr<NpuConcreteGraph> concrete_graph;
+    device->GetConcreteGraph(context, ndef, num_inputs, inputs, &concrete_graph, s);
+    if (TF_GetCode(s) != TF_OK) return nullptr;
+    return concrete_graph;
+  }
+
   TensorShapes input_shapes;
   input_shapes.resize(num_inputs);
   for (int i = 0; i < num_inputs; i++) {
@@ -61,13 +68,6 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
   tensorflow::Status status;
   if (!(status = device->ValidateOutputTypes(output_types)).ok()) {
     return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, status.error_message());
-  }
-
-  if (op_reg_data->is_function_op) {
-    std::unique_ptr<NpuConcreteGraph> concrete_graph;
-    device->GetConcreteGraph(context, ndef, num_inputs, inputs, &concrete_graph, s);
-    if (TF_GetCode(s) != TF_OK) return nullptr;
-    return concrete_graph;
   }
 
   if (!device->Supported(op_name)) {

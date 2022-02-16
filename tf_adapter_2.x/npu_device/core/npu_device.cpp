@@ -184,86 +184,6 @@ void NpuDevice::DeleteDevice(void *device) {
   delete npu_device;
 }
 
-/**
- * @brief: validate resource placement
- * @param op_name: op name
- * @param num_inputs: number of inputs
- * @param inputs: tfe tensor handle inputs
- * @param cpu_resource: is cpu resource or not
- */
-tensorflow::Status NpuDevice::ValidateResourcePlacement(const char *op_name, int num_inputs, TFE_TensorHandle **inputs,
-                                                        bool &cpu_resource) {
-  bool has_cpu = false;
-  int cpu_index = 0;
-  bool has_npu = false;
-  int npu_index = 0;
-  for (int i = 0; i < num_inputs; i++) {
-    auto data_type = tensorflow::unwrap(inputs[i])->DataType();
-    if (data_type == tensorflow::DT_RESOURCE) {
-      const tensorflow::Tensor *tensor;
-      (void)npu::GetTensorHandleTensor(inputs[i], &tensor);
-      if (npu::IsNpuTensorHandle(inputs[i])) {
-        has_npu = true;
-        npu_index = i;
-        if (has_cpu) {
-          const tensorflow::Tensor *cpu_tensor;
-          (void)npu::GetTensorHandleTensor(inputs[cpu_index], &cpu_tensor);
-          return tensorflow::errors::InvalidArgument(
-            op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().name(),
-            " on NPU but resource input ", cpu_index, " ",
-            cpu_tensor->scalar<tensorflow::ResourceHandle>()().DebugString(), " on CPU");
-        }
-      } else if (!Mirrored(tensor->scalar<tensorflow::ResourceHandle>()())) {
-        has_cpu = true;
-        cpu_index = i;
-        if (has_npu) {
-          const tensorflow::Tensor *npu_tensor;
-          (void)npu::GetTensorHandleTensor(inputs[npu_index], &npu_tensor);
-          return tensorflow::errors::InvalidArgument(
-            op_name, " resource input ", i, " ", tensor->scalar<tensorflow::ResourceHandle>()().DebugString(),
-            " on CPU but resource input ", npu_index, " ", npu_tensor->scalar<tensorflow::ResourceHandle>()().name(),
-            " on NPU");
-        }
-      }
-    }
-  }
-  cpu_resource = has_cpu;
-  return tensorflow::Status::OK();
-}
-
-/**
- * @brief: validate input
- * @param op_name: op name
- * @param num_inputs: number of inputs
- * @param inputs: tfe tensor handle inputs
- */
-tensorflow::Status NpuDevice::ValidateInput(const char *op_name, int num_inputs, TFE_TensorHandle **inputs) {
-  for (int i = 0; i < num_inputs; i++) {
-    auto data_type = tensorflow::unwrap(inputs[i])->DataType();
-    if (data_type == tensorflow::DT_RESOURCE) {
-      const tensorflow::Tensor *tensor;
-      NPU_REQUIRES_OK(npu::GetTensorHandleTensor(inputs[i], &tensor));
-      if (!npu::IsNpuTensorHandle(inputs[i])) {
-        if (!Mirrored(tensor->scalar<tensorflow::ResourceHandle>()())) {
-          tensorflow::Status status;
-          std::string src_name = tensorflow::unwrap(inputs[i])->DeviceName(&status);
-          if (!status.ok()) {
-            src_name = status.ToString();
-          }
-          return tensorflow::errors::Unimplemented("Op ", op_name, " input ", i, " resource from ", src_name);
-        } else {
-          DLOG() << "Op" << op_name << " input " << i << " resource mirrored from "
-                 << tensor->scalar<tensorflow::ResourceHandle>()().DebugString();
-        }
-      }
-    } else if (!tensorflow::DataTypeCanUseMemcpy(data_type)) {
-      return tensorflow::errors::Unimplemented("Op ", op_name, " input ", i, " unsupported type ",
-                                               tensorflow::DataTypeString(data_type));
-    }
-  }
-  return tensorflow::Status::OK();
-}
-
 tensorflow::Status NpuDevice::ValidateOutputTypes(const TensorDataTypes &data_types) const {
   for (size_t i = 0; i < data_types.size(); i++) {
     auto data_type = data_types[i];
@@ -521,12 +441,9 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
   std::unique_ptr<tensorflow::Graph> optimize_graph = std::make_unique<tensorflow::Graph>(lib_def);
   CopyGraph(*fbody->graph, optimize_graph.get());
 
-  std::unique_ptr<OptimizeStageGraphDumper> graph_dumper = nullptr;
-  if (kDumpExecutionDetail || kDumpGraph) {
-    graph_dumper = std::make_unique<OptimizeStageGraphDumper>(op_name);
-  }
+  OptimizeStageGraphDumper graph_dumper(op_name);
 
-  NpuOptimizerManager::Instance().MetaOptimize(context, &optimize_graph, device_options, graph_dumper.get());
+  NpuOptimizerManager::Instance().MetaOptimize(context, &optimize_graph, device_options, graph_dumper);
 
   TensorDataTypes input_dtypes;
   TensorDataTypes output_dtypes;
@@ -536,8 +453,52 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
   auto mutable_concrete_graph = std::make_unique<NpuMutableConcreteGraph>(op_name, input_dtypes, output_dtypes,
                                                                           NextUUID(), std::move(optimize_graph));
 
+  // 这里有两种输入是Resource的可能，一种是Mirrored的Iterator资源输入，一种是NPU上的资源输入
+  std::map<int32_t, tensorflow::ResourceHandle> npu_resources;
+  std::map<int32_t, tensorflow::ResourceHandle> cpu_resources;
+  std::map<int32_t, tensorflow::ResourceHandle> mirrored_resources;
+  for (int i = 0; i < num_inputs; ++i) {
+    const tensorflow::Tensor *tensor = nullptr;
+    NPU_CTX_REQUIRES_OK(s, GetTensorHandleTensor(inputs[i], &tensor));
+    if (tensor->dtype() == tensorflow::DT_RESOURCE) {
+      auto &handle = tensor->flat<tensorflow::ResourceHandle>()(0);
+      if (Mirrored(handle)) {
+        DLOG() << "Function " << op_name << " resource input " << i << " " << handle.maybe_type_name() << " mirrored";
+        mirrored_resources.emplace(i, handle);
+      } else if (IsNpuTensorHandle(inputs[i])) {
+        DLOG() << "Function " << op_name << " resource input " << i << " " << handle.maybe_type_name() << " from npu";
+        npu_resources.emplace(i, handle);
+      } else {
+        DLOG() << "Function " << op_name << " resource input " << i << " " << handle.maybe_type_name() << " from cpu";
+        cpu_resources.emplace(i, handle);
+      }
+    }
+  }
+  // We do not check input as input maybe pruned as unused
+  auto output_status = ValidateOutputTypes(output_dtypes);
+  if ((!cpu_resources.empty()) || (!output_status.ok())) {
+    if (!npu_resources.empty()) {
+      std::stringstream ss;
+      ss << op_name << " has npu resource input " << npu_resources.begin()->first << " "
+         << npu_resources.begin()->second.maybe_type_name() << " but:" << std::endl;
+      for (auto &item : cpu_resources) {
+        ss << "Resource input " << item.first << " " << item.second.maybe_type_name() << " from cpu" << std::endl;
+      }
+      ss << "Output type check status " << output_status.ToString() << std::endl;
+      NPU_CTX_REQUIRES_OK(s, tensorflow::errors::Unimplemented(ss.str()));
+    }
+    DLOG() << op_name << " run on cpu as " << cpu_resources.size() << " cpu resources, "
+           << output_status.error_message();
+    mutable_concrete_graph->SetIsCpuGraph(true);
+    *concrete_graph = std::move(mutable_concrete_graph);
+    return;
+  }
+
+  mutable_concrete_graph->SetNpuResources(npu_resources);
+  mutable_concrete_graph->SetMirroredResources(mirrored_resources);
+
   NpuOptimizerManager::Instance().RuntimeOptimize(context, mutable_concrete_graph.get(), device_options, this,
-                                                  num_inputs, inputs, graph_dumper.get());
+                                                  num_inputs, inputs, graph_dumper);
   LOG(INFO) << "Concrete graph for " << op_name << " loop " << (mutable_concrete_graph->NeedLoop() ? "true" : "false")
             << " builtin loop " << (mutable_concrete_graph->BuiltinLoop() ? "true" : "false");
   *concrete_graph = std::move(mutable_concrete_graph);
@@ -660,27 +621,6 @@ void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **ou
   auto attributes = TFE_OpGetAttrs(op);
   DLOG() << "NPU Start executing " << op_name;
 
-  if (kDumpGraph || kDumpExecutionDetail) {
-    tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-    const tensorflow::FunctionDef *fdef = lib_def->Find(op_name);
-    if (fdef != nullptr) {
-      std::unique_ptr<tensorflow::FunctionBody> fbody;
-      FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
-
-      OptimizeStageGraphDumper graph_dumper(op_name);
-      graph_dumper.DumpWithSubGraphs("origin_graph", fbody->graph->ToGraphDefDebug(), lib_def);
-    }
-  }
-
-  // 如果存在一个算子的输入来自多个设备的情况，需要直接报错
-  bool cpu_resource = false;
-  NPU_CTX_REQUIRES_OK(s, ValidateResourcePlacement(op_name, num_inputs, inputs.data(), cpu_resource));
-  // 如果算子有resource输入来自CPU，则必须fallback CPU
-  if (cpu_resource) {
-    DLOG() << "NPU Executing " << op_name << " fallback[input resource from cpu]";
-    FallbackCPU(context, op_name, attributes, inputs.size(), inputs.data(), num_outputs, outputs, s);
-    return;
-  }
   std::shared_ptr<const npu::OpExecutor> spec;
   GetOrCreateOpExecutor(context, op_name, attributes, inputs.size(), inputs.data(), &spec, s);
   if (TF_GetCode(s) != TF_OK) return;

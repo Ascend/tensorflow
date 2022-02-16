@@ -27,6 +27,11 @@ std::string NpuConcreteGraph::AttachedDebugString() const {
 
 void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_num_inputs, TFE_TensorHandle **tf_inputs,
                                int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const {
+  if (is_cpu_graph_) {
+    DLOG() << "Run function graph " << Op() << " on cpu";
+    device->FallbackCPU(context, NodeDef(), tf_num_inputs, tf_inputs, num_outputs, outputs, status);
+    return;
+  }
   if (empty_ge_graph_) {
     DLOG() << "Skipped run empty ge graph";
     return;
