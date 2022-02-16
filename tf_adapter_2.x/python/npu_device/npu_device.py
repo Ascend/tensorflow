@@ -98,10 +98,8 @@ def _graph_engine_warmup():
     return tf.constant(0)
 
 
-def open(device_id=None, device_options=None):
+def open(device_id=None):
     """Initiate and return a NPU device handle"""
-    if device_options is None:
-        device_options = {}
     global_kw_options = global_options().as_dict()
 
     ctx = _ContextWithDefaultDevice()
@@ -123,6 +121,7 @@ def open(device_id=None, device_options=None):
         global_kw_options['_distribute.rank_table'] = env_rank_table
         global_kw_options['_distribute.rank_id'] = env_worker_id
 
+    device_options = {}
     error_message = _npu_device_backends.Open(ctx._handle, NPU, device_id, global_kw_options, device_options)
     if error_message:
         raise RuntimeError("Failed open npu device %s : %s" % (str(device_id), error_message))
