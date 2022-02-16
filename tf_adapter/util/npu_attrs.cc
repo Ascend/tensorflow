@@ -181,7 +181,7 @@ inline Status checkDumpStep(const std::string &dump_step) {
 
 inline Status checkDumpMode(const std::string &dump_mode) {
   std::set<string> dump_mode_list = {"input", "output", "all"};
-  if ((std::set<string>::const_iterator iter = dump_mode_list.find(dump_mode)) != dump_mode_list.cend()) {
+  if (dump_mode_list.find(dump_mode) != dump_mode_list.cend()) {
     return Status::OK();
   } else {
     return errors::InvalidArgument("dump mode should be one of the list:[input, output, all]");
@@ -190,8 +190,7 @@ inline Status checkDumpMode(const std::string &dump_mode) {
 
 inline Status checkDumpDebugMode(const std::string &dump_debug_mode) {
   std::set<string> dump_debug_mode_list = {"aicore_overflow", "atomic_overflow", "all"};
-  if ((std::set<string>::const_iterator iter = dump_debug_mode_list.find(dump_debug_mode)) !=
-      dump_debug_mode_list.cend()) {
+  if (dump_debug_mode_list.find(dump_debug_mode) != dump_debug_mode_list.cend()) {
     return Status::OK();
   } else {
     return errors::InvalidArgument("dump debug mode should be one of the list:[aicore_overflow, atomic_overflow, all]");
