@@ -51,9 +51,9 @@ class DataItemDeliver {
                   const std::vector<uint32_t> &local_device_list,
                   const std::string &channel_name);
   Status ParallelInitSocketClient();
-  void ParallelSendDataVec(std::vector<tdt::DataItem> &data_item);
+  void ParallelSendDataVec(std::vector<tdt::DataItem> &data_items);
   Status InitSocketServer();
-  Status RecvDataVec(std::vector<tdt::DataItem> &data_item);
+  Status RecvDataVec(std::vector<tdt::DataItem> &items);
   ~DataItemDeliver();
 
  private:
@@ -462,9 +462,9 @@ Status DataItemDeliver::CreateSockAddr(struct sockaddr_un &sock_addr,
     const char *path, int device_id) const {
   sock_addr.sun_family = AF_UNIX;
   int len = 0;
-  if (-1 == (len = snprintf_s(sock_addr.sun_path, sizeof(sock_addr.sun_path),
-                              sizeof(sock_addr.sun_path) - 1, "%s%s%d", path,
-                              channel_name_.c_str(), device_id))) {
+  if ((len = snprintf_s(sock_addr.sun_path, sizeof(sock_addr.sun_path),
+                        sizeof(sock_addr.sun_path) - 1, "%s%s%d", path,
+                        channel_name_.c_str(), device_id)) == -1) {
     ADP_LOG(ERROR) << "Set sun_path failed.";
     LOG(ERROR) << "Set sun_path failed.";
     return errors::Internal("Set sun_path failed.");
