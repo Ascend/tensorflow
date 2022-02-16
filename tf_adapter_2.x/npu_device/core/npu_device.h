@@ -52,7 +52,7 @@ class NpuDevice {
 
   tensorflow::Status InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
                                 const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
-                                TensorPartialShapes &shapes, bool &requested_input_value) const;
+                                TensorPartialShapes &shapes) const;
 
   void GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef &ndef, int num_inputs,
                         TFE_TensorHandle **inputs, std::unique_ptr<NpuConcreteGraph> *concrete_graph, TF_Status *s);

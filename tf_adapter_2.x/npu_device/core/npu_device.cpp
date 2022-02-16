@@ -332,12 +332,10 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
  * @param num_inputs: number of inputs
  * @param inputs: tfe tensor handle inputs
  * @param shapes: tensor partial shapes
- * @param requested_input_value: is requested input value or not
  */
 tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
                                          const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
-                                         TensorPartialShapes &shapes, bool &requested_input_value) const {
-  requested_input_value = false;
+                                         TensorPartialShapes &shapes) const {
   NPU_REQUIRES(op_reg_data->shape_inference_fn,
                tensorflow::errors::Unimplemented("No infer shape function registered for op ", ndef.op()));
 
@@ -374,7 +372,6 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
         inference_shapes_and_types.emplace_back(ic.MakeShape(dims_handle), dtype_and_shape.dtype);
       }
       ic.set_input_handle_shapes_and_types(i, inference_shapes_and_types);
-      requested_input_value = true;
     }
   }
   // We need to feed the input tensors. TensorFlow performs inference based on the input shape for the first time.
@@ -406,7 +403,6 @@ tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow:
       NPU_REQUIRES_OK(npu::GetTensorHandleTensor(input, &tensor));
       input_tensors[i] = tensor;
       input_requested = true;
-      requested_input_value = true;
     }
   }
   if (input_requested) {
