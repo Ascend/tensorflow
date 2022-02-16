@@ -480,7 +480,7 @@ void GeOp::GetExecGraphId(uint32_t &cache_graph_id,
       std::sort(graph_counts_.begin(), graph_counts_.end(), CmpValue);
       uint32_t erased_graph_id = cache_graphs_[graph_counts_[0].first];
       cache_graphs_.erase(graph_counts_[0].first);
-      graph_counts_.erase(graph_counts_.begin());
+      graph_counts_.erase(graph_counts_.cbegin());
       ge::Status status = ge_session_->RemoveGraph(erased_graph_id);
       if (status != ge::SUCCESS) {
         ADP_LOG(WARNING) << "[GEOP] GE Remove Graph failed, ret : " << ToString(status);
@@ -531,9 +531,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         ADP_LOG(INFO) << "[GEOP] in tuning func, aoe_mode:" << init_options_["ge.jobType"]
                       << ", work_path:" << init_options_["ge.tuningPath"]
                       << ", distribute_config:" << init_options_["distribute_config"];
-        tune_options_.insert(init_options_.begin(), init_options_.end());
+        tune_options_.insert(init_options_.cbegin(), init_options_.cend());
         tune_options_.insert({"devices", std::to_string(device_id)});
-        tune_options_.insert(sess_options_.begin(), sess_options_.end());
+        tune_options_.insert(sess_options_.cbegin(), sess_options_.cend());
         tune_options_.insert({"work_path", init_options_["ge.tuningPath"]});
         tune_options_.insert({"job_type", init_options_["ge.jobType"]});
         // aoe ini
@@ -1077,7 +1077,7 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   std::map<ge::AscendString, ge::AscendString> parser_params;
   std::string subgrph_name("onnx_compute_graph_" + node->name() + '_' + CurrentTimeInStr());
   parser_params.insert({ge::AscendString(ge::ir_option::OUTPUT), ge::AscendString(subgrph_name.c_str())});
-  if (ge::SUCCESS != ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph)) {
+  if (ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph) != ge::SUCCESS) {
     LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Parse Failed.";
     return errors::Internal("[GEOP] node: %s Onnx Model Parse Failed.", node->name());
   }
@@ -1093,7 +1093,7 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   ge::Model onnx_model("onnx_compute_model_" + node->name(), "");
   onnx_model.SetGraph(sub_graph);
   ge::Buffer model_buf;
-  if (ge::SUCCESS != onnx_model.Save(model_buf, false)) {
+  if (onnx_model.Save(model_buf, false) == ge::SUCCESS) {
     LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Serialized Failed.";
     return errors::Internal("[GEOP] node: %s Onnx Model Serialized Failed.", node->name());
   }

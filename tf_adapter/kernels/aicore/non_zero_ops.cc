@@ -30,11 +30,11 @@ class NonZeroOP : public OpKernel {
   void Compute(OpKernelContext*ctx) override {
     LOG(INFO) << "compute in NonZeroOP";
   }
-  bool IsExpensive() override { 
+  bool IsExpensive() override {
     LOG(INFO) << "in NonZero IsExpensive";
     return false;
   }
 };
 
 REGISTER_KERNEL_BUILDER(Name("NonZero").Device(DEVICE_CPU), NonZeroOP<float>);
-}  //namespace tensorflow
+}  // namespace tensorflow

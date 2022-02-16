@@ -162,7 +162,7 @@ REGISTER_OP("DropOutGenMask")
       TF_RETURN_IF_ERROR(c->MakeShapeFromShapeTensor(0, &inputShapeHandle));
 
       int32 rank = c->Rank(inputShapeHandle);
-      if (InferenceContext::kUnknownRank == rank) {
+      if (rank == InferenceContext::kUnknownRank) {
         ShapeHandle out = c->UnknownShapeOfRank(1);
         c->set_output(0, out);
         return Status::OK();
@@ -172,7 +172,7 @@ REGISTER_OP("DropOutGenMask")
       for (int32 i = 0; i < rank; ++i) {
         DimensionHandle dimHandle = c->Dim(inputShapeHandle, i);
         int64 value = c->Value(dimHandle);
-        if (InferenceContext::kUnknownDim == value) {
+        if (value == InferenceContext::kUnknownDim) {
           unknownDimExist = true;
           break;
         }
@@ -457,10 +457,7 @@ REGISTER_OP("KMeansCentroids")
       auto d = c->Dim(input_y_shape, 1);
       c->set_output(0, c->MakeShape({n, d}));
       c->set_output(1, c->MakeShape({n, 1}));
-      c->set_output(2,
-                    c->MakeShape({
-                        1,
-                    }));
+      c->set_output(2, c->MakeShape({1}));
       return Status::OK();
     });
 
@@ -479,10 +476,7 @@ REGISTER_OP("KMeansCentroidsV2")
       auto d = c->Dim(input_y_shape, 1);
       c->set_output(0, c->MakeShape({n, d}));
       c->set_output(1, c->MakeShape({n, 1}));
-      c->set_output(2,
-                    c->MakeShape({
-                        1,
-                    }));
+      c->set_output(2, c->MakeShape({1}));
       return Status::OK();
     });
 }  // namespace

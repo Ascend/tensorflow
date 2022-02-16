@@ -39,7 +39,7 @@ class NpuOpsIdentifier {
   bool IsPerformanceSensitive(const std::string &op);
 
  private:
-  NpuOpsIdentifier(bool is_mix, nlohmann::json &json);
+  NpuOpsIdentifier(bool is_mix, nlohmann::json &ops_info);
   ~NpuOpsIdentifier() = default;
   // Parse and store the ops configuration json file, return num of parsed ops
   int32_t ParseOps(const std::string &f, nlohmann::json &root);
