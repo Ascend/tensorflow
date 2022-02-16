@@ -65,7 +65,7 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
   uint64_t data_size = 0UL;
   std::vector<int64_t> dims;
   TF_RETURN_IF_ERROR(GetDtStringTensorData(tensor, data_ptr, data_size, dims, buff_list));
-  item.dataPtr_ = std::shared_ptr<void>(data_ptr, [](void *ptr){
+  item.dataPtr_ = std::shared_ptr<void>(data_ptr, [](void *ptr) {
     (void)ptr;
   });
   item.dataLen_ = data_size;
