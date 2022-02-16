@@ -443,7 +443,8 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
 
   OptimizeStageGraphDumper graph_dumper(op_name);
 
-  NpuOptimizerManager::Instance().MetaOptimize(context, &optimize_graph, device_options, graph_dumper);
+  NPU_CTX_REQUIRES_OK(
+    s, NpuOptimizerManager::Instance().MetaOptimize(context, &optimize_graph, device_options, graph_dumper));
 
   TensorDataTypes input_dtypes;
   TensorDataTypes output_dtypes;
@@ -497,8 +498,9 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
   mutable_concrete_graph->SetNpuResources(npu_resources);
   mutable_concrete_graph->SetMirroredResources(mirrored_resources);
 
-  NpuOptimizerManager::Instance().RuntimeOptimize(context, mutable_concrete_graph.get(), device_options, this,
-                                                  num_inputs, inputs, graph_dumper);
+  NPU_CTX_REQUIRES_OK(
+    s, NpuOptimizerManager::Instance().RuntimeOptimize(context, mutable_concrete_graph.get(), device_options, this,
+                                                       num_inputs, inputs, graph_dumper));
   LOG(INFO) << "Concrete graph for " << op_name << " loop " << (mutable_concrete_graph->NeedLoop() ? "true" : "false")
             << " builtin loop " << (mutable_concrete_graph->BuiltinLoop() ? "true" : "false");
   *concrete_graph = std::move(mutable_concrete_graph);

@@ -123,7 +123,7 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
     mirrored_resources_ = resources;
   }
 
-  void SetDependentHostResources(std::map<int, std::shared_ptr<IteratorResourceProvider>> resources) {
+  void SetDependentHostResources(const std::map<int, std::shared_ptr<IteratorResourceProvider>> &resources) {
     dependent_host_resources_ = resources;
   }
 };
