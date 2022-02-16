@@ -22,16 +22,13 @@
 namespace npu {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  NPU_CTX_REQUIRES(
-    status, num_inputs == 1,
-    tensorflow::errors::InvalidArgument("Destroy resource op has ony 1 resource input, got ", num_inputs));
-  NPU_CTX_REQUIRES(status, IsNpuTensorHandle(inputs[0]),
-                   tensorflow::errors::InvalidArgument("Destroy resource op resource input must be from npu"));
+  if (!IsNpuTensorHandle(inputs[0])) {
+    dev->FallbackCPU(context, ndef, num_inputs, inputs, num_outputs, outputs, status);
+    return;
+  }
+
   const tensorflow::Tensor *npu_tensor = nullptr;
   NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(inputs[0], &npu_tensor));
-  NPU_CTX_REQUIRES(status, npu_tensor->dtype() == tensorflow::DT_RESOURCE,
-                   tensorflow::errors::InvalidArgument("Destroy resource op input must be resource, got ",
-                                                       tensorflow::DataTypeString(npu_tensor->dtype())));
 
   tensorflow::Tensor cpu_tensor(npu_tensor->dtype(), npu_tensor->shape());
   for (int j = 0; j < npu_tensor->NumElements(); j++) {
@@ -39,10 +36,11 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       const_cast<tensorflow::Tensor *>(npu_tensor)->flat<tensorflow::ResourceHandle>()(j);
   }
 
-  std::vector<TFE_TensorHandle *> cpu_inputs(num_inputs);
-  cpu_inputs[0] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
-  dev->FallbackCPU(context, ndef, num_inputs, cpu_inputs.data(), num_outputs, outputs, status);
-  TFE_DeleteTensorHandle(cpu_inputs[0]);
+  npu::ScopeTensorHandleDeleter scope_handle_deleter;
+  auto handle = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
+  scope_handle_deleter.Guard(handle);
+
+  dev->FallbackCPU(context, ndef, num_inputs, &handle, num_outputs, outputs, status);
 };
 
 NPU_REGISTER_CUSTOM_KERNEL("DestroyResourceOp", kernel);

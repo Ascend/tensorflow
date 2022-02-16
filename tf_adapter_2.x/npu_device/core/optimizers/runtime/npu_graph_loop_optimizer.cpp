@@ -17,9 +17,9 @@
 #include "tensorflow/core/graph/algorithm.h"
 #include "tensorflow/core/grappler/op_types.h"
 
-#include "npu_algorithm.h"
 #include "npu_device.h"
-#include "npu_optimizer_manager.h"
+#include "optimizers/npu_algorithm.h"
+#include "optimizers/npu_optimizer_manager.h"
 
 namespace {
 bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
@@ -118,15 +118,30 @@ tensorflow::Status GetAutoLoopGraph(TFE_Context *context, NpuMutableConcreteGrap
 tensorflow::Status GraphLoopOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
                                      std::map<std::string, std::string> options, NpuDevice *device, int num_inputs,
                                      TFE_TensorHandle **inputs) {
-  const char *op_name = graph->Op().c_str();
-
   std::vector<TFE_TensorHandle *> pruned_inputs;
   graph->PruneInputs(num_inputs, inputs, pruned_inputs);
-  TF_RETURN_IF_ERROR(device->ValidateInput(op_name, pruned_inputs.size(), pruned_inputs.data()));
-  if (!graph->DependentHostResources().empty()) {
-    NPU_REQUIRES_OK(GetAutoLoopGraph(context, graph, pruned_inputs.size(), pruned_inputs.data()));
+
+  // Check input type after pruned unused input
+  TensorDataTypes input_types;
+  for (auto &input : pruned_inputs) {
+    input_types.emplace_back(tensorflow::unwrap(input)->DataType());
   }
-  return tensorflow::Status::OK();
+
+  auto input_status = device->ValidateInputTypes(input_types);
+  if (!input_status.ok()) {
+    NPU_REQUIRES(
+      graph->GetNpuResources().empty(),
+      tensorflow::errors::Unimplemented(graph->Op(), " has npu resource input but ", input_status.error_message()));
+    DLOG() << graph->Op() << " run on cpu as " << input_status.error_message();
+    graph->SetIsCpuGraph(true);
+    return tensorflow::Status::OK();
+  }
+
+  if (graph->DependentHostResources().empty()) {
+    return tensorflow::Status::OK();
+  }
+
+  return GetAutoLoopGraph(context, graph, pruned_inputs.size(), pruned_inputs.data());
 }
 
 NPU_REGISTER_RT_OPTIMIZER(999, "GraphLoopOptimizer", GraphLoopOptimize);

@@ -28,6 +28,10 @@ npu = npu_device.open().as_default()
 npu.workers_num = 2  # mock run in 2P env
 
 
+def tensor_exact_equal(t1, t2):
+    return (t1.numpy() == t2.numpy()).all()
+
+
 def tensor_equal(t1, t2):
     return True
 
@@ -53,7 +57,7 @@ class Adapter2St(unittest.TestCase):
         with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
             x = tf.Variable(1)
         y = tf.Variable(1)
-        self.assertRaises(tf.errors.InvalidArgumentError, foo_add, x, y)
+        self.assertRaises(tf.errors.UnimplementedError, foo_add, x, y)
 
     def test_basic0(self):
         stupid_repeat("", 1)
@@ -89,6 +93,36 @@ class Adapter2St(unittest.TestCase):
         with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
             x = tf.Variable(1)
         self.assertTrue(foo_add_(x).device == "/job:localhost/replica:0/task:0/device:CPU:0")
+
+    def test_string_unimp1(self):
+        x = tf.Variable(1)
+
+        @tf.function
+        def f(v1, v2):
+            x.assign_add(1)
+            return tf.strings.to_number(v1 + v2)
+
+        self.assertRaises(tf.errors.UnimplementedError, f, tf.constant('1'), tf.constant('2'))
+
+    def test_string_unimp2(self):
+        x = tf.Variable(1)
+
+        @tf.function
+        def f(v1, v2):
+            x.assign_add(1)
+            return v1 + v2
+
+        self.assertRaises(tf.errors.UnimplementedError, f, tf.constant('1'), tf.constant('2'))
+
+    def test_string_fallback_cpu1(self):
+        @tf.function
+        def f(v1, v2):
+            return tf.strings.to_number(v1 + v2)
+
+        self.assertTrue(tensor_exact_equal(f(tf.constant('1'), tf.constant('2')), tf.constant(12.0)))
+
+    def test_string_fallback_cpu2(self):
+        self.assertTrue(tensor_equal(foo_add(tf.constant('1'), tf.constant('2')), tf.constant('12')))
 
     def test_checkpoint(self):
         step = tf.Variable(0, name="step")  # 0

@@ -68,7 +68,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
                             int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const {
   // 这里有两种输入是Resource的可能，一种是Mirrored的Iterator资源输入，一种是NPU上的资源输入
   std::vector<tensorflow::ResourceHandle> npu_resources;
-  std::vector<tensorflow::ResourceHandle> mirrored_resources;
+  std::vector<tensorflow::ResourceHandle> cpu_resources;
   std::vector<int> remain_indexes;
   for (int i = 0; i < num_inputs; ++i) {
     const tensorflow::Tensor *tensor = nullptr;
@@ -77,46 +77,23 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
       if (IsNpuTensorHandle(inputs[i])) {
         npu_resources.emplace_back(tensor->flat<tensorflow::ResourceHandle>()(0));
       } else {
-        mirrored_resources.emplace_back(tensor->flat<tensorflow::ResourceHandle>()(0));
+        if (IsCpuTensorHandle(inputs[i])) {
+          cpu_resources.emplace_back(tensor->flat<tensorflow::ResourceHandle>()(0));
+        }
       }
     } else {
       remain_indexes.push_back(i);
     }
   }
-  // 对于镜像的资源，优先在host上消费，避免动态shape不支持问题
-  if (!mirrored_resources.empty()) {
-    NPU_CTX_REQUIRES(status, npu_resources.empty(), tensorflow::errors::Internal(""));
-    DLOG() << "NPU Executing op " << Op() << " fallback cpu as mirrored resource from cpu in eager mode";
+
+  if (npu_resources.empty()) {
+    DLOG() << "NPU Executing op " << Op() << " fallback cpu as no npu resource input";
     device->FallbackCPU(context, NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
     return;
   }
 
-  TensorShapes output_shapes;
-  tensorflow::NodeDef parser_ndef = ParserNodeDef();
-  DLOG() << "NPU Executing op " << Op() << " need re-infer shape";
-  TensorPartialShapes partial_shapes;
-  bool unused = false;
-  bool should_fallback =
-    !device->InferShape(context, OpRegistrationData(), NodeDef(), num_inputs, inputs, partial_shapes, unused).ok();
-  if (!should_fallback) {
-    output_shapes.resize(partial_shapes.size());
-    for (size_t i = 0; i < partial_shapes.size(); i++) {
-      DLOG() << "NPU Executing op " << Op() << " re-infer shape output " << i << partial_shapes[i].DebugString();
-      if (!partial_shapes[i].AsTensorShape(&output_shapes[i])) {
-        should_fallback = true;
-        break;
-      }
-    }
-  }
-  if (should_fallback) {
-    DLOG() << "NPU Executing op " << Op() << " fallback cpu after re-infer shape";
-    NPU_CTX_REQUIRES(status, npu_resources.empty(),
-                     tensorflow::errors::Unimplemented("Npu currently not support dynamic output shapes resource ",
-                                                       npu_resources[0].DebugString()));
-    device->FallbackCPU(context, NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
-    return;
-  }
-  AssembleOutputDesc(output_shapes, OutputTypes(), &parser_ndef);
+  NPU_CTX_REQUIRES(status, cpu_resources.empty(),
+                   tensorflow::errors::Internal(Op(), " has resource from both cpu and npu"));
 
   std::shared_ptr<NpuConcreteGraph> func_spec = nullptr;
   GetFuncSpec(npu_resources, &func_spec);

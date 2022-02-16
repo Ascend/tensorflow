@@ -103,13 +103,15 @@ uint64_t NextUUID();
 
 class OptimizeStageGraphDumper {
  public:
-  explicit OptimizeStageGraphDumper(const std::string &graph) : graph_(graph), counter_(0) {}
+  explicit OptimizeStageGraphDumper(const std::string &graph);
+
   void Dump(const std::string &stage, const tensorflow::GraphDef &graph_def);
 
   void DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
                          const tensorflow::FunctionLibraryDefinition *lib_def);
 
  private:
+  bool enabled_;
   std::string graph_;
   int counter_;
 };
