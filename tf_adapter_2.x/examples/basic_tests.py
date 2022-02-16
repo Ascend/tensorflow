@@ -50,7 +50,7 @@ class RaiseTest(unittest.TestCase):
     with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
       x = tf.Variable(1)
     y = tf.Variable(1)
-    self.assertRaises(tf.errors.InvalidArgumentError, foo_add, x, y)
+    self.assertRaises(tf.errors.UnimplementedError, foo_add, x, y)
 
   def test_basic1(self):
     self.assertTrue(tensor_equal(foo_add(1, 2), tf.constant(3)))

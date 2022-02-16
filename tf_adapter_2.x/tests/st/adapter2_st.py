@@ -53,7 +53,7 @@ class Adapter2St(unittest.TestCase):
         with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
             x = tf.Variable(1)
         y = tf.Variable(1)
-        self.assertRaises(tf.errors.InvalidArgumentError, foo_add, x, y)
+        self.assertRaises(tf.errors.UnimplementedError, foo_add, x, y)
 
     def test_basic0(self):
         stupid_repeat("", 1)
