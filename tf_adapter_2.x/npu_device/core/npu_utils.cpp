@@ -182,7 +182,16 @@ tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef 
   return fdef_lib;
 }
 
+OptimizeStageGraphDumper::OptimizeStageGraphDumper(const std::string &graph) {
+  enabled_ = kDumpExecutionDetail || kDumpGraph;
+  if (enabled_) {
+    graph_ = graph;
+    counter_ = 0;
+  }
+}
+
 void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::GraphDef &graph_def) {
+  if (!enabled_) return;
   std::string graph_name = tensorflow::strings::StrCat(graph_, ".", counter_++, ".", stage, ".pbtxt");
   DLOG() << "Dump graph " << graph_name;
   WriteTextProto(tensorflow::Env::Default(), graph_name, graph_def);
@@ -190,6 +199,7 @@ void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::
 
 void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
                                                  const tensorflow::FunctionLibraryDefinition *lib_def) {
+  if (!enabled_) return;
   tensorflow::GraphDef copied_graph_def = graph_def;
   *copied_graph_def.mutable_library() = CollectGraphSubGraphs(graph_def, lib_def);
   Dump(stage, copied_graph_def);
@@ -214,13 +224,8 @@ void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorfl
       if (n->type_string() == "VarHandleOp" || n->type_string() == "IteratorV2") {
         continue;
       }
-      if (!keep_signature) {
-        if (n->IsArg()) {
-          continue;
-        }
-        if (n->IsRetval() && n->attrs().Find("T")->type() == tensorflow::DT_RESOURCE) {
-          continue;
-        }
+      if ((!keep_signature) && n->IsArg()) {
+        continue;
       }
       nodes.insert(n);
     }

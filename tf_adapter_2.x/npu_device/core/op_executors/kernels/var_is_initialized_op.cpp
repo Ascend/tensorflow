@@ -21,12 +21,10 @@
 namespace npu {
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  TF_UNUSED_VARIABLE(context);
-  TF_UNUSED_VARIABLE(dev);
-  TF_UNUSED_VARIABLE(num_inputs);
-  TF_UNUSED_VARIABLE(inputs);
-  TF_UNUSED_VARIABLE(num_outputs);
-  TF_UNUSED_VARIABLE(status);
+  if (!IsNpuTensorHandle(inputs[0])) {
+    dev->FallbackCPU(context, ndef, num_inputs, inputs, num_outputs, outputs, status);
+    return;
+  }
   // 这里需要先判断下是否已经初始化
   tensorflow::Tensor tensor(tensorflow::DT_BOOL, {});
   tensor.scalar<bool>()() = true;

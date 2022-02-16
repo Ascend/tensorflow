@@ -28,26 +28,22 @@ std::string NpuShapeDependOnValueOp::AttachedDebugString() const {
 void NpuShapeDependOnValueOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs,
                                       TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
                                       TF_Status *status) const {
-  TensorShapes output_shapes;
-  DLOG() << "NPU Executing op " << Op() << " need re-infer shape";
   TensorPartialShapes partial_shapes;
-  bool unused = false;
-  bool should_fallback =
-    !device->InferShape(context, OpRegistrationData(), NodeDef(), num_inputs, inputs, partial_shapes, unused).ok();
-  if (!should_fallback) {
-    output_shapes.resize(partial_shapes.size());
-    for (size_t i = 0; i < partial_shapes.size(); i++) {
-      DLOG() << "NPU Executing op " << Op() << " re-infer shape output " << i << partial_shapes[i].DebugString();
-      if (!partial_shapes[i].AsTensorShape(&output_shapes[i])) {
-        should_fallback = true;
-        break;
-      }
-    }
-  }
-  if (should_fallback) {
-    DLOG() << "NPU Executing op " << Op() << " fallback cpu after re-infer shape";
+  auto s = device->InferShape(context, OpRegistrationData(), NodeDef(), num_inputs, inputs, partial_shapes);
+  if (!s.ok()) {
+    DLOG() << Op() << " fallback cpu as infer shape failed " << s.ToString();
     device->FallbackCPU(context, NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
     return;
+  }
+
+  TensorShapes output_shapes(partial_shapes.size());
+  for (size_t i = 0; i < partial_shapes.size(); i++) {
+    DLOG() << Op() << " infer shape output " << i << partial_shapes[i].DebugString();
+    if (!partial_shapes[i].AsTensorShape(&output_shapes[i])) {
+      DLOG() << Op() << " fallback cpu as output " << i << " unknown shape " << partial_shapes[i].DebugString();
+      device->FallbackCPU(context, NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
+      return;
+    }
   }
 
   NpuStaticShapeOp::RunWithShape(context, device, this, output_shapes, num_inputs, inputs, num_outputs, outputs,
