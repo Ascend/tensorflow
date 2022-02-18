@@ -16,6 +16,7 @@
 
 #include <string>
 #include "tensorflow/core/framework/op_kernel.h"
+#include "acl/acl.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/acl_channel.h"
@@ -54,8 +55,10 @@ class OutfeedDequeueOp : public OpKernel {
     ADP_LOG(INFO) << "Start create acl channel for out-feed dequeue op " << channel_name_;
     uint32_t device_id = 0;
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
+    device_id_ = device_id;
     const size_t kDefaultCapacity = 3;
-    acl_handle_ = CreateAclTdtRecvChannel(device_id, channel_name_, kDefaultCapacity);
+    OP_REQUIRES(ctx, aclrtSetDevice(device_id_) == ACL_SUCCESS, errors::Internal("Acl rtSetDevice failed."));
+    acl_handle_ = CreateAclTdtRecvChannel(device_id_, channel_name_, kDefaultCapacity);
     OP_REQUIRES(ctx, acl_handle_ != nullptr, errors::Internal("Acl create receive channel failed."));
     ADP_LOG(INFO) << "Succeed create acl channel for out-feed dequeue op " << channel_name_;
   }
@@ -67,6 +70,9 @@ class OutfeedDequeueOp : public OpKernel {
       } else {
         ADP_LOG(INFO) << "Succeed destroy acl channel for out-feed dequeue op " << channel_name_;
       }
+    }
+    if (aclrtResetDevice(device_id_) != ACL_SUCCESS) {
+      ADP_LOG(ERROR) << "Acl rtResetDevice failed.";
     }
   }
   void Compute(OpKernelContext *ctx) override {
@@ -107,6 +113,7 @@ class OutfeedDequeueOp : public OpKernel {
   std::vector<PartialTensorShape> output_shapes_;
   std::string channel_name_;
   acltdtChannelHandle *acl_handle_ = nullptr;
+  uint32_t device_id_ = 0;
 };
 
 REGISTER_KERNEL_BUILDER(Name("OutfeedDequeueOp").Device(DEVICE_CPU), OutfeedDequeueOp);

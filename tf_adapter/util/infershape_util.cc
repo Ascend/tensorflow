@@ -302,8 +302,9 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
   std::unordered_set<const Edge *> needRemoveEdges;
   for (Node *pNode : graph->nodes()) {
     REQUIRES_NOT_NULL(pNode);
-    if ((pNode->type_string() != "Merge") && (pNode->type_string() != "RefMerge"))
+    if ((pNode->type_string() != "Merge") && (pNode->type_string() != "RefMerge")) {
       continue;
+    }
 
     needRemoveEdges.clear();
     for (const Edge *e : pNode->in_edges()) {

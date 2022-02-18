@@ -23,7 +23,7 @@ class ScatterElementsOp : public OpKernel {
   explicit ScatterElementsOp(OpKernelConstruction *ctx) : OpKernel(ctx) {}
   ~ScatterElementsOp() { LOG(INFO) << "del ScatterElements"; }
   void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in ScatterElements"; }
-  bool IsExpensive() override { 
+  bool IsExpensive() override {
     LOG(INFO) << "in ScatterElements IsExpensive";
     return false;
   }

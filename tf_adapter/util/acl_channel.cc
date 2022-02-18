@@ -134,10 +134,10 @@ Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<T
   if (acl_dataset == nullptr) {
     return errors::Internal("Acl create tensor dataset failed");
   }
-  auto status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset, buff_list);
-  if (!status.ok()) {
+  auto dataset_status = AssembleTensors2AclDataset(acl_type, tensors, acl_dataset, buff_list);
+  if (!dataset_status.ok()) {
     ADAPTER_LOG_IF_ERROR(DestroyAclDataset(acl_dataset));
-    return status;
+    return dataset_status;
   }
   *output_acl_dataset = acl_dataset;
   return Status::OK();
@@ -212,10 +212,10 @@ Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<Tensor> &ten
     return errors::Internal("Failed receive data from acl channel, acl status:", acl_status);
   }
 
-  auto status = AssembleAclDataset2Tensors(acl_dataset, tensors, true /* call by channel receive */);
-  if (!status.ok()) {
+  auto as_status = AssembleAclDataset2Tensors(acl_dataset, tensors, true /* call by channel receive */);
+  if (!as_status.ok()) {
     ADAPTER_LOG_IF_ERROR(DestroyAclDataset(acl_dataset, false));
-    return status;
+    return as_status;
   }
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset, false));
   return Status::OK();

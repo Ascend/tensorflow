@@ -17,9 +17,7 @@
 #ifndef NPU_DEVICE_CORE_NPU_UNWRAP_H
 #define NPU_DEVICE_CORE_NPU_UNWRAP_H
 
-#include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/c/eager/c_api_internal.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
 #include "tensorflow/c/eager/immediate_execution_operation.h"
 #include "tensorflow/c/eager/immediate_execution_tensor_handle.h"
 #include "tensorflow/c/eager/tfe_context_internal.h"
