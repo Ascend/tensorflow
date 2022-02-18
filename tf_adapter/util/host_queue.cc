@@ -199,6 +199,7 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
 
   return Status::OK();
 }
+}  // namespace
 
 Status HostQueueSetTransId(uint32_t queue_id, void *&buff) {
   void *head_buff = nullptr;
@@ -211,7 +212,6 @@ Status HostQueueSetTransId(uint32_t queue_id, void *&buff) {
   ADP_LOG(INFO) << "host queue[" << queue_id << "] set trans id[" << *trans_id << "] success";
   return Status::OK();
 }
-}  // namespace
 
 Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &queue_id) {
   TF_RETURN_IF_ERROR(CheckSymbols());
@@ -289,7 +289,6 @@ Status HostQueueSendData(uint32_t queue_id, void *buff, bool &need_resend) {
   need_resend = false;
   auto rt_error = rtSetDevice(0);
   NPU_REQUIRES(rt_error == ACL_RT_SUCCESS, errors::Internal("call rtSetDevice device[0] failed, ret=", rt_error));
-  TF_RETURN_IF_ERROR(HostQueueSetTransId(queue_id, buff));
   rt_error = rtMemQueueEnQueue(0, queue_id, buff);
   if (rt_error == RT_ERROR_NONE) {
     return Status::OK();

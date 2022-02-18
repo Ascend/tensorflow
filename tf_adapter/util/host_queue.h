@@ -31,5 +31,7 @@ void HostQueueFreeBuff(void *buff);
 
 void HostQueueDestroy(const uint32_t &queue_id);
 
+Status HostQueueSetTransId(uint32_t queue_id, void *&buff);
+
 }  // namespace tensorflow
 #endif  // TENSORFLOW_HOST_QUEUE_H_
