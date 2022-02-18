@@ -1093,7 +1093,7 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   ge::Model onnx_model("onnx_compute_model_" + node->name(), "");
   onnx_model.SetGraph(sub_graph);
   ge::Buffer model_buf;
-  if (onnx_model.Save(model_buf, false) == ge::SUCCESS) {
+  if (onnx_model.Save(model_buf, false) != ge::SUCCESS) {
     LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Serialized Failed.";
     return errors::Internal("[GEOP] node: %s Onnx Model Serialized Failed.", node->name());
   }
