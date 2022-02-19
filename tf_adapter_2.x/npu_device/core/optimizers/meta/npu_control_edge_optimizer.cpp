@@ -83,16 +83,26 @@ void FineTuneDropoutControlEdge(tensorflow::Graph *graph, tensorflow::Node *firs
   }
 }
 
+bool IsEdgeRedundant(const tensorflow::Edge *edge) {
+  if (!edge->IsControlEdge()) return false;
+  const std::string &src = edge->src()->type_string();
+  const std::string &dst = edge->dst()->type_string();
+  if ((dst == kHcomAllReduce && src != kNpuGetFloatStatusOp) ||
+      (src == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
+    return true;
+  } else if (src == kDropOutDoMaskV3 && dst == kDropOutGenMaskV3) {
+    return true;
+  } else if (edge->src()->IsArg() && edge->dst()->IsOp()) {
+    return true;
+  }
+  return false;
+}
+
 tensorflow::Status ControlEdgeOptimizeInner(TFE_Context *context, tensorflow::Graph *graph, bool &optimized) {
   std::vector<tensorflow::Edge *> edges_to_remove;
   for (auto edge : graph->edges()) {
-    if (edge->IsControlEdge()) {
-      if ((edge->dst()->type_string() == kHcomAllReduce && edge->src()->type_string() != kNpuGetFloatStatusOp) ||
-          (edge->src()->type_string() == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
-        edges_to_remove.push_back(edge);
-      } else if (edge->src()->type_string() == kDropOutDoMaskV3 && edge->dst()->type_string() == kDropOutGenMaskV3) {
-        edges_to_remove.push_back(edge);
-      }
+    if (IsEdgeRedundant(edge)) {
+      edges_to_remove.push_back(edge);
     }
   }
 
