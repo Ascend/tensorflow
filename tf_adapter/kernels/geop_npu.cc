@@ -213,6 +213,7 @@ static const int64 kMicrosToMillis = 1000;
 const int kInvalidGraphId = 0;
 const int kMaxCacheNum = 10;
 const int kFatalSleepTime = 3000;
+const std::string kAllReduce = "HcomAllReduce";
 
 GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false),
@@ -617,7 +618,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     // Build GraphDef from FunctionDef
     GraphDef ori_graph_def;
-    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_), done);
+    bool is_allreduce = false;
+    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_, is_allreduce), done);
 
     /* if graph is init verify graph, return */
     if (this->is_initialized_graph_) {
@@ -995,8 +997,8 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
 }
 
 // Build GraphDef from FunctionDef.
-Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
-                           const std::vector<Tensor> &input_vec, GraphDef &graph_def, bool &is_initialize) {
+Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
+                           GraphDef &graph_def, bool &is_initialize, bool &is_allreduce) {
   const FunctionDef *function_def = flib_def.Find(function_.name());
   if (function_def == nullptr) {
     return errors::Internal("%s: fdef is nullptr", function_.name());
@@ -1015,6 +1017,9 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def,
   if (is_set_dynamic_config) { BuildShapeNodeAndCacheArgNodes(graph); }
 
   for (Node *node : graph.nodes()) {
+    if (node->type_string() == kAllReduce) {
+      is_allreduce = true;
+    }
     AddNodeAttrs(node, is_initialize);
     // Add Input&Output Desc into NodeDef
     ret = this->GenerateDesc(node);
@@ -1244,8 +1249,9 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
   }
 
   // Build GraphDef from FunctionDef
+  bool is_allreduce = false;
   GraphDef ori_graph_def;
-  Status s = BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_);
+  Status s = BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_, is_allreduce);
   if (!s.ok()) {
     ADP_LOG(ERROR) << "BuildGraphDef error";
     return -1;
@@ -1302,7 +1308,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
   SetDynamicInput();
 
   // run aoe tuning
-  if (is_train_graph_ != "1" && init_options_["ge.jobType"] != "2" && init_options_["ge.jobType"] != "1") {
+  if ((init_options_["ge.jobType"] == "3") || ((init_options_["ge.jobType"] == "4") && !is_allreduce)) {
     ADP_LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
     if (!SessionManager::GetInstance().CacheGeGraphs(ge_session_, ge_graph)) {
       ADP_LOG(ERROR) << "cache ge session failed.";

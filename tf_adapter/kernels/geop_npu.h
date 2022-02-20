@@ -59,7 +59,7 @@ class GeOp : public AsyncOpKernel {
 
   // Build GraphDef from FunctionDef.
   Status BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
-                       GraphDef &graph_def, bool &is_initialize);
+                       GraphDef &graph_def, bool &is_initialize, bool &is_allreduce);
 
   // Analyze sting input data
   Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector) const;
