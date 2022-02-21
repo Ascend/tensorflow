@@ -393,6 +393,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         void *buff = nullptr;
         Status status;
         TF_RETURN_IF_ERROR(MappingTensor2Buff(data_type, args, buff));
+        TF_RETURN_IF_ERROR(HostQueueSetTransId(dataset()->queue_id_, buff));
         do {
           {
             mutex_lock lck(mu_);
