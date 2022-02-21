@@ -32,29 +32,30 @@
 #include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
-#include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
-#include "tf_adapter/kernels/aicpu/data_item_deliver.h"
+#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/util/util.h"
+#include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/host_queue.h"
-#include "tf_adapter/util/npu_attrs.h"
-#include "tf_adapter/util/util.h"
-#include "tf_adapter_2.x/npu_device/core/npu_micros.h"
+#include "tf_adapter/kernels/aicpu/data_item_deliver.h"
 
 namespace tensorflow {
 namespace data {
 namespace {
 using namespace std;
 using namespace tdt;
+
 const uint32_t kMaxValue = 256U;
 const size_t kMaxDepth = 128UL;
+const int32_t kSleepTime = 1;
 const static int64_t kStringTypeDepth = 64LL;
 const int64_t kUnknownShapeDepth = 3LL;
+std::atomic<bool> tdt_release(false);
+
 // total memory usage controlled below 2G
 const uint64_t kTotalBytes = 2 * 2147483648ULL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
-const int32_t kSleepTime = 1;
-std::atomic<bool> tdt_release(false);
 
 enum class ChannelType {
   TDT = 0,
@@ -64,8 +65,8 @@ enum class ChannelType {
 
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
-  explicit HostQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx),
-      local_rank_id_(0U), device_id_(0U), queue_id_(0U) {
+  explicit HostQueueDatasetOp(OpKernelConstruction *ctx)
+      : DatasetOpKernel(ctx), local_rank_id_(0U), device_id_(0U), queue_id_(0U) {
     // ctx is not nullptr
     std::string local_rank_id;
     std::string local_device_list;
@@ -74,7 +75,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &local_rank_id));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &local_device_list));
-    ADP_LOG(INFO) << "Get local rank id: " << local_rank_id << ", local device list: " << local_device_list;
+    ADP_LOG(INFO) << "Get local rank_id: " << local_rank_id << ", local device list: " << local_device_list;
     // local rank id range 0-7
     local_rank_id_ = std::atoi(local_rank_id.c_str());
     for (size_t i = 0UL; i < local_device_list.size(); i += 2UL) {
@@ -83,12 +84,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       local_device_list_.push_back(device_id);
     }
     SetChannelType();
-    ADP_LOG(INFO) << "Start to init channel";
+    ADP_LOG(INFO) << "Start to init channel.";
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
     if (channel_type_ == ChannelType::TDT) {
       int32_t tdt_status = TdtInFeedInit(device_id_);
       OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
-      ADP_LOG(INFO) << "Init tdt host success";
+      ADP_LOG(INFO) << "End init tdt host success.";
     }
     tdt_release = false;
   }
@@ -115,7 +116,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   void SetChannelType() {
-    ADP_LOG(INFO) << "kIsNewDataTransfer is : " << kIsNewDataTransfer;
+    ADP_LOG(INFO) << "Now kIsNewDataTransfer is : " << kIsNewDataTransfer;
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
     } else if (kIsNewDataTransfer) {
@@ -184,7 +185,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     int64_t total_size = 0LL;
     for (size_t i = 0UL; i < output_shape_size; i++) {
       DataType tensor_data = output_types_.at(i);
-      if (tensor_data == DT_STRING ) {
+      if (tensor_data == DT_STRING) {
         ADP_LOG(INFO) << "Current tensor type is DT_STRING.";
         return kStringTypeDepth;
       }
@@ -281,7 +282,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         cond_var_.notify_all();
         delete data_deliver_;
         DestroyQueue();
-        ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released";
+        ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
 
       void DestroyQueue() {
@@ -389,9 +390,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       Status SendDataByHostQueue(const vector<Tensor> &args, const acltdtTensorType &data_type) {
+        Status status;
         bool is_need_resend = false;
         void *buff = nullptr;
-        Status status;
         TF_RETURN_IF_ERROR(MappingTensor2Buff(data_type, args, buff));
         TF_RETURN_IF_ERROR(HostQueueSetTransId(dataset()->queue_id_, buff));
         do {
@@ -411,7 +412,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
-        ADP_LOG(INFO) << "Begin to send data";
+        ADP_LOG(INFO) << "Begin to send data ...";
         while (true) {
           std::vector<Tensor> args;
           acltdtTensorType data_type = ACL_TENSOR_DATA_TENSOR;
@@ -439,7 +440,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               }
             }
             ADP_LOG(INFO) << "Host queue [" << dataset()->channel_name_
-              << "] buffer_size:" << buffer_.size() << ", data_type:" << data_type;
+                          << "] buffer_size:" << buffer_.size() << ", data_type:" << data_type;
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
@@ -515,7 +516,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             } else {
               args = buffer_.front().value;
               buffer_.pop_front();
-              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_ << " buffer size: " << buffer_.size();
+              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_ << " buffer size : " << buffer_.size();
             }
           }
 
