@@ -1,1 +1,1 @@
-from nup_bridge.experimental.image import decode_image_v3
+from nup_bridge.experimental.image import decode_image
