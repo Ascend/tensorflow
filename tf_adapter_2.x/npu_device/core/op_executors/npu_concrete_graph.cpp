@@ -258,9 +258,10 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   for (auto node : graph->op_nodes()) {
     if (!tensorflow::grappler::IsVariable(node->def())) continue;
     auto attr = node->attrs().Find("shared_name");
-    NPU_REQUIRES(attr != nullptr, tensorflow::errors::Internal(node->name(), " missing 'shared_name' attribute"));
-    DLOG() << "Change node " << node->name() << " name to " << attr->s();
-    node->set_name(attr->s());
+    if (attr != nullptr) {
+      DLOG() << "Change variable " << node->name() << " " << node->type_string() << " name to " << attr->s();
+      node->set_name(attr->s());
+    }
   }
 
   SetGraph(std::move(graph));

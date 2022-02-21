@@ -953,6 +953,7 @@ void NpuDevice::RunGeGraph(TFE_Context *context, uint64_t graph_id, int num_inpu
     notification.Notify();
   };
   RunGeGraphAsync(context, graph_id, num_inputs, inputs, pin_to_npu, output_types, num_outputs, outputs, done, status);
+  if (TF_GetCode(status) != TF_OK) return;
   notification.WaitForNotification();
 }
 
