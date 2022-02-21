@@ -497,8 +497,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
-    ctx->GetAttr("_profiling_mode", &profiling_mode);
-    ctx->GetAttr("_profiling_options", &profiling_options);
     ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
     ctx->GetAttr("_graph_run_mode", &graph_run_mode);
     ctx->GetAttr("_op_debug_level", &op_debug_level);
@@ -528,8 +526,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   } else {
     init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
-  init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
+
   init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
@@ -1683,6 +1680,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   }
   init_options_["profiling_mode"] = std::to_string(profiling_mode);
   init_options_["profiling_options"] = profiling_options;
+  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
+  init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
   init_options_["auto_tune_mode"] = auto_tune_mode;
   init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
   init_options_["op_debug_level"] = std::to_string(op_debug_level);
