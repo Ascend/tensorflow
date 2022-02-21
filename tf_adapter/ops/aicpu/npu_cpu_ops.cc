@@ -525,12 +525,10 @@ REGISTER_OP("OCRDetectionPostHandle")
       int32 channels;
       bool expand_animations;
       DimensionHandle channels_dim;
-      std::string dct_method;
 
       TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 0, &unused));
       TF_RETURN_IF_ERROR(c->GetAttr("channels", &channels));
       TF_RETURN_IF_ERROR(c->GetAttr("expand_animations", &expand_animations));
-      TF_RETURN_IF_ERROR(c->GetAttr("dct_method", &dct_method));
 
       if (channels == 0) {
         channels_dim = c->UnknownDim();
@@ -555,7 +553,7 @@ REGISTER_OP("OCRDetectionPostHandle")
         return Status::OK();
       }
     }
-    REGISTER_OP("DecodeImageV3")
+    REGISTER_OP("DecodeImage")
     .Input("contents: string")
     // Setting `channels` to 0 means using the inherent number of channels in
     // the image.
@@ -563,6 +561,5 @@ REGISTER_OP("OCRDetectionPostHandle")
     .Attr("dtype: {uint8, uint16, float32} = DT_UINT8")
     .Output("image: dtype")
     .Attr("expand_animations: bool = true")
-    .Attr("dct_method: string = ''")
     .SetShapeFn(DecodeImageV3ShapeFn);
 }  // namespace tensorflow

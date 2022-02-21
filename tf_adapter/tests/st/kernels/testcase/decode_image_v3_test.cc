@@ -49,14 +49,13 @@ TEST(DecodeImageV3OpsTest, TestDecodeImageV3) {
 
 TEST(DecodeImageV3OpsTest, TestDecodeImageV3ShapeInference) {
   const OpRegistrationData* reg;
-  TF_CHECK_OK(OpRegistry::Global()->LookUp("DecodeImageV3", &reg));
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DecodeImage", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
   TF_CHECK_OK(NodeDefBuilder("dump", &op_def)
                   .Attr("channels", 3)
                   .Attr("dtype", DT_UINT8)
                   .Attr("expand_animations", true)
-                  .Attr("dct_method", "")
                   .Input(FakeInputStub(DT_STRING))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,

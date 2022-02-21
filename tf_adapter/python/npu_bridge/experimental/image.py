@@ -16,22 +16,22 @@
 # ==============================================================================
 
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import dtypes
 from npu_bridge.helper import helper
 
 gen_npu_cpu_ops = helper.get_gen_ops();
 
-def decode_image_v3(contents, channels=0, dct_method='', expand_animations=True):
+def decode_image_v3(contents, channels=0, dtype=dtypes.uint8, expand_animations=True):
     """
     Decode image.
 
     :param contents: string 类型.
     :param channels int 类型.
-    :param dct_method string 类型.
     :param expand_animations bool 类型.
     :return image
     """
     return gen_npu_cpu_ops.decode_image_v3(
         contents=contents,
         channels=channels,
-        dct_method=dct_method,
+        dtype=dtype,
         expand_animations=expand_animations)
