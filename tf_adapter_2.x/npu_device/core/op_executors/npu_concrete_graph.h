@@ -70,14 +70,6 @@ class NpuConcreteGraph : public OpExecutor {
   void Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const;
   void UnLoad(TFE_Context *context, NpuDevice *device, TF_Status *status) const;
 
-  void PruneInputs(int num_inputs, TFE_TensorHandle **inputs) const {
-    TF_UNUSED_VARIABLE(num_inputs);
-    size_t i = 0;
-    for (auto &index : consumed_inputs_) {
-      input_handles_[i++] = inputs[index];
-    }
-  }
-
   bool NeedLoop() const { return need_loop_; }
   bool BuiltinLoop() const { return builtin_loop_; }
 
