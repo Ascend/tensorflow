@@ -24,10 +24,7 @@
 namespace tensorflow {
 struct EdgeInfo {
   EdgeInfo(Node *src, Node *dst, int src_output, int dst_input)
-      : src_(src),
-        dst_(dst),
-        src_output_(src_output),
-        dst_input_(dst_input) {}
+      : src_(src), dst_(dst), src_output_(src_output), dst_input_(dst_input) {}
 
   Node *src_;
   Node *dst_;

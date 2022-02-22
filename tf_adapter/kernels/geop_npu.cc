@@ -96,12 +96,10 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
 
 class NpuGetNextOutputInfo {
 public:
-  NpuGetNextOutputInfo(ge::Placement placement, std::vector<int64_t> &dims, size_t output_size, geDataUniquePtr data)
-      : placement_(placement),
-        dims_(dims),
-        output_size_(output_size),
-        data_(std::move(data)) {}
-  ~NpuGetNextOutputInfo() { ADP_LOG(INFO) << "[GEOP] Release NpuGetNextOutputInfo."; }
+ NpuGetNextOutputInfo(ge::Placement placement, std::vector<int64_t> &dims, size_t output_size, geDataUniquePtr data)
+     : placement_(placement), dims_(dims), output_size_(output_size), data_(std::move(data)) {}
+ ~NpuGetNextOutputInfo() {
+   ADP_LOG(INFO) << "[GEOP] Release NpuGetNextOutputInfo."; }
   ge::Placement placement_;
   std::vector<int64_t> dims_;
   size_t output_size_;

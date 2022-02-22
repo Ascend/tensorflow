@@ -1192,11 +1192,9 @@ Node *AddIdentityNode(Graph *graph, const Edge *edge, const string &srcName, int
 class OMSplitter {
  public:
   OMSplitter(string groupAttribute, Graph const *graph_in, std::map<std::string, std::string> npu_optimizer_options,
-      std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
-      : groupAttribute_(std::move(groupAttribute)),
-        graph_in_(graph_in),
-        npu_optimizer_options_(std::move(npu_optimizer_options)),
-        pass_options_(std::move(pass_options)),
+             std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
+      : groupAttribute_(std::move(groupAttribute)), graph_in_(graph_in),
+        npu_optimizer_options_(std::move(npu_optimizer_options)), pass_options_(std::move(pass_options)),
         graph_options_(std::move(graph_options)) {}
 
   ~OMSplitter() = default;
