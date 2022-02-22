@@ -1680,7 +1680,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   }
   init_options_["profiling_mode"] = std::to_string(profiling_mode);
   init_options_["profiling_options"] = profiling_options;
-  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
+  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(profiling_mode);
   init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
   init_options_["auto_tune_mode"] = auto_tune_mode;
   init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
