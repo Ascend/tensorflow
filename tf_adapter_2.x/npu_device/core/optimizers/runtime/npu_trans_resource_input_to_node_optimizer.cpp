@@ -349,7 +349,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
         cpu_resources.emplace(index, handle);
       }
       DLOG() << graph->Op() << " resource input " << index << " " << handle.maybe_type_name() << " from "
-             << (device->Mirrored(handle) ? "mirrored" : (IsNpuTensorHandle(inputs[index]) ? "cpu" : "npu"));
+             << (device->Mirrored(handle) ? "mirrored" : (IsNpuTensorHandle(inputs[index]) ? "npu" : "cpu"));
     }
   }
 

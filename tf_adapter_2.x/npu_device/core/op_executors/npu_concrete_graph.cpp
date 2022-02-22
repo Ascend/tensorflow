@@ -231,7 +231,7 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
 
   const auto fn_name = key->attrs().Find("body")->func().name();
   DLOG() << "Inline while body func " << fn_name << " for node " << key->name();
-  auto builder = tensorflow::NodeBuilder(fn_name, fn_name, lib_def);
+  auto builder = tensorflow::NodeBuilder(key->name() + "_body_", fn_name, lib_def);
   for (int i = 0; i < key->num_inputs(); i++) {
     const tensorflow::Edge *edge;
     NPU_REQUIRES_OK(key->input_edge(i, &edge));
