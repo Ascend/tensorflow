@@ -147,14 +147,14 @@ class OCRIdentifyPreHandleOp : public OpKernel {
 
 class BatchDilatePolysOp : public OpKernel {
   public:
-  explicit BatchDilatePolysOp(OpKernelConstruction *context):OpKernel(context){}
+  explicit BatchDilatePolysOp(OpKernelConstruction *context) : OpKernel(context){}
   ~BatchDilatePolysOp() override {}
   void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"BatchDilatePolysOp Compute";}
 };
 
 class OCRFindContoursOp : public OpKernel {
   public:
-  explicit OCRFindContoursOp(OpKernelConstruction *context):OpKernel(context){}
+  explicit OCRFindContoursOp(OpKernelConstruction *context) : OpKernel(context){}
   ~OCRFindContoursOp() override {}
   void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"OCRFindContoursOp Compute";}
 };
