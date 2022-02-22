@@ -35,7 +35,6 @@ const std::string kOutputDesc = "output_tensor_desc";
 const std::string kFormat = "serialize_format";
 const std::string kType = "serialize_datatype";
 const std::string kShape = "serialize_shape";
-const std::string kSubGraph = "SubGraph";
 }  // namespace
 
 namespace npu {
@@ -227,5 +226,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::NodeDef *ndef) 
   op_reg_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
+
+void AssembleParserAddons(TFE_Context *context, tensorflow::Graph *graph);
 }  // namespace npu
 #endif  // NPU_DEVICE_CORE_NPU_PARSER_H

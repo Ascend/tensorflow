@@ -18,7 +18,6 @@
 
 #include "tensorflow/core/graph/algorithm.h"
 
-#include "optimizers/npu_algorithm.h"
 #include "npu_kernel_registry.h"
 #include "npu_device.h"
 
@@ -69,7 +68,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
   // 这里有两种输入是Resource的可能，一种是Mirrored的Iterator资源输入，一种是NPU上的资源输入
   std::vector<tensorflow::ResourceHandle> npu_resources;
   std::vector<tensorflow::ResourceHandle> cpu_resources;
-  std::vector<int> remain_indexes;
+  std::set<int> consumed_inputs;
   for (int i = 0; i < num_inputs; ++i) {
     const tensorflow::Tensor *tensor = nullptr;
     NPU_CTX_REQUIRES_OK(status, GetTensorHandleTensor(inputs[i], &tensor));
@@ -82,7 +81,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
         }
       }
     } else {
-      remain_indexes.push_back(i);
+      consumed_inputs.insert(i);
     }
   }
 
@@ -135,8 +134,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
         NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder("arg_" + std::to_string(i), "_Arg")
                                       .Attr("T", types[i])
                                       .Attr("index", arg_index++)
-                                      .Attr("_handle_dtypes", types[i])
-                                      .Attr("_handle_shapes", shapes[i])
+                                      .Attr("_output_shapes", shapes[i])
                                       .Finalize(graph.get(), &node));
         NPU_CTX_REQUIRES(
           status, graph->AddEdge(node, 0, target_node, i),
@@ -154,17 +152,8 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
                                     .Finalize(graph.get(), &node));
     }
 
-    PruneInputsFunc prune_func = [remain_indexes](int num_inputs, TFE_TensorHandle **inputs,
-                                                  std::vector<TFE_TensorHandle *> &pruned) {
-      for (auto index : remain_indexes) {
-        pruned.push_back(inputs[index]);
-      }
-    };
-    std::vector<TFE_TensorHandle *> pruned_inputs;
-    prune_func(num_inputs, inputs, pruned_inputs);
-
     tensorflow::FixupSourceAndSinkEdges(graph.get());
-    MarkGraphNodeInOutDesc(context, graph.get(), pruned_inputs.size(), pruned_inputs.data());
+    AssembleParserAddons(context, graph.get());
 
     if (kDumpGraph && kDumpExecutionDetail) {
       OptimizeStageGraphDumper graph_dumper(Op());
@@ -177,13 +166,11 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
     }
 
     uint64_t ge_graph_id = NextUUID();
-    const std::string graph_name = NodeDef().name() + "_" + std::to_string(ge_graph_id);
-    device->AddGeGraph(context, ge_graph_id, graph_name, graph->ToGraphDefDebug(), status);
-    if (TF_GetCode(status) != TF_OK) return;
+    const std::string graph_name = NodeDef().op() + "_" + std::to_string(ge_graph_id);
 
     auto spec =
       std::make_shared<NpuMutableConcreteGraph>(graph_name, InputTypes(), OutputTypes(), ge_graph_id, std::move(graph));
-    spec->SetPruneInputsFunc(prune_func);
+    spec->SetConsumedInputs(consumed_inputs);
     func_spec = spec;
 
     CacheFuncSpec(npu_resources, spec);

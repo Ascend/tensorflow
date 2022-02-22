@@ -29,7 +29,11 @@ npu.workers_num = 2  # mock run in 2P env
 
 
 def tensor_exact_equal(t1, t2):
-    return (t1.numpy() == t2.numpy()).all()
+    if t1.shape.rank != t2.shape.rank:
+        return False
+    if t1.shape.rank:
+        return (t1.numpy() == t2.numpy()).all()
+    return t1.numpy() == t2.numpy()
 
 
 def tensor_equal(t1, t2):
@@ -120,6 +124,29 @@ class Adapter2St(unittest.TestCase):
             return tf.strings.to_number(v1 + v2)
 
         self.assertTrue(tensor_exact_equal(f(tf.constant('1'), tf.constant('2')), tf.constant(12.0)))
+
+    def test_string_output_ref_input(self):
+        @tf.function
+        def f(v1, v2):
+            return v1, v2
+
+        x, y = f(tf.constant(1.0), tf.constant('abc'))
+
+        self.assertTrue(tensor_exact_equal(x, tf.constant(1.0)))
+        self.assertTrue(tensor_exact_equal(y, tf.constant('abc')))
+
+    def test_resource_output_ref_input(self):
+        from tensorflow.python.ops import resource_variable_ops
+        v = resource_variable_ops.VarHandleOp(dtype=tf.float32, shape=())
+
+        @tf.function
+        def f(v1, v2):
+            return v1 + v1, v2
+
+        x, y = f(tf.constant(1.0), v)
+
+        self.assertTrue(tensor_equal(x, tf.constant(2.0)))
+        self.assertTrue(tensor_equal(y, v))
 
     def test_string_fallback_cpu2(self):
         self.assertTrue(tensor_equal(foo_add(tf.constant('1'), tf.constant('2')), tf.constant('12')))

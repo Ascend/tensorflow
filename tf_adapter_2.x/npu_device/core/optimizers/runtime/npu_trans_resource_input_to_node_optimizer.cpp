@@ -307,81 +307,106 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
                                                    std::map<std::string, std::string> options, NpuDevice *device,
                                                    int num_inputs, TFE_TensorHandle **inputs) {
   auto mutable_graph = graph->MutableGraph();
+  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
+  const tensorflow::FunctionDef *fdef = lib_def->Find(graph->Op());
 
-  std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> dependent_resources;
-  std::map<int, std::pair<tensorflow::Node *, std::shared_ptr<ResourceGenerator>>> arg_generators;
+  std::map<int32_t, tensorflow::ResourceHandle> npu_resources;
+  std::map<int32_t, tensorflow::ResourceHandle> cpu_resources;
+  std::map<int32_t, tensorflow::ResourceHandle> mirrored_resources;
 
-  auto &npu_resources = graph->GetNpuResources();
-  auto &mirrored_resources = graph->GetMirroredResources();
+  std::map<int32_t, int32_t> bypass_outputs;
+  std::map<int32_t, tensorflow::Node *> indexed_retvals;
+
+  for (auto node : mutable_graph->op_nodes()) {
+    if (!node->IsRetval()) continue;
+    indexed_retvals[node->attrs().Find("index")->i()] = node;
+  }
+
+  for (auto item : indexed_retvals) {
+    const tensorflow::Edge *edge;
+    NPU_REQUIRES_OK(item.second->input_edge(0, &edge));
+    if (edge->src()->IsArg()) {
+      bypass_outputs[item.first] = edge->src()->attrs().Find("index")->i();
+      DLOG() << "Remove output " << item.first << " ref form input " << edge->src()->attrs().Find("index")->i();
+      mutable_graph->RemoveNode(item.second);
+    }
+  }
+  PruneGraphByFunctionSignature(*fdef, mutable_graph);
 
   for (auto node : mutable_graph->op_nodes()) {
     if (!node->IsArg()) continue;
     auto index = node->attrs().Find("index")->i();
-    auto npu_resource = npu_resources.find(index);
-    auto mirrored_resource = mirrored_resources.find(index);
 
-    if ((npu_resource == npu_resources.end()) && (mirrored_resource == mirrored_resources.end())) continue;
-
-    arg_generators[index].first = node;
-    auto &generator = arg_generators[index].second;
-    bool is_mirrored = (mirrored_resource != mirrored_resources.end());
-
-    auto &handle = is_mirrored ? mirrored_resource->second : npu_resource->second;
-    device->GetResourceGeneratorDef(handle, &generator);
-    NPU_REQUIRES(generator != nullptr, tensorflow::errors::Internal("Unknown npu resource ", handle.DebugString()));
-    DLOG() << "Generator of " << node->name() << " input " << index << " " << generator->NodeDef()->name();
-
-    if (is_mirrored) {
-      for (auto edge : node->out_edges()) {
-        if (edge->IsControlEdge() || edge->dst()->IsRetval()) continue;
-        auto provider = device->GetIteratorProvider(context, handle);
-        NPU_REQUIRES(provider != nullptr,
-                     tensorflow::errors::Internal("Resource provider for ", handle.name(), " not found"));
-        DLOG() << "Collect iterator provider " << handle.name();
-        dependent_resources.emplace(index, provider);
-        break;
+    const tensorflow::Tensor *tensor = nullptr;
+    NPU_REQUIRES_OK(GetTensorHandleTensor(inputs[index], &tensor));
+    if (tensor->dtype() == tensorflow::DT_RESOURCE) {
+      auto &handle = tensor->flat<tensorflow::ResourceHandle>()(0);
+      if (device->Mirrored(handle)) {
+        mirrored_resources.emplace(index, handle);
+      } else if (IsNpuTensorHandle(inputs[index])) {
+        npu_resources.emplace(index, handle);
+      } else {
+        cpu_resources.emplace(index, handle);
       }
+      DLOG() << graph->Op() << " resource input " << index << " " << handle.maybe_type_name() << " from "
+             << (device->Mirrored(handle) ? "mirrored" : (IsNpuTensorHandle(inputs[index]) ? "npu" : "cpu"));
     }
   }
 
+  std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> dependent_resources;
+  if (cpu_resources.empty()) {
+    npu_resources.insert(mirrored_resources.begin(), mirrored_resources.end());
+    for (auto resource : mirrored_resources) {
+      auto &handle = resource.second;
+      auto provider = device->GetIteratorProvider(context, handle);
+      NPU_REQUIRES(provider != nullptr,
+                   tensorflow::errors::Internal("Resource provider for ", handle.name(), " not found"));
+      DLOG() << "Collect iterator provider " << handle.name();
+      dependent_resources.emplace(resource.first, provider);
+    }
+    graph->SetConsumedIterators(dependent_resources);
+  } else {
+    cpu_resources.insert(mirrored_resources.begin(), mirrored_resources.end());
+  }
+
   std::map<int, tensorflow::Node *> arg_substitutes;
-  for (auto &item : arg_generators) {
-    auto &index = item.first;
-    auto &arg = item.second.first;
-    auto &generator = item.second.second;
+  for (auto resource : npu_resources) {
+    auto index = resource.first;
+    auto &handle = resource.second;
+    std::shared_ptr<ResourceGenerator> generator;
+    device->GetResourceGeneratorDef(handle, &generator);
+    NPU_REQUIRES(generator != nullptr, tensorflow::errors::Internal("Unknown npu resource ", handle.DebugString()));
+    DLOG() << "Generator of input " << index << " " << generator->NodeDef()->name();
     tensorflow::Status status;
     tensorflow::Node *substitute = mutable_graph->AddNode(*generator->NodeDef(), &status);
     NPU_REQUIRES_OK(status);
-    substitute->AddAttr("_arg_name", arg->name());
     substitute->AddAttr("_arg_index", int(index));
     substitute->AddAttr("_is_substitute", true);
     arg_substitutes[index] = substitute;
   }
 
-  graph->SetDependentHostResources(dependent_resources);
-
   NPU_REQUIRES_OK(TransResourceInput2Node(context, mutable_graph, arg_substitutes));
-
-  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-  const tensorflow::FunctionDef *fdef = lib_def->Find(graph->Op());
 
   PruneGraphByFunctionSignature(*fdef, mutable_graph);
 
-  std::vector<int> remain_indexes;
+  std::set<int32_t> consumed_inputs;
+  std::set<int32_t> produced_outputs;
   for (auto node : graph->Graph()->nodes()) {
-    if (!node->IsArg()) continue;
-    remain_indexes.push_back(node->attrs().Find("index")->i());
+    if (node->IsArg()) {
+      consumed_inputs.insert(node->attrs().Find("index")->i());
+    } else if (node->IsRetval()) {
+      produced_outputs.insert(node->attrs().Find("index")->i());
+    }
   }
-  DLOG() << graph->Op() << " remained input index [0-" << (num_inputs - 1) << "] -> " << VecToString(remain_indexes);
 
   FixGraphArgRetvalIndex(mutable_graph);
-  graph->SetPruneInputsFunc(
-    [remain_indexes](int num_inputs, TFE_TensorHandle **inputs, std::vector<TFE_TensorHandle *> &pruned) {
-      TF_UNUSED_VARIABLE(num_inputs);
-      for (auto index : remain_indexes) {
-        pruned.push_back(inputs[index]);
-      }
-    });
+
+  graph->SetNpuResources(npu_resources);
+  graph->SetCpuResources(cpu_resources);
+  graph->SetConsumedInputs(consumed_inputs);
+  graph->SetProducedOutputs(produced_outputs);
+  graph->SetBypassOutputs(bypass_outputs);
+
   return tensorflow::Status::OK();
 }
 
