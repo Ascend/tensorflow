@@ -68,6 +68,7 @@
 #include "graph/utils/node_adapter.h"
 #include "graph/compute_graph.h"
 #include "graph/ge_attr_value.h"
+#include "graph/def_types.h"
 #include "graph/model.h"
 
 namespace tensorflow {
@@ -95,9 +96,11 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
 
 class NpuGetNextOutputInfo {
 public:
-  NpuGetNextOutputInfo(ge::Placement placement, std::vector<int64_t> &dims,
-     size_t output_size, geDataUniquePtr data)
-    : placement_(placement), dims_(dims), output_size_(output_size), data_(std::move(data)) {}
+  NpuGetNextOutputInfo(ge::Placement placement, std::vector<int64_t> &dims, size_t output_size, geDataUniquePtr data)
+      : placement_(placement),
+        dims_(dims),
+        output_size_(output_size),
+        data_(std::move(data)) {}
   ~NpuGetNextOutputInfo() { ADP_LOG(INFO) << "[GEOP] Release NpuGetNextOutputInfo."; }
   ge::Placement placement_;
   std::vector<int64_t> dims_;
@@ -1187,7 +1190,7 @@ Status GeOp::ChangeInputsShapeDesc() {
 }
 
 void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
-                                 const int &index, AttrValue &attr_shape_value) {
+                                 const int &index, AttrValue &attr_shape_value) const {
   if (input_shapes.empty()) {
     ADP_LOG(ERROR) << "[GEOP] input_shapes is empty.";
     LOG(ERROR) << "[GEOP] input_shapes is empty.";
@@ -1307,7 +1310,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
       return -1;
     }
   } else {
-    std::function<void()> callback = [&]() {
+    std::function<void()> callback = [this]() {
       if (aoe_destroy_session_ != nullptr) {
         Aoe::AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(session_id_);
         if (aoe_destroy_ret != Aoe::AOE_SUCCESS) {
@@ -1448,8 +1451,7 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
                 << ", input data addr:" << reinterpret_cast<uintptr_t>(data);
 }
 
-Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector)
-{
+Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector) const {
   uint64_t total_size = 0U;
   for (uint64_t i = 0U; i < count; i++) {
     total_size += (string_vector[i].size() + sizeof(ge::StringHead) + 1U);
@@ -1457,7 +1459,7 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *
 
   std::unique_ptr<char []> addr(new (std::nothrow) char[total_size]());
   REQUIRES_NOT_NULL(addr);
-  ge::StringHead *string_head = reinterpret_cast<ge::StringHead *>(addr.get());
+  ge::StringHead *string_head = ge::PtrToPtr<char, ge::StringHead>(addr.get());
   char *data_addr = addr.get() + count * sizeof(ge::StringHead);
   int64_t offset = static_cast<int64_t>(count * sizeof(ge::StringHead));
   for (uint64_t i = 0U; i < count; ++i) {
@@ -1473,7 +1475,7 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *
     data_addr += (str.size() + 1U);
     offset += (static_cast<int64_t>(str.size()) + 1);
   }
-  input.SetData(reinterpret_cast<const uint8_t *>(addr.get()), total_size);
+  input.SetData(ge::PtrToPtr<char, const uint8_t>(addr.get()), total_size);
   return Status::OK();
 }
 

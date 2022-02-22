@@ -62,7 +62,7 @@ class GeOp : public AsyncOpKernel {
                        GraphDef &graph_def, bool &is_initialize);
 
   // Analyze sting input data
-  Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector);
+  Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector) const;
 
   // prepare input tensor
   Status BuildInputTensorInfo(OpKernelContext *ctx,
@@ -97,7 +97,7 @@ class GeOp : public AsyncOpKernel {
   void GetMsTuneConfig(std::map<std::string, std::string> init_options);
 
   void SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
-                             const int &index, AttrValue &attr_shape_value);
+                             const int &index, AttrValue &attr_shape_value) const;
 
   void BuildShapeNodeAndCacheArgNodes(Graph &graph);
 

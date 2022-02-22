@@ -329,7 +329,7 @@ void NpuAttrs::SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool i
                 << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
 }
 
-std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {
+std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
   std::string variable_format_optimize = std::to_string(true);
   std::string hcom_parallel = std::to_string(false);
@@ -469,7 +469,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   return init_options;
 }
 
-std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction *ctx) {
+std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstruction *ctx) {
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = std::to_string(false);
   std::string profiling_options;
@@ -676,7 +676,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   return pass_options;
 }
 
-std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction *ctx) {
+std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> pass_options;
   std::string do_npu_optimizer = std::to_string(false);
   std::string enable_dp = std::to_string(false);

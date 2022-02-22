@@ -70,8 +70,8 @@ Status GenerateReport::AddUnSupportedInfo(const std::string &name, const std::st
 }
 
 Status GenerateReport::DeleteUnSupportedInfo(const Node *node) {
-  auto info_iter = check_info_map_.find(node->name());
-  if (info_iter == check_info_map_.end()) {
+  std::map<std::string, UnSupportedInfo>::const_iterator info_iter = check_info_map_.find(node->name());
+  if (info_iter == check_info_map_.cend()) {
     return Status::OK();
   } else {
     check_info_map_.erase(info_iter);
