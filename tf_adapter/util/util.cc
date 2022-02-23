@@ -76,7 +76,7 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
 Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&acl_data,
                                          std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (tensor.dims() == 0) {
-    auto value = get::PtrToPtr<char, tensorflow::tstring>(const_cast<char *>(tensor.tensor_data().data()));
+    auto value = ge::PtrToPtr<char, tensorflow::tstring>(const_cast<char *>(tensor.tensor_data().data()));
     // for scalar type, *dims is nullptr and dim_num is 0
     acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, nullptr, 0, ACL_STRING,
                                     const_cast<char *>(value->c_str()), value->size());
