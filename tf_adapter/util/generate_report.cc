@@ -69,16 +69,6 @@ Status GenerateReport::AddUnSupportedInfo(const std::string &name, const std::st
   return Status::OK();
 }
 
-Status GenerateReport::DeleteUnSupportedInfo(const Node *node) {
-  std::map<std::string, UnSupportedInfo>::const_iterator info_iter = check_info_map_.find(node->name());
-  if (info_iter == check_info_map_.cend()) {
-    return Status::OK();
-  } else {
-    check_info_map_.erase(info_iter);
-  }
-  return Status::OK();
-}
-
 Status GenerateReport::SaveUnsupportedInfo() {
   if (check_info_map_.empty()) {
     ADP_LOG(INFO) << "[GenerateReport] All nodes are supported, no need to save report.";

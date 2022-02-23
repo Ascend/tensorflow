@@ -35,8 +35,6 @@ class GenerateReport {
 
   Status AddUnSupportedInfo(const Node *node, Details &infos);
 
-  Status DeleteUnSupportedInfo(const Node *node);
-
   Status SaveUnsupportedInfo();
 
   ~GenerateReport();
