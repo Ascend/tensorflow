@@ -25,7 +25,7 @@
 #include "securec.h"
 namespace tensorflow {
 Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t &data_size,
-                             std::vector<int64_t> &dims, std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
+                             const std::vector<int64_t> &dims, std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   for (int i = 0; i < tensor.dims(); ++i) { dims.emplace_back(tensor.dim_size(i)); }
   int64_t total_nums = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
   uint64_t total_size = 0UL;
@@ -76,7 +76,7 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
 Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&acl_data,
                                          std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (tensor.dims() == 0) {
-    auto value = reinterpret_cast<tensorflow::tstring *>(const_cast<char *>(tensor.tensor_data().data()));
+    auto value = get::PtrToPtr<char, tensorflow::tstring>(const_cast<char *>(tensor.tensor_data().data()));
     // for scalar type, *dims is nullptr and dim_num is 0
     acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, nullptr, 0, ACL_STRING,
                                     const_cast<char *>(value->c_str()), value->size());

@@ -170,8 +170,8 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
   }
   if ((head_buf != nullptr) && (head_size > kMbufHeadEndOfSequencePos)) {
     ADP_LOG(INFO) << "host queue set end_of_sequence mbuf head.";
-    uint8_t *end_of_sequence =
-        reinterpret_cast<uint8_t *>(reinterpret_cast<uintptr_t>(head_buf) + kMbufHeadEndOfSequencePos);
+    uint8_t *end_of_sequence = ge::PtrToPtr<uintptr_t, uint8_t>(ge::PtrToPtr<void, uintptr_t><uintptr_t>(head_buf) +
+                                                                kMbufHeadEndOfSequencePos);
     if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
       *end_of_sequence = kEndOfSequenceFlag;
     } else {

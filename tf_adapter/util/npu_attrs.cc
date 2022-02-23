@@ -48,7 +48,7 @@ bool GetNewDataTransferFlag() {
     return true;
   }
   check_queue_handle = acltdtCreateChannel(device_id, "check_is_queue");
-  if (check_queue_handle !=nullptr) {
+  if (check_queue_handle != nullptr) {
     acltdtDestroyChannel(check_queue_handle);
     return false;
   } else {
