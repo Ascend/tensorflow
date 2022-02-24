@@ -18,6 +18,10 @@
 #include "tensorflow/core/framework/op.h"
 
 namespace tensorflow {
+using shape_inference::DimensionHandle;
+using shape_inference::InferenceContext;
+using shape_inference::ShapeHandle;
+using shape_inference::UnchangedShape;
 // Mixed-precisions training
 REGISTER_OP("NpuAllocFloatStatus")
     .Output("float_status: float")
@@ -52,19 +56,20 @@ REGISTER_OP("NpuGetFloatStatus")
     .SetIsStateful();
 
 REGISTER_OP("NpuGetFloatStatusV2")
-    .Input("input_float: float")
-    .Output("float_status: float")
-    .SetShapeFn(shape_inference::UnchangedShape)
-    .Doc(R"doc(
-    Move the value of overflow status from global workspace to GM
-    
-    Arguments
-        inputs: The allocated input float status tensor.
+    .Input("addr: N * T")
+    .Output("data: T")
+    .Attr("N: int >= 1")
+    .Attr("T: {float}")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext *c) {
+        int shape_eight = 8;
+        std::vector<DimensionHandle> shape_eights;
+        shape_eights.reserve(shape_eight);
+        auto output_shape = c->MakeShape({shape_eights}):
+        c->set_output(0, output_shape);
+        return Status::Ok();
+    });
 
-    Output
-        output: The one float status element tensor.
-    )doc")
-    .SetIsStateful();
 
 REGISTER_OP("NpuClearFloatStatus")
     .Input("float_status: float")
