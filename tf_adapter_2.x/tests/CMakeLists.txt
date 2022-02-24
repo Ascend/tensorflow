@@ -31,6 +31,7 @@ endforeach (COMPILE_FLAG)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../../inc/external) # just for acl
 include_directories(${CMAKE_CURRENT_LIST_DIR}/stub/include)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../npu_device/core)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/../../inc/metadef/inc)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/gtest.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/acl/module.cmake)

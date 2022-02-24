@@ -20,7 +20,6 @@
 #include "tensorflow/c/eager/c_api.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -88,24 +87,21 @@ class OpExecutor {
 
  protected:
   virtual std::string AttachedDebugString() const = 0;
-  OpExecutor(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-             TensorShapes input_shapes) {
+  OpExecutor(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef, TensorShapes input_shapes)
+      : op_spec_(op_spec), cache_strategy_(CacheStrategy::DEFAULT) {
     TensorDataTypes input_dtypes;
     TensorDataTypes output_dtypes;
     tensorflow::InOutTypesForNode(ndef, op_spec->op_def, &input_dtypes, &output_dtypes);
-    op_spec_ = op_spec;
     ndef_ = ndef;
     input_dtypes_ = std::move(input_dtypes);
     input_shapes_ = std::move(input_shapes);
     output_dtypes_ = std::move(output_dtypes);
-    cache_strategy_ = CacheStrategy::DEFAULT;
   };
-  OpExecutor(const std::string &function_name, TensorDataTypes input_dtypes, TensorDataTypes output_dtypes) {
-    op_spec_ = nullptr;
+  OpExecutor(const std::string &function_name, TensorDataTypes input_dtypes, TensorDataTypes output_dtypes)
+      : op_spec_(nullptr), cache_strategy_(CacheStrategy::DEFAULT) {
     ndef_.set_op(function_name);
     input_dtypes_ = std::move(input_dtypes);
     output_dtypes_ = std::move(output_dtypes);
-    cache_strategy_ = CacheStrategy::DEFAULT;
   };
   ~OpExecutor() = default;
   const tensorflow::OpRegistrationData *op_spec_;  // 算子IR注册的信息，非实例

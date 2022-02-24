@@ -51,8 +51,15 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
     DLOG() << "Release zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
   }
   std::string Name() override { return "NpuHostFixedAllocator"; }
-  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
-  void DeallocateRaw(void *ptr) override { Unref(); }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override {
+    TF_UNUSED_VARIABLE(alignment);
+    TF_UNUSED_VARIABLE(num_bytes);
+    return ptr_.get();
+  }
+  void DeallocateRaw(void *ptr) override {
+    TF_UNUSED_VARIABLE(ptr);
+    Unref();
+  }
   std::unique_ptr<T, DT> ptr_;
 };
 }  // namespace
@@ -121,8 +128,9 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
  */
 std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(TFE_Context *context,
                                                                          const tensorflow::ResourceHandle &resource) {
+  TF_UNUSED_VARIABLE(context);
   auto provider = iterator_providers_.find(resource);
-  if (provider == iterator_providers_.end()) {
+  if (provider == iterator_providers_.cend()) {
     return nullptr;
   }
   return provider->second;
@@ -1223,8 +1231,8 @@ tensorflow::Status NpuDevice::GetMirroredIteratorShapesAndTypes(const tensorflow
   if (iter == iterator_mirrors_.end()) {
     return tensorflow::errors::Internal("Resource ", src.DebugString(), " has not been mirrored");
   }
-  shapes.assign(iter->second.first.begin(), iter->second.first.end());
-  types.assign(iter->second.second.begin(), iter->second.second.end());
+  shapes.assign(iter->second.first.cbegin(), iter->second.first.cend());
+  types.assign(iter->second.second.cbegin(), iter->second.second.cend());
   return tensorflow::Status::OK();
 }
 }  // namespace npu

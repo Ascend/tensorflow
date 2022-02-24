@@ -258,7 +258,7 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
     if (node->IsArg()) {
       auto index = node->attrs().Find("index")->i();
       auto iter = arg_substitutes.find(index);
-      if (iter != arg_substitutes.end()) {
+      if (iter != arg_substitutes.cend()) {
         for (auto edge : node->out_edges()) {
           graph->AddEdge(iter->second, edge->src_output(), edge->dst(), edge->dst_input());
         }
@@ -306,6 +306,7 @@ namespace npu {
 tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
                                                    std::map<std::string, std::string> options, NpuDevice *device,
                                                    int num_inputs, TFE_TensorHandle **inputs) {
+  TF_UNUSED_VARIABLE(options);
   auto mutable_graph = graph->MutableGraph();
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   const tensorflow::FunctionDef *fdef = lib_def->Find(graph->Op());
@@ -316,7 +317,6 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
 
   std::map<int32_t, int32_t> bypass_outputs;
   std::map<int32_t, tensorflow::Node *> indexed_retvals;
-
   for (auto node : mutable_graph->op_nodes()) {
     if (!node->IsRetval()) continue;
     indexed_retvals[node->attrs().Find("index")->i()] = node;

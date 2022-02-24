@@ -46,8 +46,8 @@ class NpuConcreteGraph : public OpExecutor {
 
   std::string AttachedDebugString() const override;
 
-  void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
-               TFE_TensorHandle **outputs, TF_Status *status) const override;
+  void RunImpl(TFE_Context *context, NpuDevice *device, int tf_num_inputs, TFE_TensorHandle **tf_inputs,
+               int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const override;
 
   uint64_t GeGraphId() const { return ge_graph_id_; }
 
@@ -76,7 +76,7 @@ class NpuConcreteGraph : public OpExecutor {
  protected:
   void SetBuilt(bool built) const { built_ = built; }
   bool Built() const { return built_; }
-  tensorflow::NodeDef AsNodeDef(const std::string name) {
+  tensorflow::NodeDef AsNodeDef(const std::string name) const{
     tensorflow::NodeDef ndef;
     ndef.set_op(name);
     return ndef;

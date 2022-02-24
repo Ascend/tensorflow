@@ -17,10 +17,6 @@
 #ifndef NPU_DEVICE_CORE_OPTIMIZERS_NPU_OPTIMIZER_MANAGER_H
 #define NPU_DEVICE_CORE_OPTIMIZERS_NPU_OPTIMIZER_MANAGER_H
 
-#include "tensorflow/c/c_api.h"
-#include "tensorflow/c/eager/c_api.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/tf_status.h"
 #include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/platform/logging.h"
 
