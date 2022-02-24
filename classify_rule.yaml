@@ -1,0 +1,14 @@
+tensorflow:
+  commiter:
+    "xxx"
+  team: "tensorflow"
+  src:
+    release:
+      - tf_adapter
+      - tf_adapter_2.x
+    unrelease:
+      - tf_adapter/tests
+      - tf_adapter_2.x/tests
+  llt:
+    ut_check:true
+    st_check:true

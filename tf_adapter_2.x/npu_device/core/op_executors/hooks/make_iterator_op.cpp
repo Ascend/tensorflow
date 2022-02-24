@@ -14,31 +14,18 @@
  * limitations under the License.
  */
 
-#include <memory>
+#include "tensorflow/core/graph/algorithm.h"
 
-#include "tensorflow/c/c_api.h"
-#include "tensorflow/c/eager/c_api.h"
-#include "tensorflow/c/eager/c_api_experimental.h"
-#include "tensorflow/c/tf_status.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
-#include "tensorflow/core/platform/logging.h"
-
-#include "absl/algorithm/container.h"
-#include "tensorflow/c/c_api_internal.h"
-#include "tensorflow/c/eager/immediate_execution_operation.h"
-#include "tensorflow/c/eager/tfe_context_internal.h"
-#include "tensorflow/c/eager/tfe_op_internal.h"
-#include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
-
-#include "npu_custom_kernel.h"
+#include "op_executors/npu_kernel_registry.h"
 #include "npu_utils.h"
 
 namespace npu {
 namespace {
 class MakeIteratorGraphBuilder {
  public:
-  static tensorflow::GraphDef GetGraph(std::string container_name, std::string shared_name, TensorPartialShapes shapes,
-                                       TensorDataTypes types, TF_Status *status) {
+  static tensorflow::GraphDef GetGraph(const std::string &container_name, const std::string &shared_name,
+                                       const TensorPartialShapes &shapes, const TensorDataTypes &types,
+                                       TF_Status *status) {
     tensorflow::GraphDef gdef;
 
     tensorflow::Graph graph(tensorflow::OpRegistry::Global());
@@ -105,18 +92,15 @@ class MakeIteratorGraphBuilder {
 };
 }  // namespace
 
-static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
-                        int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
-                        TF_Status *status) {
-  TF_UNUSED_VARIABLE(op_name);
-  TF_UNUSED_VARIABLE(attributes);
+static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
+                        TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   TF_UNUSED_VARIABLE(num_outputs);
   TF_UNUSED_VARIABLE(outputs);
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
-    if (UnwrapHandle(input)->DataType() == tensorflow::DT_RESOURCE) {
+    if (tensorflow::unwrap(input)->DataType() == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      NPU_CTX_REQUIRES_OK(status, UnwrapTensor(input, &tensor));
+      NPU_CTX_REQUIRES_OK(status, GetTensorHandleTensor(input, &tensor));
       auto handle = tensor->scalar<tensorflow::ResourceHandle>()();
       TensorPartialShapes shapes;
       TensorDataTypes types;

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_DEVICE_REGISTER_H_
-#define TENSORFLOW_NPU_DEVICE_REGISTER_H_
+#ifndef NPU_DEVICE_CORE_NPU_DEVICE_REGISTER_H
+#define NPU_DEVICE_CORE_NPU_DEVICE_REGISTER_H
 
 #include <map>
 #include <string>
@@ -29,4 +29,4 @@ std::string CreateDevice(TFE_Context *context, const char *name, int device_inde
 void ReleaseDeviceResource();
 }  // namespace npu
 
-#endif  // TENSORFLOW_C_EAGER_NPU_DEVICE_TESTUTIL_H_
+#endif  // NPU_DEVICE_CORE_NPU_DEVICE_REGISTER_H

@@ -20,25 +20,40 @@
 #include <iostream>
 #include <sstream>
 #include "securec.h"
+#include "acl/acl_tdt.h"
+#include "acl/acl.h"
 #include "tdt/index_transform.h"
 #include "runtime/config.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
 #include "mmpa/mmpa_api.h"
-
+#include "tf_adapter/util/ge_plugin.h"
 namespace tensorflow {
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
 std::map<std::string, std::string> NpuAttrs::init_options_;
 const static int32_t kRuntimeTypeHeterogeneous = 1;
-
-extern const bool kIsNewDataTransfer = []() -> bool {
-  bool is_new_data_transfer = false;
-  tensorflow::ReadBoolFromEnvVar("IS_NEW_DATA_TRANSFER", false, &is_new_data_transfer);
-  return is_new_data_transfer;
-}();
+bool kIsNewDataTransfer = true;
+bool GetNewDataTransferFlag() {
+  uint32_t device_id = 0U;
+  (void) GetEnvDeviceID(device_id);
+  auto acl_status = aclrtSetDevice(device_id);
+  acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
+  if (check_queue_handle != nullptr) {
+    acltdtDestroyChannel(check_queue_handle);
+    return true;
+  }
+  check_queue_handle = acltdtCreateChannel(device_id, "check_is_queue");
+  if (check_queue_handle !=nullptr) {
+    acltdtDestroyChannel(check_queue_handle);
+    return false;
+  } else {
+    ADP_LOG(ERROR) << "Create channel failed by acltdtCreateChannelWithCapacity and acltdtCreateChannel";
+  }
+  return true;
+};
 
 extern const bool kDumpGraph = []() -> bool {
   bool print_model = false;
@@ -166,9 +181,7 @@ inline Status checkDumpStep(const std::string &dump_step) {
 
 inline Status checkDumpMode(const std::string &dump_mode) {
   std::set<string> dump_mode_list = {"input", "output", "all"};
-  std::set<string>::iterator iter;
-
-  if ((iter = dump_mode_list.find(dump_mode)) != dump_mode_list.end()) {
+  if (dump_mode_list.find(dump_mode) != dump_mode_list.cend()) {
     return Status::OK();
   } else {
     return errors::InvalidArgument("dump mode should be one of the list:[input, output, all]");
@@ -177,9 +190,7 @@ inline Status checkDumpMode(const std::string &dump_mode) {
 
 inline Status checkDumpDebugMode(const std::string &dump_debug_mode) {
   std::set<string> dump_debug_mode_list = {"aicore_overflow", "atomic_overflow", "all"};
-  std::set<string>::iterator iter;
-
-  if ((iter = dump_debug_mode_list.find(dump_debug_mode)) != dump_debug_mode_list.end()) {
+  if (dump_debug_mode_list.find(dump_debug_mode) != dump_debug_mode_list.cend()) {
     return Status::OK();
   } else {
     return errors::InvalidArgument("dump debug mode should be one of the list:[aicore_overflow, atomic_overflow, all]");
@@ -486,8 +497,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
-    ctx->GetAttr("_profiling_mode", &profiling_mode);
-    ctx->GetAttr("_profiling_options", &profiling_options);
     ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
     ctx->GetAttr("_graph_run_mode", &graph_run_mode);
     ctx->GetAttr("_op_debug_level", &op_debug_level);
@@ -517,8 +526,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   } else {
     init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = profiling_mode;
-  init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
+
   init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
@@ -1672,6 +1680,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   }
   init_options_["profiling_mode"] = std::to_string(profiling_mode);
   init_options_["profiling_options"] = profiling_options;
+  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(profiling_mode);
+  init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
   init_options_["auto_tune_mode"] = auto_tune_mode;
   init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
   init_options_["op_debug_level"] = std::to_string(op_debug_level);

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include "tf_adapter/util/util.h"
 
 #include <numeric>
@@ -39,7 +55,9 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
   if (tensor.dims() == 0) {
     std::string value = tensor.scalar<string>()();
     item.dataLen_ = tensor.scalar<string>()().size();
-    item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](void *elem) {});
+    item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](void *elem) {
+      (void)elem;
+    });
     return Status::OK();
   }
 
@@ -47,7 +65,9 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
   uint64_t data_size = 0UL;
   std::vector<int64_t> dims;
   TF_RETURN_IF_ERROR(GetDtStringTensorData(tensor, data_ptr, data_size, dims, buff_list));
-  item.dataPtr_ = std::shared_ptr<void>(data_ptr, [](void *ptr){});
+  item.dataPtr_ = std::shared_ptr<void>(data_ptr, [](void *ptr) {
+    (void)ptr;
+  });
   item.dataLen_ = data_size;
   return Status::OK();
 }

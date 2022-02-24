@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_PARSER_H
-#define TENSORFLOW_NPU_PARSER_H
+#ifndef NPU_DEVICE_CORE_NPU_PARSER_H
+#define NPU_DEVICE_CORE_NPU_PARSER_H
 
 #include <utility>
 
@@ -35,7 +35,6 @@ const std::string kOutputDesc = "output_tensor_desc";
 const std::string kFormat = "serialize_format";
 const std::string kType = "serialize_datatype";
 const std::string kShape = "serialize_shape";
-const std::string kSubGraph = "SubGraph";
 }  // namespace
 
 namespace npu {
@@ -47,8 +46,13 @@ static inline tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes type
     desc->set_name(std::to_string(i));
 
     tensorflow::AttrValue shape_value;
-    for (int j = 0; j < shapes[i].dims(); j++) {
-      shape_value.mutable_list()->add_i(shapes[i].dim_size(j));
+    if (shapes[i].unknown_rank()) {
+      const static int kUnknownRankDimSize = -2;
+      shape_value.mutable_list()->add_i(kUnknownRankDimSize);
+    } else {
+      for (int j = 0; j < shapes[i].dims(); j++) {
+        shape_value.mutable_list()->add_i(shapes[i].dim_size(j));
+      }
     }
     desc->mutable_attr()->insert({kShape, shape_value});
 
@@ -222,5 +226,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::NodeDef *ndef) 
   op_reg_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
+
+void AssembleParserAddons(TFE_Context *context, tensorflow::Graph *graph);
 }  // namespace npu
-#endif  // TENSORFLOW_NPU_PARSER_H
+#endif  // NPU_DEVICE_CORE_NPU_PARSER_H

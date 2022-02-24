@@ -30,26 +30,22 @@
 #include "tensorflow/c/eager/tfe_op_internal.h"
 #include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 
-#include "npu_custom_kernel.h"
+#include "op_executors/npu_kernel_registry.h"
 
 namespace npu {
-static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_name, const TFE_OpAttrs *attributes,
-                        int num_inputs, TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
-                        TF_Status *status) {
+static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
+                        TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   TF_UNUSED_VARIABLE(context);
-  TF_UNUSED_VARIABLE(op_name);
   TF_UNUSED_VARIABLE(num_inputs);
   TF_UNUSED_VARIABLE(inputs);
   for (int i = 0; i < num_outputs; ++i) {
     TFE_TensorHandle *retval = outputs[i];
-    if (npu::UnwrapHandle(retval)->DataType() == tensorflow::DT_RESOURCE) {
+    if (tensorflow::unwrap(retval)->DataType() == tensorflow::DT_RESOURCE) {
       const tensorflow::Tensor *tensor;
-      NPU_CTX_REQUIRES_OK(status, npu::UnwrapTensor(retval, &tensor));
+      NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(retval, &tensor));
       std::vector<tensorflow::PartialTensorShape> vec_shapes;
       TensorPartialShapes shapes;
       TensorDataTypes types;
-      tensorflow::NodeDef ndef;
-      tensorflow::unwrap(attributes)->FillAttrValueMap(ndef.mutable_attr());
       NPU_CTX_REQUIRES_OK(status, tensorflow::GetNodeAttr(ndef, "output_shapes", &vec_shapes));
       NPU_CTX_REQUIRES_OK(status, tensorflow::GetNodeAttr(ndef, "output_types", &types));
       for (const auto &shape : vec_shapes) {
@@ -57,6 +53,15 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const char *op_nam
       }
       auto resource = tensor->scalar<tensorflow::ResourceHandle>()();
       DLOG() << "Record mirrored host resource " << resource.DebugString();
+
+      auto generator_ndef = std::make_shared<tensorflow::NodeDef>();
+      tensorflow::NodeDefBuilder(npu::WrapResourceName(resource.name()), "IteratorV2")
+        .Attr("container", resource.container())
+        .Attr("shared_name", resource.name())
+        .Attr("output_types", types)
+        .Attr("output_shapes", vec_shapes)
+        .Finalize(generator_ndef.get());
+      dev->RecordResourceGeneratorDef(resource, std::make_shared<ResourceGenerator>(generator_ndef, 0));
       dev->RecordIteratorMirror(resource, shapes, types);
     }
   }

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_CUSTOM_KERNEL_H
-#define TENSORFLOW_NPU_CUSTOM_KERNEL_H
+#ifndef NPU_DEVICE_CORE_OP_EXECUTORS_NPU_KERNEL_REGISTRY_OP_H
+#define NPU_DEVICE_CORE_OP_EXECUTORS_NPU_KERNEL_REGISTRY_OP_H
 
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
@@ -38,11 +38,9 @@
 #include "npu_utils.h"
 
 namespace npu {
-using NpuCustomKernelFunc =
-  std::function<void(TFE_Context *, NpuDevice *, const npu::OpSpec *, const TensorShapes &, const tensorflow::NodeDef &,
-                     int, TFE_TensorHandle **, int, TFE_TensorHandle **, TF_Status *)>;
-
-using NpuFallbackHookFunc = std::function<void(TFE_Context *, NpuDevice *, const char *, const TFE_OpAttrs *, int,
+using NpuCustomKernelFunc = std::function<void(TFE_Context *, NpuDevice *, const tensorflow::NodeDef &, int,
+                                               TFE_TensorHandle **, int, TFE_TensorHandle **, TF_Status *)>;
+using NpuFallbackHookFunc = std::function<void(TFE_Context *, NpuDevice *, const tensorflow::NodeDef &, int,
                                                TFE_TensorHandle **, int, TFE_TensorHandle **, TF_Status *)>;
 
 class CustomKernelRegistry {
@@ -131,4 +129,4 @@ class CustomKernelReceiver {
 #define NPU_REGISTER_FALLBACK_HOOK_2(ctr, name, func) \
   static CustomKernelReceiver __preserved_op##ctr(FallbackHookSpec(name, func))
 
-#endif  // TENSORFLOW_NPU_CUSTOM_KERNEL_H
+#endif  // NPU_DEVICE_CORE_OP_EXECUTORS_NPU_KERNEL_REGISTRY_OP_H

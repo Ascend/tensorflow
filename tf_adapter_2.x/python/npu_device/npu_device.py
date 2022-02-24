@@ -26,6 +26,7 @@ from tensorflow.python.eager import context
 from tensorflow.python.eager import def_function
 from tensorflow.python.framework import device as pydev
 from tensorflow.python.framework import ops
+from tensorflow.python.ops import script_ops
 from tensorflow.python.util import tf_contextlib
 
 from npu_device.configs.npu_config import NpuConfig
@@ -163,19 +164,22 @@ def _never_nested_function_call(self, *func_args, **func_kwargs):
     if _thread_local.entrance_function is not None:
         logging.info("Inlining nested tf function %s under %s on npu", self._python_function.__name__,
                      _thread_local.entrance_function)
-        return self._python_function(*func_args, **func_kwargs)
+        try:
+            return self._python_function(*func_args, **func_kwargs)
+        except:
+            logging.info("Bypass inlining nested tf function %s under %s on npu", self._python_function.__name__,
+                         _thread_local.entrance_function)
+            return _hacked_def_function_function_call(self, *func_args, **func_kwargs)
     _thread_local.entrance_function = self._python_function.__name__
     try:
-        result = _hacked_def_function_function_call(self, *func_args, **func_kwargs)
-    except Exception as e:
-        raise e
+        return _hacked_def_function_function_call(self, *func_args, **func_kwargs)
     finally:
         _thread_local.entrance_function = None
-    return result
 
 
 def npu_compat_function(func=None, *args, **kwargs):
     """NPU compatible function"""
+
     def never_nested_decorator(f):
         if kwargs.get('experimental_compile'):
             logging.info("Skip xla compile tf function %s on npu", f.__name__)
@@ -191,8 +195,36 @@ def npu_compat_function(func=None, *args, **kwargs):
     return never_nested_decorator
 
 
+class NpuCompatEagerFunc(script_ops.EagerFunc):
+    def __init__(self, *args, **kwargs):
+        if hasattr(_thread_local, 'npu_specific_device'):
+            self._npu_specific_device = _thread_local.npu_specific_device
+        else:
+            self._npu_specific_device = None
+        super(NpuCompatEagerFunc, self).__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        if self._npu_specific_device:
+            with context.device(self._npu_specific_device):
+                return super(NpuCompatEagerFunc, self).__call__(*args, **kwargs)
+        else:
+            return super(NpuCompatEagerFunc, self).__call__(*args, **kwargs)
+
+
+def wrap_cpu_only_api(func):
+    def wrapper(*args, **kwargs):
+        _thread_local.npu_specific_device = '/job:localhost/replica:0/task:0/device:CPU:0'
+        try:
+            return func(*args, **kwargs)
+        finally:
+            _thread_local.npu_specific_device = None
+
+    return wrapper
+
+
 class NpuDeviceHandle:
     """Class for creating handle of NPU device"""
+
     def __init__(self, ctx, device_id, device_options, workers_num, worker_id):
         self._ctx = ctx
         self._device_id = device_id
@@ -207,6 +239,7 @@ class NpuDeviceHandle:
 
     def scope(self):
         """Return NPU scope"""
+
         @tf_contextlib.contextmanager
         def _scope():
             with self._ctx.device(self._device_name):
@@ -220,21 +253,26 @@ class NpuDeviceHandle:
 
     def as_default(self):
         """Set device as default one"""
+
         @tf_contextlib.contextmanager
-        def combined():
+        def _consistent_with_context_ctx():
             try:
-                with context.device(self._device_name):
+                with context.device(self._ctx.device_name):
                     yield
             except ImportError:  # ImportError: sys.meta_path is None, Python is likely shutting down
                 yield
 
-        def _f(*args, **kwargs):
-            return combined()
+        def _device_consistent_with_context(*args, **kwargs):
+            return _consistent_with_context_ctx()
 
         def_function.Function.__call__ = _never_nested_function_call
-        ops.device = _f
         def_function.function = npu_compat_function
         tf.function = npu_compat_function
+
+        ops.device = _device_consistent_with_context
+        script_ops.EagerFunc = NpuCompatEagerFunc
+
+        tf.py_function = wrap_cpu_only_api(tf.py_function)
 
         self._ctx.default_device = self._device_name
 

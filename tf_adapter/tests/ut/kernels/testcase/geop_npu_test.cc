@@ -253,6 +253,11 @@ TEST_F(GeOpTest, GeOpAoeTuningTest) {
           params.forward_from_array = &forward_from;
           auto ctx = absl::make_unique<OpKernelContext>(&params);
           AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
+          static_cast<GeOp*>(async_op)->session_id_ = 0;
+          async_op->ComputeAsync(ctx.get(), done);
+          EXPECT_EQ(ctx->status().ok(), true);
+          static_cast<GeOp*>(async_op)->session_id_ = 9999;
+          static_cast<GeOp*>(async_op)->tuned_flag_.clear();
           async_op->ComputeAsync(ctx.get(), done);
           EXPECT_EQ(ctx->status().ok(), true);
         }

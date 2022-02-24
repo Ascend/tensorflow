@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_NPU_DP_H
-#define TENSORFLOW_NPU_DP_H
+#ifndef NPU_DEVICE_CORE_NPU_DP_H
+#define NPU_DEVICE_CORE_NPU_DP_H
 
 #include <queue>
 #include <utility>
@@ -165,4 +165,4 @@ class IteratorResourceProvider {
   std::unique_ptr<tensorflow::Thread> worker_;
 };
 }  // namespace npu
-#endif  // TENSORFLOW_NPU_DP_H
+#endif  // NPU_DEVICE_CORE_NPU_DP_H

@@ -377,7 +377,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
   if (IsMakeIteratorNode(topo_end)) {
     topo_end->input_node(1, &iterator_node);
   }
-
+  kIsNewDataTransfer = GetNewDataTransferFlag();
   for (const Edge *e : split_edges_.at(topo_end)) {
     REQUIRES_NOT_NULL(e);
     REQUIRES_NOT_NULL(e->src());

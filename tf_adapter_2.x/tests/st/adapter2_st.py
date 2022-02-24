@@ -28,6 +28,14 @@ npu = npu_device.open().as_default()
 npu.workers_num = 2  # mock run in 2P env
 
 
+def tensor_exact_equal(t1, t2):
+    if t1.shape.rank != t2.shape.rank:
+        return False
+    if t1.shape.rank:
+        return (t1.numpy() == t2.numpy()).all()
+    return t1.numpy() == t2.numpy()
+
+
 def tensor_equal(t1, t2):
     return True
 
@@ -53,7 +61,7 @@ class Adapter2St(unittest.TestCase):
         with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
             x = tf.Variable(1)
         y = tf.Variable(1)
-        self.assertRaises(tf.errors.InvalidArgumentError, foo_add, x, y)
+        self.assertRaises(tf.errors.UnimplementedError, foo_add, x, y)
 
     def test_basic0(self):
         stupid_repeat("", 1)
@@ -89,6 +97,59 @@ class Adapter2St(unittest.TestCase):
         with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
             x = tf.Variable(1)
         self.assertTrue(foo_add_(x).device == "/job:localhost/replica:0/task:0/device:CPU:0")
+
+    def test_string_unimp1(self):
+        x = tf.Variable(1)
+
+        @tf.function
+        def f(v1, v2):
+            x.assign_add(1)
+            return tf.strings.to_number(v1 + v2)
+
+        self.assertRaises(tf.errors.UnimplementedError, f, tf.constant('1'), tf.constant('2'))
+
+    def test_string_unimp2(self):
+        x = tf.Variable(1)
+
+        @tf.function
+        def f(v1, v2):
+            x.assign_add(1)
+            return v1 + v2
+
+        self.assertRaises(tf.errors.UnimplementedError, f, tf.constant('1'), tf.constant('2'))
+
+    def test_string_fallback_cpu1(self):
+        @tf.function
+        def f(v1, v2):
+            return tf.strings.to_number(v1 + v2)
+
+        self.assertTrue(tensor_exact_equal(f(tf.constant('1'), tf.constant('2')), tf.constant(12.0)))
+
+    def test_string_output_ref_input(self):
+        @tf.function
+        def f(v1, v2):
+            return v1, v2
+
+        x, y = f(tf.constant(1.0), tf.constant('abc'))
+
+        self.assertTrue(tensor_exact_equal(x, tf.constant(1.0)))
+        self.assertTrue(tensor_exact_equal(y, tf.constant('abc')))
+
+    def test_resource_output_ref_input(self):
+        from tensorflow.python.ops import resource_variable_ops
+        v = resource_variable_ops.VarHandleOp(dtype=tf.float32, shape=())
+
+        @tf.function
+        def f(v1, v2):
+            return v1 + v1, v2
+
+        x, y = f(tf.constant(1.0), v)
+
+        self.assertTrue(tensor_equal(x, tf.constant(2.0)))
+        self.assertTrue(tensor_equal(y, v))
+
+    def test_string_fallback_cpu2(self):
+        self.assertTrue(tensor_equal(foo_add(tf.constant('1'), tf.constant('2')), tf.constant('12')))
 
     def test_checkpoint(self):
         step = tf.Variable(0, name="step")  # 0
@@ -319,6 +380,29 @@ class Adapter2St(unittest.TestCase):
         x4 = tf.Variable(1.0)
         npu_device.distribute.grouping_broadcast([x, x1, x2, x3, x4])
         train_loop()
+
+    def test_empty_graph(self):
+        @tf.function
+        def f():
+            pass
+
+        f()
+
+    def test_py_function(self):
+        def augment(images):
+            return tf.cast(images, tf.uint8)
+
+        ds = tf.data.Dataset.from_tensor_slices(tf.constant([2.2], dtype=tf.float32)).map(
+            lambda x: tf.py_function(augment, [x], [tf.uint8]), num_parallel_calls=1
+        )
+
+        y = next(iter(ds))
+        self.assertTrue(tensor_equal(y, tf.constant(2)))
+
+    def test_copy_npu_to_npu(self):
+        x = tf.add(1, 1)
+        y = x._copy()
+        self.assertTrue(tensor_equal(y, tf.constant(2)))
 
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):

@@ -455,7 +455,7 @@ REGISTER_OP("Dequeue")
       TF_RETURN_IF_ERROR(c->GetAttr("output_shape", &output_shape));
       int32_t rank = output_shape.size();
       std::vector<DimensionHandle> out_dims(rank);
-      for (auto i = 0; i < rank; ++i){
+      for (auto i = 0; i < rank; ++i) {
         out_dims[i] = c->MakeDim(output_shape[i]);
       }
       c->set_output(0, c->MakeShape(out_dims));

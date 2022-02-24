@@ -88,6 +88,8 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
 
 bool Session::IsGraphNeedRebuild(uint32_t graphId) { return graph_need_rebuild_[graphId]; }
 
+size_t ComputeGraph::GetAllNodesSize() const { return graph->num_op_nodes(); }
+
 std::string GEGetErrorMsg() { return ""; }
 
 Status GEInitialize(const std::map<std::string, std::string> &options) { return SUCCESS; }

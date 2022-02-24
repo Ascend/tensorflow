@@ -12,12 +12,12 @@ if [ "$(arch)" != "x86_64" ];then
   exit 0
 fi
 
-if [ ! -f "/home/jenkins/tensorflow24/.env/bin/activate" ];then
+if [ ! -f "/home/jenkins/tensorflow26/.env/bin/activate" ];then
   echo "No venv for tensorflow2.x installed, skip CI build"
   exit 0
 fi
 
-source /home/jenkins/tensorflow24/.env/bin/activate
+source /home/jenkins/tensorflow26/.env/bin/activate
 
 PYTHON_BIN_PATH=$(which python3.7)
 
