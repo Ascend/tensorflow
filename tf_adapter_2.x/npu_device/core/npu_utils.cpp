@@ -57,7 +57,7 @@ tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType &tf_t
     {ge::DT_FLOAT16, tensorflow::DT_HALF},
   };
   if (kGeType2Tf.find(ge_type) == kGeType2Tf.end()) {
-    return tensorflow::errors::InvalidArgument("Unsupport ge data type enmu value ", ge_type, " by tf");
+    return tensorflow::errors::InvalidArgument("Unsupported ge data type enmu value ", ge_type, " by tf");
   }
   tf_type = kGeType2Tf[ge_type];
   return tensorflow::Status::OK();
@@ -84,7 +84,7 @@ tensorflow::Status MapTfType2Ge(tensorflow::DataType tf_type, ge::DataType &ge_t
     {tensorflow::DT_HALF, ge::DT_FLOAT16},
   };
   if (kTfType2Ge.find(tf_type) == kTfType2Ge.end()) {
-    return tensorflow::errors::InvalidArgument("Unsupport tf data type enmu value ", ge_type, " by ge");
+    return tensorflow::errors::InvalidArgument("Unsupported tf type ", tensorflow::DataTypeString(tf_type), " by ge");
   }
   ge_type = kTfType2Ge[tf_type];
   return tensorflow::Status::OK();
