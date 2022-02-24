@@ -17,16 +17,13 @@
 
 """Entry point to initiate script migration"""
 
-import ctypes
 import os
-import pwd
-import platform
 import sys
 import getopt
 import util_global
 from conver import conver
-from file_op import mkdir
-
+from log import init_loggers
+from util import check_input_and_output_dir
 
 def get_para_input(arg):
     """Get input directory parameter"""
@@ -75,66 +72,6 @@ def get_para_distributed_mode(arg):
     if arg not in ["horovod", "tf_strategy"]:
         raise ValueError("--distributed_mode or -d must be one of ['horovod', 'tf_strategy']")
     return arg
-
-
-def get_dir_free_space(folder):
-    if platform.system() == 'Windows':
-        free_bytes = ctypes.c_ulonglong(0)
-        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(folder), None, None, ctypes.pointer(free_bytes))
-        return free_bytes.value
-    else:
-        st = os.statvfs(folder)
-        return st.f_bavail * st.f_frsize
-
-
-def get_dir_size_and_py_num(folder):
-    size = 0
-    py_files_num = 0
-    threshold_files_num = 5000
-    for root, dirs, files in os.walk(folder):
-        size += sum([os.path.getsize(os.path.join(root, name)) for name in files])
-        for file in files:
-            if file.endswith(".py"):
-                py_files_num += 1
-                if py_files_num > threshold_files_num:
-                    break
-    return size, py_files_num
-
-
-def check_input_and_output_dir(input_dir, output_dir):
-    mkdir(output_dir)
-    current_usr = pwd.getpwuid(os.getuid())[0]
-    input_dir_usr = pwd.getpwuid(os.stat(input_dir).st_uid).pw_name
-    output_dir_usr = pwd.getpwuid(os.stat(output_dir).st_uid).pw_name
-    if current_usr != input_dir_usr or current_usr != output_dir_usr:
-        while True:
-            message = input("The owner of the path set by '-i' or '-o' is inconsistent with the current user, "
-                            "please check. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
-            if message in ("c", "continue"):
-                break
-            elif message == "exit":
-                sys.exit()
-            else:
-                print("Input is error, please enter 'exit' or 'c' or 'continue'.")
-    input_dir_size, py_files_num = get_dir_size_and_py_num(input_dir)
-    output_dir_free_space = get_dir_free_space(output_dir)
-    if input_dir_size > output_dir_free_space:
-        content = "".join(["The output path: ", output_dir, " does not have enough space."])
-        os.system("cd .")
-        print("".join(["\033[1;31mERROR\033[0m:", content]))
-        sys.exit()
-    threshold_files_size = 50 * 1024 * 1024 * 1024
-    threshold_files_num = 5000
-    if input_dir_size > threshold_files_size or py_files_num > threshold_files_num:
-        while True:
-            message = input("The number of files in the path set by '-i' is too large, and the conversion will "
-                            "takes a long time. Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
-            if message in ("c", "continue"):
-                break
-            elif message == "exit":
-                sys.exit()
-            else:
-                print("Input is error, please enter 'exit' or 'c' or 'continue'.")
 
 
 def para_check_and_set(argv):
@@ -206,7 +143,7 @@ def para_check_and_set(argv):
     util_global.set_value('report', report)
     util_global.set_value('main', main_file)
     util_global.set_value('distributed_mode', distributed_mode)
-
+    init_loggers(report)
 
 if __name__ == "__main__":
     util_global._init()
