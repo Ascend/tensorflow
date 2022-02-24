@@ -67,7 +67,7 @@ REGISTER_OP("NpuGetFloatStatusV2")
         shape_eights.reserve(shape_eight);
         auto output_shape = c->MakeShape({shape_eights});
         c->set_output(0, output_shape);
-        return Status::Ok();
+        return Status::OK();
     });
 
 
