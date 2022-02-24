@@ -36,8 +36,7 @@ namespace tensorflow {
 template <typename T, typename TIndex>
 class UniqueParallelOp : public OpKernel {
 public:
-  explicit UniqueParallelOp(OpKernelConstruction *context)
-    : OpKernel(context) {}
+  explicit UniqueParallelOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~UniqueParallelOp() override = default;
   void Compute(OpKernelContext *context) override {
     const Tensor &input_tensor = context->input(0);

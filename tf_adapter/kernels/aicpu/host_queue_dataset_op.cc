@@ -75,7 +75,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &local_rank_id));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &local_device_list));
-    ADP_LOG(INFO) << "Get local rank_id: " << local_rank_id << ", local device list: " << local_device_list;
+    ADP_LOG(INFO) << "Get local rank id: " << local_rank_id << ", local device list: " << local_device_list;
     // local rank id range 0-7
     local_rank_id_ = std::atoi(local_rank_id.c_str());
     for (size_t i = 0UL; i < local_device_list.size(); i += 2UL) {
@@ -84,12 +84,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       local_device_list_.push_back(device_id);
     }
     SetChannelType();
-    ADP_LOG(INFO) << "Start to init channel.";
+    ADP_LOG(INFO) << "Start to init channel";
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
     if (channel_type_ == ChannelType::TDT) {
       int32_t tdt_status = TdtInFeedInit(device_id_);
       OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
-      ADP_LOG(INFO) << "End init tdt host success.";
+      ADP_LOG(INFO) << "End init tdt host success";
     }
     tdt_release = false;
   }
@@ -103,20 +103,20 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       return;
     }
 
-    ADP_LOG(INFO) << "Start to destroy tdt.";
+    ADP_LOG(INFO) << "Start to destroy tdt";
     int32_t tdt_status = TdtInFeedDestroy(device_id_);
     if (tdt_status != 0) {
       ADP_LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
       LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
     } else {
-      ADP_LOG(INFO) << "Tdt client close success.";
+      ADP_LOG(INFO) << "Tdt client close success";
       tdt_release = true;
       NpuAttrs::SetUseTdtStatus(device_id_, false);
     }
   }
 
   void SetChannelType() {
-    ADP_LOG(INFO) << "Now kIsNewDataTransfer is : " << kIsNewDataTransfer;
+    ADP_LOG(INFO) << "kIsNewDataTransfer is: " << kIsNewDataTransfer;
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
     } else if (kIsNewDataTransfer) {
@@ -124,7 +124,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     } else {
       channel_type_ = ChannelType::TDT;
     }
-    ADP_LOG(INFO) << "Host queue channel type is : " << static_cast<int>(channel_type_);
+    ADP_LOG(INFO) << "Host queue channel type is: " << static_cast<int>(channel_type_);
   }
 
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
@@ -162,7 +162,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     return element_num;
   }
 
-  bool IsUnknownShape(const PartialTensorShape &output_shapes) {
+  bool IsUnknownShape(const PartialTensorShape &output_shapes) const {
     if (output_shapes.unknown_rank()) {
       return true;
     }
@@ -211,8 +211,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       ADP_LOG(INFO) << "The channel is already create.";
       return;
     }
-    ADP_LOG(INFO) << "Channel name is : " << queue_name;
-    ADP_LOG(INFO) << "Channel depth is : " << channel_depth;
+    ADP_LOG(INFO) << "Channel name is: " << queue_name;
+    ADP_LOG(INFO) << "Channel depth is: " << channel_depth;
     Status ret = HostQueueInit(queue_name, channel_depth, queue_id_);
     OP_REQUIRES(ctx, ret == Status::OK(), errors::InvalidArgument("Failed to create host queue."));
     queue_name_ = queue_name;
@@ -412,7 +412,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
-        ADP_LOG(INFO) << "Begin to send data ...";
+        ADP_LOG(INFO) << "Begin to send data";
         while (true) {
           std::vector<Tensor> args;
           acltdtTensorType data_type = ACL_TENSOR_DATA_TENSOR;
@@ -439,8 +439,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 total_bytes_ -= tensor.TotalBytes();
               }
             }
-            ADP_LOG(INFO) << "Host queue [" << dataset()->channel_name_
-                          << "] buffer_size:" << buffer_.size() << ", data_type:" << data_type;
+            ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_
+                          << "buffer_size:" << buffer_.size() << ", data_type:" << data_type;
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
