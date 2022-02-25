@@ -42,7 +42,7 @@ class NpuOpsIdentifier {
   NpuOpsIdentifier(bool is_mix, nlohmann::json &ops_info);
   ~NpuOpsIdentifier() = default;
   // Parse and store the ops configuration json file, return num of parsed ops
-  int32_t ParseOps(const std::string &f, nlohmann::json &root);
+  int32_t ParseOps(const std::string &f, nlohmann::json &root) const;
   const bool is_mix_;
   nlohmann::json &ops_info_;
 };

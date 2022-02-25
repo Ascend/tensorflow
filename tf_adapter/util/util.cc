@@ -21,6 +21,7 @@
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "inc/metadef/inc/graph/def_types.h"
+#include "graph/def_types.h"
 #include "securec.h"
 namespace tensorflow {
 Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t &data_size,
@@ -37,7 +38,7 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
   uint8_t *base_ptr = buff_list.back().get();
   uint64_t offset = sizeof(ge::StringHead) * total_nums;
   for (int64_t i = 0; i < total_nums; ++i) {
-    ge::StringHead *head = reinterpret_cast<ge::StringHead *>(base_ptr + i * sizeof(ge::StringHead));
+    ge::StringHead *head = ge::PtrToPtr<uint8_t, ge::StringHead>(base_ptr + i * sizeof(ge::StringHead));
     head->addr = offset;
     head->len = tensor.flat<tstring>()(i).size();
     // can not use memcpy_s here, data size may over 2G
@@ -55,7 +56,7 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
   if (tensor.dims() == 0) {
     std::string value = tensor.scalar<string>()();
     item.dataLen_ = tensor.scalar<string>()().size();
-    item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](void *elem) {
+    item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](const void *elem) {
       (void)elem;
     });
     return Status::OK();
@@ -65,7 +66,7 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
   uint64_t data_size = 0UL;
   std::vector<int64_t> dims;
   TF_RETURN_IF_ERROR(GetDtStringTensorData(tensor, data_ptr, data_size, dims, buff_list));
-  item.dataPtr_ = std::shared_ptr<void>(data_ptr, [](void *ptr) {
+  item.dataPtr_ = std::shared_ptr<void>(data_ptr, [](const void *ptr) {
     (void)ptr;
   });
   item.dataLen_ = data_size;
@@ -75,7 +76,7 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
 Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&acl_data,
                                          std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (tensor.dims() == 0) {
-    auto value = reinterpret_cast<tensorflow::tstring *>(const_cast<char *>(tensor.tensor_data().data()));
+    auto value = ge::PtrToPtr<char, tensorflow::tstring>(const_cast<char *>(tensor.tensor_data().data()));
     // for scalar type, *dims is nullptr and dim_num is 0
     acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, nullptr, 0, ACL_STRING,
                                     const_cast<char *>(value->c_str()), value->size());

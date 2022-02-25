@@ -30,6 +30,8 @@
 #include "mmpa/mmpa_api.h"
 #include "tf_adapter/util/ge_plugin.h"
 namespace tensorflow {
+const string profiling_default_options = "{\"output\":\".\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
+\"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metric\":\"PipeUtilization\",\"msproftx\":\"off\"}";
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
@@ -46,7 +48,7 @@ bool GetNewDataTransferFlag() {
     return true;
   }
   check_queue_handle = acltdtCreateChannel(device_id, "check_is_queue");
-  if (check_queue_handle !=nullptr) {
+  if (check_queue_handle != nullptr) {
     acltdtDestroyChannel(check_queue_handle);
     return false;
   } else {
@@ -327,7 +329,7 @@ void NpuAttrs::SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool i
                 << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
 }
 
-std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction *ctx) {
+std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
   std::string variable_format_optimize = std::to_string(true);
   std::string hcom_parallel = std::to_string(false);
@@ -357,6 +359,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   std::string op_precision_mode;
   std::string graph_run_mode = "1";
   std::string hccl_timeout;
+  std::string HCCL_algorithm;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -410,6 +413,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
     ctx->GetAttr("_op_precision_mode", &op_precision_mode);
     ctx->GetAttr("_graph_run_mode", &graph_run_mode);
     ctx->GetAttr("_hccl_timeout", &hccl_timeout);
+    ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
   }
 
   // session options
@@ -446,6 +450,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(OpKernelConstruction
   sess_options["ge.exec.op_precision_mode"] = op_precision_mode;
   sess_options[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   sess_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
+  sess_options["HCCL_algorithm"] = HCCL_algorithm;
 
   return sess_options;
 }
@@ -467,7 +472,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   return init_options;
 }
 
-std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction *ctx) {
+std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstruction *ctx) {
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = std::to_string(false);
   std::string profiling_options;
@@ -494,6 +499,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   std::string hccl_timeout;
   std::string op_wait_timeout;
   std::string op_execute_timeout;
+  std::string HCCL_algorithm;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -519,6 +525,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
     ctx->GetAttr("_hccl_timeout", &hccl_timeout);
     ctx->GetAttr("_op_wait_timeout", &op_wait_timeout);
     ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
+    ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
   }
 
   if (precision_mode.empty()) {
@@ -526,7 +533,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   } else {
     init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-
   init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
@@ -551,6 +557,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(OpKernelConstruction
   if (!soc_config.empty()) {
     init_options_["ge.socVersion"] = soc_config;
   }
+  init_options_["HCCL_algorithm"] = HCCL_algorithm;
 
   return init_options_;
 }
@@ -675,7 +682,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   return pass_options;
 }
 
-std::map<std::string, std::string> NpuAttrs::GetPassOptions(OpKernelConstruction *ctx) {
+std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> pass_options;
   std::string do_npu_optimizer = std::to_string(false);
   std::string enable_dp = std::to_string(false);
@@ -899,6 +906,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string hccl_timeout;
   std::string op_wait_timeout;
   std::string op_execute_timeout;
+  std::string HCCL_algorithm;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -959,6 +967,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto hccl_timeout_value = attrs.Find("_hccl_timeout");
   auto op_wait_timeout_value = attrs.Find("_op_wait_timeout");
   auto op_execute_timeout_value = attrs.Find("_op_execute_timeout");
+  auto HCCL_algorithm_value = attrs.Find("_HCCL_algorithm");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -1067,6 +1076,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (profiling_options_value != nullptr) {
       profiling_options = profiling_options_value->s();
     }
+    if (profiling_mode == "1" && profiling_options.empty()) {
+      profiling_options = profiling_default_options;
+    }
     if (auto_tune_mode_value != nullptr) {
       auto_tune_mode = auto_tune_mode_value->s();
     }
@@ -1157,6 +1169,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (op_execute_timeout_value != nullptr) {
       op_execute_timeout = op_execute_timeout_value->s();
     }
+    if (HCCL_algorithm_value != nullptr) {
+      HCCL_algorithm = HCCL_algorithm_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1223,6 +1238,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["hccl_timeout"] = hccl_timeout;
   all_options["op_wait_timeout"] = op_wait_timeout;
   all_options["op_execute_timeout"] = op_execute_timeout;
+  all_options["HCCL_algorithm"] = HCCL_algorithm;
 
   return all_options;
 }
@@ -1255,6 +1271,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string stream_max_parallel_num;
   std::string soc_config;
   std::string hccl_timeout;
+  std::string HCCL_algorithm;
 
   bool is_tailing_optimization = false;
   std::string precision_mode;
@@ -1382,11 +1399,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         profiling_mode = params.at("profiling_mode").b();
       }
       if (profiling_mode) {
-        if (params.count("profiling_options")) {
+        if (params.count("profiling_options") && params.at("profiling_options").s() != "") {
           profiling_options = params.at("profiling_options").s();
         } else {
-          ADP_LOG(FATAL) << "profiling_options must be set when use profiling";
-          LOG(FATAL) << "profiling_options must be set when use profiling";
+          profiling_options = profiling_default_options;
         }
       }
       if (params.count("auto_tune_mode")) {
@@ -1635,6 +1651,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("op_execute_timeout")) {
         op_execute_timeout = std::to_string(params.at("op_execute_timeout").i());
       }
+      if (params.count("HCCL_algorithm")) {
+        HCCL_algorithm = params.at("HCCL_algorithm").s();
+      }
     }
   }
 
@@ -1671,6 +1690,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["modify_mixlist"] = modify_mixlist;
   sess_options["op_precision_mode"] = op_precision_mode;
   sess_options["hccl_timeout"] = hccl_timeout;
+  sess_options["HCCL_algorithm"] = HCCL_algorithm;
+
 
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {

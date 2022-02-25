@@ -46,7 +46,7 @@ Status SetVarMaxSizePass::SetMaxSizeListNodes(Node *node) const {
   node->AddAttr(ATTR_NAME_OP_MAX_SIZE, attr_values);
   return Status::OK();
 }
-Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(const Node *node) {
+Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(const Node *node) const {
   for (const Edge *out : node->out_edges()) {
     REQUIRES_NOT_NULL(out);
     Node *dst_node = out->dst();

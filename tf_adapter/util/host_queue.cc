@@ -122,7 +122,7 @@ Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector
                                          tensor.tensor_data().size(), items));
     } else if (tensor.dtype() == DT_STRING) {
       if (tensor.dims() == 0) {
-        auto value = reinterpret_cast<tensorflow::tstring *>(const_cast<char *>(tensor.tensor_data().data()));
+        auto value = ge::PtrToPtr<char, tensorflow::tstring>(const_cast<char *>(tensor.tensor_data().data()));
         TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, nullptr, 0UL,
                                            const_cast<char *>(value->c_str()), value->size(), items));
       } else {
@@ -206,7 +206,7 @@ Status HostQueueSetTransId(uint32_t queue_id, void *&buff) {
   uint64_t head_size = 0UL;
   const auto ret = rtMbufGetPrivInfo(buff, &head_buff, &head_size);
   NPU_REQUIRES(ret == ACL_RT_SUCCESS, errors::Internal("call rtMbufGetPrivInfo failed, ret = ", ret));
-  uint64_t *trans_id = reinterpret_cast<uint64_t *>(static_cast<char *>(head_buff) + head_size - kTransIdOffset);
+  uint64_t *trans_id = ge::PtrToPtr<char, uint64_t>(static_cast<char *>(head_buff) + head_size - kTransIdOffset);
   const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
   *trans_id = ++queue_id_to_trans_id_map[queue_id];
   ADP_LOG(INFO) << "host queue[" << queue_id << "] set trans id[" << *trans_id << "] success";

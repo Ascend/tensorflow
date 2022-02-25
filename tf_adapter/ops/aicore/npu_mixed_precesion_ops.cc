@@ -86,5 +86,4 @@ REGISTER_OP("NpuClearFloatStatusV2")
     Set the value of global workspace to 0.
     )doc")
     .SetIsStateful();
-
 }  // namespace tensorflow
