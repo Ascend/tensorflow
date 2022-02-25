@@ -211,7 +211,7 @@ public:
   ~DecodeImageV3Op() override {}
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DecodeImageV3Op Compute"; }
 };
-REGISTER_KERNEL_BUILDER(Name("DecodeImageV3").Device(DEVICE_CPU), DecodeImageV3Op);
+REGISTER_KERNEL_BUILDER(Name("DecodeImage").Device(DEVICE_CPU), DecodeImageV3Op);
 
 #define REGISTER_KERNEL(type)                                \
 REGISTER_KERNEL_BUILDER(Name("DeformableOffsets")            \

@@ -30,7 +30,7 @@ def decode_image(contents, channels=0, dtype=dtypes.uint8, expand_animations=Tru
     :param expand_animations bool 类型.
     :return image
     """
-    return gen_npu_cpu_ops.decode_image_v3(
+    return gen_npu_cpu_ops.decode_image(
         contents=contents,
         channels=channels,
         dtype=dtype,

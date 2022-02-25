@@ -553,7 +553,7 @@ REGISTER_OP("OCRDetectionPostHandle")
         return Status::OK();
       }
     }
-    REGISTER_OP("DecodeImageV3")
+    REGISTER_OP("DecodeImage")
     .Input("contents: string")
     // Setting `channels` to 0 means using the inherent number of channels in
     // the image.
