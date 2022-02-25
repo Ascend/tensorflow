@@ -15,62 +15,51 @@
  */
 
 #include "npu_logger.h"
+#include "npu_micros.h"
 
 namespace npu {
-class ProfManager {
- public:
-  static void RecordOp(const std::string &op, const std::string &detail, bool is_stateful, bool is_unknown) {
-    Instance().RecordOpInner(op, detail, is_stateful, is_unknown);
+tensorflow::Status NpuStdoutReceiver::Start() {
+  std::unique_lock<std::mutex> lk(mu_);
+  if (started_) {
+    LOG(INFO) << "Npu stdout receiver has already started on device " << device_id_;
+    return tensorflow::Status::OK();
   }
-
- private:
-  static ProfManager &Instance() {
-    static ProfManager prof;
-    return prof;
-  }
-  void RecordOpInner(const std::string &op, const std::string &detail, bool is_stateful, bool is_unknown) {
-    std::lock_guard<std::mutex> lk(mu_);
-    op_records_[op]++;
-    if (is_unknown) {
-      unknown_shape_op_records_[op]++;
-    }
-    if (is_stateful) {
-      stateful_shape_op_records_[op]++;
-    }
-    op_shape_records_[op].insert(detail);
-  }
-  ~ProfManager() {
-    std::lock_guard<std::mutex> lk(mu_);
-    LOG(INFO) << "All nodes executed by acl";
-    for (auto iter = op_records_.cbegin(); iter != op_records_.cend(); iter++) {
-      LOG(INFO) << iter->first << ":" << iter->second;
-    }
-
-    LOG(INFO) << "All stateful nodes executed by acl";
-    for (auto iter = stateful_shape_op_records_.cbegin(); iter != stateful_shape_op_records_.cend(); iter++) {
-      LOG(INFO) << iter->first << ":" << iter->second;
-    }
-
-    LOG(INFO) << "All unknown shape nodes executed by acl";
-    for (auto iter = unknown_shape_op_records_.cbegin(); iter != unknown_shape_op_records_.cend(); iter++) {
-      LOG(INFO) << iter->first << ":" << iter->second;
-    }
-
-    LOG(INFO) << "All nodes' shape and type detail executed by acl";
-    for (auto iter = op_shape_records_.cbegin(); iter != op_shape_records_.cend(); iter++) {
-      std::stringstream ss;
-      ss << std::endl << iter->first << ":";
-      for (const auto status : iter->second) {
-        ss << std::endl << status;
+  const static size_t kNpuCerrChannelCapacity = 32U;
+  NPU_REQUIRES_OK(npu::HdcChannel::Create(device_id_, "_npu_log", kNpuCerrChannelCapacity, &channel_));
+  std::thread t([this]() {
+    while (true) {
+      std::vector<tensorflow::Tensor> tensors;
+      auto status = channel_->RecvTensors(tensors);
+      if (stopping_) {
+        break;
       }
-      LOG(INFO) << ss.str();
+      if (!status.ok()) {
+        LOG(ERROR) << "Npu stdout receiver on device " << device_id_ << " error " << status.error_message();
+        break;
+      }
+      for (auto &tensor : tensors) {
+        LOG(INFO) << "[NPU:" << device_id_ << "] " << tensor.DebugString();
+      }
     }
+    DLOG() << "Exit npu stdout receive thread of device " << device_id_;
+  });
+  thread_.swap(t);
+  started_ = true;
+  LOG(INFO) << "Npu stdout receiver of device " << device_id_ << " started";
+  return tensorflow::Status::OK();
+}
+
+tensorflow::Status NpuStdoutReceiver::Stop() {
+  std::unique_lock<std::mutex> lk(mu_);
+  if (!started_) {
+    return tensorflow::Status::OK();
   }
-  ProfManager() = default;
-  std::mutex mu_;
-  std::map<std::string, size_t> op_records_ TF_GUARDED_BY(mu_);
-  std::map<std::string, size_t> unknown_shape_op_records_ TF_GUARDED_BY(mu_);
-  std::map<std::string, size_t> stateful_shape_op_records_ TF_GUARDED_BY(mu_);
-  std::map<std::string, std::set<std::string>> op_shape_records_ TF_GUARDED_BY(mu_);
-};
+  LOG(INFO) << "Stopping npu stdout receiver of device " << device_id_;
+  stopping_.exchange(true);
+  channel_->Destroy();
+  thread_.join();
+  started_ = false;
+  LOG(INFO) << "Npu stdout receiver of device " << device_id_ << " stopped";
+  return tensorflow::Status::OK();
+}
 }  // namespace npu

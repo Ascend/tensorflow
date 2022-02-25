@@ -26,8 +26,9 @@
 
 #include "ge/ge_api.h"
 
-#include "npu_op_executor.h"
 #include "npu_dp.h"
+#include "npu_logger.h"
+#include "npu_op_executor.h"
 #include "npu_types.h"
 #include "npu_unwrap.h"
 #include "npu_utils.h"
@@ -221,6 +222,7 @@ class NpuDevice {
   std::map<tensorflow::ResourceHandle, std::pair<TensorPartialShapes, TensorDataTypes>, ResourceCompare>
     iterator_mirrors_;
   std::map<tensorflow::ResourceHandle, std::shared_ptr<IteratorResourceProvider>, ResourceCompare> iterator_providers_;
+  std::unique_ptr<NpuStdoutReceiver> npu_stdout_receiver_;
 };
 }  // namespace npu
 

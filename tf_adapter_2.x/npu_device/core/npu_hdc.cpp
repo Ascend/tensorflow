@@ -319,7 +319,16 @@ tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string &nam
                                       std::shared_ptr<HdcChannel> *guarded_channel) {
   guarded_channel->reset(new (std::nothrow) HdcChannel(device_id, name));
   NPU_REQUIRES(*guarded_channel,
-               tensorflow::errors::Internal("Failed allocate memory for hdc channel ", name, " on device ", device_id));
+               tensorflow::errors::Internal("Failed create hdc channel ", name, " on device ", device_id));
+  NPU_REQUIRES_OK((*guarded_channel)->Init());
+  return tensorflow::Status::OK();
+}
+
+tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string &name, size_t capacity,
+                                      std::shared_ptr<HdcChannel> *guarded_channel) {
+  guarded_channel->reset(new (std::nothrow) HdcChannel(device_id, name, capacity));
+  NPU_REQUIRES(*guarded_channel,
+               tensorflow::errors::Internal("Failed create hdc channel ", name, " on device ", device_id));
   NPU_REQUIRES_OK((*guarded_channel)->Init());
   return tensorflow::Status::OK();
 }
@@ -370,11 +379,17 @@ void HdcChannel::Destroy() {
 HdcChannel::HdcChannel(uint32_t device_id, std::string name)
     : handle_(nullptr), device_id_(device_id), name_(std::move(name)) {}
 
+HdcChannel::HdcChannel(uint32_t device_id, std::string name, size_t capacity)
+    : handle_(nullptr), device_id_(device_id), name_(std::move(name)), limited_capacity_(true), capacity_(capacity) {}
 /**
  * @brief: init hdc channel
  */
 tensorflow::Status HdcChannel::Init() {
-  handle_ = acltdtCreateChannel(device_id_, name_.c_str());
+  if (limited_capacity_) {
+    handle_ = acltdtCreateChannelWithCapacity(device_id_, name_.c_str(), capacity_);
+  } else {
+    handle_ = acltdtCreateChannel(device_id_, name_.c_str());
+  }
   if (handle_ == nullptr) {
     return tensorflow::errors::Internal("Failed create hdc channel by acl");
   }
