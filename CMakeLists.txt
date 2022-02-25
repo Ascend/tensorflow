@@ -156,9 +156,9 @@ else()
         ${TOP_DIR}/abl/libc_sec/include/
         ${TOP_DIR}/third_party/json/include/
         ${TOP_DIR}/open_source/json/include/
-        ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow_core/include
-        ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow-1.15.5.data/purelib/tensorflow_core/include/
         ${CMAKE_CURRENT_LIST_DIR}/inc/tensorflow/
+        /opt/buildtools/tensorflow-1.15.5/tensorflow_core/include/
+        /opt/buildtools/tensorflow-1.15.5/tensorflow-1.15.5.data/purelib/tensorflow_core/include/
         ${HI_PYTHON_INC}/
     )
 
