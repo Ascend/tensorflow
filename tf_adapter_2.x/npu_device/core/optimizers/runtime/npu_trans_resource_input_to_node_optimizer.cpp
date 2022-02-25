@@ -141,7 +141,7 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (IsSubstituteNode(edge->src())) continue;
+    if (IsSubstituteNode(edge->src())) { continue; }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
       graph->AddControlEdge(edge->src(), pruned_node);
@@ -226,7 +226,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (IsSubstituteNode(edge->src())) continue;
+    if (IsSubstituteNode(edge->src())) { continue; }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
       graph->AddControlEdge(edge->src(), pruned_node);
@@ -318,7 +318,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
   std::map<int32_t, int32_t> bypass_outputs;
   std::map<int32_t, tensorflow::Node *> indexed_retvals;
   for (auto node : mutable_graph->op_nodes()) {
-    if (!node->IsRetval()) continue;
+    if (!node->IsRetval()) { continue; }
     indexed_retvals[node->attrs().Find("index")->i()] = node;
   }
 
@@ -334,7 +334,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
   PruneGraphByFunctionSignature(*fdef, mutable_graph);
 
   for (auto node : mutable_graph->op_nodes()) {
-    if (!node->IsArg()) continue;
+    if (!node->IsArg()) { continue; }
     auto index = node->attrs().Find("index")->i();
 
     const tensorflow::Tensor *tensor = nullptr;

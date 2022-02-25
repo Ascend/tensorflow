@@ -26,7 +26,7 @@ const static std::string kNpuGetFloatStatusOp = "NpuGetFloatStatus";
 
 namespace {
 bool IsFirstDropoutNode(tensorflow::Node *node) {
-  if (node->type_string() != kDropOutGenMaskV3) return false;
+  if (node->type_string() != kDropOutGenMaskV3) { return false; }
   for (const auto edge : node->in_edges()) {
     if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {
       return false;
@@ -84,7 +84,7 @@ void FineTuneDropoutControlEdge(tensorflow::Graph *graph, tensorflow::Node *firs
 }
 
 bool IsEdgeRedundant(const tensorflow::Edge *edge) {
-  if (!edge->IsControlEdge()) return false;
+  if (!edge->IsControlEdge()) { return false; }
   const std::string &src = edge->src()->type_string();
   const std::string &dst = edge->dst()->type_string();
   if ((dst == kHcomAllReduce && src != kNpuGetFloatStatusOp) ||
@@ -126,7 +126,7 @@ tensorflow::Status ControlEdgeOptimizeInner(TFE_Context *context, tensorflow::Gr
 
         bool function_optimized = false;
         NPU_REQUIRES_OK(ControlEdgeOptimizeInner(context, fbody->graph, function_optimized));
-        if (!function_optimized) continue;
+        if (!function_optimized) { continue; }
 
         any_subgraph_optimized = true;
         tensorflow::FunctionDef optimized_fdef;
