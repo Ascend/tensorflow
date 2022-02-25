@@ -15,6 +15,7 @@
  */
 
 #include "npu_hdc.h"
+#include "npu_logger.h"
 #include "npu_micros.h"
 
 namespace {
@@ -22,11 +23,9 @@ tensorflow::Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDa
 
 tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type);
 
-tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors,
-                                            bool call_by_channel_receive);
+tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors);
 
-tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<tensorflow::Tensor> &out_tensors,
-                                              bool call_by_channel_receive);
+tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<tensorflow::Tensor> &out_tensors);
 
 tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
                                               acltdtDataset **output_acl_dataset);
@@ -67,8 +66,7 @@ tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::
  * @param tensors: tensorflow tensors
  * @param call_by_channel_receive: if call by channel receive or not
  */
-tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors,
-                                            bool call_by_channel_receive) {
+tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors) {
   acltdtTensorType acl_type = acltdtGetTensorTypeFromItem(item);
   if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
     LOG(INFO) << "Hdc channel received end-of-sequence for out-feed op.";
@@ -87,9 +85,6 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
   const char *acl_data = static_cast<char *>(acltdtGetDataAddrFromItem(item));
   if (acl_data == nullptr) {
     return tensorflow::errors::Internal("Failed get data addr from item");
-  }
-  if (call_by_channel_receive) {
-    acl_data = reinterpret_cast<const std::string *>(acl_data)->c_str();
   }
   if (tf_type == tensorflow::DT_STRING) {
     if (dim_num != 0) {
@@ -130,14 +125,14 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
  * @param out_tensors: tensorflow tensors
  * @param call_by_channel_receive: if call by channel receive of not
  */
-tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<tensorflow::Tensor> &out_tensors,
-                                              bool call_by_channel_receive) {
+tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset,
+                                              std::vector<tensorflow::Tensor> &out_tensors) {
   for (size_t i = 0; i < acltdtGetDatasetSize(acl_dataset); i++) {
     auto acl_data = acltdtGetDataItem(acl_dataset, i);
     if (acl_data == nullptr) {
       return tensorflow::errors::Internal("Acl get tensor data from dataset failed when receive tensor data.");
     }
-    TF_RETURN_IF_ERROR(AssembleAclTensor2Tensor(acl_data, out_tensors, call_by_channel_receive));
+    TF_RETURN_IF_ERROR(AssembleAclTensor2Tensor(acl_data, out_tensors));
   }
   return tensorflow::Status::OK();
 }
@@ -178,7 +173,7 @@ tensorflow::Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<
     return tensorflow::errors::Internal("Failed receive data from hdc channel, acl status:", acl_status);
   }
 
-  auto status = AssembleAclDataset2Tensors(acl_dataset, tensors, true /* call by channel receive */);
+  auto status = AssembleAclDataset2Tensors(acl_dataset, tensors);
   if (!status.ok()) {
     NPU_LOG_IF_ERROR(DestroyAclDataset(acl_dataset, false));
     return status;
@@ -371,7 +366,7 @@ void HdcChannel::Destroy() {
     if (acltdtDestroyChannel(handle_) != ACL_ERROR_NONE) {
       LOG(ERROR) << "Failed close hdc channel " << name_;
     } else {
-      LOG(INFO) << "Hdc channel " << name_ << " closed";
+      DLOG() << "Hdc channel " << name_ << " closed";
     }
   }
 }

@@ -188,7 +188,7 @@ aclError acltdtSendTensor(const acltdtChannelHandle *handle, const acltdtDataset
 
 aclError acltdtReceiveTensor(const acltdtChannelHandle *handle, acltdtDataset *dataset, int32_t timeout) {
   using namespace std::chrono_literals;
-  std::this_thread::sleep_for(1000ms);
+  std::this_thread::sleep_for(100ms);
   std::vector<int64_t> dims;
   dims.resize(4, 1);
   float value = 0.0;

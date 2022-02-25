@@ -31,6 +31,7 @@ tensorflow::Status NpuStdoutReceiver::Start() {
       std::vector<tensorflow::Tensor> tensors;
       auto status = channel_->RecvTensors(tensors);
       if (stopping_) {
+        DLOG() << "Exit npu stdout receive thread of device " << device_id_ << " as stopping";
         break;
       }
       if (!status.ok()) {
@@ -41,7 +42,7 @@ tensorflow::Status NpuStdoutReceiver::Start() {
         LOG(INFO) << "[NPU:" << device_id_ << "] " << tensor.DebugString();
       }
     }
-    DLOG() << "Exit npu stdout receive thread of device " << device_id_;
+    DLOG() << "Npu stdout receive thread of device " << device_id_ << " exited";
   });
   thread_.swap(t);
   started_ = true;
@@ -59,7 +60,7 @@ tensorflow::Status NpuStdoutReceiver::Stop() {
   channel_->Destroy();
   thread_.join();
   started_ = false;
-  LOG(INFO) << "Npu stdout receiver of device " << device_id_ << " stopped";
+  DLOG() << "Npu stdout receiver of device " << device_id_ << " stopped";
   return tensorflow::Status::OK();
 }
 }  // namespace npu

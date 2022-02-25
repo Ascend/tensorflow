@@ -59,7 +59,7 @@ class MakeIteratorGraphBuilder {
 
     if (kDumpExecutionDetail || kDumpGraph) {
       std::string file_name = "dp_init_" + shared_name + ".inner.pbtxt";
-      LOG(INFO) << "NPU Dump mirrored resource init graph inner graph to: " << file_name;
+      DLOG() << "NPU Dump mirrored resource init graph inner graph to: " << file_name;
       WriteTextProto(tensorflow::Env::Default(), file_name, graph.ToGraphDefDebug());
     }
 
@@ -109,7 +109,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       if (TF_GetCode(status) != TF_OK) return;
       if (kDumpExecutionDetail || kDumpGraph) {
         std::string file_name = "dp_init_" + handle.name() + ".pbtxt";
-        LOG(INFO) << "NPU Dump mirrored resource init graph to: " << file_name;
+        DLOG() << "NPU Dump mirrored resource init graph to: " << file_name;
         WriteTextProto(tensorflow::Env::Default(), file_name, dp_init_graph);
       }
       dev->RunGeGraphPin2CpuAnonymous(context, "dp_init_" + handle.name(), dp_init_graph, num_inputs, inputs, 0,
