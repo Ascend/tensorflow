@@ -61,7 +61,7 @@ NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix
  * @param f: npu supported json file path
  * @param root: json root
  */
-int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) {
+int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) const {
   std::ifstream jsonConfigFileStream(f, std::ifstream::in);
   int32_t opsCnt = 0;
   if (jsonConfigFileStream.is_open()) {

@@ -28,7 +28,7 @@ class SetVarMaxSizePass : public GraphOptimizationPass {
   SetVarMaxSizePass() = default;
   ~SetVarMaxSizePass() override = default;
   Status Run(const GraphOptimizationPassOptions &options) override;
-  Status AssignMaxSizeToVarOutNodes(const Node *node);
+  Status AssignMaxSizeToVarOutNodes(const Node *node) const;
   Status SetMaxSizeListNodes(Node *node) const;
 };
 }  // namespace tensorflow

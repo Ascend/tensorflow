@@ -41,11 +41,11 @@ class NpuAttrs {
  public:
   // This method returns instance Pointers
   static std::map<std::string, std::string> GetInitOptions();
-  static std::map<std::string, std::string> GetInitOptions(OpKernelConstruction *ctx);
+  static std::map<std::string, std::string> GetInitOptions(const OpKernelConstruction *ctx);
   static std::map<std::string, std::string> GetDefaultInitOptions();
-  static std::map<std::string, std::string> GetSessOptions(OpKernelConstruction *ctx);
+  static std::map<std::string, std::string> GetSessOptions(const OpKernelConstruction *ctx);
   static std::map<std::string, std::string> GetPassOptions(const GraphOptimizationPassOptions &options);
-  static std::map<std::string, std::string> GetPassOptions(OpKernelConstruction *ctx);
+  static std::map<std::string, std::string> GetPassOptions(const OpKernelConstruction *ctx);
   static std::map<std::string, std::string> GetPassOptions(AttrSlice attrs);
   static std::map<std::string, std::string> GetAllAttrOptions(AttrSlice attrs);
   static std::map<std::string, std::string> GetDefaultPassOptions();

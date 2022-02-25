@@ -58,12 +58,12 @@ class DataItemDeliver {
 
  private:
   Status InitSocketClient(int device_id);
-  Status SendDataVec(std::vector<tdt::DataItem> &data_items, int fd);
+  Status SendDataVec(std::vector<tdt::DataItem> &data_items, int fd) const;
   Status CreateSockAddr(struct sockaddr_un &sock_addr, const char *path,
                         int device_id) const;
   uint64_t Recv(uint8_t *buffer, size_t data_len) const;
   template <typename T>
-  Status GetDataLen(T &value, size_t size);
+  Status GetDataLen(T &value, size_t size) const;
   Status GetTensorType(tdt::TdtDataType &data_type);
   Status GetTensorData(uint64_t &data_len, std::shared_ptr<void> &data_ptr);
   Status GetTensorString(std::string &str);
@@ -312,7 +312,7 @@ uint64_t DataItemDeliver::Recv(uint8_t *buffer, size_t data_len) const {
 }
 
 template <typename T>
-Status DataItemDeliver::GetDataLen(T &value, size_t size) {
+Status DataItemDeliver::GetDataLen(T &value, size_t size) const {
   uint64_t recvn = Recv(reinterpret_cast<uint8_t *>(&value), size);
   if (recvn != static_cast<uint64_t>(size)) {
     return errors::Internal("Failed to recv data length.");
@@ -406,7 +406,7 @@ void DataItemDeliver::ParallelSendDataVec(
 }
 
 Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
-                                    int fd) {
+                                    int fd) const {
   uint32_t vector_size = data_items.size();
   // message in buffer:    [head][item][item]...[head][item][item]...
   // send head info

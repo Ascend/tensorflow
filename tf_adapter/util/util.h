@@ -19,7 +19,6 @@
 
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/types.h"
-#include "inc/tdt/data_common.h"
 #include "tf_adapter/util/host_queue.h"
 
 namespace tensorflow {

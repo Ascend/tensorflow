@@ -374,7 +374,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
     }
 
     for (auto out_node : cur_node->out_nodes()) {
-      auto num_outputs = [](Node *node) {
+      auto num_outputs = [](const Node *node) {
         unsigned int n = 0;
         for (auto out_node : node->out_nodes()) {
           if (out_node->id() > -1) {
@@ -617,9 +617,9 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
         cfInfo = cfInfos[cfInfo.parent_frame->id()];
       }
     }
-    for (auto it = candidates->begin(); it != candidates->end();) {
+    for (auto it = candidates->cbegin(); it != candidates->cend();) {
       auto cfInfo = cfInfos[(*it)->id()];
-      if (unsupportedFrames.find(cfInfo.frame_name) != unsupportedFrames.end()) {
+      if (unsupportedFrames.find(cfInfo.frame_name) != unsupportedFrames.cend()) {
         outSet.insert(*it);
         it = candidates->erase(it);
       } else {
@@ -859,7 +859,7 @@ std::vector<string> string_split(const string &str, const string &pattern) {
   return resultVec;
 }
 
-Status MarkForPartition(std::unique_ptr<Graph> *graph_in, int &clusterNum, bool mix_compile_mode, int graph_num,
+Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum, bool mix_compile_mode, int graph_num,
                         FunctionLibraryDefinition *func_lib, std::map<std::string, std::string> pass_options,
                         std::map<std::string, std::string> &graph_options) {
   Graph *graph = graph_in->get();
@@ -1192,7 +1192,7 @@ Node *AddIdentityNode(Graph *graph, const Edge *edge, const string &srcName, int
 class OMSplitter {
  public:
   OMSplitter(string groupAttribute, Graph const *graph_in, std::map<std::string, std::string> npu_optimizer_options,
-      std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
+             std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
       : groupAttribute_(std::move(groupAttribute)), graph_in_(graph_in),
         npu_optimizer_options_(std::move(npu_optimizer_options)), pass_options_(std::move(pass_options)),
         graph_options_(std::move(graph_options)) {}
@@ -1335,7 +1335,7 @@ class OMSplitter {
   Status CopySubgraphNodes(std::unordered_map<const Node *, Node *> *nodeImages);
 
   // Copies all nodes that aren't in a subgraph to the output graph.
-  Status CopyNodesToOutputGraph(Graph *graphOut, std::unordered_map<const Node *, Node *> *nodeImages);
+  Status CopyNodesToOutputGraph(Graph *graphOut, std::unordered_map<const Node *, Node *> *nodeImages) const;
 
   // Adds GEOp nodes for each subgraph.
   Status AddGEOpNodes(const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut);
@@ -1725,7 +1725,7 @@ Status OMSplitter::BuildFunctionDefs(FunctionLibraryDefinition *library, const s
   return Status::OK();
 }
 
-Status OMSplitter::CopyNodesToOutputGraph(Graph *graphOut, std::unordered_map<const Node *, Node *> *nodeImages) {
+Status OMSplitter::CopyNodesToOutputGraph(Graph *graphOut, std::unordered_map<const Node *, Node *> *nodeImages) const {
   for (Node *node : graph_in_->op_nodes()) {
     string subgraphId;
     TF_RETURN_IF_ERROR(GetSubgraphIdAttr(node, &subgraphId));
@@ -1929,7 +1929,7 @@ Status OMPartitionSubgraphsPass::Run(const GraphOptimizationPassOptions &options
 }
 
 void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
-                                                    std::map<std::string, std::string> &graph_options) {
+                                                    std::map<std::string, std::string> &graph_options) const {
   static const size_t kLegalShapeVecSize = 2;
   std::vector<std::string> inputsVec;
   std::vector<std::string> shapesVec;
@@ -1994,7 +1994,7 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
 }
 
 Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, std::string enable_dp, std::vector<Node *> &remove_nodes,
-                                                Graph *graph_in) {
+                                                Graph *graph_in) const {
   for (auto output_type: node->output_types()) {
     if (output_type == DT_STRING && enable_dp == "0") {
       ADP_LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";

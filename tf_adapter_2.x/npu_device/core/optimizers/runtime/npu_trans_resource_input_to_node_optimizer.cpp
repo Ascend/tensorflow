@@ -355,7 +355,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
 
   std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> dependent_resources;
   if (cpu_resources.empty()) {
-    npu_resources.insert(mirrored_resources.begin(), mirrored_resources.end());
+    npu_resources.insert(mirrored_resources.cbegin(), mirrored_resources.cend());
     for (auto resource : mirrored_resources) {
       auto &handle = resource.second;
       auto provider = device->GetIteratorProvider(context, handle);
@@ -366,7 +366,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
     }
     graph->SetConsumedIterators(dependent_resources);
   } else {
-    cpu_resources.insert(mirrored_resources.begin(), mirrored_resources.end());
+    cpu_resources.insert(mirrored_resources.cbegin(), mirrored_resources.cend());
   }
 
   std::map<int, tensorflow::Node *> arg_substitutes;
