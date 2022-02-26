@@ -46,7 +46,7 @@ namespace {
 using namespace std;
 using namespace tdt;
 
-const uint32_t kMaxValue = 256U;
+const uint32_t kMaxValue = 128U;
 const size_t kMaxDepth = 128UL;
 const int32_t kSleepTime = 1;
 const static int64_t kStringTypeDepth = 64LL;
@@ -54,7 +54,7 @@ const int64_t kUnknownShapeDepth = 3LL;
 std::atomic<bool> tdt_release(false);
 
 // total memory usage controlled below 2G
-const uint64_t kTotalBytes = 2 * 2147483648ULL;
+uint64_t kTotalBytes = 128ULL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 
 enum class ChannelType {
@@ -70,11 +70,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     // ctx is not nullptr
     std::string local_rank_id;
     std::string local_device_list;
+    bool need_add_device_queue = false;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &local_rank_id));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &local_device_list));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("_need_add_device_dataset", &need_add_device_queue));
+  
+    if (need_add_device_queue) {
+      kTotalBytes = 2 * 1024 * 1024 * 1024LL;
+    }
+    ADP_LOG(INFO) << "Total bytes: " << kTotalBytes;
     ADP_LOG(INFO) << "Get local rank id: " << local_rank_id << ", local device list: " << local_device_list;
     // local rank id range 0-7
     local_rank_id_ = std::atoi(local_rank_id.c_str());
