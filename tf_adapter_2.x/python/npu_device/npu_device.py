@@ -98,43 +98,55 @@ def _graph_engine_warmup():
     return tf.constant(0)
 
 
+_npu_ctx_lock = threading.Lock()
+_npu_device_instances = dict()
+
+
 def open(device_id=None):
     """Initiate and return a NPU device handle"""
-    global_kw_options = global_options().as_dict()
-
-    ctx = _ContextWithDefaultDevice()
-    ctx.ensure_initialized()
-
     if device_id is None:
         device_id = int(os.getenv("ASCEND_DEVICE_ID", '0'))
 
-    workers_num = int(os.getenv('RANK_SIZE', '1'))
-    if workers_num > 1:
-        env_rank_table = os.getenv("RANK_TABLE_FILE")
-        env_worker_id = os.getenv('RANK_ID')
-        if not env_rank_table:
-            raise RuntimeError('You must specify a rank table file by set env RANK_TABLE_FILE in distribution mode')
+    with _npu_ctx_lock:
+        if not isinstance(context.context(), _ContextWithDefaultDevice):
+            ctx = _ContextWithDefaultDevice()
+            ctx.ensure_initialized()
+            context._set_context(ctx)
+            _npu_device_instances.clear()  # Global context has changed since last init npu
 
-        if not env_worker_id:
-            raise RuntimeError('You must specify rank id by set env RANK_ID in distribution mode')
+        if device_id in _npu_device_instances.keys():
+            logging.info('Npu instance on device %s already created', str(device_id))
+            return _npu_device_instances.get(device_id)
 
-        global_kw_options['_distribute.rank_table'] = env_rank_table
-        global_kw_options['_distribute.rank_id'] = env_worker_id
+        global_kw_options = global_options().as_dict()
+        workers_num = int(os.getenv('RANK_SIZE', '1'))
+        if workers_num > 1:
+            env_rank_table = os.getenv("RANK_TABLE_FILE")
+            env_worker_id = os.getenv('RANK_ID')
+            if not env_rank_table:
+                raise RuntimeError('You must specify a rank table file by set env RANK_TABLE_FILE in distribution mode')
 
-    device_options = {}
-    error_message = _npu_device_backends.Open(ctx._handle, NPU, device_id, global_kw_options, device_options)
-    if error_message:
-        raise RuntimeError("Failed open npu device %s : %s" % (str(device_id), error_message))
+            if not env_worker_id:
+                raise RuntimeError('You must specify rank id by set env RANK_ID in distribution mode')
 
-    if workers_num > 1:
-        from hccl.manage.api import get_rank_id
-        worker_id = get_rank_id()
-    else:
-        worker_id = 0
+            global_kw_options['_distribute.rank_table'] = env_rank_table
+            global_kw_options['_distribute.rank_id'] = env_worker_id
 
-    context._set_context(ctx)
+        device_options = {}
+        error_message = _npu_device_backends.Open(context.context()._handle, NPU, device_id, global_kw_options,
+                                                  device_options)
+        if error_message:
+            raise RuntimeError("Failed open npu device %s : %s" % (str(device_id), error_message))
 
-    return NpuDeviceHandle(ctx, device_id, device_options, workers_num, worker_id)
+        if workers_num > 1:
+            from hccl.manage.api import get_rank_id
+            worker_id = get_rank_id()
+        else:
+            worker_id = 0
+
+        _npu_device_instances[device_id] = NpuDeviceHandle(context.context(), device_id, device_options, workers_num,
+                                                           worker_id)
+        return _npu_device_instances[device_id]
 
 
 def close():
