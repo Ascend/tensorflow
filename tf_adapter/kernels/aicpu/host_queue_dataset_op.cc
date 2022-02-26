@@ -77,7 +77,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &local_rank_id));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &local_device_list));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_need_add_device_dataset", &need_add_device_queue));
-  
+
     if (need_add_device_queue) {
       kTotalBytes = 2 * 1024 * 1024 * 1024LL;
     }
