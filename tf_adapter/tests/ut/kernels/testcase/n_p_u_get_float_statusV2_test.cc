@@ -75,7 +75,7 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2OShapeInference) {
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Input(FakeInputStub(DT_FLOAT))
                   .Attr("T", DT_FLOAT)
-                  .Attr("N", 5)
+                  .Attr("N", 5.0)
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def, {TShape({8})}, {}, {}, {});
   std::vector<shape_inference::ShapeHandle> input_shapes;
