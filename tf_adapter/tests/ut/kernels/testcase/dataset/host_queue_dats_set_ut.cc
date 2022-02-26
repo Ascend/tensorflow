@@ -37,6 +37,7 @@ class HostQueueDatasetOpTest : public DatasetOpsTestBase {
                               {"output_types", output_types},
                               {"_local_rank_id", _local_rank_id},
                               {"_local_device_list", "{0,-1}"},
+                              {"_need_add_device_dataset", true},
                               {"output_shapes", output_shapes}});
     TF_RETURN_IF_ERROR(CreateOpKernel(node_def, op_kernel));
     return Status::OK();
