@@ -301,7 +301,7 @@ TEST(NpuOpsTest, TestLambApplyWeightAssignShapeFn) {
 
 TEST(NpuOpsTest, TestDecodeImageV3ShapeInference) {
   const OpRegistrationData* reg;
-  TF_CHECK_OK(OpRegistry::Global()->LookUp("DecodeImage", &reg));
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DecodeImageV3", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
   TF_CHECK_OK(NodeDefBuilder("dump", &op_def)
