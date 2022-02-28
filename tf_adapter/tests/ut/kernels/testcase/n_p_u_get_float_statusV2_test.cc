@@ -74,7 +74,6 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2OShapeInference) {
   OpDef op_def = reg->op_def;
   NodeDef def;
   std::cout << "liyefeng========:" << typeid(FakeInputStub(DT_FLOAT)).name() << std::endl;
-  std::cout << "liyefeng2========:" << typeid([FakeInputStub(DT_FLOAT)]).name() << std::endl;
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Input([FakeInputStub(DT_FLOAT)])
                   .Attr("T", DT_FLOAT)
