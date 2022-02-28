@@ -85,7 +85,7 @@ struct DequantInputParam {
   int size;
   const T* input;
   T* out;
-  const long long unsigned int* deqscale;
+  const uint64_t* deqscale;
   int channel_num;
   int hw_size;
   bool channel_wise;

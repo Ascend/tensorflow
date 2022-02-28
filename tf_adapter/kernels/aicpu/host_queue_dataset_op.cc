@@ -255,6 +255,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
     string DebugString() const override { return "HostQueueDatasetOp::Dataset"; }
 
+#ifdef TF_VERSION_TF2
+    Status CheckExternalState() const override {
+        for(const auto& input_ : inputs_) {
+            TF_RETURN_IF_ERROR(input_->CheckExternalState());
+        }
+        return Status::OK();
+    }
+#endif
+
    protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
       return Status::OK();
@@ -654,7 +663,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
           TF_RETURN_IF_ERROR(
-              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i]));
+#ifdef TF_VERSION_TF2
+              dataset()->inputs_[i]->MakeIterator(ctx, this, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
+#else
+              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
+#endif
+          );
         }
         if (dataset()->channel_type_ == ChannelType::TDT) {
           if (dataset()->local_rank_id_ == 0) {
@@ -680,7 +694,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
      protected:
+#ifdef TF_VERSION_TF2
+      Status SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override { return Status::OK(); }
+#else
       Status SaveInternal(IteratorStateWriter *writer) override { return Status::OK(); }
+#endif
 
       Status RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override { return Status::OK(); }
 

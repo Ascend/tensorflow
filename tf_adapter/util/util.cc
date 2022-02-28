@@ -54,8 +54,13 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
 Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
                                       std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (tensor.dims() == 0) {
+#ifdef TF_VERSION_TF2
+    std::string value = tensor.scalar<tstring>()();
+    item.dataLen_ = tensor.scalar<tstring>()().size();
+#else
     std::string value = tensor.scalar<string>()();
     item.dataLen_ = tensor.scalar<string>()().size();
+#endif
     item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](const void *elem) {
       (void)elem;
     });

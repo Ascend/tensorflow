@@ -36,7 +36,9 @@ class GradFusionOptimizer : public CustomGraphOptimizer {
 
   Status Optimize(Cluster *cluster, const GrapplerItem &item, GraphDef *optimizedGraph) override;
 
+#ifndef TF_VERSION_TF2
   void Feedback(Cluster *cluster, const GrapplerItem &item, const GraphDef &optimizedGraph, double result) override {}
+#endif
 };
 }  // end namespace grappler
 }  // end namespace tensorflow
