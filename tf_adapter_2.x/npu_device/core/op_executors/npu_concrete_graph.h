@@ -76,7 +76,7 @@ class NpuConcreteGraph : public OpExecutor {
  protected:
   void SetBuilt(bool built) const { built_ = built; }
   bool Built() const { return built_; }
-  tensorflow::NodeDef AsNodeDef(const std::string name) const{
+  tensorflow::NodeDef AsNodeDef(const std::string name) const {
     tensorflow::NodeDef ndef;
     ndef.set_op(name);
     return ndef;

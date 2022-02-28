@@ -25,7 +25,7 @@ const static std::string kNpuLossScaleAttr = "_npu_loss_scale";
 const static std::string kNpuGetFloatStatusOp = "NpuGetFloatStatus";
 
 namespace {
-bool IsFirstDropoutNode(tensorflow::Node *node) {
+bool IsFirstDropoutNode(const tensorflow::Node *node) {
   if (node->type_string() != kDropOutGenMaskV3) { return false; }
   for (const auto edge : node->in_edges()) {
     if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {

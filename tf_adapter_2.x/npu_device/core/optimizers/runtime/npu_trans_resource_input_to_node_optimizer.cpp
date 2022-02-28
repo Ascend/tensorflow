@@ -307,6 +307,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
                                                    std::map<std::string, std::string> options, NpuDevice *device,
                                                    int num_inputs, TFE_TensorHandle **inputs) {
   TF_UNUSED_VARIABLE(options);
+  TF_UNUSED_VARIABLE(num_inputs);
   auto mutable_graph = graph->MutableGraph();
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   const tensorflow::FunctionDef *fdef = lib_def->Find(graph->Op());

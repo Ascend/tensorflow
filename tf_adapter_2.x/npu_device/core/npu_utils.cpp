@@ -245,7 +245,7 @@ uint64_t NextUUID() {
  * @brief: fix graph arg return value index
  * @param graph: graph
  */
-void FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
+void FixGraphArgRetvalIndex(const tensorflow::Graph *graph) {
   std::map<int, tensorflow::Node *> indexed_args;
   std::map<int, tensorflow::Node *> indexed_retvals;
   for (auto node : graph->nodes()) {
