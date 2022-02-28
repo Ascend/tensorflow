@@ -255,9 +255,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
    private:
     class Iterator : public DatasetIterator<Dataset> {
      public:
-      explicit Iterator(const Params &params) : DatasetIterator<Dataset>(params) {
-        data_deliver_ = new (nothrow) DataItemDeliver(dataset()->local_rank_id_, dataset()->device_id_,
-                                                      dataset()->local_device_list_, dataset()->channel_name_);
+      explicit Iterator(const Params &params)
+          : DatasetIterator<Dataset>(params), 
+            data_deliver_(new (nothrow) DataItemDeliver(dataset()->local_rank_id_,
+                                                        dataset()->device_id_,
+                                                        dataset()->local_device_list_,
+                                                        dataset()->channel_name_)) {
       }
 
       ~Iterator() override {
