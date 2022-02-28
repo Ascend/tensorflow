@@ -73,7 +73,6 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2OShapeInference) {
   TF_CHECK_OK(OpRegistry::Global()->LookUp("NpuGetFloatStatusV2", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
-  std::cout << "liyefeng========:" << typeid(FakeInputStub(DT_FLOAT)).name() << std::endl;
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Input([FakeInputStub(DT_FLOAT)])
                   .Attr("T", DT_FLOAT)
