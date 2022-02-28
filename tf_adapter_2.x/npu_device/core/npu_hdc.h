@@ -25,6 +25,9 @@ class HdcChannel {
   static tensorflow::Status Create(uint32_t device_id, const std::string &name,
                                    std::shared_ptr<HdcChannel> *guarded_channel);
 
+  static tensorflow::Status Create(uint32_t device_id, const std::string &name, size_t capacity,
+                                   std::shared_ptr<HdcChannel> *guarded_channel);
+
   ~HdcChannel();
 
   tensorflow::Status SendTensors(const std::vector<tensorflow::Tensor> &tensors) const;
@@ -39,10 +42,13 @@ class HdcChannel {
 
  private:
   HdcChannel(uint32_t device_id, std::string name);
+  HdcChannel(uint32_t device_id, std::string name, size_t capacity);
   tensorflow::Status Init();
   acltdtChannelHandle *handle_;
   int32_t device_id_;
   std::string name_;
+  bool limited_capacity_{false};
+  size_t capacity_{0U};
   std::atomic_bool destroyed_{false};
 };
 }  // end namespace npu

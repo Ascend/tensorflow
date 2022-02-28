@@ -264,6 +264,9 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
     }
   }
 
+  OptimizeStageGraphDumper graph_dumper(Op());
+  graph_dumper.DumpWithSubGraphs("LOOP", graph->ToGraphDefDebug(), lib_def);
+
   SetGraph(std::move(graph));
   return tensorflow::Status::OK();
 }
