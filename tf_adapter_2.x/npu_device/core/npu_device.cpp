@@ -51,8 +51,15 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
     DLOG() << "Release zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
   }
   std::string Name() override { return "NpuHostFixedAllocator"; }
-  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
-  void DeallocateRaw(void *ptr) override { Unref(); }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override {
+    TF_UNUSED_VARIABLE(alignment);
+    TF_UNUSED_VARIABLE(num_bytes);
+    return ptr_.get();
+  }
+  void DeallocateRaw(void *ptr) override {
+    TF_UNUSED_VARIABLE(ptr);
+    Unref();
+  }
   std::unique_ptr<T, DT> ptr_;
 };
 }  // namespace
@@ -73,7 +80,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   NPU_CTX_REQUIRES_OK(status, GetMirroredIteratorShapesAndTypes(resource, shapes, types));
   auto dp_provider =
     npu::IteratorResourceProvider::GetFunctionDef(resource.name(), std::move(device_ids), shapes, types, status);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
 
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   NPU_CTX_REQUIRES_OK(status, lib_def->AddFunctionDef(dp_provider));
@@ -121,8 +128,9 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
  */
 std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(TFE_Context *context,
                                                                          const tensorflow::ResourceHandle &resource) {
+  TF_UNUSED_VARIABLE(context);
   auto provider = iterator_providers_.find(resource);
-  if (provider == iterator_providers_.end()) {
+  if (provider == iterator_providers_.cend()) {
     return nullptr;
   }
   return provider->second;
@@ -304,7 +312,7 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
     scope_handle_deleter.Guard(local_handle);
   }
 
-  if (TF_GetCode(status) != TF_OK) return nullptr;
+  if (TF_GetCode(status) != TF_OK) { return nullptr; }
   const tensorflow::Tensor *local_tensor = nullptr;
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(local_handle, &local_tensor), nullptr);
   if (local_tensor->dtype() == tensorflow::DT_RESOURCE) {
@@ -316,7 +324,7 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
 
   TFE_TensorHandle *npu_handle =
     NewDeviceTensorHandle(context, fmt, local_tensor->shape(), local_tensor->dtype(), status);
-  if (TF_GetCode(status) != TF_OK) return nullptr;
+  if (TF_GetCode(status) != TF_OK) { return nullptr; }
   const tensorflow::Tensor *npu_tensor = nullptr;
 
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(npu_handle, &npu_tensor), nullptr);
@@ -493,7 +501,7 @@ void NpuDevice::GetOrCreateOpExecutor(TFE_Context *context, const char *op_name,
   }
   DLOG() << "No cached op executor for " << op_name << ", start create and cache";
   *spec = OpExecutor::Create(context, this, ndef, num_inputs, inputs, s);
-  if (TF_GetCode(s) != TF_OK) return;
+  if (TF_GetCode(s) != TF_OK) { return; }
   DLOG() << "Cache " << (*spec)->Type() << " op_executor for " << ndef.DebugString() << std::endl
          << (*spec)->DebugString();
   CacheOpExecutor(*spec);
@@ -503,7 +511,7 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
                             TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   DLOG() << "Start fallback executing " << op_name << " by " << underlying_device;
   TFE_Op *op(TFE_NewOp(context, op_name, status));
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
   TFE_OpAddAttrs(op, attributes);
   TFE_OpSetDevice(op, underlying_device.c_str(), status);
   ScopeTensorHandleDeleter scope_handle_deleter;
@@ -512,7 +520,7 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
     if (npu::IsNpuTensorHandle(input)) {
       input = CopyTensorD2H(context, input, status);  // 创建完成计数为1
       scope_handle_deleter.Guard(input);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
     }
     if (kDumpExecutionDetail) {
       const tensorflow::Tensor *tensor = nullptr;
@@ -520,13 +528,13 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
       LOG(INFO) << "    input " << j << "  " << tensor->DebugString();
     }
     TFE_OpAddInput(op, input, status);  // add完成计数为2
-    if (TF_GetCode(status) != TF_OK) return;
+    if (TF_GetCode(status) != TF_OK) { return; }
   }
 
   std::vector<TFE_TensorHandle *> op_outputs(num_outputs);
   TFE_Execute(op, op_outputs.data(), &num_outputs, status);
   TFE_DeleteOp(op);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
   for (int i = 0; i < num_outputs; ++i) {
     outputs[i] = op_outputs[i];
   }
@@ -562,25 +570,25 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const tensorflow::NodeDef &nde
  */
 void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **outputs, TF_Status *s) {
   auto context = TFE_OpGetContext(op, s);
-  if (TF_GetCode(s) != TF_OK) return;
+  if (TF_GetCode(s) != TF_OK) { return; }
 
   auto num_inputs = TFE_OpGetFlatInputCount(op, s);
-  if (TF_GetCode(s) != TF_OK) return;
+  if (TF_GetCode(s) != TF_OK) { return; }
 
   std::vector<TFE_TensorHandle *> inputs;
   for (int i = 0; i < num_inputs; i++) {
     inputs.push_back(TFE_OpGetFlatInput(op, i, s));
-    if (TF_GetCode(s) != TF_OK) return;
+    if (TF_GetCode(s) != TF_OK) { return; }
   }
   auto op_name = TFE_OpGetName(op, s);
-  if (TF_GetCode(s) != TF_OK) return;
+  if (TF_GetCode(s) != TF_OK) { return; }
 
   auto attributes = TFE_OpGetAttrs(op);
   DLOG() << "NPU Start executing " << op_name;
 
   std::shared_ptr<const npu::OpExecutor> spec;
   GetOrCreateOpExecutor(context, op_name, attributes, inputs.size(), inputs.data(), &spec, s);
-  if (TF_GetCode(s) != TF_OK) return;
+  if (TF_GetCode(s) != TF_OK) { return; }
   spec->Run(context, this, num_inputs, inputs.data(), num_outputs, outputs, s);
 }
 
@@ -955,7 +963,7 @@ void NpuDevice::RunGeGraph(TFE_Context *context, uint64_t graph_id, int num_inpu
     notification.Notify();
   };
   RunGeGraphAsync(context, graph_id, num_inputs, inputs, pin_to_npu, output_types, num_outputs, outputs, done, status);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
   notification.WaitForNotification();
 }
 
@@ -1047,7 +1055,7 @@ void NpuDevice::RunGeGraphAnonymous(TFE_Context *context, const std::string &nam
                                     int num_inputs, TFE_TensorHandle **inputs, bool pin_to_npu, int num_outputs,
                                     TFE_TensorHandle **outputs, TF_Status *status) {
   uint64_t graph_id = AddGeGraph(context, name, gdef, status);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
 
   std::map<int, tensorflow::DataType> indexed_types;
 
@@ -1066,10 +1074,10 @@ void NpuDevice::RunGeGraphAnonymous(TFE_Context *context, const std::string &nam
   }
 
   RunGeGraph(context, graph_id, num_inputs, inputs, pin_to_npu, types, num_outputs, outputs, status);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
 
   RemoveGeGraph(context, graph_id, status);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
 }
 
 /**
@@ -1225,8 +1233,8 @@ tensorflow::Status NpuDevice::GetMirroredIteratorShapesAndTypes(const tensorflow
   if (iter == iterator_mirrors_.end()) {
     return tensorflow::errors::Internal("Resource ", src.DebugString(), " has not been mirrored");
   }
-  shapes.assign(iter->second.first.begin(), iter->second.first.end());
-  types.assign(iter->second.second.begin(), iter->second.second.end());
+  shapes.assign(iter->second.first.cbegin(), iter->second.first.cend());
+  types.assign(iter->second.second.cbegin(), iter->second.second.cend());
   return tensorflow::Status::OK();
 }
 }  // namespace npu

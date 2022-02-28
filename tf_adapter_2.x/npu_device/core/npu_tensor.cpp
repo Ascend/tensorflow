@@ -21,6 +21,7 @@
 #include "tensorflow/c/eager/tfe_context_internal.h"
 #include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 #include "tensorflow/core/common_runtime/eager/tensor_handle.h"
+#include "graph/def_types.h"
 
 namespace npu {
 NpuTensor::NpuTensor(const tensorflow::Tensor& tensor)
@@ -36,7 +37,7 @@ int NpuTensor::NumDims(void* data, TF_Status* status) {
   return TFE_TensorHandleNumDims(reinterpret_cast<NpuTensor*>(data)->handle, status);
 }
 
-void NpuTensor::Deallocator(void* data) { delete reinterpret_cast<NpuTensor*>(data); }
+void NpuTensor::Deallocator(void* data) { delete ge::PtrToPtr<void, NpuTensor>(data); }
 
 TFE_CustomDeviceTensorHandle NpuTensor::handle_methods = []() {
   TFE_CustomDeviceTensorHandle handle_methods_;

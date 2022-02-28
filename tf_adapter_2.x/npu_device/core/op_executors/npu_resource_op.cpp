@@ -49,7 +49,7 @@ void NpuResourceOp::GetFuncSpec(const std::vector<tensorflow::ResourceHandle> &h
   shared_lock.lock_shared();
   HashKey key = Hash(handles);
   auto iter = handles_to_specs_.find(key);
-  if (iter != handles_to_specs_.end()) {
+  if (iter != handles_to_specs_.cend()) {
     *spec = iter->second;
   }
   shared_lock.unlock_shared();
@@ -128,7 +128,6 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
         NPU_CTX_REQUIRES(status, graph->AddEdge(def_nodes[generator->NodeDef()], generator->Index(), target_node, i),
                          tensorflow::errors::Internal("Failed add edge from ", def_nodes[generator->NodeDef()]->name(),
                                                       " to ", target_node->name()));
-
       } else {
         tensorflow::Node *node = nullptr;
         NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder("arg_" + std::to_string(i), "_Arg")
