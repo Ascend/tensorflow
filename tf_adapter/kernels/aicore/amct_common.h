@@ -85,7 +85,11 @@ struct DequantInputParam {
   int size;
   const T* input;
   T* out;
+  #ifdef TF_VERSION_TF2
+  const long unsigned int* deqscale;
+  #else
   const long long unsigned int* deqscale;
+  #endif
   int channel_num;
   int hw_size;
   bool channel_wise;

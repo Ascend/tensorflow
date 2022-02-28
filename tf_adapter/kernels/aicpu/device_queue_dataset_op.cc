@@ -62,13 +62,23 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
 
     string DebugString() const override { return "DeviceQueueDatasetOp::Dataset"; }
 
+#ifdef TF_VERSION_TF2
+    Status CheckExternalState() const override {
+        return Status::OK();
+    }
+#endif
+
    protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
       REQUIRES_NOT_NULL(ctx);
       REQUIRES_NOT_NULL(b);
       REQUIRES_NOT_NULL(output);
       Node *sourcedata = nullptr;
+#ifdef TF_VERSION_TF2
+      TF_RETURN_IF_ERROR(b->AddScalar<tstring>(sourcedata_, &sourcedata));
+#else
       TF_RETURN_IF_ERROR(b->AddScalar(sourcedata_, &sourcedata));
+#endif
       TF_RETURN_IF_ERROR(b->AddDataset(this, {sourcedata}, output));
       return Status::OK();
     }
@@ -84,6 +94,15 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
         *end_of_sequence = false;
         return Status::OK();
       };
+#ifdef TF_VERSION_TF2
+     protected:
+      Status SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override {
+          return Status::OK();
+      }
+      Status RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override {
+          return Status::OK();
+      }
+#endif
 
      private:
       std::mutex mu_;
