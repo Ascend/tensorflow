@@ -118,6 +118,10 @@ def open(device_id=None):
             logging.info('Npu instance on device %s already created', str(device_id))
             return _npu_device_instances.get(device_id)
 
+        if len(_npu_device_instances):
+            raise RuntimeError('Failed create npu instance on device {} as existed instance on {}'
+                               ''.format(device_id, list(_npu_device_instances.keys())))
+
         global_kw_options = global_options().as_dict()
         workers_num = int(os.getenv('RANK_SIZE', '1'))
         if workers_num > 1:
