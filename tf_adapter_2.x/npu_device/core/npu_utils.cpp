@@ -54,7 +54,7 @@ tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType &tf_t
     {ge::DT_COMPLEX128, tensorflow::DT_COMPLEX128}, {ge::DT_RESOURCE, tensorflow::DT_RESOURCE},
     {ge::DT_VARIANT, tensorflow::DT_VARIANT},       {ge::DT_UINT32, tensorflow::DT_UINT32},
     {ge::DT_UINT64, tensorflow::DT_UINT64},         {ge::DT_STRING_REF, tensorflow::DT_STRING_REF},
-    {ge::DT_FLOAT16, tensorflow::DT_HALF},
+    {ge::DT_FLOAT16, tensorflow::DT_HALF},          {ge::DT_BF16, tensorflow::DT_BFLOAT16},
   };
   if (kGeType2Tf.find(ge_type) == kGeType2Tf.end()) {
     return tensorflow::errors::InvalidArgument("Unsupported ge data type enmu value ", ge_type, " by tf");
@@ -81,7 +81,7 @@ tensorflow::Status MapTfType2Ge(tensorflow::DataType tf_type, ge::DataType &ge_t
     {tensorflow::DT_COMPLEX128, ge::DT_COMPLEX128}, {tensorflow::DT_RESOURCE, ge::DT_RESOURCE},
     {tensorflow::DT_VARIANT, ge::DT_VARIANT},       {tensorflow::DT_UINT32, ge::DT_UINT32},
     {tensorflow::DT_UINT64, ge::DT_UINT64},         {tensorflow::DT_STRING_REF, ge::DT_STRING_REF},
-    {tensorflow::DT_HALF, ge::DT_FLOAT16},
+    {tensorflow::DT_HALF, ge::DT_FLOAT16},          {tensorflow::DT_BFLOAT16, ge::DT_BF16},
   };
   if (kTfType2Ge.find(tf_type) == kTfType2Ge.end()) {
     return tensorflow::errors::InvalidArgument("Unsupported tf type ", tensorflow::DataTypeString(tf_type), " by ge");
