@@ -18,6 +18,7 @@
 #include "tensorflow/core/kernels/data/captured_function.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
+#include "tf_adapter/common/compat_tf1_tf2.h"
 
 namespace tensorflow {
 namespace data {
@@ -77,11 +78,7 @@ private:
 
     string DebugString() const override { return "GEOPDatasetOp::Dataset"; }
 
-#ifdef TF_VERSION_TF2
-    Status CheckExternalState() const override {
-        return Status::OK();
-    }
-#endif
+    STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
 
     GEOPDatasetOp *op_kernel_;
     std::string tf_session_;
@@ -167,11 +164,8 @@ private:
       }
 
     protected:
-#ifdef TF_VERSION_TF2
-      Status SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override { return Status::OK(); }
-#else
-      Status SaveInternal(IteratorStateWriter *writer) override { return Status::OK(); }
-#endif
+      STATUS_FUNCTION_ONLY_TF2(SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override);
+      STATUS_FUNCTION_ONLY_TF1(SaveInternal(IteratorStateWriter *writer) override);
 
       Status RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override { return Status::OK(); }
 

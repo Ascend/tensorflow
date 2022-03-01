@@ -133,7 +133,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
         NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder("arg_" + std::to_string(i), "_Arg")
                                       .Attr("T", types[i])
                                       .Attr("index", arg_index++)
-                                      .Attr("_output_shapes", shapes[i])
+                                      .Attr("_output_shapes", {shapes[i]})
                                       .Finalize(graph.get(), &node));
         NPU_CTX_REQUIRES(
           status, graph->AddEdge(node, 0, target_node, i),

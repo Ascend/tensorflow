@@ -19,6 +19,7 @@
 #include "acl/error_codes/rt_error_codes.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
+#include "tf_adapter/common/compat_tf1_tf2.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/util.h"
 namespace tensorflow {
@@ -78,11 +79,7 @@ Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<Tensor> &tenso
       return errors::Internal("Acl channel receive unsupported non-scalar string type");
     }
     Tensor tensor(tf_type, TensorShape({}));
-#ifdef TF_VERSION_TF2
-    tensor.scalar<tstring>()() = std::move(tstring(acl_data, acl_data_len));
-#else
-    tensor.scalar<string>()() = std::move(string(acl_data, acl_data_len));
-#endif
+    tensor.scalar<npu::compat_tf1_tf2::string>()() = std::move(npu::compat_tf1_tf2::string(acl_data, acl_data_len));
     tensors.emplace_back(std::move(tensor));
   } else if (DataTypeCanUseMemcpy(tf_type)) {
     std::vector<int64_t> dims;

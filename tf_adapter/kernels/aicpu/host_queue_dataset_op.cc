@@ -34,6 +34,7 @@
 #include "tensorflow/core/util/env_var.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/compat_tf1_tf2.h"
 #include "tf_adapter/util/util.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/acl_channel.h"
@@ -255,11 +256,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
     string DebugString() const override { return "HostQueueDatasetOp::Dataset"; }
 
-#ifdef TF_VERSION_TF2
-    Status CheckExternalState() const override {
-        return Status::OK();
-    }
-#endif
+    STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
 
    protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
@@ -691,11 +688,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
      protected:
-#ifdef TF_VERSION_TF2
-      Status SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override { return Status::OK(); }
-#else
-      Status SaveInternal(IteratorStateWriter *writer) override { return Status::OK(); }
-#endif
+      STATUS_FUNCTION_ONLY_TF2(SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override);
+      STATUS_FUNCTION_ONLY_TF1(SaveInternal(IteratorStateWriter *writer) override);
 
       Status RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override { return Status::OK(); }
 
