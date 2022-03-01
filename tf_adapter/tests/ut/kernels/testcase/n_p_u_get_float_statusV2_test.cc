@@ -73,9 +73,9 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2OShapeInference) {
   TF_CHECK_OK(OpRegistry::Global()->LookUp("NpuGetFloatStatusV2", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
-  std::list<tensorflow::FakeInputFunctor> list_inputs;
+  list<tensorflow::FakeInputFunctor> list_inputs;
   list_inputs.push_back(FakeInputStub(DT_FLOAT));
-  std::list<tensorflow::PartialTensorShape> list_shapes;
+  list<tensorflow::PartialTensorShape> list_shapes;
   list_shapes.push_back(TShape({8}));
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Input(list_inputs)
