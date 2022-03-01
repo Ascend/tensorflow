@@ -59,4 +59,4 @@ using string = tensorflow::string;
 #define VOID_FUNCTION_ONLY_TF1(F)
 #endif
 
-#endif  //TENSORFLOW_COMMON_COMPAT_TF1_TF2_H_
+#endif  // TENSORFLOW_COMMON_COMPAT_TF1_TF2_H_

@@ -2,8 +2,17 @@ cmake_minimum_required(VERSION 3.14)
 project(NpuCompatV1)
 
 set(ADAPTER_ROOT ${CMAKE_CURRENT_LIST_DIR}/../..)
-include(${ADAPTER_ROOT}/cmake/secure_c.cmake)
-include(${ADAPTER_ROOT}/cmake/nlohmann_json.cmake)
+
+if (DEFINED ASCEND_CI_BUILD_DIR)
+    include_directories(${ASCEND_CI_BUILD_DIR}/abl/libc_sec/include)
+    include_directories(${ASCEND_CI_BUILD_DIR}/third_party/json/include)
+    include_directories(${ASCEND_CI_BUILD_DIR}/open_source/json/include)
+    include_directories(${ADAPTER_ROOT}/inc/parser/inc)
+    include_directories(${ADAPTER_ROOT}/inc/parser/inc/external)
+else ()
+    include(${ADAPTER_ROOT}/cmake/secure_c.cmake)
+    include(${ADAPTER_ROOT}/cmake/nlohmann_json.cmake)
+endif ()
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ge_plugin_wrap.cxx
         COMMAND swig -python -c++ -threads -o ${CMAKE_CURRENT_BINARY_DIR}/ge_plugin_wrap.cxx -outdir ${CMAKE_BINARY_DIR}/dist/python/npu_device/npu_bridge ${ADAPTER_ROOT}/tf_adapter/swig/ge_plugin.i
