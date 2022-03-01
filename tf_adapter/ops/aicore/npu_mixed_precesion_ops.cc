@@ -64,7 +64,7 @@ REGISTER_OP("NpuGetFloatStatusV2")
     .SetShapeFn([](InferenceContext *c) {
         int shape_eight = 8;
         std::vector<DimensionHandle> shape_eights;
-        shape_eights.reserve(shape_eight);
+        shape_eights.emplace_back(c->MakeDim(8));
         auto output_shape = c->MakeShape(shape_eights);
         c->set_output(0, output_shape);
         return Status::OK();
