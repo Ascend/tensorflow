@@ -58,7 +58,7 @@ REGISTER_OP("NpuGetFloatStatus")
 REGISTER_OP("NpuGetFloatStatusV2")
     .Input("addr: N * T")
     .Output("data: T")
-    .Attr("N: int >= 1")
+    .Attr("N: int >= 0")
     .Attr("T: {float}")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext *c) {
