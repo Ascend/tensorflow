@@ -65,7 +65,7 @@ REGISTER_OP("NpuGetFloatStatusV2")
         int shape_eight = 8;
         std::vector<DimensionHandle> shape_eights;
         shape_eights.reserve(shape_eight);
-        auto output_shape = c->MakeShape({shape_eights});
+        auto output_shape = c->MakeShape(shape_eights);
         c->set_output(0, output_shape);
         return Status::OK();
     });
