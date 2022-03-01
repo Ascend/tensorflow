@@ -73,8 +73,10 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2OShapeInference) {
   TF_CHECK_OK(OpRegistry::Global()->LookUp("NpuGetFloatStatusV2", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
+  std::vector<NodeDefBuilder::NodeOut> src_list;
+  src_list.emplace_back("in0", 0, DT_FLOAT);
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
-                  .Input({FakeInputStub(DT_FLOAT)})
+                  .Input(src_list)
                   .Attr("T", DT_FLOAT)
                   .Attr("N", 5)
                   .Finalize(&def));
