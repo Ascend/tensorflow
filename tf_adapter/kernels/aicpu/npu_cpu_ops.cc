@@ -205,6 +205,17 @@ REGISTER_KERNEL_BUILDER(Name("ResizeAndClipPolys").Device(DEVICE_CPU), ResizeAnd
 REGISTER_KERNEL_BUILDER(Name("Dequeue").Device(DEVICE_CPU), DequeueOp);
 REGISTER_KERNEL_BUILDER(Name("NonZeroWithValueShape").Device(DEVICE_CPU), NonZeroWithValueShapeOp);
 
+class DecodeImageV3Op : public OpKernel {
+public:
+  explicit DecodeImageV3Op(OpKernelConstruction *context) : OpKernel(context) {}
+  ~DecodeImageV3Op() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DecodeImageV3Op Compute"; }
+};
+// Since the DecodeImage is registed on 2.x, 
+// in order to ensure that there si no conflict between operators on 1.x and 2.x,
+// it is registered as the DecodeImageV3
+REGISTER_KERNEL_BUILDER(Name("DecodeImageV3").Device(DEVICE_CPU), DecodeImageV3Op);
+
 #define REGISTER_KERNEL(type)                                \
 REGISTER_KERNEL_BUILDER(Name("DeformableOffsets")            \
                             .Device(DEVICE_CPU)              \
