@@ -62,7 +62,6 @@ REGISTER_OP("NpuGetFloatStatusV2")
     .Attr("T: {float}")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext *c) {
-        int shape_eight = 8;
         std::vector<DimensionHandle> shape_eights;
         shape_eights.emplace_back(c->MakeDim(8));
         auto output_shape = c->MakeShape(shape_eights);
