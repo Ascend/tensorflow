@@ -70,9 +70,6 @@ private:
 
 #ifdef TF_VERSION_TF2
     Status CheckExternalState() const override {
-        for(const auto& input_ : inputs_) {
-            TF_RETURN_IF_ERROR(input_->CheckExternalState());
-        }
         return Status::OK();
     }
 #endif

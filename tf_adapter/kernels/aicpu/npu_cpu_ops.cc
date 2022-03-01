@@ -41,12 +41,7 @@ class LruCacheOp : public ResourceOpKernel<CacheInterface> {
   ~LruCacheOp() override {}
   void Compute(OpKernelContext* context) override { ADP_LOG(INFO) << "LruCacheOp Compute"; }
  private:
-  Status CreateResource(CacheInterface** resource) override
-#ifdef TF_VERSION_TF2
-                        TF_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
-#else
-                        EXCLUSIVE_LOCKS_REQUIRED(mu_) {
-#endif
+  Status CreateResource(CacheInterface** resource) override {
     return Status::OK();
   }
 };
