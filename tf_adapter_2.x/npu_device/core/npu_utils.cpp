@@ -57,7 +57,7 @@ tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType &tf_t
     {ge::DT_FLOAT16, tensorflow::DT_HALF},
   };
   if (kGeType2Tf.find(ge_type) == kGeType2Tf.end()) {
-    return tensorflow::errors::InvalidArgument("Unsupport ge data type enmu value ", ge_type, " by tf");
+    return tensorflow::errors::InvalidArgument("Unsupported ge data type enmu value ", ge_type, " by tf");
   }
   tf_type = kGeType2Tf[ge_type];
   return tensorflow::Status::OK();
@@ -84,7 +84,7 @@ tensorflow::Status MapTfType2Ge(tensorflow::DataType tf_type, ge::DataType &ge_t
     {tensorflow::DT_HALF, ge::DT_FLOAT16},
   };
   if (kTfType2Ge.find(tf_type) == kTfType2Ge.end()) {
-    return tensorflow::errors::InvalidArgument("Unsupport tf data type enmu value ", ge_type, " by ge");
+    return tensorflow::errors::InvalidArgument("Unsupported tf type ", tensorflow::DataTypeString(tf_type), " by ge");
   }
   ge_type = kTfType2Ge[tf_type];
   return tensorflow::Status::OK();
@@ -191,7 +191,7 @@ OptimizeStageGraphDumper::OptimizeStageGraphDumper(const std::string &graph) {
 }
 
 void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::GraphDef &graph_def) {
-  if (!enabled_) return;
+  if (!enabled_) { return; }
   std::string graph_name = tensorflow::strings::StrCat(graph_, ".", counter_++, ".", stage, ".pbtxt");
   DLOG() << "Dump graph " << graph_name;
   WriteTextProto(tensorflow::Env::Default(), graph_name, graph_def);
@@ -199,7 +199,7 @@ void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::
 
 void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
                                                  const tensorflow::FunctionLibraryDefinition *lib_def) {
-  if (!enabled_) return;
+  if (!enabled_) { return; }
   tensorflow::GraphDef copied_graph_def = graph_def;
   *copied_graph_def.mutable_library() = CollectGraphSubGraphs(graph_def, lib_def);
   Dump(stage, copied_graph_def);

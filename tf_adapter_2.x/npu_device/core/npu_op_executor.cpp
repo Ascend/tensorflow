@@ -50,7 +50,7 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
   if (op_reg_data->is_function_op) {
     std::unique_ptr<NpuConcreteGraph> concrete_graph;
     device->GetConcreteGraph(context, ndef, num_inputs, inputs, &concrete_graph, s);
-    if (TF_GetCode(s) != TF_OK) return nullptr;
+    if (TF_GetCode(s) != TF_OK) { return nullptr; }
     return concrete_graph;
   }
 

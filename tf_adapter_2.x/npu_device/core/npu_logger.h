@@ -19,6 +19,7 @@
 #include "tensorflow/core/platform/env.h"
 
 #include "npu_env.h"
+#include "npu_hdc.h"
 
 #define DLOG() \
   if (kDumpExecutionDetail) LOG(INFO)
@@ -55,6 +56,23 @@ class Timer : public std::basic_ostringstream<char> {
  private:
   uint64_t start_{0};
   bool started_{false};
+};
+
+class NpuStdoutReceiver {
+ public:
+  explicit NpuStdoutReceiver(uint32_t device_id) : device_id_(device_id){};
+
+  tensorflow::Status Start();
+
+  tensorflow::Status Stop();
+
+ private:
+  uint32_t device_id_;
+  std::mutex mu_;
+  std::thread thread_;
+  std::shared_ptr<HdcChannel> channel_ TF_GUARDED_BY(mu_);
+  bool started_{false};
+  std::atomic_bool stopping_{false};
 };
 }  // namespace npu
 

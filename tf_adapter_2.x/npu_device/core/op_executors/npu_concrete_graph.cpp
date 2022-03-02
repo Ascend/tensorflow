@@ -86,7 +86,7 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
       // 这里需要根据算子选择输入格式了
       input = device->CopyTensorD2H(context, input, status);
       scope_handle_deleter.Guard(input);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
     }
     input_handles_[i] = input;
   }
@@ -96,7 +96,7 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
   if (NeedLoop()) {
     iterations_per_loop = npu::global::g_npu_loop_size;
     device->SetNpuLoopSize(context, iterations_per_loop, status);
-    if (TF_GetCode(status) != TF_OK) return;
+    if (TF_GetCode(status) != TF_OK) { return; }
   }
 
   int64_t consume_resource_times = 1;
@@ -146,7 +146,7 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
   if (Built() && device->GeSession()->IsGraphNeedRebuild(GeGraphId())) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
     device->RemoveGeGraph(context, GeGraphId(), status);
-    if (TF_GetCode(status) != TF_OK) return;
+    if (TF_GetCode(status) != TF_OK) { return; }
     built_ = false;
   }
 
@@ -155,17 +155,17 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
     if (kEmptyGeGraphId == device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(), NeedLoop(), status)) {
       empty_ge_graph_ = true;
     }
-    if (TF_GetCode(status) != TF_OK) return;
+    if (TF_GetCode(status) != TF_OK) { return; }
     built_ = true;
     graph_def_serialized_ = true;
   }
 }
 
 void NpuConcreteGraph::UnLoad(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
-  if (!Built()) return;
+  if (!Built()) { return; }
   DLOG() << "Unload ge graph " << GeGraphId() << " of op " << Op();
   device->RemoveGeGraph(context, GeGraphId(), status);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
   built_ = false;
 }
 
@@ -173,7 +173,7 @@ void NpuConcreteGraph::RunOneShot(TFE_Context *context, NpuDevice *device, int n
                                   int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const {
   DLOG() << "Run one shot ge graph " << GeGraphId() << " for resource consume op " << Op();
   RunImpl(context, device, num_inputs, inputs, num_outputs, outputs, status);
-  if (TF_GetCode(status) != TF_OK) return;
+  if (TF_GetCode(status) != TF_OK) { return; }
   UnLoad(context, device, status);
 }
 
@@ -256,13 +256,16 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
 
   // Inline body function will change name of variable, which used as id for npu variable
   for (auto node : graph->op_nodes()) {
-    if (!tensorflow::grappler::IsVariable(node->def())) continue;
+    if (!tensorflow::grappler::IsVariable(node->def())) { continue; }
     auto attr = node->attrs().Find("shared_name");
     if (attr != nullptr) {
       DLOG() << "Change variable " << node->name() << " " << node->type_string() << " name to " << attr->s();
       node->set_name(attr->s());
     }
   }
+
+  OptimizeStageGraphDumper graph_dumper(Op());
+  graph_dumper.DumpWithSubGraphs("LOOP", graph->ToGraphDefDebug(), lib_def);
 
   SetGraph(std::move(graph));
   return tensorflow::Status::OK();

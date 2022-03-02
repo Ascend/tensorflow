@@ -84,8 +84,9 @@ class DpOptimizationPassTest : public testing::Test {
 TEST_F(DpOptimizationPassTest, BuildGeOpTest) {
   string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/dp_test_build_geop.pbtxt";
   InitGraph(org_graph_def_path);
-  std::string target_graph = "Const->TensorSliceDataset;IteratorV2->MakeIterator:1;TensorSliceDataset->HostQueueDataset:1;"\
-    "HostQueueDataset->DPGroupDataset;GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
+  std::string target_graph = "Const->TensorSliceDataset;IteratorV2->MakeIterator:1;" \
+    "TensorSliceDataset->HostQueueDataset:1;HostQueueDataset->DPGroupDataset;" \
+    "GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
   EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
 }
 TEST_F(DpOptimizationPassTest, DatasetNotInDeviceTest) {

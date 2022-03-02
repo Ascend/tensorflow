@@ -59,7 +59,7 @@ class MakeIteratorGraphBuilder {
 
     if (kDumpExecutionDetail || kDumpGraph) {
       std::string file_name = "dp_init_" + shared_name + ".inner.pbtxt";
-      LOG(INFO) << "NPU Dump mirrored resource init graph inner graph to: " << file_name;
+      DLOG() << "NPU Dump mirrored resource init graph inner graph to: " << file_name;
       WriteTextProto(tensorflow::Env::Default(), file_name, graph.ToGraphDefDebug());
     }
 
@@ -94,6 +94,7 @@ class MakeIteratorGraphBuilder {
 
 static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
                         TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+  TF_UNUSED_VARIABLE(ndef);
   TF_UNUSED_VARIABLE(num_outputs);
   TF_UNUSED_VARIABLE(outputs);
   for (int j = 0; j < num_inputs; ++j) {
@@ -106,18 +107,18 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       TensorDataTypes types;
       NPU_CTX_REQUIRES_OK(status, dev->GetMirroredIteratorShapesAndTypes(handle, shapes, types));
       auto dp_init_graph = MakeIteratorGraphBuilder::GetGraph(handle.container(), handle.name(), shapes, types, status);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
       if (kDumpExecutionDetail || kDumpGraph) {
         std::string file_name = "dp_init_" + handle.name() + ".pbtxt";
-        LOG(INFO) << "NPU Dump mirrored resource init graph to: " << file_name;
+        DLOG() << "NPU Dump mirrored resource init graph to: " << file_name;
         WriteTextProto(tensorflow::Env::Default(), file_name, dp_init_graph);
       }
       dev->RunGeGraphPin2CpuAnonymous(context, "dp_init_" + handle.name(), dp_init_graph, num_inputs, inputs, 0,
                                       nullptr, status);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
       // 针对推荐网络，Provider需要支持1对N的传输，默认只向资源所处的Device发送
       dev->CreateIteratorProvider(context, tensor, {dev->device_id}, status);
-      if (TF_GetCode(status) != TF_OK) return;
+      if (TF_GetCode(status) != TF_OK) { return; }
     }
   }
 };

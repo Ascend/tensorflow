@@ -12,9 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <vector>
-#include <memory>
 #include <cstring>
+#include <chrono>
+#include <memory>
+#include <thread>
+#include <vector>
 
 #include "acl/acl_base.h"
 #include "acl/acl_op_compiler.h"
@@ -171,6 +173,10 @@ aclError acltdtStopChannel(acltdtChannelHandle *handle) { return ACL_ERROR_NONE;
 
 acltdtChannelHandle *acltdtCreateChannel(uint32_t deviceId, const char *name) { return new acltdtChannelHandle(name); }
 
+acltdtChannelHandle *acltdtCreateChannelWithCapacity(uint32_t deviceId, const char *name, size_t capacity) {
+  return new acltdtChannelHandle(name);
+}
+
 aclError acltdtDestroyChannel(acltdtChannelHandle *handle) {
   delete handle;
   return ACL_ERROR_NONE;
@@ -181,6 +187,8 @@ aclError acltdtSendTensor(const acltdtChannelHandle *handle, const acltdtDataset
 }
 
 aclError acltdtReceiveTensor(const acltdtChannelHandle *handle, acltdtDataset *dataset, int32_t timeout) {
+  using namespace std::chrono_literals;
+  std::this_thread::sleep_for(100ms);
   std::vector<int64_t> dims;
   dims.resize(4, 1);
   float value = 0.0;

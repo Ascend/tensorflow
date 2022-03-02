@@ -131,6 +131,7 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
 namespace npu {
 tensorflow::Status WeightUpdateGroupingOptimize(TFE_Context *context, tensorflow::Graph *graph,
                                                 std::map<std::string, std::string> options) {
+  TF_UNUSED_VARIABLE(options);
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   bool unused = false;
   return WeightUpdateGroupingOptimizeInner(lib_def, graph, unused);

@@ -141,7 +141,7 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (IsSubstituteNode(edge->src())) continue;
+    if (IsSubstituteNode(edge->src())) { continue; }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
       graph->AddControlEdge(edge->src(), pruned_node);
@@ -226,7 +226,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (IsSubstituteNode(edge->src())) continue;
+    if (IsSubstituteNode(edge->src())) { continue; }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
       graph->AddControlEdge(edge->src(), pruned_node);
@@ -258,7 +258,7 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
     if (node->IsArg()) {
       auto index = node->attrs().Find("index")->i();
       auto iter = arg_substitutes.find(index);
-      if (iter != arg_substitutes.end()) {
+      if (iter != arg_substitutes.cend()) {
         for (auto edge : node->out_edges()) {
           graph->AddEdge(iter->second, edge->src_output(), edge->dst(), edge->dst_input());
         }
@@ -306,6 +306,8 @@ namespace npu {
 tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
                                                    std::map<std::string, std::string> options, NpuDevice *device,
                                                    int num_inputs, TFE_TensorHandle **inputs) {
+  TF_UNUSED_VARIABLE(options);
+  TF_UNUSED_VARIABLE(num_inputs);
   auto mutable_graph = graph->MutableGraph();
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   const tensorflow::FunctionDef *fdef = lib_def->Find(graph->Op());
@@ -316,9 +318,8 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
 
   std::map<int32_t, int32_t> bypass_outputs;
   std::map<int32_t, tensorflow::Node *> indexed_retvals;
-
   for (auto node : mutable_graph->op_nodes()) {
-    if (!node->IsRetval()) continue;
+    if (!node->IsRetval()) { continue; }
     indexed_retvals[node->attrs().Find("index")->i()] = node;
   }
 
@@ -334,7 +335,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
   PruneGraphByFunctionSignature(*fdef, mutable_graph);
 
   for (auto node : mutable_graph->op_nodes()) {
-    if (!node->IsArg()) continue;
+    if (!node->IsArg()) { continue; }
     auto index = node->attrs().Find("index")->i();
 
     const tensorflow::Tensor *tensor = nullptr;
@@ -355,7 +356,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
 
   std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> dependent_resources;
   if (cpu_resources.empty()) {
-    npu_resources.insert(mirrored_resources.begin(), mirrored_resources.end());
+    npu_resources.insert(mirrored_resources.cbegin(), mirrored_resources.cend());
     for (auto resource : mirrored_resources) {
       auto &handle = resource.second;
       auto provider = device->GetIteratorProvider(context, handle);
@@ -366,7 +367,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
     }
     graph->SetConsumedIterators(dependent_resources);
   } else {
-    cpu_resources.insert(mirrored_resources.begin(), mirrored_resources.end());
+    cpu_resources.insert(mirrored_resources.cbegin(), mirrored_resources.cend());
   }
 
   std::map<int, tensorflow::Node *> arg_substitutes;

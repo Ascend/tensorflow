@@ -425,6 +425,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
                     .Attr("output_shapes", m_src["output_shapes"])
                     .Attr("_local_rank_id", local_rank_id)
                     .Attr("_local_device_list", local_device_list)
+                    .Attr("_need_add_device_dataset", need_add_device_dataset)
                     .Finalize(graph_, &queue_node_host));
     REQUIRES_NOT_NULL(queue_node_host);
 
