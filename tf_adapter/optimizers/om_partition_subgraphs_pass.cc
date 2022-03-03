@@ -54,7 +54,6 @@ const std::string ATTR_NAME_SHARED_NAME = "shared_name";
 const std::string ATTR_VALUE_SHARED_NAME = "iterator_default";
 const std::string ATTR_VALUE_SCOPE_NAME = "_without_npu_compile";
 const std::string ATTR_NAME_OP_MAX_SIZE = "_op_max_size";
-const int MAX_GROUP_SIZE = 100000;
 const uint32_t MIN_CLUSTER_SIZE = 2;
 std::atomic<bool> compile_mode(false);
 mutex support_node_mu;
@@ -220,8 +219,7 @@ bool IsWhiteListSupport(const string &op_name, bool mix_compile_mode, const stri
     mutex_lock lock(support_node_mu);
     auto ret = not_support_nodes.insert(op_name);
     if (ret.second) {
-      ADP_LOG(INFO) << "node: " << op_name << " is not in white list, "
-                    << "so currently not support";
+      ADP_LOG(INFO) << "node: " << op_name << " is not in white list, so currently not support";
     }
   }
 
@@ -242,7 +240,7 @@ Status SetIteratorShardName(Node *node) {
   }
   node->ClearAttr(ATTR_NAME_SHARED_NAME);
   node->AddAttr(ATTR_NAME_SHARED_NAME, node->name());
-  ADP_LOG(INFO) << "shardName is " << shardName;
+  ADP_LOG(INFO) << node->name() << " shared name is " << shardName;
   return Status::OK();
 }
 
@@ -275,7 +273,7 @@ bool IsNpuSupportingFunc(const string &func_name, const FunctionLibraryDefinitio
   }
   for (NodeDef node_def : func_def->node_def()) {
     if (node_def.op() == "Const") {
-      ADP_LOG(INFO) << "Const in func can dump";
+      ADP_LOG(INFO) << "Const node in function can dump";
     } else if (!IsNpuSupportingNode(node_def, compile_mode, func_lib)) {
       return false;
     }
@@ -492,7 +490,7 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
       } else if (ops_tail.size() != iop.second.size()) {
         ADP_LOG(ERROR) << log_out << " is not all in graph.";
       } else {
-        ADP_LOG(INFO) << "find " << FindNodesInPaths(op_head, ops_tail, ops_save) << " nodes in paths.";
+        ADP_LOG(INFO) << "Found " << FindNodesInPaths(op_head, ops_tail, ops_save) << " nodes in paths.";
       }
     }
   }
@@ -509,7 +507,7 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
       if (ops_save.count(node) > 0) {
         ADP_LOG(INFO) << node->name() << " is excluded in candidates.";
       } else if (!IsNpuSupportingNode(node, true, func_lib, true)) {
-        ADP_LOG(WARNING) << node->name() << " is not supported npu node, it will be excluded in candidates.";
+        ADP_LOG(WARNING) << node->name() << " is not supported npu node and will be excluded in candidates.";
       } else {
         candidates->insert(node);
       }
@@ -550,7 +548,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
 
   if (hasMakeIteratorOp && hasIteratorOp) {
     candidates->clear();
-    ADP_LOG(INFO) << "preprocessing subgraph will at dp_tf_ge_conversion_pass.";
+    ADP_LOG(INFO) << "Preprocessing subgraph will at dp_tf_ge_conversion_pass.";
     return Status::OK();
   }
 
@@ -567,14 +565,14 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
       if (node->type_string() == "IteratorGetNext") {
         for (Node *n : node->in_nodes()) {
           REQUIRES_NOT_NULL(n);
-          ADP_LOG(INFO) << node->name() << " has in nodes " << n->name();
+          ADP_LOG(INFO) << node->name() << " has in node " << n->name();
           if (n->type_string() == "Iterator" || n->type_string() == "IteratorV2") { candidates->insert(node); }
         }
       }
       if (node->type_string() == "Iterator" || node->type_string() == "IteratorV2") {
         for (Node *n : node->out_nodes()) {
           REQUIRES_NOT_NULL(n);
-          ADP_LOG(INFO) << node->name() << " has in nodes " << n->name();
+          ADP_LOG(INFO) << node->name() << " has in node " << n->name();
           if (n->type_string() == "IteratorGetNext") { candidates->insert(node); }
         }
       }
@@ -1078,7 +1076,7 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
     return errors::Internal("Sorted cluster size should be equal to origin subgraph num. ", "Sorted cluster size is ",
                             sortedCluster.size(), ", origin subgraph num is ", clusterNum);
   }
-  ADP_LOG(INFO) << "cluster Num is " << clusterNum;
+  ADP_LOG(INFO) << "Cluster num is " << clusterNum;
   if (clusterNum == 0) { return Status::OK(); }
 
   int minGroupSize = 1;  // default threshold is 10.
@@ -2100,8 +2098,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
                  << "mix_compile_mode is " << (mix_compile_mode ? "True" : "False") << ", iterations_per_loop is "
                  << iterations_per_loop << ", input_shape: " << all_options["input_shape"]
                  << ", dynamic_dims: " << all_options["dynamic_dims"];
-  bool is_set_dynamic_config = !all_options["input_shape"].empty() &&
-                               !all_options["dynamic_dims"].empty();
+  bool is_set_dynamic_config = (!all_options["input_shape"].empty()) && (!all_options["dynamic_dims"].empty());
   if (is_set_dynamic_config && mix_compile_mode) {
     ADP_LOG(FATAL) << "dynamic config can not use with mix compile.";
     LOG(FATAL) << "dynamic config can not use with mix compile.";
@@ -2190,8 +2187,8 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     }
   }
 
-  if (graph_options["dynamic_input"] == "1" && graph_options["dynamic_graph_execute_mode"] == "lazy_recompile" &&
-      iterations_per_loop > 1) {
+  if ((graph_options["dynamic_input"] == "1") && (graph_options["dynamic_graph_execute_mode"] == "lazy_recompile") &&
+      (iterations_per_loop > 1)) {
     return errors::InvalidArgument("iterations_per_loop only support 1 in lazy_recompile mode. Current is:",
                                    iterations_per_loop);
   }
@@ -2205,7 +2202,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
                                                   pass_options, graph_options));
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
   if (subgraphNum < 1) {
-    ADP_LOG(INFO) << "subgraphNum is " << subgraphNum;
+    ADP_LOG(INFO) << "Subgraph num is " << subgraphNum;
     return Status::OK();
   }
   if (mix_compile_mode) {
@@ -2216,7 +2213,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   TF_RETURN_IF_ERROR(OMSplitter::OMPartitionSubgraphsInFunctions(OMSplitter::PARTITION_SUB_GRAPH_ATTR, graph,
                                                                  graph_format_value, func_lib, all_options,
                                                                  pass_options, graph_options));
-  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions success.";
+  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions succeed.";
   FixupSourceAndSinkEdges(graph->get());
 
   if (kDumpGraph) {
@@ -2227,7 +2224,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " success. ["
+  ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " succeed. ["
                  << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return Status::OK();
 }

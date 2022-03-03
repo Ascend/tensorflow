@@ -34,6 +34,7 @@
 #include "tensorflow/core/util/env_var.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/compat_tf1_tf2.h"
 #include "tf_adapter/util/util.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/acl_channel.h"
@@ -254,6 +255,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     const vector<PartialTensorShape> &output_shapes() const override { return output_shapes_; }
 
     string DebugString() const override { return "HostQueueDatasetOp::Dataset"; }
+
+    STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
 
    protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
@@ -654,7 +657,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
           TF_RETURN_IF_ERROR(
-              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i]));
+#ifdef TF_VERSION_TF2
+              dataset()->inputs_[i]->MakeIterator(ctx, this, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
+#else
+              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
+#endif
+          );
         }
         if (dataset()->channel_type_ == ChannelType::TDT) {
           if (dataset()->local_rank_id_ == 0) {
@@ -680,7 +688,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
      protected:
-      Status SaveInternal(IteratorStateWriter *writer) override { return Status::OK(); }
+      STATUS_FUNCTION_ONLY_TF2(SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override);
+      STATUS_FUNCTION_ONLY_TF1(SaveInternal(IteratorStateWriter *writer) override);
 
       Status RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override { return Status::OK(); }
 

@@ -20,6 +20,7 @@
 #include "tensorflow/core/lib/core/blocking_counter.h"
 #include "tensorflow/core/lib/io/buffered_inputstream.h"
 #include "tf_adapter/common/common.h"
+#include "tf_adapter/common/compat_tf1_tf2.h"
 
 namespace tensorflow {
 namespace data {
@@ -62,14 +63,10 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
 
     string DebugString() const override { return "DeviceQueueDatasetOp::Dataset"; }
 
+    STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
+
    protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
-      REQUIRES_NOT_NULL(ctx);
-      REQUIRES_NOT_NULL(b);
-      REQUIRES_NOT_NULL(output);
-      Node *sourcedata = nullptr;
-      TF_RETURN_IF_ERROR(b->AddScalar(sourcedata_, &sourcedata));
-      TF_RETURN_IF_ERROR(b->AddDataset(this, {sourcedata}, output));
       return Status::OK();
     }
 
@@ -84,6 +81,9 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
         *end_of_sequence = false;
         return Status::OK();
       };
+     protected:
+      STATUS_FUNCTION_ONLY_TF2(SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override);
+      STATUS_FUNCTION_ONLY_TF2(RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override);
 
      private:
       std::mutex mu_;

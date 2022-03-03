@@ -20,6 +20,7 @@
 #include <vector>
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
+#include "tf_adapter/common/compat_tf1_tf2.h"
 #include "inc/metadef/inc/graph/def_types.h"
 #include "graph/def_types.h"
 #include "securec.h"
@@ -54,8 +55,8 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
 Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
                                       std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (tensor.dims() == 0) {
-    std::string value = tensor.scalar<string>()();
-    item.dataLen_ = tensor.scalar<string>()().size();
+    std::string value = tensor.scalar<npu::compat_tf1_tf2::string>()();
+    item.dataLen_ = tensor.scalar<npu::compat_tf1_tf2::string>()().size();
     item.dataPtr_ = std::shared_ptr<void>(const_cast<char *>(value.data()), [](const void *elem) {
       (void)elem;
     });

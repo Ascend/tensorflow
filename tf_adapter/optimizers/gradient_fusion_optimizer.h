@@ -19,6 +19,7 @@
 
 #include "tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.h"
 #include "tensorflow/core/grappler/utils.h"
+#include "tf_adapter/common/compat_tf1_tf2.h"
 
 namespace tensorflow {
 namespace grappler {
@@ -36,7 +37,7 @@ class GradFusionOptimizer : public CustomGraphOptimizer {
 
   Status Optimize(Cluster *cluster, const GrapplerItem &item, GraphDef *optimizedGraph) override;
 
-  void Feedback(Cluster *cluster, const GrapplerItem &item, const GraphDef &optimizedGraph, double result) override {}
+  VOID_FUNCTION_ONLY_TF1(Feedback(Cluster *cluster, const GrapplerItem &item, const GraphDef &optimizedGraph, double result) override)
 };
 }  // end namespace grappler
 }  // end namespace tensorflow

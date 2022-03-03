@@ -10,7 +10,7 @@ else()
   FetchContent_Declare(
           secure_c
           URL https://gitee.com/openeuler/libboundscheck/repository/archive/v1.1.10.tar.gz
-          URL_HASH MD5=ae4865cec1bfb52f7dca03f5c05ac98a
+          URL_HASH MD5=f3db321939ae17527b8939651f7e1c8b
   )
 endif()
 FetchContent_GetProperties(secure_c)

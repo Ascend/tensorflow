@@ -29,6 +29,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 
+#include "tensorflow/core/platform/default/integral_types.h"
+
 // Define common constants in quantization
 const int BASE = 2;
 const float EPSILON = 1e-6;
@@ -85,7 +87,7 @@ struct DequantInputParam {
   int size;
   const T* input;
   T* out;
-  const long long unsigned int* deqscale;
+  const tensorflow::uint64 *deqscale;
   int channel_num;
   int hw_size;
   bool channel_wise;
