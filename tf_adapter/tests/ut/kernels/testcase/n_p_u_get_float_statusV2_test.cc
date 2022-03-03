@@ -10,7 +10,6 @@
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/platform/test.h"
 #include <iostream>
-#include <typeinfo>
 namespace tensorflow {
 namespace {
 
