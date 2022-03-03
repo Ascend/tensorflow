@@ -1692,7 +1692,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["hccl_timeout"] = hccl_timeout;
   sess_options["HCCL_algorithm"] = HCCL_algorithm;
 
-
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {
     init_options_[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
@@ -1700,27 +1699,49 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
     init_options_[ge::PRECISION_MODE] = precision_mode;
   }
   init_options_["profiling_mode"] = std::to_string(profiling_mode);
-  init_options_["profiling_options"] = profiling_options;
   init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(profiling_mode);
+  init_options_["profiling_options"] = profiling_options;
   init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
   init_options_["auto_tune_mode"] = auto_tune_mode;
+  init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
+  init_options_[ge::OPTION_GRAPH_RUN_MODE] = std::to_string(graph_run_mode);
   init_options_["op_debug_level"] = std::to_string(op_debug_level);
+  init_options_[ge::OP_DEBUG_LEVEL] = std::to_string(op_debug_level);
   init_options_["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
+  init_options_[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
   init_options_["enable_exception_dump"] = std::to_string(enable_exception_dump);
+  init_options_["ge.exec.enable_exception_dump"] = std::to_string(enable_exception_dump);
   init_options_["aoe_mode"] = aoe_mode;
+  init_options_["ge.jobType"] = aoe_mode;
   init_options_["work_path"] = work_path;
+  init_options_["ge.tuningPath"] = work_path;
   init_options_["distribute_config"] = distribute_config;
   init_options_["op_compiler_cache_mode"] = op_compiler_cache_mode;
+  init_options_["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
   init_options_["op_compiler_cache_dir"] = op_compiler_cache_dir;
+  init_options_["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
   init_options_["debug_dir"] = debug_dir;
+  init_options_["ge.debugDir"] = debug_dir;
   init_options_["device_type"] = device_type;
+  init_options_["ge.deviceType"] = device_type;
   init_options_["soc_config"] = soc_config;
   if (!soc_config.empty()) {
     init_options_["ge.socVersion"] = soc_config;
   }
   init_options_["op_wait_timeout"] = op_wait_timeout;
+  init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
   init_options_["op_execute_timeout"] = op_execute_timeout;
+  init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
+
+  init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
+  init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
+  init_options_["ge.fusionSwitchFile"] = fusion_switch_file;
+  init_options_[ge::OP_PRECISION_MODE] = op_precision_mode;
+  init_options_[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
+  init_options_[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
+  init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
+  init_options_["HCCL_algorithm"] = HCCL_algorithm;
 
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);
