@@ -102,6 +102,14 @@ _npu_ctx_lock = threading.Lock()
 _npu_device_instances = dict()
 
 
+def enable_v1():
+    if len(_npu_device_instances):
+        os.environ['ASCEND_DEVICE_ID'] = str(list(_npu_device_instances.keys())[0])
+
+    tf.compat.v1.disable_v2_behavior()
+    tf.load_op_library(os.path.join(os.path.dirname(__file__) + "compat", "v1", "_tf_adapter.so"))
+
+
 def open(device_id=None):
     """Initiate and return a NPU device handle"""
     if device_id is None:
