@@ -14,16 +14,13 @@
 # limitations under the License.
 # ==============================================================================
 
-import os
-import tensorflow
-from npu_device.compat import v1 as npu_bridge
 from npu_device.npu_device import gen_npu_ops
 
-npu_bridge_handle = tensorflow.load_op_library(os.path.dirname(npu_bridge.__file__) + "/_tf_adapter.so")
+npu_bridge_handle = None
 
 
 def get_gen_ops():
     return gen_npu_ops
 
 
-version = 'v2.6.3'
+version = 'v2.6.2'
