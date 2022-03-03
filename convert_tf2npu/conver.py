@@ -27,7 +27,8 @@ from file_op import write_report_terminator
 from file_op import abs_join
 from file_op import get_api_statistic
 from file_op import adjust_index
-
+from util import check_path_length
+from util import log_warning
 
 def conver():
     """The entry point to convert Tensorflow script"""
@@ -45,13 +46,17 @@ def conver():
         for file_name in file_list:
             out_path_dst = abs_join(dst_path_new, path.split(util_global.get_value('input'))[1])
             file_path = os.path.join(path, file_name).replace('\\', '/')
+            if not check_path_length(file_path):
+                content = "".join(["The file:", file_path, " length is invalid, skip convert."])
+                log_warning(content)
+                continue
             content = "".join(["Begin conver file: ", file_path])
             print(content)
             threshold_file_size = 10 * 1024 * 1024
             if file_name.endswith(".py"):
                 if os.path.getsize(file_path) > threshold_file_size:
                     content = "".join(["The file:", file_path, " size is over 10M, skip convert."])
-                    print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
+                    log_warning(content)
                     continue
                 util_global.set_value('path', file_path)
                 mkdir(os.path.join(out_path, out_path_dst))
