@@ -41,6 +41,9 @@
 #include "tf_adapter/util/npu_ops_identifier.h"
 #include "tf_adapter/util/session_manager.h"
 
+#ifdef TF_VERSION_TF2
+#include "tensorflow/compiler/tf2xla/functionalize_control_flow_util.h"
+#endif
 #include "tensorflow/core/common_runtime/dma_helper.h"
 #include "tensorflow/core/framework/attr_value_util.h"
 #include "tensorflow/core/framework/node_def_util.h"
@@ -72,7 +75,12 @@
 #include "graph/model.h"
 
 namespace tensorflow {
+#ifdef TF_VERSION_TF2
+Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library, const NodeFilter &node_filter = {},
+                                bool include_functions = false);
+#else
 Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library);
+#endif
 namespace {
 using geDataUniquePtr = std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>>;
 

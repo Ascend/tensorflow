@@ -40,6 +40,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/graph_engine/module.cmake)
 
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/python DESTINATION ${CMAKE_BINARY_DIR}/dist)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/dist/python/npu_device)
+set(COMPAT_V1_DST ${CMAKE_BINARY_DIR}/dist/python/npu_device/compat/v1)
 
 add_subdirectory(npu_device)
 add_subdirectory(npu_ops)
