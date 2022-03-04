@@ -33,6 +33,7 @@ TEST(FileConstantTest, FileConstantShapeInference) {
   OpDef op_def = reg->op_def;
   NodeDef def;
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("file_path", "test")
                   .Attr("file_id", "test")
                   .Attr("shape", {3,2})
                   .Attr("dtype", DT_FLOAT)

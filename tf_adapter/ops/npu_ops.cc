@@ -482,11 +482,12 @@ REGISTER_OP("KMeansCentroidsV2")
 
 
 REGISTER_OP("FileConstant")
-    .Output("y: T")
-    .Attr("file_id: string")
+    .Output("y: dtype")
+    .Attr("file_path: string = ''")
+    .Attr("file_id: string = ''")
     .Attr("shape: list(int)")
-    .Attr("dtype: type")
-    .Attr("T: {float32, float16, int8, int16, uint16, uint8, int32, int64, uint32, uint64, bool, double}")
+    .Attr("dtype: {float32, float16, int8, int16, uint16, uint8, int32, int64, uint32, uint64, bool, double}")
+    .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
       std::vector<int32_t> output_shape;
       TF_RETURN_IF_ERROR(c->GetAttr("shape", &output_shape));

@@ -22,15 +22,17 @@ from npu_bridge.helper import helper
 gen_npu_cpu_ops = helper.get_gen_ops();
 
 ## 提供FileConstant功能
-#  @param file_id string 类型
 #  @param shape list(int) 类型
 #  @param dtype float, float16, int8, int16, uint16,
 #               uint8, int32, int64, uint32, uint64, bool, double 类型
+#  @param file_path string 类型
+#  @param file_id string 类型
 #  @return y float, float16, int8, int16, uint16,
 #            uint8, int32, int64, uint32, uint64, bool, double 类型
-def file_constant(file_id, shape, dtype, name=None):
+def file_constant(shape, dtype, file_path=None, file_id=None, name=None):
     """ file constant. """
     result = gen_npu_cpu_ops.file_constant(
+        file_path=file_path,
         file_id=file_id,
         shape=shape,
         dtype=dtype,
