@@ -31,7 +31,7 @@
 #include "tf_adapter/util/ge_plugin.h"
 namespace tensorflow {
 const string profiling_default_options = "{\"output\":\".\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
-\"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metric\":\"PipeUtilization\",\"msproftx\":\"off\"}";
+\"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metrics\":\"PipeUtilization\",\"msproftx\":\"off\"}";
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
