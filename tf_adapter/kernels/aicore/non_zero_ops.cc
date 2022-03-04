@@ -21,14 +21,14 @@ namespace tensorflow {
 template<typename T>
 class NonZeroOP : public OpKernel {
  public:
-  explicit NonZeroOP(OpKernelConstruction*ctx) : OpKernel(ctx) {
+  explicit NonZeroOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new NonZeroOP";
   }
   ~NonZeroOP() {
     LOG(INFO) << "del NonZeroOP";
   }
-  void Compute(OpKernelContext*ctx) override {
-    (void)ctx;
+  void Compute(OpKernelContext *ctx) override {
+    (void) ctx;
     LOG(INFO) << "compute in NonZeroOP";
   }
   bool IsExpensive() override {

@@ -24,7 +24,7 @@ class DropOutDoMaskOp : public OpKernel {
   explicit DropOutDoMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DropOutDoMaskOp() {}
   void Compute(OpKernelContext *context) override {
-    (void)context;
+    (void) context;
     ADP_LOG(INFO) << "DropOutDoMaskOp Compute ";
   }
   bool IsExpensive() override {
@@ -37,10 +37,12 @@ class DropOutGenMaskOp : public OpKernel {
   explicit DropOutGenMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DropOutGenMaskOp() {}
   void Compute(OpKernelContext *context) override {
-    (void)context;
+    (void) context;
     ADP_LOG(INFO) << "DropOutGenMaskOp Compute";
   }
-  bool IsExpensive() override { return false; }
+  bool IsExpensive() override {
+    return false;
+  }
 };
 
 REGISTER_KERNEL_BUILDER(Name("DropOutGenMask").Device(DEVICE_CPU), DropOutGenMaskOp);

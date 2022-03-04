@@ -19,14 +19,16 @@
 
 namespace tensorflow {
 class KMeansCentroidsOp : public OpKernel {
-  public:
-    explicit KMeansCentroidsOp(OpKernelConstruction *context) : OpKernel(context) {}
-    ~KMeansCentroidsOp() override = default;
-    void Compute(OpKernelContext *context) override {
-      (void)context;
-      ADP_LOG(INFO) << "KMeansCentroidsOp Compute ";
-    }
-    bool IsExpensive() override { return false; }
+ public:
+  explicit KMeansCentroidsOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~KMeansCentroidsOp() override = default;
+  void Compute(OpKernelContext *context) override {
+    (void) context;
+    ADP_LOG(INFO) << "KMeansCentroidsOp Compute ";
+  }
+  bool IsExpensive() override {
+    return false;
+  }
 };
 
 REGISTER_KERNEL_BUILDER(Name("KMeansCentroids").Device(DEVICE_CPU), KMeansCentroidsOp);

@@ -20,13 +20,19 @@ namespace tensorflow {
 template<typename T>
 class DynamicGruV2OP : public OpKernel {
  public:
-  explicit DynamicGruV2OP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicGruV2OP"; }
-  ~DynamicGruV2OP() override { LOG(INFO) << "del DynamicGruV2OP"; }
+  explicit DynamicGruV2OP(OpKernelConstruction *ctx) : OpKernel(ctx) {
+    LOG(INFO) << "new DynamicGruV2OP";
+  }
+  ~DynamicGruV2OP() override {
+    LOG(INFO) << "del DynamicGruV2OP";
+  }
   void Compute(OpKernelContext *ctx) override {
-    (void)ctx;
+    (void) ctx;
     LOG(INFO) << "in DynamicGruV2OP";
   }
-  bool IsExpensive() override { return false; }
+  bool IsExpensive() override {
+    return false;
+  }
 };
 
 REGISTER_KERNEL_BUILDER(Name("DynamicGruV2").Device(DEVICE_CPU), DynamicGruV2OP<float>);

@@ -18,14 +18,17 @@
 #include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
-template <typename T> class NonZeroWithValueOP : public OpKernel {
-public:
+template<typename T>
+class NonZeroWithValueOP : public OpKernel {
+ public:
   explicit NonZeroWithValueOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new NonZeroWithValueOP";
   }
-  ~NonZeroWithValueOP() { LOG(INFO) << "del NonZeroWithValueOP"; }
+  ~NonZeroWithValueOP() {
+    LOG(INFO) << "del NonZeroWithValueOP";
+  }
   void Compute(OpKernelContext *ctx) override {
-    (void)ctx;
+    (void) ctx;
     LOG(INFO) << "compute in NonZeroWithValueOP";
   }
   bool IsExpensive() override {
@@ -34,6 +37,5 @@ public:
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("NonZeroWithValue").Device(DEVICE_CPU),
-                        NonZeroWithValueOP<float>);
-} // namespace tensorflow
+REGISTER_KERNEL_BUILDER(Name("NonZeroWithValue").Device(DEVICE_CPU), NonZeroWithValueOP<float>);
+}  // namespace tensorflow

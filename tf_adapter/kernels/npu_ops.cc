@@ -24,7 +24,7 @@ class NpuOnnxGraphOp : public OpKernel {
   explicit NpuOnnxGraphOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuOnnxGraphOp() override = default;
   void Compute(OpKernelContext *context) override {
-    (void)context;
+    (void) context;
     return;
   }
   bool IsExpensive() override { return false; }

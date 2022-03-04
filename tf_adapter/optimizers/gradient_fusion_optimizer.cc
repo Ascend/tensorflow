@@ -25,7 +25,7 @@
 namespace tensorflow {
 namespace grappler {
 Status GradFusionOptimizer::Optimize(Cluster *cluster, const GrapplerItem &item, GraphDef *optimizedGraph) {
-  (void)cluster;
+  (void) cluster;
   ADP_LOG(INFO) << "INFO: GradFusionOptimizer::Optimize begin";
   REQUIRES_NOT_NULL(optimizedGraph);
   *optimizedGraph = item.graph;

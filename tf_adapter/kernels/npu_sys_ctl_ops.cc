@@ -34,7 +34,9 @@
 #include "tf_adapter/util/npu_attrs.h"
 
 namespace tensorflow {
-inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
+inline string ToString(ge::Status status) {
+  return ::ge::StatusFactory::Instance()->GetErrDesc(status);
+}
 
 static const int64 kSecondToMillis = 1000000;
 
@@ -80,7 +82,7 @@ NPUInit::NPUInit(OpKernelConstruction *ctx) : OpKernel(ctx) {
   NpuAttrs::LogOptions(init_options_);
 }
 void NPUInit::Compute(OpKernelContext *ctx) {
-  (void)ctx;
+  (void) ctx;
   if (GePlugin::GetInstance()->IsGlobal()) {
     ADP_LOG(INFO) << "[NPUInit] GePlugin global, skip GePlugin init";
     return;
@@ -94,7 +96,9 @@ NPUInit::~NPUInit() {
   int64 unInitStartTime = GetCurrentTimestamp();
   {
     mutex_lock lock{g_mu};
-    if (g_npuInitNum > 0) { g_npuInitNum--; }
+    if (g_npuInitNum > 0) {
+      g_npuInitNum--;
+    }
     if (g_npuInitNum != 0) {
       int64 unInitEndTime = GetCurrentTimestamp();
       ADP_LOG(INFO) << "[~NPUInit] NPU Shutdown success. [" << ((unInitEndTime - unInitStartTime) / kMicrosToMillis)
@@ -121,7 +125,7 @@ class NPUShutdown : public OpKernel {
   ~NPUShutdown() override = default;
 };
 void NPUShutdown::Compute(OpKernelContext *ctx) {
-  (void)ctx;
+  (void) ctx;
   ADP_LOG(INFO) << "[NPUShutdown] NPUShutdown Compute";
   {
     mutex_lock lock{g_mu};

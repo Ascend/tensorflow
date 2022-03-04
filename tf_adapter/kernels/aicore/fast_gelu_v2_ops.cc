@@ -19,7 +19,7 @@
 
 namespace tensorflow {
 class FastGeluV2Op : public OpKernel {
-public:
+ public:
   explicit FastGeluV2Op(OpKernelConstruction *context) : OpKernel(context) {
     LOG(INFO) << "new FastGeluV2Op";
   }
@@ -27,7 +27,7 @@ public:
     LOG(INFO) << "del FastGeluV2Op";
   }
   void Compute(OpKernelContext *context) override {
-    (void)context;
+    (void) context;
     LOG(INFO) << "FastGeluV2Op Compute";
   }
   bool IsExpensive() override {
@@ -38,4 +38,3 @@ public:
 
 REGISTER_KERNEL_BUILDER(Name("FastGeluV2").Device(DEVICE_CPU), FastGeluV2Op);
 }  // namespace tensorflow
-

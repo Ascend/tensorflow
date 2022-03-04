@@ -78,7 +78,7 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
     LOG(INFO) << "Hdc channel received undefined message type for out-feed op.";
     return tensorflow::errors::Internal("Hdc channel received undefined message type for out-feed op.");
   }
-  tensorflow::DataType tf_type;
+  tensorflow::DataType tf_type = tensorflow::DT_INVALID;
   TF_RETURN_IF_ERROR(MappingAclDtypeToTf(acltdtGetDataTypeFromItem(item), tf_type));
   size_t dim_num = acltdtGetDimNumFromItem(item);
   size_t acl_data_len = acltdtGetDataSizeFromItem(item);

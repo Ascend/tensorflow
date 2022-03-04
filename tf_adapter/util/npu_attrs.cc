@@ -41,7 +41,7 @@ bool kIsNewDataTransfer = true;
 bool GetNewDataTransferFlag() {
   uint32_t device_id = 0U;
   (void) GetEnvDeviceID(device_id);
-  auto acl_status = aclrtSetDevice(device_id);
+  (void) aclrtSetDevice(device_id);
   acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
   if (check_queue_handle != nullptr) {
     acltdtDestroyChannel(check_queue_handle);
