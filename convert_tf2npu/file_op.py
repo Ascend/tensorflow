@@ -24,7 +24,8 @@ import util_global
 import pandas as pd
 from visit_by_ast import get_tf_enume
 from visit_by_ast import get_unsupport_api
-
+from log import logger_failed_report
+from log import logger_api_brief_report
 
 def before_clear():
     """Operations before clear"""
@@ -94,7 +95,6 @@ def write_conver_report(content, file):
         f.write(content)
         f.write("\r\n")
 
-
 def check_warning(lineno, api_msg):
     """Raise warning when api is related to element range check"""
     pattern = r'tf.*.is_finite'
@@ -105,8 +105,7 @@ def check_warning(lineno, api_msg):
                            doc_msg])
         os.system("cd .")
         print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
-        write_conver_report(content, util_global.get_value('report_file')[1])
-
+        logger_failed_report.info(content)
 
 def log_failed_api(lineno, api_msg, is_third_party):
     """Log message for NPU unsupported APIs"""
@@ -131,7 +130,7 @@ def log_failed_api(lineno, api_msg, is_third_party):
     else:
         content = "".join([util_global.get_value('path', ''), ":", str(lineno), ", NPU Unsupport API: ", api_msg])
         print("".join(["\033[1;31mERROR\033[0m:", content]), flush=True)
-    write_conver_report(content, util_global.get_value('report_file')[1])
+    logger_failed_report.info(content)
 
 
 def abs_join(abs1, abs2):
@@ -282,4 +281,4 @@ def get_api_statistic(analysis_report):
                                                eliminate_dup_type.count('分析中（特性商用时不应该存在）'))
     content = (api_analysis + '\n' + api_eliminate_dup)
     print(content)
-    write_conver_report(content, 'api_brief_report.txt')
+    logger_api_brief_report.info(content)

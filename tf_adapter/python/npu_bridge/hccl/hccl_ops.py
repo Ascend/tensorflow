@@ -18,7 +18,6 @@
 ## @file hccl_ops.py
 # HCCL 算子API
 
-from tensorflow.contrib.util import loader
 from tensorflow.python.framework import load_library
 from tensorflow.python.framework import ops
 from tensorflow.python.platform import resource_loader

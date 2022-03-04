@@ -27,7 +27,8 @@ import pandas as pd
 from tkintertable import TableCanvas
 import util_global
 from conver import conver
-
+from log import init_loggers
+from util import check_input_and_output_dir
 
 class Analyse:
     """Use Tkinter to display ayalysis result"""
@@ -168,6 +169,8 @@ class Analyse:
         util_global.set_value('report', report)
         util_global.set_value('main', main_file)
         util_global.set_value('distributed_mode', distributed_mode)
+        check_input_and_output_dir(input_dir, output)
+        init_loggers(report)
         conver()
         self.hide()
 

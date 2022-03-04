@@ -15,9 +15,14 @@ else ()
 endif ()
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ge_plugin_wrap.cxx
-        COMMAND swig -python -c++ -threads -o ${CMAKE_CURRENT_BINARY_DIR}/ge_plugin_wrap.cxx -outdir ${CMAKE_BINARY_DIR}/dist/python/npu_device/npu_bridge ${ADAPTER_ROOT}/tf_adapter/swig/ge_plugin.i
-        DEPENDS ${ADAPTER_ROOT}/tf_adapter/swig/ge_plugin.i
+        COMMAND swig -python -c++ -threads -o ${CMAKE_CURRENT_BINARY_DIR}/ge_plugin_wrap.cxx -outdir ${COMPAT_V1_DST} ${ADAPTER_ROOT}/tf_adapter/swig/ge_plugin.i
+        DEPENDS ${ADAPTER_ROOT}/tf_adapter/swig/ge_plugin.i generate_compat_python
         VERBATIM)
+
+add_custom_target(generate_compat_python
+        COMMAND cp -r ${ADAPTER_ROOT}/tf_adapter/python/npu_bridge/. ${COMPAT_V1_DST}
+        COMMAND ${PYTHON_BIN_PATH} ${CMAKE_CURRENT_LIST_DIR}/upgrade_tf1_compat_tf2.py ${COMPAT_V1_DST}
+        )
 
 add_custom_target(generate_compat_headers
         COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/tensorflow/core/graph/
@@ -37,7 +42,7 @@ file(GLOB_RECURSE SOURCES
         )
 
 add_library(_tf_adapter SHARED ${SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/ge_plugin_wrap.cxx)
-set_target_properties(_tf_adapter PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dist/python/npu_device/npu_bridge)
+set_target_properties(_tf_adapter PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY ${COMPAT_V1_DST})
 
 add_dependencies(_tf_adapter generate_compat_headers)
 
