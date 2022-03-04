@@ -23,15 +23,23 @@ class DropOutDoMaskOp : public OpKernel {
  public:
   explicit DropOutDoMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DropOutDoMaskOp() {}
-  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DropOutDoMaskOp Compute "; }
-  bool IsExpensive() override { return false; }
+  void Compute(OpKernelContext *context) override {
+    (void)context;
+    ADP_LOG(INFO) << "DropOutDoMaskOp Compute ";
+  }
+  bool IsExpensive() override {
+    return false;
+  }
 };
 
 class DropOutGenMaskOp : public OpKernel {
  public:
   explicit DropOutGenMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~DropOutGenMaskOp() {}
-  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "DropOutGenMaskOp Compute"; }
+  void Compute(OpKernelContext *context) override {
+    (void)context;
+    ADP_LOG(INFO) << "DropOutGenMaskOp Compute";
+  }
   bool IsExpensive() override { return false; }
 };
 

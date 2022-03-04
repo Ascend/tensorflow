@@ -59,6 +59,7 @@ public:
   explicit NpuGetFloatStatusV2Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuGetFloatStatusV2Op() override = default;
   void Compute(OpKernelContext *context) override {
+    (void)context;
     LOG(INFO) << "NpuGetFloatStatusV2 Compute";
   }
 };
@@ -89,6 +90,7 @@ public:
   explicit NpuClearFloatStatusV2Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuClearFloatStatusV2Op() override = default;
   void Compute(OpKernelContext *context) override {
+    (void)context;
     LOG(INFO) << "NpuClearFloatStatusV2 Compute";
   }
 };

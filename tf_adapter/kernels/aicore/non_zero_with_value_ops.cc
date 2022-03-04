@@ -25,6 +25,7 @@ public:
   }
   ~NonZeroWithValueOP() { LOG(INFO) << "del NonZeroWithValueOP"; }
   void Compute(OpKernelContext *ctx) override {
+    (void)ctx;
     LOG(INFO) << "compute in NonZeroWithValueOP";
   }
   bool IsExpensive() override {

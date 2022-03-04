@@ -23,6 +23,7 @@ class KMeansCentroidsV2Op : public OpKernel {
     explicit KMeansCentroidsV2Op(OpKernelConstruction *context) : OpKernel(context) {}
     ~KMeansCentroidsV2Op() override = default;
     void Compute(OpKernelContext *context) override {
+      (void)context;
       ADP_LOG(INFO) << "KMeansCentroidsV2Op Compute";
     }
     bool IsExpensive() override { return false; }

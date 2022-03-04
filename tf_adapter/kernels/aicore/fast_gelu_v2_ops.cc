@@ -27,6 +27,7 @@ public:
     LOG(INFO) << "del FastGeluV2Op";
   }
   void Compute(OpKernelContext *context) override {
+    (void)context;
     LOG(INFO) << "FastGeluV2Op Compute";
   }
   bool IsExpensive() override {

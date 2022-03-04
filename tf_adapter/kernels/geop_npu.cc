@@ -97,8 +97,15 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
     ADP_LOG(INFO) << "[GEOP] Release zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
   }
   std::string Name() override { return "NpuHostFixedAllocator"; }
-  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
-  void DeallocateRaw(void *ptr) override { Unref(); }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override {
+    (void)alignment;
+    (void)num_bytes;
+    return ptr_.get();
+  }
+  void DeallocateRaw(void *ptr) override {
+    (void)ptr;
+    Unref();
+  }
   geDataUniquePtr ptr_;
 };
 
@@ -128,8 +135,15 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator, public tensorflow:
     ADP_LOG(INFO) << "[GEOP] Release getnext data addr:" << reinterpret_cast<uintptr_t>(output_->data_.get());
   }
   std::string Name() override { return "NpuHostGetNextAllocator"; }
-  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return output_.get(); }
-  void DeallocateRaw(void *ptr) override { Unref(); }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override {
+    (void)alignment;
+    (void)num_bytes;
+    return output_.get();
+  }
+  void DeallocateRaw(void *ptr) override {
+    (void)ptr;
+    Unref();
+  }
   std::unique_ptr<NpuGetNextOutputInfo> output_;
 };
 

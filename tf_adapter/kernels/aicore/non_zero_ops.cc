@@ -28,6 +28,7 @@ class NonZeroOP : public OpKernel {
     LOG(INFO) << "del NonZeroOP";
   }
   void Compute(OpKernelContext*ctx) override {
+    (void)ctx;
     LOG(INFO) << "compute in NonZeroOP";
   }
   bool IsExpensive() override {

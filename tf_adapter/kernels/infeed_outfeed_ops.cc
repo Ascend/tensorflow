@@ -35,6 +35,7 @@ class OutfeedEnqueueOp : public OpKernel {
     ADP_LOG(INFO) << "OutfeedEnqueueOp has been destructed";
   }
   void Compute(OpKernelContext *ctx) override {
+    (void)ctx;
     ADP_LOG(INFO) << "OutfeedEnqueueOp running";
   }
   bool IsExpensive() override {
