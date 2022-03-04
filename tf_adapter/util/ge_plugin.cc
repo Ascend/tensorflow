@@ -159,8 +159,18 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
     }
   }
 
+  std::string cluster_info;
+  (void) ReadStringFromEnvVar("HELP_CLUSTER", "", &cluster_info);
+  if (!cluster_info.empty()) {
+    is_use_hcom = true;
+  }
+
   init_options[ge::OPTION_EXEC_IS_USEHCOM] = std::to_string(is_use_hcom);
   init_options[ge::OPTION_EXEC_DEPLOY_MODE] = std::to_string(deploy_mode);
+
+  // is use hcom configuration
+  ADP_LOG(INFO) << "[GePlugin] is_usehcom : " << init_options[ge::OPTION_EXEC_IS_USEHCOM]
+                << ", deploy_mode :" << init_options[ge::OPTION_EXEC_DEPLOY_MODE];
 
   // profiling configuration
   ADP_LOG(INFO) << "[GePlugin] profiling_mode : " << init_options[ge::OPTION_EXEC_PROFILING_MODE]
