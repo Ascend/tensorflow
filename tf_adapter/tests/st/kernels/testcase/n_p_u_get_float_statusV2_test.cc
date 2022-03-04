@@ -46,5 +46,44 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2) {
   delete op_def;
   delete context;
 }
+
+TEST(NPUClearFloatStatusV2OpTest, TestNPUClearFloatStatusV2) {
+  DataTypeSlice input_types({});
+  MemoryTypeSlice input_memory_types;
+  DataTypeSlice output_types({});
+  MemoryTypeSlice output_memory_types;
+  DeviceBase *device = new DeviceBase(Env::Default());
+  NodeDef *node_def = new NodeDef();
+  OpDef *op_def = new OpDef();
+  OpKernelConstruction *context = new OpKernelConstruction(
+      DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
+      input_memory_types, output_types, output_memory_types, 1, nullptr);
+  NpuClearFloatStatusV2Op npuclearfloatstatusv2(context);
+  OpKernelContext *ctx = nullptr;
+  npuclearfloatstatusv2.Compute(ctx);
+  delete device;
+  delete node_def;
+  delete op_def;
+  delete context;
+}
+
+TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2OShapeInference) {
+  const OpRegistrationData *reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("NpuGetFloatStatusV2", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  std::vector<NodeDefBuilder::NodeOut> src_list;
+  src_list.emplace_back("in0", 0, DT_FLOAT);
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Input(src_list)
+                  .Attr("T", DT_FLOAT)
+                  .Attr("N", 1)
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def, {TShape({8})}, {}, {}, {});
+  std::vector<shape_inference::ShapeHandle> input_shapes;
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+  ASSERT_EQ("[8]", c.DebugString(c.output(0)));
+}
+
 } // namespace
 } // namespace tensorflow
