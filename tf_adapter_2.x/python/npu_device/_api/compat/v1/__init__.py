@@ -16,15 +16,4 @@
 
 """import files when initiating"""
 
-from npu_device.npu_device import open
-from npu_device.npu_device import npu_compat_function
-from npu_device.npu_device import gen_npu_ops
-from npu_device.npu_device import global_options
-from npu_device.npu_device import set_npu_loop_size
-
-from npu_device.utils.scope import keep_dtype_scope
-
-from npu_device._api import distribute
-from npu_device._api import train
-from npu_device._api import ops
-from npu_device._api import compat
+from npu_device.compat.utils import SessionConfigBuilder
