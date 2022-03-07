@@ -164,11 +164,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
   int64_t GetTensorElementNum(size_t index) {
     PartialTensorShape tensor_shape = output_shapes_[index];
-    int64_t element_num = 1LL;
+    int64_t element_number = 1LL;
     for (int32_t i = 0; i < tensor_shape.dims(); i++) {
-      element_num *= tensor_shape.dim_size(i);
+      element_number *= tensor_shape.dim_size(i);
     }
-    return element_num;
+    return element_number;
   }
 
   bool IsUnknownShape(const PartialTensorShape &output_shapes) const {
@@ -191,10 +191,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                      << output_type_size;
       return -1LL;
     }
-    int64_t total_size = 0LL;
+    int64_t total_sizes = 0LL;
     for (size_t i = 0UL; i < output_shape_size; i++) {
-      DataType tensor_data = output_types_.at(i);
-      if (tensor_data == DT_STRING) {
+      DataType tensor_data_type = output_types_.at(i);
+      if (tensor_data_type == DT_STRING) {
         ADP_LOG(INFO) << "Current tensor type is DT_STRING.";
         return kStringTypeDepth;
       }
@@ -202,14 +202,14 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << " Output_shape is unknow shape";
         return kUnknownShapeDepth;
       }
-      int64_t element_num = GetTensorElementNum(i);
-      total_size += (element_num * static_cast<int64_t>(DataTypeSize(output_types_.at(i))));
+      int64_t element_number = GetTensorElementNum(i);
+      total_sizes += (element_number * static_cast<int64_t>(DataTypeSize(output_types_.at(i))));
     }
-    if (total_size <= 0LL) {
-      ADP_LOG(ERROR) << "Data size is <= 0, and current size is " << total_size;
+    if (total_sizes <= 0LL) {
+      ADP_LOG(ERROR) << "Data size is <= 0, and current size is " << total_sizes;
       return -1LL;
     }
-    return std::max(2L, (kMaxBytes / total_size));
+    return std::max(2L, (kMaxBytes / total_sizes));
   }
 
   void CreateHostQueue(OpKernelContext *ctx, size_t channel_depth) {
