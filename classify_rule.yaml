@@ -7,6 +7,9 @@ tensorflow:
       - tf_adapter
       - tf_adapter_2.x
     unrelease:
+      - tf_adapter/kernels/aicore
+      - tf_adapter/kernels/aicpu
+      - tf_adapter/kernels/hccl
       - tf_adapter/tests
       - tf_adapter_2.x/tests
   llt:
