@@ -29,6 +29,19 @@ class NpuOnnxGraphOp : public OpKernel {
   bool IsExpensive() override { return false; }
 };
 
+class FileConstant : public OpKernel {
+ public:
+  explicit FileConstant(OpKernelConstruction *context) : OpKernel(context) {}
+  ~FileConstant() override = default;
+  void Compute(OpKernelContext *context) override {
+    return;
+  }
+  bool IsExpensive() override {
+    return false;
+  }
+};
+
 REGISTER_KERNEL_BUILDER(Name("NpuOnnxGraphOp").Device(DEVICE_CPU), NpuOnnxGraphOp);
+REGISTER_KERNEL_BUILDER(Name("FileConstant").Device(DEVICE_CPU), FileConstant);
 }  // namespace
 }  // namespace tensorflow

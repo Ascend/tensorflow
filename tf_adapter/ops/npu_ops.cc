@@ -479,5 +479,25 @@ REGISTER_OP("KMeansCentroidsV2")
       c->set_output(2, c->MakeShape({1}));
       return Status::OK();
     });
+
+
+REGISTER_OP("FileConstant")
+    .Output("y: dtype")
+    .Attr("file_path: string = ''")
+    .Attr("file_id: string = ''")
+    .Attr("shape: list(int)")
+    .Attr("dtype: {float32, float16, int8, int16, uint16, uint8, int32, int64, uint32, uint64, bool, double}")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      std::vector<int32_t> output_shape;
+      TF_RETURN_IF_ERROR(c->GetAttr("shape", &output_shape));
+      int32_t rank = output_shape.size();
+      std::vector<DimensionHandle> out_dims(rank);
+      for (auto i = 0; i < rank; i++) {
+        out_dims[i] = c->MakeDim(output_shape[i]);
+      }
+      c->set_output(0, c->MakeShape(out_dims));
+      return Status::OK();
+    });
 }  // namespace
 }  // namespace tensorflow
