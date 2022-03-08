@@ -21,12 +21,14 @@ namespace tensorflow {
 class LayerNormOp : public OpKernel {
 public:
   explicit LayerNormOp(OpKernelConstruction *context) : OpKernel(context) {
+    (void) context;
     LOG(INFO) << "new LayerNormOp";
   }
   ~LayerNormOp() {
     LOG(INFO) << "del LayerNormOp";
   }
   void Compute(OpKernelContext *context) override {
+    (void) context;
     LOG(INFO) << "LayerNormOp Compute";
   }
   bool IsExpensive() override {
