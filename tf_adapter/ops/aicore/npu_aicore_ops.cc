@@ -477,5 +477,19 @@ REGISTER_OP("FusedLayerNormGrad")
       c->set_output(2, c->input(4));
       return Status::OK();
     });
+
+REGISTER_OP("GetShape")
+    .Input("x: T")
+    .Output("y: int32")
+    .Attr("N: int = 1")
+    .Attr("T: {float16, float32, uint8}")
+    .SetShapeFn([](InferenceContext* c) {
+        int64_t sumSize = 0;
+        for (int i = 0; i < c->num_inputs(); i++) {
+            sumSize += c->Rank(c->input(i));
+        }
+        c->set_output(0, c->MakeShape({c->MakeDim(sumSize)}));
+        return Status::OK();
+    });
 }  // namespace
 }  // namespace tensorflow
