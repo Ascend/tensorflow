@@ -491,5 +491,85 @@ REGISTER_OP("GetShape")
         c->set_output(0, c->MakeShape({c->MakeDim(sumSize)}));
         return Status::OK();
     });
+
+REGISTER_OP("ProdEnvMatA")
+    .Input("coord: T")
+    .Input("type:int32")
+    .Input("natoms:int32")
+    .Input("box: T")
+    .Input("mesh:int32")
+    .Input("davg: T")
+    .Input("dstd: T")
+    .Output("descrpt: T")
+    .Output("descrpt_deriv: T")
+    .Output("rij: T")
+    .Output("nlist:int32")
+    .Attr("T: {float16, float32}")
+    .Attr("rcut_a: float = 0.0")
+    .Attr("rcut_r: float = 0.0")
+    .Attr("rcut_r_smth: float = 0.0")
+    .Attr("sel_a: list(int)")
+    .Attr("sel_r: list(int)")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      auto coord_shape = c->input(0);
+      int64_t nsample = c->Value(c->Dim(coord_shape, 0));
+      int64_t nloc = 12288;
+      int64_t nnei = 0;
+      std::vector<int> sel_a;
+      c->GetAttr("sel_a", &sel_a);
+      for (size_t i = 0; i < sel_a.size(); ++i) {
+        nnei = nnei + sel_a[i];
+      }
+      int64_t des = nloc * nnei * 4;
+      int64_t des_a = des * 3;
+      int64_t rij = nloc * nnei * 3;
+      int64_t nlist = nloc * nnei;
+      c->set_output(0, c->MakeShape({c->MakeDim(nsample), c->MakeDim(des)}));
+      c->set_output(1, c->MakeShape({c->MakeDim(nsample), c->MakeDim(des_a)}));
+      c->set_output(2, c->MakeShape({c->MakeDim(nsample), c->MakeDim(rij)}));
+      c->set_output(3, c->MakeShape({c->MakeDim(nsample), c->MakeDim(nlist)}));
+      return Status::OK();
+    });
+
+REGISTER_OP("ProdVirialSeA")
+    .Input("net_deriv:T")
+    .Input("in_deriv:T")
+    .Input("rij:T")
+    .Input("nlist:int32")
+    .Input("natoms:int32")
+    .Output("virial:T")
+    .Output("atom_virial:T")
+    .Attr("n_a_sel:int = 0")
+    .Attr("n_r_sel:int = 0")
+    .Attr("T: {float32, float64}")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      auto input_shape = c->input(0);
+      auto nframes = c->Dim(input_shape, 0);
+      ShapeHandle virial_shape = c->MakeShape({nframes, 9});
+      c->set_output(0, virial_shape);
+      ShapeHandle atom_virial_shape = c->MakeShape({nframes, 254952});
+      c->set_output(1, atom_virial_shape);
+      return Status::OK();
+    });
+
+REGISTER_OP("ProdForceSeA")
+    .Input("net_deriv:T")
+    .Input("in_deriv:T")
+    .Input("nlist:int32")
+    .Input("natoms:int32")
+    .Output("force:T")
+    .Attr("n_a_sel:int = 0")
+    .Attr("n_r_sel:int = 0")
+    .Attr("T: {float32}")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      auto input_shape = c->input(0);
+      auto nframes = c->Dim(input_shape, 0);
+      ShapeHandle force_shape = c->MakeShape({nframes, 84984});
+      c->set_output(0, force_shape);
+      return Status::OK();
+    });
 }  // namespace
 }  // namespace tensorflow

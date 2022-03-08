@@ -181,3 +181,53 @@ def _layer_norm_grad(op, *grad):
                                                                    op.inputs[1])
 
     return [pd_x, pd_gamma, pd_beta]
+
+def prod_env_mat_a(coord, types, natoms, box, mesh, davg, dstd, rcut_a=0.0,
+                   rcut_r=0.0, rcut_r_smth=0.0, sel_a=None, sel_r=None, name=None):
+    """
+    prod_env_mat_a op
+    Return the indices of the elementes that are non-zero.
+    Return a tuple of arrays,one for each dimension of a ,containing the indices of the non-zero elementes
+    in that dimension. The values in a are always tested and returned in row-major ,C-style order.
+
+    """
+    sel_a = [] if sel_a is None else sel_a
+    sel_r = [] if sel_r is None else sel_r
+    coord = ops.convert_to_tensor(coord, name="coord")
+    types = ops.convert_to_tensor(types, name="type")
+    natoms = ops.convert_to_tensor(natoms, name="natoms")
+    box = ops.convert_to_tensor(box, name="box")
+    mesh = ops.convert_to_tensor(mesh, name="mesh")
+    davg = ops.convert_to_tensor(davg, name="davg")
+    dstd = ops.convert_to_tensor(dstd, name="dstd")
+    result = npu_aicore_ops.prod_env_mat_a(coord, types, natoms, box, mesh, davg, dstd, rcut_a, rcut_r,
+                                           rcut_r_smth, sel_a, sel_r, name)
+
+    return result
+
+
+def prodvirialsea(net_deriv, in_deriv, rij, nlist, natoms, n_a_sel=0, n_r_sel=0, name=None):
+    """
+    ProdVirialSeA op
+    """
+    net_deriv = ops.convert_to_tensor(net_deriv, name="net_deriv")
+    in_deriv = ops.convert_to_tensor(in_deriv, name="in_deriv")
+    rij = ops.convert_to_tensor(rij, name="rij")
+    nlist = ops.convert_to_tensor(nlist, name="nlist")
+    natoms = ops.convert_to_tensor(natoms, name="natoms")
+    result = npu_aicore_ops.prod_virial_se_a(net_deriv, in_deriv, rij, nlist, natoms, n_a_sel, n_r_sel,
+                                             name=name)
+    return result
+
+
+def prodforcesea(net_deriv, in_deriv, nlist, natoms, n_a_sel=0, n_r_sel=0, name=None):
+    """
+    ProdForceSeA op
+    """
+    net_deriv = ops.convert_to_tensor(net_deriv, name="net_deriv")
+    in_deriv = ops.convert_to_tensor(in_deriv, name="in_deriv")
+    nlist = ops.convert_to_tensor(nlist, name="nlist")
+    natoms = ops.convert_to_tensor(natoms, name="natoms")
+    result = npu_aicore_ops.prod_force_se_a(net_deriv, in_deriv, nlist, natoms, n_a_sel, n_r_sel,
+                                             name=name)
+    return result

@@ -13,28 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
 template <typename T>
-class GetShapeOP : public OpKernel {
+class ProdForceSeAOP : public OpKernel {
 public:
-  explicit GetShapeOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
-    LOG(INFO) << "new GetShapeOP";
+  explicit ProdForceSeAOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
+    LOG(INFO) << "new ProdForceSeAOP";
   }
-  ~GetShapeOP() {
-    LOG(INFO) << "del GetShapeOP";
+  ~ProdForceSeAOP() {
+    LOG(INFO) << "del ProdForceSeAOP";
   }
   void Compute(OpKernelContext* ctx) override {
-    LOG(INFO) << "compute in GetShapeOP";
+    LOG(INFO) << "in ProdForceSeAOP";
   }
   bool IsExpensive() override {
-    LOG(INFO) << "in GetShape IsExpensive";
     return false;
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("GetShape").Device(DEVICE_CPU), GetShapeOP<float>);
+REGISTER_KERNEL_BUILDER(Name("ProdForceSeA").Device(DEVICE_CPU), ProdForceSeAOP<float>);
 }  // namespace tensorflow

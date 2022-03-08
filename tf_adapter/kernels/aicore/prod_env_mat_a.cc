@@ -19,22 +19,22 @@
 
 namespace tensorflow {
 template <typename T>
-class GetShapeOP : public OpKernel {
+class ProdEnvMatAOP : public OpKernel {
 public:
-  explicit GetShapeOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
-    LOG(INFO) << "new GetShapeOP";
+  explicit ProdEnvMatAOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
+    LOG(INFO) << "new ProdEnvMatAOP";
   }
-  ~GetShapeOP() {
-    LOG(INFO) << "del GetShapeOP";
+  ~ProdEnvMatAOP() {
+    LOG(INFO) << "del ProdEnvMatAOP";
   }
   void Compute(OpKernelContext* ctx) override {
-    LOG(INFO) << "compute in GetShapeOP";
+    LOG(INFO) << "compute in ProdEnvMatAOP";
   }
   bool IsExpensive() override {
-    LOG(INFO) << "in GetShape IsExpensive";
+    LOG(INFO) << "in ProdEnvMatA IsExpensive";
     return false;
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("GetShape").Device(DEVICE_CPU), GetShapeOP<float>);
+REGISTER_KERNEL_BUILDER(Name("ProdEnvMatA").Device(tensorflow::DEVICE_CPU), ProdEnvMatAOP<float>);
 }  // namespace tensorflow
