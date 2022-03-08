@@ -89,13 +89,15 @@ private:
           input_impls_.resize(dataset()->inputs_.size());
         } catch (...) { return errors::InvalidArgument("input impls resize failed."); }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
-          TF_RETURN_IF_ERROR(
 #ifdef TF_VERSION_TF2
+          TF_RETURN_IF_ERROR(
               dataset()->inputs_[i]->MakeIterator(ctx, this, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
-#else
-              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
-#endif
           );
+#else
+          TF_RETURN_IF_ERROR(
+              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
+          );
+#endif
         }
         return Status::OK();
       }
