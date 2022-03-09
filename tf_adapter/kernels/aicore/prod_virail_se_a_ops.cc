@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2022. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,29 @@
  * limitations under the License.
  */
 
+
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
+#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
 template <typename T>
-class GetShapeOP : public OpKernel {
+class ProdVirialSeAOp : public OpKernel {
 public:
-  explicit GetShapeOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
-    LOG(INFO) << "new GetShapeOP";
+  explicit ProdVirialSeAOp(OpKernelConstruction* context) : OpKernel(context) {
+    LOG(INFO) << "new ProdVirialSeAOp";
   }
-  ~GetShapeOP() {
-    LOG(INFO) << "del GetShapeOP";
+  ~ProdVirialSeAOp() {
+    LOG(INFO) << "del ProdVirialSeAOp";
   }
-  void Compute(OpKernelContext* ctx) override {
-    LOG(INFO) << "compute in GetShapeOP";
+  void Compute(OpKernelContext* context) override {
+    LOG(INFO) << "ProdVirialSeAOp Compute";
   }
   bool IsExpensive() override {
-    LOG(INFO) << "in GetShape IsExpensive";
+    LOG(INFO) << "ProdVirialSeAOp IsExpensive";
     return false;
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("GetShape").Device(DEVICE_CPU), GetShapeOP<float>);
+REGISTER_KERNEL_BUILDER(Name("ProdVirialSeA").Device(DEVICE_CPU), ProdVirialSeAOp<float>);
 }  // namespace tensorflow
