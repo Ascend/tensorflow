@@ -107,7 +107,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       TensorDataTypes types;
       NPU_CTX_REQUIRES_OK(status, dev->GetMirroredIteratorShapesAndTypes(handle, shapes, types));
       auto dp_init_graph = MakeIteratorGraphBuilder::GetGraph(handle.container(), handle.name(), shapes, types, status);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      NPU_REQUIRES_TFE_OK(status);
       if (kDumpExecutionDetail || kDumpGraph) {
         std::string file_name = "dp_init_" + handle.name() + ".pbtxt";
         DLOG() << "NPU Dump mirrored resource init graph to: " << file_name;
@@ -115,10 +115,10 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       }
       dev->RunGeGraphPin2CpuAnonymous(context, "dp_init_" + handle.name(), dp_init_graph, num_inputs, inputs, 0,
                                       nullptr, status);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      NPU_REQUIRES_TFE_OK(status);
       // 针对推荐网络，Provider需要支持1对N的传输，默认只向资源所处的Device发送
       dev->CreateIteratorProvider(context, tensor, {dev->device_id}, status);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      NPU_REQUIRES_TFE_OK(status);
     }
   }
 };

@@ -50,7 +50,9 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
   if (op_reg_data->is_function_op) {
     std::unique_ptr<NpuConcreteGraph> concrete_graph;
     device->GetConcreteGraph(context, ndef, num_inputs, inputs, &concrete_graph, s);
-    if (TF_GetCode(s) != TF_OK) { return nullptr; }
+    if (TF_GetCode(s) != TF_OK) {
+      return nullptr;
+    }
     return concrete_graph;
   }
 
@@ -65,17 +67,8 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
   NPU_CTX_REQUIRES_OK_RETURN(s, tensorflow::InOutTypesForNode(ndef, op_reg_data->op_def, &input_types, &output_types),
                              nullptr);
 
-  tensorflow::Status status;
-  if (!(status = device->ValidateOutputTypes(output_types)).ok()) {
-    return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, status.error_message());
-  }
-
   if (!device->Supported(op_name)) {
     return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, "Op unsupported by NPU");
-  }
-
-  if (!(status = device->ValidateInputTypes(input_types)).ok()) {
-    return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, status.error_message());
   }
 
   for (auto type : input_types) {
@@ -88,6 +81,15 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
     if (type == tensorflow::DT_RESOURCE) {
       return std::make_shared<NpuResourceGeneratorOp>(op_reg_data, ndef, input_shapes);
     }
+  }
+
+  tensorflow::Status status;
+  if (!(status = device->ValidateOutputTypes(output_types)).ok()) {
+    return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, status.error_message());
+  }
+
+  if (!(status = device->ValidateInputTypes(input_types)).ok()) {
+    return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, status.error_message());
   }
 
   if (op_reg_data->shape_inference_fn == nullptr) {

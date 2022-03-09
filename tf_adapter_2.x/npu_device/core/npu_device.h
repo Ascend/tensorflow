@@ -61,6 +61,9 @@ class NpuDevice {
   tensorflow::Status ValidateOutputTypes(const TensorDataTypes &data_types) const;
   tensorflow::Status ValidateInputTypes(const TensorDataTypes &data_types) const;
 
+  bool SupportedInputType(tensorflow::DataType data_type) const;
+  bool SupportedOutputType(tensorflow::DataType data_type) const;
+
   TFE_TensorHandle *NewDeviceTensorHandle(TFE_Context *context, ge::Format fmt, const tensorflow::TensorShape &shape,
                                           tensorflow::DataType type, TF_Status *status);
 

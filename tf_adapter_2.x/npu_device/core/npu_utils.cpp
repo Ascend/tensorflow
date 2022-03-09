@@ -191,7 +191,9 @@ OptimizeStageGraphDumper::OptimizeStageGraphDumper(const std::string &graph) {
 }
 
 void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::GraphDef &graph_def) {
-  if (!enabled_) { return; }
+  if (!enabled_) {
+    return;
+  }
   std::string graph_name = tensorflow::strings::StrCat(graph_, ".", counter_++, ".", stage, ".pbtxt");
   DLOG() << "Dump graph " << graph_name;
   WriteTextProto(tensorflow::Env::Default(), graph_name, graph_def);
@@ -199,7 +201,9 @@ void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::
 
 void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
                                                  const tensorflow::FunctionLibraryDefinition *lib_def) {
-  if (!enabled_) { return; }
+  if (!enabled_) {
+    return;
+  }
   tensorflow::GraphDef copied_graph_def = graph_def;
   *copied_graph_def.mutable_library() = CollectGraphSubGraphs(graph_def, lib_def);
   Dump(stage, copied_graph_def);

@@ -34,7 +34,9 @@ TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *
   LOG(INFO) << "[CopyTensorToNpuDevice] Copy tensor from " << tensorflow::unwrap(tensor)->DeviceName(&tf_status)
             << " to " << dev->device_name;
   TFE_TensorHandle *npu_handle = dev->CopyTensorH2D(context, tensor, status);
-  if (TF_GetCode(status) != TF_OK) return nullptr;
+  if (TF_GetCode(status) != TF_OK) {
+    return nullptr;
+  }
   return npu_handle;
 }
 
@@ -45,9 +47,13 @@ TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle
   // 输入的TensorHandle是NPU的，应当先进行NPU->CPU的传输，再调用TFE_TensorHandleCopyToDevice防止可能的NPU->GPU传输
   // 一旦Copy动作发生，需要进行stream同步。如果是NPU->NPU的拷贝（理论上不应该发生），可以不同步。
   TFE_TensorHandle *local_tensor = dev->CopyTensorD2H(context, tensor, status);
-  if (TF_GetCode(status) != TF_OK) return nullptr;
+  if (TF_GetCode(status) != TF_OK) {
+    return nullptr;
+  }
   TFE_TensorHandle *target_tensor = TFE_TensorHandleCopyToDevice(local_tensor, context, target_device_name, status);
-  if (TF_GetCode(status) != TF_OK) return nullptr;
+  if (TF_GetCode(status) != TF_OK) {
+    return nullptr;
+  }
 
   TFE_DeleteTensorHandle(local_tensor);
   return target_tensor;
