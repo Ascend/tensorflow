@@ -530,12 +530,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             } else {
               args = buffer_.front().value;
               buffer_.pop_front();
-              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_ << " buffer size : " << buffer_.size();
+              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_ << " buffer size: " << buffer_.size();
             }
           }
 
           string value;
-          uint64_t total_bytes = 0ULL;
+          uint64_t bytes_sum = 0ULL;
           std::vector<DataItem> items;
           std::vector<std::unique_ptr<uint8_t[]>> buff_list;
           for (auto &tensor : args) {
@@ -567,7 +567,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               return;
             }
             items.push_back(data_item);
-            total_bytes += tensor.TotalBytes();
+            bytes_sum += tensor.TotalBytes();
           }
           // call tdt interface
           data_deliver_->ParallelSendDataVec(items);
@@ -581,7 +581,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
           {
             mutex_lock lck(mu_);
-            total_bytes_ -= total_bytes;
+            total_bytes_ -= bytes_sum;
             cond_var_.notify_all();
           }
         }
