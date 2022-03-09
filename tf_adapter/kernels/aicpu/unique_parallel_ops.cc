@@ -85,7 +85,7 @@ private:
   void ParallelFor(tensorflow::thread::ThreadPool& thread_work,
     int64 total, const int cpu_nums, std::function<void(int64, int)>& fn) {
     CHECK_GE(total, 0);
-    CHECK_EQ(total, (int64)(Eigen::Index)total);
+    CHECK_EQ(total, static_cast<int64>(static_cast<Eigen::Index>(total)));
     if (total <= 1 || cpu_nums == 1) {
       fn(total, 0);
       return;
