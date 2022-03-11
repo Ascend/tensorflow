@@ -46,7 +46,10 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator {
 
 class GeOpTest : public testing::Test {
  protected:
-  virtual void SetUp() { *const_cast<bool *>(&kDumpGraph) = true; }
+  virtual void SetUp() {
+    *const_cast<bool *>(&kDumpGraph) = true;
+    kIsNewDataTransfer = true;
+  }
   virtual void TearDown() {}
 };
 class DummyDevice : public DeviceBase {
@@ -307,6 +310,13 @@ TEST_F(GeOpTest, GeOpAoeTuningOtherTest) {
       EXPECT_EQ(ctx->status().ok(), true); 
     }
   }
+}
+
+TEST_F(GeOpTest, GeOpDpOpTest) {
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dpop.pbtxt";
+  gtl::InlinedVector<TensorValue, 4> inputs;
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0_dp").ok());
 }
 
 TEST_F(GeOpTest, GeOpFuncSubGraphTest) {
