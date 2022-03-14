@@ -311,7 +311,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     GePlugin::GetInstance()->Init(init_options_);
     ADP_LOG(INFO) << "[GEOP] GePlugin init success";
   }
-  ADP_LOG(INFO) << "init options:";
+  ADP_LOG(INFO) << "init options: ";
   NpuAttrs::LogOptions(init_options_);
 
   if ((!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty())) {
@@ -352,12 +352,12 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   }
 
   sess_options_ = NpuAttrs::GetSessOptions(ctx);
-  ADP_LOG(INFO) << "session options:";
+  ADP_LOG(INFO) << "session options: ";
   NpuAttrs::LogOptions(sess_options_);
 
   init_flag_ = true;
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(EVENT) << "[GEOP] GeOp Initialize success, cost:"
+  ADP_LOG(EVENT) << "[GEOP] GeOp Initialize success, cost: "
                  << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;
 }
@@ -418,6 +418,11 @@ int GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
   if (!build_flag_) {
     ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_ << ", graph id: " << cache_graph_id
                   << " does not build yet, no need to check rebuild";
+    return 0;
+  }
+  if (compute_graph_empty_) {
+    ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_ << ", graph id: " << cache_graph_id
+                  << " is empty, no need to check rebuild";
     return 0;
   }
   if (ge_session_ == nullptr) {
@@ -664,10 +669,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       (void) WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
     }
     endTime = InferShapeUtil::GetCurrentTimestap();
-    ADP_LOG(EVENT) << "[GEOP] In GEOP computeAsync, kernel_name:" << geop_name << " ,TFadapter cost time: ["
+    ADP_LOG(EVENT) << "[GEOP] In GEOP computeAsync, kernel_name: " << geop_name << " ,TFadapter cost time: ["
                    << ((endTime - startTime) / kMicrosToMillis) << " ms]";
-    ADP_LOG(INFO) << "[GEOP] TFadpter process graph success, GE parser begin, kernel_name:" << geop_name
-                  << " ,tf session: " << tf_session_ << " ,graph id :" << cache_graph_id;
+    ADP_LOG(INFO) << "[GEOP] TFadpter process graph success, GE parser begin, kernel_name: " << geop_name
+                  << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id;
     // parser,  tensorflow graph to ge graph
     std::shared_ptr<domi::ModelParser> model_parser =
         domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -697,9 +702,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     domi::GetContext().format = ge::GetParserContext().format;
 
-    ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success, kernel_name:" << geop_name
-                  << " ,tf session: " << tf_session_ << " ,graph id: " << cache_graph_id
-                  << ", iteration_per_loop:" << iteration_per_loop_ << ", need iteration:" << this->need_iteration_;
+    ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success, kernel_name: " << geop_name
+                  << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id
+                  << ", iteration_per_loop: " << iteration_per_loop_ << ", need iteration: " << this->need_iteration_;
 
     size_t nodes = compute_graph->GetAllNodesSize();
     if (nodes == 0) {
@@ -746,8 +751,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
     } else {
       add_graph_flag_ = true;
-      ADP_LOG(INFO) << "[GEOP] Add graph to ge session success, kernel_name:" << geop_name
-                    << " ,tf session: " << tf_session_ << " ,graph id:" << cache_graph_id;
+      ADP_LOG(INFO) << "[GEOP] Add graph to ge session success, kernel_name: " << geop_name
+                    << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id;
     }
     build_flag_ = true;
     if (!is_set_dynamic_config && is_lazy_recompile_mode) {
@@ -769,7 +774,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       done();
       return;
     }
-    LOG(INFO) << "The model has been compiled on the Ascend AI processor, current graph id is:" << cache_graph_id;
+    LOG(INFO) << "The model has been compiled on the Ascend AI processor, current graph id is: " << cache_graph_id;
   } else {
     if (compute_graph_empty_) {
       endTime = InferShapeUtil::GetCurrentTimestap();
@@ -1026,7 +1031,7 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
     }
   }
   for (Node *node : remove_nodes) {
-    ADP_LOG(INFO) << "[GEOP] Remove node:" << node->name();
+    ADP_LOG(INFO) << "[GEOP] Remove node: " << node->name();
     graph.RemoveNode(node);
   }
 }
