@@ -21,8 +21,13 @@ namespace {
 class ScatterElementsOp : public OpKernel {
  public:
   explicit ScatterElementsOp(OpKernelConstruction *ctx) : OpKernel(ctx) {}
-  ~ScatterElementsOp() { LOG(INFO) << "del ScatterElements"; }
-  void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in ScatterElements"; }
+  ~ScatterElementsOp() {
+    LOG(INFO) << "del ScatterElements";
+  }
+  void Compute(OpKernelContext *ctx) override {
+    (void) (ctx);
+    LOG(INFO) << "in ScatterElements";
+  }
   bool IsExpensive() override {
     LOG(INFO) << "in ScatterElements IsExpensive";
     return false;

@@ -24,9 +24,7 @@ class NpuUnsupportedOp : public OpExecutor {
  public:
   NpuUnsupportedOp(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
                    TensorShapes input_shapes, std::string reason)
-      : OpExecutor(op_spec, ndef, input_shapes) {
-    fallback_reason_ = std::move(reason);
-  }
+      : OpExecutor(op_spec, ndef, input_shapes), fallback_reason_(std::move(reason)) {}
 
   const std::string &Type() const override {
     const static std::string kType = "NpuUnsupportedOp";
