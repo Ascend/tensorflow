@@ -249,7 +249,8 @@ def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
                                                                                               reset_after=op.get_attr(
                                                                                                   "reset_after"))
 
-    return (dx, dw_input, dw_hidden, db_input, db_hidden, seq_length, dh_prev)
+    ret = tuple([dx, dw_input, dw_hidden, db_input, db_hidden, seq_length, dh_prev])
+    return ret
 
 
 @ops.RegisterGradient("DynamicRnn")
@@ -269,7 +270,8 @@ def dynamic_rnn_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
                                                                   time_major=op.get_attr("time_major"),
                                                                   forget_bias=op.get_attr("forget_bias"))
 
-    return (dx, dw, db, seq_length, dh_prev, dc_prev)
+    ret = tuple([dx, dw, db, seq_length, dh_prev, dc_prev])
+    return ret
 
 
 @ops.RegisterGradient("DynamicRnnV2")
@@ -289,7 +291,8 @@ def dynamic_rnn_v2_grad(op, dy, dh, dc, di, dj, df, do, dtanhc):
                                                                   time_major=op.get_attr("time_major"),
                                                                   forget_bias=op.get_attr("forget_bias"))
 
-    return (dx, dw, db, dh_prev, dc_prev)
+    ret = tuple([dx, dw, db, dh_prev, dc_prev])
+    return ret
 
 
 def scatter_elements(data, indices, updates, axis=0, name=None):

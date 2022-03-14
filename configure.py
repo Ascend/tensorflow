@@ -104,14 +104,14 @@ def setup_python():
                 'tf.sysconfig.get_lib('') + "|" + "|".join(tf.sysconfig.get_compile_flags()) + "|" + '
                 'distutils.sysconfig.get_python_inc())'
             ]).split("|")
-            if not compile_args[0].startswith(_COMPAT_TENSORFLOW_VERSION):
-                print('Invalid python path: %s compat tensorflow version is %s'
-                      ' got %s.' % (python_bin_path, _COMPAT_TENSORFLOW_VERSION,
-                                    compile_args[0]))
-                continue
         except subprocess.CalledProcessError:
             print('Invalid python path: %s tensorflow not installed.' %
                   python_bin_path)
+            continue
+        if not compile_args[0].startswith(_COMPAT_TENSORFLOW_VERSION):
+            print('Invalid python path: %s compat tensorflow version is %s'
+                    ' got %s.' % (python_bin_path, _COMPAT_TENSORFLOW_VERSION,
+                                compile_args[0]))
             continue
         # Write tools/python_bin_path.sh
         with open(real_config_path('PYTHON_BIN_PATH'), 'w') as f:
@@ -157,6 +157,7 @@ def setup_ascend(env_path):
         f.write(os.path.join(ascend_path, "runtime", "lib64", "libascendcl.so\n"))
         f.write(os.path.join(ascend_path, "compiler", "lib64", "libalog.so\n"))
         f.write(os.path.join(ascend_path, "compiler", "lib64", "libacl_tdt_channel.so\n"))
+
 
 def setup_swig():
     """Get swig install path."""

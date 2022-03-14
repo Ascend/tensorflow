@@ -153,7 +153,7 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
   const std::map<int32_t, tensorflow::ResourceHandle> &CpuResources() { return cpu_resources_; }
 
   tensorflow::Status TryTransToNpuLoopGraph(TFE_Context *context);
-  tensorflow::Status DevicePartition(TFE_Context *context, NpuDevice *device);
+  tensorflow::Status DevicePartition(TFE_Context *context, const NpuDevice *device);
 
  private:
   std::map<int32_t, tensorflow::ResourceHandle> npu_resources_;

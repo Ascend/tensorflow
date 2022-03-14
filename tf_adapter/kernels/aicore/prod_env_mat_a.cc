@@ -18,16 +18,17 @@
 #include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
-template <typename T>
+template<typename T>
 class ProdEnvMatAOP : public OpKernel {
-public:
-  explicit ProdEnvMatAOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
+ public:
+  explicit ProdEnvMatAOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new ProdEnvMatAOP";
   }
-  ~ProdEnvMatAOP() {
+  ~ProdEnvMatAOP() override {
     LOG(INFO) << "del ProdEnvMatAOP";
   }
-  void Compute(OpKernelContext* ctx) override {
+  void Compute(OpKernelContext *ctx) override {
+    (void) ctx;
     LOG(INFO) << "compute in ProdEnvMatAOP";
   }
   bool IsExpensive() override {
