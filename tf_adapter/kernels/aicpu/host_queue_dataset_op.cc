@@ -47,7 +47,7 @@ namespace {
 using namespace std;
 using namespace tdt;
 
-const uint32_t kMaxValue = 128U;
+const uint32_t kMaxValue = 256U;
 const size_t kMaxDepth = 128UL;
 const int32_t kSleepTime = 1;
 const static int64_t kStringTypeDepth = 64LL;
@@ -81,7 +81,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
     if (need_add_device_queue) {
       // 2G bytes
-      total_bytes = 2 * 1024 * 1024 * 1024LL;
+      total_bytes = 4 * 1024 * 1024 * 1024LL;
     }
     ADP_LOG(INFO) << "Total bytes: " << total_bytes;
     ADP_LOG(INFO) << "Get local rank id: " << local_rank_id << ", local device list: " << local_device_list;
@@ -316,7 +316,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         while (true) {
           {
             mutex_lock lck(mu_);
-            while (!cancelled_ && (buffer_.size() >= kMaxValue || total_bytes_ > total_bytes)) {
+            while ((!cancelled_) && ((buffer_.size() >= kMaxValue) || (total_bytes_ > total_bytes))) {
               RecordStop(ctx.get());
               cond_var_.wait(lck);
               RecordStart(ctx.get());
@@ -335,7 +335,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
 
           buffer_element.status = input_impls_[1]->GetNext(ctx.get(), &args, &end_of_sequence);
-          if (!buffer_element.status.ok() || (buffer_element.status.ok() && end_of_sequence)) {
+          if ((!buffer_element.status.ok()) || (buffer_element.status.ok() && end_of_sequence)) {
             if (!buffer_element.status.ok()) {
               ADP_LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
               LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
@@ -352,7 +352,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           {
             mutex_lock lck(mu_);
             for (auto &tensor : args) {
-              if (tensor.TotalBytes() > UINT64_MAX - total_bytes_) {
+              if (tensor.TotalBytes() > (UINT64_MAX - total_bytes_)) {
                 ADP_LOG(ERROR) << "The size of tensor is too big";
                 LOG(ERROR) << "The size of tensor is too big";
                 buffer_element.host_thread_finished = true;
@@ -432,7 +432,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           acltdtTensorType data_type = ACL_TENSOR_DATA_TENSOR;
           {
             mutex_lock lck(mu_);
-            while (!finish_send_ && buffer_.empty()) {
+            while ((!finish_send_) && buffer_.empty()) {
               RecordStop(ctx.get());
               cond_var_.wait(lck);
               RecordStart(ctx.get());
@@ -492,7 +492,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         while (true) {
           {
             mutex_lock lck(mu_);
-            while (!cancelled_ && !finish_send_ && buffer_.empty()) {
+            while ((!cancelled_) && (!finish_send_) && buffer_.empty()) {
               RecordStop(ctx.get());
               cond_var_.wait(lck);
               RecordStart(ctx.get());
