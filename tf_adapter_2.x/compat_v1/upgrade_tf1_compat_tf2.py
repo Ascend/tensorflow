@@ -29,6 +29,7 @@ REPLACE_RULES[
     'from tensorflow.distribute.experimental import ParameterServerStrategy'] = 'from tensorflow.python.distribute.parameter_server_strategy import ParameterServerStrategyV1 as ParameterServerStrategy'
 REPLACE_RULES[
     'from tensorflow.contrib.distribute import DistributeConfig'] = 'from tensorflow.python.distribute.distribute_config import DistributeConfig'
+REPLACE_RULES['from tensorflow.python.keras import backend'] = 'from keras import backend'
 REPLACE_RULES["from npu_device.compat.v1.estimator.npu.npu_loss_scale_optimizer import NPULossScaleOptimizer"] = ''
 REPLACE_RULES["from npu_device.compat.v1.estimator.npu.npu_loss_scale_manager import FixedLossScaleManager"] = ''
 REPLACE_RULES["from npu_device.compat.v1.estimator.npu.npu_loss_scale_manager import ExponentialUpdateLossScaleManager"] = ''
