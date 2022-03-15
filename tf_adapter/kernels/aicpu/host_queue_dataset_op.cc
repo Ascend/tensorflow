@@ -55,7 +55,7 @@ const int64_t kUnknownShapeDepth = 3LL;
 std::atomic<bool> tdt_release(false);
 
 // total memory usage controlled below 2G
-uint64_t total_bytes = 128ULL;
+const uint64_t kTotalBytes = 4 * 1024 * 1024 * 1024LL;;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 
 enum class ChannelType {
@@ -71,19 +71,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     // ctx is not nullptr
     std::string local_rank_id;
     std::string local_device_list;
-    bool need_add_device_queue = false;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_rank_id", &local_rank_id));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_local_device_list", &local_device_list));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("_need_add_device_dataset", &need_add_device_queue));
 
-    if (need_add_device_queue) {
-      // 2G bytes
-      total_bytes = 4 * 1024 * 1024 * 1024LL;
-    }
-    ADP_LOG(INFO) << "Total bytes: " << total_bytes;
     ADP_LOG(INFO) << "Get local rank id: " << local_rank_id << ", local device list: " << local_device_list;
     // local rank id range 0-7
     local_rank_id_ = std::atoi(local_rank_id.c_str());
@@ -316,7 +309,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         while (true) {
           {
             mutex_lock lck(mu_);
-            while ((!cancelled_) && ((buffer_.size() >= kMaxValue) || (total_bytes_ > total_bytes))) {
+            while ((!cancelled_) && ((buffer_.size() >= kMaxValue) || (total_bytes_ > kTotalBytes))) {
               RecordStop(ctx.get());
               cond_var_.wait(lck);
               RecordStart(ctx.get());
