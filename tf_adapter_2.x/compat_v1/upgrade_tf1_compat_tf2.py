@@ -23,7 +23,7 @@ import re
 
 REPLACE_RULES = dict()
 REPLACE_RULES['from npu_bridge'] = 'from npu_device.compat.v1'
-REPLACE_RULES['tf.train.Optimizer'] = 'tf.compat.v1.train.Optimizer'
+REPLACE_RULES['import tensorflow'] = 'import tensorflow.compat.v1'
 REPLACE_RULES["@ops.RegisterGradient('HcomAllReduce')"] = ''
 REPLACE_RULES[
     'from tensorflow.distribute.experimental import ParameterServerStrategy'] = 'from tensorflow.python.distribute.parameter_server_strategy import ParameterServerStrategyV1 as ParameterServerStrategy'
