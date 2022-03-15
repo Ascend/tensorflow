@@ -21,20 +21,23 @@ import sys
 import shutil
 import re
 
+REGEXP_RULES = dict()
 REPLACE_RULES = dict()
+REMOVED_LINES = []
+
 REPLACE_RULES['from npu_bridge'] = 'from npu_device.compat.v1'
 REPLACE_RULES['import tensorflow'] = 'import tensorflow.compat.v1'
-REPLACE_RULES["@ops.RegisterGradient('HcomAllReduce')"] = ''
 REPLACE_RULES[
     'from tensorflow.distribute.experimental import ParameterServerStrategy'] = 'from tensorflow.python.distribute.parameter_server_strategy import ParameterServerStrategyV1 as ParameterServerStrategy'
 REPLACE_RULES[
     'from tensorflow.contrib.distribute import DistributeConfig'] = 'from tensorflow.python.distribute.distribute_config import DistributeConfig'
 REPLACE_RULES['from tensorflow.python.keras import backend'] = 'from keras import backend'
-REPLACE_RULES["from npu_device.compat.v1.estimator.npu.npu_loss_scale_optimizer import NPULossScaleOptimizer"] = ''
-REPLACE_RULES["from npu_device.compat.v1.estimator.npu.npu_loss_scale_manager import FixedLossScaleManager"] = ''
-REPLACE_RULES["from npu_device.compat.v1.estimator.npu.npu_loss_scale_manager import ExponentialUpdateLossScaleManager"] = ''
 
-REGEXP_RULES = dict()
+REMOVED_LINES.append("@ops.RegisterGradient('HcomAllReduce')")
+REMOVED_LINES.append("from npu_bridge.estimator.npu.npu_loss_scale_optimizer import NPULossScaleOptimizer")
+REMOVED_LINES.append("from npu_bridge.estimator.npu.npu_loss_scale_manager import FixedLossScaleManager")
+REMOVED_LINES.append("from npu_bridge.estimator.npu.npu_loss_scale_manager import ExponentialUpdateLossScaleManager")
+
 REGEXP_RULES['import npu_bridge$'] = 'from npu_device.compat import v1 as npu_bridge'
 
 FILE_REPLACED = (
@@ -63,13 +66,21 @@ def make_compat(root, absf):
         with open(absf, 'w+') as f:
             for line in lines:
                 origin_line = line
-                for k, v in REPLACE_RULES.items():
-                    line = line.replace(k, v, 1)
-                for k, v in REGEXP_RULES.items():
-                    line = re.sub(k, v, line)
-                f.writelines(line)
+                if line.strip() in REMOVED_LINES:
+                    line = ''
+                else:
+                    for k, v in REPLACE_RULES.items():
+                        line = line.replace(k, v, 1)
+                    for k, v in REGEXP_RULES.items():
+                        line = re.sub(k, v, line)
                 if origin_line != line:
-                    print('>>> Replace', origin_line, "with", line, flush=True)
+                    if line:
+                        f.writelines(line)
+                        print('>>> Replace', origin_line, "with", line, flush=True)
+                    else:
+                        print('>>> Remove', origin_line, flush=True)
+                else:
+                    f.writelines(line)
 
 
 def main():
