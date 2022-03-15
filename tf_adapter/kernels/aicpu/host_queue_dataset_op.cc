@@ -55,7 +55,7 @@ const int64_t kUnknownShapeDepth = 3LL;
 std::atomic<bool> tdt_release(false);
 
 // total memory usage controlled below 2G
-const uint64_t kTotalBytes = 4 * 1024 * 1024 * 1024LL;;
+const uint64_t kTotalBytes = 4 * 1024 * 1024 * 1024LL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 
 enum class ChannelType {
