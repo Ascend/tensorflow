@@ -743,9 +743,13 @@ struct Cluster {
 };
 
 // Merges src and dst clusters of the edge
-void MergeClusters(const Edge *edge, std::map<Node *, std::shared_ptr<Cluster>> &cluster_map) {
+void MergeClusters(const Edge *edge, std::map<Node *, std::shared_ptr<Cluster>> &cluster_map, bool swap = false) {
   Node *src = edge->src();
   Node *dst = edge->dst();
+
+  if (swap) {
+    std::swap(src, dst);
+  }
 
   // Merge dst cluster into src cluster
   auto cluster_dst = cluster_map[dst];
@@ -940,7 +944,11 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
 
       // Check if contracting the edge will lead to cycles
       // if not, MergeClusters
-      if (cycles.HasEdge(src_index, dst_index) && cycles.ContractEdge(src_index, dst_index)) {
+      if (cycles.HasEdge(src_index, dst_index)) {
+        auto contracted = cycles.ContractEdge(src_index, dst_index);
+        if (!contracted) {
+          continue;
+        }
         if (job != "localhost") {
           bool find_same_start = false;
           auto cluster_src = cluster_map[src];
@@ -956,7 +964,11 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
           }
           if (find_same_start) { continue; }
         }
+#ifdef TF_VERSION_TF2
+        MergeClusters(edge, cluster_map, (contracted != src_index));
+#else
         MergeClusters(edge, cluster_map);
+#endif
         changed = true;
       }
     }
