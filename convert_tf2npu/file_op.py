@@ -27,6 +27,7 @@ from visit_by_ast import get_unsupport_api
 from log import logger_failed_report
 from log import logger_api_brief_report
 
+
 def before_clear():
     """Operations before clear"""
     exit_folder = os.path.exists(util_global.get_value('output'))
@@ -95,6 +96,7 @@ def write_conver_report(content, file):
         f.write(content)
         f.write("\r\n")
 
+
 def check_warning(lineno, api_msg):
     """Raise warning when api is related to element range check"""
     pattern = r'tf.*.is_finite'
@@ -106,6 +108,7 @@ def check_warning(lineno, api_msg):
         os.system("cd .")
         print("".join(["\033[1;33mWARNING\033[0m:", content]), flush=True)
         logger_failed_report.info(content)
+
 
 def log_failed_api(lineno, api_msg, is_third_party):
     """Log message for NPU unsupported APIs"""
@@ -241,7 +244,7 @@ def get_api_statistic(analysis_report):
     eliminate_dup_api = []
     eliminate_dup_type = []
     for item in code_api:
-        if not item in eliminate_dup_api:
+        if item not in eliminate_dup_api:
             eliminate_dup_api.append(item)
             eliminate_dup_type.append(support_type[code_api.index(item)])
 

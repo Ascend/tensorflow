@@ -41,7 +41,10 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator {
 
 class GeOpTest : public testing::Test {
  protected:
-  virtual void SetUp() { *const_cast<bool *>(&kDumpGraph) = true; }
+  virtual void SetUp() {
+    *const_cast<bool *>(&kDumpGraph) = true;
+    kIsNewDataTransfer = true;
+  }
   virtual void TearDown() {}
 };
 class DummyDevice : public DeviceBase {

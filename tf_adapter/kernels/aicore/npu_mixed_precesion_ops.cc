@@ -21,7 +21,7 @@
 namespace tensorflow {
 // Mixed-precisions training
 class NpuAllocFloatStatusOp : public tensorflow::OpKernel {
-public:
+ public:
   explicit NpuAllocFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuAllocFloatStatusOp() override = default;
   void Compute(tensorflow::OpKernelContext *context) override {
@@ -36,7 +36,7 @@ public:
 REGISTER_KERNEL_BUILDER(Name("NpuAllocFloatStatus").Device(tensorflow::DEVICE_CPU), NpuAllocFloatStatusOp);
 
 class NpuGetFloatStatusOp : public tensorflow::OpKernel {
-public:
+ public:
   explicit NpuGetFloatStatusOp(tensorflow::OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuGetFloatStatusOp() override = default;
   void Compute(tensorflow::OpKernelContext *context) override {
@@ -55,10 +55,11 @@ public:
 REGISTER_KERNEL_BUILDER(Name("NpuGetFloatStatus").Device(tensorflow::DEVICE_CPU), NpuGetFloatStatusOp);
 
 class NpuGetFloatStatusV2Op : public OpKernel {
-public:
+ public:
   explicit NpuGetFloatStatusV2Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuGetFloatStatusV2Op() override = default;
   void Compute(OpKernelContext *context) override {
+    (void) context;
     LOG(INFO) << "NpuGetFloatStatusV2 Compute";
   }
 };
@@ -66,7 +67,7 @@ public:
 REGISTER_KERNEL_BUILDER(Name("NpuGetFloatStatusV2").Device(DEVICE_CPU), NpuGetFloatStatusV2Op);
 
 class NpuClearFloatStatusOp : public OpKernel {
-public:
+ public:
   explicit NpuClearFloatStatusOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuClearFloatStatusOp() override = default;
   void Compute(OpKernelContext *context) override {
@@ -75,20 +76,24 @@ public:
     auto input = input_tensor.flat<float>();
     // Create an output tensor
     Tensor *output_tensor = nullptr;
+    OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
     // Clear the status
     auto flat = output_tensor->flat<float>();
     // For testing
-    for (int i = 0; i < input.size(); i++) { flat(i) = 0.0; }
+    for (int i = 0; i < input.size(); i++) {
+      flat(i) = 0.0;
+    }
   }
 };
 
 REGISTER_KERNEL_BUILDER(Name("NpuClearFloatStatus").Device(DEVICE_CPU), NpuClearFloatStatusOp);
 
 class NpuClearFloatStatusV2Op : public OpKernel {
-public:
+ public:
   explicit NpuClearFloatStatusV2Op(OpKernelConstruction *context) : OpKernel(context) {}
   ~NpuClearFloatStatusV2Op() override = default;
   void Compute(OpKernelContext *context) override {
+    (void) context;
     LOG(INFO) << "NpuClearFloatStatusV2 Compute";
   }
 };

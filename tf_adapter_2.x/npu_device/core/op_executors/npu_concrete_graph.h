@@ -104,10 +104,9 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
  public:
   NpuMutableConcreteGraph(const std::string &name, TensorDataTypes input_dtypes, TensorDataTypes output_dtypes,
                           uint64_t ge_graph_id, std::unique_ptr<tensorflow::Graph> graph)
-      : NpuConcreteGraph(name, input_dtypes, output_dtypes, ge_graph_id, std::move(graph)) {
-    consumed_types_ = InputTypes();
-    produced_types_ = OutputTypes();
-  }
+      : NpuConcreteGraph(name, input_dtypes, output_dtypes, ge_graph_id, std::move(graph)),
+        consumed_types_(InputTypes()),
+        produced_types_(OutputTypes()) {}
   void SetGraph(std::unique_ptr<tensorflow::Graph> graph) { graph_.swap(graph); }
   tensorflow::Graph *MutableGraph() { return graph_.get(); }
 
@@ -154,7 +153,7 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
   const std::map<int32_t, tensorflow::ResourceHandle> &CpuResources() { return cpu_resources_; }
 
   tensorflow::Status TryTransToNpuLoopGraph(TFE_Context *context);
-  tensorflow::Status DevicePartition(TFE_Context *context, NpuDevice *device);
+  tensorflow::Status DevicePartition(TFE_Context *context, const NpuDevice *device);
 
  private:
   std::map<int32_t, tensorflow::ResourceHandle> npu_resources_;
