@@ -22,7 +22,10 @@ class DynamicRnnGradOP : public OpKernel {
  public:
   explicit DynamicRnnGradOP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicRnnGradOP"; }
   ~DynamicRnnGradOP() override { LOG(INFO) << "del DynamicRnnGradOP"; }
-  void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in DynamicRnnGradOP"; }
+  void Compute(OpKernelContext* ctx) override {
+    (void) ctx;
+    LOG(INFO) << "in DynamicRnnGradOP";
+  }
   bool IsExpensive() override { return false; }
 };
 

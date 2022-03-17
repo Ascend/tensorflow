@@ -17,13 +17,22 @@
 #include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
-template<typename T>
+template <typename T>
 class DynamicGruV2GradOP : public OpKernel {
- public:
-  explicit DynamicGruV2GradOP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicGruV2GradOP"; }
-  ~DynamicGruV2GradOP() override { LOG(INFO) << "del DynamicGruV2GradOP"; }
-  void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in DynamicGruV2GradOP"; }
-  bool IsExpensive() override { return false; }
+public:
+  explicit DynamicGruV2GradOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
+    LOG(INFO) << "new DynamicGruV2GradOP";
+  }
+  ~DynamicGruV2GradOP() override {
+    LOG(INFO) << "del DynamicGruV2GradOP";
+  }
+  void Compute(OpKernelContext* ctx) override {
+    (void) ctx;
+    LOG(INFO) << "in DynamicGruV2GradOP";
+  }
+  bool IsExpensive() override {
+    return false;
+  }
 };
 
 REGISTER_KERNEL_BUILDER(Name("DynamicGruV2Grad").Device(DEVICE_CPU), DynamicGruV2GradOP<float>);
