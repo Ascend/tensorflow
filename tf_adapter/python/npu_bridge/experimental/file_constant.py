@@ -19,7 +19,8 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import dtypes
 from npu_bridge.helper import helper
 
-gen_npu_cpu_ops = helper.get_gen_ops();
+gen_npu_cpu_ops = helper.get_gen_ops()
+
 
 ## 提供FileConstant功能
 #  @param shape list(int) 类型

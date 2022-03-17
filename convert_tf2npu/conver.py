@@ -30,6 +30,7 @@ from file_op import adjust_index
 from util import check_path_length
 from util import log_warning
 
+
 def conver():
     """The entry point to convert Tensorflow script"""
     print("Begin conver, input file: " + util_global.get_value('input') + '\n')

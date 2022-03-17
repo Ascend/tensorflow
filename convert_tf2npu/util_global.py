@@ -25,7 +25,7 @@ import os
 def _init():
     global _global_dict
     _global_dict = {}
-    with open(os.path.dirname(os.path.abspath(__file__)) + '/mappings/ast.json') as f:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mappings', 'ast.json')) as f:
         load_dict = json.load(f)
         items = load_dict.items()
         for key, value in items:

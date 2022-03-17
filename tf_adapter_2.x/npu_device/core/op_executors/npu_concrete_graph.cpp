@@ -177,7 +177,7 @@ void NpuConcreteGraph::RunOneShot(TFE_Context *context, NpuDevice *device, int n
   UnLoad(context, device, status);
 }
 
-tensorflow::Status NpuMutableConcreteGraph::DevicePartition(TFE_Context *context, NpuDevice *device) {
+tensorflow::Status NpuMutableConcreteGraph::DevicePartition(TFE_Context *context, const NpuDevice *device) {
   tensorflow::Status input_supported = device->ValidateInputTypes(ConsumedTypes());
   tensorflow::Status output_supported = device->ValidateOutputTypes(ProducedTypes());
   if (!CpuResources().empty() || !input_supported.ok() || !output_supported.ok()) {

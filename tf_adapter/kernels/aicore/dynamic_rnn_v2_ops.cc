@@ -19,11 +19,20 @@
 namespace tensorflow {
 template<typename T>
 class DynamicRnnV2OP : public OpKernel {
-public:
-  explicit DynamicRnnV2OP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicRnnV2OP"; }
-  ~DynamicRnnV2OP() { LOG(INFO) << "del DynamicRnnV2OP"; }
-  void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in DynamicRnnV2OP"; }
-  bool IsExpensive() override { return false; }
+ public:
+  explicit DynamicRnnV2OP(OpKernelConstruction *ctx) : OpKernel(ctx) {
+    LOG(INFO) << "new DynamicRnnV2OP";
+  }
+  ~DynamicRnnV2OP() {
+    LOG(INFO) << "del DynamicRnnV2OP";
+  }
+  void Compute(OpKernelContext *ctx) override {
+    (void) ctx;
+    LOG(INFO) << "in DynamicRnnV2OP";
+  }
+  bool IsExpensive() override {
+    return false;
+  }
 };
 
 REGISTER_KERNEL_BUILDER(Name("DynamicRnnV2").Device(DEVICE_CPU), DynamicRnnV2OP<float>);

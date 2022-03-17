@@ -17,6 +17,8 @@
 #ifndef TENSORFLOW_COMMON_COMPAT_TF1_TF2_H_
 #define TENSORFLOW_COMMON_COMPAT_TF1_TF2_H_
 
+#include "tensorflow/core/platform/tstring.h"
+
 namespace npu {
 namespace compat_tf1_tf2 {
 #ifdef TF_VERSION_TF2

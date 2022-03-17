@@ -76,6 +76,7 @@ class NpuClearFloatStatusOp : public OpKernel {
     auto input = input_tensor.flat<float>();
     // Create an output tensor
     Tensor *output_tensor = nullptr;
+    OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
     // Clear the status
     auto flat = output_tensor->flat<float>();
     // For testing

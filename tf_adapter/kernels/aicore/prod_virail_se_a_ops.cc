@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
-#include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
-template <typename T>
+template<typename T>
 class ProdVirialSeAOp : public OpKernel {
-public:
-  explicit ProdVirialSeAOp(OpKernelConstruction* context) : OpKernel(context) {
+ public:
+  explicit ProdVirialSeAOp(OpKernelConstruction *context) : OpKernel(context) {
     LOG(INFO) << "new ProdVirialSeAOp";
   }
-  ~ProdVirialSeAOp() {
+  ~ProdVirialSeAOp() override {
     LOG(INFO) << "del ProdVirialSeAOp";
   }
-  void Compute(OpKernelContext* context) override {
+  void Compute(OpKernelContext *context) override {
+    (void) context;
     LOG(INFO) << "ProdVirialSeAOp Compute";
   }
   bool IsExpensive() override {

@@ -17,16 +17,17 @@
 #include "tensorflow/core/framework/register_types.h"
 
 namespace tensorflow {
-template <typename T>
+template<typename T>
 class ProdForceSeAOP : public OpKernel {
-public:
-  explicit ProdForceSeAOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
+ public:
+  explicit ProdForceSeAOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new ProdForceSeAOP";
   }
-  ~ProdForceSeAOP() {
+  ~ProdForceSeAOP() override {
     LOG(INFO) << "del ProdForceSeAOP";
   }
-  void Compute(OpKernelContext* ctx) override {
+  void Compute(OpKernelContext *ctx) override {
+    (void) ctx;
     LOG(INFO) << "in ProdForceSeAOP";
   }
   bool IsExpensive() override {

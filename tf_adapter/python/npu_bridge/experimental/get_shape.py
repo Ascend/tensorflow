@@ -20,6 +20,7 @@ from npu_bridge.helper import helper
 
 npu_aicore_ops = helper.get_gen_ops()
 
+
 def getshape(x, name=None):
     """
     Args:

@@ -25,6 +25,7 @@ from conver import conver
 from log import init_loggers
 from util import check_input_and_output_dir
 
+
 def get_para_input(arg):
     """Get input directory parameter"""
     input_dir = os.path.abspath(arg)
@@ -77,7 +78,7 @@ def get_para_distributed_mode(arg):
 def para_check_and_set(argv):
     """Verify validation and set parameters"""
     input_dir = "npu_input"
-    support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
+    support_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tf1.15_api_support_list.xlsx")
     output = "output" + util_global.get_value('timestap')
     report = "report" + util_global.get_value('timestap')
     report_suffix = report
