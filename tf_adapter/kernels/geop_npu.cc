@@ -89,6 +89,7 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   static tensorflow::Allocator *Create(geDataUniquePtr ptr) {
     return new (std::nothrow) NpuHostFixedAllocator(std::move(ptr));
   }
+
  private:
   explicit NpuHostFixedAllocator(geDataUniquePtr ptr) : ptr_(std::move(ptr)) {
     ADP_LOG(INFO) << "[GEOP] Zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
@@ -96,9 +97,18 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   ~NpuHostFixedAllocator() override {
     ADP_LOG(INFO) << "[GEOP] Release zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
   }
-  std::string Name() override { return "NpuHostFixedAllocator"; }
-  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return ptr_.get(); }
-  void DeallocateRaw(void *ptr) override { Unref(); }
+  std::string Name() override {
+    return "NpuHostFixedAllocator";
+  }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override {
+    (void) alignment;
+    (void) num_bytes;
+    return ptr_.get();
+  }
+  void DeallocateRaw(void *ptr) override {
+    (void) ptr;
+    Unref();
+  }
   geDataUniquePtr ptr_;
 };
 
@@ -120,6 +130,7 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator, public tensorflow:
   static tensorflow::Allocator *Create(std::unique_ptr<NpuGetNextOutputInfo> output) {
     return new (std::nothrow) NpuHostGetNextAllocator(std::move(output));
   }
+
  private:
   explicit NpuHostGetNextAllocator(std::unique_ptr<NpuGetNextOutputInfo> output) : output_(std::move(output)) {
     ADP_LOG(INFO) << "[GEOP] getnext data addr:" << reinterpret_cast<uintptr_t>(output_->data_.get());
@@ -127,13 +138,24 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator, public tensorflow:
   ~NpuHostGetNextAllocator() override {
     ADP_LOG(INFO) << "[GEOP] Release getnext data addr:" << reinterpret_cast<uintptr_t>(output_->data_.get());
   }
-  std::string Name() override { return "NpuHostGetNextAllocator"; }
-  void *AllocateRaw(size_t alignment, size_t num_bytes) override { return output_.get(); }
-  void DeallocateRaw(void *ptr) override { Unref(); }
+  std::string Name() override {
+    return "NpuHostGetNextAllocator";
+  }
+  void *AllocateRaw(size_t alignment, size_t num_bytes) override {
+    (void) alignment;
+    (void) num_bytes;
+    return output_.get();
+  }
+  void DeallocateRaw(void *ptr) override {
+    (void) ptr;
+    Unref();
+  }
   std::unique_ptr<NpuGetNextOutputInfo> output_;
 };
 
-inline string ToString(ge::Status status) { return ::ge::StatusFactory::Instance()->GetErrDesc(status); }
+inline string ToString(ge::Status status) {
+  return ::ge::StatusFactory::Instance()->GetErrDesc(status);
+}
 Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outputs) {
   // ctx is not nullptr
   int num_outputs = ctx->num_outputs();
@@ -157,8 +179,8 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outp
     size_t output_size = output.GetSize();
     geDataUniquePtr data_ptr = std::move(output.ResetData());
     ADP_LOG(INFO) << "[GEOP] Get ge output: " << i << " tensor shape is: " << out_shape.DebugString()
-                  << ", data placement is: " << data_placement << ", output_size is: "
-                  << output_size << ", data addr is: " << reinterpret_cast<uintptr_t>(data_ptr.get());
+                  << ", data placement is: " << data_placement << ", output_size is: " << output_size
+                  << ", data addr is: " << reinterpret_cast<uintptr_t>(data_ptr.get());
 
     if (data_placement != ge::kPlacementDevice) {
       const static int64_t kTensorAlignBytes = 64;
@@ -180,8 +202,8 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outp
       }
     } else {
       ADP_LOG(INFO) << "[GEOP] GE output data placement is device, construct output info tensor.";
-      auto getnext_output_info = std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(
-          data_placement, ge_output_dims, output_size, std::move(data_ptr)));
+      auto getnext_output_info = std::unique_ptr<NpuGetNextOutputInfo>(
+          new NpuGetNextOutputInfo(data_placement, ge_output_dims, output_size, std::move(data_ptr)));
       Allocator *allocator = NpuHostGetNextAllocator::Create(std::move(getnext_output_info));
       Tensor cpu_tensor(allocator, out_type, out_shape);
       ctx->set_output(i, cpu_tensor);
@@ -224,17 +246,19 @@ const int kFatalSleepTime = 3000;
 const std::string kAllReduce = "HcomAllReduce";
 
 GeOp::GeOp(OpKernelConstruction *ctx)
-    : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false),
-      sess_init_flag_(false), compute_graph_empty_(false), data_format_(""), graph_id_(0),
-      is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr),
-      job_type_(""), is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false),
-      session_id_(0), aoe_initialize_(nullptr), aoe_finalize_(nullptr), aoe_create_session_(nullptr),
-      aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr), aoe_set_dependgraphs_(nullptr),
-      aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr), tuned_flag_(ATOMIC_FLAG_INIT) {
+    : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false), sess_init_flag_(false),
+      compute_graph_empty_(false), data_format_(""), graph_id_(0), is_initialized_graph_(false), need_iteration_(false),
+      tf_session_(""), ge_session_(nullptr), job_type_(""), is_host_graph_(false), handle_(nullptr),
+      need_compile_graph_first_(false), session_id_(0), aoe_initialize_(nullptr), aoe_finalize_(nullptr),
+      aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
+      aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
+      tuned_flag_(ATOMIC_FLAG_INIT) {
   Initialize(ctx);
 }
 
-GeOp::~GeOp() { Finalize(); }
+GeOp::~GeOp() {
+  Finalize();
+}
 
 void GeOp::Initialize(OpKernelConstruction *ctx) {
   mutex_lock lock{mu_};
@@ -254,7 +278,9 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   this->data_format_ = data_format;
 
   Status s = ctx->GetAttr("_session", &tf_session_);
-  if (s.ok()) { ADP_LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_; }
+  if (s.ok()) {
+    ADP_LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_;
+  }
 
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
@@ -268,10 +294,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
-                << ", data_inputs_shape_range: " << data_inputs_shape_range_
-                << ", is_train_graph: " << is_train_graph_
-                << ", is_dynamic_getnext: " << is_dynamic_getnext_
-                << ", placeholder_index: " << placeholder_index_;
+                << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
+                << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_;
 
   // global environment Initialize, invoke once for each process
   std::string sess_config = "";
@@ -294,35 +318,35 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     handle_ = mmDlopen("libaoe_tuning.so", MMPA_RTLD_NOW);
     OP_REQUIRES(ctx, handle_ != nullptr, errors::InvalidArgument("libaoe_tuning.so dlopen failed, ", mmDlerror()));
     // aoe init
-    aoe_initialize_ = (AoeInitializeFunc)mmDlsym(handle_, "AoeInitialize");
+    aoe_initialize_ = (AoeInitializeFunc) mmDlsym(handle_, "AoeInitialize");
     OP_REQUIRES(ctx, aoe_initialize_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe initialize API failed, ", mmDlerror()));
     // aoe finalize
-    aoe_finalize_ = (AoeFinalizeFunc)mmDlsym(handle_, "AoeFinalize");
+    aoe_finalize_ = (AoeFinalizeFunc) mmDlsym(handle_, "AoeFinalize");
     OP_REQUIRES(ctx, aoe_initialize_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe Finalize API failed, ", mmDlerror()));
     // aoe create session
-    aoe_create_session_ = (AoeCreateSessionFunc)mmDlsym(handle_, "AoeCreateSession");
+    aoe_create_session_ = (AoeCreateSessionFunc) mmDlsym(handle_, "AoeCreateSession");
     OP_REQUIRES(ctx, aoe_create_session_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe create session API failed, ", mmDlerror()));
     // aoe destroy session
-    aoe_destroy_session_ = (AoeDestroySessionFunc)mmDlsym(handle_, "AoeDestroySession");
+    aoe_destroy_session_ = (AoeDestroySessionFunc) mmDlsym(handle_, "AoeDestroySession");
     OP_REQUIRES(ctx, aoe_destroy_session_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe destroy session API failed, ", mmDlerror()));
     // aoe set session
-    aoe_set_gesession_ = (AoeSetGeSessionFunc)mmDlsym(handle_, "AoeSetGeSession");
+    aoe_set_gesession_ = (AoeSetGeSessionFunc) mmDlsym(handle_, "AoeSetGeSession");
     OP_REQUIRES(ctx, aoe_set_gesession_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set session API failed, ", mmDlerror()));
     // aoe set depend graphs
-    aoe_set_dependgraphs_ = (AoeSetDependGraphFunc)mmDlsym(handle_, "AoeSetDependGraphs");
+    aoe_set_dependgraphs_ = (AoeSetDependGraphFunc) mmDlsym(handle_, "AoeSetDependGraphs");
     OP_REQUIRES(ctx, aoe_set_dependgraphs_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set depend graphs API failed, ", mmDlerror()));
     // aoe set tuning graph
-    aoe_set_tuninggraph_ = (AoeSetTuningGraphFunc)mmDlsym(handle_, "AoeSetTuningGraph");
+    aoe_set_tuninggraph_ = (AoeSetTuningGraphFunc) mmDlsym(handle_, "AoeSetTuningGraph");
     OP_REQUIRES(ctx, aoe_set_tuninggraph_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe aoe set tuning graph API failed, ", mmDlerror()));
     // aoe tuning
-    aoe_tuning_graph_ = (AoeTuningGraphFunc)mmDlsym(handle_, "AoeTuningGraph");
+    aoe_tuning_graph_ = (AoeTuningGraphFunc) mmDlsym(handle_, "AoeTuningGraph");
     OP_REQUIRES(ctx, aoe_tuning_graph_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe tuning graph API failed, ", mmDlerror()));
   }
@@ -340,8 +364,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
 
 void GeOp::Finalize() {
   {
-    ADP_LOG(INFO) << "[GEOP] GeOp start to finalize, tf session: " << tf_session_
-                  << ", graph_id_: " << graph_id_;
+    ADP_LOG(INFO) << "[GEOP] GeOp start to finalize, tf session: " << tf_session_ << ", graph_id_: " << graph_id_;
     // global environment finalize, invoke once for each process
     {
       mutex_lock lock{mu_};
@@ -381,14 +404,13 @@ void GeOp::Finalize() {
           LOG(WARNING) << "[GEOP] Save check report failed.";
         }
         if (handle_ != nullptr) {
-          (void)mmDlclose(handle_);
+          (void) mmDlclose(handle_);
         }
       }
     }
   }
   init_flag_ = false;
-  ADP_LOG(INFO) << "[GEOP] GeOp Finalize success, tf session: " << tf_session_
-                << ", graph_id_: " << graph_id_;
+  ADP_LOG(INFO) << "[GEOP] GeOp Finalize success, tf session: " << tf_session_ << ", graph_id_: " << graph_id_;
   return;
 }
 
@@ -418,7 +440,7 @@ int GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
     std::string error_message = ge::GEGetErrorMsg();
     LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret << std::endl
                << "Error Message is : " << std::endl
-               <<error_message;
+               << error_message;
     return -1;
   }
 
@@ -469,17 +491,18 @@ bool GeOp::DecrementGraphIdCount(const std::string &tf_session, uint32_t &graph_
 
 void GeOp::ClearGraphIdCount() {
   auto it = session_and_graph_id_map_.find(tf_session_);
-  if (it != session_and_graph_id_map_.end()) { session_and_graph_id_map_.erase(it); }
+  if (it != session_and_graph_id_map_.end()) {
+    session_and_graph_id_map_.erase(it);
+  }
 }
 
-void GeOp::GetExecGraphId(uint32_t &cache_graph_id,
-                          std::vector<std::string> input_shapes) {
+void GeOp::GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> input_shapes) {
   size_t num = cache_graphs_.size();
   if (cache_graphs_.find(input_shapes) != cache_graphs_.end()) {
     auto iter = std::find_if(graph_counts_.begin(), graph_counts_.end(),
-        [&input_shapes](const std::pair<std::vector<std::string>, uint32_t> graph_count) {
-          return graph_count.first == input_shapes;
-        });
+                             [&input_shapes](const std::pair<std::vector<std::string>, uint32_t> graph_count) {
+                               return graph_count.first == input_shapes;
+                             });
     if (iter != graph_counts_.end()) {
       iter->second += 1;
     }
@@ -550,8 +573,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         // aoe ini
         if (!tuned_initialize_flag_.test_and_set()) {
           std::map<Aoe::AscendString, Aoe::AscendString> global_options;
-          global_options.insert({Aoe::AscendString("work_path"),
-                                 Aoe::AscendString(init_options_["ge.tuningPath"].c_str())});
+          global_options.insert(
+              {Aoe::AscendString("work_path"), Aoe::AscendString(init_options_["ge.tuningPath"].c_str())});
           Aoe::AoeStatus init_ret = (*aoe_initialize_)(global_options);
           OP_REQUIRES_ASYNC(ctx, init_ret == Aoe::AOE_SUCCESS,
                             errors::Internal("[GEOP] exec aoe initialize func failed[", init_ret, "]."), done);
@@ -564,8 +587,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   std::string geop_name = ctx->op_kernel().name();
   uint32_t num_inputs = static_cast<uint32_t>(ctx->num_inputs());
   ADP_LOG(INFO) << "[GEOP] Begin GeOp::ComputeAsync"
-                << ", kernel_name:" << geop_name << ", num_inputs:"
-                << num_inputs << ", num_outputs:" << ctx->num_outputs();
+                << ", kernel_name:" << geop_name << ", num_inputs:" << num_inputs
+                << ", num_outputs:" << ctx->num_outputs();
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   int64 endTime = 0;
   std::vector<Tensor> input_vec;
@@ -578,8 +601,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   bool is_set_dynamic_config = (!sess_options_["ge.inputShape"].empty()) && (!sess_options_["ge.dynamicDims"].empty());
   bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
   bool is_lazy_recompile_mode = (dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile");
-  ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config
-                << " is_tuning: " << is_tuning
+  ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config << " is_tuning: " << is_tuning
                 << " is_lazy_recompile_mode: " << is_lazy_recompile_mode;
 
   if (is_tuning) {
@@ -618,8 +640,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   if (!build_flag_) {
     // Get Graph
     OP_REQUIRES_ASYNC(ctx, ctx->function_library() != nullptr, errors::Internal("function library is nullptr"), done);
-    FunctionLibraryDefinition *flib_def = const_cast<FunctionLibraryDefinition *>(
-        ctx->function_library()->GetFunctionLibraryDefinition());
+    FunctionLibraryDefinition *flib_def =
+        const_cast<FunctionLibraryDefinition *>(ctx->function_library()->GetFunctionLibraryDefinition());
     OP_REQUIRES_ASYNC(ctx, flib_def != nullptr, errors::Internal("flib_def is nullptr"), done);
     std::shared_ptr<Graph> graph = std::make_shared<Graph>(OpRegistry::Global());
     OP_REQUIRES_ASYNC(ctx, graph != nullptr, errors::Internal("create tensorflow graph failed"), done);
@@ -627,7 +649,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     // Build GraphDef from FunctionDef
     GraphDef ori_graph_def;
     bool is_allreduce = false;
-    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_, is_allreduce), done);
+    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_, is_allreduce),
+                         done);
 
     /* if graph is init verify graph, return */
     if (this->is_initialized_graph_) {
@@ -638,7 +661,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     if (kDumpGraph) {
       const std::string pbtxt_path = GetDumpPath() + "TF_" + geop_name.c_str() + ".pbtxt";
-      (void)WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
+      (void) WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
     }
     endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(EVENT) << "[GEOP] In GEOP computeAsync, kernel_name:" << geop_name << " ,TFadapter cost time: ["
@@ -652,15 +675,17 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     ge::ComputeGraphPtr compute_graph = nullptr;
     try {
       compute_graph = std::make_shared<ge::ComputeGraph>("ge_default_" + CurrentTimeInStr());
-    } catch (...) { OP_REQUIRES_ASYNC(ctx, false, errors::Internal("make shared failed"), done); }
+    } catch (...) {
+      OP_REQUIRES_ASYNC(ctx, false, errors::Internal("make shared failed"), done);
+    }
 
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
     auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
       return this->BuildSubGraph(flib_def, graph);
     };
-    ge::Status status = model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(),
-                                                             build_sub_graph, compute_graph);
+    ge::Status status =
+        model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(), build_sub_graph, compute_graph);
     if (status != ge::SUCCESS) {
       std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
@@ -674,8 +699,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success, kernel_name:" << geop_name
                   << " ,tf session: " << tf_session_ << " ,graph id: " << cache_graph_id
-                  << ", iteration_per_loop:" << iteration_per_loop_
-                  << ", need iteration:" << this->need_iteration_;
+                  << ", iteration_per_loop:" << iteration_per_loop_ << ", need iteration:" << this->need_iteration_;
 
     size_t nodes = compute_graph->GetAllNodesSize();
     if (nodes == 0) {
@@ -683,8 +707,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       compute_graph_empty_ = true;
       endTime = InferShapeUtil::GetCurrentTimestap();
       ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, compute_graph is empty, kernel_name:" << geop_name
-                << ", ret_status:" << ToString(ge::SUCCESS) << " , tf session: " << tf_session_
-                << " ,graph id: " << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+                    << ", ret_status:" << ToString(ge::SUCCESS) << " , tf session: " << tf_session_
+                    << " ,graph id: " << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
       done();
       return;
     }
@@ -715,8 +739,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
       std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
-      ss << "[GEOP] call ge session add graph failed, kernel: " << geop_name
-         << ", tf session: " << tf_session_
+      ss << "[GEOP] call ge session add graph failed, kernel: " << geop_name << ", tf session: " << tf_session_
          << ", graph id: " << cache_graph_id << std::endl
          << "Error Message is : " << std::endl
          << error_message;
@@ -751,8 +774,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (compute_graph_empty_) {
       endTime = InferShapeUtil::GetCurrentTimestap();
       ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, compute_graph is empty, kernel_name:" << geop_name
-                << ", ret_status:" << ToString(ge::SUCCESS) << " , tf session: " << tf_session_
-                << " ,graph id: " << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+                    << ", ret_status:" << ToString(ge::SUCCESS) << " , tf session: " << tf_session_
+                    << " ,graph id: " << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
       done();
       return;
     }
@@ -765,8 +788,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         ADP_LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
         std::string error_message = ge::GEGetErrorMsg();
         std::stringstream ss;
-        ss << ctx->op_kernel().name()
-           << "GEOP::DoRunAsync get output failed." << std::endl
+        ss << ctx->op_kernel().name() << "GEOP::DoRunAsync get output failed." << std::endl
            << "Error Message is : " << std::endl
            << error_message;
         OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
@@ -787,14 +809,14 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       return;
     }
     int64 run_end_time = InferShapeUtil::GetCurrentTimestap();
-    ADP_LOG(EVENT) << "[GEOP] RunGraphAsync callback, status:" << ge_status << ", kernel_name:"
-                  << ctx->op_kernel().name() << "[ " << (run_end_time - run_start_time) << "us]";
+    ADP_LOG(EVENT) << "[GEOP] RunGraphAsync callback, status:" << ge_status
+                   << ", kernel_name:" << ctx->op_kernel().name() << "[ " << (run_end_time - run_start_time) << "us]";
     done();
   };
 
   // call ge session runGraphAsync api
-  ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name:" << geop_name
-                << " ,tf session: " << tf_session_ << " ,graph id: " << cache_graph_id;
+  ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name:" << geop_name << " ,tf session: " << tf_session_
+                << " ,graph id: " << cache_graph_id;
   ge::Status run_graph_status = ge_session_->RunGraphAsync(cache_graph_id, inputs, callback);
   if (run_graph_status != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
@@ -802,8 +824,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                    << tf_session_ << " ,graph id: " << cache_graph_id;
     std::string error_message = ge::GEGetErrorMsg();
     std::stringstream ss;
-    ss << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name
-       << ", tf session: " << tf_session_
+    ss << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << ", tf session: " << tf_session_
        << ", graph id: " << cache_graph_id << std::endl
        << "Error Message is : " << std::endl
        << error_message;
@@ -811,22 +832,22 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name:" << geop_name << ", ret_status:"
-                << ToString(run_graph_status) << " ,tf session: " << tf_session_ << " ,graph id: "
-                << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name:" << geop_name
+                << ", ret_status:" << ToString(run_graph_status) << " ,tf session: " << tf_session_
+                << " ,graph id: " << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;
 }
 
 void GeOp::ChangeChannelNameAttr(NodeDef &node_def) const {
   const std::string pre_channel_name = node_def.attr().at("channel_name").s();
   uint32_t device_id = 0;
-  (void)GetEnvDeviceID(device_id);
+  (void) GetEnvDeviceID(device_id);
   AttrValue channel_name = AttrValue();
-  channel_name.set_s(std::to_string(std::hash<std::string>{}(tf_session_ + pre_channel_name +
-    "_device_" + std::to_string(device_id))));
+  channel_name.set_s(std::to_string(
+      std::hash<std::string>{}(tf_session_ + pre_channel_name + "_device_" + std::to_string(device_id))));
   (*node_def.mutable_attr())["channel_name"] = channel_name;
-  ADP_LOG(INFO) << "[GEOP] changed the value of channel_name attr of node:" << node_def.name()
-                << " to " << channel_name.s();
+  ADP_LOG(INFO) << "[GEOP] changed the value of channel_name attr of node:" << node_def.name() << " to "
+                << channel_name.s();
 }
 
 void GeOp::ProcessDpOpFuncDef(const Node &node) const {
@@ -837,12 +858,14 @@ void GeOp::ProcessDpOpFuncDef(const Node &node) const {
   for (auto &func_def : *func_def_lib.mutable_function()) {
     if (func_def.signature().name() == func_name) {
       for (auto &node_def : *func_def.mutable_node_def()) {
-        if (!NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + node_def.name())
-            && (node_def.op() == "IteratorV2" || node_def.op() == "Iterator")) {
+        if (!NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + node_def.name()) &&
+            (node_def.op() == "IteratorV2" || node_def.op() == "Iterator")) {
           NpuAttrs::SetDatasetExecuteInDeviceStatus(tf_session_ + node_def.name(), true);
         }
         if (node_def.op() == "DeviceQueueDataset") {
-          if (kIsNewDataTransfer) { ChangeChannelNameAttr(node_def); }
+          if (kIsNewDataTransfer) {
+            ChangeChannelNameAttr(node_def);
+          }
           tensorflow::AttrValue value;
           value.set_b(kIsNewDataTransfer);
           node_def.mutable_attr()->insert({"_is_new_data_transfer", value});
@@ -871,7 +894,9 @@ void GeOp::AddNodeAttrs(Node *node, bool &is_initialize) {
     node->AddAttr("_kernel", "extend");
   }
   NodeDef &node_def = const_cast<NodeDef &>(node->def());
-  if (node_def.op() == "Where") { is_initialize = InferShapeUtil::IsInitializedGraph(node); }
+  if (node_def.op() == "Where") {
+    is_initialize = InferShapeUtil::IsInitializedGraph(node);
+  }
   if (node->name() == "IterationOp") {
     this->need_iteration_ = true;
     ADP_LOG(INFO) << "subgraph  has iteration op.";
@@ -903,20 +928,20 @@ void GeOp::BuildQueueDataAndGetNextFromQueue(Graph &graph, const Node &getnext_n
   std::string queue_data_name = "queue_data_" + getnext_node.name();
   auto get_next_attrs = getnext_node.def().attr();
   TF_CHECK_OK(NodeBuilder(queue_data_name, "QueueData")
-                          .Device(getnext_node.def().device())
-                          .Attr("index", 0)
-                          .Attr("T", DT_UINT8)
-                          .Attr("queue_name", channel_name)
-                          .Attr("output_types", get_next_attrs["output_types"])
-                          .Attr("output_shapes", get_next_attrs["output_shapes"])
-                          .Finalize(&graph, &queue_data));
+                  .Device(getnext_node.def().device())
+                  .Attr("index", 0)
+                  .Attr("T", DT_UINT8)
+                  .Attr("queue_name", channel_name)
+                  .Attr("output_types", get_next_attrs["output_types"])
+                  .Attr("output_shapes", get_next_attrs["output_shapes"])
+                  .Finalize(&graph, &queue_data));
 
   TF_CHECK_OK(NodeBuilder(get_next_from_queue_name, "GetNextFromQueue")
-                          .Input(NodeBuilder::NodeOut(queue_data, 0))
-                          .Device(getnext_node.def().device())
-                          .Attr("output_types", get_next_attrs["output_types"])
-                          .Attr("output_shapes", get_next_attrs["output_shapes"])
-                          .Finalize(&graph, &get_next_from_queue));
+                  .Input(NodeBuilder::NodeOut(queue_data, 0))
+                  .Device(getnext_node.def().device())
+                  .Attr("output_types", get_next_attrs["output_types"])
+                  .Attr("output_shapes", get_next_attrs["output_shapes"])
+                  .Finalize(&graph, &get_next_from_queue));
 
   for (auto out_edge : getnext_node.out_edges()) {
     CHECK_NOT_NULL(out_edge);
@@ -959,26 +984,28 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
         }
       }
       uint32_t device_id = 0;
-      (void)GetEnvDeviceID(device_id);
-      std::string channel_name = std::to_string(std::hash<std::string>{}(tf_session_ + iterator_name +
-          "_device_" + std::to_string(device_id)));
+      (void) GetEnvDeviceID(device_id);
+      std::string channel_name = std::to_string(
+          std::hash<std::string>{}(tf_session_ + iterator_name + "_device_" + std::to_string(device_id)));
       if (kIsHeterogeneous) {
         BuildQueueDataAndGetNextFromQueue(graph, *node, channel_name);
         remove_nodes.push_back(node);
         remove_nodes.push_back(iterator_node);
       } else if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
-        if (dynamic_input_ == "1") { node_def.set_op("DynamicGetNext"); }
+        if (dynamic_input_ == "1") {
+          node_def.set_op("DynamicGetNext");
+        }
       } else {
         Node *aicpu_getnext = nullptr;
         std::string aicpu_getnext_name = "aicpu_getnext_" + node->name();
         auto getnext_attrs = node->def().attr();
         std::string aicpu_getnext_type = dynamic_input_ == "1" ? "DynamicGetNextV2" : "GetNext";
         TF_CHECK_OK(NodeBuilder(aicpu_getnext_name, aicpu_getnext_type)
-                               .Device(node->def().device())
-                               .Attr("channel_name", channel_name)
-                               .Attr("output_types", getnext_attrs["output_types"])
-                               .Attr("output_shapes", getnext_attrs["output_shapes"])
-                               .Finalize(&graph, &aicpu_getnext));
+                        .Device(node->def().device())
+                        .Attr("channel_name", channel_name)
+                        .Attr("output_types", getnext_attrs["output_types"])
+                        .Attr("output_shapes", getnext_attrs["output_shapes"])
+                        .Finalize(&graph, &aicpu_getnext));
         for (auto out_edge : node->out_edges()) {
           CHECK_NOT_NULL(out_edge);
           graph.AddEdge(aicpu_getnext, out_edge->src_output(), out_edge->dst(), out_edge->dst_input());
@@ -1021,8 +1048,10 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   }
 
   bool is_set_dynamic_config = !sess_options_["ge.inputShape"].empty() && !sess_options_["ge.dynamicDims"].empty() &&
-                               !sess_options_["ge.dynamicNodeType"].empty();
-  if (is_set_dynamic_config) { BuildShapeNodeAndCacheArgNodes(graph); }
+      !sess_options_["ge.dynamicNodeType"].empty();
+  if (is_set_dynamic_config) {
+    BuildShapeNodeAndCacheArgNodes(graph);
+  }
 
   for (Node *node : graph.nodes()) {
     if (node->type_string() == kAllReduce) {
@@ -1042,7 +1071,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
     if (node->type_string() == "NpuOnnxGraphOp") {
       ret = this->ParseOnnxGraphOpAttr(node);
       if (!ret.ok()) {
-        LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, "<< ret.error_message();
+        LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, " << ret.error_message();
         return ret;
       }
     }
@@ -1059,7 +1088,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   HandleDpOpAndGetNextNodes(graph);
   graph.ToGraphDef(&graph_def);
   std::string enable_force_v2_control;
-  (void)ReadStringFromEnvVar("ENABLE_FORCE_V2_CONTROL", "", &enable_force_v2_control);
+  (void) ReadStringFromEnvVar("ENABLE_FORCE_V2_CONTROL", "", &enable_force_v2_control);
   if (enable_force_v2_control == "1") {
     WriteTextProto(Env::Default(), GetDumpPath() + function_.name() + "_v1.pbtxt", graph_def);
 
@@ -1113,7 +1142,7 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
     return errors::Internal("[GEOP] node: %s Onnx Model Serialized Failed.", node->name());
   }
 
-  std::string model_str(reinterpret_cast<const char*>(model_buf.GetData()), model_buf.GetSize());
+  std::string model_str(reinterpret_cast<const char *>(model_buf.GetData()), model_buf.GetSize());
   AttrValue attr_value;
   attr_value.set_s(model_str);
   node_def.mutable_attr()->insert({"_external_model", attr_value});
@@ -1130,7 +1159,7 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
       for (auto out_edge : node->out_edges()) {
         if (!out_edge->IsControlEdge()) {
           std::string msg = "Src:" + out_edge->src()->name() + ":" + std::to_string(out_edge->src_output()) +
-            ", Dst:" + out_edge->dst()->name() + ":" + std::to_string(out_edge->dst_input());
+              ", Dst:" + out_edge->dst()->name() + ":" + std::to_string(out_edge->dst_input());
           ADP_LOG(INFO) << "[GEOP] GetNext node in out info:" << msg;
           out_index.insert(out_edge->src_output());
         }
@@ -1139,23 +1168,27 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
         std::string shape_name = "getnext_shape_" + std::to_string(idx);
         Node *shape_node = nullptr;
         TF_CHECK_OK(NodeBuilder(shape_name, "Shape")
-                    .Input(node, idx)
-                    .Device(node->def().device())
-                    .Finalize(&graph, &shape_node));
+                        .Input(node, idx)
+                        .Device(node->def().device())
+                        .Finalize(&graph, &shape_node));
         std::string identity_name = "shape_identity_" + std::to_string(idx);
         Node *identity_node = nullptr;
         TF_CHECK_OK(NodeBuilder(identity_name, "Identity")
-                    .Input(shape_node, 0)
-                    .Device(shape_node->def().device())
-                    .Finalize(&graph, &identity_node));
+                        .Input(shape_node, 0)
+                        .Device(shape_node->def().device())
+                        .Finalize(&graph, &identity_node));
       }
     }
     // count data args and getnext args for dynamic dims
     if (node->type_string() == "_Arg") {
       if (node->name().find("IteratorGetNext_") != std::string::npos) {
-        if (dynamic_node_type == "0") { dynamic_shape_nodes_.emplace_back(node); }
+        if (dynamic_node_type == "0") {
+          dynamic_shape_nodes_.emplace_back(node);
+        }
       } else {
-        if (dynamic_node_type == "1") { dynamic_shape_nodes_.emplace_back(node); }
+        if (dynamic_node_type == "1") {
+          dynamic_shape_nodes_.emplace_back(node);
+        }
       }
     }
   }
@@ -1166,7 +1199,7 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
 Status GeOp::ChangeInputsShapeDesc() {
   std::vector<std::string> result;
   std::string input_shapes = sess_options_["ge.inputShape"];
-  Split(input_shapes, result, ";"); // e.g. result:["data:2,3", "data1:3,4"]
+  Split(input_shapes, result, ";");  // e.g. result:["data:2,3", "data1:3,4"]
 
   if (dynamic_shape_nodes_.size() == 1 && dynamic_shape_nodes_[0]->type_string() == "IteratorGetNext") {
     ADP_LOG(INFO) << "[GEOP] change " << dynamic_shape_nodes_[0]->name() << " shape desc.";
@@ -1201,8 +1234,8 @@ Status GeOp::ChangeInputsShapeDesc() {
   return Status::OK();
 }
 
-void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
-                                 const int &index, AttrValue &attr_shape_value) const {
+void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes, const int &index,
+                                 AttrValue &attr_shape_value) const {
   if (input_shapes.empty()) {
     ADP_LOG(ERROR) << "[GEOP] input_shapes is empty.";
     LOG(ERROR) << "[GEOP] input_shapes is empty.";
@@ -1215,7 +1248,7 @@ void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
   }
   ADP_LOG(INFO) << "[GEOP] get input: " << index << " input shape is: " << input_shapes[index];
   std::vector<std::string> shape;
-  Split(input_shapes[index], shape, ":"); // e.g. shape:["data", "2,3,4"]
+  Split(input_shapes[index], shape, ":");  // e.g. shape:["data", "2,3,4"]
   if (shape.empty() || shape.size() != 2) {
     ADP_LOG(ERROR) << "[GEOP] shape is empty or shape size is not 2.";
     LOG(ERROR) << "[GEOP] shape is empty or shape size is not 2.";
@@ -1226,7 +1259,7 @@ void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
     return;
   }
   std::vector<std::string> dims;
-  Split(shape[1], dims, ","); // e.g. dims:["2", "3", "4"]
+  Split(shape[1], dims, ",");  // e.g. dims:["2", "3", "4"]
   for (auto dim : dims) {
     attr_shape_value.mutable_list()->add_i(std::atoi(dim.c_str()));
   }
@@ -1244,8 +1277,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
     ADP_LOG(ERROR) << "function library is nullptr";
     return -1;
   }
-  FunctionLibraryDefinition *flib_def = const_cast<FunctionLibraryDefinition *>(
-      ctx->function_library()->GetFunctionLibraryDefinition());
+  FunctionLibraryDefinition *flib_def =
+      const_cast<FunctionLibraryDefinition *>(ctx->function_library()->GetFunctionLibraryDefinition());
   if (flib_def == nullptr) {
     ADP_LOG(ERROR) << "flib_def is nullptr";
     return -1;
@@ -1272,7 +1305,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
 
   if (kDumpGraph) {
     const std::string pbtxt_path = GetDumpPath() + "TF_" + ctx->op_kernel().name() + "_AOE.pbtxt";
-    (void)WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
+    (void) WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
   }
 
   // parser,  tensorflow graph to ge graph
@@ -1292,8 +1325,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
   auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
     return this->BuildSubGraph(flib_def, graph);
   };
-  ge::Status status = model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(),
-                                                           build_sub_graph, compute_graph);
+  ge::Status status =
+      model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(), build_sub_graph, compute_graph);
   if (status != ge::SUCCESS) {
     std::stringstream ss;
     ss << "graph parse failed. ret : " << status << std::endl
@@ -1308,7 +1341,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
   // convert to ge::graph
   ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
   if (iteration_per_loop_ > 1) {
-      ge_graph.SetNeedIteration(this->need_iteration_);
+    ge_graph.SetNeedIteration(this->need_iteration_);
   }
   if (is_host_graph_) {
     graph_options_["ge.exec.placement"] = "HOST";
@@ -1345,8 +1378,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
     session_options.insert({Aoe::AscendString("job_type"), Aoe::AscendString(init_options_["ge.jobType"].c_str())});
     Aoe::AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
     if (session_ret != Aoe::AOE_SUCCESS) {
-        ADP_LOG(ERROR) << "exec aoe create session func failed[" << session_ret << "].";
-        return -1;
+      ADP_LOG(ERROR) << "exec aoe create session func failed[" << session_ret << "].";
+      return -1;
     }
     {
       GE_MAKE_GUARD(destroy, callback);
@@ -1392,7 +1425,7 @@ std::string GeOp::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::
   }
   ADP_LOG(INFO) << "[GEOP] Get subgraph from functiondef success.";
   std::string enable_force_v2_control;
-  (void)ReadStringFromEnvVar("ENABLE_FORCE_V2_CONTROL", "", &enable_force_v2_control);
+  (void) ReadStringFromEnvVar("ENABLE_FORCE_V2_CONTROL", "", &enable_force_v2_control);
   if (enable_force_v2_control == "1") {
     GraphDef graph_def;
     subgraph.ToGraphDef(&graph_def);
@@ -1420,7 +1453,7 @@ std::string GeOp::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::
 
   if (kDumpGraph) {
     const std::string pbtxt_path = GetDumpPath() + "TF_Subgraph_" + graph.c_str() + ".pbtxt";
-    (void)WriteTextProto(Env::Default(), pbtxt_path, *sub_graph_def);
+    (void) WriteTextProto(Env::Default(), pbtxt_path, *sub_graph_def);
   }
   ADP_LOG(INFO) << "[GEOP] build_sub_graph exit, sub graph name is " << graph;
   return sub_graph_def->SerializeAsString();
@@ -1456,21 +1489,20 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
   ge_tensor_desc.SetPlacement(output_info->placement_);
   input.SetTensorDesc(ge_tensor_desc);
 
-  uint8_t* data = output_info->data_.release();
+  uint8_t *data = output_info->data_.release();
   input.SetData(data, output_info->output_size_, output_info->data_.get_deleter());
   ADP_LOG(INFO) << "[GEOP] Get input shape:" << input_shape.DebugString()
-                << ", input placement:" << output_info->placement_
-                << ", input length:" << output_info->output_size_
+                << ", input placement:" << output_info->placement_ << ", input length:" << output_info->output_size_
                 << ", input data addr:" << reinterpret_cast<uintptr_t>(data);
 }
 
-Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector) const {
+Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::string *string_vector) const {
   uint64_t total_size = 0U;
   for (uint64_t i = 0U; i < count; i++) {
     total_size += (string_vector[i].size() + sizeof(ge::StringHead) + 1U);
   }
 
-  std::unique_ptr<char []> addr(new (std::nothrow) char[total_size]());
+  std::unique_ptr<char[]> addr(new (std::nothrow) char[total_size]());
   REQUIRES_NOT_NULL(addr);
   ge::StringHead *string_head = ge::PtrToPtr<char, ge::StringHead>(addr.get());
   char *data_addr = addr.get() + count * sizeof(ge::StringHead);
@@ -1481,8 +1513,8 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *
     string_head[i].len = static_cast<int64_t>(str.size());
     const auto ret = memcpy_s(data_addr, total_size - offset, str.c_str(), str.size() + 1U);
     if (ret != EOK) {
-      ADP_LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< (str.size() + 1U) << " result: " << ret;
-      LOG(ERROR) << "[GEOP] Call memcpy failed, size: "<< (str.size() + 1U) << " result: " << ret;
+      ADP_LOG(ERROR) << "[GEOP] Call memcpy failed, size: " << (str.size() + 1U) << " result: " << ret;
+      LOG(ERROR) << "[GEOP] Call memcpy failed, size: " << (str.size() + 1U) << " result: " << ret;
       return errors::Unknown("memcpy failed");
     }
     data_addr += (str.size() + 1U);
@@ -1492,10 +1524,8 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *
   return Status::OK();
 }
 
-Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
-                                  std::vector<Tensor> &input_vec,
-                                  std::vector<std::string> &input_shapes,
-                                  std::vector<ge::Tensor> &inputs) {
+Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<Tensor> &input_vec,
+                                  std::vector<std::string> &input_shapes, std::vector<ge::Tensor> &inputs) {
   // ctx is not nullptr
   int num_inputs = ctx->num_inputs();
   std::string cur_input_shapes;
@@ -1524,7 +1554,9 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
     } else {
       std::vector<int64_t> dims;
       std::string input_shape = tensor.shape().DebugString();
-      for (uint32_t dim : tensor.shape().dim_sizes()) { dims.push_back(static_cast<int64_t>(dim)); }
+      for (uint32_t dim : tensor.shape().dim_sizes()) {
+        dims.push_back(static_cast<int64_t>(dim));
+      }
       ge::Shape ge_shape(dims);
       ge::TensorDesc ge_tensor_desc(ge_shape);
       ge_tensor_desc.SetDataType(type);
@@ -1559,7 +1591,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx,
 }
 Status GeOp::BuildOutTensorInfo(OpKernelContext *ctx) {
   int num_outputs = ctx->num_outputs();
-    // populate outputs
+  // populate outputs
   for (int i = 0; i < num_outputs; i++) {
     TensorShape out_shape = outputs_shape_.at(i);
     Tensor *tensor = nullptr;
@@ -1587,7 +1619,9 @@ Status GeOp::GenerateDesc(Node *&node) {
   Node *in_node = nullptr;
   const Edge *in_edge = nullptr;
 
-  if (inputs.size() > INT_MAX) { return errors::InvalidArgument("inputs size should be less than INT_MAX."); }
+  if (inputs.size() > INT_MAX) {
+    return errors::InvalidArgument("inputs size should be less than INT_MAX.");
+  }
 
   // Create input Desc
   int inputs_size = static_cast<int>(inputs.size());

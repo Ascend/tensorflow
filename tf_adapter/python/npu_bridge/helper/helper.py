@@ -22,7 +22,7 @@ import tensorflow
 import npu_bridge
 
 try:
-    npu_bridge_handle = tensorflow.load_op_library(os.path.dirname(npu_bridge.__file__) + "/_tf_adapter.so")
+    npu_bridge_handle = tensorflow.load_op_library(os.path.join(os.path.dirname(npu_bridge.__file__), "_tf_adapter.so"))
 except Exception as e:
     print(str(e))
 

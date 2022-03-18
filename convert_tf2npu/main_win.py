@@ -30,6 +30,7 @@ from conver import conver
 from log import init_loggers
 from util import check_input_and_output_dir
 
+
 class Analyse:
     """Use Tkinter to display ayalysis result"""
     def __init__(self, parent):
@@ -152,7 +153,7 @@ class Analyse:
             input_dir = input_dir[:-1]
         input_dir = input_dir.replace('\\', '/')
 
-        support_list = os.path.dirname(os.path.abspath(__file__)) + "/tf1.15_api_support_list.xlsx"
+        support_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tf1.15_api_support_list.xlsx")
 
         output = self.get_output_dir()
         report = self.get_report_dir()

@@ -29,15 +29,23 @@ class GradFusionOptimizer : public CustomGraphOptimizer {
 
   ~GradFusionOptimizer() override = default;
 
-  string name() const override { return "GradFusionOptimizer"; }
+  string name() const override {
+    return "GradFusionOptimizer";
+  }
 
-  Status Init(const tensorflow::RewriterConfig_CustomGraphOptimizer *config) override { return Status::OK(); }
+  Status Init(const tensorflow::RewriterConfig_CustomGraphOptimizer *config) override {
+    (void) config;
+    return Status::OK();
+  }
 
-  bool UsesFunctionLibrary() const override { return false; }
+  bool UsesFunctionLibrary() const override {
+    return false;
+  }
 
   Status Optimize(Cluster *cluster, const GrapplerItem &item, GraphDef *optimizedGraph) override;
 
-  VOID_FUNCTION_ONLY_TF1(Feedback(Cluster *cluster, const GrapplerItem &item, const GraphDef &optimizedGraph, double result) override)
+  VOID_FUNCTION_ONLY_TF1(Feedback(Cluster *cluster, const GrapplerItem &item, const GraphDef &optimizedGraph,
+                                  double result) override)
 };
 }  // end namespace grappler
 }  // end namespace tensorflow
