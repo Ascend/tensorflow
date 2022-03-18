@@ -16,5 +16,5 @@
 
 """import files when initiating"""
 
-from . import v1
 from npu_device.npu_device import enable_v1
+from . import v1
