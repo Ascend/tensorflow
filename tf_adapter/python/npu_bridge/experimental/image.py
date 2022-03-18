@@ -21,6 +21,7 @@ from npu_bridge.helper import helper
 
 gen_npu_cpu_ops = helper.get_gen_ops();
 
+
 def decode_image(contents, channels=0, dtype=dtypes.uint8, expand_animations=True):
     """
     Decode image.

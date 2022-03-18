@@ -31,7 +31,7 @@ from tensorflow.python.util import tf_contextlib
 
 from npu_device.configs.npu_config import NpuConfig
 
-gen_npu_ops = tf.load_op_library(os.path.dirname(__file__) + "/_npu_ops.so")
+gen_npu_ops = tf.load_op_library(os.path.join(os.path.dirname(__file__), "_npu_ops.so"))
 NPU = "/job:localhost/replica:0/task:0/device:NPU"
 
 # Import the low-level C/C++ module

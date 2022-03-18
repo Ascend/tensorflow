@@ -1501,7 +1501,7 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
                 << ", input data addr:" << reinterpret_cast<uintptr_t>(data);
 }
 
-Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, std::string *string_vector) const {
+Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::string *string_vector) const {
   uint64_t total_size = 0U;
   for (uint64_t i = 0U; i < count; i++) {
     total_size += (string_vector[i].size() + sizeof(ge::StringHead) + 1U);

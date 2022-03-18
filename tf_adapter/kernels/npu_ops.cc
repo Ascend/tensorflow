@@ -35,6 +35,7 @@ class FileConstant : public OpKernel {
   explicit FileConstant(OpKernelConstruction *context) : OpKernel(context) {}
   ~FileConstant() override = default;
   void Compute(OpKernelContext *context) override {
+    (void) context;
     return;
   }
   bool IsExpensive() override {

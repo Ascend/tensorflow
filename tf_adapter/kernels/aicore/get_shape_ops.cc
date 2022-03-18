@@ -24,7 +24,7 @@ public:
   explicit GetShapeOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
     LOG(INFO) << "new GetShapeOP";
   }
-  ~GetShapeOP() {
+  ~GetShapeOP() override {
     LOG(INFO) << "del GetShapeOP";
   }
   void Compute(OpKernelContext* ctx) override {
