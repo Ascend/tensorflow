@@ -141,6 +141,8 @@ class NPUCheckpointSaverHook(basic_session_run_hooks.CheckpointSaverHook):
 class SetIterationsVarHook(session_run_hook.SessionRunHook):
     """Hook to set iteration variables."""
     def __init__(self, iterations_per_loop=None):
+        if os.getenv("AOE_MODE") is not None:
+            iterations_per_loop = 1
         self._iterations_per_loop = iterations_per_loop
         self._iterations_per_loop_var = None
         self._const_one = None
