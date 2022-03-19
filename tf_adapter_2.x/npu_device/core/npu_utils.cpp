@@ -20,6 +20,7 @@
 
 #include "tensorflow/core/graph/algorithm.h"
 
+#include "npu_device.h"
 #include "npu_env.h"
 #include "npu_logger.h"
 
@@ -142,6 +143,36 @@ std::string WrapResourceName(const std::string &name) {
   return name;
 }
 
+bool IsSubstituteNode(const tensorflow::Node *node) {
+  auto attr = node->attrs().Find("_is_substitute");
+  return (attr != nullptr) && attr->b();
+}
+
+bool IsSubstituteNode(const tensorflow::NodeDef &def) {
+  auto attr = def.attr().find("_is_substitute");
+  return attr != def.attr().end() && attr->second.b();
+}
+
+bool IsNodeHasSubgraph(const tensorflow::Node *node) {
+  for (auto &attr : node->attrs()) {
+    if (attr.second.has_func()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool IsNodeHasSubstituteInput(const tensorflow::Node *node) {
+  for (auto in_node : node->in_nodes()) {
+    if (IsSubstituteNode(in_node)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge) { return edge.src()->output_type(edge.src_output()); }
+
 tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef &gdef,
                                                      const tensorflow::FunctionLibraryDefinition *lib_def) {
   tensorflow::FunctionDefLibrary fdef_lib;
@@ -240,6 +271,89 @@ void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorfl
   }
 }
 
+std::set<std::string> GetNodeSubgraph(const tensorflow::Node *node) {
+  std::set<std::string> fns;
+  for (const auto &attr : node->attrs()) {
+    if (attr.second.has_func()) {
+      fns.insert(attr.second.func().name());
+    }
+  }
+  return fns;
+}
+
+tensorflow::Status GetSubgraphUnsupportedOps(NpuDevice *device, const tensorflow::Node *node,
+                                             const tensorflow::FunctionLibraryDefinition *lib_def,
+                                             std::set<std::string> &unsupported_ops) {
+  // For subgraphs of node A, if subgraph has node must place on cpu, A must place on cpu
+  // If A placed on cpu, any subraph has node that must place on npu, will be mix partitioned
+  auto related_function_names = GetNodeSubgraph(node);
+  std::queue<const tensorflow::FunctionDef *> related_functions;
+
+  for (auto &fn : related_function_names) {
+    const auto *f = lib_def->Find(fn);
+    NPU_REQUIRES(f != nullptr, tensorflow::errors::Internal("Function ", fn, " not found"));
+    related_functions.push(f);
+  }
+
+  while (!related_functions.empty()) {
+    const auto *func = related_functions.front();
+    related_functions.pop();
+    for (const auto &n : func->node_def()) {
+      if (!device->Supported(n.op())) {
+        unsupported_ops.insert(n.op());
+      }
+      for (const auto &attr : n.attr()) {
+        auto &fn = attr.second.func().name();
+        if (attr.second.has_func() && related_function_names.insert(fn).second) {
+          const auto *f = lib_def->Find(attr.second.func().name());
+          NPU_REQUIRES(f != nullptr, tensorflow::errors::Internal("Function ", fn, " not found"));
+          related_functions.push(f);
+        }
+      }
+    }
+  }
+  return tensorflow::Status::OK();
+}
+
+tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *graph,
+                                          const tensorflow::FunctionLibraryDefinition *lib_def,
+                                          std::set<std::string> &unsupported_ops) {
+  for (auto node : graph->op_nodes()) {
+    if (!device->Supported(node->type_string())) {
+      unsupported_ops.insert(node->type_string());
+    }
+    NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(device, node, lib_def, unsupported_ops));
+  }
+  return tensorflow::Status::OK();
+}
+
+bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
+  *key = nullptr;
+  for (auto node : graph->op_nodes()) {
+    if (node->IsWhileNode()) {
+      if (*key != nullptr) {
+        DLOG() << "Skip check as multi while nodes in graph first " << (*key)->name() << " another " << node->name();
+        *key = nullptr;
+        return false;
+      }
+      *key = node;
+    }
+  }
+  if (*key == nullptr) {
+    DLOG() << "Skip check as no while node in graph";
+    return false;
+  }
+  size_t reserved_nums = 0;
+  const std::function<void(const tensorflow::Node *)> &enter = [&reserved_nums](const tensorflow::Node *node) {
+    if (node->IsOp()) {
+      reserved_nums++;
+    }
+  };
+  tensorflow::ReverseDFSFrom(*graph, {*key}, enter, {}, {}, {});
+  DLOG() << "Reserved nodes " << reserved_nums << " vs. totally " << graph->num_op_nodes();
+  return static_cast<int>(reserved_nums) == graph->num_op_nodes();
+}
+
 uint64_t NextUUID() {
   static std::atomic<uint64_t> uuid{0};
   return uuid.fetch_add(1);
@@ -269,5 +383,20 @@ void FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
   for (auto indexed_retval : indexed_retvals) {
     indexed_retval.second->AddAttr("index", current_retval_index++);
   }
+}
+
+std::string SetToString(const std::set<std::string> &vec) {
+  if (vec.empty()) {
+    return "[]";
+  }
+  std::string s = "[";
+  size_t index = 0U;
+  for (auto &v : vec) {
+    s += v;
+    if (++index != vec.size()) {
+      s += ",";
+    }
+  }
+  return s + "]";
 }
 }  // namespace npu

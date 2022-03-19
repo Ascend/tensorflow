@@ -48,6 +48,7 @@
 
 #include "npu_device_register.h"
 #include "npu_global.h"
+#include "npu_logger.h"
 #include "npu_micros.h"
 #include "npu_utils.h"
 
@@ -96,6 +97,9 @@ const std::map<std::string, std::string> kConfigurableOptions = {
 #undef PYBIND11_CHECK_PYTHON_VERSION
 #define PYBIND11_CHECK_PYTHON_VERSION
 
+namespace {
+std::unordered_set<std::string> npu_specify_ops_cache;
+}
 namespace npu {
 PYBIND11_MODULE(_npu_device_backends, m) {
   m.def("Open",
@@ -195,6 +199,26 @@ PYBIND11_MODULE(_npu_device_backends, m) {
   m.def("StupidRepeat", [](const char *device_name, int times) {
     for (int i = 0; i < times; i++) {
       LOG(INFO) << device_name;
+    }
+  });
+
+  m.def("WatchOpRegister", []() {
+    npu_specify_ops_cache.clear();
+    tensorflow::OpList ops;
+    tensorflow::OpRegistry::Global()->Export(true, &ops);
+    for (auto &op : ops.op()) {
+      npu_specify_ops_cache.insert(op.name());
+    }
+  });
+  m.def("StopWatchOpRegister", []() {
+    tensorflow::OpList ops;
+    tensorflow::OpRegistry::Global()->Export(true, &ops);
+    for (auto &op : ops.op()) {
+      if (!npu_specify_ops_cache.count(op.name())) {
+        if (global::g_npu_specify_ops.insert(op.name()).second) {
+          DLOG() << "Register npu specific op " << op.name();
+        }
+      }
     }
   });
 

@@ -17,15 +17,19 @@
 #ifndef NPU_DEVICE_CORE_NPU_GLOBAL_H
 #define NPU_DEVICE_CORE_NPU_GLOBAL_H
 
+#include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/status.h"
 
 #include "acl/acl_rt.h"
 
 namespace npu {
+class NpuDevice;
 namespace global {
 // 全局Device循环次数设置
 extern std::atomic_int64_t g_npu_loop_size;
+// 全局NPU自定义OP
+extern std::unordered_set<std::string> g_npu_specify_ops;
 // 控制Device内存释放的全局读写锁
 extern tensorflow::mutex dev_memory_shared_lock;
 extern bool dev_memory_released TF_GUARDED_BY(dev_memory_shared_lock);
@@ -39,6 +43,19 @@ class RtsCtx {
  private:
   static aclrtContext global_ctx_;
   static std::atomic_bool global_ctx_set_;
+};
+
+class NpuCtx {
+ public:
+  static void SetDeviceCtx(int id, TFE_Context *ctx, NpuDevice *device);
+  static tensorflow::Status GetDeviceCtx(int id, TFE_Context **ctx, NpuDevice **device);
+  struct Ctx {
+    TFE_Context *ctx;
+    NpuDevice *device;
+  };
+
+ private:
+  static std::map<int, NpuCtx::Ctx> npu_ctx_;
 };
 
 }  // namespace global

@@ -103,6 +103,10 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       const tensorflow::Tensor *tensor;
       NPU_CTX_REQUIRES_OK(status, GetTensorHandleTensor(input, &tensor));
       auto handle = tensor->scalar<tensorflow::ResourceHandle>()();
+      if (!dev->MirroredIterator(handle)) {
+        DLOG() << "Skip create provider as iterator resource not mirrored " << handle.DebugString();
+        return;
+      }
       TensorPartialShapes shapes;
       TensorDataTypes types;
       NPU_CTX_REQUIRES_OK(status, dev->GetMirroredIteratorShapesAndTypes(handle, shapes, types));

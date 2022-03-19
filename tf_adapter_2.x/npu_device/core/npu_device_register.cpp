@@ -19,6 +19,7 @@
 #include "tensorflow/core/platform/logging.h"
 
 #include "npu_device.h"
+#include "npu_global.h"
 
 namespace {
 TFE_TensorHandle *CopyTensorToNpuDevice(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status,
@@ -95,14 +96,16 @@ std::string CreateDevice(TFE_Context *context, const char *name, int device_inde
   if (create_status != kSucceed) {
     return create_status;
   }
-  devices_instances.push_back(device);
 
   std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)> status(TF_NewStatus(), TF_DeleteStatus);
   RegisterNpuDevice(context, name, device, status.get());
   if (TF_GetCode(status.get()) != TF_OK) {
+    NpuDevice::DeleteDevice(device);
     return std::string("Register Npu device ") + name + " failed:" + TF_Message(status.get());
   }
   LOG(INFO) << "Npu device instance " << name << " created";
+  devices_instances.push_back(device);
+  global::NpuCtx::SetDeviceCtx(device_index, context, device);
 
   return kSucceed;
 }
@@ -111,7 +114,7 @@ std::string CreateDevice(TFE_Context *context, const char *name, int device_inde
  * @breif: release device resource
  */
 void ReleaseDeviceResource() {
-  for (auto device : devices_instances) {
+  for (auto &device : devices_instances) {
     device->ReleaseResource();
   }
   devices_instances.clear();

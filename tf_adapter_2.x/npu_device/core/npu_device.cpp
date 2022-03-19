@@ -19,11 +19,13 @@
 #include <memory>
 #include <utility>
 #include <future>
+#include <fstream>
 
 #include "tensorflow/core/common_runtime/eager/execute.h"
 #include "tensorflow/core/platform/blocking_counter.h"
 #include "tensorflow/core/graph/algorithm.h"
 
+#include "npu_global.h"
 #include "npu_managed_buffer.h"
 #include "npu_tensor.h"
 
@@ -32,6 +34,7 @@
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/omg/parser/model_parser.h"
 #include "framework/omg/parser/parser_factory.h"
+#include "nlohmann/json.hpp"
 
 using Format = ge::Format;
 
@@ -160,6 +163,11 @@ std::string NpuDevice::CreateDevice(const char *name, int device_index,
   (*device)->underlying_device = "/job:localhost/replica:0/task:0/device:CPU:0";
   (*device)->ge_session_ = ge_session;
   (*device)->cancellation_manager_ = std::make_unique<tensorflow::CancellationManager>();
+  auto status = LoadSupportedOps((*device)->npu_supported_ops_);
+  if (!status.ok()) {
+    // We do not raise error for compat with old version
+    LOG(ERROR) << "Could not load npu supported ops " << status.error_message();
+  }
   (*device)->npu_stdout_receiver_ = std::make_unique<NpuStdoutReceiver>(device_index);
   (*device)->npu_stdout_receiver_->Start();
   return "";
@@ -200,6 +208,10 @@ bool NpuDevice::SupportedInputType(tensorflow::DataType data_type) const {
 
 bool NpuDevice::SupportedOutputType(tensorflow::DataType data_type) const {
   return tensorflow::DataTypeCanUseMemcpy(data_type);
+}
+
+bool NpuDevice::SupportedInputAndOutputType(tensorflow::DataType data_type) const {
+  return SupportedInputType(data_type) && SupportedOutputType(data_type);
 }
 
 tensorflow::Status NpuDevice::ValidateOutputTypes(const TensorDataTypes &data_types) const {
@@ -480,8 +492,6 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
   NPU_CTX_REQUIRES_OK(
     s, NpuOptimizerManager::Instance().RuntimeOptimize(context, mutable_concrete_graph.get(), device_options, this,
                                                        num_inputs, inputs, graph_dumper));
-
-  NPU_CTX_REQUIRES_OK(s, mutable_concrete_graph->DevicePartition(context, this));
 
   LOG(INFO) << "Concrete graph for " << op_name << " loop " << (mutable_concrete_graph->NeedLoop() ? "true" : "false")
             << " builtin loop " << (mutable_concrete_graph->BuiltinLoop() ? "true" : "false");
@@ -959,7 +969,7 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, co
  */
 void NpuDevice::RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status) {
   TF_UNUSED_VARIABLE(context);
-  NPU_CTX_REQUIRES_GE_OK(status, "Graph engine Remove graph", GeSession()->RemoveGraph(graph_id));
+  NPU_CTX_REQUIRES_GE_OK(status, "Graph engine remove graph", GeSession()->RemoveGraph(graph_id));
 }
 
 /**
@@ -1186,13 +1196,43 @@ void NpuDevice::GetOpExecutor(const tensorflow::NodeDef &ndef, const TensorShape
   }
 }
 
+tensorflow::Status NpuDevice::LoadSupportedOps(std::unordered_set<std::string> &ops) {
+  NPU_REQUIRES(!kOppInstallPath.empty(),
+               tensorflow::errors::Internal("No specific opp install path, set it by ASCEND_OPP_PATH env and retry"));
+  NPU_REQUIRES_OK(tensorflow::Env::Default()->IsDirectory(kOppInstallPath));
+  auto supported_ops_json = kOppInstallPath + "/framework/built-in/tensorflow/npu_supported_ops.json";
+  NPU_REQUIRES_OK(tensorflow::Env::Default()->FileExists(supported_ops_json));
+  std::ifstream fs(supported_ops_json, std::ifstream::in);
+  NPU_REQUIRES(fs.is_open(), tensorflow::errors::Internal("Failed open config file ", supported_ops_json));
+  nlohmann::json root;
+  try {
+    fs >> root;
+  } catch (nlohmann::json::exception &e) {
+    fs.close();
+    return tensorflow::errors::Internal("Parse json from ", supported_ops_json, " failed ", e.what());
+  }
+  for (auto iter = root.begin(); iter != root.end(); iter++) {
+    DLOG() << "Npu supported op " << (iter.key());
+    ops.insert(iter.key());
+  }
+  fs.close();
+  const static std::vector<std::string> kAddonOps{"IteratorV2", "IteratorGetNext"};
+  ops.insert(kAddonOps.begin(), kAddonOps.end());
+  return tensorflow::Status::OK();
+}
+
 /**
  * @brief: if op is supported or not
  * @param op: op type
  */
 bool NpuDevice::Supported(const std::string &op) const {
   const static std::unordered_set<std::string> kUnsupportedOps = {"_EagerConst"};
-  return kUnsupportedOps.count(op) == 0;
+  return npu_supported_ops_.count(op) > 0 || (npu_supported_ops_.empty() && kUnsupportedOps.count(op) == 0);
+}
+
+bool NpuDevice::IsNpuSpecificOp(const std::string &op) const {
+  // Ops by npu may want to run on cpu, we must check npu supported here
+  return global::g_npu_specify_ops.count(op) > 0 && Supported(op);
 }
 
 /**
@@ -1201,16 +1241,18 @@ bool NpuDevice::Supported(const std::string &op) const {
  */
 bool NpuDevice::SupportedResourceGenerator(const std::string &op) const {
   const static std::unordered_set<std::string> kSupportedOps = {"VarHandleOp"};
-  return kSupportedOps.count(op) != 0;
+  return kSupportedOps.count(op) > 0;
 }
 
 void NpuDevice::RecordResourceGeneratorDef(const tensorflow::ResourceHandle &key,
                                            std::shared_ptr<ResourceGenerator> src) {
+  tensorflow::mutex_lock lk(mutex_);
   device_resources_.emplace(key, src);
 }
 
 void NpuDevice::GetResourceGeneratorDef(const tensorflow::ResourceHandle &key,
                                         std::shared_ptr<ResourceGenerator> *src) {
+  tensorflow::tf_shared_lock lk(mutex_);
   auto iter = device_resources_.find(key);
   if (iter != device_resources_.end()) {
     *src = iter->second;
@@ -1225,6 +1267,7 @@ void NpuDevice::GetResourceGeneratorDef(const tensorflow::ResourceHandle &key,
  */
 void NpuDevice::RecordIteratorMirror(const tensorflow::ResourceHandle &src, const TensorPartialShapes &shapes,
                                      const TensorDataTypes &types) {
+  tensorflow::mutex_lock lk(mutex_);
   iterator_mirrors_.emplace(src, std::make_pair(shapes, types));
 }
 
@@ -1233,11 +1276,13 @@ void NpuDevice::RecordIteratorMirror(const tensorflow::ResourceHandle &src, cons
  * @param src: tensorflow resource handle
  */
 bool NpuDevice::MirroredIterator(const tensorflow::ResourceHandle &src) {
+  tensorflow::tf_shared_lock lk(mutex_);
   return iterator_mirrors_.find(src) != iterator_mirrors_.end();
 }
 
 bool NpuDevice::Mirrored(const tensorflow::ResourceHandle &src) {
   // 可能后续还有其他需要mirror的资源，外层判断资源兼容时务必使用这个接口
+  tensorflow::tf_shared_lock lk(mutex_);
   return iterator_mirrors_.find(src) != iterator_mirrors_.end();
 }
 
@@ -1249,6 +1294,7 @@ bool NpuDevice::Mirrored(const tensorflow::ResourceHandle &src) {
  */
 tensorflow::Status NpuDevice::GetMirroredIteratorShapesAndTypes(const tensorflow::ResourceHandle &src,
                                                                 TensorPartialShapes &shapes, TensorDataTypes &types) {
+  tensorflow::tf_shared_lock lk(mutex_);
   auto iter = iterator_mirrors_.find(src);
   if (iter == iterator_mirrors_.end()) {
     return tensorflow::errors::Internal("Resource ", src.DebugString(), " has not been mirrored");
