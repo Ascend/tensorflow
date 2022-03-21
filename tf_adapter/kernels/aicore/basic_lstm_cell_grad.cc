@@ -22,7 +22,10 @@ class BasicLSTMCellCStateGradOp : public OpKernel {
  public:
   explicit BasicLSTMCellCStateGradOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~BasicLSTMCellCStateGradOp() override = default;
-  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "BasicLSTMCellCStateGradOp Compute"; }
+  void Compute(OpKernelContext* context) override {
+    (void) context;
+    ADP_LOG(INFO) << "BasicLSTMCellCStateGradOp Compute";
+  }
   bool IsExpensive() override { return false; }
 };
 
@@ -30,7 +33,10 @@ class BasicLSTMCellWeightGradOp : public OpKernel {
  public:
   explicit BasicLSTMCellWeightGradOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~BasicLSTMCellWeightGradOp() override = default;
-  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "BasicLSTMCellWeightGradOp Compute"; }
+  void Compute(OpKernelContext* context) override {
+    (void) context;
+    ADP_LOG(INFO) << "BasicLSTMCellWeightGradOp Compute";
+  }
   bool IsExpensive() override { return false; }
 };
 
@@ -38,7 +44,10 @@ class BasicLSTMCellInputGradOp : public OpKernel {
  public:
   explicit BasicLSTMCellInputGradOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~BasicLSTMCellInputGradOp() override = default;
-  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "BasicLSTMCellInputGradOp Compute"; }
+  void Compute(OpKernelContext* context) override {
+    (void) context;
+    ADP_LOG(INFO) << "BasicLSTMCellInputGradOp Compute";
+  }
   bool IsExpensive() override { return false; }
 };
 

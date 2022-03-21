@@ -22,7 +22,10 @@ class DynamicRnnOP : public OpKernel {
  public:
   explicit DynamicRnnOP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicRnnOP"; }
   ~DynamicRnnOP() override { LOG(INFO) << "del DynamicRnnOP"; }
-  void Compute(OpKernelContext *ctx) override { LOG(INFO) << "in DynamicRnnOP"; }
+  void Compute(OpKernelContext* ctx) override {
+    (void) ctx;
+    LOG(INFO) << "in DynamicRnnOP";
+  }
   bool IsExpensive() override { return false; }
 };
 
