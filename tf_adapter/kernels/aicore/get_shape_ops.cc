@@ -28,6 +28,7 @@ public:
     LOG(INFO) << "del GetShapeOP";
   }
   void Compute(OpKernelContext* ctx) override {
+    (void) ctx;
     LOG(INFO) << "compute in GetShapeOP";
   }
   bool IsExpensive() override {
