@@ -209,7 +209,7 @@ def set_iteration_per_loop(sess, train_op, iterations_per_loop=1):
             "The incoming 'train_op' type is '%s', "
             "and the need type is 'Operation'" % (train_op.dtype.name))
     check_positive_integer(iterations_per_loop, "iterations_per_loop")
-    if iterations_per_loop == 1:
+    if iterations_per_loop == 1 or os.getenv("AOE_MODE") is not None:
         return train_op
 
     iterations_per_loop_var = create_or_get_var(_ITERATIONS_PER_LOOP_VAR)
@@ -274,6 +274,8 @@ class IterationPerLoop():
           system before returning to CPU host for each `Session.run`.
         """
         check_positive_integer(iterations_per_loop, "iterations_per_loop")
+        if os.getenv("AOE_MODE") is not None:
+            iterations_per_loop = 1
         self._iterations_per_loop_var.load(iterations_per_loop - 1, session=sess)
         self._loop_cond_var.load(0, session=sess)
         self._const_zero.load(0, session=sess)
