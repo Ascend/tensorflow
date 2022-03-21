@@ -161,7 +161,8 @@ std::string NpuDevice::CreateDevice(const char *name, int device_index,
   (*device)->ge_session_ = ge_session;
   (*device)->cancellation_manager_ = std::make_unique<tensorflow::CancellationManager>();
   (*device)->npu_stdout_receiver_ = std::make_unique<NpuStdoutReceiver>(device_index);
-  return [device]() { return (*device)->npu_stdout_receiver_->Start().error_message(); }();
+  (*device)->npu_stdout_receiver_->Start();
+  return "";
 }
 
 /**
