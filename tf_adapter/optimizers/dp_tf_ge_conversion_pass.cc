@@ -36,6 +36,7 @@
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter/util/util.h"
 
 namespace tensorflow {
 static const int64 kMicrosToMillis = 1000;
@@ -543,7 +544,7 @@ bool DpTfToGEConversionPassImpl::GetNodeFuncs(const FunctionLibraryDefinition *f
 
 void DpTfToGEConversionPassImpl::GetTopoEndsNodes(std::vector<Node *> &topo_ends) const {
   for (Node *node : graph_->op_nodes()) {
-    if (IsMakeIteratorNode(node)) {
+    if (IsMakeIteratorNode(node) && !IsWithoutNpuScope(node)) {
       auto iter = std::find_if(node->in_nodes().begin(), node->in_nodes().end(),
                                [this](const Node *in_node) { return IsIteratorNode(in_node); });
       if (iter != node->in_nodes().end()) {

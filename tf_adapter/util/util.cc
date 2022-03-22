@@ -25,6 +25,10 @@
 #include "graph/def_types.h"
 #include "securec.h"
 namespace tensorflow {
+namespace {
+const std::string ATTR_VALUE_SCOPE_NAME = "_without_npu_compile";
+}
+
 Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t &data_size,
                              std::vector<int64_t> &dims, std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   for (int i = 0; i < tensor.dims(); ++i) { dims.emplace_back(tensor.dim_size(i)); }
@@ -91,5 +95,14 @@ Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&
   acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, dims.data(), dims.size(),
                                   ACL_STRING, data_ptr, data_size);
   return Status::OK();
+}
+
+bool IsWithoutNpuScope(const NodeDef &node_def) {
+  if (node_def.attr().count(ATTR_VALUE_SCOPE_NAME)) { return node_def.attr().at(ATTR_VALUE_SCOPE_NAME).b(); }
+  return false;
+}
+
+bool IsWithoutNpuScope(const Node *node) {
+  return IsWithoutNpuScope(node->def());
 }
 } // namespace tensorflow
