@@ -1349,13 +1349,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
   SetDynamicInput();
 
   // run aoe tuning
-  if ((init_options_["ge.jobType"] == "3") || ((init_options_["ge.jobType"] == "4") && !is_allreduce)) {
-    ADP_LOG(INFO) << "[GEOP] in tune mode, nontraining graphs should be cache.";
-    if (!SessionManager::GetInstance().CacheGeGraphs(ge_session_, ge_graph)) {
-      ADP_LOG(ERROR) << "cache ge session failed.";
-      return -1;
-    }
-  } else {
+  if ((init_options_["ge.jobType"] == "1") || (init_options_["ge.jobType"] == "2") ||
+      ((init_options_["ge.jobType"] == "4") && is_allreduce)) {
     std::function<void()> callback = [this]() {
       if (aoe_destroy_session_ != nullptr) {
         Aoe::AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(session_id_);
