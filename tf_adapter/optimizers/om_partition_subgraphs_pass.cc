@@ -41,6 +41,7 @@
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/npu_ops_identifier.h"
+#include "tf_adapter/util/util.h"
 
 namespace tensorflow {
 static const int64 kMicrosToMillis = 1000;
@@ -52,7 +53,6 @@ const char *const PARTITION_SUB_GRAPH_ATTR = "_subgraphs";
 const std::string ATTR_NAME_FRAMEWORK_FUNC_DEF = "func_def";
 const std::string ATTR_NAME_SHARED_NAME = "shared_name";
 const std::string ATTR_VALUE_SHARED_NAME = "iterator_default";
-const std::string ATTR_VALUE_SCOPE_NAME = "_without_npu_compile";
 const std::string ATTR_NAME_OP_MAX_SIZE = "_op_max_size";
 const uint32_t MIN_CLUSTER_SIZE = 2;
 std::atomic<bool> compile_mode(false);
@@ -242,15 +242,6 @@ Status SetIteratorShardName(Node *node) {
   node->AddAttr(ATTR_NAME_SHARED_NAME, node->name());
   ADP_LOG(INFO) << node->name() << " shared name is " << shardName;
   return Status::OK();
-}
-
-bool IsWithoutNpuScope(const NodeDef &node_def) {
-  if (node_def.attr().count(ATTR_VALUE_SCOPE_NAME)) { return node_def.attr().at(ATTR_VALUE_SCOPE_NAME).b(); }
-  return false;
-}
-
-bool IsWithoutNpuScope(const Node *node) {
-  return IsWithoutNpuScope(node->def());
 }
 
 // Make sure we don't recurse infinitely on recursive functions.
