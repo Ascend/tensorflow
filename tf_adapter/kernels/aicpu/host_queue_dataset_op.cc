@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2019-2022. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/host_queue.h"
+#include "tf_adapter/util/memory_pool.h"
 #include "tf_adapter/kernels/aicpu/data_item_deliver.h"
 
 namespace tensorflow {
@@ -47,7 +48,7 @@ namespace {
 using namespace std;
 using namespace tdt;
 
-const uint32_t kMaxValue = 256U;
+const uint32_t kMaxValue = 128U;
 const size_t kMaxDepth = 128UL;
 const int32_t kSleepTime = 1;
 const static int64_t kStringTypeDepth = 64LL;
@@ -55,7 +56,7 @@ const int64_t kUnknownShapeDepth = 3LL;
 std::atomic<bool> tdt_release(false);
 
 // total memory usage controlled below 2G
-const uint64_t kTotalBytes = 4 * 1024 * 1024 * 1024LL;
+const uint64_t kTotalBytes = 2 * 1024 * 1024 * 1024LL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 
 enum class ChannelType {
@@ -288,6 +289,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         cond_var_.notify_all();
         delete data_deliver_;
+        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+          (void)mem_pool_.FreeAllMemory();
+        }
         DestroyQueue();
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
@@ -306,6 +310,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
         RecordStart(ctx.get());
         auto cleanup = gtl::MakeCleanup([this, ctx] { RecordStop(ctx.get()); });
+        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+          auto ret = aclrtSetDevice(dataset()->device_id_);
+          if (ret != ACL_ERROR_NONE) {
+            ADP_LOG(ERROR) << "Set device failed, device_id: " << dataset()->device_id_;
+            return;
+          }
+        }
         while (true) {
           {
             mutex_lock lck(mu_);
@@ -342,9 +353,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             cond_var_.notify_all();
             return;
           }
+          uint64_t args_tensor_size = 0ULL;
+          bool is_string = false;
           {
             mutex_lock lck(mu_);
             for (auto &tensor : args) {
+              if ((tensor.dtype() == DT_STRING) && (!is_string)) {
+                ADP_LOG(INFO) << "Data type is string, do not use memory pool";
+                is_string = true;
+              }
               if (tensor.TotalBytes() > (UINT64_MAX - total_bytes_)) {
                 ADP_LOG(ERROR) << "The size of tensor is too big";
                 LOG(ERROR) << "The size of tensor is too big";
@@ -353,8 +370,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 cond_var_.notify_all();
                 return;
               }
+              args_tensor_size += tensor.TotalBytes();
               total_bytes_ += tensor.TotalBytes();
             }
+          }
+          if ((dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!is_string)) {
+            if (!mem_pool_.MallocMemory(args, args_tensor_size).ok()) {
+              ADP_LOG(ERROR) << "MallocMemory memory failed";
+              return;
+            }
+          }
+          {
+            mutex_lock lck(mu_);
             buffer_element.value = args;
             buffer_.push_back(std::move(buffer_element));
             cond_var_.notify_all();
@@ -476,6 +503,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             ADP_LOG(INFO) << "Send " << data_type_str << " data success.";
             return;
           }
+          mem_pool_.ReleaseMemory();
           cond_var_.notify_all();
         }
       }
@@ -587,7 +615,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           REQUIRES_NOT_NULL(new_ctx);
           REQUIRES_NOT_NULL(ctx->env());
           receive_thread_.reset(
-            ctx->env()->StartThread({}, "receive_thread", [this, new_ctx]() { GetDataThread(new_ctx); }));
+              ctx->env()->StartThread({}, "receive_thread", [this, new_ctx]() { GetDataThread(new_ctx); }));
         }
         return Status::OK();
       }
@@ -600,14 +628,14 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if (dataset()->channel_type_ == ChannelType::TDT) {
             if (dataset()->local_rank_id_ <= 0) {
               send_thread_.reset(
-                ctx->env()->StartThread({}, "send_thread", [this, new_ctx]() { SendDataThread(new_ctx); }));
+                  ctx->env()->StartThread({}, "send_thread", [this, new_ctx]() { SendDataThread(new_ctx); }));
             } else {
               send_thread_.reset(ctx->env()->StartThread({}, "send_thread", [this]() { SendDataThread(); }));
             }
           } else {
             if (dataset()->local_rank_id_ <= 0) {
               send_thread_.reset(
-                ctx->env()->StartThread({}, "send_thread", [this, new_ctx]() { SendDataByQueueThread(new_ctx); }));
+                  ctx->env()->StartThread({}, "send_thread", [this, new_ctx]() { SendDataByQueueThread(new_ctx); }));
             }
           }
         }
@@ -664,6 +692,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             TF_RETURN_IF_ERROR(data_deliver_->InitSocketServer());
           }
         }
+        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+          TF_RETURN_IF_ERROR(mem_pool_.Init(dataset()->device_id_));
+        }
         {
           mutex_lock lck(mu_);
           cancelled_ = false;
@@ -703,6 +734,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       condition_variable cond_var_;
       condition_variable destory_var_;
       std::deque<BufferElement> buffer_ GUARDED_BY(mu_);
+      MemoryPool mem_pool_;
       bool cancelled_ GUARDED_BY(mu_) = true;
       bool finish_send_ GUARDED_BY(mu_) = false;
       uint64_t total_bytes_ GUARDED_BY(mu_) = 0;
