@@ -19,6 +19,7 @@
 
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/types.h"
+#include "tensorflow/core/graph/graph.h"
 #include "inc/tdt/data_common.h"
 #include "tf_adapter/util/host_queue.h"
 
@@ -31,5 +32,8 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
 
 Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&acl_data,
                                          std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
+
+bool IsWithoutNpuScope(const NodeDef &node_def);
+bool IsWithoutNpuScope(const Node *node);
 } // namespace tensorflow
 #endif // TENSORFLOW_UTILS_H_

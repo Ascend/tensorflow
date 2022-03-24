@@ -23,7 +23,7 @@ class DynamicRnnV2OP : public OpKernel {
   explicit DynamicRnnV2OP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new DynamicRnnV2OP";
   }
-  ~DynamicRnnV2OP() {
+  ~DynamicRnnV2OP() override {
     LOG(INFO) << "del DynamicRnnV2OP";
   }
   void Compute(OpKernelContext *ctx) override {
