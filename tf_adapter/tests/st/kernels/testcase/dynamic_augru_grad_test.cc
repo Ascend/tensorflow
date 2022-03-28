@@ -6,7 +6,7 @@
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/platform/test.h"
-#include "tf_adapter/kernels/aicore/dynamic_gruv2_ops.cc"
+#include "tf_adapter/kernels/aicore/dynamic_augru_grad_ops.cc"
 #include "gtest/gtest.h"
 #include <memory>
 
@@ -26,12 +26,13 @@ FakeInputFunctor FakeInputStub(DataType dt) {
   };
 }
 
-TEST(DynamicGRUV2OpTest, TestDynamicGRUV2) {
-  DataTypeSlice input_types(
-      {DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_INT32, DT_FLOAT});
+TEST(DynamicAUGRUGradTest, TestDynamicAUGRUGrad) {
+  DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT,
+                             DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT,
+                             DT_FLOAT, DT_FLOAT});
   MemoryTypeSlice input_memory_types;
   DataTypeSlice output_types(
-      {DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT});
+      {DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT});
   MemoryTypeSlice output_memory_types;
   DeviceBase *device = new DeviceBase(Env::Default());
   NodeDef *node_def = new NodeDef();
@@ -39,19 +40,19 @@ TEST(DynamicGRUV2OpTest, TestDynamicGRUV2) {
   OpKernelConstruction *context = new OpKernelConstruction(
       DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
       input_memory_types, output_types, output_memory_types, 1, nullptr);
-  DynamicGruV2OP<int> dynamic_gru_v2(context);
+  DynamicAUGRUGradOP<int> dynamic_augru_grad(context);
   OpKernelContext *ctx = nullptr;
-  dynamic_gru_v2.Compute(ctx);
-  dynamic_gru_v2.IsExpensive();
+  dynamic_augru_grad.Compute(ctx);
+  dynamic_augru_grad.IsExpensive();
   delete device;
   delete node_def;
   delete op_def;
   delete context;
 }
 
-TEST(DynamicGRUV2OpTest, TestDynamicGRUV2ShapeInference) {
+TEST(DynamicAUGRUGradOpTest, TestDynamicAUGRUGradShapeInference) {
   const OpRegistrationData *reg;
-  TF_CHECK_OK(OpRegistry::Global()->LookUp("DynamicGruV2", &reg));
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DynamicAUGRUGrad", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
@@ -62,13 +63,22 @@ TEST(DynamicGRUV2OpTest, TestDynamicGRUV2ShapeInference) {
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
-                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
                   .Finalize(&def));
   shape_inference::InferenceContext c(
       0, &def, op_def,
-      {TShape({1, 16, 16}), TShape({16, 48}), TShape({16, 48}),
-       TShape({16, 16}), TShape({16, 16}), TShape({48}), TShape({16, 16})},
+      {TShape({1, 16, 16}), TShape({16, 48}), TShape({16, 48}), TShape({1, 16}),
+       TShape({16, 16}), TShape({16, 16}), TShape({16, 16}), TShape({16, 16}),
+       TShape({16, 16}), TShape({16, 16}), TShape({16, 16}), TShape({16, 16}), TShape({16, 16}),
+       TShape({16, 16})},
       {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }

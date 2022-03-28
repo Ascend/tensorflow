@@ -21,6 +21,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numbers
+import tensorflow as tf
 
 from tensorflow.python.ops.nn_ops import _get_noise_shape
 from tensorflow.python.framework import ops
@@ -250,6 +251,44 @@ def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
                                                                                                   "reset_after"))
 
     ret = tuple([dx, dw_input, dw_hidden, db_input, db_hidden, seq_length, dh_prev])
+    return ret
+
+
+@ops.RegisterGradient("DynamicAUGRU")
+def dynamic_augru_grad(op, dy, doutput_h, dupdate, dupdate_att, dreset, dnew, dhidden_new):
+    """NPU implemented dynamic_augru"""
+    (x, weight_input, weight_hidden, weight_att, bias_input, bias_hidden, seq_length, init_h) = op.inputs
+    (y, output_h, update, update_att, reset, new, hidden_new) = op.outputs
+
+    hidden_size = output_h.get_shape().as_list()[2]
+    weight_att = tf.expand_dims(weight_att, -1)
+    weight_att = tf.tile(weight_att, [1, 1, hidden_size])
+
+    (dw_input, dw_hidden, db_input, db_hidden, dx, dh_prev, dw_att) = gen_npu_ops.dynamic_augru_grad(x, weight_input,
+                                                                                                     weight_hidden,
+                                                                                                     weight_att, y,
+                                                                                                     init_h, output_h,
+                                                                                                     dy, doutput_h,
+                                                                                                     update, update_att,
+                                                                                                     reset, new,
+                                                                                                     hidden_new,
+                                                                                                     direction=op.get_attr(
+                                                                                                         "direction"),
+                                                                                                     cell_depth=op.get_attr(
+                                                                                                         "cell_depth"),
+                                                                                                     keep_prob=op.get_attr(
+                                                                                                         "keep_prob"),
+                                                                                                     cell_clip=op.get_attr(
+                                                                                                         "cell_clip"),
+                                                                                                     num_proj=op.get_attr(
+                                                                                                         "num_proj"),
+                                                                                                     time_major=op.get_attr(
+                                                                                                         "time_major"),
+                                                                                                     gate_order=op.get_attr(
+                                                                                                         "gate_order"),
+                                                                                                     reset_after=op.get_attr(
+                                                                                                         "reset_after"))
+    ret = tuple([dx, dw_input, dw_hidden, dw_att, db_input, db_hidden, seq_length, dh_prev])
     return ret
 
 
