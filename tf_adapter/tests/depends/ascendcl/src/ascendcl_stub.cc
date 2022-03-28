@@ -17,6 +17,7 @@
 #include "acl/acl_tdt.h"
 #include "ascendcl_stub.h"
 #include "acl/acl_rt.h"
+#include "securec.h"
 #include <map>
 #include <mutex>
 
@@ -72,6 +73,26 @@ acltdtChannelHandle *acltdtCreateChannel(uint32_t deviceId, const char *name) {
 }
 
 aclError aclrtSetDevice(int32_t deviceId){
+    return ACL_SUCCESS;
+}
+
+aclError aclrtMallocHost(void **hostPtr, size_t size) {
+    (*hostPtr) = std::malloc(size);
+    return ACL_SUCCESS;
+}
+
+aclError aclrtMemcpy(void *dst, size_t destMax, 
+                     const void *src, size_t count,
+                     aclrtMemcpyKind kind) {
+    auto ret = memcpy_s(dst, destMax, src, count);
+    if (ret != EOK) {
+        return ACL_ERROR_BAD_ALLOC;
+    }
+    return ACL_SUCCESS;
+}
+
+aclError aclrtFreeHost(void *hostPtr) {
+    free(hostPtr);
     return ACL_SUCCESS;
 }
 

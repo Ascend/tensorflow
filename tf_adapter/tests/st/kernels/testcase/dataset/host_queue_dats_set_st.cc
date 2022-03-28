@@ -4,6 +4,7 @@
 #include "tensorflow/core/graph/graph_def_builder.h"
 #include "tensorflow/core/kernels/data/dataset_test_base.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "securec.h"
 
 class HostQueueDatasetOp;
 namespace tensorflow {
@@ -74,6 +75,25 @@ TestCase NormalizeTestCase() {
   };
 }
 
+TestCase NormalizeTestCaseBig() {
+  Tensor temp_tensor(DT_INT64, {10, 10240, 1024});
+  Tensor expect_tensor(DT_INT64, {10240, 1024});
+  std::vector<int64_t> data;
+  data.resize(10 * 10240 * 1024, 1);
+  std::vector<int64_t> ex_data;
+  ex_data.resize(10240 * 1024, 1);
+  memcpy_s(const_cast<char *>(expect_tensor.tensor_data().data()), expect_tensor.tensor_data().size(),
+           static_cast<void *>(ex_data.data()), ex_data.size());
+  memcpy_s(const_cast<char *>(expect_tensor.tensor_data().data()), expect_tensor.tensor_data().size(),
+           static_cast<void *>(ex_data.data()), ex_data.size());
+  return {
+      {temp_tensor},
+      {expect_tensor},
+      {DT_INT64},
+      {PartialTensorShape({10240, 1024})},
+  };
+}
+
 TEST_F(HostQueueDatasetOpTest, iterator_getnext) {
   *const_cast<bool *>(&kIsNewDataTransfer) = true;
   int thread_num = 2, cpu_num = 2;
@@ -81,6 +101,62 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext) {
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
 
   const TestCase &test_case = NormalizeTestCase();
+  Tensor tensor_slice_dataset_tensor(DT_VARIANT, TensorShape({}));
+  std::vector<Tensor> inputs_for_tensor_slice_dataset = test_case.input_tensors;
+  TF_ASSERT_OK(CreateTensorSliceDatasetTensorForQueue(&inputs_for_tensor_slice_dataset,
+                                              &tensor_slice_dataset_tensor));
+
+  gtl::InlinedVector<TensorValue, 4> inputs_for_host_queue_dataset(
+      {TensorValue(&tensor_slice_dataset_tensor),
+       TensorValue(&tensor_slice_dataset_tensor)});
+
+  std::unique_ptr<OpKernel> host_queue_dataset_kernel;
+  TF_ASSERT_OK(CreateHostQueueDatasetKernel(test_case.expected_output_dtypes,
+                                            test_case.expected_output_shapes,
+                                            &host_queue_dataset_kernel, "-1"));
+  std::unique_ptr<OpKernelContext> host_queue_dataset_context;
+  TF_ASSERT_OK(CreateHostQueueDatasetContext(host_queue_dataset_kernel.get(),
+                                             &inputs_for_host_queue_dataset,
+                                             &host_queue_dataset_context));
+  DatasetBase *host_queue_dataset;
+  TF_ASSERT_OK(CreateDataset(host_queue_dataset_kernel.get(),
+                             host_queue_dataset_context.get(),
+                             &host_queue_dataset));
+  core::ScopedUnref scoped_unref(host_queue_dataset);
+
+  EXPECT_EQ(host_queue_dataset->node_name(), kNodeName);
+
+  host_queue_dataset->output_dtypes();
+  host_queue_dataset->output_shapes();
+  host_queue_dataset->DebugString();
+
+  SerializationContext context(SerializationContext::Params{});
+  GraphDefBuilder b;
+  DatasetBase::DatasetGraphDefBuilder db(&b);
+  Node *output;
+  host_queue_dataset->AsGraphDefInternal(&context, &db, &output);
+
+  std::unique_ptr<IteratorContext> iterator_context;
+  TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
+                                     &iterator_context));
+  std::unique_ptr<IteratorBase> iterator;
+  TF_ASSERT_OK(host_queue_dataset->MakeIterator(iterator_context.get(),
+                                                "Iterator", &iterator));
+
+  bool end_of_sequence = false;
+  std::vector<Tensor> out_tensors;
+  sleep(2);
+  TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
+                                 &end_of_sequence));
+}
+
+TEST_F(HostQueueDatasetOpTest, iterator_getnext02) {
+  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  int thread_num = 2, cpu_num = 2;
+  TF_ASSERT_OK(InitThreadPool(thread_num));
+  TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
+
+  const TestCase &test_case = NormalizeTestCaseBig();
   Tensor tensor_slice_dataset_tensor(DT_VARIANT, TensorShape({}));
   std::vector<Tensor> inputs_for_tensor_slice_dataset = test_case.input_tensors;
   TF_ASSERT_OK(CreateTensorSliceDatasetTensorForQueue(&inputs_for_tensor_slice_dataset,
