@@ -29,6 +29,7 @@
 #include "tensorflow/core/util/env_var.h"
 #include "mmpa/mmpa_api.h"
 #include "tf_adapter/util/ge_plugin.h"
+#include "ge/ge_api.h"
 namespace tensorflow {
 const string profiling_default_options = "{\"output\":\".\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
 \"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metrics\":\"PipeUtilization\",\"msproftx\":\"off\"}";
@@ -41,7 +42,7 @@ bool kIsNewDataTransfer = true;
 bool GetNewDataTransferFlag() {
   uint32_t device_id = 0U;
   (void) GetEnvDeviceID(device_id);
-  (void) aclrtSetDevice(device_id);
+  (void) ge::GEInitialize(NpuAttrs::GetInitOptions());
   acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
   if (check_queue_handle != nullptr) {
     acltdtDestroyChannel(check_queue_handle);
