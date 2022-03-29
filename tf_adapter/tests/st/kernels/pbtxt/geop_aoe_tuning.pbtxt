@@ -254,7 +254,7 @@ node {
   attr {
     key: "_aoe_mode"
     value {
-      s: "4"
+      s: "1"
     }
   }
   attr {
