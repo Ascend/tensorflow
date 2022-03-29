@@ -68,7 +68,6 @@ void SessionManager::DestroyGeSession(const std::string &tf_session) {
   if (it != ge_sessions_.end()) {
     if (it->second != nullptr) {
       ADP_LOG(INFO) << "find ge session connect with tf session " << tf_session;
-      ge_graphs_.erase(it->second);
       delete it->second;
       it->second = nullptr;
     }
@@ -153,41 +152,4 @@ void SessionManager::PrintGeSessionOptions(std::map<std::string, std::string> &s
   ADP_LOG(INFO) << "[GEOP] enable_compress_weight :" << sess_options["ge.enableCompressWeight"];
 
   ADP_LOG(INFO) << "[GEOP] compress_weight_conf :" << sess_options["compress_weight_conf"];
-}
-
-/**
- * @brief: cache ge graphs
- * @param ge_session: ge session
- * @param ge_graph: ge graph
- */
-bool SessionManager::CacheGeGraphs(ge::Session *ge_session, ge::Graph &ge_graph) {
-  if (ge_session == nullptr) {
-    ADP_LOG(ERROR) << "ge session is null ptr.";
-    LOG(ERROR) << "ge session is null ptr.";
-    return false;
-  }
-  ge_graphs_[ge_session].push_back(ge_graph);
-  return true;
-}
-
-/**
- * @brief: get ge graphs
- * @param ge_session: ge session
- * @param ge_graphs: ge graphs
- */
-bool SessionManager::GetGeGraphs(ge::Session *ge_session, std::vector<ge::Graph> &ge_graphs) {
-  if (ge_session == nullptr) {
-    ADP_LOG(ERROR) << "ge session is null ptr.";
-    LOG(ERROR) << "ge session is null ptr.";
-    return false;
-  }
-  auto it = ge_graphs_.find(ge_session);
-  if (it != ge_graphs_.end()) {
-    ge_graphs = it->second;
-    ADP_LOG(INFO) << " get ge session nontraining graphs success.";
-    return true;
-  } else {
-    ADP_LOG(WARNING) << "ge session can not get nontraining graphs.";
-  }
-  return true;
 }

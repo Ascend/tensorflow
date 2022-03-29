@@ -56,4 +56,13 @@ extern "C" Aoe::AoeStatus AoeTuningGraph(Aoe::SessionId SessionId,
                                          const std::map<Aoe::AscendString, Aoe::AscendString> &tuningOptions) {
   return Aoe::AOE_SUCCESS;
 }
+
+extern "C" Aoe::AoeStatus AoeSetDependGraphsInputs(Aoe::SessionId SessionId,
+                                                   std::vector<std::vector<ge::Tensor>> &input) {
+  return Aoe::AOE_SUCCESS;
+}
+
+extern "C" Aoe::AoeStatus AoeSetTuningGraphInput(Aoe::SessionId SessionId, std::vector<ge::Tensor> &input) {
+  return Aoe::AOE_SUCCESS;
+}
 } // namespace Aoe
