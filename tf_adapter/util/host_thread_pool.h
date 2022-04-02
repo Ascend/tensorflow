@@ -14,45 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef KERNELS_UTIL_MEMORY_POOL_H_
-#define KERNELS_UTIL_MEMORY_POOL_H_
+#ifndef KERNELS_UTIL_HOST_THREAD_POOL_H_
+#define KERNELS_UTIL_HOST_THREAD_POOL_H_
 
-#include <cstdlib>
-#include <cstdint>
-#include <memory>
-#include <atomic>
-#include <list>
 #include <thread>
 #include <mutex>
 #include <queue>
+#include <atomic>
 #include <functional>
 #include <condition_variable>
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/core/threadpool.h"
 
 namespace tensorflow {
-struct MemoryBlock {
-  void *ptr;
-  uint64_t data_size;
-  MemoryBlock(void *in_ptr, uint64_t in_size) {
-    ptr = in_ptr;
-    data_size = in_size;
-  }
-};
-
-class MemoryPool {
+class HostThreadPool {
  public:
-  MemoryPool();
-  Status MallocMemory(void *&buffer,
-                      uint64_t args_size);
-  void ReleaseMemory();
-  Status FreeAllMemory();
-  ~MemoryPool();
+  HostThreadPool();
+  Status Init(uint32_t device_id);
+  void PushTask(std::function<void()> closure);
+  void StopThreadPool();
+  ~HostThreadPool();
  private:
-  bool FreeMemoryList(std::list<MemoryBlock> &memory_list);
-  std::mutex memory_pool_lock_;
-  std::list<MemoryBlock> used_memory_list_;
-  std::list<MemoryBlock> free_memory_list_;
+  void ParallelForCopyThread();
+  std::mutex queue_lock_;
+  std::condition_variable queue_var_;
+  std::vector<std::unique_ptr<Thread>> copy_thread_pool_;
+  std::queue<std::function<void()>> task_queue_;
+  std::atomic<bool> thread_stop_flag_;
+  uint32_t device_id_;
 };
 }
 #endif
