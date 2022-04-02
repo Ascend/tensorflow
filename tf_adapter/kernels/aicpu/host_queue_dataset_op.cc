@@ -275,6 +275,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           mutex_lock lck(mu_);
           finish_send_ = true;
           cond_var_.notify_all();
+          if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+            (void)mem_pool_.FreeAllMemory();
+          }
           if (dataset()->channel_type_ != ChannelType::TDT) {
             while (!cancelled_) {
               destory_var_.wait(lck);
@@ -289,9 +292,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         cond_var_.notify_all();
         delete data_deliver_;
-        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-          (void)mem_pool_.FreeAllMemory();
-        }
         DestroyQueue();
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
@@ -347,6 +347,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               ADP_LOG(INFO) << "Finish to get tensor data, Status:" << buffer_element.status.ToString()
                             << "; end_of_sequence:" << end_of_sequence;
             }
+            if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+              (void)mem_pool_.FreeAllMemory();
+            }
             mutex_lock lck(mu_);
             buffer_element.host_thread_finished = true;
             buffer_.push_back(std::move(buffer_element));
@@ -375,14 +378,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             }
           }
           if ((dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!is_string)) {
-            if (!mem_pool_.MallocMemory(args, args_tensor_size).ok()) {
+            if (!mem_pool_.MallocMemory(args, buffer_element.value, args_tensor_size).ok()) {
               ADP_LOG(ERROR) << "MallocMemory memory failed";
               return;
             }
+          } else {
+            buffer_element.value = args;
           }
           {
             mutex_lock lck(mu_);
-            buffer_element.value = args;
             buffer_.push_back(std::move(buffer_element));
             cond_var_.notify_all();
           }
@@ -487,6 +491,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               mutex_lock lck(mu_);
               cancelled_ = true;
             }
+            (void)mem_pool_.FreeAllMemory();
             destory_var_.notify_all();
             cond_var_.notify_all();
             ADP_LOG(ERROR) << "Send data failed." << status.ToString();
@@ -498,6 +503,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               mutex_lock lck(mu_);
               cancelled_ = true;
             }
+            (void)mem_pool_.FreeAllMemory();
             destory_var_.notify_all();
             cond_var_.notify_all();
             ADP_LOG(INFO) << "Send " << data_type_str << " data success.";

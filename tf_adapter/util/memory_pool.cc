@@ -57,14 +57,13 @@ namespace tensorflow {
       return;
     }
     std::function<void()> closure;
-    while (!thread_stop_flag_.load()) {
+    while (!thread_stop_flag_) {
       {
-        std::lock_guard<std::mutex> lck(queue_lock_);
-        if (task_queue_.empty()) {
-          continue;
-        }
+        std::unique_lock<std::mutex> lck(queue_lock_);
+        queue_var_.wait(lck, [this]() { return (!task_queue_.empty()); });
         closure = task_queue_.front();
         task_queue_.pop();
+        queue_var_.notify_all();
       }
       closure();
       event_num++;
@@ -75,44 +74,38 @@ namespace tensorflow {
   void MemoryPool::ParallelCopy(void *dst_ptr, uint64_t dst_size,
                                 const char *src_ptr, uint64_t src_size) {
     event_num.store(0U);
-    std::function<void(int64_t, int64_t)> shared = [&] (int64_t start, int64_t end) {
-      void *dst = dst_ptr + start;
-      const char *src = src_ptr + start;
-      int64_t len = end - start;
-      if (len < 0) {
-        ADP_LOG(ERROR) << "Len is less than zero, len:" << len;
-        return;
-      }
-      auto ret = aclrtMemcpy(dst, dst_size - start, src, len, ACL_MEMCPY_HOST_TO_HOST);
-      if (ret != ACL_ERROR_NONE) {
-        ADP_LOG(ERROR) << "Memcpy failed, start:" << start << ", len: " << len;
-        return;
-      }
-    };
-    uint64_t block_size = (src_size / (MAX_THREAD_NUM + 1));
+    uint64_t block_size = (src_size / MAX_THREAD_NUM);
+    uint64_t remain_size = (src_size % MAX_THREAD_NUM);
     uint64_t start = 0UL;
     uint64_t end = 0UL;
     std::function<void()> closure;
-    for (uint32_t i = 0U; i < (MAX_THREAD_NUM + 1); i++) {
+    for (uint32_t i = 0U; i < MAX_THREAD_NUM; i++) {
       start = i * block_size;
       end = (i + 1) * block_size;
-      if (i == MAX_THREAD_NUM) {
-        end = src_size;
+      if (i == MAX_THREAD_NUM - 1) {
+        end += remain_size;
       }
-      closure = [start, end, &shared] () {
-        shared(start, end);
+      closure = [start, end, &dst_ptr, &dst_size, &src_ptr, &src_size] () {
+        void *dst = dst_ptr + start;
+        const char *src = src_ptr + start;
+        int64_t len = end - start;
+        if (len < 0) {
+          ADP_LOG(ERROR) << "Len is less than zero, len:" << len;
+          return;
+        }
+        auto ret = aclrtMemcpy(dst, dst_size - start, src, len, ACL_MEMCPY_HOST_TO_HOST);
+        if (ret != ACL_ERROR_NONE) {
+          ADP_LOG(ERROR) << "Memcpy failed, start:" << start << ", len: " << len;
+          return;
+        }
       };
-      if (i == MAX_THREAD_NUM) {
-        closure();
-        break;
-      }
-      std::lock_guard<std::mutex> lck(queue_lock_);
       task_queue_.push(closure);
     }
-    while ((event_num.load() < MAX_THREAD_NUM) && (!thread_stop_flag_.load())) {}
+    while ((event_num.load() < MAX_THREAD_NUM) && (!thread_stop_flag_)) {}
   }
 
-  bool MemoryPool::CopyTensor(void *memory_ptr, uint64_t memory_size, std::vector<Tensor> &args) {
+  bool MemoryPool::CopyTensor(void *memory_ptr, uint64_t memory_size,
+                              std::vector<Tensor> &args, std::vector<Tensor> &result_args) {
     uint64_t offset = 0ULL;
     for (size_t i = 0UL; i < args.size(); i++) {
       const char *src_ptr = args[i].tensor_data().data();
@@ -134,13 +127,13 @@ namespace tensorflow {
         return false;
       }
       Tensor temp_tensor(a, args[i].dtype(), args[i].shape());
-      args[i] = temp_tensor;
+      result_args.emplace_back(std::move(temp_tensor));
       offset += src_size;
     }
     return true;
   }
 
-  Status MemoryPool::MallocMemory(std::vector<Tensor> &args, uint64_t args_size) {
+  Status MemoryPool::MallocMemory(std::vector<Tensor> &args, std::vector<Tensor> &result_args, uint64_t args_size) {
     MemoryBlock temp_block(nullptr, args_size);
     bool queue_is_empty = false;
     {
@@ -170,7 +163,7 @@ namespace tensorflow {
       }
     }
 
-    if (!CopyTensor(temp_block.ptr, args_size, args)) {
+    if (!CopyTensor(temp_block.ptr, args_size, args, result_args)) {
       ADP_LOG(ERROR) << "Copy tensor to memory failed";
       std::lock_guard<std::mutex> lck(memory_pool_lock_);
       free_memory_list_.push_back(temp_block);
@@ -192,7 +185,7 @@ namespace tensorflow {
   }
 
   Status MemoryPool::FreeAllMemory() {
-    thread_stop_flag_.store(true);
+    thread_stop_flag_ = true;
     std::lock_guard<std::mutex> lck(memory_pool_lock_);
     if ((!FreeMemoryList(free_memory_list_)) || !FreeMemoryList(used_memory_list_)) {
       ADP_LOG(ERROR) << "Release host memory pool failed";

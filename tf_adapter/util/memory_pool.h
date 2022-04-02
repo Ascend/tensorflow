@@ -26,6 +26,7 @@
 #include <mutex>
 #include <queue>
 #include <functional>
+#include <condition_variable>
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/lib/core/threadpool.h"
 
@@ -43,7 +44,9 @@ class MemoryPool {
  public:
   MemoryPool();
   Status Init(uint32_t device_id);
-  Status MallocMemory(std::vector<Tensor> &args, uint64_t args_size);
+  Status MallocMemory(std::vector<Tensor> &args,
+                      std::vector<Tensor> &args,
+                      uint64_t args_size);
   void ReleaseMemory();
   Status FreeAllMemory();
   ~MemoryPool();
@@ -51,17 +54,18 @@ class MemoryPool {
   void ParallelForCopyThread();
 
   bool CopyTensor(void *memory_ptr, uint64_t memory_size,
-                  std::vector<Tensor> &args);
+                  std::vector<Tensor> &args, std::vector<Tensor> &result_args);
   void ParallelCopy(void *dst_ptr, uint64_t dst_size,
                     const char *src_ptr, uint64_t src_size);
   bool FreeMemoryList(std::list<MemoryBlock> &memory_list);
   std::mutex memory_pool_lock_;
   std::mutex queue_lock_;
+  std::condition_variable queue_var_;
   std::list<MemoryBlock> used_memory_list_;
   std::list<MemoryBlock> free_memory_list_;
   std::queue<std::function<void()>> task_queue_;
   std::vector<std::unique_ptr<Thread>> copy_thread_pool_;
-  std::atomic<bool> thread_stop_flag_;
+  bool thread_stop_flag_;
   uint32_t device_id_;
 };
 }
