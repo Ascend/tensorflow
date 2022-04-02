@@ -1,3 +1,4 @@
+#include "securec.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/graph/graph_constructor.h"
 #include "tensorflow/core/public/version.h"
@@ -393,9 +394,15 @@ TEST_F(GeOpTest, GeOpNpuStringMaxSizeTest) {
   NodeDef node_def;
   std::string grph_pbtxt_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_npu_onnx_graph_op_parse.pbtxt";
 
-  Tensor in(DT_STRING, TensorShape({1, 1, 5, 5}));
+  auto buff = reinterpret_cast<char *>(malloc(SECUREC_MEM_MAX_LEN + 1));
+  memset_s(buff, SECUREC_MEM_MAX_LEN, '*', SECUREC_MEM_MAX_LEN);
+  buff[SECUREC_MEM_MAX_LEN] = '*';
+  Tensor in(DT_STRING, TensorShape({1,}));
+  in.scalar<tstring>()() = buff;
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
   EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
+  free(buff);
+  buff = nullptr;
 }
 
 }  // namespace

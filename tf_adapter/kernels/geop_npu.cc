@@ -73,6 +73,7 @@
 #include "graph/ge_attr_value.h"
 #include "graph/def_types.h"
 #include "graph/model.h"
+#include "tf_adapter_2.x/npu_device/core/npu_micros.h"
 
 namespace tensorflow {
 #ifdef TF_VERSION_TF2
@@ -1543,14 +1544,21 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::st
     string_head[i].addr = offset;
     const string &str = string_vector[i];
     string_head[i].len = static_cast<int64_t>(str.size());
-    const auto ret = memcpy_s(data_addr, total_size - offset, str.c_str(), str.size() + 1U);
-    if (ret != EOK) {
-      ADP_LOG(ERROR) << "[GEOP] Call memcpy failed, size: " << (str.size() + 1U) << " result: " << ret;
-      LOG(ERROR) << "[GEOP] Call memcpy failed, size: " << (str.size() + 1U) << " result: " << ret;
-      return errors::Unknown("memcpy failed");
+    size_t str_size = str.size();
+    const char *string_addr = str.c_str();
+    while (str_size >= SECUREC_MEM_MAX_LEN) {
+      const auto ret = memcpy_s(data_addr, SECUREC_MEM_MAX_LEN, string_addr, SECUREC_MEM_MAX_LEN);
+      NPU_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+      str_size -= SECUREC_MEM_MAX_LEN;
+      total_size -= SECUREC_MEM_MAX_LEN;
+      data_addr += SECUREC_MEM_MAX_LEN;
+      string_addr += SECUREC_MEM_MAX_LEN;
     }
-    data_addr += (str.size() + 1U);
-    offset += (static_cast<int64_t>(str.size()) + 1);
+    auto remain_size = ((total_size - offset) > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : (total_size - offset);
+    const auto ret = memcpy_s(data_addr, remain_size, string_addr, str_size + 1U);
+    NPU_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+    data_addr += (str_size + 1U);
+    total_size -= (str_size + 1U);
   }
   input.SetData(ge::PtrToPtr<char, const uint8_t>(addr.get()), total_size);
   return Status::OK();
