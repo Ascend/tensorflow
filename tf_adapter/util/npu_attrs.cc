@@ -42,7 +42,9 @@ bool kIsNewDataTransfer = true;
 bool GetNewDataTransferFlag() {
   uint32_t device_id = 0U;
   (void) GetEnvDeviceID(device_id);
-  (void) ge::GEInitialize(NpuAttrs::GetInitOptions());
+  std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions();
+  NpuAttrs::LogOptions(init_options);
+  GePlugin::GetInstance()->Init(init_options);
   acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
   if (check_queue_handle != nullptr) {
     acltdtDestroyChannel(check_queue_handle);
