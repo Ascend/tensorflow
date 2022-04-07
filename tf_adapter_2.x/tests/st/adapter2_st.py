@@ -16,6 +16,10 @@
 # limitations under the License.
 #
 
+import os
+
+os.environ['ASCEND_OPP_PATH'] = 'non-existed-path'
+
 import npu_device
 from npu_device.npu_device import stupid_repeat
 
