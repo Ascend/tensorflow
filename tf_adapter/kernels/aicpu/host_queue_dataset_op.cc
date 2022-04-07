@@ -40,6 +40,8 @@
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/host_queue.h"
 #include "tf_adapter/util/memory_pool.h"
+#include "tf_adapter/util/host_thread_pool.h"
+#include "tf_adapter/util/host_allocator.h"
 #include "tf_adapter/kernels/aicpu/data_item_deliver.h"
 
 namespace tensorflow {
@@ -53,10 +55,12 @@ const size_t kMaxDepth = 128UL;
 const int32_t kSleepTime = 1;
 const static int64_t kStringTypeDepth = 64LL;
 const int64_t kUnknownShapeDepth = 3LL;
+const uint64_t PARALLEL_MEMORY_TRHESHOLD = 10 * 1024 * 1024;
+const uint32_t MAX_THREAD_NUM = 4U;
 std::atomic<bool> tdt_release(false);
 
 // total memory usage controlled below 2G
-const uint64_t kTotalBytes = 2 * 1024 * 1024 * 1024LL;
+const uint64_t kTotalBytes = 8 * 1024 * 1024 * 1024LL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 
 enum class ChannelType {
@@ -80,7 +84,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
     ADP_LOG(INFO) << "Get local rank id: " << local_rank_id << ", local device list: " << local_device_list;
     // local rank id range 0-7
-
     local_rank_id_ = std::atoi(local_rank_id.c_str());
     for (size_t i = 0UL; i < local_device_list.size(); i += 2UL) {
       int device_id = std::atoi(&local_device_list[i]);
@@ -291,6 +294,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         cond_var_.notify_all();
         delete data_deliver_;
         if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+          {
+            mutex_lock lck(event_finish_mu_);
+            event_finish_flag_ = true;
+            event_finish_var_.notify_all();
+          }
+          thread_pool_.StopThreadPool();
           (void)mem_pool_.FreeAllMemory();
         }
         DestroyQueue();
@@ -307,17 +316,85 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         ADP_LOG(INFO) << "End to destroy queue.";
       }
+      void ParallelCopy(void *dst_ptr, uint64_t dst_size,
+                        const char *src_ptr, uint64_t src_size) {
+        event_num_.store(0U);
+        {
+          mutex_lock lck(event_finish_mu_);
+          event_finish_flag_ = false;
+        }
+        uint64_t block_size = (src_size / MAX_THREAD_NUM);
+        uint64_t remain_size = (src_size % MAX_THREAD_NUM);
+        uint64_t start = 0UL;
+        uint64_t end = 0UL;
+        std::function<void()> closure;
+        for (uint32_t i = 0U; i < MAX_THREAD_NUM; i++) {
+          start = i * block_size;
+          end = (i + 1) * block_size;
+          if (i == MAX_THREAD_NUM - 1) {
+            end += remain_size;
+          }
+          closure = [start, end, &dst_ptr, &dst_size, &src_ptr, &src_size, this] () {
+            void *dst = dst_ptr + start;
+            const char *src = src_ptr + start;
+            int64_t len = end - start;
+            if (len < 0) {
+              ADP_LOG(ERROR) << "Len is less than zero, len:" << len;
+              return;
+            }
+            auto ret = aclrtMemcpy(dst, dst_size - start, src, len, ACL_MEMCPY_HOST_TO_HOST);
+            if (ret != ACL_ERROR_NONE) {
+              ADP_LOG(ERROR) << "Memcpy failed, start:" << start << ", len: " << len;
+              return;
+            }
+            if (event_num_.fetch_add(1U) >= (MAX_THREAD_NUM - 1)) {
+              mutex_lock lck(event_finish_mu_);
+              event_finish_flag_ = true;
+              event_finish_var_.notify_all();
+            }
+          };
+          thread_pool_.PushTask(closure);
+        }
+        ADP_LOG(INFO) << "Wait enter into parallel copy";
+        mutex_lock lck(event_finish_mu_);
+        while (!event_finish_flag_) {
+          event_finish_var_.wait(lck);
+        }
+        ADP_LOG(INFO) << "End enter into parallel copy";
+      }
+
+      bool CopyTensor(void *memory_ptr, uint64_t memory_size,
+                      std::vector<Tensor> &args, std::vector<Tensor> &result_args) {
+        uint64_t offset = 0ULL;
+        for (size_t i = 0UL; i < args.size(); i++) {
+          const char *src_ptr = args[i].tensor_data().data();
+          uint64_t src_size = args[i].tensor_data().size();
+          void *dst_ptr = memory_ptr + offset;
+          uint64_t dst_size = memory_size - offset;
+          if (src_size > PARALLEL_MEMORY_TRHESHOLD) {
+            ParallelCopy(dst_ptr, dst_size, src_ptr, src_size);
+          } else {
+            auto ret = aclrtMemcpy(dst_ptr, dst_size, src_ptr, src_size, ACL_MEMCPY_HOST_TO_HOST);
+            if (ret != ACL_ERROR_NONE) {
+              ADP_LOG(ERROR) << "Memcpy failed, dst_size:" << dst_size << ", src_size: " << src_size;
+              return false;
+            }
+          }
+          HostAllocator *a = new (std::nothrow) HostAllocator(dst_ptr);
+          if (a == nullptr) {
+            ADP_LOG(ERROR) << "Allocator memory failed";
+            return false;
+          }
+          Tensor temp_tensor(a, args[i].dtype(), args[i].shape());
+          result_args.emplace_back(std::move(temp_tensor));
+          offset += src_size;
+        }
+        return true;
+      }
 
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
         RecordStart(ctx.get());
         auto cleanup = gtl::MakeCleanup([this, ctx] { RecordStop(ctx.get()); });
-        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-          auto ret = aclrtSetDevice(dataset()->device_id_);
-          if (ret != ACL_ERROR_NONE) {
-            ADP_LOG(ERROR) << "Set device failed, device_id: " << dataset()->device_id_;
-            return;
-          }
-        }
         while (true) {
           {
             mutex_lock lck(mu_);
@@ -354,15 +431,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             cond_var_.notify_all();
             return;
           }
-          uint64_t args_tensor_size = 0ULL;
-          bool is_string = false;
           {
             mutex_lock lck(mu_);
             for (auto &tensor : args) {
-              if ((tensor.dtype() == DT_STRING) && (!is_string)) {
-                ADP_LOG(INFO) << "Data type is string, do not use memory pool";
-                is_string = true;
-              }
               if (tensor.TotalBytes() > (UINT64_MAX - total_bytes_)) {
                 ADP_LOG(ERROR) << "The size of tensor is too big";
                 LOG(ERROR) << "The size of tensor is too big";
@@ -371,18 +442,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 cond_var_.notify_all();
                 return;
               }
-              args_tensor_size += tensor.TotalBytes();
               total_bytes_ += tensor.TotalBytes();
             }
-          }
-          if ((dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!is_string)) {
-            if (!mem_pool_.MallocMemory(args, args_tensor_size).ok()) {
-              ADP_LOG(ERROR) << "MallocMemory memory failed";
-              return;
-            }
-          }
-          {
-            mutex_lock lck(mu_);
             buffer_element.value = args;
             buffer_.push_back(std::move(buffer_element));
             cond_var_.notify_all();
@@ -446,11 +507,47 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         return status;
       }
 
+      void StopNotify() {
+        {
+          mutex_lock lck(mu_);
+          cancelled_ = true;
+        }
+        destory_var_.notify_all();
+        cond_var_.notify_all();
+      }
+
+      bool HandleMemory(std::vector<Tensor> &src_args, std::vector<Tensor> &dst_args,
+                        uint64_t args_size) {
+        void *buffer = nullptr;
+        if (!mem_pool_.MallocMemory(buffer, args_size).ok()) {
+          ADP_LOG(ERROR) << "MallocMemory memory failed";
+          return false;
+        }
+        if (buffer == nullptr) {
+          ADP_LOG(ERROR) << "Memory buffer is invalid";
+          return false;
+        }
+        if (!CopyTensor(buffer, args_size, src_args, dst_args)) {
+          ADP_LOG(ERROR) << "Copy data to memory failed";
+          return false;
+        }
+        return true;
+      }
+
       void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
         ADP_LOG(INFO) << "Begin to send data";
+        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+          auto ret = aclrtSetDevice(dataset()->device_id_);
+          if (ret != ACL_ERROR_NONE) {
+            ADP_LOG(ERROR) << "Set device failed, device_id: " << dataset()->device_id_;
+            return;
+          }
+        }
         while (true) {
           std::vector<Tensor> args;
           acltdtTensorType data_type = ACL_TENSOR_DATA_TENSOR;
+          uint64_t args_tensor_size = 0ULL;
+          bool is_string = false;
           {
             mutex_lock lck(mu_);
             while ((!finish_send_) && buffer_.empty()) {
@@ -471,6 +568,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               args = buffer_.front().value;
               buffer_.pop_front();
               for (auto &tensor : args) {
+                if ((tensor.dtype() == DT_STRING) && (!is_string)) {
+                  ADP_LOG(INFO) << "Data type is string, do not use memory pool";
+                  is_string = true;
+                }
+                args_tensor_size += tensor.TotalBytes();
                 total_bytes_ -= tensor.TotalBytes();
               }
             }
@@ -479,28 +581,29 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-            status = SendDataByAclQueue(args, data_type);
+            std::vector<Tensor> result_args;
+            if ((!is_string) && (data_type != ACL_TENSOR_DATA_END_OF_SEQUENCE) &&
+                (data_type != ACL_TENSOR_DATA_ABNORMAL)) {
+              if (!HandleMemory(args, result_args, args_tensor_size)) {
+                StopNotify();
+                ADP_LOG(ERROR) << "Get Memory from memory pool failed.";
+                return;
+              }
+            } else {
+              result_args = args;
+            }
+            status = SendDataByAclQueue(result_args, data_type);
           } else {
             status = SendDataByHostQueue(args, data_type);
           }
           if (!status.ok()) {
-            {
-              mutex_lock lck(mu_);
-              cancelled_ = true;
-            }
-            destory_var_.notify_all();
-            cond_var_.notify_all();
+            StopNotify();
             ADP_LOG(ERROR) << "Send data failed." << status.ToString();
             return;
           }
           if ((data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) || (data_type == ACL_TENSOR_DATA_ABNORMAL)) {
             std::string data_type_str = data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE ? "end of sequence" : "abnormal";
-            {
-              mutex_lock lck(mu_);
-              cancelled_ = true;
-            }
-            destory_var_.notify_all();
-            cond_var_.notify_all();
+            StopNotify();
             ADP_LOG(INFO) << "Send " << data_type_str << " data success.";
             return;
           }
@@ -694,7 +797,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
         }
         if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-          TF_RETURN_IF_ERROR(mem_pool_.Init(dataset()->device_id_));
+          TF_RETURN_IF_ERROR(thread_pool_.Init(dataset()->device_id_));
         }
         {
           mutex_lock lck(mu_);
@@ -736,6 +839,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       condition_variable destory_var_;
       std::deque<BufferElement> buffer_ GUARDED_BY(mu_);
       MemoryPool mem_pool_;
+      HostThreadPool thread_pool_;
+      std::atomic<uint32_t> event_num_;
+      mutex event_finish_mu_;
+      bool event_finish_flag_ GUARDED_BY(event_finish_mu_) = false;
+      condition_variable event_finish_var_;
       bool cancelled_ GUARDED_BY(mu_) = true;
       bool finish_send_ GUARDED_BY(mu_) = false;
       uint64_t total_bytes_ GUARDED_BY(mu_) = 0;
