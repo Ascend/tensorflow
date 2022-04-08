@@ -27,7 +27,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
 }
 
 TEST(DynamicGruV2GradTest, TestDynamicGruV2Grad) {
-  DataTypeSlice input_types({DT_HALF, DT_HALF, DT_HALF, DT_FLOAT, DT_FLOAT,
+  DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT,
                              DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT,
                              DT_FLOAT, DT_FLOAT});
   MemoryTypeSlice input_memory_types;
@@ -58,9 +58,9 @@ TEST(DynamicGruV2GradOpTest, TestDynamicGruV2GradShapeInference) {
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Attr("T", DT_FLOAT)
                   .Attr("direction", "BIDIRECTIONAL")
-                  .Input(FakeInputStub(DT_HALF))
-                  .Input(FakeInputStub(DT_HALF))
-                  .Input(FakeInputStub(DT_HALF))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))

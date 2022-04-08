@@ -45,9 +45,9 @@ REGISTER_OP("FastGeluGrad")
     .SetShapeFn(tensorflow::shape_inference::MergeBothInputsShapeFn);
 
 REGISTER_OP("DynamicGruV2")
-    .Input("x: float16")
-    .Input("weight_input: float16")
-    .Input("weight_hidden: float16")
+    .Input("x: T")
+    .Input("weight_input: T")
+    .Input("weight_hidden: T")
     .Input("bias_input: T")
     .Input("bias_hidden: T")
     .Input("seq_length: int32")
@@ -101,9 +101,9 @@ REGISTER_OP("DynamicGruV2")
     });
 
 REGISTER_OP("DynamicGruV2Grad")
-    .Input("x: float16")
-    .Input("weight_input: float16")
-    .Input("weight_hidden: float16")
+    .Input("x: T")
+    .Input("weight_input: T")
+    .Input("weight_hidden: T")
     .Input("y: T")
     .Input("init_h: T")
     .Input("h: T")
@@ -151,6 +151,122 @@ REGISTER_OP("DynamicGruV2Grad")
       c->set_output(5, output_dh_prev_shape);
       return Status::OK();
     });
+
+REGISTER_OP("DynamicAUGRU")
+.Input("x: T")
+.Input("weight_input: T")
+.Input("weight_hidden: T")
+.Input("weight_att: T")
+.Input("bias_input: T")
+.Input("bias_hidden: T")
+.Input("seq_length: int32")
+.Input("init_h: T")
+.Output("y: T")
+.Output("output_h: T")
+.Output("update: T")
+.Output("update_att: T")
+.Output("reset: T")
+.Output("new: T")
+.Output("hidden_new: T")
+.Attr("T: {float16, float32}")
+.Attr("direction: string")
+.Attr("cell_depth: int = 1")
+.Attr("keep_prob: float = 1.0")
+.Attr("cell_clip: float = -1.0")
+.Attr("num_proj: int = 0")
+.Attr("time_major: bool = true")
+.Attr("activation: string")
+.Attr("gate_order: string")
+.Attr("reset_after: bool = true")
+.Attr("is_training: bool = true")
+.SetIsStateful()
+.SetShapeFn([](InferenceContext *c) {
+auto input_shape = c->input(0);
+auto weight_hidden_shape = c->input(2);
+auto num_step = c->Dim(input_shape, 0);
+auto batch_size = c->Dim(input_shape, 1);
+auto hidden_size = c->Dim(weight_hidden_shape, 0);
+int num_proj = 0;
+TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
+ShapeHandle output_y_shape;
+if (num_proj == 0) {
+output_y_shape = c->MakeShape({num_step, batch_size, hidden_size});
+} else {
+std::vector<DimensionHandle> num_projs;
+num_projs.reserve(num_proj);
+auto num_proj_shape = c->MakeShape(num_projs);
+DimensionHandle num_proj_size = c->Dim(num_proj_shape, 0);
+DimensionHandle output_hidden_size;
+TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
+output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
+}
+auto output_h_shape = c->MakeShape({num_step, batch_size, hidden_size});
+c->set_output(0, output_y_shape);
+c->set_output(1, output_h_shape);
+c->set_output(2, c->UnknownShape());
+c->set_output(3, c->UnknownShape());
+c->set_output(4, c->UnknownShape());
+c->set_output(5, c->UnknownShape());
+c->set_output(6, c->UnknownShape());
+return Status::OK();
+});
+
+REGISTER_OP("DynamicAUGRUGrad")
+.Input("x: T")
+.Input("weight_input: T")
+.Input("weight_hidden: T")
+.Input("weight_att: T")
+.Input("y: T")
+.Input("init_h: T")
+.Input("h: T")
+.Input("dy: T")
+.Input("dh: T")
+.Input("update: T")
+.Input("update_att: T")
+.Input("reset: T")
+.Input("new: T")
+.Input("hidden_new: T")
+.Output("dw_input: T")
+.Output("dw_hidden: T")
+.Output("db_input: T")
+.Output("db_hidden: T")
+.Output("dx: T")
+.Output("dh_prev: T")
+.Output("dw_att: T")
+.Attr("T: {float16, float32}")
+.Attr("direction: string")
+.Attr("cell_depth: int = 1")
+.Attr("keep_prob: float = 1.0")
+.Attr("cell_clip: float = -1.0")
+.Attr("num_proj: int = 0")
+.Attr("time_major: bool = true")
+.Attr("gate_order: string")
+.Attr("reset_after: bool = true")
+.SetIsStateful()
+.SetShapeFn([](InferenceContext *c) {
+auto input_shape = c->input(0);
+auto weight_hidden_shape = c->input(2);
+auto num_step = c->Dim(input_shape, 0);
+auto batch_size = c->Dim(input_shape, 1);
+auto input_size = c->Dim(input_shape, 2);
+auto hidden_size = c->Dim(weight_hidden_shape, 0);
+auto hidden_size_1 = c->Dim(weight_hidden_shape, 1);
+auto output_dw_input_shape = c->MakeShape({input_size, hidden_size_1});
+auto output_dw_hidden_shape = c->MakeShape({hidden_size, hidden_size_1});
+auto output_db_input_shape = c->MakeShape({hidden_size_1});
+auto output_db_hidden_shape = c->MakeShape({hidden_size_1});
+auto output_dx_shape = c->MakeShape({num_step, batch_size, input_size});
+auto output_dh_prev_shape = c->MakeShape({batch_size, hidden_size});
+auto output_dw_att_shape = c->MakeShape({num_step, batch_size});
+c->set_output(0, output_dw_input_shape);
+c->set_output(1, output_dw_hidden_shape);
+c->set_output(2, output_db_input_shape);
+c->set_output(3, output_db_hidden_shape);
+c->set_output(4, output_dx_shape);
+c->set_output(5, output_dh_prev_shape);
+c->set_output(6, output_dw_att_shape);
+return Status::OK();
+});
 
 REGISTER_OP("DynamicRnn")
     .Input("x: T")

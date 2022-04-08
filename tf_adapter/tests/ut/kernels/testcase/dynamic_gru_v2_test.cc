@@ -28,7 +28,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
 
 TEST(DynamicGRUV2OpTest, TestDynamicGRUV2) {
   DataTypeSlice input_types(
-      {DT_HALF, DT_HALF, DT_HALF, DT_FLOAT, DT_FLOAT, DT_INT32, DT_FLOAT});
+      {DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_INT32, DT_FLOAT});
   MemoryTypeSlice input_memory_types;
   DataTypeSlice output_types(
       {DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT});
@@ -57,9 +57,9 @@ TEST(DynamicGRUV2OpTest, TestDynamicGRUV2ShapeInference) {
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Attr("T", DT_FLOAT)
                   .Attr("direction", "BIDIRECTIONAL")
-                  .Input(FakeInputStub(DT_HALF))
-                  .Input(FakeInputStub(DT_HALF))
-                  .Input(FakeInputStub(DT_HALF))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_INT32))

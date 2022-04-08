@@ -192,6 +192,7 @@ class DynamicGRUV2(_DynamicBasic):
         if input_shape[2].value is None:
             raise ValueError("Expected input_shape[2] to be known, saw shape: input_size.")
         input_size = input_shape[2].value
+        batch_size = input_shape[1].value
         stdv = 1.0 / math.sqrt(self._hidden_size)
         self._gruv2_weight_input = self.add_variable(
             "dynamicgruv2/weight_input",
@@ -231,6 +232,101 @@ class DynamicGRUV2(_DynamicBasic):
         self._args["bias_input"] = self._bias_input
         self._args["bias_hidden"] = self._bias_hidden
         return gen_npu_ops.dynamic_gru_v2(**self._args)
+
+
+class DynamicAUGRU(_DynamicBasic):
+    """Create a basic class for dynamicaugru using Layer."""
+
+    def __init__(self,
+                 hidden_size,
+                 dtype,
+                 direction=DYNAMIC_RNN_UNIDIRECTION,
+                 cell_depth=1,
+                 keep_prob=1.0,
+                 cell_clip=-1.0,
+                 num_proj=0,
+                 time_major=True,
+                 activation="tanh",
+                 gate_order="zrh",
+                 reset_after=True,
+                 is_training=True):
+        super(DynamicAUGRU, self).__init__(
+            hidden_size,
+            dtype,
+            direction=direction,
+            cell_depth=cell_depth,
+            keep_prob=keep_prob,
+            cell_clip=cell_clip,
+            num_proj=num_proj,
+            activation=activation,
+            time_major=time_major,
+            is_training=is_training)
+        self._gate_order = gate_order
+        self._reset_after = reset_after
+        self._args["gate_order"] = self._gate_order
+        self._args["reset_after"] = self._reset_after
+        self._augru_weight_input = None
+        self._augru_weight_hidden = None
+        self._bias_input = None
+        self._bias_hidden = None
+
+    @property
+    def gate_order(self):
+        """Return property"""
+        return self._gate_order
+
+    @property
+    def reset_after(self):
+        """Return property"""
+        return self._reset_after
+
+    def build(self, input_shape):
+        """Build class"""
+        if input_shape[2].value is None:
+            raise ValueError("Expected input_shape[2] to be known, saw shape: input_size.")
+        input_size = input_shape[2].value
+        batch_size = input_shape[1].value
+        stdv = 1.0 / math.sqrt(self._hidden_size)
+        self._augru_weight_input = self.add_variable(
+            "dynamicaugru/weight_input",
+            shape=[input_size, 3 * self._hidden_size],
+            dtype=self._dtype,
+            initializer=init_ops.random_uniform_initializer(-stdv, stdv))
+        self._augru_weight_hidden = self.add_variable(
+            "dynamicaugru/weight_hidden",
+            shape=[self._hidden_size, 3 * self._hidden_size],
+            dtype=self._dtype,
+            initializer=init_ops.random_uniform_initializer(-stdv, stdv))
+        self._bias_input = self.add_variable(
+            "dynamicaugru/bias_input",
+            shape=[3 * self._hidden_size],
+            dtype=self._dtype,
+            initializer=init_ops.random_uniform_initializer(-stdv, stdv))
+        self._bias_hidden = self.add_variable(
+            "dynamicaugru/bias_hidden",
+            shape=[3 * self._hidden_size],
+            dtype=self._dtype,
+            initializer=init_ops.random_uniform_initializer(-stdv, stdv))
+        self._init_h = array_ops.zeros([batch_size, self._hidden_size], dtype=self._dtype)
+        super(DynamicAUGRU, self).build(input_shape)
+
+    def call(self,
+             x,
+             weight_att,
+             seq_length=None,
+             init_h=None):
+        """Dynamic GRU.
+        """
+        super(DynamicAUGRU, self).call(x, seq_length=seq_length)
+        if init_h is None:
+            init_h = self._init_h
+        self._args["init_h"] = init_h
+        self._args["weight_input"] = self._augru_weight_input
+        self._args["weight_hidden"] = self._augru_weight_hidden
+        self._args["weight_att"] = weight_att
+        self._args["bias_input"] = self._bias_input
+        self._args["bias_hidden"] = self._bias_hidden
+        return gen_npu_ops.dynamic_augru(**self._args)
 
 
 class DynamicRNN(_DynamicBasic):
