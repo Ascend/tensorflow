@@ -18,11 +18,6 @@
 #include "absl/memory/memory.h"
 #include "tensorflow/c/c_api_internal.h"
 #include "tensorflow/c/eager/c_api_internal.h"
-#include "tensorflow/core/framework/common_shape_fns.h"
-#include "tensorflow/core/framework/op.h"
-#include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/framework/shape_inference.h"
-#include "tensorflow/core/util/env_var.h"
 
 namespace tensorflow {
 namespace {
@@ -38,16 +33,4 @@ class FakeOp : public AsyncOpKernel {
   }
 };
 }  // namespace
-
-REGISTER_KERNEL_BUILDER(Name("HcomAllReduce").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomAllGather").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomBroadcast").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomReduce").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomReduceScatter").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomSend").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomReceive").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomRemoteRead").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomRemoteRefRead").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomRemoteWrite").Device(DEVICE_CPU), FakeOp);
-REGISTER_KERNEL_BUILDER(Name("HcomRemoteScatterWrite").Device(DEVICE_CPU), FakeOp);
 }  // namespace tensorflow
