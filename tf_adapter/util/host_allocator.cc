@@ -22,8 +22,7 @@ namespace tensorflow {
   }
   HostAllocator::~HostAllocator() {}
   std::string HostAllocator::Name() {
-    static std::string name = "host_allocator";
-    return name;
+    return "host_allocator";
   }
   void *HostAllocator::AllocateRaw(size_t alignment, size_t num_bytes) {
     return addr_;
