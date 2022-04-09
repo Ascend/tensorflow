@@ -579,6 +579,17 @@ tensorflow::Status NodePlacer::SpreadNpuNodeFromPlacement(Placement placement) {
 }
 
 tensorflow::Status NodePlacer::SpreadNpuNode() {
+  if (std::any_of(graph_->op_nodes().begin(), graph_->op_nodes().end(),
+                  [](tensorflow::Node *n) { return n->type_string() == "MutexLock"; })) {
+    DLOG() << "Only compile npu-only nodes as MutexLock found. MutexLock usually caused by using tf.CriticalSection(), "
+              "which is meaningless in TF2 auto graph mode, Remove it may improve you train performance";
+    for (auto node : graph_->op_nodes()) {
+      if (IsNodePlacedOn(node, Placement::NPU)) {
+        (void)GetOrCreateNpuCluster(node);
+      }
+    }
+    return tensorflow::Status::OK();
+  }
   // We spread twice as first iteration spread from determined npu node, and,
   // The second iteration spread from all unplaced node
   NPU_REQUIRES_OK(SpreadNpuNodeFromPlacement(Placement::NPU));
