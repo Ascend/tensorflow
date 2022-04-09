@@ -86,8 +86,6 @@ class NodePlacer {
 
   const std::set<tensorflow::Node *> &GetConcreteNodes(tensorflow::Node *node);
   bool VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end, std::function<bool(tensorflow::Node *)> visitor);
-  void VisitInNodes(tensorflow::Node *node, std::function<void(tensorflow::Node *)> visitor);
-  void VisitOutNodes(tensorflow::Node *node, std::function<void(tensorflow::Node *)> visitor);
 
   NodeOrCluster GetNodeOrCluster(tensorflow::Node *node);
   std::shared_ptr<Cluster> GetOrCreateNpuCluster(tensorflow::Node *node);
@@ -108,8 +106,6 @@ class NodePlacer {
   // Check weather the node can place on placement device
   bool IsNodeCanPlacedOn(tensorflow::Node *node, Placement placement);
   bool IsClusterMustPlaceOnNpu(const Cluster &cluster);
-  // Get the node current placement
-  Placement GetNodePlacement(tensorflow::Node *node);
   std::vector<tensorflow::Node *> GetNodesPlacedOn(Placement placement);
 
   TFE_Context *context_;                                                        // not owned

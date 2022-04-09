@@ -583,46 +583,6 @@ tensorflow::Status NodePlacer::SpreadNpuNode() {
   return tensorflow::Status::OK();
 }
 
-void NodePlacer::VisitOutNodes(tensorflow::Node *node, std::function<void(tensorflow::Node *)> visitor) {
-  auto iter = npu_clusters_.find(node);
-  if (iter != npu_clusters_.end()) {
-    for (auto &n : iter->second->out_nodes) {
-      visitor(node);
-    }
-  } else {
-    iter = concrete_clusters_.find(node);
-    if (iter != concrete_clusters_.end()) {
-      for (auto &n : iter->second->out_nodes) {
-        visitor(node);
-      }
-    } else {
-      for (auto n : node->out_nodes()) {
-        visitor(n);
-      }
-    }
-  }
-}
-
-void NodePlacer::VisitInNodes(tensorflow::Node *node, std::function<void(tensorflow::Node *)> visitor) {
-  auto iter = npu_clusters_.find(node);
-  if (iter != npu_clusters_.end()) {
-    for (auto &n : iter->second->in_nodes) {
-      visitor(node);
-    }
-  } else {
-    iter = concrete_clusters_.find(node);
-    if (iter != concrete_clusters_.end()) {
-      for (auto &n : iter->second->in_nodes) {
-        visitor(node);
-      }
-    } else {
-      for (auto n : node->in_nodes()) {
-        visitor(n);
-      }
-    }
-  }
-}
-
 const std::set<tensorflow::Node *> &NodePlacer::GetConcreteNodes(tensorflow::Node *node) {
   static std::set<tensorflow::Node *> kEmptyNodes;
   auto iter = concrete_clusters_.find(node);
@@ -828,19 +788,6 @@ bool NodePlacer::IsNodePlacedOn(tensorflow::Node *node, Placement placement) {
 // Check weather the node can place on placement device
 bool NodePlacer::IsNodeCanPlacedOn(tensorflow::Node *node, Placement placement) {
   return !IsNodePlaced(node) || IsNodePlacedOn(node, placement);
-}
-
-// Get the node current placement
-Placement NodePlacer::GetNodePlacement(tensorflow::Node *node) {
-  auto iter = node_placement_.find(node);
-  if (iter != node_placement_.end()) {
-    return iter->second;
-  }
-  auto iter1 = npu_clusters_.find(node);
-  if (iter1 != npu_clusters_.end()) {
-    return iter1->second->placement;
-  }
-  return Placement::WHEREVER;
 }
 
 // is this node placed in surely device
