@@ -39,7 +39,7 @@ def _npu_finite_status_after_executed(executed_ops):
         executed_ops = [executed_ops]
     with ops.get_default_graph()._attr_scope(
             {"_npu_loss_scale": attr_value_pb2.AttrValue(b=True)}):
-        with tf.control_dependencies(executed_ops):
+        with tf.control_dependencies([v for v in executed_ops if v is not None]):
             current_status = gen_npu_ops.npu_alloc_float_status()
         assign_float_status = gen_npu_ops.npu_get_float_status(current_status)
         finite_status = gen_npu_ops.npu_clear_float_status(assign_float_status)

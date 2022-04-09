@@ -72,8 +72,13 @@ def all_reduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl_wor
         return values
 
     if isinstance(values, (list, tuple,)):
-        return _all_reduce(values, reduction, fusion, fusion_id, group)
-    return _all_reduce([values], reduction, fusion, fusion_id, group)[0]
+        is_list_value = True
+    else:
+        is_list_value = False
+        values = [values]
+    reduced_values = _all_reduce([v for v in values if v is not None], reduction, fusion, fusion_id, group)
+    results = [None if v is None else reduced_values.pop(0) for v in values]
+    return results if is_list_value else results[0]
 
 
 @npu_compat_function
