@@ -15,7 +15,9 @@
  */
 
 #include "npu_global.h"
-#include "tensorflow/core/platform/mutex.h"
+
+#include "tensorflow/core/util/env_var.h"
+
 #include "npu_logger.h"
 #include "npu_micros.h"
 

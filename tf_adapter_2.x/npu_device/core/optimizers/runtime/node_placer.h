@@ -82,6 +82,7 @@ class NodePlacer {
 
   tensorflow::Status SpreadCpuNode();
   bool SpreadNpuEdge(const tensorflow::Edge &edge, bool forward);
+  tensorflow::Status SpreadNpuNodeFromPlacement(Placement placement);
   tensorflow::Status SpreadNpuNode();
 
   const std::set<tensorflow::Node *> &GetConcreteNodes(tensorflow::Node *node);

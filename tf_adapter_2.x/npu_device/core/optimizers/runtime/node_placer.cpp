@@ -556,30 +556,33 @@ tensorflow::Status NodePlacer::SpreadCpuNode() {
   return tensorflow::Status::OK();
 }
 
+tensorflow::Status NodePlacer::SpreadNpuNodeFromPlacement(Placement placement) {
+  std::vector<tensorflow::Node *> starts = GetNodesPlacedOn(placement);
+  if (starts.empty()) {
+    DLOG() << "Skip spread npu from placement " << kPlacementString[placement] << " as no nodes placed on";
+    return tensorflow::Status::OK();
+  }
+  for (auto &start : starts) {
+    (void)GetOrCreateNpuCluster(start);  // For single node
+  }
+  DLOG() << "Start spread npu from " << GetNodesPlacedOn(placement).size() << " nodes placed on "
+         << kPlacementString[placement] << ", npu node size " << GetNodesPlacedOn(Placement::NPU).size();
+
+  const auto enter = [](tensorflow::Node *node) {};
+  tensorflow::DFSFrom(*graph_, starts, enter, {}, {},
+                      [this](const tensorflow::Edge &edge) { return SpreadNpuEdge(edge, true); });
+  tensorflow::ReverseDFSFrom(*graph_, starts, enter, {}, {},
+                             [this](const tensorflow::Edge &edge) { return SpreadNpuEdge(edge, false); });
+  DLOG() << "Successfully spread npu from placement " << kPlacementString[placement] << ", npu node size "
+         << GetNodesPlacedOn(Placement::NPU).size();
+  return tensorflow::Status::OK();
+}
+
 tensorflow::Status NodePlacer::SpreadNpuNode() {
   // We spread twice as first iteration spread from determined npu node, and,
   // The second iteration spread from all unplaced node
-  for (int32_t i = 0; i < 2; i++) {
-    Placement placement = (i == 0) ? Placement::NPU : Placement::WHEREVER;
-    std::vector<tensorflow::Node *> starts = GetNodesPlacedOn(placement);
-    if (starts.empty()) {
-      DLOG() << "Skip spread npu from placement " << kPlacementString[placement] << " as no nodes placed on";
-      continue;
-    }
-    for (auto &start : starts) {
-      (void)GetOrCreateNpuCluster(start);  // For single node
-    }
-    DLOG() << "Start spread npu from " << GetNodesPlacedOn(placement).size() << " nodes placed on "
-           << kPlacementString[placement] << ", npu node size " << GetNodesPlacedOn(Placement::NPU).size();
-
-    const auto enter = [](tensorflow::Node *node) {};
-    tensorflow::DFSFrom(*graph_, starts, enter, {}, {},
-                        [this](const tensorflow::Edge &edge) { return SpreadNpuEdge(edge, true); });
-    tensorflow::ReverseDFSFrom(*graph_, starts, enter, {}, {},
-                               [this](const tensorflow::Edge &edge) { return SpreadNpuEdge(edge, false); });
-    DLOG() << "Successfully spread npu from placement " << kPlacementString[placement] << ", npu node size "
-           << GetNodesPlacedOn(Placement::NPU).size();
-  }
+  NPU_REQUIRES_OK(SpreadNpuNodeFromPlacement(Placement::NPU));
+  NPU_REQUIRES_OK(SpreadNpuNodeFromPlacement(Placement::WHEREVER));
   return tensorflow::Status::OK();
 }
 
