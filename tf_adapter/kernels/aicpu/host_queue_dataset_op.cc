@@ -123,7 +123,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   void SetChannelType() {
-    ADP_LOG(INFO) << "kIsNewDataTransfer is: " << kIsNewDataTransfer;
+    ADP_LOG(INFO) << "Mubf flag is: " << kIsNewDataTransfer;
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
     } else if (kIsNewDataTransfer) {
@@ -336,8 +336,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               ADP_LOG(ERROR) << "Len is less than zero, len:" << len;
               return;
             }
-            auto ret = aclrtMemcpy(dst, dst_size - start, src, len, ACL_MEMCPY_HOST_TO_HOST);
-            if (ret != ACL_ERROR_NONE) {
+            auto ret = memcpy_s(dst, dst_size - start, src, len);
+            if (ret != EOK) {
               ADP_LOG(ERROR) << "Memcpy failed, start:" << start << ", len: " << len;
               return;
             }
@@ -368,8 +368,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if (src_size > PARALLEL_MEMORY_TRHESHOLD) {
             ParallelCopy(dst_ptr, dst_size, src_ptr, src_size);
           } else {
-            auto ret = aclrtMemcpy(dst_ptr, dst_size, src_ptr, src_size, ACL_MEMCPY_HOST_TO_HOST);
-            if (ret != ACL_ERROR_NONE) {
+            auto ret = memcpy_s(dst_ptr, dst_size, src_ptr, src_size);
+            if (ret != EOK) {
               ADP_LOG(ERROR) << "Memcpy failed, dst_size:" << dst_size << ", src_size: " << src_size;
               return false;
             }
@@ -400,13 +400,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
         RecordStart(ctx.get());
         auto cleanup = gtl::MakeCleanup([this, ctx] { RecordStop(ctx.get()); });
-        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-          auto ret = aclrtSetDevice(dataset()->device_id_);
-          if (ret != ACL_ERROR_NONE) {
-            ADP_LOG(ERROR) << "Set device failed, device_id: " << dataset()->device_id_;
-            return;
-          }
-        }
         while (true) {
           {
             mutex_lock lck(mu_);
