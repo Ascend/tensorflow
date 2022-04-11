@@ -40,24 +40,8 @@ std::map<std::string, std::string> NpuAttrs::init_options_;
 const static int32_t kRuntimeTypeHeterogeneous = 1;
 bool kIsNewDataTransfer = true;
 bool GetNewDataTransferFlag() {
-  uint32_t device_id = 0U;
-  (void) GetEnvDeviceID(device_id);
-  std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions();
-  NpuAttrs::LogOptions(init_options);
-  GePlugin::GetInstance()->Init(init_options);
-  acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
-  if (check_queue_handle != nullptr) {
-    acltdtDestroyChannel(check_queue_handle);
-    return true;
-  }
-  check_queue_handle = acltdtCreateChannel(device_id, "check_is_queue");
-  if (check_queue_handle != nullptr) {
-    acltdtDestroyChannel(check_queue_handle);
-    return false;
-  } else {
-    ADP_LOG(ERROR) << "Create channel failed by acltdtCreateChannelWithCapacity and acltdtCreateChannel";
-  }
-  return true;
+  // back to tdt
+  return false;
 };
 
 extern const bool kDumpGraph = []() -> bool {
