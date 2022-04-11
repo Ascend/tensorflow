@@ -90,7 +90,13 @@ std::string VecToString(std::vector<T> vec) {
 
 struct ResourceCompare {
   bool operator()(const tensorflow::ResourceHandle &left, const tensorflow::ResourceHandle &right) const {
-    return left.name() < right.name() || left.container() < right.container() || left.device() < right.device();
+    if (left.name() != right.name()) {
+      return left.name() < right.name();
+    } else if (left.container() != right.container()) {
+      return left.container() < right.container();
+    } else {
+      return left.device() < right.device();
+    }
   }
 };
 
