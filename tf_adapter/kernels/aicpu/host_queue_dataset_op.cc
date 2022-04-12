@@ -60,7 +60,7 @@ const uint32_t MAX_THREAD_NUM = 4U;
 std::atomic<bool> tdt_release(false);
 
 // total memory usage controlled below 2G
-const uint64_t kTotalBytes = 8 * 1024 * 1024 * 1024LL;
+const uint64_t kTotalBytes = 2 * 1024 * 1024 * 1024LL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 
 enum class ChannelType {
