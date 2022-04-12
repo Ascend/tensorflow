@@ -68,11 +68,11 @@ void Cluster::UpdateTopo(uint64_t topo) {
 }
 
 tensorflow::Status NodePlacer::Apply() {
-  InitNodeTopo();
   NPU_REQUIRES_OK(CopyShareableNode());
+  InitNodeTopo();
   NPU_REQUIRES_OK(DeterminedSurelyNodes());  // Determine surely node placement
-  NPU_REQUIRES_OK(SpreadCpuNode());          // Place node on npu
-  NPU_REQUIRES_OK(BuildConcreteCluster());   // Place node can never place on npu
+  NPU_REQUIRES_OK(SpreadCpuNode());          // Place node can never place on npu
+  NPU_REQUIRES_OK(BuildConcreteCluster());   // Mark concrete nodes
   NPU_REQUIRES_OK(SpreadNpuNode());          // Place node on npu
   NPU_REQUIRES_OK(MergeCopiedSharedNodes());
   NPU_REQUIRES_OK(BuildNpuOp());
@@ -92,7 +92,7 @@ tensorflow::Status NodePlacer::CopyShareableNode() {
     }
   }
 
-  int uuid = 0U;
+  int shared_id = 0;
   for (auto node : shared_nodes) {
     std::vector<const tensorflow::Edge *> edges;
     int64_t i = 0;
@@ -105,8 +105,7 @@ tensorflow::Status NodePlacer::CopyShareableNode() {
     if (edges.empty()) {
       continue;
     }
-    auto shared_id = uuid++;
-    node->AddAttr(kSharedGroup, shared_id);
+    node->AddAttr(kSharedGroup, shared_id++);
     for (auto edge : edges) {
       tensorflow::Status status = tensorflow::Status::OK();
       DLOG() << "Copy node " << node->name() << " for colocate with " << edge->dst()->name();
