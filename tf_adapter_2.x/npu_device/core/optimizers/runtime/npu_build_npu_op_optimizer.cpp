@@ -41,7 +41,8 @@ tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGr
     tensorflow::Node *key;
     graph->SetBuiltinLoop(IsGraphNeedLoop(graph->MutableGraph(), &key) || key != nullptr);
     graph->SetExecutionType(NpuConcreteGraph::ExecutionType::MIX);
-    LOG(INFO) << graph->Op() << " run in mix mode as " << ss.str();
+    LOG(INFO) << graph->Op() << " compiled in mix mode on npu";
+    DLOG() << graph->Op() << " not fully compiled on npu as " << std::endl << ss.str();
     NPU_REQUIRES_OK(NodePlacer(context, graph->MutableGraph(), device).Apply());
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     tensorflow::FunctionDefLibrary flib;
@@ -51,6 +52,7 @@ tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGr
     DLOG() << graph->Op() << " run as mix function " << mixed_fn;
     graph->SetMixedFunctionName(mixed_fn);
   } else {
+    LOG(INFO) << graph->Op() << " fully compiled on npu";
     graph->SetExecutionType(NpuConcreteGraph::ExecutionType::NPU);
     NPU_REQUIRES_OK(graph->TryTransToNpuLoopGraph(context));
     AssembleParserAddons(context, graph->MutableGraph());
