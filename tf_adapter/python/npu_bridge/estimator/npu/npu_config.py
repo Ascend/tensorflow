@@ -92,7 +92,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  hccl_timeout=None,
                  op_wait_timeout=None,
                  op_execute_timeout=None,
-                 HCCL_algorithm=None
+                 HCCL_algorithm=None,
+                 customize_dtypes=None
                  ):
         """
         Constructs a NPUConfig.
@@ -225,6 +226,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._op_wait_timeout = op_wait_timeout
         self._op_execute_timeout = op_execute_timeout
         self._HCCL_algorithm = HCCL_algorithm
+        self._customize_dtypes = customize_dtypes
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

@@ -503,6 +503,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string op_wait_timeout;
   std::string op_execute_timeout;
   std::string HCCL_algorithm;
+  std::string customize_dtypes;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -529,6 +530,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     ctx->GetAttr("_op_wait_timeout", &op_wait_timeout);
     ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
     ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
+    ctx->GetAttr("_customize_dtypes", &customize_dtypes);
   }
 
   if (precision_mode.empty()) {
@@ -557,6 +559,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
   init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
   init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
+  init_options_["ge.exec.customizeDdtypes"] = customize_dtypes;
   if (!soc_config.empty()) {
     init_options_["ge.socVersion"] = soc_config;
   }
@@ -910,6 +913,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string op_wait_timeout;
   std::string op_execute_timeout;
   std::string HCCL_algorithm;
+  std::string customize_dtypes;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -971,6 +975,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto op_wait_timeout_value = attrs.Find("_op_wait_timeout");
   auto op_execute_timeout_value = attrs.Find("_op_execute_timeout");
   auto HCCL_algorithm_value = attrs.Find("_HCCL_algorithm");
+  auto customize_dtypes_value = attrs.Find("_customize_dtypes");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -1172,6 +1177,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (op_execute_timeout_value != nullptr) {
       op_execute_timeout = op_execute_timeout_value->s();
     }
+    if (customize_dtypes_value != nullptr) {
+      customize_dtypes = customize_dtypes_value->s();
+    }
     if (HCCL_algorithm_value != nullptr) {
       HCCL_algorithm = HCCL_algorithm_value->s();
     }
@@ -1240,7 +1248,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["device_type"] = device_type;
   all_options["hccl_timeout"] = hccl_timeout;
   all_options["op_wait_timeout"] = op_wait_timeout;
-  all_options["op_execute_timeout"] = op_execute_timeout;
+  all_options["customize_dtypes"] = customize_dtypes;
   all_options["HCCL_algorithm"] = HCCL_algorithm;
 
   return all_options;
@@ -1325,6 +1333,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string device_type = "default_device_type";
   std::string op_wait_timeout;
   std::string op_execute_timeout;
+  std::string customize_dtypes;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1654,6 +1663,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("op_execute_timeout")) {
         op_execute_timeout = std::to_string(params.at("op_execute_timeout").i());
       }
+      if (params.count("customize_dtypes")) {
+        customize_dtypes = params.at("customize_dtypes").s();
+      }
       if (params.count("HCCL_algorithm")) {
         HCCL_algorithm = params.at("HCCL_algorithm").s();
       }
@@ -1736,7 +1748,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
   init_options_["op_execute_timeout"] = op_execute_timeout;
   init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
-
+  init_options_["customize_dtypes"] = customize_dtypes;
+  init_options_["ge.exec.customize_dtypes"] = customize_dtypes;
   init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
   init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
   init_options_["ge.fusionSwitchFile"] = fusion_switch_file;
