@@ -109,10 +109,9 @@ class NodePlacer {
   bool IsClusterMustPlaceOnNpu(const Cluster &cluster);
   std::vector<tensorflow::Node *> GetNodesPlacedOn(Placement placement);
 
-  TFE_Context *context_;                                                        // not owned
-  tensorflow::Graph *graph_;                                                    // not owned
-  NpuDevice *device_;                                                           // not owned
-  std::map<tensorflow::Node *, uint64_t, StableNodeCompartor> node_shared_id_;  // node to its copied nodes group id
+  TFE_Context *context_;      // not owned
+  tensorflow::Graph *graph_;  // not owned
+  NpuDevice *device_;         // not owned
   std::map<tensorflow::Node *, uint64_t> node_topo_;
   std::map<tensorflow::Node *, Placement, StableNodeCompartor>
     node_placement_;  // Just npu or cpu, never store wherever here

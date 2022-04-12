@@ -22,6 +22,7 @@
 #include "optimizers/runtime/node_placer.h"
 
 namespace npu {
+const std::string kSharedGroup = "_shared_group_id";
 
 Cluster::Cluster(const NodePlacer *placer, tensorflow::Node *node, uint64_t topo, Placement place)
     : min_topo(topo), max_topo(topo), placement(place), placer_(placer) {
@@ -91,7 +92,7 @@ tensorflow::Status NodePlacer::CopyShareableNode() {
     }
   }
 
-  uint64_t uuid = 0U;
+  int uuid = 0U;
   for (auto node : shared_nodes) {
     std::vector<const tensorflow::Edge *> edges;
     int64_t i = 0;
@@ -105,12 +106,11 @@ tensorflow::Status NodePlacer::CopyShareableNode() {
       continue;
     }
     auto shared_id = uuid++;
-    node_shared_id_[node] = shared_id;
+    node->AddAttr(kSharedGroup, shared_id);
     for (auto edge : edges) {
       tensorflow::Status status = tensorflow::Status::OK();
       DLOG() << "Copy node " << node->name() << " for colocate with " << edge->dst()->name();
       auto copy = graph_->AddNode(node->def(), &status);
-      node_shared_id_[copy] = shared_id;
       NPU_REQUIRES_OK(status);
       graph_->AddEdge(copy, edge->src_output(), edge->dst(), edge->dst_input());
       graph_->RemoveEdge(edge);
@@ -310,9 +310,9 @@ std::vector<tensorflow::Node *> NodePlacer::MergeCopiedSharedNodes(std::vector<t
   std::vector<tensorflow::Node *> merged_nodes;
   std::map<uint64_t, std::unordered_set<tensorflow::Node *>> equal_nodes;
   for (auto node : all_nodes) {
-    auto iter = node_shared_id_.find(node);
-    if (iter != node_shared_id_.end()) {
-      equal_nodes[iter->second].insert(node);
+    auto attr = node->attrs().Find(kSharedGroup);
+    if (attr != nullptr) {
+      equal_nodes[attr->i()].insert(node);
     }
   }
   for (auto &item : equal_nodes) {
