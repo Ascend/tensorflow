@@ -63,14 +63,14 @@ void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, con
       // 这里需要根据算子选择输入格式了
       input = device->CopyTensorH2D(context, input, Format::FORMAT_ND, status);
       scope_handle_deleter.Guard(input);
-      if (TF_GetCode(status) != TF_OK) { return; }
+      NPU_REQUIRES_TFE_OK(status);
     }
     npu_inputs[i] = input;
   }
   const auto &output_types = spec->OutputTypes();
   for (size_t i = 0; i < output_types.size(); ++i) {
     outputs[i] = device->NewDeviceTensorHandle(context, Format::FORMAT_ND, output_shapes[i], output_types[i], status);
-    if (TF_GetCode(status) != TF_OK) { return; }
+    NPU_REQUIRES_TFE_OK(status);
   }
   /******************************************模拟NPU执行Start************************************/
   std::vector<TFE_TensorHandle *> acl_inputs(num_inputs);
@@ -87,12 +87,12 @@ void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, con
     }
     acl_inputs[i] = tensorflow::wrap(tensorflow::TensorHandle::CreateLocalHandle(cpu_tensor));
     scope_handle_deleter.Guard(acl_inputs[i]);
-    if (TF_GetCode(status) != TF_OK) { return; }
+    NPU_REQUIRES_TFE_OK(status);
   }
   /**********调用CPU模拟NPU Start*************/
   std::vector<TFE_TensorHandle *> acl_outputs(num_outputs);
   device->FallbackCPU(context, spec->NodeDef(), num_inputs, acl_inputs.data(), num_outputs, acl_outputs.data(), status);
-  if (TF_GetCode(status) != TF_OK) { return; }
+  NPU_REQUIRES_TFE_OK(status);
   /**********调用CPU模拟NPU End***************/
   for (int i = 0; i < num_outputs; ++i) {
     const tensorflow::Tensor *acl_tensor = nullptr;
@@ -101,7 +101,7 @@ void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, con
     NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(outputs[i], &npu_tensor));
     NPU_CTX_REQUIRES_OK(status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleFrom(acl_tensor));
     TFE_DeleteTensorHandle(acl_outputs[i]);
-    if (TF_GetCode(status) != TF_OK) { return; }
+    NPU_REQUIRES_TFE_OK(status);
   }
   /******************************************模拟NPU执行End************************************/
   DLOG() << "NPU Executing op " << spec->Op() << " succeed by npu executor";

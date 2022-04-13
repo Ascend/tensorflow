@@ -16,6 +16,10 @@
 # limitations under the License.
 #
 
+import os
+
+os.environ['ASCEND_OPP_PATH'] = 'non-existed-path'
+
 import npu_device
 from npu_device.npu_device import stupid_repeat
 
@@ -57,11 +61,11 @@ def foo_cpu_add_(v):
 
 
 class Adapter2St(unittest.TestCase):
-    def test_raise1(self):
+    def test_mix_resource(self):
         with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
             x = tf.Variable(1)
         y = tf.Variable(1)
-        self.assertRaises(tf.errors.UnimplementedError, foo_add, x, y)
+        self.assertTrue(tensor_equal(foo_add(x, y), tf.constant(2)))
 
     def test_basic0(self):
         stupid_repeat("", 1)
@@ -106,7 +110,7 @@ class Adapter2St(unittest.TestCase):
             x.assign_add(1)
             return tf.strings.to_number(v1 + v2)
 
-        self.assertRaises(tf.errors.UnimplementedError, f, tf.constant('1'), tf.constant('2'))
+        self.assertTrue(tensor_equal(f(tf.constant('1'), tf.constant('2')), tf.constant(12)))
 
     def test_string_unimp2(self):
         x = tf.Variable(1)
@@ -116,7 +120,7 @@ class Adapter2St(unittest.TestCase):
             x.assign_add(1)
             return v1 + v2
 
-        self.assertRaises(tf.errors.UnimplementedError, f, tf.constant('1'), tf.constant('2'))
+        self.assertTrue(tensor_equal(f(tf.constant('1'), tf.constant('2')), tf.constant('12')))
 
     def test_string_fallback_cpu1(self):
         @tf.function

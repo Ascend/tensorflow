@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/op.h"
 
 namespace tensorflow {
@@ -32,4 +33,14 @@ REGISTER_OP("IteratorH2D")
   .Attr("channel_name: string")
   .Attr("device_ids: list(int)")
   .SetIsStateful();
+
+REGISTER_OP("NpuCall")
+  .Input("args: Tin")
+  .Output("output: Tout")
+  .Attr("Tin: list(type) >= 0")
+  .Attr("Tout: list(type) >= 0")
+  .Attr("f: func")
+  .Attr("device: int")
+  .SetIsStateful()
+  .SetShapeFn(shape_inference::UnknownShape);
 }  // namespace tensorflow

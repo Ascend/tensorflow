@@ -27,6 +27,7 @@
 #include "graph/types.h"
 
 namespace npu {
+class NpuDevice;
 class ScopeTensorHandleDeleter {
  public:
   ScopeTensorHandleDeleter() = default;
@@ -88,6 +89,8 @@ std::string VecToString(std::vector<T> vec) {
   return s + "]";
 }
 
+std::string SetToString(const std::set<std::string> &vec);
+
 struct ResourceCompare {
   bool operator()(const tensorflow::ResourceHandle &left, const tensorflow::ResourceHandle &right) const {
     if (left.name() != right.name()) {
@@ -104,6 +107,26 @@ void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorfl
                                    bool keep_signature = false);
 
 void FixGraphArgRetvalIndex(tensorflow::Graph *graph);
+
+bool IsSubstituteNode(const tensorflow::Node *node);
+
+bool IsSubstituteNode(const tensorflow::NodeDef &def);
+
+bool IsNodeHasSubgraph(const tensorflow::Node *node);
+
+bool IsNodeHasSubstituteInput(const tensorflow::Node *node);
+
+tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge);
+
+std::set<std::string> GetNodeSubgraph(const tensorflow::Node *node);
+tensorflow::Status GetSubgraphUnsupportedOps(NpuDevice *device, const tensorflow::Node *node,
+                                             const tensorflow::FunctionLibraryDefinition *lib_def,
+                                             std::set<std::string> &unsupported_ops);
+tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *graph,
+                                          const tensorflow::FunctionLibraryDefinition *lib_def,
+                                          std::set<std::string> &unsupported_ops);
+
+bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key);
 
 uint64_t NextUUID();
 

@@ -15,7 +15,9 @@
  */
 
 #include "npu_global.h"
-#include "tensorflow/core/platform/mutex.h"
+
+#include "tensorflow/core/util/env_var.h"
+
 #include "npu_logger.h"
 #include "npu_micros.h"
 
@@ -30,6 +32,8 @@ std::atomic_int64_t g_npu_loop_size{[]() -> int64_t {
   }
   return loop_size;
 }()};
+
+std::unordered_set<std::string> g_npu_specify_ops;
 
 tensorflow::mutex dev_memory_shared_lock;
 bool dev_memory_released{false};
@@ -54,5 +58,21 @@ tensorflow::Status RtsCtx::EnsureInitialized() {
 
 aclrtContext RtsCtx::global_ctx_{nullptr};
 std::atomic_bool RtsCtx::global_ctx_set_{false};
+
+std::map<int, NpuCtx::Ctx> NpuCtx::npu_ctx_;
+
+void NpuCtx::SetDeviceCtx(int id, TFE_Context *ctx, NpuDevice *device) {
+  auto &npu_ctx = npu_ctx_[id];
+  npu_ctx.ctx = ctx;
+  npu_ctx.device = device;
+}
+tensorflow::Status NpuCtx::GetDeviceCtx(int id, TFE_Context **ctx, NpuDevice **device) {
+  auto iter = npu_ctx_.find(id);
+  NPU_REQUIRES(iter != npu_ctx_.end(),
+               tensorflow::errors::Internal("Device instance on device ", id, " has not been created"));
+  *ctx = iter->second.ctx;
+  *device = iter->second.device;
+  return tensorflow::Status::OK();
+}
 }  // namespace global
 }  // namespace npu

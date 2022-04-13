@@ -34,7 +34,7 @@ void NpuMirroredOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
                             int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const {
   NPU_CTX_REQUIRES(status, custom_kernel_ != nullptr, tensorflow::errors::Internal(Op(), " hook func is nullptr"));
   device->FallbackCPU(context, NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
-  if (TF_GetCode(status) != TF_OK) { return; }
+  NPU_REQUIRES_TFE_OK(status);
   custom_kernel_(context, device, NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
 }
 }  // namespace npu

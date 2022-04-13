@@ -49,6 +49,8 @@ class NpuDevice {
 
   static void DeleteDevice(void *device);
 
+  static tensorflow::Status LoadSupportedOps(std::unordered_set<std::string> &ops);
+
   void ReleaseResource();
 
   tensorflow::Status InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
@@ -60,6 +62,10 @@ class NpuDevice {
 
   tensorflow::Status ValidateOutputTypes(const TensorDataTypes &data_types) const;
   tensorflow::Status ValidateInputTypes(const TensorDataTypes &data_types) const;
+
+  bool SupportedInputType(tensorflow::DataType data_type) const;
+  bool SupportedOutputType(tensorflow::DataType data_type) const;
+  bool SupportedInputAndOutputType(tensorflow::DataType data_type) const;
 
   TFE_TensorHandle *NewDeviceTensorHandle(TFE_Context *context, ge::Format fmt, const tensorflow::TensorShape &shape,
                                           tensorflow::DataType type, TF_Status *status);
@@ -141,6 +147,7 @@ class NpuDevice {
   void CacheOpExecutor(std::shared_ptr<const OpExecutor> spec);
 
   bool Supported(const std::string &op) const;
+  bool IsNpuSpecificOp(const std::string &op) const;
   bool SupportedResourceGenerator(const std::string &op) const;
 
   void RecordResourceGeneratorDef(const tensorflow::ResourceHandle &key, std::shared_ptr<ResourceGenerator> src);
@@ -218,11 +225,15 @@ class NpuDevice {
   std::unique_ptr<tensorflow::CancellationManager> cancellation_manager_;
   CachedOpSpecs cached_op_specs_;
   CachedFuncSpecs cached_func_specs_;
-  std::map<tensorflow::ResourceHandle, std::shared_ptr<ResourceGenerator>, ResourceCompare> device_resources_;
+  tensorflow::mutex mutex_;
+  std::map<tensorflow::ResourceHandle, std::shared_ptr<ResourceGenerator>, ResourceCompare> device_resources_
+    TF_GUARDED_BY(mutex_);
   std::map<tensorflow::ResourceHandle, std::pair<TensorPartialShapes, TensorDataTypes>, ResourceCompare>
-    iterator_mirrors_;
-  std::map<tensorflow::ResourceHandle, std::shared_ptr<IteratorResourceProvider>, ResourceCompare> iterator_providers_;
+    iterator_mirrors_ TF_GUARDED_BY(mutex_);
+  std::map<tensorflow::ResourceHandle, std::shared_ptr<IteratorResourceProvider>, ResourceCompare> iterator_providers_
+    TF_GUARDED_BY(mutex_);
   std::unique_ptr<NpuStdoutReceiver> npu_stdout_receiver_;
+  std::unordered_set<std::string> npu_supported_ops_;
 };
 }  // namespace npu
 

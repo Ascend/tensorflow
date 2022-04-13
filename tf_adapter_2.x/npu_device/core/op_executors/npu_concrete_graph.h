@@ -22,7 +22,7 @@
 namespace npu {
 class NpuConcreteGraph : public OpExecutor {
  public:
-  enum class ExecutionType { NPU, CPU, MIX };
+  enum class ExecutionType { NPU, MIX };
   NpuConcreteGraph(const std::string &name, TensorDataTypes input_dtypes, TensorDataTypes output_dtypes,
                    uint64_t ge_graph_id, std::unique_ptr<tensorflow::Graph> graph)
       : OpExecutor(name, input_dtypes, output_dtypes), ge_graph_id_(ge_graph_id), graph_(std::move(graph)) {
@@ -76,15 +76,11 @@ class NpuConcreteGraph : public OpExecutor {
  protected:
   void SetBuilt(bool built) const { built_ = built; }
   bool Built() const { return built_; }
-  tensorflow::NodeDef AsNodeDef(const std::string name) const {
-    tensorflow::NodeDef ndef;
-    ndef.set_op(name);
-    return ndef;
-  }
   ExecutionType execution_type_{ExecutionType::NPU};
   uint64_t ge_graph_id_;
   std::unique_ptr<tensorflow::Graph> graph_;
   mutable tensorflow::GraphDef graph_def_;
+  tensorflow::NodeDef mixed_ndef_;
   bool mutable built_{false};
   bool mutable need_loop_{false};
   bool mutable builtin_loop_{false};
@@ -142,6 +138,8 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
 
   void SetExecutionType(ExecutionType type) { execution_type_ = type; }
 
+  void SetMixedFunctionName(const std::string &fn) { mixed_ndef_.set_op(fn); }
+
   void SetConsumedIterators(const std::map<int, std::shared_ptr<IteratorResourceProvider>> &resources) {
     consumed_iterators_ = resources;
   }
@@ -153,7 +151,6 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
   const std::map<int32_t, tensorflow::ResourceHandle> &CpuResources() { return cpu_resources_; }
 
   tensorflow::Status TryTransToNpuLoopGraph(TFE_Context *context);
-  tensorflow::Status DevicePartition(TFE_Context *context, const NpuDevice *device);
 
  private:
   std::map<int32_t, tensorflow::ResourceHandle> npu_resources_;
