@@ -43,4 +43,10 @@ const static bool kGraphEngineGreedyMemory = []() -> bool {
   return graph_engine_greedy_memory == 1;
 }();
 
+const static std::string kOppInstallPath = []() -> std::string {
+  std::string opp_install_path;
+  tensorflow::ReadStringFromEnvVar("ASCEND_OPP_PATH", "", &opp_install_path);
+  return opp_install_path;
+}();
+
 #endif  // NPU_DEVICE_CORE_NPU_ENV_H

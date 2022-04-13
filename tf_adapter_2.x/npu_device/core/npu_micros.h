@@ -19,9 +19,9 @@
 
 #define NPU_CTX_REQUIRES_OK(CTX, ...)          \
   do {                                         \
-    (CTX)->status = (__VA_ARGS__);               \
+    (CTX)->status = (__VA_ARGS__);             \
     if (TF_PREDICT_FALSE(!CTX->status.ok())) { \
-      LOG(ERROR) << (CTX)->status.ToString();    \
+      LOG(ERROR) << (CTX)->status.ToString();  \
       return;                                  \
     }                                          \
   } while (0)
@@ -111,6 +111,13 @@
   do {                                                                     \
     const ::tensorflow::Status _status = (__VA_ARGS__);                    \
     if (TF_PREDICT_FALSE(!_status.ok())) LOG(ERROR) << _status.ToString(); \
+  } while (0)
+
+#define NPU_REQUIRES_TFE_OK(STATUS)    \
+  do {                                 \
+    if (TF_GetCode(STATUS) != TF_OK) { \
+      return;                          \
+    }                                  \
   } while (0)
 
 #define HANDLE_ALL_FORMAT() \

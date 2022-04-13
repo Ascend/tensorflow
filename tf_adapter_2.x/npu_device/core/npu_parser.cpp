@@ -21,8 +21,8 @@
 #include "tensorflow/core/graph/algorithm.h"
 
 namespace npu {
-void AssembleParserAddons(TFE_Context *context, tensorflow::Graph *graph) {
-  tensorflow::ShapeRefiner shape_refiner(graph->versions(), npu::UnwrapCtx(context)->FuncLibDef());
+void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, tensorflow::Graph *graph) {
+  tensorflow::ShapeRefiner shape_refiner(graph->versions(), lib_def);
   auto node_shape_inference_lambda = [&shape_refiner](tensorflow::Node *node) {
     AssembleOpDef(node);
     auto status = shape_refiner.AddNode(node);
@@ -91,5 +91,8 @@ void AssembleParserAddons(TFE_Context *context, tensorflow::Graph *graph) {
     }
   };
   tensorflow::ReverseDFS(*graph, {}, node_shape_inference_lambda);
+}
+void AssembleParserAddons(TFE_Context *context, tensorflow::Graph *graph) {
+  AssembleParserAddons(npu::UnwrapCtx(context)->FuncLibDef(), graph);
 }
 }  // namespace npu

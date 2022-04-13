@@ -15,33 +15,12 @@
  */
 
 #include "tensorflow/core/graph/algorithm.h"
+
 #include "npu_device.h"
+#include "npu_utils.h"
 #include "optimizers/npu_optimizer_manager.h"
 
 namespace {
-bool IsNodeHasSubgraph(const tensorflow::Node *node) {
-  for (auto &attr : node->attrs()) {
-    if (attr.second.has_func()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool IsSubstituteNode(const tensorflow::Node *node) {
-  auto attr = node->attrs().Find("_is_substitute");
-  return (attr != nullptr) && attr->b();
-}
-
-bool IsNodeHasSubstituteInput(const tensorflow::Node *node) {
-  for (auto in_node : node->in_nodes()) {
-    if (IsSubstituteNode(in_node)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Graph *graph,
                                            std::map<int, tensorflow::Node *> arg_substitutes,
                                            bool is_while_body_graph = false);
@@ -95,7 +74,7 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   for (int i = 0; i < node->num_inputs(); i++) {
     const tensorflow::Edge *edge;
     NPU_REQUIRES_OK(node->input_edge(i, &edge));
-    if (IsSubstituteNode(edge->src())) {
+    if (npu::IsSubstituteNode(edge->src())) {
       DLOG() << "Node input " << i << " from substitute " << edge->src()->name();
       substitutes[i] = edge->src();
     } else {
@@ -141,7 +120,9 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (IsSubstituteNode(edge->src())) { continue; }
+    if (npu::IsSubstituteNode(edge->src())) {
+      continue;
+    }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
       graph->AddControlEdge(edge->src(), pruned_node);
@@ -183,7 +164,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
   for (int i = 0; i < node->num_inputs(); i++) {
     const tensorflow::Edge *edge;
     NPU_REQUIRES_OK(node->input_edge(i, &edge));
-    if ((i < kFunctionArgIndex) || (!IsSubstituteNode(edge->src()))) {
+    if ((i < kFunctionArgIndex) || (!npu::IsSubstituteNode(edge->src()))) {
       pruned_index.emplace(edge->dst_input(), pruned_index.size());
       continue;
     }
@@ -226,7 +207,9 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (IsSubstituteNode(edge->src())) { continue; }
+    if (npu::IsSubstituteNode(edge->src())) {
+      continue;
+    }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
       graph->AddControlEdge(edge->src(), pruned_node);
@@ -279,7 +262,7 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
 
   std::set<tensorflow::Node *> nodes_has_subgraph;
   const std::function<void(tensorflow::Node *)> &enter = [&nodes_has_subgraph](tensorflow::Node *node) {
-    if (IsNodeHasSubgraph(node) && IsNodeHasSubstituteInput(node)) {
+    if (npu::IsNodeHasSubgraph(node) && npu::IsNodeHasSubstituteInput(node)) {
       DLOG() << "Node " << node->name() << " with function will be pruned";
       nodes_has_subgraph.insert(node);
     };
@@ -319,7 +302,9 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
   std::map<int32_t, int32_t> bypass_outputs;
   std::map<int32_t, tensorflow::Node *> indexed_retvals;
   for (auto node : mutable_graph->op_nodes()) {
-    if (!node->IsRetval()) { continue; }
+    if (!node->IsRetval()) {
+      continue;
+    }
     indexed_retvals[node->attrs().Find("index")->i()] = node;
   }
 
@@ -335,7 +320,9 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
   PruneGraphByFunctionSignature(*fdef, mutable_graph);
 
   for (auto node : mutable_graph->op_nodes()) {
-    if (!node->IsArg()) { continue; }
+    if (!node->IsArg()) {
+      continue;
+    }
     auto index = node->attrs().Find("index")->i();
 
     const tensorflow::Tensor *tensor = nullptr;

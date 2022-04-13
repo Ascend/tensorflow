@@ -1348,7 +1348,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_dump_debug")) {
         enable_dump_debug = params.at("enable_dump_debug").b();
       }
-      if (enable_dump || enable_dump_debug) {
+      if ((enable_dump || enable_dump_debug) && (!kIsHeterogeneous)) {
         if (params.count("dump_path")) {
           std::string tmp_path = params.at("dump_path").s();
           Status s = CheckPath(tmp_path, dump_path);

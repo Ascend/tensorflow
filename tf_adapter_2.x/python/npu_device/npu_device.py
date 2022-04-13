@@ -31,7 +31,6 @@ from tensorflow.python.util import tf_contextlib
 
 from npu_device.configs.npu_config import NpuConfig
 
-gen_npu_ops = tf.load_op_library(os.path.join(os.path.dirname(__file__), "_npu_ops.so"))
 NPU = "/job:localhost/replica:0/task:0/device:NPU"
 
 # Import the low-level C/C++ module
@@ -39,6 +38,19 @@ if __package__ or "." in __name__:
     from . import _npu_device_backends
 else:
     import _npu_device_backends
+
+
+@tf_contextlib.contextmanager
+def watch_op_register():
+    try:
+        _npu_device_backends.WatchOpRegister()
+        yield
+    finally:
+        _npu_device_backends.StopWatchOpRegister()
+
+
+with watch_op_register():
+    gen_npu_ops = tf.load_op_library(os.path.join(os.path.dirname(__file__), "_npu_ops.so"))
 
 
 def stupid_repeat(word, times):

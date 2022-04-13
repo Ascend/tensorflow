@@ -52,7 +52,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
         shapes.push_back(shape);
       }
       auto resource = tensor->scalar<tensorflow::ResourceHandle>()();
-      DLOG() << "Record mirrored host resource " << resource.DebugString();
+      DLOG() << "Start record mirrored host resource " << resource.DebugString();
 
       auto generator_ndef = std::make_shared<tensorflow::NodeDef>();
       tensorflow::NodeDefBuilder(npu::WrapResourceName(resource.name()), "IteratorV2")
@@ -61,8 +61,31 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
         .Attr("output_types", types)
         .Attr("output_shapes", vec_shapes)
         .Finalize(generator_ndef.get());
-      dev->RecordResourceGeneratorDef(resource, std::make_shared<ResourceGenerator>(generator_ndef, 0));
-      dev->RecordIteratorMirror(resource, shapes, types);
+
+      std::stringstream ss;
+      for (size_t j = 0; j < types.size(); j++) {
+        auto &type = types[j];
+        DLOG() << "Output " << j << " " << tensorflow::DataTypeString(type) << " " << vec_shapes[j].DebugString();
+        if (tensorflow::DataTypeCanUseMemcpy(type)) {
+          continue;
+        } else if (type == tensorflow::DT_STRING) {
+          tensorflow::TensorShape shape;
+          if (vec_shapes[j].AsTensorShape(&shape) && tensorflow::TensorShapeUtils::IsScalar(shape)) {
+            continue;
+          } else {
+            ss << "Output " << j << " unsupported non scalar string " << vec_shapes[j].DebugString();
+          }
+        } else {
+          ss << "Output " << j << " unsupported data type " << tensorflow::DataTypeString(type);
+        }
+      }
+      if (ss.str().empty()) {
+        DLOG() << "Mirrored host resource " << resource.DebugString() << " recorded";
+        dev->RecordResourceGeneratorDef(resource, std::make_shared<ResourceGenerator>(generator_ndef, 0));
+        dev->RecordIteratorMirror(resource, shapes, types);
+      } else {
+        DLOG() << "Skip mirror host resource " << resource.DebugString() << " as " << ss.str();
+      }
     }
   }
 };

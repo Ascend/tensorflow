@@ -228,5 +228,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::NodeDef *ndef) 
 }
 
 void AssembleParserAddons(TFE_Context *context, tensorflow::Graph *graph);
+
+void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, tensorflow::Graph *graph);
 }  // namespace npu
 #endif  // NPU_DEVICE_CORE_NPU_PARSER_H

@@ -39,12 +39,12 @@ void NpuResourceGeneratorOp::RunImpl(TFE_Context *context, NpuDevice *device, in
   }
 
   outputs[0] = device->NewDeviceResourceHandle(context, kScalarShape, status);
-  if (TF_GetCode(status) != TF_OK) { return; }
+  NPU_REQUIRES_TFE_OK(status);
 
   npu::ScopeTensorHandleDeleter scope_handle_deleter;
   TFE_TensorHandle *cpu_output = nullptr;
   device->FallbackCPU(context, NodeDef(), num_inputs, inputs, num_outputs, &cpu_output, status);
-  if (TF_GetCode(status) != TF_OK) { return; }
+  NPU_REQUIRES_TFE_OK(status);
   scope_handle_deleter.Guard(cpu_output);
 
   const tensorflow::Tensor *cpu_tensor = nullptr;
