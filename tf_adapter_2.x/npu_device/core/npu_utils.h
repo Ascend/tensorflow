@@ -144,8 +144,6 @@ class OptimizeStageGraphDumper {
   std::string graph_;
   int counter_;
 };
-
-void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::unique_ptr<tensorflow::Graph> *g);
 }  // namespace npu
 
 #endif  // NPU_DEVICE_CORE_NPU_UTILS_H

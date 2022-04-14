@@ -92,7 +92,7 @@ class NpuCallOp : public OpKernel {
     graph_def_ = std::make_unique<tensorflow::GraphDef>();
     dumper_ = std::make_unique<OptimizeStageGraphDumper>(name() + "." + attr_.name());
     CopyGraph(*fbody->graph, graph_.get());
-    NpuCustomizedOptimizeGraph(ctx->function_library(), &graph_);
+    tensorflow::OptimizeGraph(ctx->function_library(), &graph_);
     PruneGraphByFunctionSignature(*fdef, graph_.get(), true);
 
     for (auto node : graph_->op_nodes()) {

@@ -67,7 +67,7 @@ class NpuOptimizerManager {
     tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
 
     DLOG() << "Run tensorflow meta optimize";
-    NpuCustomizedOptimizeGraph(flr, graph);
+    tensorflow::OptimizeGraph(flr, graph);
 
     graph_dumper.DumpWithSubGraphs("after_tf_meta_optimize", (*graph)->ToGraphDefDebug(), lib_def);
 
