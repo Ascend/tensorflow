@@ -200,7 +200,7 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
   tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
 
-  tensorflow::OptimizeGraph(flr, &graph);
+  NpuCustomizedOptimizeGraph(flr, &graph);
 
   // Inline body function will change name of variable, which used as id for npu variable
   for (auto node : graph->op_nodes()) {

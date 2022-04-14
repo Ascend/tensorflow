@@ -907,7 +907,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
 
     std::unique_ptr<tensorflow::Graph> graph = std::make_unique<tensorflow::Graph>(lib_def);
     CopyGraph(*fbody->graph, graph.get());
-    tensorflow::OptimizeGraph(flr, &graph);
+    NpuCustomizedOptimizeGraph(flr, &graph);
 
     PruneGraphByFunctionSignature(*fdef, graph.get(), true);
 
