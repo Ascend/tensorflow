@@ -123,7 +123,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   void SetChannelType() {
-    ADP_LOG(INFO) << "Mubf flag is: " << kIsNewDataTransfer;
+    ADP_LOG(INFO) << "Mbuf flag is: " << kIsNewDataTransfer;
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
     } else if (kIsNewDataTransfer) {
@@ -310,7 +310,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         ADP_LOG(INFO) << "End to destroy queue.";
       }
-      void ParallelCopy(void *dst_ptr, uint64_t dst_size,
+
+      void NotifyEventFinish() {
+        if (event_num_.fetch_add(1U) >= (MAX_THREAD_NUM - 1)) {
+          {
+            mutex_lock lck(event_finish_mu_);
+            event_finish_flag_ = true;
+          }
+          event_finish_var_.notify_all();
+        }
+      }
+
+      bool ParallelCopy(void *dst_ptr, uint64_t dst_size,
                         const char *src_ptr, uint64_t src_size) {
         event_num_.store(0U);
         {
@@ -319,33 +330,43 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         uint64_t block_size = (src_size / MAX_THREAD_NUM);
         uint64_t remain_size = (src_size % MAX_THREAD_NUM);
-        uint64_t start = 0UL;
-        uint64_t end = 0UL;
+        uint64_t start_pos = 0ULL;
+        uint64_t end_pos = 0ULL;
+        std::atomic<bool> closure_ret(true);
         std::function<void()> closure;
         for (uint32_t i = 0U; i < MAX_THREAD_NUM; i++) {
-          start = i * block_size;
-          end = (i + 1) * block_size;
+          start_pos = i * block_size;
+          end_pos = (i + 1) * block_size;
           if (i == MAX_THREAD_NUM - 1) {
-            end += remain_size;
+            end_pos += remain_size;
           }
-          closure = [start, end, &dst_ptr, &dst_size, &src_ptr, &src_size, this] () {
-            void *dst = dst_ptr + start;
-            const char *src = src_ptr + start;
-            int64_t len = end - start;
-            if (len < 0) {
-              ADP_LOG(ERROR) << "Len is less than zero, len:" << len;
+          closure = [start_pos, end_pos, &dst_ptr, &dst_size, &src_ptr, &src_size, &closure_ret, this] () {
+            void *dst = dst_ptr + start_pos;
+            const char *src = src_ptr + start_pos;
+            uint64_t dst_len = dst_size - start_pos;
+            // end pos must bigger than start_pos
+            uint64_t len = end_pos - start_pos;
+            if (len > src_size || dst_len < len) {
+              ADP_LOG(ERROR) << "Len is invalid, len: " << len << "buffer len: " << dst_len;
+              closure_ret = false;
+              NotifyEventFinish();
               return;
             }
-            auto ret = memcpy_s(dst, dst_size - start, src, len);
-            if (ret != EOK) {
-              ADP_LOG(ERROR) << "Memcpy failed, start:" << start << ", len: " << len;
-              return;
-            }
-            if (event_num_.fetch_add(1U) >= (MAX_THREAD_NUM - 1)) {
-              mutex_lock lck(event_finish_mu_);
-              event_finish_flag_ = true;
-              event_finish_var_.notify_all();
-            }
+            uint64_t temp_len = 0ULL;
+            do {
+              uint64_t copy_size = (len > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : len;
+              if (memcpy_s(dst, static_cast<size_t>(dst_len), src, static_cast<size_t>(copy_size)) != EOK) {
+                ADP_LOG(ERROR) << "Memcpy failed, start:" << start_pos << ", len: " << copy_size;
+                closure_ret = false;
+                NotifyEventFinish();
+                return;
+              }
+              temp_len += copy_size;
+              dst_len -= copy_size;
+              dst += copy_size;
+              src += copy_size;
+            } while (temp_len < len);
+            NotifyEventFinish();
           };
           thread_pool_.PushTask(closure);
         }
@@ -354,7 +375,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         while (!event_finish_flag_) {
           event_finish_var_.wait(lck);
         }
+        if (!closure_ret) {
+          return false;
+        }
         ADP_LOG(INFO) << "End enter into parallel copy";
+        return true;
       }
 
       bool CopyTensor(void *memory_ptr, uint64_t memory_size,
@@ -366,10 +391,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           void *dst_ptr = memory_ptr + offset;
           uint64_t dst_size = memory_size - offset;
           if (src_size > PARALLEL_MEMORY_TRHESHOLD) {
-            ParallelCopy(dst_ptr, dst_size, src_ptr, src_size);
+            if (!ParallelCopy(dst_ptr, dst_size, src_ptr, src_size)) {
+              ADP_LOG(ERROR) << "Memcpy failed, dst_size:" << dst_size << ", src_size: " << src_size;
+              return false;
+            }
           } else {
-            auto ret = memcpy_s(dst_ptr, dst_size, src_ptr, src_size);
-            if (ret != EOK) {
+            if (memcpy_s(dst_ptr, dst_size, src_ptr, src_size) != EOK) {
               ADP_LOG(ERROR) << "Memcpy failed, dst_size:" << dst_size << ", src_size: " << src_size;
               return false;
             }
@@ -387,11 +414,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
       void FinishMemory() {
         if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-          {
-            mutex_lock lck(event_finish_mu_);
-            event_finish_flag_ = true;
-            event_finish_var_.notify_all();
-          }
           thread_pool_.StopThreadPool();
           (void)mem_pool_.FreeAllMemory();
         }

@@ -50,8 +50,8 @@ namespace tensorflow {
     if (temp_block.ptr == nullptr) {
       temp_block.ptr = malloc(args_size);
       if (temp_block.ptr == nullptr) {
-        ADP_LOG(ERROR) << "Malloc host memory failed";
-        return errors::InvalidArgument("Malloc host memory failed");
+        ADP_LOG(ERROR) << "rtMalloc host memory failed";
+        return errors::InvalidArgument("rtMalloc host memory failed");
       }
     }
     buffer = temp_block.ptr;
