@@ -8,7 +8,7 @@ if(TF_PKG_SERVER)
 else()
   FetchContent_Declare(
           nlohmann_json
-          URL https://github.com/nlohmann/json/releases/download/v3.6.1/include.zip
+          URL https://ascend-cann.obs.myhuaweicloud.com/json/v3.6.1/include.zip
           URL_HASH MD5=0dc903888211db3a0f170304cd9f3a89
   )
 endif()
