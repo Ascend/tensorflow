@@ -399,4 +399,17 @@ std::string SetToString(const std::set<std::string> &vec) {
   }
   return s + "]";
 }
+
+void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::unique_ptr<tensorflow::Graph> *g) {
+  tensorflow::GraphOptimizer::Options options;
+  options.cf_consider_fn = [](const tensorflow::Node *n) {
+    for (const auto &output_arg : n->op_def().output_arg()) {
+      if (output_arg.type() == tensorflow::DT_VARIANT) {
+        return false;
+      }
+    }
+    return true;
+  };
+  tensorflow::OptimizeGraph(lib, g, options);
+}
 }  // namespace npu
