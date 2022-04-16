@@ -18,6 +18,7 @@
 
 from npu_device.configs.dump_config import NpuDumpConfig
 from npu_device.configs.profiling_config import NpuProfilingConfig
+from npu_device.configs.experimental_config import NpuExperimentalConfig
 from npu_device.configs.option_base import OptionValue
 from npu_device.configs.option_base import NpuBaseConfig
 
@@ -49,5 +50,8 @@ class NpuConfig(NpuBaseConfig):
         self.enable_exception_dump = OptionValue(0, [0, 1])
         self.dump_config = NpuDumpConfig()
         self.profiling_config = NpuProfilingConfig()
+
+        # Configuration for experiment
+        self.experimental = NpuExperimentalConfig()
 
         super(NpuConfig, self).__init__()
