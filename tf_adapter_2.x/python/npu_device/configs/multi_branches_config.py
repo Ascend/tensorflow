@@ -26,7 +26,7 @@ class NpuMultiBranchesConfig(NpuBaseConfig):
     """Config for multi branches"""
     def __init__(self):
         self.input_shape = OptionValue(None, None)
-        self.dynamic_node_type = OptionValue('0', ['0'])
+        self.dynamic_node_type = OptionValue(None, ['0'])
         self.dynamic_dims = OptionValue(None, None)
 
         super(NpuMultiBranchesConfig, self).__init__()
