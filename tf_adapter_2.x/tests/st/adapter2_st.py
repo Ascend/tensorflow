@@ -28,6 +28,9 @@ import tensorflow as tf
 from tensorflow.python.eager import context
 
 npu_device.global_options().is_tailing_optimization = True
+npu_device.global_options().experimental.multi_branches_config.input_shape = "data_0:-1"
+npu_device.global_options().experimental.multi_branches_config.dynamic_node_type = "0"
+npu_device.global_options().experimental.multi_branches_config.dynamic_dims = "1;2"
 npu = npu_device.open().as_default()
 npu.workers_num = 2  # mock run in 2P env
 
@@ -298,10 +301,11 @@ class Adapter2St(unittest.TestCase):
         self.assertTrue(tensor_equal(f(), tf.constant(11.0)))
 
     def test_while_2(self):
+        v = tf.Variable(1, dtype=tf.int64)
         @tf.function
         def f(iterator):
             for i in tf.range(10):
-                next(iterator)
+                v.assign_add(next(iterator))
 
         dataset = tf.data.Dataset.range(10)
         iterator = iter(dataset)

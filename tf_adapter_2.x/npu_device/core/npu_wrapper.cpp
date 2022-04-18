@@ -89,6 +89,9 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"dump_debug_mode", ge::OPTION_EXEC_DUMP_DEBUG_MODE},
   {"enable_profiling", ge::OPTION_EXEC_PROFILING_MODE},
   {"profiling_options", ge::OPTION_EXEC_PROFILING_OPTIONS},
+  {"input_shape", ge::INPUT_SHAPE},
+  {"dynamic_node_type", ge::DYNAMIC_NODE_TYPE},
+  {"dynamic_dims", ge::kDynamicDims},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE}};
