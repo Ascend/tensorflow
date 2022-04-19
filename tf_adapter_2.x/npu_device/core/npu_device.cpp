@@ -96,7 +96,8 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   auto consume_func = [flr, f_handle, cancel_manager](tensorflow::Tensor tensor, int64_t nums) -> tensorflow::Status {
     std::vector<tensorflow::Tensor> get_next_outputs;
     tensorflow::FunctionLibraryRuntime::Options options;
-    options.cancellation_manager = cancel_manager;
+    tensorflow::CancellationManager child(cancel_manager);
+    options.cancellation_manager = &child;
     return flr->RunSync(options, f_handle, {std::move(tensor), tensorflow::Tensor(tensorflow::int64(nums))},
                         &get_next_outputs);
   };
