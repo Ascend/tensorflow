@@ -35,9 +35,11 @@ namespace tensorflow {
       return errors::InvalidArgument("Init memory pool failed");
     }
     for (size_t i = 0UL; i < copy_thread_pool_.size(); i++) {
-      std::string thread_name = "thread_pool" + std::to_string(i);
-      copy_thread_pool_[i].reset(
-          Env::Default()->StartThread({}, thread_name, [this]() { ParallelForCopyThread(); }));
+      if (copy_thread_pool_[i] == nullptr) {
+        std::string thread_name = "thread_pool" + std::to_string(i);
+        copy_thread_pool_[i].reset(
+            Env::Default()->StartThread({}, thread_name, [this]() { ParallelForCopyThread(); }));
+      }
     }
     return Status::OK();
   }
