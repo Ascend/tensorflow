@@ -18,7 +18,6 @@
 #include "securec.h"
 #include <vector>
 #include <string>
-#include "acl/acl_rt.h"
 #include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
@@ -49,8 +48,8 @@ namespace tensorflow {
     }
 
     if (temp_block.ptr == nullptr) {
-      auto ret = aclrtMallocHost(&temp_block.ptr, args_size);
-      if (ret != ACL_ERROR_NONE) {
+      temp_block.ptr = malloc(args_size);
+      if (temp_block.ptr == nullptr) {
         ADP_LOG(ERROR) << "rtMalloc host memory failed";
         return errors::InvalidArgument("rtMalloc host memory failed");
       }
@@ -83,11 +82,7 @@ namespace tensorflow {
   bool MemoryPool::FreeMemoryList(std::list<MemoryBlock> &memory_list) {
     auto memory_it = memory_list.begin();
     while (memory_it != memory_list.end()) {
-      auto ret = aclrtFreeHost(memory_it->ptr);
-      if (ret != ACL_ERROR_NONE) {
-        ADP_LOG(ERROR) << "rtFree host memory failed";
-        return false;
-      }
+      free(memory_it->ptr);
       memory_it++;
     }
     memory_list.clear();
