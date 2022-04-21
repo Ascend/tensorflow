@@ -50,12 +50,20 @@ struct DataItemInfo {
   void *data_ptr;
 };
 
+struct MsgInfo {
+  uint64_t trans_id;
+  uint16_t version;
+  uint16_t msg_type;
+  int32_t ret_code;
+  uint64_t timestamp;
+  char rsv[40];
+};
+
 const static uint32_t kMaxValue = 128U;
 const static uint32_t kMaxQueueDepth = 0x4fffffffU;
 const static uint64_t kMbufHeadMaxSize = 256UL;
 const static uint32_t kMbufHeadEndOfSequencePos = 128U;
 const static uint8_t kEndOfSequenceFlag = 0x5A;
-const static uint64_t kTransIdOffset = 64UL;
 
 Status CheckSymbols() {
   if (rtMemQueueCreate == nullptr) { return errors::Internal("rtMemQueueCreate not found"); }
@@ -179,6 +187,11 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
     }
   }
 
+  if ((head_buf != nullptr) && (head_size >= sizeof(MsgInfo))) {
+    MsgInfo *msg_info = reinterpret_cast<MsgInfo *>(static_cast<uint8_t *>(head_buf) + head_size - sizeof(MsgInfo));
+    msg_info->ret_code = 0;
+  }
+
   size_t offset = 0UL;
   for (size_t i = 0UL; i < cnt; ++i) {
     // can not use memcpy_s here, data size may over 2G
@@ -206,10 +219,12 @@ Status HostQueueSetTransId(uint32_t queue_id, void *&buff) {
   uint64_t head_size = 0UL;
   const auto ret = rtMbufGetPrivInfo(buff, &head_buff, &head_size);
   NPU_REQUIRES(ret == ACL_RT_SUCCESS, errors::Internal("call rtMbufGetPrivInfo failed, ret = ", ret));
-  uint64_t *trans_id = ge::PtrToPtr<char, uint64_t>(static_cast<char *>(head_buff) + head_size - kTransIdOffset);
-  const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
-  *trans_id = ++queue_id_to_trans_id_map[queue_id];
-  ADP_LOG(INFO) << "host queue[" << queue_id << "] set trans id[" << *trans_id << "] success";
+  if (head_size >= sizeof(MsgInfo)) {
+    MsgInfo *msg_info = ge::PtrToPtr<char, MsgInfo>(static_cast<char *>(head_buff) + head_size - sizeof(MsgInfo));
+    const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
+    msg_info->trans_id = ++queue_id_to_trans_id_map[queue_id];
+    ADP_LOG(INFO) << "host queue[" << queue_id << "] set trans id[" << msg_info->trans_id << "] success";
+  }
   return Status::OK();
 }
 
