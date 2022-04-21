@@ -30,6 +30,16 @@
 #include "npu_hdc.h"
 
 using namespace tensorflow;
+namespace {
+class DeregisterCallbackGuarder {
+ public:
+  explicit DeregisterCallbackGuarder(std::function<void()> done) : done_(done) {}
+  ~DeregisterCallbackGuarder() { done_(); }
+
+ private:
+  std::function<void()> done_;
+};
+}  // namespace
 namespace npu {
 class IteratorH2D : public OpKernel {
  public:
@@ -65,6 +75,7 @@ class IteratorH2D : public OpKernel {
       ctx->SetStatus(tensorflow::errors::Internal("Iterator resource ", channel_name_, " consume after destroyed"));
       return;
     }
+    DeregisterCallbackGuarder guarder([cm, token]() { cm->DeregisterCallback(token); });
 
     data::IteratorResource *iterator;
     OP_REQUIRES_OK(ctx, LookupResource(ctx, HandleFromInput(ctx, 0), &iterator));
@@ -102,8 +113,6 @@ class IteratorH2D : public OpKernel {
         }
       }
     }
-
-    cm->DeregisterCallback(token);
   }
 
  private:
