@@ -880,7 +880,8 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
  * @param status: tf status
  */
 uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
-                                    const tensorflow::GraphDef &def, bool loop, TF_Status *status) {
+                                    const tensorflow::GraphDef &def, bool loop, TF_Status *status,
+                                    const std::map<std::string, std::string> &options) {
   auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
   std::shared_ptr<domi::ModelParser> parser =
     domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -932,7 +933,14 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
 
   ge_graph.SetNeedIteration(loop);
 
-  NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph), graph_id);
+  if (kDumpExecutionDetail && !options.empty()) {
+    LOG(INFO) << "Add ge graph " << graph_id << " with options:";
+    for (auto &option : options) {
+      LOG(INFO) << "  " << option.first << ":" << option.second;
+    }
+  }
+  NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph, options),
+                                graph_id);
   return graph_id;
 }
 
@@ -945,8 +953,9 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
  * @param status: tf status
  */
 uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name,
-                               const tensorflow::GraphDef &def, TF_Status *status) {
-  return AddGeGraphInner(context, graph_id, name, def, false, status);
+                               const tensorflow::GraphDef &def, TF_Status *status,
+                               const std::map<std::string, std::string> &options) {
+  return AddGeGraphInner(context, graph_id, name, def, false, status, options);
 }
 
 /**
@@ -957,9 +966,9 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, uint64_t graph_id, const st
  * @param status: tf status
  */
 uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &def,
-                               TF_Status *status) {
+                               TF_Status *status, const std::map<std::string, std::string> &options) {
   uint64_t graph_id = NextUUID();
-  return AddGeGraph(context, graph_id, name, def, status);
+  return AddGeGraph(context, graph_id, name, def, status, options);
 }
 
 /**

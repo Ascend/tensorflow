@@ -106,6 +106,8 @@ class Session {
 
   Status AddGraph(uint32_t graphId, const Graph &graph);
 
+  Status AddGraph(uint32_t graphId, const Graph &graph, const std::map<std::string, std::string> &options);
+
   Status RemoveGraph(uint32_t graphId);
 
   Status RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &inputs, RunAsyncCallback callback);
