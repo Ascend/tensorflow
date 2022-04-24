@@ -22,6 +22,9 @@ from __future__ import print_function
 from enum import Enum
 import json
 import os
+from inspect import signature
+from tensorflow.core.protobuf import config_pb2
+from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
 from tensorflow.python.estimator import run_config as run_config_lib
 from tensorflow.distribute.experimental import ParameterServerStrategy
 from tensorflow.contrib.distribute import DistributeConfig
@@ -345,3 +348,44 @@ class DynamicInputConfig():
         self._input_shape = input_shape
         self._dynamic_dims = dynamic_dims
         self._dynamic_node_type = dynamic_node_type
+
+
+def set_npu_default_config(func, args, kwargs):
+    config_index = None
+    for index, param in enumerate(signature(func).parameters):
+        if param == "config":
+            config_index = index - 1  # class func first arg is self
+    tf_config = None
+    if kwargs.get("config") is not None:
+        tf_config = kwargs["config"]
+    elif len(args) > config_index:
+        tf_config = args[config_index]
+    else:
+        tf_config = config_pb2.ConfigProto()
+
+    npu_optimizer = None
+    for custom_optimizer in tf_config.graph_options.rewrite_options.custom_optimizers:
+        if custom_optimizer.name == 'NpuOptimizer':
+            npu_optimizer = custom_optimizer
+            break
+    if not npu_optimizer:
+        npu_optimizer = tf_config.graph_options.rewrite_options.custom_optimizers.add()
+        npu_optimizer.name = 'NpuOptimizer'
+
+    tf_config.allow_soft_placement = True
+    tf_config.log_device_placement = False
+    tf_config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
+    tf_config.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
+    tf_config.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
+    kwargs["config"] = tf_config
+    if len(args) > config_index:
+        args = args[:config_index] + args[config_index + 1:]
+    return args, kwargs
+
+
+def decorator_tf_session(func):
+    def class_func_wrapper(self, *args, **kwargs):
+        args, kwargs = set_npu_default_config(func, args, kwargs)
+        return func(self, *args, **kwargs)
+
+    return class_func_wrapper
