@@ -28,6 +28,12 @@ Status Session::AddGraph(uint32_t graphId, const Graph &graph) {
   return SUCCESS;
 }
 
+Status Session::AddGraph(uint32_t graphId, const Graph &graph, const std::map<std::string, std::string> &options) {
+  graphs_[graphId] = graph.graph;
+  graph_need_rebuild_[graphId] = false;
+  return SUCCESS;
+}
+
 Status Session::RemoveGraph(uint32_t graphId) {
   graphs_.erase(graphId);
   graph_need_rebuild_.erase(graphId);
@@ -63,7 +69,11 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
       if (desc_attr.find(kShape) != desc_attr.end()) {
         tensorflow::AttrValue shape_value = desc_attr.at(kShape);
         for (int i = 0; i < shape_value.list().i_size(); i++) {
-          dims.push_back(shape_value.list().i(i));
+          auto dim_size = shape_value.list().i(i);
+          if (dim_size < 0) {
+            dim_size = 1;
+          }
+          dims.push_back(dim_size);
         }
       }
       ge::DataType dtype = ge::DT_FLOAT;

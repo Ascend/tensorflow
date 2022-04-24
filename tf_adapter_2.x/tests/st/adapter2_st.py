@@ -302,6 +302,7 @@ class Adapter2St(unittest.TestCase):
 
     def test_while_2(self):
         v = tf.Variable(1, dtype=tf.int64)
+
         @tf.function
         def f(iterator):
             for i in tf.range(10):
@@ -411,6 +412,25 @@ class Adapter2St(unittest.TestCase):
         x = tf.add(1, 1)
         y = x._copy()
         self.assertTrue(tensor_equal(y, tf.constant(2)))
+
+    def test_fuzz_compile(self):
+        def gen():
+            v = [['1'], ['2', '3'], ['4', '5', '6']]
+            while len(v):
+                yield v.pop(0)
+
+        ds = tf.data.Dataset.from_generator(gen, output_types=tf.string)
+        iterator = iter(ds)
+
+        @tf.function
+        def f(it):
+            v = next(it)
+            v = tf.strings.to_number(v)
+            return v + v
+
+        self.assertTrue(tensor_equal(f(iterator), tf.constant([2.0])))
+        self.assertTrue(tensor_equal(f(iterator), tf.constant([4.0, 6.0])))
+        self.assertTrue(tensor_equal(f(iterator), tf.constant([8.0, 10.0, 12.0])))
 
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):

@@ -105,14 +105,15 @@ class NpuDevice {
                                   int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                                   TFE_TensorHandle **outputs, TF_Status *status);
 
-  uint64_t AddGeGraph(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &def,
-                      TF_Status *status);
+  uint64_t AddGeGraph(TFE_Context *context, const std::string &name, const tensorflow::GraphDef &def, TF_Status *status,
+                      const std::map<std::string, std::string> &options = {});
 
   uint64_t AddGeGraph(TFE_Context *context, uint64_t graph_id, const std::string &name, const tensorflow::GraphDef &def,
-                      TF_Status *status);
+                      TF_Status *status, const std::map<std::string, std::string> &options = {});
 
   uint64_t AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
-                           const tensorflow::GraphDef &def, bool loop, TF_Status *status);
+                           const tensorflow::GraphDef &def, bool loop, TF_Status *status,
+                           const std::map<std::string, std::string> &options = {});
 
   void RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status);
 

@@ -168,6 +168,10 @@ class NpuCallOp : public OpKernel {
       }
       built_ = true;
     } else {
+      if (!fuzz_compile_ && shape_changed) {  // Input shape changed since graph was built
+        DLOG() << "Fuzz compile npu graph of " << name() << " as input shape changed since last built";
+        fuzz_compile_ = true;
+      }
       if (shape_changed || device->GeSession()->IsGraphNeedRebuild(graph_id_)) {
         DLOG() << "Remove and re-add ge graph " << attr_.name() << " with id " << graph_id_ << " as "
                << (shape_changed ? "shape changed" : "need rebuild");
@@ -175,7 +179,13 @@ class NpuCallOp : public OpKernel {
           NPU_CTX_REQUIRES_GE_OK(status, "Graph engine remove graph", device->GeSession()->RemoveGraph(graph_id_));
         }();
         NPU_REQUIRES_OK(status->status);
-        device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get());
+        const static std::map<std::string, std::string> kOptions;
+        const static std::map<std::string, std::string> kFuzzCompileOptions{
+          {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
+          {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
+          {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
+        device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(),
+                           (fuzz_compile_ ? kFuzzCompileOptions : kOptions));
         NPU_REQUIRES_OK(status->status);
       }
     }
@@ -184,23 +194,24 @@ class NpuCallOp : public OpKernel {
 
  private:
   static PartialTensorShape MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) {
+    const static auto kUnknownRankShape = PartialTensorShape();
     if (a.dims() != b.dims()) {
-      return PartialTensorShape();
+      return kUnknownRankShape;
     }
     PartialTensorShape shape;
     static constexpr int64 kUnknownDim = -1;
+    std::vector<int64> dims;
     for (int i = 0; i < a.dims(); i++) {
-      if (a.dim_size(i) != b.dim_size(i)) {
-        shape.AddDim(kUnknownDim);
-      } else {
-        shape.AddDim(a.dim_size(i));
-      }
+      dims.push_back((a.dim_size(i) != b.dim_size(i)) ? kUnknownDim : a.dim_size(i));
     }
-    return shape;
+    auto status = PartialTensorShape::MakePartialShape(dims.data(), dims.size(), &shape);
+    NPU_LOG_IF_ERROR(status);
+    return status.ok() ? shape : kUnknownRankShape;
   }
 
   bool initialized_{false};
   bool built_{false};
+  bool fuzz_compile_{false};
   bool empty_ge_graph_{false};
   int device_id_{0};
   uint64_t graph_id_{0U};
