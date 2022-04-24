@@ -339,6 +339,7 @@ tensorflow::Status NodePlacer::MergeCopiedSharedNodes() {
     auto merged = MergeCopiedSharedNodes(std::vector<tensorflow::Node *>(cluster->nodes.begin(), cluster->nodes.end()));
     for (auto &node : merged) {
       DLOG() << "Merge and remove copied node " << node->name() << " in cluster " << cluster->name;
+      npu_clusters_.erase(node);
       graph_->RemoveNode(node);
       cluster->nodes.erase(node);
     }
