@@ -93,8 +93,8 @@ else()
     set(CMAKE_VERBOSE_MAKEFILE ON)
 
     # rewrite __FILE__ to avoid absolute path
-    set(CMAKE_C_COMPILE_OBJECT "<CMAKE_C_COMPILER> <DEFINES> -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
-    set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> <DEFINES>  -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
+    set(CMAKE_C_COMPILE_OBJECT "<CMAKE_C_COMPILER> <DEFINES> -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath <SOURCE>))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
+    set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> <DEFINES>  -D__FILE__='\"$(subst ${CMAKE_CURRENT_SOURCE_DIR}/,,$(abspath <SOURCE>))\"' -Wno-builtin-macro-redefined  <INCLUDES> <FLAGS> -o <OBJECT>  -c <SOURCE>")
 
     add_definitions(-DASCEND_CI_LIMITED_PY37)
 
@@ -239,7 +239,7 @@ else()
         && cd ${CMAKE_CURRENT_LIST_DIR}/tf_adapter_2.x/
         && rm -rf build && mkdir build && cd build
         && cmake .. -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DPYTHON_BIN_PATH=${HI_PYTHON_PATH} -DPYTHON_INCLUDE_DIR=${HI_PYTHON_INC} -DASCEND_CI_BUILD_DIR=${TOP_DIR}
-        && make -j32
+        && $(MAKE)
         && cp -f dist/python/dist/npu_device-0.1-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
         && echo "package ascend adapter for tensorflow 2.x end"
     )

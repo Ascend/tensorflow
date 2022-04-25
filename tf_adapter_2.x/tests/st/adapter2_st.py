@@ -70,6 +70,15 @@ class Adapter2St(unittest.TestCase):
         y = tf.Variable(1)
         self.assertTrue(tensor_equal(foo_add(x, y), tf.constant(2)))
 
+    def test_mix_merge_copied_shared_nodes(self):
+        @tf.function
+        def f(x):
+            v = tf.strings.to_number(x)
+            c = tf.constant(1.0)
+            v = tf.add(v, c)
+            return tf.add(v, c)
+        self.assertTrue(tensor_equal(f(tf.constant("2.0")), tf.constant(4.0)))
+
     def test_basic0(self):
         stupid_repeat("", 1)
 
