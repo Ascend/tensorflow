@@ -22,6 +22,7 @@ from npu_bridge.estimator.npu.npu_config import NPURunConfig
 from npu_bridge.estimator.npu.npu_config import ProfilingConfig
 from npu_bridge.estimator.npu.npu_config import DumpConfig
 from npu_bridge.estimator.npu.npu_config import DynamicInputConfig
+from npu_bridge.estimator.npu.npu_config import decorator_tf_session
 from npu_bridge.estimator.npu.npu_estimator import NPUEstimator
 from npu_bridge.estimator.npu.npu_estimator import NPUEstimatorSpec
 from npu_bridge.estimator.npu.npu_hook import NPUCheckpointSaverHook
@@ -256,3 +257,6 @@ def npu_clear_session(config=None):
     """Clear NPU session"""
     backend.clear_session()
     backend.set_session(session.Session(config=npu_config_proto(config)))
+
+session.Session.__init__ = decorator_tf_session(session.Session.__init__)
+session.InteractiveSession.__init__ = decorator_tf_session(session.InteractiveSession.__init__)
