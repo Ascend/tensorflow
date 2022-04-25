@@ -274,6 +274,7 @@ def dynamic_augru_grad(op, dy, doutput_h, dupdate, dupdate_att, dreset, dnew, dh
                                                                                                      update, update_att,
                                                                                                      reset, new,
                                                                                                      hidden_new,
+                                                                                                     seq_length,
                                                                                                      direction=op.get_attr(
                                                                                                          "direction"),
                                                                                                      cell_depth=op.get_attr(
