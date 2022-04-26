@@ -587,6 +587,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   std::string local_device_list;
   bool in_out_pair_flag = true;
   std::string in_out_pair;
+  std::string const_input;
 
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
@@ -652,6 +653,9 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       if (params.count("in_out_pair")) {
         in_out_pair = params.at("in_out_pair").s();
       }
+      if (params.count("const_input")) {
+        const_input = params.at("const_input").s();
+      }
     }
   }
   if (!do_npu_optimizer) {
@@ -681,6 +685,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   pass_options["local_device_list"] = local_device_list;
   pass_options["in_out_pair_flag"] = std::to_string(in_out_pair_flag);
   pass_options["in_out_pair"] = in_out_pair;
+  pass_options["const_input"] = const_input;
 
   return pass_options;
 }

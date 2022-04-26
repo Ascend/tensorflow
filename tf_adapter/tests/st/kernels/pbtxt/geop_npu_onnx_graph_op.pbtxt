@@ -129,6 +129,14 @@ library {
         }
       }
       attr {
+        key: "_const_input"
+        value {
+          list {
+            s: "input"
+          }
+        }
+      }
+      attr {
         key: "_NpuOptimizer"
         value {
           s: "NpuOptimizer"
