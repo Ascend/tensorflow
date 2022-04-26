@@ -174,9 +174,6 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
     return tensorflow::Status::OK();
   }
 
-  SetBuiltinLoop(false);
-  SetNeedLoop(true);
-
   const auto fn_name = key->attrs().Find("body")->func().name();
   DLOG() << "Inline while body func " << fn_name << " for node " << key->name();
   auto builder = tensorflow::NodeBuilder(key->name() + "/body", fn_name, lib_def);
@@ -214,10 +211,20 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
     }
   }
 
+  if (IsGraphHasAnyUnknownShapeNode(graph.get(), lib_def)) {
+    DLOG() << "Skip trans " << Op() << " as npu loop graph as body graph has unknown shape node";
+    SetBuiltinLoop(true);
+    SetNeedLoop(false);
+    return tensorflow::Status::OK();
+  }
+
   OptimizeStageGraphDumper graph_dumper(Op());
   graph_dumper.DumpWithSubGraphs("LOOP", graph->ToGraphDefDebug(), lib_def);
 
   SetGraph(std::move(graph));
+  SetBuiltinLoop(false);
+  SetNeedLoop(true);
+
   return tensorflow::Status::OK();
 }
 }  // namespace npu

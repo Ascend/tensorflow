@@ -67,7 +67,10 @@ void Cluster::UpdateTopo(uint64_t topo) {
   }
 }
 
-tensorflow::Status NodePlacer::Apply() {
+tensorflow::Status NodePlacer::Apply(size_t depth) {
+  const static size_t kMaxRecursionDepth = 16;
+  NPU_REQUIRES(depth <= kMaxRecursionDepth, tensorflow::errors::Unimplemented(
+                                              "Recursion depth exceed 16 when assign subgraph node device placement"));
   NPU_REQUIRES_OK(CopyShareableNode());
   InitNodeTopo();
   NPU_REQUIRES_OK(DeterminedSurelyNodes());  // Determine surely node placement
@@ -76,6 +79,7 @@ tensorflow::Status NodePlacer::Apply() {
   NPU_REQUIRES_OK(SpreadNpuNode());          // Place node on npu
   NPU_REQUIRES_OK(MergeCopiedSharedNodes());
   NPU_REQUIRES_OK(BuildNpuOp());
+  NPU_REQUIRES_OK(PlaceCpuNodeSubgraphs(depth));
   return tensorflow::Status::OK();
 }
 void NodePlacer::InitNodeTopo() {
@@ -265,6 +269,12 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
     graph_->RemoveNode(node);
   }
 
+  tensorflow::FixupSourceAndSinkEdges(graph_);
+  return tensorflow::Status::OK();
+}
+
+tensorflow::Status NodePlacer::PlaceCpuNodeSubgraphs(size_t depth) {
+  tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context_)->FuncLibDef();
   for (auto node : graph_->op_nodes()) {
     if (node->type_string() == "NpuCall") {  // Nodes placed on cpu except npu call
       continue;
@@ -276,7 +286,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
       auto &fdef = *lib_def->Find(fn);
       NPU_REQUIRES_OK(FunctionDefToBodyHelper(fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
       PruneGraphByFunctionSignature(fdef, fbody->graph, true);
-      NodePlacer(context_, fbody->graph, device_).Apply();
+      NPU_REQUIRES_OK(NodePlacer(context_, fbody->graph, device_).Apply(depth + 1));
       tensorflow::FunctionDefLibrary flib;
       OptimizeStageGraphDumper dumper(fn);
       dumper.DumpWithSubGraphs("MIX_FUNCTION", fbody->graph->ToGraphDefDebug(), lib_def);
@@ -285,9 +295,6 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
       NPU_REQUIRES_OK(lib_def->AddLibrary(flib));
     }
   }
-
-  tensorflow::FixupSourceAndSinkEdges(graph_);
-  return tensorflow::Status::OK();
 }
 
 bool NodePlacer::IsClusterMustPlaceOnNpu(const Cluster &cluster) {

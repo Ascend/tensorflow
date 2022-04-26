@@ -162,6 +162,16 @@ bool IsNodeHasSubgraph(const tensorflow::Node *node) {
   return false;
 }
 
+std::vector<std::string> GetNodeSubgraphNames(const tensorflow::Node *node) {
+  std::vector<std::string> subgraphs;
+  for (auto &attr : node->attrs()) {
+    if (attr.second.has_func()) {
+      subgraphs.push_back(attr.second.func().name());
+    }
+  }
+  return subgraphs;
+}
+
 bool IsNodeHasSubstituteInput(const tensorflow::Node *node) {
   for (auto in_node : node->in_nodes()) {
     if (IsSubstituteNode(in_node)) {
@@ -325,6 +335,83 @@ tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *
     NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(device, node, lib_def, unsupported_ops));
   }
   return tensorflow::Status::OK();
+}
+
+namespace {
+bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorflow::FunctionLibraryDefinition *lib_def,
+                                   std::queue<std::unique_ptr<tensorflow::Graph>> &q) {
+  tensorflow::ShapeRefiner shape_refiner(graph->versions(), lib_def);
+  std::atomic<bool> has_unknown_shape_node{false};
+  auto node_shape_inference_lambda = [&q, &lib_def, &has_unknown_shape_node, &shape_refiner](tensorflow::Node *node) {
+    if (has_unknown_shape_node) {
+      return;
+    }
+    auto status = shape_refiner.AddNode(node);
+    if (!status.ok()) {
+      has_unknown_shape_node = true;
+      LOG(ERROR) << node->name() << "[" << node->type_string() << "] infer shape failed " << status.error_message();
+      return;
+    }
+    auto node_ctx = shape_refiner.GetContext(node);
+    for (int i = 0; i < node_ctx->num_outputs(); ++i) {
+      tensorflow::TensorShapeProto proto;
+      node_ctx->ShapeHandleToProto(node_ctx->output(i), &proto);
+      tensorflow::PartialTensorShape shape(proto);
+      if (!shape.IsFullyDefined()) {
+        DLOG() << node->name() << "[" << node->type_string() << "] unknown shape output " << i << shape.DebugString();
+        has_unknown_shape_node = true;
+        return;
+      }
+    }
+    if (node->IsWhileNode() || node->IsCaseNode() || node->IsIfNode()) {
+      auto fns = GetNodeSubgraphNames(node);
+      std::vector<tensorflow::PartialTensorShape> shapes;
+      for (int i = (node->IsWhileNode() ? 0 : 1); i < node_ctx->num_inputs(); i++) {
+        tensorflow::TensorShapeProto proto;
+        node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
+        shapes.emplace_back(proto);
+      }
+      for (auto &fn : fns) {
+        std::unique_ptr<tensorflow::FunctionBody> fbody;
+        auto &fdef = *lib_def->Find(fn);
+        status = FunctionDefToBodyHelper(fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
+        if (!status.ok()) {
+          has_unknown_shape_node = true;
+          LOG(ERROR) << node->name() << "[" << node->type_string()
+                     << "] convert function to graph for infer shape failed " << status.error_message();
+          return;
+        }
+        auto fg = fbody->graph->Clone();
+        for (auto n : fg->op_nodes()) {
+          if (!n->IsArg()) {
+            continue;
+          }
+          n->AddAttr("_output_shapes",
+                     std::vector<tensorflow::PartialTensorShape>{shapes[n->attrs().Find("index")->i()]});
+        }
+        q.push(std::move(fg));
+      }
+    }
+  };
+  tensorflow::ReverseDFS(*graph, {}, node_shape_inference_lambda);
+  return has_unknown_shape_node;
+}
+}  // namespace
+
+bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph,
+                                   const tensorflow::FunctionLibraryDefinition *lib_def) {
+  std::queue<std::unique_ptr<tensorflow::Graph>> q;
+  if (IsGraphHasAnyUnknownShapeNode(graph, lib_def, q)) {
+    return true;
+  }
+  while (!q.empty()) {
+    auto g = std::move(q.front());
+    q.pop();
+    if (IsGraphHasAnyUnknownShapeNode(g.get(), lib_def, q)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {

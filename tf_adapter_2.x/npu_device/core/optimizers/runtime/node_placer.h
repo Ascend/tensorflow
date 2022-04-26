@@ -71,8 +71,9 @@ class NodePlacer {
  public:
   explicit NodePlacer(TFE_Context *context, tensorflow::Graph *graph, NpuDevice *device)
       : context_(context), graph_(graph), device_(device) {}
-  tensorflow::Status Apply();
+  tensorflow::Status Apply(size_t depth = 0);
   void InitNodeTopo();
+  tensorflow::Status PlaceCpuNodeSubgraphs(size_t depth);
   tensorflow::Status BuildNpuOp();
   tensorflow::Status CopyShareableNode();
   tensorflow::Status MergeCopiedSharedNodes();
