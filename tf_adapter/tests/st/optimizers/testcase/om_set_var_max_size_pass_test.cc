@@ -79,6 +79,9 @@ class SetVarMaxSizePassTest : public testing::Test {
     AttrValue job = AttrValue();
     job.set_s("localhost");
     (*custom_config->mutable_parameter_map())["job"] = job;
+    AttrValue const_input = AttrValue();
+    const_input.set_s("input");
+    (*custom_config->mutable_parameter_map())["const_input"] = const_input;
     options.session_options = &session_options;
     options.graph = ug;
     FunctionLibraryDefinition flib_def((*ug)->flib_def());
