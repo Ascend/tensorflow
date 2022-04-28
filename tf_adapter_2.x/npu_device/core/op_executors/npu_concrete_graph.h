@@ -73,6 +73,8 @@ class NpuConcreteGraph : public OpExecutor {
   bool NeedLoop() const { return need_loop_; }
   bool BuiltinLoop() const { return builtin_loop_; }
 
+  bool NeedFuzzCompile() const;
+
  protected:
   void SetBuilt(bool built) const { built_ = built; }
   bool Built() const { return built_; }
@@ -80,6 +82,7 @@ class NpuConcreteGraph : public OpExecutor {
   uint64_t ge_graph_id_;
   std::unique_ptr<tensorflow::Graph> graph_;
   mutable tensorflow::GraphDef graph_def_;
+  mutable absl::optional<bool> fuzz_compile_;
   tensorflow::NodeDef mixed_ndef_;
   bool mutable built_{false};
   bool mutable need_loop_{false};

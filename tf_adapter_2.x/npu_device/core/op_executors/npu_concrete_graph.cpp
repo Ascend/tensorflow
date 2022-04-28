@@ -115,6 +115,33 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
   }
 }
 
+bool NpuConcreteGraph::NeedFuzzCompile() const {
+  if (fuzz_compile_.has_value()) {
+    return fuzz_compile_.value();
+  }
+  for (auto node : graph_->op_nodes()) {
+    if (!node->IsArg()) {
+      continue;
+    }
+    const tensorflow::AttrValue *shape_attr = node->attrs().Find("_output_shapes");
+    if (!shape_attr || !shape_attr->has_list() || shape_attr->list().shape().empty()) {
+      DLOG() << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " " << node->name()
+             << " has no shape info";
+      fuzz_compile_ = true;
+      return fuzz_compile_.value();
+    }
+    tensorflow::PartialTensorShape shape(shape_attr->list().shape(0));
+    if (!shape.IsFullyDefined()) {
+      DLOG() << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " " << node->name()
+             << " shape unknown " << shape.DebugString();
+      fuzz_compile_ = true;
+      return fuzz_compile_.value();
+    }
+  }
+  fuzz_compile_ = false;
+  return fuzz_compile_.value();
+}
+
 void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
   if (Built() && device->GeSession()->IsGraphNeedRebuild(GeGraphId())) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
@@ -125,7 +152,13 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
 
   if (!built_) {
     DLOG() << "Load ge graph " << GeGraphId() << " of op " << Op();
-    if (kEmptyGeGraphId == device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(), NeedLoop(), status)) {
+    const static std::map<std::string, std::string> kOptions;
+    const static std::map<std::string, std::string> kFuzzCompileOptions{
+      {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
+      {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
+      {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
+    if (kEmptyGeGraphId == device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(), NeedLoop(), status,
+                                                   (NeedFuzzCompile() ? kFuzzCompileOptions : kOptions))) {
       empty_ge_graph_ = true;
     }
     NPU_REQUIRES_TFE_OK(status);
