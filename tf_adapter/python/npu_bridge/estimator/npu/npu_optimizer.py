@@ -222,7 +222,7 @@ class NPUOptimizer(tf.train.Optimizer):
         return grads_and_vars
 
     def _reduce_all(self, grads):
-        with tf.get_default_graph().control_dependencies(grads):
+        with tf.get_default_graph().control_dependencies([grad for grad in grads if grad is not None]):
             local_float_status = gen_npu_ops.npu_get_float_status(self._float_status)
             cleared_float_status = gen_npu_ops.npu_clear_float_status(local_float_status)
 
