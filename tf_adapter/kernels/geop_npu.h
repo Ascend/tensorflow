@@ -63,9 +63,9 @@ class GeOp : public AsyncOpKernel {
   Status GlobalInitialize(OpKernelConstruction *ctx);
   void GlobalFinalize();
 
-  // Build OriGraph from FunctionDef.
-  Status BuildOriGraph(FunctionLibraryDefinition &flib_def, std::vector<Tensor> &input_vec,
-                       Graph &graph, bool &is_initialize, bool &is_allreduce);
+  // Build GraphDef from FunctionDef.
+  Status BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
+                       GraphDef &graph_def, bool &is_initialize, bool &is_allreduce);
 
   // Analyze sting input data
   Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::string *string_vector) const;
@@ -86,7 +86,9 @@ class GeOp : public AsyncOpKernel {
 
   Status DomiFormatFromString(std::string format, int32_t &domi_format) const;
 
-  Status GraphInputConvertToConst(Graph &graph, std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &input);
+  Status GraphInputConvertToConst(OpKernelContext *ctx);
+
+  Status GraphCheckInputEqualConstOp(OpKernelContext *ctx, Tensor &tensor, int32_t index, bool &is_equal);
  private:
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
@@ -149,9 +151,7 @@ class GeOp : public AsyncOpKernel {
   bool add_graph_flag_;
   bool sess_init_flag_;
   bool compute_graph_empty_;
-  bool first_convert_input_;
 
-  Graph ori_graph_;
   std::string input_shapes_;
   NameAttrList function_;
   std::string data_format_;
@@ -182,6 +182,7 @@ class GeOp : public AsyncOpKernel {
   std::string is_dynamic_getnext_;
   std::string placeholder_index_;
   std::atomic_flag tuned_flag_;
+  std::vector<std::pair<Tensor, int32_t>> remove_index_;
 
   SessionId session_id_;
   AoeInitializeFunc aoe_initialize_;

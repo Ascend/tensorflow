@@ -74,6 +74,8 @@
 #include "graph/def_types.h"
 #include "graph/model.h"
 #include "tf_adapter_2.x/npu_device/core/npu_micros.h"
+#include "tensorflow/core/graph/algorithm.h"
+#include "tensorflow/core/framework/graph_to_functiondef.h"
 
 namespace tensorflow {
 #ifdef TF_VERSION_TF2
@@ -227,14 +229,6 @@ bool CmpVecValue(const Node *const node1, const Node *const node2) {
   }
   return node1->name() < node2->name();
 }
-
-bool CmpIntValue(const uint32_t &p1, const uint32_t &p2) {
-  return p1 > p2;
-}
-
-bool CmpNodeValue(const std::pair<Node *, uint32_t> &p1, const std::pair<Node *, uint32_t> &p2) {
-  return p1.second > p2.second;
-}
 }  // namespace
 
 std::string CurrentTimeInStr() {
@@ -263,8 +257,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       need_compile_graph_first_(false), session_id_(0), aoe_initialize_(nullptr), aoe_finalize_(nullptr),
       aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
-      aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr), tuned_flag_(ATOMIC_FLAG_INIT),
-      first_convert_input_(false), ori_graph_(OpRegistry::Global()) {
+      aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr), tuned_flag_(ATOMIC_FLAG_INIT) {
   Initialize(ctx);
 }
 #else
@@ -275,7 +268,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       need_compile_graph_first_(false), session_id_(0), aoe_initialize_(nullptr), aoe_finalize_(nullptr),
       aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
-      tuned_flag_(ATOMIC_FLAG_INIT), first_convert_input_(false), ori_graph_(OpRegistry::Global()) {
+      tuned_flag_(ATOMIC_FLAG_INIT) {
   Initialize(ctx);
 }
 #endif
@@ -623,6 +616,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       sess_init_flag_ = true;
     }
   }
+
+  // convert input to const
+  OP_REQUIRES_OK_ASYNC(ctx, GraphInputConvertToConst(ctx), done);
   std::string geop_name = ctx->op_kernel().name();
   uint32_t num_inputs = static_cast<uint32_t>(ctx->num_inputs());
   ADP_LOG(INFO) << "[GEOP] Begin GeOp::ComputeAsync"
@@ -636,7 +632,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   OP_REQUIRES_OK_ASYNC(ctx, (BuildInputTensorInfo(ctx, input_vec, input_shapes, inputs)), done);
 
   // if input shapes changed, cache graphs
-  first_convert_input_ = false;
   uint32_t cache_graph_id = graph_id_;
   bool is_set_dynamic_config = (!sess_options_["ge.inputShape"].empty()) && (!sess_options_["ge.dynamicDims"].empty());
   bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
@@ -690,15 +685,11 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     std::shared_ptr<Graph> graph = std::make_shared<Graph>(OpRegistry::Global());
     OP_REQUIRES_ASYNC(ctx, graph != nullptr, errors::Internal("create tensorflow graph failed"), done);
 
-    // Build OriGraph from FunctionDef
+    // Build GraphDef from FunctionDef
     bool is_allreduce = false;
-    OP_REQUIRES_OK_ASYNC(ctx, BuildOriGraph(*flib_def, input_vec, ori_graph_, is_initialized_graph_, is_allreduce),
-                         done);
-
-    // convert input to const
-    OP_REQUIRES_OK_ASYNC(ctx, GraphInputConvertToConst(ori_graph_, input_vec, inputs), done);
     GraphDef ori_graph_def;
-    ori_graph_.ToGraphDef(&ori_graph_def);
+    OP_REQUIRES_OK_ASYNC(ctx, BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_, is_allreduce),
+                         done);
 
     /* if graph is init verify graph, return */
     if (this->is_initialized_graph_) {
@@ -826,31 +817,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                     << " ,graph id: " << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
       done();
       return;
-    }
-  }
-
-  // multi execute need to delete tensor
-  std::vector<std::pair<Node *, int>> index_vec;
-  for (Node *node : ori_graph_.nodes()) {
-    int32_t index = 0;
-    if ((node->type_string() == "Const") && (node->attrs().Find(ATTR_NAME_CONST_INPUT_NAME) != nullptr) &&
-        (!first_convert_input_)) {
-      OP_REQUIRES_OK_ASYNC(ctx, GetNodeAttr(node->attrs(), ATTR_NAME_CONST_INPUT_NAME, &index), done);
-      index_vec.push_back(std::make_pair(node, index));
-    }
-  }
-  if (index_vec.size() > 0) {
-    std::sort(index_vec.begin(), index_vec.end(), CmpNodeValue);
-    for (auto index : index_vec) {
-      Tensor value;
-      OP_REQUIRES_OK_ASYNC(ctx, GetNodeAttr(index.first->attrs(), "value", &value), done);
-      char *tensor_const = ge::PtrToPtr<void, char>(DMAHelper::base(&value));
-      char *tensor_input = ge::PtrToPtr<void, char>(DMAHelper::base(&input_vec[index.second]));
-      bool is_equal = (value.TotalBytes() != input_vec[index.second].TotalBytes()) ||
-	              (memcmp(tensor_const, tensor_input, value.TotalBytes()) != 0);
-      OP_REQUIRES_ASYNC(ctx, is_equal != true, errors::Internal("Const input change the value."), done);
-      input_vec.erase(input_vec.begin() + index.second);
-      inputs.erase(inputs.begin() + index.second);
     }
   }
 
@@ -1105,13 +1071,14 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
 }
 
 // Build GraphDef from FunctionDef.
-Status GeOp::BuildOriGraph(FunctionLibraryDefinition &flib_def, std::vector<Tensor> &input_vec,
-                           Graph &graph, bool &is_initialize, bool &is_allreduce) {
+Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
+                           GraphDef &graph_def, bool &is_initialize, bool &is_allreduce) {
   const FunctionDef *function_def = flib_def.Find(function_.name());
   if (function_def == nullptr) {
     return errors::Internal("%s: fdef is nullptr", function_.name());
   }
   // get infershape
+  Graph graph(OpRegistry::Global());
   Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, function_def, &graph);
   if (!ret.ok()) {
     ADP_LOG(ERROR) << "[GEOP] InferShape failed, " << ret.error_message();
@@ -1157,7 +1124,6 @@ Status GeOp::BuildOriGraph(FunctionLibraryDefinition &flib_def, std::vector<Tens
       return ret;
     }
   }
-  GraphDef graph_def;
   HandleDpOpAndGetNextNodes(graph);
   graph.ToGraphDef(&graph_def);
   std::string enable_force_v2_control;
@@ -1367,14 +1333,12 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
 
   // Build GraphDef from FunctionDef
   bool is_allreduce = false;
-  Graph ori_graph(OpRegistry::Global());
-  Status s = BuildOriGraph(*flib_def, input_vec, ori_graph, is_initialized_graph_, is_allreduce);
+  GraphDef ori_graph_def;
+  Status s = BuildGraphDef(*flib_def, input_vec, ori_graph_def, is_initialized_graph_, is_allreduce);
   if (!s.ok()) {
     ADP_LOG(ERROR) << "BuildOriGraph error";
     return -1;
   }
-  GraphDef ori_graph_def;
-  ori_graph.ToGraphDef(&ori_graph_def);
 
   if (is_initialized_graph_) {
     ADP_LOG(INFO) << ctx->op_kernel().name() << " graph is initialized";
@@ -1606,16 +1570,29 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::st
   return Status::OK();
 }
 
-Status GeOp::GraphInputConvertToConst(Graph &graph, std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inputs) {
+Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
   ADP_LOG(INFO) << "Begin to convet input to const.";
-  std::vector<int32_t> remove_index;
+  if (ctx->function_library() == nullptr) {
+    return errors::Internal("%s: ctx function is nullptr", function_.name());
+  }
+  FunctionLibraryDefinition *flib_def =
+      const_cast<FunctionLibraryDefinition *>(ctx->function_library()->GetFunctionLibraryDefinition());
+  if (flib_def == nullptr) {
+    return errors::Internal("%s: flib def is nullptr", function_.name());
+  }
+  const FunctionDef *function_def = flib_def->Find(function_.name());
+  if (function_def == nullptr) {
+    return errors::Internal("%s: fdef is nullptr", function_.name());
+  }
+
+  Graph graph(OpRegistry::Global());
+  TF_RETURN_IF_ERROR(InferShapeUtil::GetSubGraphFromFunctionDef(*flib_def, *function_def, &graph));
   for (Node *node : graph.nodes()) {
     if (node->type_string() != "_Arg") {
       continue;
     }
 
     bool check_value = false;
-    int index = 0;
     for (auto out : node->out_edges()) {
       if (out->dst()->attrs().Find(ATTR_NAME_CONST_INPUT_NAME) == nullptr) {
         continue;
@@ -1630,41 +1607,71 @@ Status GeOp::GraphInputConvertToConst(Graph &graph, std::vector<Tensor> &input_v
     if (check_value == true) {
       int32_t index = 0;
       TF_RETURN_IF_ERROR(GetNodeAttr(node->attrs(), "index", &index));
-      Tensor tensor(input_vec.at(index));
+      Tensor tensor(ctx->input(index));
       std::string const_input_name = "Const" + ToString(index);
       Node *const_node = nullptr;
       TF_CHECK_OK(NodeBuilder(const_input_name, "Const")
                   .Device(node->def().device())
                   .Attr("dtype", tensor.dtype())
                   .Attr("value", tensor)
-                  .Attr("_const_input", index)
                   .Finalize(&graph, &const_node));
-      const OpDef &const_op_def = const_node->op_def();
-      NodeDef &const_node_def = const_cast<NodeDef &>(const_node->def());
-      NodeDef &node_def = const_cast<NodeDef &>(node->def());
-      const_node_def.mutable_attr()->insert({INPUT_DESC, (*node_def.mutable_attr())[OUTPUT_DESC]});
       for (auto out_edge : node->out_edges()) {
         REQUIRES_NOT_NULL(out_edge);
         graph.AddEdge(const_node, out_edge->src_output(), out_edge->dst(), out_edge->dst_input());
         graph.RemoveEdge(out_edge);
       }
       graph.RemoveNode(node);
-      std::string op_def_s;
-      const_op_def.SerializeToString(&op_def_s);
-      tensorflow::AttrValue value;
-      value.set_s(op_def_s);
-      const_node_def.mutable_attr()->insert({"op_def", value});
-      first_convert_input_ = true;
+      remove_index_.push_back(std::make_pair(tensor, index));
     }
   }
 
-  std::sort(remove_index.begin(), remove_index.end(), CmpIntValue);
-  for (auto index : remove_index) {
-    input_vec.erase(input_vec.begin() + index);
-    inputs.erase(inputs.begin() + index);
+  if (remove_index_.size() == 0) {
+    ADP_LOG(INFO) << "[GEOP]Return for dont have const input.";
+    return Status::OK();
   }
 
+  // refresh the index attr for _Arg
+  int32_t input_index = 0;
+  for (Node *node : graph.nodes()) {
+    if (node->type_string() != "_Arg") {
+      continue;
+    }
+    int32_t index = 0;
+    (void) GetNodeAttr(node->attrs(), "index", &index);
+    if (index != input_index) {
+      node->AddAttr("index", input_index);
+    }
+    input_index++;
+  }
+
+  FunctionDefLibrary fdeflib;
+  FunctionDef *const_fdef = fdeflib.add_function();
+  NPU_REQUIRES_OK(GraphToFunctionDef(graph, function_.name(), const_fdef));
+  NPU_REQUIRES_OK(flib_def->RemoveFunction(function_.name()));
+  NPU_REQUIRES_OK(flib_def->AddFunctionDef(*const_fdef));
   ADP_LOG(INFO) << "[GEOP] Convert input to const success.";
+  return Status::OK();
+}
+
+Status GeOp::GraphCheckInputEqualConstOp(OpKernelContext *ctx, Tensor &tensor, int32_t index, bool &is_equal) {
+  // ctx is not nullptr
+  if (remove_index_.size() == 0) {
+    return Status::OK();
+  }
+
+  for (auto it : remove_index_) {
+    if (it.second != index) {
+      continue;
+    }
+    char *tensor_const = ge::PtrToPtr<void, char>(DMAHelper::base(&remove_index_[index].first));
+    char *tensor_input = ge::PtrToPtr<void, char>(DMAHelper::base(&tensor));
+    is_equal = (remove_index_[index].first.TotalBytes() == tensor.TotalBytes()) &&
+                        (memcmp(tensor_const, tensor_input, tensor.TotalBytes()) == 0);
+    if (is_equal != true) {
+      return errors::Internal("Const input not equal with the input tensor value.");
+    }
+  }
+  ADP_LOG(INFO) << "[GEOP] The input with const flag equal const op value.";
   return Status::OK();
 }
 
@@ -1677,6 +1684,12 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<Tensor> &inp
   // populate inputs
   for (int i = 0; i < num_inputs; i++) {
     Tensor tensor(ctx->input(i));
+    bool is_equal = false;
+    if (GraphCheckInputEqualConstOp(ctx, tensor, i, is_equal) != Status::OK()) {
+      return errors::Internal("Const op value not equal with tensor :", i);
+    } else if (is_equal) {
+      continue;
+    }
     ADP_LOG(INFO) << "[GEOP] Input tensor " << i << " shape: " << tensor.shape().DebugString();
     DataType data_type = tensor.dtype();
     size_t total_bytes = tensor.TotalBytes();
