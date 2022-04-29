@@ -23,6 +23,7 @@ namespace npu {
 class NpuConcreteGraph : public OpExecutor {
  public:
   enum class ExecutionType { NPU, MIX };
+  enum class LoopType { NPU_LOOP, BUILTIN_LOOP, HOST_LOOP, NO_LOOP };
   NpuConcreteGraph(const std::string &name, TensorDataTypes input_dtypes, TensorDataTypes output_dtypes,
                    uint64_t ge_graph_id, std::unique_ptr<tensorflow::Graph> graph)
       : OpExecutor(name, input_dtypes, output_dtypes), ge_graph_id_(ge_graph_id), graph_(std::move(graph)) {
@@ -70,8 +71,7 @@ class NpuConcreteGraph : public OpExecutor {
   void Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const;
   void UnLoad(TFE_Context *context, NpuDevice *device, TF_Status *status) const;
 
-  bool NeedLoop() const { return need_loop_; }
-  bool BuiltinLoop() const { return builtin_loop_; }
+  const std::string &GraphLoopTypeString() const;
 
   bool NeedFuzzCompile() const;
 
@@ -85,8 +85,7 @@ class NpuConcreteGraph : public OpExecutor {
   mutable absl::optional<bool> fuzz_compile_;
   tensorflow::NodeDef mixed_ndef_;
   bool mutable built_{false};
-  bool mutable need_loop_{false};
-  bool mutable builtin_loop_{false};
+  LoopType loop_type_{LoopType::NO_LOOP};
   std::map<int, std::shared_ptr<IteratorResourceProvider>> consumed_iterators_;
   std::vector<int32_t> consumed_inputs_;
   std::vector<int32_t> produced_outputs_;
@@ -135,9 +134,7 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
 
   void SetBypassOutputs(const std::map<int32_t, int32_t> &v) { bypass_outputs_ = v; }
 
-  void SetNeedLoop(bool loop) { need_loop_ = loop; }
-
-  void SetBuiltinLoop(bool loop) { builtin_loop_ = loop; }
+  void SetLoopType(LoopType type) { loop_type_ = type; }
 
   void SetExecutionType(ExecutionType type) { execution_type_ = type; }
 
