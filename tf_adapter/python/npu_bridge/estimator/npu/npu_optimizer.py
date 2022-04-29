@@ -41,25 +41,10 @@ gen_npu_ops = helper.get_gen_ops()
 
 
 def allreduce(tensor, average=True):
-    """
-    Perform an allreduce on a tf.Tensor or tf.IndexedSlices.
-
-    Arguments:
-        tensor: tf.Tensor, tf.Variable, or tf.IndexedSlices to reduce.
-        The shape of the input must be identical across all ranks.
-        average: If True, computes the average over all ranks.
-                 Otherwise, computes the sum over all ranks.
-
-    This function performs a bandwidth-optimal ring allreduce on the input
-    tensor. If the input is an tf.IndexedSlices, the function instead does an
-    allgather on the values and the indices, effectively doing an allreduce on
-    the represented tensor.
-    """
     basic = NPUBasics("")
     size = basic.size()
     # the tensor is the instance of tf.IndexedSlices
     if isinstance(tensor, tf.IndexedSlices):
-        # For IndexedSlices, do two allgathers intead of an allreduce.
         logging.debug("HcomAllgather...")
         values = hccl_ops.allgather(tensor.values, size)
         indices = hccl_ops.allgather(tensor.indices, size)
@@ -69,7 +54,6 @@ def allreduce(tensor, average=True):
         if indices is None:
             raise ValueError('the result of tf.HcomAllgather([tensor.indices]) is empty')
 
-        # To make this operation into an average, divide all gathered values by the size.
         rank_size = tf.cast(size, tensor.values.dtype)
         new_values = tf.div(values, rank_size) if average else values
 

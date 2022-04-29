@@ -1141,17 +1141,12 @@ struct NodeSlot {
   const Node *node;
   int slot;
 
-  // Optional: used to record the destination type of a source NodeSlot in case
-  // the source output is a Ref type that is cast to a Tensor at the
-  // destination.
   DataType dtype;
 
   bool operator==(const NodeSlot &other) const {
     return node == other.node && slot == other.slot && dtype == other.dtype;
   }
 
-  // Leave dtype out of the hash since there are never two NodeSlots with the
-  // same node and slot and different dtypes.
   struct Hasher {
     uint64 operator()(NodeSlot const &s) const {
       return Hash64Combine(std::hash<const Node *>()(s.node), std::hash<int>()(s.slot));
