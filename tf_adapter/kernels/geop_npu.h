@@ -86,6 +86,9 @@ class GeOp : public AsyncOpKernel {
 
   Status DomiFormatFromString(std::string format, int32_t &domi_format) const;
 
+  Status GraphInputConvertToConst(OpKernelContext *ctx);
+
+  Status GraphCheckInputEqualConstOp(OpKernelContext *ctx, Tensor &tensor, int32_t index, bool &is_equal);
  private:
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
@@ -148,6 +151,7 @@ class GeOp : public AsyncOpKernel {
   bool add_graph_flag_;
   bool sess_init_flag_;
   bool compute_graph_empty_;
+  bool is_input_convert_;
 
   std::string input_shapes_;
   NameAttrList function_;
@@ -179,6 +183,7 @@ class GeOp : public AsyncOpKernel {
   std::string is_dynamic_getnext_;
   std::string placeholder_index_;
   std::atomic_flag tuned_flag_;
+  std::vector<std::pair<Tensor, int32_t>> remove_index_;
 
   SessionId session_id_;
   AoeInitializeFunc aoe_initialize_;

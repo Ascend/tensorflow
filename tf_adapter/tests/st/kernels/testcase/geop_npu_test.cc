@@ -302,7 +302,7 @@ TEST_F(GeOpTest, GeOpNpuOnnxGraphOpTest) {
 
   Tensor in(DT_FLOAT, TensorShape({1,1,5,5}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
-  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
+  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0", false).ok());
 }
 
 TEST_F(GeOpTest, GeOpNpuOnnxGraphOpNoModelTest) {
