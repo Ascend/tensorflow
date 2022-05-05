@@ -8,12 +8,6 @@ node {
     }
   }
   attr {
-    key: "_const_input"
-    value {
-      s: "input1"
-    }
-  }
-  attr {
     key: "dtype"
     value {
       type: DT_STRING
