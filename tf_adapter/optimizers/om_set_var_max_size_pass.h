@@ -30,8 +30,6 @@ class SetVarMaxSizePass : public GraphOptimizationPass {
   Status Run(const GraphOptimizationPassOptions &options) override;
   Status AssignMaxSizeToVarOutNodes(const Node *node) const;
   Status SetMaxSizeListNodes(Node *node) const;
-  Status AssignConstToVarOutNodes(const Node *node, std::vector<std::string> &input_names) const;
-  Status SetConstListNodes(Node *node, std::vector<std::string> &input_names) const;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
