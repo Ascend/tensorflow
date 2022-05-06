@@ -142,15 +142,15 @@ bool NpuConcreteGraph::NeedFuzzCompile() const {
     }
     const tensorflow::AttrValue *shape_attr = node->attrs().Find("_output_shapes");
     if (!shape_attr || !shape_attr->has_list() || shape_attr->list().shape().empty()) {
-      DLOG() << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " " << node->name()
-             << " has no shape info";
+      LOG(ERROR) << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " "
+                 << node->name() << " has no shape info";
       fuzz_compile_ = true;
       return fuzz_compile_.value();
     }
     tensorflow::PartialTensorShape shape(shape_attr->list().shape(0));
     if (!shape.IsFullyDefined()) {
-      DLOG() << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " " << node->name()
-             << " shape unknown " << shape.DebugString();
+      LOG(INFO) << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " " << node->name()
+                << " shape unknown " << shape.DebugString();
       fuzz_compile_ = true;
       return fuzz_compile_.value();
     }

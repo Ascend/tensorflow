@@ -416,18 +416,19 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph,
 
 bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
   *key = nullptr;
+  std::vector<tensorflow::Node *> while_nodes;
   for (auto node : graph->op_nodes()) {
-    if (node->IsWhileNode()) {
-      if (*key != nullptr) {
-        DLOG() << "Skip check as multi while nodes in graph first " << (*key)->name() << " another " << node->name();
-        *key = nullptr;
-        return false;
-      }
+    if (!node->IsWhileNode()) {
+      continue;
+    }
+    while_nodes.push_back(node);
+    if (node->attrs().Find("_consumed_iterators") != nullptr) {
+      DLOG() << "Found while node " << node->name() << " consumed iterator";
       *key = node;
     }
   }
-  if (*key == nullptr) {
-    DLOG() << "Skip check as no while node in graph";
+  if (*key == nullptr || while_nodes.size() > 1) {
+    DLOG() << "Skip check as " << ((*key) ? "multi" : "no") << " while nodes in graph";
     return false;
   }
   size_t reserved_nums = 0;
