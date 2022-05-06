@@ -63,7 +63,6 @@ Status SetVarMaxSizePass::AssignMaxSizeToVarOutNodes(const Node *node) const {
       SetMaxSizeListNodes(dst_node);
     }
   }
-
   return Status::OK();
 }
 

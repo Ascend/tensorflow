@@ -613,6 +613,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       sess_init_flag_ = true;
     }
   }
+
   std::string geop_name = ctx->op_kernel().name();
   uint32_t num_inputs = static_cast<uint32_t>(ctx->num_inputs());
   ADP_LOG(INFO) << "[GEOP] Begin GeOp::ComputeAsync"
