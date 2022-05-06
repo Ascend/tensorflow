@@ -233,6 +233,7 @@ def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
                                                                                               output_h, dy, doutput_h,
                                                                                               update, reset, new,
                                                                                               hidden_new,
+                                                                                              seq_length,
                                                                                               direction=op.get_attr(
                                                                                                   "direction"),
                                                                                               cell_depth=op.get_attr(
