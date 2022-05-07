@@ -230,9 +230,11 @@ def dynamic_gru_v2_grad(op, dy, doutput_h, dupdate, dreset, dnew, dhidden_new):
     (y, output_h, update, reset, new, hidden_new) = op.outputs
     (dw_input, dw_hidden, db_input, db_hidden, dx, dh_prev) = gen_npu_ops.dynamic_gru_v2_grad(x, weight_input,
                                                                                               weight_hidden, y, init_h,
-                                                                                              output_h, dy, doutput_h,
+                                                                                              output_h, dy,
+                                                                                              doutput_h[-1],
                                                                                               update, reset, new,
                                                                                               hidden_new,
+                                                                                              seq_length,
                                                                                               direction=op.get_attr(
                                                                                                   "direction"),
                                                                                               cell_depth=op.get_attr(
@@ -268,10 +270,11 @@ def dynamic_augru_grad(op, dy, doutput_h, dupdate, dupdate_att, dreset, dnew, dh
                                                                                                      weight_hidden,
                                                                                                      weight_att, y,
                                                                                                      init_h, output_h,
-                                                                                                     dy, doutput_h,
+                                                                                                     dy, doutput_h[-1],
                                                                                                      update, update_att,
                                                                                                      reset, new,
                                                                                                      hidden_new,
+                                                                                                     seq_length,
                                                                                                      direction=op.get_attr(
                                                                                                          "direction"),
                                                                                                      cell_depth=op.get_attr(

@@ -231,6 +231,8 @@ class DynamicGRUV2(_DynamicBasic):
         self._args["weight_hidden"] = self._gruv2_weight_hidden
         self._args["bias_input"] = self._bias_input
         self._args["bias_hidden"] = self._bias_hidden
+        if seq_length is not None:
+            self._args["seq_length"] = seq_length
         return gen_npu_ops.dynamic_gru_v2(**self._args)
 
 
@@ -326,6 +328,8 @@ class DynamicAUGRU(_DynamicBasic):
         self._args["weight_att"] = weight_att
         self._args["bias_input"] = self._bias_input
         self._args["bias_hidden"] = self._bias_hidden
+        if seq_length is not None:
+            self._args["seq_length"] = seq_length
         return gen_npu_ops.dynamic_augru(**self._args)
 
 
