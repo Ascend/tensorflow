@@ -77,6 +77,7 @@ class Adapter2St(unittest.TestCase):
             c = tf.constant(1.0)
             v = tf.add(v, c)
             return tf.add(v, c)
+
         self.assertTrue(tensor_equal(f(tf.constant("2.0")), tf.constant(4.0)))
 
     def test_basic0(self):
@@ -422,7 +423,7 @@ class Adapter2St(unittest.TestCase):
         y = x._copy()
         self.assertTrue(tensor_equal(y, tf.constant(2)))
 
-    def test_fuzz_compile(self):
+    def test_mix_fuzz_compile(self):
         def gen():
             v = [['1'], ['2', '3'], ['4', '5', '6']]
             while len(v):
@@ -440,6 +441,44 @@ class Adapter2St(unittest.TestCase):
         self.assertTrue(tensor_equal(f(iterator), tf.constant([2.0])))
         self.assertTrue(tensor_equal(f(iterator), tf.constant([4.0, 6.0])))
         self.assertTrue(tensor_equal(f(iterator), tf.constant([8.0, 10.0, 12.0])))
+
+    def test_fully_fuzz_compile(self):
+        @tf.function(input_signature=[tf.TensorSpec(shape=None)])
+        def f(v):
+            return v + v
+
+        self.assertTrue(tensor_equal(f([1.0]), tf.constant([2.0])))
+        self.assertTrue(tensor_equal(f([1.0, 2.0]), tf.constant([2.0, 4.0])))
+
+    def test_host_loop_1(self):
+        def train_step(iterator):
+            v = next(iterator)
+            v = tf.unique(v)
+            tf.print(v)
+
+        @tf.function
+        def train_loop(iterator):
+            for i in tf.range(2):
+                train_step(iterator)
+
+        ds = tf.data.Dataset.from_tensor_slices([[1, 1, 1], [1, 2, 3]])
+        train_iterator = iter(ds)
+        train_loop(train_iterator)
+
+    def test_host_loop_2(self):
+        def train_step(iterator):
+            v = next(iterator)
+            cond = tf.less(tf.reduce_sum(v), 5)
+            tf.cond(cond, lambda: tf.print(tf.unique(v)), lambda: tf.print(tf.reduce_sum(v)))
+
+        @tf.function
+        def train_loop(iterator):
+            for i in tf.range(2):
+                train_step(iterator)
+
+        ds = tf.data.Dataset.from_tensor_slices([[1, 1, 1], [1, 2, 3]])
+        train_iterator = iter(ds)
+        train_loop(train_iterator)
 
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):
