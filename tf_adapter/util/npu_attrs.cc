@@ -505,6 +505,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string HCCL_algorithm;
   std::string customize_dtypes;
   std::string op_debug_config;
+  std::string graph_exec_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     ctx->GetAttr("_precision_mode", &precision_mode);
@@ -533,6 +534,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
     ctx->GetAttr("_customize_dtypes", &customize_dtypes);
     ctx->GetAttr("_op_debug_config", &op_debug_config);
+    ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
   }
 
   if (precision_mode.empty()) {
@@ -567,6 +569,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     init_options_["ge.socVersion"] = soc_config;
   }
   init_options_["HCCL_algorithm"] = HCCL_algorithm;
+  init_options_["ge.exec.graphExecTimeout"] = graph_exec_timeout;
 
   return init_options_;
 }
@@ -923,6 +926,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string HCCL_algorithm;
   std::string customize_dtypes;
   std::string op_debug_config;
+  std::string graph_exec_timeout;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -986,6 +990,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto HCCL_algorithm_value = attrs.Find("_HCCL_algorithm");
   auto customize_dtypes_value = attrs.Find("_customize_dtypes");
   auto op_debug_config_value = attrs.Find("_op_debug_config");
+  auto graph_exec_timeout_value = attrs.Find("_graph_exec_timeout");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = std::to_string(true);
@@ -1196,6 +1201,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (op_debug_config_value != nullptr) {
       op_debug_config = op_debug_config_value->s();
     }
+    if (graph_exec_timeout_value != nullptr) {
+      graph_exec_timeout = graph_exec_timeout_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1264,6 +1272,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   all_options["customize_dtypes"] = customize_dtypes;
   all_options["HCCL_algorithm"] = HCCL_algorithm;
   all_options["op_debug_config"] = op_debug_config;
+  all_options["graph_exec_timeout"] = graph_exec_timeout;
 
   return all_options;
 }
@@ -1349,6 +1358,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_wait_timeout;
   std::string op_execute_timeout;
   std::string customize_dtypes;
+  int graph_exec_timeout = 0;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1687,6 +1697,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("op_debug_config")) {
         op_debug_config = params.at("op_debug_config").s();
       }
+      if (params.count("graph_exec_timeout")) {
+        graph_exec_timeout = params.at("graph_exec_timeout").i();
+      }
     }
   }
 
@@ -1779,6 +1792,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
   init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
   init_options_["HCCL_algorithm"] = HCCL_algorithm;
+  init_options_["graph_exec_timeout"] = std::to_string(graph_exec_timeout);
+  init_options_["ge.exec.graphExecTimeout"] = std::to_string(graph_exec_timeout);
 
   pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
   pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);
