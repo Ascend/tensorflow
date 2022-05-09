@@ -802,7 +802,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         try {
           input_impls_.resize(dataset()->inputs_.size());
         } catch (...) { return errors::InvalidArgument("HostQueueDataset resize failed."); }
-        if ((dataset()->channel_type_ != ChannelType::TDT) && (!CreateChannel().ok())) {
+        if ((dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!CreateChannel().ok())) {
           return errors::InvalidArgument("Call CreatChannel queue failed");
         }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
