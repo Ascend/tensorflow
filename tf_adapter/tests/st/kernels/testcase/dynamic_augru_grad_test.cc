@@ -29,7 +29,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
 TEST(DynamicAUGRUGradTest, TestDynamicAUGRUGrad) {
   DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT,
                              DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT,
-                             DT_FLOAT, DT_FLOAT});
+                             DT_FLOAT, DT_FLOAT, DT_INT32});
   MemoryTypeSlice input_memory_types;
   DataTypeSlice output_types(
       {DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT});
@@ -72,13 +72,14 @@ TEST(DynamicAUGRUGradOpTest, TestDynamicAUGRUGradShapeInference) {
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
                   .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_INT32))
                   .Finalize(&def));
   shape_inference::InferenceContext c(
       0, &def, op_def,
       {TShape({1, 16, 16}), TShape({16, 48}), TShape({16, 48}), TShape({1, 16}),
        TShape({16, 16}), TShape({16, 16}), TShape({16, 16}), TShape({16, 16}),
        TShape({16, 16}), TShape({16, 16}), TShape({16, 16}), TShape({16, 16}), TShape({16, 16}),
-       TShape({16, 16})},
+       TShape({16, 16}), TShape({16})},
       {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
