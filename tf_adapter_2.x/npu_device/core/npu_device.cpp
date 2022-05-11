@@ -81,8 +81,8 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   TensorPartialShapes shapes;
   TensorDataTypes types;
   NPU_CTX_REQUIRES_OK(status, GetMirroredIteratorShapesAndTypes(resource, shapes, types));
-  auto dp_provider =
-    npu::IteratorResourceProvider::GetFunctionDef(resource.name(), std::move(device_ids), shapes, types, status);
+  auto dp_provider = npu::IteratorResourceProvider::GetFunctionDef(npu::WrapResourceName(resource.name()),
+                                                                   std::move(device_ids), shapes, types, status);
   NPU_REQUIRES_TFE_OK(status);
 
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();

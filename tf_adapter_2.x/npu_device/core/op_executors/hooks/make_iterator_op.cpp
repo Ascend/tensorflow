@@ -110,7 +110,8 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       TensorPartialShapes shapes;
       TensorDataTypes types;
       NPU_CTX_REQUIRES_OK(status, dev->GetMirroredIteratorShapesAndTypes(handle, shapes, types));
-      auto dp_init_graph = MakeIteratorGraphBuilder::GetGraph(handle.container(), handle.name(), shapes, types, status);
+      auto dp_init_graph = MakeIteratorGraphBuilder::GetGraph(handle.container(), npu::WrapResourceName(handle.name()),
+                                                              shapes, types, status);
       NPU_REQUIRES_TFE_OK(status);
       if (kDumpExecutionDetail || kDumpGraph) {
         std::string file_name = "dp_init_" + handle.name() + ".pbtxt";
