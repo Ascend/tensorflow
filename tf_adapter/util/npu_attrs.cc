@@ -47,12 +47,12 @@ bool GetNewDataTransferFlag() {
   GePlugin::GetInstance()->Init(init_options);
   acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
   if (check_queue_handle != nullptr) {
-    acltdtDestroyChannel(check_queue_handle);
+    (void)acltdtDestroyChannel(check_queue_handle);
     return true;
   }
   check_queue_handle = acltdtCreateChannel(device_id, "check_is_queue");
   if (check_queue_handle != nullptr) {
-    acltdtDestroyChannel(check_queue_handle);
+    (void)acltdtDestroyChannel(check_queue_handle);
     return false;
   } else {
     ADP_LOG(ERROR) << "Create channel failed by acltdtCreateChannelWithCapacity and acltdtCreateChannel";
@@ -62,7 +62,7 @@ bool GetNewDataTransferFlag() {
 
 extern const bool kDumpGraph = []() -> bool {
   bool print_model = false;
-  tensorflow::ReadBoolFromEnvVar("PRINT_MODEL", false, &print_model);
+  (void)tensorflow::ReadBoolFromEnvVar("PRINT_MODEL", false, &print_model);
   return print_model;
 }();
 
@@ -77,12 +77,12 @@ std::string GetDumpPath() {
   (void) ReadStringFromEnvVar("NPU_COLLECT_PATH", "", &npu_collect_path);
   if (!npu_collect_path.empty()) {
     std::string collect_path_str(npu_collect_path);
-    collect_path_str.erase(0, collect_path_str.find_first_not_of(" "));
-    collect_path_str.erase(collect_path_str.find_last_not_of(" ") + 1);
+    (void)collect_path_str.erase(0, collect_path_str.find_first_not_of(" "));
+    (void)collect_path_str.erase(collect_path_str.find_last_not_of(" ") + 1);
     std::string base_path_str = collect_path_str.empty() ? "./" : collect_path_str + "/";
 
     uint32_t device_id = 0;
-    GetEnvDeviceID(device_id);
+    (void)GetEnvDeviceID(device_id);
     base_path_str += "/extra-info/graph/" + std::to_string(mmGetPid()) + "_" + std::to_string(device_id) + "/";
     if (mmAccess2(base_path_str.c_str(), M_F_OK) != EN_OK) {
       int32_t ret = mmMkdir(base_path_str.c_str(), M_IRUSR | M_IWUSR | M_IXUSR);
@@ -96,8 +96,8 @@ std::string GetDumpPath() {
 
   std::string dump_graph_path;
   (void) ReadStringFromEnvVar("DUMP_GRAPH_PATH", "./", &dump_graph_path);
-  dump_graph_path.erase(0, dump_graph_path.find_first_not_of(" "));
-  dump_graph_path.erase(dump_graph_path.find_last_not_of(" ") + 1);
+  (void)dump_graph_path.erase(0, dump_graph_path.find_first_not_of(" "));
+  (void)dump_graph_path.erase(dump_graph_path.find_last_not_of(" ") + 1);
 
   std::string base_path = dump_graph_path.empty() ? "./" : dump_graph_path + "/";
   if (mmAccess2(base_path.c_str(), M_F_OK) != EN_OK) {
@@ -366,14 +366,14 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string atomic_clean_policy = "0";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
-    ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
-    ctx->GetAttr("_hcom_parallel", &hcom_parallel);
-    ctx->GetAttr("_graph_memory_max_size", &graph_memory_max_size);
-    ctx->GetAttr("_variable_memory_max_size", &variable_memory_max_size);
-    ctx->GetAttr("_enable_dump", &enable_dump);
-    ctx->GetAttr("_enable_dump_debug", &enable_dump_debug);
+    (void)ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
+    (void)ctx->GetAttr("_hcom_parallel", &hcom_parallel);
+    (void)ctx->GetAttr("_graph_memory_max_size", &graph_memory_max_size);
+    (void)ctx->GetAttr("_variable_memory_max_size", &variable_memory_max_size);
+    (void)ctx->GetAttr("_enable_dump", &enable_dump);
+    (void)ctx->GetAttr("_enable_dump_debug", &enable_dump_debug);
     if (enable_dump != std::to_string(false) || enable_dump_debug != std::to_string(false)) {
-      ctx->GetAttr("_dump_path", &dump_path);
+      (void)ctx->GetAttr("_dump_path", &dump_path);
     }
     if (enable_dump != std::to_string(false)) {
       if (ctx->GetAttr("_dump_step", &dump_step) == Status::OK() && !dump_step.empty()) {
@@ -400,25 +400,25 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
         }
       }
     }
-    ctx->GetAttr("_stream_max_parallel_num", &stream_max_parallel_num);
-    ctx->GetAttr("_is_tailing_optimization", &is_tailing_optimization);
-    ctx->GetAttr("_op_select_implmode", &op_select_implmode);
-    ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
-    ctx->GetAttr("_input_shape", &input_shape);
-    ctx->GetAttr("_dynamic_dims", &dynamic_dims);
-    ctx->GetAttr("_buffer_optimize", &buffer_optimize);
-    ctx->GetAttr("_enable_small_channel", &enable_small_channel);
-    ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
-    ctx->GetAttr("_enable_compress_weight", &enable_compress_weight);
-    ctx->GetAttr("_compress_weight_conf", &compress_weight_conf);
-    ctx->GetAttr("_dynamic_node_type", &dynamic_node_type);
-    ctx->GetAttr("_session_device_id", &session_device_id);
-    ctx->GetAttr("_modify_mixlist", &modify_mixlist);
-    ctx->GetAttr("_op_precision_mode", &op_precision_mode);
-    ctx->GetAttr("_graph_run_mode", &graph_run_mode);
-    ctx->GetAttr("_hccl_timeout", &hccl_timeout);
-    ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
-    ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
+    (void)ctx->GetAttr("_stream_max_parallel_num", &stream_max_parallel_num);
+    (void)ctx->GetAttr("_is_tailing_optimization", &is_tailing_optimization);
+    (void)ctx->GetAttr("_op_select_implmode", &op_select_implmode);
+    (void)ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
+    (void)ctx->GetAttr("_input_shape", &input_shape);
+    (void)ctx->GetAttr("_dynamic_dims", &dynamic_dims);
+    (void)ctx->GetAttr("_buffer_optimize", &buffer_optimize);
+    (void)ctx->GetAttr("_enable_small_channel", &enable_small_channel);
+    (void)ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
+    (void)ctx->GetAttr("_enable_compress_weight", &enable_compress_weight);
+    (void)ctx->GetAttr("_compress_weight_conf", &compress_weight_conf);
+    (void)ctx->GetAttr("_dynamic_node_type", &dynamic_node_type);
+    (void)ctx->GetAttr("_session_device_id", &session_device_id);
+    (void)ctx->GetAttr("_modify_mixlist", &modify_mixlist);
+    (void)ctx->GetAttr("_op_precision_mode", &op_precision_mode);
+    (void)ctx->GetAttr("_graph_run_mode", &graph_run_mode);
+    (void)ctx->GetAttr("_hccl_timeout", &hccl_timeout);
+    (void)ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
+    (void)ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
   }
 
   // session options
@@ -512,34 +512,34 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string atomic_clean_policy = "0";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
-    ctx->GetAttr("_precision_mode", &precision_mode);
-    ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
-    ctx->GetAttr("_graph_run_mode", &graph_run_mode);
-    ctx->GetAttr("_op_debug_level", &op_debug_level);
-    ctx->GetAttr("_enable_scope_fusion_passes", &enable_scope_fusion_passes);
-    ctx->GetAttr("_enable_exception_dump", &enable_exception_dump);
-    ctx->GetAttr("_aoe_mode", &aoe_mode);
-    ctx->GetAttr("_work_path", &work_path);
-    ctx->GetAttr("_op_compiler_cache_mode", &op_compiler_cache_mode);
-    ctx->GetAttr("_op_compiler_cache_dir", &op_compiler_cache_dir);
-    ctx->GetAttr("_debug_dir", &debug_dir);
-    ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
-    ctx->GetAttr("_distribute_config", &distribute_config);
-    ctx->GetAttr("_modify_mixlist", &modify_mixlist);
-    ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
-    ctx->GetAttr("_op_precision_mode", &op_precision_mode);
-    ctx->GetAttr("_op_select_implmode", &op_select_implmode);
-    ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
-    ctx->GetAttr("_device_type", &device_type);
-    ctx->GetAttr("_soc_config", &soc_config);
-    ctx->GetAttr("_hccl_timeout", &hccl_timeout);
-    ctx->GetAttr("_op_wait_timeout", &op_wait_timeout);
-    ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
-    ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
-    ctx->GetAttr("_customize_dtypes", &customize_dtypes);
-    ctx->GetAttr("_op_debug_config", &op_debug_config);
-    ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
-    ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
+    (void)ctx->GetAttr("_precision_mode", &precision_mode);
+    (void)ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
+    (void)ctx->GetAttr("_graph_run_mode", &graph_run_mode);
+    (void)ctx->GetAttr("_op_debug_level", &op_debug_level);
+    (void)ctx->GetAttr("_enable_scope_fusion_passes", &enable_scope_fusion_passes);
+    (void)ctx->GetAttr("_enable_exception_dump", &enable_exception_dump);
+    (void)ctx->GetAttr("_aoe_mode", &aoe_mode);
+    (void)ctx->GetAttr("_work_path", &work_path);
+    (void)ctx->GetAttr("_op_compiler_cache_mode", &op_compiler_cache_mode);
+    (void)ctx->GetAttr("_op_compiler_cache_dir", &op_compiler_cache_dir);
+    (void)ctx->GetAttr("_debug_dir", &debug_dir);
+    (void)ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
+    (void)ctx->GetAttr("_distribute_config", &distribute_config);
+    (void)ctx->GetAttr("_modify_mixlist", &modify_mixlist);
+    (void)ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
+    (void)ctx->GetAttr("_op_precision_mode", &op_precision_mode);
+    (void)ctx->GetAttr("_op_select_implmode", &op_select_implmode);
+    (void)ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
+    (void)ctx->GetAttr("_device_type", &device_type);
+    (void)ctx->GetAttr("_soc_config", &soc_config);
+    (void)ctx->GetAttr("_hccl_timeout", &hccl_timeout);
+    (void)ctx->GetAttr("_op_wait_timeout", &op_wait_timeout);
+    (void)ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
+    (void)ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
+    (void)ctx->GetAttr("_customize_dtypes", &customize_dtypes);
+    (void)ctx->GetAttr("_op_debug_config", &op_debug_config);
+    (void)ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
+    (void)ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
   }
 
   if (precision_mode.empty()) {
@@ -728,23 +728,23 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     do_npu_optimizer = "1";
-    ctx->GetAttr("_enable_data_pre_proc", &enable_dp);
+    (void)ctx->GetAttr("_enable_data_pre_proc", &enable_dp);
     if (ctx->GetAttr("_use_off_line", &use_off_line) == Status::OK()) {
-      ctx->GetAttr("_mix_compile_mode", &mix_compile_mode);
-      ctx->GetAttr("_iterations_per_loop", &iterations_per_loop);
-      ctx->GetAttr("_lower_functional_ops", &lower_functional_ops);
+      (void)ctx->GetAttr("_mix_compile_mode", &mix_compile_mode);
+      (void)ctx->GetAttr("_iterations_per_loop", &iterations_per_loop);
+      (void)ctx->GetAttr("_lower_functional_ops", &lower_functional_ops);
       if (ctx->GetAttr("_job", &job) != Status::OK()) {
         job = "localhost";
       }
-      ctx->GetAttr("_task_index", &task_index);
-      ctx->GetAttr("_dynamic_input", &dynamic_input);
-      ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode);
-      ctx->GetAttr("_dynamic_inputs_shape_range", &dynamic_inputs_shape_range);
-      ctx->GetAttr("_local_rank_id", &local_rank_id);
-      ctx->GetAttr("_local_device_list", &local_device_list);
+      (void)ctx->GetAttr("_task_index", &task_index);
+      (void)ctx->GetAttr("_dynamic_input", &dynamic_input);
+      (void)ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode);
+      (void)ctx->GetAttr("_dynamic_inputs_shape_range", &dynamic_inputs_shape_range);
+      (void)ctx->GetAttr("_local_rank_id", &local_rank_id);
+      (void)ctx->GetAttr("_local_device_list", &local_device_list);
     }
-    ctx->GetAttr("_in_out_pair_flag", &in_out_pair_flag);
-    ctx->GetAttr("_in_out_pair", &in_out_pair);
+    (void)ctx->GetAttr("_in_out_pair_flag", &in_out_pair_flag);
+    (void)ctx->GetAttr("_in_out_pair", &in_out_pair);
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;

@@ -71,7 +71,7 @@ void SessionManager::DestroyGeSession(const std::string &tf_session) {
       delete it->second;
       it->second = nullptr;
     }
-    ge_sessions_.erase(it);
+    (void)ge_sessions_.erase(it);
     ADP_LOG(INFO) << "destroy ge session connect with tf session " << tf_session << " success.";
   }
 }
@@ -90,7 +90,7 @@ bool SessionManager::CreateGeSession(const std::string &tf_session, ge::Session 
     LOG(ERROR) << "tf session " << tf_session << " create ge session failed.";
     return false;
   }
-  ge_sessions_.insert(std::make_pair(tf_session, ge_session));
+  (void)ge_sessions_.insert(std::make_pair(tf_session, ge_session));
   return true;
 }
 
@@ -112,14 +112,14 @@ void SessionManager::PrintGeSessionOptions(std::map<std::string, std::string> &s
   if (!sess_options[ge::GRAPH_MEMORY_MAX_SIZE].empty()) {
     ADP_LOG(INFO) << "[GEOP] set graph_memory_max_size: " << sess_options[ge::GRAPH_MEMORY_MAX_SIZE];
   } else {
-    sess_options.erase(ge::GRAPH_MEMORY_MAX_SIZE);
+    (void)sess_options.erase(ge::GRAPH_MEMORY_MAX_SIZE);
   }
 
   // variable memory configuration
   if (!sess_options[ge::VARIABLE_MEMORY_MAX_SIZE].empty()) {
     ADP_LOG(INFO) << "[GEOP] set variable_memory_max_size: " << sess_options[ge::VARIABLE_MEMORY_MAX_SIZE];
   } else {
-    sess_options.erase(ge::VARIABLE_MEMORY_MAX_SIZE);
+    (void)sess_options.erase(ge::VARIABLE_MEMORY_MAX_SIZE);
   }
 
   // tailing optimization

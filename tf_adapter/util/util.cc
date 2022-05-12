@@ -48,7 +48,7 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
     head->len = tensor.flat<tstring>()(i).size();
     // can not use memcpy_s here, data size may over 2G
     // total_size is calculate by item info, could not overflow here
-    memcpy(base_ptr + offset, tensor.flat<tstring>()(i).data(), head->len);
+    (void)memcpy(base_ptr + offset, tensor.flat<tstring>()(i).data(), head->len);
     offset += head->len;
   }
   data_ptr = buff_list.back().get();

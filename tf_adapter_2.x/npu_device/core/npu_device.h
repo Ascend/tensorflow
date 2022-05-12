@@ -212,10 +212,10 @@ class NpuDevice {
     }
     auto iter = attrs.begin();
     HashKey hash = tensorflow::Hash64(iter->second.DebugString());
-    iter++;
+    ++iter;
     while (iter != attrs.end()) {
       hash = tensorflow::Hash64Combine(hash, tensorflow::Hash64(iter->second.DebugString()));
-      iter++;
+      ++iter;
     }
     return hash;
   }
