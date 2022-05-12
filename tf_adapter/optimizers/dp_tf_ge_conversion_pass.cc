@@ -376,7 +376,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
   REQUIRES_NOT_NULL(topo_end);
   const Node *iterator_node = nullptr;
   if (IsMakeIteratorNode(topo_end)) {
-    topo_end->input_node(1, &iterator_node);
+    (void) topo_end->input_node(1, &iterator_node);
   }
   kIsNewDataTransfer = GetNewDataTransferFlag();
   for (const Edge *e : split_edges_.at(topo_end)) {
@@ -590,7 +590,7 @@ Status DpTfToGEConversionPassImpl::BuildDeviceDpGraph(const Node *topo_end, Grap
       std::find_if(device_graph->op_nodes().begin(), device_graph->op_nodes().end(),
                    [this, &topo_end](const Node *n) { return IsMakeIteratorNode(n) && n->name() == topo_end->name(); });
   if (iter != device_graph->op_nodes().end()) {
-    visiable_ge.emplace(*iter);
+    (void) visiable_ge.emplace(*iter);
   }
   Status ret = RemoveNotSupportDataset(device_graph, device_channel_name, topo_end->name());
   if (!ret.ok()) {
@@ -598,7 +598,7 @@ Status DpTfToGEConversionPassImpl::BuildDeviceDpGraph(const Node *topo_end, Grap
   }
 
   ADP_LOG(INFO) << "Start to to PruneForReverseReachability.";
-  PruneForReverseReachability(device_graph, visiable_ge);
+  (void) PruneForReverseReachability(device_graph, visiable_ge);
   return ret;
 }
 
@@ -638,7 +638,7 @@ Status DpTfToGEConversionPassImpl::AddGeopNodeFunctionDef(FunctionDefLibrary &fd
                                                           const string &default_device) const {
   // Add DPOP node(visable only by function of geop)
   string func_def_str;
-  fdeflib.SerializeToString(&func_def_str);
+  (void) fdeflib.SerializeToString(&func_def_str);
 
   // DPOP node should created by function of geop
   ADP_LOG(INFO) << "Start to convert dpop node to geop function";
@@ -775,8 +775,8 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetFunctionLibrary(
   // Update graph function libray
   ADP_LOG(INFO) << "Start to add geop and geopdataset function in graph library";
   // Not a must, just for Tensorbord viewing convenience
-  graph_->AddFunctionLibrary(fdeflib);
-  flib->AddLibrary(fdeflib);
+  (void) graph_->AddFunctionLibrary(fdeflib);
+  (void) flib->AddLibrary(fdeflib);
 
   return Status::OK();
 }
@@ -812,7 +812,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
       inputs.push_back(NodeBuilder::NodeOut(n, 0));
     }
     if (n->type_string() == "DeviceQueueDataset" && n->name() == device_channel_name) {
-      isolated_nodes.insert(n);
+      (void) isolated_nodes.insert(n);
     }
   }
 
@@ -839,7 +839,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
   for (Node *n : graph_->op_nodes()) {
     if (n->type_string() == "HostQueueDataset" && n->name() == host_channel_name) {
       graph_->RemoveEdge(*(n->in_edges().begin()));
-      graph_->AddEdge(geop_dataset_node, 0, n, 0);
+      (void) graph_->AddEdge(geop_dataset_node, 0, n, 0);
     }
   }
   // Remove all edges flow to MakeIterator except the one from IteratorV2
@@ -851,7 +851,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
   for (const Edge *e : topo_end_input_edges) {
     ADP_LOG(INFO) << "node:" << topo_end->name() << ", input node is:" << e->src()->name();
     if (!IsIteratorNode(e->src())) {
-      CHECK_NOTNULL(graph_->AddEdge(dpgroup_dataset_node, 0, e->dst(), e->dst_input()));
+      (void) CHECK_NOTNULL(graph_->AddEdge(dpgroup_dataset_node, 0, e->dst(), e->dst_input()));
       ADP_LOG(INFO) << "Remove_" << GetEdgeName(e);
       graph_->RemoveEdge(e);
     }
@@ -860,7 +860,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
   // Prune for the final optimized graph
   ADP_LOG(INFO) << "Start to prune final optimized graph.";
 
-  RemoveIsolatedNode(graph_, isolated_nodes);
+  (void) RemoveIsolatedNode(graph_, isolated_nodes);
   ADP_LOG(INFO) << "Start to assign unassigned node on default device.";
   // We do pass after assign, so we must assign all new added nodes
   for (Node *n : graph_->op_nodes()) {
@@ -1068,7 +1068,9 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
     return Status::OK();
   }
   auto process_graph = [this](std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
-                              const std::map<std::string, std::string> &all_options) { RunPass(g, flib, all_options); };
+                              const std::map<std::string, std::string> &all_options) {
+    (void) RunPass(g, flib, all_options);
+  };
 
   // For any pre-partitioning phase, graph is stored in options.graph.
   process_graph(graph, func_lib, all_options);

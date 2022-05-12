@@ -34,10 +34,7 @@ namespace tensorflow {
 struct MemoryBlock {
   void *ptr;
   uint64_t data_size;
-  MemoryBlock(void *in_ptr, uint64_t in_size) {
-    ptr = in_ptr;
-    data_size = in_size;
-  }
+  MemoryBlock(void *in_ptr, uint64_t in_size) : ptr(in_ptr), data_size(in_size) {}
 };
 
 class MemoryPool {

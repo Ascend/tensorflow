@@ -22,7 +22,7 @@ namespace npu {
 AdapterLogger::~AdapterLogger() {
   if (severity_ == ADP_FATAL) {
     DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, ADP_ERROR, "%s", str().c_str());
-    DlogReportFinalize();
+    (void) DlogReportFinalize();
   } else {
     DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
   }

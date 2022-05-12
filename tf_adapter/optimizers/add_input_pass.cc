@@ -54,7 +54,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
     {
       mutex_lock lock(graph_num_mutex);
       graph_num = graph_run_num;
-      graph_run_num++;
+      ++graph_run_num;
     }
     int64 startTime = InferShapeUtil::GetCurrentTimestap();
     if (graph == nullptr) {

@@ -17,9 +17,7 @@
 #include "host_allocator.h"
 
 namespace tensorflow {
-  HostAllocator::HostAllocator(void *addr) {
-    addr_ = addr;
-  }
+  HostAllocator::HostAllocator(void *addr) : addr_(addr) {}
   HostAllocator::~HostAllocator() {}
   std::string HostAllocator::Name() {
     return "host_allocator";
