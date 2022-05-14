@@ -147,7 +147,7 @@ Status SetVarFormatPass::Run(const GraphOptimizationPassOptions &options) {
   for (Node *node : graph_in->op_nodes()) {
     if ((node != nullptr) &&
         ((node->type_string() == KEY_VAR_HANDLE_OP_VALUE) || (node->type_string() == KEY_VARIABLE_V2_VALUE))) {
-      AssignFormatToVarOutNodes(node);
+      (void) AssignFormatToVarOutNodes(node);
     }
   }
   return Status::OK();
