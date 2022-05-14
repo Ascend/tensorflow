@@ -36,7 +36,7 @@ void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, 
     TensorDataTypes output_types;
     tensorflow::InOutTypesForNode(node->def(), node->op_def(), &input_types, &output_types);
 
-    DLOG() << "Shape of node " << node->name();
+    DLOG() << "Shape of node " << node->name() << "[" << node->type_string() << "]";
     if (kDumpExecutionDetail) {
       for (int i = 0; i < node_ctx->num_inputs(); ++i) {
         DLOG() << "    input " << i << ": " << tensorflow::DataTypeString(input_types[i])

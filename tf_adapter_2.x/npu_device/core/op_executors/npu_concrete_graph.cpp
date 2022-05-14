@@ -56,20 +56,21 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     input_handles_[i] = input;
   }
 
-  // 这里根据小循环策略修改值
   int64_t iterations_per_loop = 1;
-  if (NeedLoop()) {
+  if (loop_type_ == LoopType::NPU_LOOP || loop_type_ == LoopType::HOST_LOOP) {
     iterations_per_loop = npu::global::g_npu_loop_size;
-    device->SetNpuLoopSize(context, iterations_per_loop, status);
-    NPU_REQUIRES_TFE_OK(status);
+    if (loop_type_ == LoopType::NPU_LOOP) {
+      device->SetNpuLoopSize(context, iterations_per_loop, status);
+      NPU_REQUIRES_TFE_OK(status);
+    }
   }
 
+  bool looped = (loop_type_ != LoopType::NO_LOOP);
   int64_t consume_resource_times = 1;
-  if (NeedLoop() || BuiltinLoop()) {
+  if (looped) {
     consume_resource_times = npu::global::g_npu_loop_size;
   }
 
-  bool looped = NeedLoop() || BuiltinLoop();
   for (const auto &resource : ConsumedIteratos()) {
     if (looped || kDumpExecutionDetail) {
       LOG(INFO) << "Start consume iterator resource " << resource.second->Name() << " " << consume_resource_times
@@ -100,19 +101,63 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
       return;
     }
 
-    if (NeedLoop() || kDumpExecutionDetail) {
+    if (loop_type_ == LoopType::NPU_LOOP || loop_type_ == LoopType::HOST_LOOP || kDumpExecutionDetail) {
       LOG(INFO) << "Start run ge graph " << GeGraphId() << " pin to cpu, loop size " << iterations_per_loop;
     }
     npu::Timer timer("Graph engine run ", iterations_per_loop, " times for graph ", GeGraphId());
     timer.Start();
-    device->RunGeGraphPin2Cpu(context, GeGraphId(), input_handles_.size(), input_handles_.data(), OutputTypes(),
-                              output_handles_.size(), output_handles_.data(), status);
+    int64_t times = 0;
+    do {
+      device->RunGeGraphPin2Cpu(context, GeGraphId(), input_handles_.size(), input_handles_.data(), OutputTypes(),
+                                output_handles_.size(), output_handles_.data(), status);
+    } while (++times < iterations_per_loop && loop_type_ == LoopType::HOST_LOOP);
     timer.Stop();
   }
   for (size_t i = 0; i < output_handles_.size(); i++) {
     DLOG() << "Mapping npu graph " << Op() << " output " << i << " to tensorflow output " << produced_outputs_[i];
     outputs[produced_outputs_[i]] = output_handles_[i];
   }
+}
+
+const std::string &NpuConcreteGraph::GraphLoopTypeString() const {
+  const static std::string kInvalidLoopTypeString = "invalid";
+  const static std::map<LoopType, std::string> kLoopTypeString{{LoopType::NPU_LOOP, "npu-loop"},
+                                                               {LoopType::BUILTIN_LOOP, "builtin-loop"},
+                                                               {LoopType::HOST_LOOP, "host-loop"},
+                                                               {LoopType::NO_LOOP, "no-loop"}};
+  auto iter = kLoopTypeString.find(loop_type_);
+  if (iter != kLoopTypeString.end()) {
+    return iter->second;
+  }
+  return kInvalidLoopTypeString;
+}
+
+bool NpuConcreteGraph::NeedFuzzCompile() const {
+  if (fuzz_compile_.has_value()) {
+    return fuzz_compile_.value();
+  }
+  for (auto node : graph_->op_nodes()) {
+    if (!node->IsArg()) {
+      continue;
+    }
+    const tensorflow::AttrValue *shape_attr = node->attrs().Find("_output_shapes");
+    if (!shape_attr || !shape_attr->has_list() || shape_attr->list().shape().empty()) {
+      LOG(ERROR) << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " "
+                 << node->name() << " has no shape info";
+      fuzz_compile_ = true;
+      return fuzz_compile_.value();
+    }
+    tensorflow::PartialTensorShape shape(shape_attr->list().shape(0));
+    if (!shape.IsFullyDefined()) {
+      LOG(INFO) << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " " << node->name()
+                << " shape unknown " << shape.DebugString();
+      fuzz_compile_ = true;
+      return fuzz_compile_.value();
+    }
+  }
+  LOG(INFO) << Op() << " will be compiled in static shape mode";
+  fuzz_compile_ = false;
+  return fuzz_compile_.value();
 }
 
 void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
@@ -125,7 +170,14 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
 
   if (!built_) {
     DLOG() << "Load ge graph " << GeGraphId() << " of op " << Op();
-    if (kEmptyGeGraphId == device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(), NeedLoop(), status)) {
+    const static std::map<std::string, std::string> kOptions;
+    const static std::map<std::string, std::string> kFuzzCompileOptions{
+      {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
+      {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
+      {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
+    if (kEmptyGeGraphId == device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(),
+                                                   (loop_type_ == LoopType::NPU_LOOP), status,
+                                                   (NeedFuzzCompile() ? kFuzzCompileOptions : kOptions))) {
       empty_ge_graph_ = true;
     }
     NPU_REQUIRES_TFE_OK(status);
@@ -169,13 +221,11 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
 
   tensorflow::Node *key;
   if (!IsGraphNeedLoop(graph.get(), &key)) {
-    SetBuiltinLoop(key != nullptr);
-    SetNeedLoop(false);
+    if (key != nullptr) {
+      SetLoopType(LoopType::BUILTIN_LOOP);
+    }
     return tensorflow::Status::OK();
   }
-
-  SetBuiltinLoop(false);
-  SetNeedLoop(true);
 
   const auto fn_name = key->attrs().Find("body")->func().name();
   DLOG() << "Inline while body func " << fn_name << " for node " << key->name();
@@ -217,7 +267,14 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   OptimizeStageGraphDumper graph_dumper(Op());
   graph_dumper.DumpWithSubGraphs("LOOP", graph->ToGraphDefDebug(), lib_def);
 
+  if (IsGraphHasAnyUnknownShapeNode(graph.get(), lib_def)) {
+    DLOG() << "Host loop " << Op() << " as body graph has unknown shape node";
+    SetLoopType(LoopType::HOST_LOOP);
+  } else {
+    SetLoopType(LoopType::NPU_LOOP);
+  }
   SetGraph(std::move(graph));
+
   return tensorflow::Status::OK();
 }
 }  // namespace npu

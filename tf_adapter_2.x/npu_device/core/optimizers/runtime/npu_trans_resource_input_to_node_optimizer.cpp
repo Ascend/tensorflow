@@ -330,6 +330,14 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
     if (tensor->dtype() == tensorflow::DT_RESOURCE) {
       auto &handle = tensor->flat<tensorflow::ResourceHandle>()(0);
       if (device->Mirrored(handle)) {
+        for (auto edge : node->out_edges()) {
+          if (edge->IsControlEdge()) {
+            continue;
+          }
+          if (edge->dst()->IsWhileNode()) {
+            edge->dst()->AddAttr("_consumed_iterators", true);
+          }
+        }
         mirrored_resources.emplace(index, handle);
       } else if (IsNpuTensorHandle(inputs[index])) {
         npu_resources.emplace(index, handle);

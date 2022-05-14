@@ -494,8 +494,7 @@ void NpuDevice::GetConcreteGraph(TFE_Context *context, const tensorflow::NodeDef
     s, NpuOptimizerManager::Instance().RuntimeOptimize(context, mutable_concrete_graph.get(), device_options, this,
                                                        num_inputs, inputs, graph_dumper));
 
-  LOG(INFO) << "Concrete graph for " << op_name << " loop " << (mutable_concrete_graph->NeedLoop() ? "true" : "false")
-            << " builtin loop " << (mutable_concrete_graph->BuiltinLoop() ? "true" : "false");
+  LOG(INFO) << "Concrete graph for " << op_name << " loop type " << mutable_concrete_graph->GraphLoopTypeString();
   *concrete_graph = std::move(mutable_concrete_graph);
 }
 

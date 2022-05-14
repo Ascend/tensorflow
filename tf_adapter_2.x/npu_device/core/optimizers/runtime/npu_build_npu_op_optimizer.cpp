@@ -26,8 +26,8 @@ const char *const kDynamicNodeTypeGetNext = "0";
 const char *const kDynamicNodeTypeData = "1";
 const char *const kNodeTypeGetNext = "IteratorGetNext";
 const size_t kShapeStrSize = 2;
-tensorflow::Status SetShapeToOutputDesc(const std::vector<std::string> &input_shapes,
-                                        const size_t idx, tensorflow::AttrValue &attr_shape_value) {
+tensorflow::Status SetShapeToOutputDesc(const std::vector<std::string> &input_shapes, const size_t idx,
+                                        tensorflow::AttrValue &attr_shape_value) {
   if (input_shapes.empty()) {
     return tensorflow::errors::InvalidArgument("Input shapes are empty.");
   }
@@ -57,8 +57,7 @@ tensorflow::Status SetShapeToOutputDesc(const std::vector<std::string> &input_sh
   return tensorflow::Status::OK();
 }
 
-void GetOutputDataIndex(tensorflow::Node *node,
-                        std::vector<int32_t> &ordered_indexes) {
+void GetOutputDataIndex(tensorflow::Node *node, std::vector<int32_t> &ordered_indexes) {
   std::set<int32_t> out_index;
   for (const auto &out_edge : node->out_edges()) {
     if (!out_edge->IsControlEdge()) {
@@ -76,15 +75,15 @@ tensorflow::Status BuildGetNextShape(tensorflow::Graph *graph, tensorflow::Node 
     std::string shape_name = "getnext_shape_" + std::to_string(idx);
     tensorflow::Node *shape_node = nullptr;
     NPU_REQUIRES_OK(tensorflow::NodeBuilder(shape_name, "Shape")
-                        .Input(node, idx)
-                        .Device(node->def().device())
-                        .Finalize(graph, &shape_node));
+                      .Input(node, idx)
+                      .Device(node->def().device())
+                      .Finalize(graph, &shape_node));
     std::string identity_name = "shape_identity_" + std::to_string(idx);
     tensorflow::Node *identity_node = nullptr;
     NPU_REQUIRES_OK(tensorflow::NodeBuilder(identity_name, "Identity")
-                        .Input(shape_node, 0)
-                        .Device(shape_node->def().device())
-                        .Finalize(graph, &identity_node));
+                      .Input(shape_node, 0)
+                      .Device(shape_node->def().device())
+                      .Finalize(graph, &identity_node));
     npu::AssembleOpDef(shape_node);
     npu::AssembleOpDef(identity_node);
   }
@@ -110,8 +109,8 @@ tensorflow::Status UpdateTensorDescForDynDims(const std::vector<std::string> &al
 tensorflow::Status TryToBuildShapeForDynDims(const std::map<std::string, std::string> &options,
                                              tensorflow::Graph *graph) {
   std::string input_shapes = (options.find(ge::INPUT_SHAPE) == options.end()) ? "" : options.at(ge::INPUT_SHAPE);
-  std::string dynamic_node_type = (options.find(ge::DYNAMIC_NODE_TYPE) == options.end()) ? "" :
-                                  options.at(ge::DYNAMIC_NODE_TYPE);
+  std::string dynamic_node_type =
+    (options.find(ge::DYNAMIC_NODE_TYPE) == options.end()) ? "" : options.at(ge::DYNAMIC_NODE_TYPE);
   std::string dynamic_dims = (options.find(ge::kDynamicDims) == options.end()) ? "" : options.at(ge::kDynamicDims);
   bool need_dyn_proc = (!input_shapes.empty()) && (!dynamic_node_type.empty()) && (!dynamic_dims.empty());
   if (!need_dyn_proc || dynamic_node_type == kDynamicNodeTypeData) {
@@ -130,8 +129,9 @@ tensorflow::Status TryToBuildShapeForDynDims(const std::map<std::string, std::st
     if ((node->type_string() == kNodeTypeGetNext) && (dynamic_node_type == kDynamicNodeTypeGetNext)) {
       GetOutputDataIndex(node, ordered_indexes);
       if (ordered_indexes.size() != all_input_shapes.size()) {
-        return tensorflow::errors::InvalidArgument("Invalid input shape size, all input shape size:",
-                                                   all_input_shapes.size(), ", GetNext output size:", ordered_indexes.size());
+        return tensorflow::errors::InvalidArgument(
+          "Invalid input shape size, all input shape size:", all_input_shapes.size(),
+          ", GetNext output size:", ordered_indexes.size());
       }
       NPU_REQUIRES_OK(BuildGetNextShape(graph, node, ordered_indexes));
       NPU_REQUIRES_OK(UpdateTensorDescForDynDims(all_input_shapes, ordered_indexes, node));
@@ -160,7 +160,9 @@ tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGr
   }
   if (!ss.str().empty()) {
     tensorflow::Node *key;
-    graph->SetBuiltinLoop(IsGraphNeedLoop(graph->MutableGraph(), &key) || key != nullptr);
+    if (IsGraphNeedLoop(graph->MutableGraph(), &key) || key != nullptr) {
+      graph->SetLoopType(NpuConcreteGraph::LoopType::BUILTIN_LOOP);
+    }
     graph->SetExecutionType(NpuConcreteGraph::ExecutionType::MIX);
     LOG(INFO) << graph->Op() << " compiled in mix mode on npu";
     DLOG() << graph->Op() << " not fully compiled on npu as " << std::endl << ss.str();

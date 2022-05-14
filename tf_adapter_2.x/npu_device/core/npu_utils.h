@@ -126,6 +126,9 @@ tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *
                                           const tensorflow::FunctionLibraryDefinition *lib_def,
                                           std::set<std::string> &unsupported_ops);
 
+bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph,
+                                   const tensorflow::FunctionLibraryDefinition *lib_def);
+
 bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key);
 
 uint64_t NextUUID();
