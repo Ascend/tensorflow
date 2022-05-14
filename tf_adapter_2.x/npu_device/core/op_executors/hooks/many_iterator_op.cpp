@@ -57,7 +57,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       auto generator_ndef = std::make_shared<tensorflow::NodeDef>();
       tensorflow::NodeDefBuilder(npu::WrapResourceName(resource.name()), "IteratorV2")
         .Attr("container", resource.container())
-        .Attr("shared_name", resource.name())
+        .Attr("shared_name", npu::WrapResourceName(resource.name()))
         .Attr("output_types", types)
         .Attr("output_shapes", vec_shapes)
         .Finalize(generator_ndef.get());

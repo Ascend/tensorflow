@@ -69,6 +69,9 @@ class IteratorResourceProvider {
   tensorflow::Status Destroy() {
     {
       std::unique_lock<std::mutex> lk(mu_);
+      if (stopped_ || request_stop_) {
+        return tensorflow::Status::OK();
+      }
       request_stop_ = true;
     }
     cv_.notify_one();
@@ -107,11 +110,7 @@ class IteratorResourceProvider {
       }));
   }
   ~IteratorResourceProvider() {
-    {
-      std::unique_lock<std::mutex> lk(mu_);
-      stopped_ = true;
-    }
-    cv_.notify_one();
+    Destroy();
   }
   static tensorflow::FunctionDef GetFunctionDef(std::string channel_name, std::vector<int> device_ids,
                                                 const TensorPartialShapes &shapes, const TensorDataTypes &types,
