@@ -338,6 +338,12 @@ tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *
 }
 
 namespace {
+bool IsNegligibleUnknownShapeOutput(const tensorflow::Node *node, int index) {
+  const static std::map<std::string, std::set<int>> kNegligibleUnknownShapeOutput = {{"FusedBatchNormV3", {5}}};
+  auto iter = kNegligibleUnknownShapeOutput.find(node->type_string());
+  return (iter != kNegligibleUnknownShapeOutput.end()) && (iter->second.count(index) > 0U);
+}
+
 bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorflow::FunctionLibraryDefinition *lib_def,
                                    std::queue<std::unique_ptr<tensorflow::Graph>> &q) {
   tensorflow::ShapeRefiner shape_refiner(graph->versions(), lib_def);
@@ -357,7 +363,7 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
       tensorflow::TensorShapeProto proto;
       node_ctx->ShapeHandleToProto(node_ctx->output(i), &proto);
       tensorflow::PartialTensorShape shape(proto);
-      if (!shape.IsFullyDefined()) {
+      if ((!shape.IsFullyDefined()) && (!IsNegligibleUnknownShapeOutput(node, i))) {
         DLOG() << node->name() << "[" << node->type_string() << "] unknown shape output " << i << shape.DebugString();
         has_unknown_shape_node = true;
         return;

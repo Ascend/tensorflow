@@ -155,7 +155,7 @@ bool NpuConcreteGraph::NeedFuzzCompile() const {
       return fuzz_compile_.value();
     }
   }
-  LOG(INFO) << Op() << " will be compiled in static shape mode";
+  DLOG() << Op() << " will be compiled in static shape mode";
   fuzz_compile_ = false;
   return fuzz_compile_.value();
 }
