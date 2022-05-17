@@ -39,12 +39,12 @@ std::set<string> StringSplit(const string &str, const string &pattern) {
   string::size_type pos2 = str.find(pattern);
   string::size_type pos1 = 0;
   while (pos2 != string::npos) {
-    resultSet.insert(str.substr(pos1, pos2 - pos1));
+    (void) resultSet.insert(str.substr(pos1, pos2 - pos1));
     pos1 = pos2 + pattern.size();
     pos2 = str.find(pattern, pos1);
   }
   if (pos1 != str.length()) {
-    resultSet.insert(str.substr(pos1));
+    (void) resultSet.insert(str.substr(pos1));
   }
   return resultSet;
 }
@@ -109,7 +109,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
           if (start_node_attr_value != nullptr) {
             start_nodes_name = StringSplit(start_node_attr_value->s(), ";");
           }
-          start_nodes_name.insert(start_node->name());
+          (void) start_nodes_name.insert(start_node->name());
           for (const auto &name : start_nodes_name) {
             start_node_name += name;
             start_node_name += ";";
@@ -120,7 +120,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
           if (n_attr_value != nullptr) {
             std::set<string> nodes_name = StringSplit(n_attr_value->s(), ";");
             for (const auto &name : nodes_name) {
-              start_nodes_name.insert(name);
+              (void) start_nodes_name.insert(name);
             }
           }
           for (const auto &name : start_nodes_name) {
@@ -167,7 +167,7 @@ Status MarkStartNodePass::TraverseNode(const Node *start_node) {
     if (n_attr_value != nullptr) {
       std::set<string> nodes_name = StringSplit(n_attr_value->s(), ";");
       for (const auto &name : nodes_name) {
-        start_nodes_name.insert(name);
+        (void) start_nodes_name.insert(name);
       }
     }
     for (const auto &name : start_nodes_name) {

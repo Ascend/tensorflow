@@ -74,7 +74,7 @@ Status ControlFlowConversionPass::Run(const GraphOptimizationPassOptions &option
     }
     for (NodeDef ndef : fdef->node_def()) {
       if (ndef.op() == "If" || ndef.op() == "Case" || ndef.op() == "While") {
-        ndef.mutable_attr()->erase(kLowerUsingSwitchMergeAttr);
+        (void) ndef.mutable_attr()->erase(kLowerUsingSwitchMergeAttr);
       }
     }
   }
