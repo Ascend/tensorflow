@@ -19,7 +19,7 @@ fi
 
 source /home/jenkins/tensorflow26/.env/bin/activate
 
-PYTHON_BIN_PATH=$(which python3.7)
+PYTHON_BIN_PATH=$(which python3.9)
 
 export ADAPTER_TARGET_PYTHON_PATH="$PYTHON_BIN_PATH"
 export ASCEND_INSTALLED_PATH="$ASCEND_CUSTOM_PATH"
