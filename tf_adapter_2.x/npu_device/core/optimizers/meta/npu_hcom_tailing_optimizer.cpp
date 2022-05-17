@@ -68,7 +68,7 @@ tensorflow::Status TailingOptimizeInner(tensorflow::FunctionLibraryDefinition *l
               last_allreduce = in_edge->src();
             }
           }
-          edges_to_remove.insert(in_edge);
+          (void)edges_to_remove.insert(in_edge);
         }
       }
       if (last_allreduce == nullptr || edges_to_remove.empty()) {
@@ -94,7 +94,7 @@ tensorflow::Status TailingOptimizeInner(tensorflow::FunctionLibraryDefinition *l
         previous_allreduce = nullptr;
         for (auto in_edge : in_edges) {
           if (!in_edge->IsControlEdge()) {
-            grads.insert(in_edge->src());
+            (void)grads.insert(in_edge->src());
           } else if (in_edge->src()->type_string() == kHcomAllReduce) {
             previous_allreduce = in_edge->src();
           }
@@ -103,12 +103,12 @@ tensorflow::Status TailingOptimizeInner(tensorflow::FunctionLibraryDefinition *l
 
       if (!grads.empty()) {
         for (auto edge : edges_to_remove) {
-          graph->RemoveEdge(edge);
+          (void)graph->RemoveEdge(edge);
         }
         for (auto grad : grads) {
-          graph->AddControlEdge(grad, node);
+          (void)graph->AddControlEdge(grad, node);
         }
-        graph->AddControlEdge(float_status_allreduce, last_allreduce);
+        (void)graph->AddControlEdge(float_status_allreduce, last_allreduce);
         changed = true;
       }
     }

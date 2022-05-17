@@ -62,11 +62,11 @@ void GetOutputDataIndex(tensorflow::Node *node, std::vector<int32_t> &ordered_in
   for (const auto &out_edge : node->out_edges()) {
     if (!out_edge->IsControlEdge()) {
       DLOG() << "Node out edge info:" << out_edge->DebugString();
-      out_index.insert(out_edge->src_output());
+      (void)out_index.insert(out_edge->src_output());
     }
   }
   ordered_indexes.clear();
-  ordered_indexes.insert(ordered_indexes.end(), out_index.begin(), out_index.end());
+  (void)ordered_indexes.insert(ordered_indexes.end(), out_index.begin(), out_index.end());
 }
 
 tensorflow::Status BuildGetNextShape(tensorflow::Graph *graph, tensorflow::Node *node,

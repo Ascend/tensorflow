@@ -29,7 +29,7 @@ Cluster::Cluster(const NodePlacer *placer, tensorflow::Node *node, uint64_t topo
   static std::atomic_int64_t index{0};
   name = kPlacementString[placement] + "_cluster_" + std::to_string(index.fetch_add(1));
   DLOG() << "Create cluster " << name << " for " << node->name();
-  Merge(node);
+  (void)Merge(node);
 }
 
 bool Cluster::Merge(tensorflow::Node *node) {
@@ -37,11 +37,11 @@ bool Cluster::Merge(tensorflow::Node *node) {
     return false;
   }
   DLOG() << "Place node " << node->name() << " in cluster " << this->name;
-  in_nodes.erase(node);
+  (void)in_nodes.erase(node);
   out_nodes.erase(node);
   for (auto n : node->in_nodes()) {
     if (!nodes.count(n)) {
-      in_nodes.insert(n);
+      (void)in_nodes.insert(n);
     }
   }
   for (auto n : node->out_nodes()) {
@@ -115,10 +115,10 @@ tensorflow::Status NodePlacer::CopyShareableNode() {
       DLOG() << "Copy node " << node->name() << " for colocate with " << edge->dst()->name();
       auto copy = graph_->AddNode(node->def(), &status);
       NPU_REQUIRES_OK(status);
-      graph_->AddEdge(copy, edge->src_output(), edge->dst(), edge->dst_input());
-      graph_->RemoveEdge(edge);
+      (void)graph_->AddEdge(copy, edge->src_output(), edge->dst(), edge->dst_input());
+      (void)graph_->RemoveEdge(edge);
       for (auto in_edge : node->in_edges()) {
-        graph_->AddEdge(in_edge->src(), in_edge->src_output(), copy, in_edge->dst_input());
+        (void)graph_->AddEdge(in_edge->src(), in_edge->src_output(), copy, in_edge->dst_input());
       }
     }
   }
@@ -132,7 +132,7 @@ std::set<std::shared_ptr<Cluster>> NodePlacer::GetNpuClusters() {
     if (iter == npu_clusters_.end()) {
       continue;
     }
-    clusters.insert(iter->second);
+    (void)clusters.insert(iter->second);
   }
   return clusters;
 }
@@ -199,7 +199,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
         if (!cluster->nodes.count(edge->dst())) {
           if (edge->IsControlEdge()) {
             DLOG() << "Collect control output " << edge->src()->name() << " of cluster " << cluster->name;
-            control_outputs.insert(edge->dst());
+            (void)control_outputs.insert(edge->dst());
           } else {
             DLOG() << "Collect output edge " << edge->DebugString() << " of cluster " << cluster->name;
             output_edges.push_back(edge);
@@ -226,7 +226,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
     for (auto node : control_outputs) {
       DLOG() << "Add control edge from " << npu_op->name() << " to " << node->name() << " of root graph of "
              << cluster->name;
-      graph_->AddControlEdge(npu_op, node);
+      (void)graph_->AddControlEdge(npu_op, node);
     }
 
     for (size_t i = 0U; i < input_edges.size(); i++) {
@@ -255,7 +255,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
       graph_->RemoveNode(node);
     }
 
-    tensorflow::FixupSourceAndSinkEdges(cluster_graph.get());
+    (void)tensorflow::FixupSourceAndSinkEdges(cluster_graph.get());
     tensorflow::FunctionDefLibrary flib;
     OptimizeStageGraphDumper dumper(cluster->name + "." + fn);
     dumper.DumpWithSubGraphs("NPU_FUNCTION", cluster_graph->ToGraphDefDebug(), lib_def);
@@ -346,9 +346,9 @@ tensorflow::Status NodePlacer::MergeCopiedSharedNodes() {
     auto merged = MergeCopiedSharedNodes(std::vector<tensorflow::Node *>(cluster->nodes.begin(), cluster->nodes.end()));
     for (auto &node : merged) {
       DLOG() << "Merge and remove copied node " << node->name() << " in cluster " << cluster->name;
-      npu_clusters_.erase(node);
+      (void)npu_clusters_.erase(node);
       graph_->RemoveNode(node);
-      cluster->nodes.erase(node);
+      (void)cluster->nodes.erase(node);
     }
   }
   return tensorflow::Status::OK();
@@ -411,7 +411,7 @@ void NodePlacer::Concrete(tensorflow::Node *src, tensorflow::Node *dst) {
       }
     }
   } else {
-    target->Merge(src);
+    (void)target->Merge(src);
     concrete_clusters_[src] = target;
   }
 }
@@ -465,7 +465,7 @@ tensorflow::Status NodePlacer::BuildConcreteCluster() {
       }
       DLOG() << "Concrete path cluster " << path_cluster->name << " of " << cluster->name;
       for (auto &node : path_cluster->nodes) {
-        cluster->Merge(node);
+        (void)cluster->Merge(node);
         auto iter = concrete_clusters_.find(node);
         if (iter != concrete_clusters_.end() && iter->second != path_cluster) {
           q.push(iter->second);
@@ -490,7 +490,7 @@ tensorflow::Status NodePlacer::BuildConcreteCluster() {
           node_placement_[iter2->first] = Placement::CPU;
           concrete_clusters_.erase(iter2++);
         } else {
-          iter2++;
+          ++iter2;
         }
       }
     }
@@ -690,8 +690,8 @@ bool NodePlacer::VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end,
       }
     });
   }
-  f_vst.erase(s);
-  f_vst.erase(e);
+  (void)f_vst.erase(s);
+  (void)f_vst.erase(e);
   q.push(e);
   while (!q.empty()) {
     auto node = q.front();
@@ -737,7 +737,7 @@ std::shared_ptr<Cluster> NodePlacer::GetOrCreateNpuCluster(tensorflow::Node *nod
     }
     (void)cluster->Merge(n);
     npu_clusters_[n] = cluster;
-    concrete_clusters_.erase(n);
+    (void)concrete_clusters_.erase(n);
   }
   return cluster;
 }
@@ -763,7 +763,7 @@ bool NodePlacer::ColocateNpu(tensorflow::Node *src, tensorflow::Node *dst) {
   DLOG() << "Start colocate path node from " << src->name() << " to " << dst->name() << " to cluster " << target->name;
   std::unordered_set<tensorflow::Node *> path_nodes;
   auto visitor = [this, &path_nodes](tensorflow::Node *node) {
-    path_nodes.insert(node);
+    (void)path_nodes.insert(node);
     bool placeable = IsNodeCanPlacedOn(node, Placement::NPU);
     DLOG() << "Visited path node " << node->name() << " can " << (placeable ? "" : "not") << " placed on npu";
     return placeable;
@@ -772,13 +772,13 @@ bool NodePlacer::ColocateNpu(tensorflow::Node *src, tensorflow::Node *dst) {
     for (auto &node : path_nodes) {
       if (target->Merge(node)) {
         npu_clusters_[node] = target;
-        concrete_clusters_.erase(node);
+        (void)concrete_clusters_.erase(node);
       }
     }
     target->Merge(src_cluster);
     for (auto &node : src_cluster->nodes) {
       npu_clusters_[node] = target;
-      concrete_clusters_.erase(node);
+      (void)concrete_clusters_.erase(node);
     }
     return true;
   }

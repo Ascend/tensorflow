@@ -64,12 +64,12 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
       tensorflow::Node *read_var_node = nullptr;
       for (auto in_edge : node->in_edges()) {
         if (in_edge->IsControlEdge()) {
-          edges_to_remove.insert(in_edge);
+          (void)edges_to_remove.insert(in_edge);
         } else {
           if (node->num_inputs() == 1 && in_edge->src()->type_string() == kReadVariableOp &&
               in_edge->src()->attrs().Find(kWeightUpdateGroupingAttr) != nullptr) {
             read_var_node = in_edge->src();
-            edges_to_remove.insert(in_edge);
+            (void)edges_to_remove.insert(in_edge);
           }
         }
       }
@@ -99,7 +99,7 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
 
       for (auto in_edge : assign_node->in_edges()) {
         if (in_edge->IsControlEdge()) {
-          edges_to_remove.insert(in_edge);
+          (void)edges_to_remove.insert(in_edge);
         }
       }
 
@@ -113,11 +113,11 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
         graph->RemoveEdge(edge);
       }
 
-      graph->AddEdge(var_node, 0, new_read_var_node, 0);
-      graph->AddEdge(new_read_var_node, 0, node, 0);
+      (void)graph->AddEdge(var_node, 0, new_read_var_node, 0);
+      (void)graph->AddEdge(new_read_var_node, 0, node, 0);
       for (auto var_edge : var_node->out_edges()) {
         if (var_edge->dst() != new_read_var_node && var_edge->dst() != assign_node) {
-          graph->AddControlEdge(assign_node, var_edge->dst());
+          (void)graph->AddControlEdge(assign_node, var_edge->dst());
         }
       }
       changed = true;

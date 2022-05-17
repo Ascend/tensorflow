@@ -184,8 +184,8 @@ class NpuCallOp : public OpKernel {
           {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
           {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
           {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
-        device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(),
-                           (fuzz_compile_ ? kFuzzCompileOptions : kOptions));
+        (void)device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(),
+            (fuzz_compile_ ? kFuzzCompileOptions : kOptions));
         NPU_REQUIRES_OK(status->status);
       }
     }
