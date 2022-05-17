@@ -563,7 +563,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
   init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
   init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
-  init_options_["ge.exec.customizeDdtypes"] = customize_dtypes;
+  init_options_["ge.customizeDtypes"] = customize_dtypes;
   init_options_["ge.exec.opDebugConfig"] = op_debug_config;
   if (!soc_config.empty()) {
     init_options_["ge.socVersion"] = soc_config;
@@ -1780,7 +1780,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["op_execute_timeout"] = op_execute_timeout;
   init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
   init_options_["customize_dtypes"] = customize_dtypes;
-  init_options_["ge.exec.customize_dtypes"] = customize_dtypes;
+  init_options_["ge.customizeDtypes"] = customize_dtypes;
 
   init_options_["op_debug_config"] = op_debug_config;
   init_options_["ge.exec.opDebugConfig"] = op_debug_config;
