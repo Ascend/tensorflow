@@ -50,6 +50,7 @@ class NpuConfig(NpuBaseConfig):
         self.enable_exception_dump = OptionValue(0, [0, 1])
         self.dump_config = NpuDumpConfig()
         self.profiling_config = NpuProfilingConfig()
+        self.enable_small_channel = OptionValue(False, [True, False])
         self.graph_exec_timeout = OptionValue(None, None)
 
         # Configuration for experiment
