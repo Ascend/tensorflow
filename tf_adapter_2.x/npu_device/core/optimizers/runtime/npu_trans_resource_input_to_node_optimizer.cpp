@@ -43,7 +43,7 @@ tensorflow::Status TransFunctionDef(TFE_Context *context, const std::string &fun
     DLOG() << "Copy arg substitute " << item.second->name() << " for function " << func_name << " input " << item.first;
     tensorflow::Node *substitute = fbody->graph->AddNode(item.second->def(), &status);
     NPU_REQUIRES_OK(status);
-    subgraph_substitutes.emplace(item.first, substitute);
+    (void)subgraph_substitutes.emplace(item.first, substitute);
   }
 
   NPU_REQUIRES_OK(TransResourceInput2Node(context, fbody->graph, subgraph_substitutes, is_while_body_graph));
@@ -79,7 +79,7 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
       substitutes[i] = edge->src();
     } else {
       DLOG() << "Node input " << i << " shift to " << pruned_index.size();
-      pruned_index.emplace(edge->dst_input(), pruned_index.size());
+      (void)pruned_index.emplace(edge->dst_input(), pruned_index.size());
     }
   }
 
@@ -87,9 +87,9 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   std::string body = node->attrs().Find("body")->func().name();
 
   DLOG() << "Trans cond function " << cond << " of node " << node->name();
-  TransFunctionDef(context, cond, cond, substitutes);
+  (void)TransFunctionDef(context, cond, cond, substitutes);
   DLOG() << "Trans body function " << body << " of node " << node->name();
-  TransFunctionDef(context, body, body, substitutes, true);
+  (void)TransFunctionDef(context, body, body, substitutes, true);
 
   tensorflow::NodeDef ndef = node->def();
   auto copied_type_attr = ndef.attr().at("T");                           // Copy origin attr
@@ -125,7 +125,7 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
     }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
-      graph->AddControlEdge(edge->src(), pruned_node);
+      (void)graph->AddControlEdge(edge->src(), pruned_node);
     } else {
       auto added_edge = graph->AddEdge(edge->src(), edge->src_output(), pruned_node, pruned_index[edge->dst_input()]);
       DLOG() << "Add input edge " << added_edge->DebugString();
@@ -135,12 +135,12 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   for (auto edge : node->out_edges()) {
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << pruned_node->name() << " to " << edge->dst()->name();
-      graph->AddControlEdge(pruned_node, edge->dst());
+      (void)graph->AddControlEdge(pruned_node, edge->dst());
     } else {
       if (substitutes.find(edge->src_output()) != substitutes.end()) {  // Substitute
         const tensorflow::Edge *in_edge;
         NPU_REQUIRES_OK(node->input_edge(edge->src_output(), &in_edge));
-        graph->AddControlEdge(pruned_node, edge->dst());
+        (void)graph->AddControlEdge(pruned_node, edge->dst());
         auto added_edge = graph->AddEdge(in_edge->src(), in_edge->src_output(), edge->dst(), edge->dst_input());
         DLOG() << "Replace output edge " << edge->DebugString() << " with edge " << added_edge->DebugString()
                << " and control edge from " << pruned_node->name() << " to " << edge->dst()->name();
@@ -165,7 +165,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
     const tensorflow::Edge *edge;
     NPU_REQUIRES_OK(node->input_edge(i, &edge));
     if ((i < kFunctionArgIndex) || (!npu::IsSubstituteNode(edge->src()))) {
-      pruned_index.emplace(edge->dst_input(), pruned_index.size());
+      (void)pruned_index.emplace(edge->dst_input(), pruned_index.size());
       continue;
     }
     substitutes[i - kFunctionArgIndex] = edge->src();
@@ -212,7 +212,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
     }
     if (edge->IsControlEdge()) {
       DLOG() << "Add ctrl edge from " << edge->src()->name() << " to " << pruned_node->name();
-      graph->AddControlEdge(edge->src(), pruned_node);
+      (void)graph->AddControlEdge(edge->src(), pruned_node);
     } else {
       auto added_edge = graph->AddEdge(edge->src(), edge->src_output(), pruned_node, pruned_index[edge->dst_input()]);
       DLOG() << "Add input edge " << added_edge->DebugString();
@@ -243,9 +243,9 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
       auto iter = arg_substitutes.find(index);
       if (iter != arg_substitutes.cend()) {
         for (auto edge : node->out_edges()) {
-          graph->AddEdge(iter->second, edge->src_output(), edge->dst(), edge->dst_input());
+          (void)graph->AddEdge(iter->second, edge->src_output(), edge->dst(), edge->dst_input());
         }
-        args_to_remove.insert(node);
+        (void)args_to_remove.insert(node);
       }
     }
   }
@@ -264,7 +264,7 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
   const std::function<void(tensorflow::Node *)> &enter = [&nodes_has_subgraph](tensorflow::Node *node) {
     if (npu::IsNodeHasSubgraph(node) && npu::IsNodeHasSubstituteInput(node)) {
       DLOG() << "Node " << node->name() << " with function will be pruned";
-      nodes_has_subgraph.insert(node);
+      (void)nodes_has_subgraph.insert(node);
     };
   };
   tensorflow::DFS(*graph, enter, {}, {}, {});
@@ -338,11 +338,11 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
             edge->dst()->AddAttr("_consumed_iterators", true);
           }
         }
-        mirrored_resources.emplace(index, handle);
+        (void)mirrored_resources.emplace(index, handle);
       } else if (IsNpuTensorHandle(inputs[index])) {
-        npu_resources.emplace(index, handle);
+        (void)npu_resources.emplace(index, handle);
       } else {
-        cpu_resources.emplace(index, handle);
+        (void)cpu_resources.emplace(index, handle);
       }
       DLOG() << graph->Op() << " resource input " << index << " " << handle.maybe_type_name() << " from "
              << (device->Mirrored(handle) ? "mirrored" : (IsNpuTensorHandle(inputs[index]) ? "npu" : "cpu"));
@@ -358,7 +358,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
       NPU_REQUIRES(provider != nullptr,
                    tensorflow::errors::Internal("Resource provider for ", handle.name(), " not found"));
       DLOG() << "Collect iterator provider " << handle.name();
-      dependent_resources.emplace(resource.first, provider);
+      (void)dependent_resources.emplace(resource.first, provider);
     }
     graph->SetConsumedIterators(dependent_resources);
   } else {
@@ -389,9 +389,9 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
   std::set<int32_t> produced_outputs;
   for (auto node : graph->Graph()->nodes()) {
     if (node->IsArg()) {
-      consumed_inputs.insert(node->attrs().Find("index")->i());
+      (void)consumed_inputs.insert(node->attrs().Find("index")->i());
     } else if (node->IsRetval()) {
-      produced_outputs.insert(node->attrs().Find("index")->i());
+      (void)produced_outputs.insert(node->attrs().Find("index")->i());
     }
   }
 
