@@ -1629,7 +1629,6 @@ Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
       for (auto out_edge : node->out_edges()) {
         REQUIRES_NOT_NULL(out_edge);
         graph.AddEdge(const_node, out_edge->src_output(), out_edge->dst(), out_edge->dst_input());
-        graph.RemoveEdge(out_edge);
       }
       graph.RemoveNode(node);
       remove_index_.push_back(std::make_pair(tensor, index));
