@@ -21,7 +21,6 @@
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
 namespace tensorflow {
 namespace {
@@ -58,7 +57,7 @@ class OutfeedDequeueOp : public OpKernel {
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
     device_id_ = device_id;
     const size_t kDefaultCapacity = 3;
-    OP_REQUIRES(ctx, aclrtSetDevice(device_id_) == ACL_SUCCESS, errors::Internal("Acl rtSetDevice failed."));
+    OP_REQUIRES(ctx, aclrtSetDevice(static_cast<int32_t>(device_id_)) == ACL_SUCCESS, errors::Internal("Acl rtSetDevice failed."));
     acl_handle_ = CreateAclTdtRecvChannel(device_id_, channel_name_, kDefaultCapacity);
     OP_REQUIRES(ctx, acl_handle_ != nullptr, errors::Internal("Acl create receive channel failed."));
     ADP_LOG(INFO) << "Succeed create acl channel for out-feed dequeue op " << channel_name_;
@@ -69,10 +68,11 @@ class OutfeedDequeueOp : public OpKernel {
       if (acltdtDestroyChannel(acl_handle_) != ACL_ERROR_NONE) {
         ADP_LOG(ERROR) << "Failed destroy acl channel for out-feed dequeue op " << channel_name_;
       } else {
+        acl_handle_ = nullptr;
         ADP_LOG(INFO) << "Succeed destroy acl channel for out-feed dequeue op " << channel_name_;
       }
     }
-    if (aclrtResetDevice(device_id_) != ACL_SUCCESS) {
+    if (aclrtResetDevice(static_cast<int32_t>(device_id_)) != ACL_SUCCESS) {
       ADP_LOG(ERROR) << "Acl rtResetDevice failed.";
     }
   }
@@ -102,7 +102,7 @@ class OutfeedDequeueOp : public OpKernel {
                 errors::Internal("out-feed op ", channel_name_, " received ", tensors.size(), " tensors but expect ",
                                  output_shapes_.size(), " tensors"));
     for (int i = 0; i < ctx->num_outputs(); ++i) {
-      ctx->set_output(i, tensors[i]);
+      ctx->set_output(i, tensors[static_cast<size_t>(i)]);
     }
   }
   bool IsExpensive() override {

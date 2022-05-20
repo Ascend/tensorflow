@@ -39,7 +39,6 @@ class CacheInterface : public ResourceBase {
     return strings::StrCat("A Cache of size: ", size());
   }
 
- protected:
   virtual ~CacheInterface() override {}
 };
 }  // namespace tensorflow

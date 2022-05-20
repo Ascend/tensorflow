@@ -327,7 +327,7 @@ using NodeStack = std::vector<Node *>;
 using GraphPath = std::vector<Node *>;
 using GraphPaths = std::vector<GraphPath>;
 
-int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
+int FindNodesInPaths(Node *op_head, const NodeSet &ops_tail, NodeSet &ops_save) {
   if (!op_head || ops_tail.count(nullptr) > 0) { return 0; }
 
   static const size_t kLegalPathSize = 2;
@@ -337,7 +337,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
   NodeStack stack;
   GraphPath path;
 
-  (void) seen.insert(NodeMap::value_type(op_head, empty));
+  (void) seen.emplace(NodeMap::value_type(op_head, empty));
   stack.push_back(op_head);
   while (!stack.empty()) {
     Node *cur_node = stack.back();
@@ -380,7 +380,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
         }
       }
       auto outputs_size = num_outputs(out_node);
-      if (seen.insert(NodeMap::value_type(out_node, empty)).second ||
+      if (seen.emplace(NodeMap::value_type(out_node, empty)).second ||
         seen[out_node].size() < outputs_size) {
         stack.push_back(out_node);
       }
@@ -389,7 +389,7 @@ int FindNodesInPaths(Node *op_head, NodeSet &ops_tail, NodeSet &ops_save) {
       }
     }
   }
-  return ops_save.size();
+  return static_cast<int>(ops_save.size());
 }
 
 using IOP = std::pair<std::string, std::set<std::string>>;
@@ -455,7 +455,7 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
   return size;
 }
 
-Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates, FunctionLibraryDefinition *func_lib,
+Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates, const FunctionLibraryDefinition *func_lib,
                                  const std::string &in_out_pair, const std::string &in_out_pair_flag) {
   AllGraphIOP all_graph_iop;
   if (ParseInOutPair(in_out_pair, all_graph_iop) <= 0) {
@@ -603,15 +603,15 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
     if (!status.ok()) { return status; }
     std::set<std::string> unsupportedFrames;
     for (auto it : outSet) {
-      auto cfInfo = cfInfos[it->id()];
+      auto cfInfo = cfInfos[static_cast<size_t>(it->id())];
       if (!cfInfo.frame_name.empty()) { (void) unsupportedFrames.insert(cfInfo.frame_name); }
-      while (!cfInfos[cfInfo.parent_frame->id()].frame_name.empty()) {
-        (void) unsupportedFrames.insert(cfInfos[cfInfo.parent_frame->id()].frame_name);
-        cfInfo = cfInfos[cfInfo.parent_frame->id()];
+      while (!cfInfos[static_cast<size_t>(cfInfo.parent_frame->id())].frame_name.empty()) {
+        (void) unsupportedFrames.insert(cfInfos[static_cast<size_t>(cfInfo.parent_frame->id())].frame_name);
+        cfInfo = cfInfos[static_cast<size_t>(cfInfo.parent_frame->id())];
       }
     }
     for (auto it = candidates->cbegin(); it != candidates->cend();) {
-      auto cfInfo = cfInfos[(*it)->id()];
+      auto cfInfo = cfInfos[static_cast<size_t>((*it)->id())];
       if (unsupportedFrames.find(cfInfo.frame_name) != unsupportedFrames.cend()) {
         (void) outSet.insert(*it);
         it = candidates->erase(it);
@@ -952,7 +952,7 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
           auto cluster_dst = cluster_map[dst];
           for (const auto &src_start_name : cluster_src->start_nodes_name) {
             if (std::any_of(cluster_dst->start_nodes_name.begin(), cluster_dst->start_nodes_name.end(),
-                [&src_start_name](std::string dst_start_name) { return src_start_name == dst_start_name; })) {
+                [&src_start_name](const std::string dst_start_name) { return src_start_name == dst_start_name; })) {
               find_same_start = true;
               ADP_LOG(INFO) << "node : " << src->name() << " and node : " << dst->name()
                             << " has same start node : " << src_start_name;
@@ -1078,9 +1078,9 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
 
   std::vector<std::pair<string, int>> sortedCluster;
   (void) std::transform(clusterInfo.begin(), clusterInfo.end(), std::back_inserter(sortedCluster),
-                        [](std::pair<int, std::pair<string, int>> cluster) { return cluster.second; });
+                        [](const std::pair<int, std::pair<string, int>> cluster) { return cluster.second; });
   std::sort(sortedCluster.begin(), sortedCluster.end(), ClusterCompare());
-  clusterNum = clusterSequenceNum;
+  clusterNum = static_cast<int>(clusterSequenceNum);
   if (static_cast<int>(sortedCluster.size()) != clusterNum) {
     return errors::Internal("Sorted cluster size should be equal to origin subgraph num. ", "Sorted cluster size is ",
                             sortedCluster.size(), ", origin subgraph num is ", clusterNum);
@@ -1383,7 +1383,6 @@ class OMSplitter {
   const string groupAttribute_;
   const Graph *graph_in_;
   std::vector<const Edge *> refIn_;
-  uint64_t ID_NUM = 3;
 
   std::unordered_map<string, Subgraph> subgraphs_;
   std::map<std::string, std::string> npu_optimizer_options_;
@@ -1464,7 +1463,7 @@ Status OMSplitter::Subgraph::RecordArg(const Edge *edge, const std::unordered_ma
     Node *arg = graph_->AddNode(argNodeDef, &s);
     if (!s.ok()) { return s; }
 
-    srcArgPairs->push_back({srcNode, arg});
+    srcArgPairs->emplace_back(std::make_pair(srcNode, arg));
     args_.push_back(arg);
     argDatetypes_.push_back(dtype);
   }
@@ -1717,7 +1716,7 @@ Status OMSplitter::SplitIntoSubgraphs(uint32_t &subgraphNum) {
     }
   }
 
-  subgraphNum = subgraphs_.size();
+  subgraphNum = static_cast<uint32_t>(subgraphs_.size());
   ADP_LOG(INFO) << "subgraphNum: " << subgraphNum;
 
   return Status::OK();
@@ -1935,7 +1934,7 @@ Status OMPartitionSubgraphsPass::Run(const GraphOptimizationPassOptions &options
   return Status::OK();
 }
 
-void OMPartitionSubgraphsPass::ParseInputShapeRange(std::string dynamic_inputs_shape_range, bool enable_dp,
+void OMPartitionSubgraphsPass::ParseInputShapeRange(const std::string dynamic_inputs_shape_range, bool enable_dp,
                                                     std::map<std::string, std::string> &graph_options) const {
   static const size_t kLegalShapeVecSize = 2;
   std::vector<std::string> inputsVec;
@@ -1984,7 +1983,7 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
   const std::string kIsTrainGraph = "_is_train_graph";
   if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
     bool dynamic_input = node_attrs.at(kDynamicInput).b();
-    graph_options["dynamic_input"] = std::to_string(dynamic_input);
+    graph_options["dynamic_input"] = std::to_string(static_cast<int32_t>(dynamic_input));
     if (dynamic_input) {
       std::string graph_execute_mode = node_attrs.at(kDynamicGraphExecuteMode).s();
       graph_options["dynamic_graph_execute_mode"] = graph_execute_mode;
@@ -1996,11 +1995,11 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
   }
   if (node_attrs.find(kIsTrainGraph) != node_attrs.end()) {
     bool is_train_graph = node_attrs.at(kIsTrainGraph).b();
-    graph_options["train_graph"] = std::to_string(is_train_graph);
+    graph_options["train_graph"] = std::to_string(static_cast<int32_t>(is_train_graph));
   }
 }
 
-Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, std::string enable_dp, std::vector<Node *> &remove_nodes,
+Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, const std::string enable_dp, std::vector<Node *> &remove_nodes,
                                                 Graph *graph_in) const {
   for (auto output_type: node->output_types()) {
     if (output_type == DT_STRING && enable_dp == "0") {
@@ -2118,7 +2117,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     graph->get()->ToGraphDef(&ori_graph_def);
     string ori_model_path = GetDumpPath() + "BeforeSubGraph_";
     string omodel_path = ori_model_path + std::to_string(graph_num) + ".pbtxt";
-    Status status_out = WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
+    (void)WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
   }
 
   string graph_format_value;
@@ -2230,7 +2229,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     graph->get()->ToGraphDef(&omg_graph_def);
     string tmpmodel_path = GetDumpPath() + "AfterSubGraph_";
     string tmodel_path = tmpmodel_path + std::to_string(graph_num) + ".pbtxt";
-    Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
+    (void)WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " succeed. ["

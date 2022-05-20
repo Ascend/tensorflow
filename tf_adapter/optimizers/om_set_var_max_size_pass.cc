@@ -82,7 +82,7 @@ Status SetVarMaxSizePass::SetConstListNodes(Node *node, std::vector<std::string>
     if (check_const_input) {
       const_inputs.push_back(src_node->name());
     } else {
-      const_inputs.push_back("");
+      const_inputs.emplace_back("");
     }
   }
   node->AddAttr(ATTR_NAME_CONST_INPUT_NAME, const_inputs);
@@ -106,7 +106,7 @@ Status SetVarMaxSizePass::AssignConstToVarOutNodes(const Node *node, std::vector
         ADP_LOG(INFO) << "The node : " << dst_node->name().c_str() << " had set const input.";
         continue;
       }
-      SetConstListNodes(dst_node, input_names);
+      (void)SetConstListNodes(dst_node, input_names);
     }
   }
   return Status::OK();

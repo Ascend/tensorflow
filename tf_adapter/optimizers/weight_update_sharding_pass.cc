@@ -74,13 +74,13 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
       graphIn->ToGraphDef(&ori_graph_def);
       std::string ori_model_path = GetDumpPath() + "BeforeWeightUpdateSharding_";
       std::string omodel_path = ori_model_path + std::to_string(graph_num) + ".pbtxt";
-      Status status_out = WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
+      (void)WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
     }
 
     std::vector<Node *> in_nodes;
     (void) std::copy(graphIn->nodes().begin(), graphIn->nodes().end(), std::back_inserter(in_nodes));
-    for (int i = in_nodes.size() - 1; i >= 0; i--) {
-      Node *node = in_nodes.at(i);
+    for (int i = static_cast<int>(in_nodes.size() - 1); i >= 0; i--) {
+      Node *node = in_nodes.at(static_cast<int>(i));
       REQUIRES_NOT_NULL(node);
       std::string op_type = node->type_string();
       std::string dst_name;
@@ -200,7 +200,7 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
       graphIn->ToGraphDef(&omg_graph_def);
       string tmpmodel_path = GetDumpPath() + "AfterWeightUpdateSharding_";
       string tmodel_path = tmpmodel_path + std::to_string(graph_num) + ".pbtxt";
-      Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
+      (void)WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
     }
     int64 endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "WeightUpdateSharding_" << std::to_string(graph_num) << " success. ["

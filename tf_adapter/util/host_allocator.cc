@@ -18,16 +18,25 @@
 
 namespace tensorflow {
   HostAllocator::HostAllocator(void *addr) : addr_(addr) {}
-  HostAllocator::~HostAllocator() {}
+  HostAllocator::~HostAllocator() {
+    addr_ = nullptr;
+  }
   std::string HostAllocator::Name() {
     return "host_allocator";
   }
   void *HostAllocator::AllocateRaw(size_t alignment, size_t num_bytes) {
+    (void) alignment;
+    (void) num_bytes;
     return addr_;
   }
   void *HostAllocator::AllocateRaw(size_t alignment, size_t num_bytes,
                                    const AllocationAttributes &allocation_attr) {
+    (void) alignment;
+    (void) num_bytes;
+    (void) allocation_attr;
     return addr_;
   }
-  void HostAllocator::DeallocateRaw(void *ptr) {}
+  void HostAllocator::DeallocateRaw(void *ptr) {
+    (void) ptr;
+  }
 }

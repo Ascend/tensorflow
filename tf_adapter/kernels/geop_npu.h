@@ -89,7 +89,7 @@ class GeOp : public AsyncOpKernel {
   Status GraphInputConvertToConst(OpKernelContext *ctx);
 
   Status GraphCheckInputEqualConstOp(OpKernelContext *ctx, Tensor &tensor, int32_t index, bool &is_equal);
- private:
+
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
   int InitRebuildFlag(uint32_t cache_graph_id);
@@ -135,7 +135,6 @@ class GeOp : public AsyncOpKernel {
 
   void ChangeChannelNameAttr(NodeDef &node_def) const;
 
- private:
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;
   static const std::string SERIALIZE_FORMAT;

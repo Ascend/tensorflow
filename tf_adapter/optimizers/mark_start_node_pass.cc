@@ -93,7 +93,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
     graph->get()->ToGraphDef(&ori_graph_def);
     string ori_model_path = GetDumpPath() + "BeforeMarkStartNodeAttr_";
     string omodel_path = ori_model_path + std::to_string(graph_num) + ".pbtxt";
-    Status status_out = WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
+    (void)WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
   }
 
   for (Node *start_node : graph->get()->nodes()) {
@@ -142,7 +142,7 @@ Status MarkStartNodePass::Run(const GraphOptimizationPassOptions &options) {
     graph->get()->ToGraphDef(&omg_graph_def);
     string tmpmodel_path = GetDumpPath() + "AfterMarkStartNodeAttr_";
     string tmodel_path = tmpmodel_path + std::to_string(graph_num) + ".pbtxt";
-    Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
+    (void)WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(INFO) << "MarkStartNodePass_" << std::to_string(graph_num) << " success. ["

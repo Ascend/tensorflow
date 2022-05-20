@@ -54,7 +54,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
     {
       mutex_lock lock(graph_num_mutex);
       graph_num = graph_run_num;
-      ++graph_run_num;
+      graph_run_num++;
     }
     int64 startTime = InferShapeUtil::GetCurrentTimestap();
     if (graph == nullptr) {
@@ -96,7 +96,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
       graph->get()->ToGraphDef(&ori_graph_def);
       string ori_model_path = GetDumpPath() + "BeforeSubGraph_Add_Input_";
       string omodel_path = ori_model_path + std::to_string(graph_num) + ".pbtxt";
-      Status status_out = WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
+      (void)WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
     }
 
     GraphDef graph_def;
@@ -115,7 +115,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
       graph->get()->ToGraphDef(&omg_graph_def);
       string tmpmodel_path = GetDumpPath() + "AfterSubGraph_Add_Input_";
       string tmodel_path = tmpmodel_path + std::to_string(graph_num) + ".pbtxt";
-      Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
+      (void)WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
     }
     int64 endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(INFO) << "AddInputPass subgraph_" << std::to_string(graph_num) << " success. ["

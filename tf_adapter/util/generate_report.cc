@@ -16,7 +16,6 @@
 
 #include "tf_adapter/util/generate_report.h"
 
-#include <cstdio>
 #include <unistd.h>
 #include "nlohmann/json.hpp"
 #include "tensorflow/core/platform/env.h"
@@ -52,7 +51,7 @@ GenerateReport *GenerateReport::GetInstance() {
   return &generate_report;
 }
 
-Status GenerateReport::AddUnSupportedInfo(const Node *node, Details &infos) {
+Status GenerateReport::AddUnSupportedInfo(const Node * const node, Details &infos) {
   return GenerateReport::AddUnSupportedInfo(node->name(), node->type_string(), infos);
 }
 
@@ -85,7 +84,7 @@ Status GenerateReport::SaveUnsupportedInfo() {
                  {kKeyReason, reason}};
       graph_info[kKeyOp].push_back(op);
     }
-    info_str = graph_info.dump(kInterval, ' ', false, Json::error_handler_t::ignore);
+    info_str = graph_info.dump(static_cast<const int>(kInterval), ' ', false, Json::error_handler_t::ignore);
   } catch (std::exception &e) {
     return errors::Internal("Failed to convert json to string ,reason:", e.what());
   } catch (...) {

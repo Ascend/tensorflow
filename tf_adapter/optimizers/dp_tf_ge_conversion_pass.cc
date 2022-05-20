@@ -176,7 +176,7 @@ class DpTfToGEConversionPassImpl {
   Status BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, Graph *device_graph, const std::string &fn_geop_dataset,
                                   const string &default_device,
                                   const std::map<std::string, std::string> &all_options) const;
-  Status AddGeOpDatasetFunctionLibrary(FunctionLibraryDefinition *flib, Node *topo_end,
+  Status AddGeOpDatasetFunctionLibrary(FunctionLibraryDefinition *flib, const Node *topo_end,
                                        const std::string &device_channel_name, const std::string &fn_geop_dataset,
                                        const std::map<std::string, std::string> &all_options);
   Status AddGeOpDatasetAndDpGroupDataset(const Node *topo_end, const std::string &fn_geop_dataset,
@@ -249,11 +249,11 @@ std::string DpTfToGEConversionPassImpl::GetRandomName() const {
   return x;
 }
 
-bool DpTfToGEConversionPassImpl::EndsWith(const std::string &str, const std::string &suffix) const {
+inline bool DpTfToGEConversionPassImpl::EndsWith(const std::string &str, const std::string &suffix) const {
   return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-bool DpTfToGEConversionPassImpl::CheckNode(const std::string &op) const {
+inline bool DpTfToGEConversionPassImpl::CheckNode(const std::string &op) const {
   std::string suffix_op = "Dataset";
   std::string suffix_op_v2 = "DatasetV2";
   if (EndsWith(op, suffix_op) || EndsWith(op, suffix_op_v2)) {
@@ -271,7 +271,7 @@ bool DpTfToGEConversionPassImpl::CheckNode(const std::string &op) const {
   }
 }
 
-bool DpTfToGEConversionPassImpl::IsDeviceSupportedOp(const NodeDef &n) const {
+inline bool DpTfToGEConversionPassImpl::IsDeviceSupportedOp(const NodeDef &n) const {
   const OpRegistrationData *op_reg_data = nullptr;
   // Tenorflow original op
   if (OpRegistry::Global() == nullptr) {
@@ -304,7 +304,7 @@ bool DpTfToGEConversionPassImpl::IsDeviceSupportedOp(const NodeDef &n) const {
   return true;
 }
 
-bool DpTfToGEConversionPassImpl::IsDeviceSupportedFunc(const std::string &fn) const {
+inline bool DpTfToGEConversionPassImpl::IsDeviceSupportedFunc(const std::string &fn) const {
   const FunctionDef *fdef = flib_def_->Find(fn);
   // Node contains not found function
   if (fdef == nullptr) {
@@ -322,8 +322,8 @@ bool DpTfToGEConversionPassImpl::IsDeviceSupportedFunc(const std::string &fn) co
   return true;
 }
 
-Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<const Edge *> &split_edges,
-                                                 const Edge *last_edge) {
+inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<const Edge *> &split_edges,
+                                                        const Edge *last_edge) {
   if (IsMakeIteratorNode(n)) {
     for (const Edge *e : n->in_edges()) {
       REQUIRES_NOT_NULL(e);
@@ -369,9 +369,9 @@ Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vector<cons
   return Status::OK();
 }
 
-Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
-                                                      std::string &device_queue_name,
-                                                      const std::map<std::string, std::string> &all_options) const {
+inline Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
+                                                             std::string &device_queue_name,
+                                                             const std::map<std::string, std::string> &all_options) const {
   ADP_LOG(INFO) << "Start to insert HostQueueDataset and DeviceQueueDataset.";
   REQUIRES_NOT_NULL(topo_end);
   const Node *iterator_node = nullptr;
@@ -502,7 +502,7 @@ Status DpTfToGEConversionPassImpl::RemoveNotSupportDataset(Graph *g, const std::
   return Status::OK();
 }
 
-void DpTfToGEConversionPassImpl::RemoveSplitEdges(Node *topo_end) {
+inline void DpTfToGEConversionPassImpl::RemoveSplitEdges(Node *topo_end) {
   ADP_LOG(INFO) << "Start to remove split edges";
   for (const Edge *e : split_edges_.at(topo_end)) {
     ADP_LOG(INFO) << "Remove_" << GetEdgeName(e);
@@ -726,7 +726,7 @@ DpTfToGEConversionPassImpl::BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib
 }
 
 Status DpTfToGEConversionPassImpl::AddGeOpDatasetFunctionLibrary(
-    FunctionLibraryDefinition *flib, Node *topo_end, const std::string &device_channel_name,
+    FunctionLibraryDefinition *flib, const Node *topo_end, const std::string &device_channel_name,
     const std::string &fn_geop_dataset, const std::map<std::string, std::string> &all_options) {
   FunctionDefLibrary fdeflib;
   if (device_channel_name.empty()) {
@@ -809,7 +809,7 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
     if (n->type_string() == "HostQueueDataset" && n->name() == host_channel_name) {
       // 0: Host queue always generate one dataset
       ADP_LOG(INFO) << "inputs add node : name is " << n->name() << ", op is " << n->type_string();
-      inputs.push_back(NodeBuilder::NodeOut(n, 0));
+      inputs.emplace_back(NodeBuilder::NodeOut(n, 0));
     }
     if (n->type_string() == "DeviceQueueDataset" && n->name() == device_channel_name) {
       (void) isolated_nodes.insert(n);
@@ -947,7 +947,7 @@ bool DpTfToGEConversionPassImpl::RemoveIsolatedNode(Graph *g, std::unordered_set
 
   // Make a pass over the graph to remove nodes in "visited"
   std::vector<Node *> all_nodes;
-  all_nodes.reserve(g->num_nodes());
+  all_nodes.reserve(static_cast<size_t>(g->num_nodes()));
   for (Node *n : g->nodes()) {
     all_nodes.push_back(n);
   }
@@ -1067,7 +1067,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, F
     ADP_LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is false";
     return Status::OK();
   }
-  auto process_graph = [this](std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
+  auto process_graph = [this](const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
                               const std::map<std::string, std::string> &all_options) {
     (void) RunPass(g, flib, all_options);
   };

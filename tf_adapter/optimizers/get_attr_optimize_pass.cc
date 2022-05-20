@@ -74,7 +74,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
     options.graph->get()->ToGraphDef(&ori_graph_def);
     string ori_model_path = GetDumpPath() + "BeforeGetAttrOptimize_";
     string omodel_path = ori_model_path + std::to_string(graph_num) + ".pbtxt";
-    Status status_out = WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
+    (void)WriteTextProto(Env::Default(), omodel_path, ori_graph_def);
   }
 
   for (Node *n : options.graph->get()->nodes()) {
@@ -107,7 +107,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
     options.graph->get()->ToGraphDef(&omg_graph_def);
     string tmpmodel_path = GetDumpPath() + "AfterGetAttrOptimize_";
     string tmodel_path = tmpmodel_path + std::to_string(graph_num) + ".pbtxt";
-    Status status_o = WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
+    (void)WriteTextProto(Env::Default(), tmodel_path, omg_graph_def);
   }
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(INFO) << "GetAttrOptimizePass_" << std::to_string(graph_num) << " success. ["
