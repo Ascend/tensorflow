@@ -125,17 +125,6 @@ def _DropOutDoMaskV3Grad(op, grad):
     return [result, None, None]
 
 
-def lru_cache_v2(index_list, data, cache, tag, is_last_call, pre_route_count, name=None):
-    """
-    LRUCacheV2 op
-    
-    """
-    is_last_call = ops.convert_to_tensor(is_last_call, name="is_last_call")
-    data, cache, tag, index_offset_list, not_in_cache_index_list, not_in_cache_number = 
-        npu_aicore_ops.lru_cache_v2(index_list, data, cache, tag, is_last_call, pre_route_count, name=name)
-    return [data, cache, tag, index_offset_list, not_in_cache_index_list, not_in_cache_number]
-
-
 def nonzero(x, transpose=False, output_type=dtypes.int64, name=None):
     """
     nonezero op
