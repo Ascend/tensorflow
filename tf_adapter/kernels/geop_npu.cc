@@ -417,7 +417,7 @@ void GeOp::Finalize() {
       if (!SessionManager::GetInstance().IsGeSessionExist()) {
         if (!GePlugin::GetInstance()->IsGlobal()) {
           if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty() &&
-              aoe_finalize_ != nullptr) {
+              aoe_finalize_ != nullptr && tuned_initialize_flag_) {
             Aoe::AoeStatus tune_ret = (*aoe_finalize_)();
             if (tune_ret != Aoe::AOE_SUCCESS) {
               ADP_LOG(ERROR) << "[GEOP] exec aoe finalize func failed.";
@@ -425,7 +425,7 @@ void GeOp::Finalize() {
               return;
             }
           }
-          tuned_initialize_flag_.clear();
+          tuned_initialize_flag_ = false;
           GePlugin::GetInstance()->Finalize();
           ADP_LOG(INFO) << "[GEOP] GePlugin Finalize success";
         } else {
@@ -608,13 +608,14 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         tune_options_.insert({"work_path", init_options_["ge.tuningPath"]});
         tune_options_.insert({"job_type", init_options_["ge.jobType"]});
         // aoe ini
-        if (!tuned_initialize_flag_.test_and_set()) {
+        if (!tuned_initialize_flag_) {
           std::map<Aoe::AscendString, Aoe::AscendString> global_options;
           global_options.insert(
               {Aoe::AscendString("work_path"), Aoe::AscendString(init_options_["ge.tuningPath"].c_str())});
           Aoe::AoeStatus init_ret = (*aoe_initialize_)(global_options);
           OP_REQUIRES_ASYNC(ctx, init_ret == Aoe::AOE_SUCCESS,
                             errors::Internal("[GEOP] exec aoe initialize func failed[", init_ret, "]."), done);
+          tuned_initialize_flag_ = true;
         }
       }
       ADP_LOG(INFO) << "[GEOP] tf session: " << tf_session_ << " get ge session success.";
@@ -1936,7 +1937,7 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
 
 namespace tensorflow {
 mutex GeOp::mu_(LINKER_INITIALIZED);
-std::atomic_flag GeOp::tuned_initialize_flag_ = ATOMIC_FLAG_INIT;
+bool GeOp::tuned_initialize_flag_(false);
 
 const std::string GeOp::INPUT_DESC = "input_tensor_desc";
 const std::string GeOp::OUTPUT_DESC = "output_tensor_desc";
