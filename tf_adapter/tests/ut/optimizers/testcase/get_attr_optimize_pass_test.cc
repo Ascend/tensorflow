@@ -204,6 +204,9 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue hccl_timeout = AttrValue();
   hccl_timeout.set_i(1);
   (*custom_config->mutable_parameter_map())["hccl_timeout"] = hccl_timeout;
+  AttrValue atomic_clean_policy = AttrValue();
+  atomic_clean_policy.set_i(1);
+  (*custom_config->mutable_parameter_map())["atomic_clean_policy"] = atomic_clean_policy;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {
