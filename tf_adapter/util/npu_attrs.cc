@@ -1371,7 +1371,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_wait_timeout;
   std::string op_execute_timeout;
   std::string customize_dtypes;
-  int graph_exec_timeout = 0;
+  int graph_exec_timeout = 600;
   int atomic_clean_policy = 0;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
