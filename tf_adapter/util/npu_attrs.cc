@@ -302,7 +302,7 @@ void NpuAttrs::SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt) {
   ADP_LOG(INFO) << "set device: " << device_id << " turn_on_tdt_info_: " << turn_on_tdt_info_[device_id];
 }
 
-bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
+bool NpuAttrs::GetUseAdpStatus(const std::string &iterator_name) {
   if (use_adp_info_.count(iterator_name) > 0) {
     ADP_LOG(INFO) << "get iterator: " << iterator_name << " use_adp_info_: " << use_adp_info_[iterator_name];
     return use_adp_info_[iterator_name];
@@ -311,12 +311,12 @@ bool NpuAttrs::GetUseAdpStatus(std::string iterator_name) {
   }
 }
 
-void NpuAttrs::SetUseAdpStatus(std::string iterator_name, bool is_use_adp) {
+void NpuAttrs::SetUseAdpStatus(const std::string &iterator_name, bool is_use_adp) {
   use_adp_info_[iterator_name] = is_use_adp;
   ADP_LOG(INFO) << "set iterator: " << iterator_name << " use_adp_info_: " << use_adp_info_[iterator_name];
 }
 
-bool NpuAttrs::IsDatasetExecuteInDevice(std::string iterator_name) {
+bool NpuAttrs::IsDatasetExecuteInDevice(const std::string &iterator_name) {
   if (dataset_execute_info_.count(iterator_name) > 0) {
     ADP_LOG(INFO) << "get data pre-process graph: " << iterator_name
                   << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
@@ -326,7 +326,7 @@ bool NpuAttrs::IsDatasetExecuteInDevice(std::string iterator_name) {
   }
 }
 
-void NpuAttrs::SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool is_dataset_execute_device) {
+void NpuAttrs::SetDatasetExecuteInDeviceStatus(const std::string &iterator_name, bool is_dataset_execute_device) {
   dataset_execute_info_[iterator_name] = is_dataset_execute_device;
   ADP_LOG(INFO) << "data pre-process graph: " << iterator_name
                 << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
@@ -334,25 +334,25 @@ void NpuAttrs::SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool i
 
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
-  std::string variable_format_optimize = std::to_string(true);
-  std::string hcom_parallel = std::to_string(false);
+  std::string variable_format_optimize = "1";
+  std::string hcom_parallel = "0";
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
-  std::string enable_dump = std::to_string(false);
-  std::string enable_dump_debug = std::to_string(false);
+  std::string enable_dump = "0";
+  std::string enable_dump_debug = "0";
   std::string dump_path;
   std::string dump_step;
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
   std::string stream_max_parallel_num;
   std::string npuOptimizer;
-  std::string is_tailing_optimization = std::to_string(false);
+  std::string is_tailing_optimization = "0";
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string buffer_optimize = "l2_optimize";
   std::string enable_small_channel = "0";
   std::string fusion_switch_file;
-  std::string enable_compress_weight = std::to_string(false);
+  std::string enable_compress_weight = "0";
   std::string compress_weight_conf;
   std::string input_shape;
   std::string dynamic_dims;
@@ -372,10 +372,10 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void)ctx->GetAttr("_variable_memory_max_size", &variable_memory_max_size);
     (void)ctx->GetAttr("_enable_dump", &enable_dump);
     (void)ctx->GetAttr("_enable_dump_debug", &enable_dump_debug);
-    if (enable_dump != std::to_string(false) || enable_dump_debug != std::to_string(false)) {
+    if (enable_dump != "0" || enable_dump_debug != "0") {
       (void)ctx->GetAttr("_dump_path", &dump_path);
     }
-    if (enable_dump != std::to_string(false)) {
+    if (enable_dump != "0") {
       if (ctx->GetAttr("_dump_step", &dump_step) == Status::OK() && !dump_step.empty()) {
         Status s = checkDumpStep(dump_step);
         if (!s.ok()) {
@@ -391,7 +391,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
         }
       }
     }
-    if (enable_dump_debug != std::to_string(false)) {
+    if (enable_dump_debug != "0") {
       if (ctx->GetAttr("_dump_debug_mode", &dump_debug_mode) == Status::OK()) {
         Status s = checkDumpDebugMode(dump_debug_mode);
         if (!s.ok()) {
@@ -464,7 +464,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
 std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   std::map<std::string, std::string> init_options;
   init_options["ge.exec.precision_mode"] = "allow_fp32_to_fp16";
-  init_options[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(false);
+  init_options[ge::OPTION_EXEC_PROFILING_MODE] = "0";
   init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = "";
   init_options[ge::AUTO_TUNE_MODE] = "";
   init_options[ge::OPTION_GRAPH_RUN_MODE] = "1";
@@ -480,7 +480,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstruction *ctx) {
   std::string precision_mode = "allow_fp32_to_fp16";
-  std::string profiling_mode = std::to_string(false);
+  std::string profiling_mode = "0";
   std::string profiling_options;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
@@ -619,7 +619,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
         mix_compile_mode = params.at("mix_compile_mode").b();
       }
       if (params.count("iterations_per_loop")) {
-        iterations_per_loop = params.at("iterations_per_loop").i();
+        iterations_per_loop = static_cast<int32_t>(params.at("iterations_per_loop").i());
       }
       if (params.count("lower_functional_ops")) {
         lower_functional_ops = params.at("lower_functional_ops").b();
@@ -686,20 +686,20 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
     }
   }
   // pass options
-  pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
-  pass_options["enable_dp"] = std::to_string(enable_dp);
-  pass_options["use_off_line"] = std::to_string(use_off_line);
-  pass_options["mix_compile_mode"] = std::to_string(mix_compile_mode);
+  pass_options["do_npu_optimizer"] = std::to_string(static_cast<int32_t>(do_npu_optimizer));
+  pass_options["enable_dp"] = std::to_string(static_cast<int32_t>(enable_dp));
+  pass_options["use_off_line"] = std::to_string(static_cast<int32_t>(use_off_line));
+  pass_options["mix_compile_mode"] = std::to_string(static_cast<int32_t>(mix_compile_mode));
   pass_options["iterations_per_loop"] = std::to_string(iterations_per_loop);
-  pass_options["lower_functional_ops"] = std::to_string(lower_functional_ops);
+  pass_options["lower_functional_ops"] = std::to_string(static_cast<int32_t>(lower_functional_ops));
   pass_options["job"] = job;
   pass_options["task_index"] = std::to_string(task_index);
-  pass_options["dynamic_input"] = std::to_string(dynamic_input);
+  pass_options["dynamic_input"] = std::to_string(static_cast<int32_t>(dynamic_input));
   pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
   pass_options["local_rank_id"] = std::to_string(local_rank_id);
   pass_options["local_device_list"] = local_device_list;
-  pass_options["in_out_pair_flag"] = std::to_string(in_out_pair_flag);
+  pass_options["in_out_pair_flag"] = std::to_string(static_cast<int32_t>(in_out_pair_flag));
   pass_options["in_out_pair"] = in_out_pair;
   pass_options["const_input"] = const_input;
 
@@ -708,20 +708,20 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
 
 std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> pass_options;
-  std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(false);
-  std::string use_off_line = std::to_string(true);
-  std::string mix_compile_mode = std::to_string(false);
+  std::string do_npu_optimizer = "0";
+  std::string enable_dp = "0";
+  std::string use_off_line = "1";
+  std::string mix_compile_mode = "0";
   std::string iterations_per_loop = "1";
-  std::string lower_functional_ops = std::to_string(false);
+  std::string lower_functional_ops = "0";
   std::string job = "default";
   std::string task_index = "0";
-  std::string dynamic_input = std::to_string(false);
+  std::string dynamic_input = "0";
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
   std::string local_rank_id = "-1";
   std::string local_device_list;
-  std::string in_out_pair_flag = std::to_string(true);
+  std::string in_out_pair_flag = "1";
   std::string in_out_pair;
   Status s = Status::OK();
   std::string npuOptimizer;
@@ -766,22 +766,22 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
   return pass_options;
 }
 
-std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
+std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &attrs) {
   std::map<std::string, std::string> pass_options;
-  std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(false);
-  std::string use_off_line = std::to_string(true);
-  std::string mix_compile_mode = std::to_string(false);
+  std::string do_npu_optimizer = "0";
+  std::string enable_dp = "0";
+  std::string use_off_line = "1";
+  std::string mix_compile_mode = "0";
   std::string iterations_per_loop = "1";
-  std::string lower_functional_ops = std::to_string(false);
+  std::string lower_functional_ops = "0";
   std::string job = "default";
   std::string task_index = "0";
-  std::string dynamic_input = std::to_string(false);
+  std::string dynamic_input = "0";
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
   std::string local_rank_id = "-1";
   std::string local_device_list;
-  std::string in_out_pair_flag = std::to_string(true);
+  std::string in_out_pair_flag = "1";
   std::string in_out_pair;
   Status s = Status::OK();
 
@@ -802,7 +802,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   auto in_out_pair_value = attrs.Find("_in_out_pair");
 
   if (NpuOptimizer_value != nullptr) {
-    do_npu_optimizer = std::to_string(true);
+    do_npu_optimizer = "1";
     if (enable_data_pre_proc_value != nullptr) {
       enable_dp = enable_data_pre_proc_value->s();
     }
@@ -868,27 +868,27 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(AttrSlice attrs) {
   return pass_options;
 }
 
-std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) {
+std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &attrs) {
   std::map<std::string, std::string> all_options;
-  std::string do_npu_optimizer = std::to_string(false);
-  std::string enable_dp = std::to_string(false);
-  std::string use_off_line = std::to_string(true);
-  std::string mix_compile_mode = std::to_string(false);
+  std::string do_npu_optimizer = "0";
+  std::string enable_dp = "0";
+  std::string use_off_line = "1";
+  std::string mix_compile_mode = "0";
   std::string iterations_per_loop = "1";
-  std::string lower_functional_ops = std::to_string(false);
+  std::string lower_functional_ops = "0";
   std::string job = "default";
   std::string task_index = "0";
   std::string local_rank_id = "-1";
   std::string local_device_list;
-  std::string in_out_pair_flag = std::to_string(true);
+  std::string in_out_pair_flag = "1";
   std::string in_out_pair;
 
-  std::string variable_format_optimize = std::to_string(true);
-  std::string hcom_parallel = std::to_string(false);
+  std::string variable_format_optimize = "1";
+  std::string hcom_parallel = "0";
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
-  std::string enable_dump = std::to_string(false);
-  std::string enable_dump_debug = std::to_string(false);
+  std::string enable_dump = "0";
+  std::string enable_dump_debug = "0";
   std::string dump_path;
   std::string dump_step;
   std::string dump_mode = "output";
@@ -896,9 +896,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string stream_max_parallel_num;
   std::string soc_config;
 
-  std::string is_tailing_optimization = std::to_string(false);
+  std::string is_tailing_optimization = "0";
   std::string precision_mode;
-  std::string profiling_mode = std::to_string(false);
+  std::string profiling_mode = "0";
   std::string profiling_options;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
@@ -917,7 +917,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   std::string buffer_optimize = "l2_optimize";
   std::string enable_small_channel = "0";
   std::string fusion_switch_file;
-  std::string enable_compress_weight = std::to_string(false);
+  std::string enable_compress_weight = "0";
   std::string compress_weight_conf;
   std::string op_compiler_cache_mode;
   std::string op_compiler_cache_dir;
@@ -1002,7 +1002,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
   auto atomic_clean_policy_value = attrs.Find("_atomic_clean_policy");
 
   if (NpuOptimizer_value != nullptr) {
-    do_npu_optimizer = std::to_string(true);
+    do_npu_optimizer = "1";
     if (enable_data_pre_proc_value != nullptr) {
       enable_dp = enable_data_pre_proc_value->s();
     }
@@ -1057,12 +1057,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
     if (enable_dump_debug_value != nullptr) {
       enable_dump_debug = enable_dump_debug_value->s();
     }
-    if (enable_dump != std::to_string(false) || enable_dump_debug != std::to_string(false)) {
+    if (enable_dump != "0" || enable_dump_debug != "0") {
       if (dump_path_value != nullptr) {
         dump_path = dump_path_value->s();
       }
     }
-    if (enable_dump != std::to_string(false)) {
+    if (enable_dump != "0") {
       if (dump_step_value != nullptr) {
         dump_step = dump_step_value->s();
         if (!dump_step.empty()) {
@@ -1082,7 +1082,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
         }
       }
     }
-    if (enable_dump_debug != std::to_string(false)) {
+    if (enable_dump_debug != "0") {
       if (dump_debug_mode_value != nullptr) {
         dump_debug_mode = dump_debug_mode_value->s();
         Status s = checkDumpDebugMode(dump_debug_mode);
@@ -1292,12 +1292,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(AttrSlice attrs) 
 
 std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
   std::map<std::string, std::string> pass_options;
-  pass_options["do_npu_optimizer"] = std::to_string(false);
-  pass_options["enable_dp"] = std::to_string(false);
-  pass_options["use_off_line"] = std::to_string(true);
-  pass_options["mix_compile_mode"] = std::to_string(false);
+  pass_options["do_npu_optimizer"] = "0";
+  pass_options["enable_dp"] = "0";
+  pass_options["use_off_line"] = "1";
+  pass_options["mix_compile_mode"] = "0";
   pass_options["iterations_per_loop"] = std::to_string(1);
-  pass_options["lower_functional_ops"] = std::to_string(false);
+  pass_options["lower_functional_ops"] = "0";
   pass_options["job"] = "default";
   pass_options["task_index"] = std::to_string(0);
   return pass_options;
@@ -1721,8 +1721,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   }
 
   // session options
-  sess_options["variable_format_optimize"] = std::to_string(variable_format_optimize);
-  sess_options["hcom_parallel"] = std::to_string(hcom_parallel);
+  sess_options["variable_format_optimize"] = std::to_string(static_cast<int32_t>(variable_format_optimize));
+  sess_options["hcom_parallel"] = std::to_string(static_cast<int32_t>(hcom_parallel));
   sess_options["stream_max_parallel_num"] = stream_max_parallel_num;
   if (!graph_memory_max_size.empty()) {
     sess_options["graph_memory_max_size"] = graph_memory_max_size;
@@ -1731,13 +1731,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
     sess_options["variable_memory_max_size"] = variable_memory_max_size;
   }
 
-  sess_options["enable_dump"] = std::to_string(enable_dump);
+  sess_options["enable_dump"] = std::to_string(static_cast<int32_t>(enable_dump));
   sess_options["dump_path"] = dump_path;
   sess_options["dump_step"] = dump_step;
   sess_options["dump_mode"] = dump_mode;
-  sess_options["enable_dump_debug"] = std::to_string(enable_dump_debug);
+  sess_options["enable_dump_debug"] = std::to_string(static_cast<int32_t>(enable_dump_debug));
   sess_options["dump_debug_mode"] = dump_debug_mode;
-  sess_options["is_tailing_optimization"] = std::to_string(is_tailing_optimization);
+  sess_options["is_tailing_optimization"] = std::to_string(static_cast<int32_t>(is_tailing_optimization));
   sess_options["op_select_implmode"] = op_select_implmode;
   sess_options["optypelist_for_implmode"] = optypelist_for_implmode;
   sess_options["input_shape"] = input_shape;
@@ -1746,9 +1746,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["buffer_optimize"] = buffer_optimize;
   sess_options["enable_small_channel"] = std::to_string(enable_small_channel);
   sess_options["fusion_switch_file"] = fusion_switch_file;
-  sess_options["enable_compress_weight"] = std::to_string(enable_compress_weight);
+  sess_options["enable_compress_weight"] = std::to_string(static_cast<int32_t>(enable_compress_weight));
   sess_options["compress_weight_conf"] = compress_weight_conf;
-  sess_options["hcom_multi_mode"] = std::to_string(hcom_multi_mode);
+  sess_options["hcom_multi_mode"] = std::to_string(static_cast<int32_t>(hcom_multi_mode));
   sess_options["session_device_id"] = std::to_string(session_device_id);
   sess_options["modify_mixlist"] = modify_mixlist;
   sess_options["op_precision_mode"] = op_precision_mode;
@@ -1761,8 +1761,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   } else {
     init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-  init_options_["profiling_mode"] = std::to_string(profiling_mode);
-  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(profiling_mode);
+  init_options_["profiling_mode"] = std::to_string(static_cast<int32_t>(profiling_mode));
+  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_["profiling_options"] = profiling_options;
   init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
   init_options_["auto_tune_mode"] = auto_tune_mode;
@@ -1814,23 +1814,23 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["graph_exec_timeout"] = std::to_string(graph_exec_timeout);
   init_options_["ge.exec.graphExecTimeout"] = std::to_string(graph_exec_timeout);
 
-  pass_options["do_npu_optimizer"] = std::to_string(do_npu_optimizer);
-  pass_options["enable_data_pre_proc"] = std::to_string(enable_dp);
-  pass_options["use_off_line"] = std::to_string(use_off_line);
-  pass_options["mix_compile_mode"] = std::to_string(mix_compile_mode);
+  pass_options["do_npu_optimizer"] = std::to_string(static_cast<int32_t>(do_npu_optimizer));
+  pass_options["enable_data_pre_proc"] = std::to_string(static_cast<int32_t>(enable_dp));
+  pass_options["use_off_line"] = std::to_string(static_cast<int32_t>(use_off_line));
+  pass_options["mix_compile_mode"] = std::to_string(static_cast<int32_t>(mix_compile_mode));
   if (!aoe_mode.empty()) {
     iterations_per_loop = 1;
   }
   pass_options["iterations_per_loop"] = std::to_string(iterations_per_loop);
-  pass_options["lower_functional_ops"] = std::to_string(lower_functional_ops);
+  pass_options["lower_functional_ops"] = std::to_string(static_cast<int32_t>(lower_functional_ops));
   pass_options["job"] = job;
   pass_options["task_index"] = std::to_string(task_index);
-  pass_options["dynamic_input"] = std::to_string(dynamic_input);
+  pass_options["dynamic_input"] = std::to_string(static_cast<int32_t>(dynamic_input));
   pass_options["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
   pass_options["dynamic_inputs_shape_range"] = dynamic_inputs_shape_range;
   pass_options["local_rank_id"] = std::to_string(local_rank_id);
   pass_options["local_device_list"] = local_device_list;
-  pass_options["in_out_pair_flag"] = std::to_string(in_out_pair_flag);
+  pass_options["in_out_pair_flag"] = std::to_string(static_cast<int32_t>(in_out_pair_flag));
   pass_options["in_out_pair"] = in_out_pair;
 
   if (!node) {

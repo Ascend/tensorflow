@@ -28,7 +28,7 @@ SessionManager &SessionManager::GetInstance() {
 }
 
 // Returns True if get ge session success.
-bool SessionManager::GetOrCreateGeSession(std::string &tf_session, ge::Session *&ge_session,
+bool SessionManager::GetOrCreateGeSession(const std::string &tf_session, ge::Session *&ge_session,
                                           std::map<std::string, std::string> &sess_options) {
   // find valid tf session handle
   if (tf_session.empty()) {
@@ -95,7 +95,7 @@ bool SessionManager::CreateGeSession(const std::string &tf_session, ge::Session 
 }
 
 // Returns True if any ge session exist.
-bool SessionManager::IsGeSessionExist() {
+bool SessionManager::IsGeSessionExist() const {
   return !ge_sessions_.empty();
 }
 

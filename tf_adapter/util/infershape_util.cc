@@ -136,7 +136,7 @@ bool InferShapeUtil::IsInitializedGraph(const Node *node) {
   return false;
 }
 
-Status InferShapeUtil::getInputShapesOfNode(ShapeRefiner &shapeRef, const Node *pNode,
+Status InferShapeUtil::getInputShapesOfNode(const ShapeRefiner &shapeRef, const Node *pNode,
                                             std::vector<tensorflow::shape_inference::ShapeHandle> &inputShapeVec) {
   REQUIRES_NOT_NULL(pNode);
   for (const Edge *pEdge : pNode->in_edges()) {
@@ -183,7 +183,7 @@ void InferShapeUtil::setShapeOfEnterOP(ShapeRefiner &shapeRef, Node *pNode) {
   pCxt->set_output(0, inputShapes.at(0));  // Enter op can't be unknown shape.
 }
 
-void InferShapeUtil::setShapeOfMergeOP(ShapeRefiner &shapeRef, Node *pNode) {
+void InferShapeUtil::setShapeOfMergeOP(ShapeRefiner &shapeRef, const Node *pNode) {
   CHECK_NOT_NULL(pNode);
   tensorflow::shape_inference::InferenceContext *pCxt = shapeRef.GetContext(pNode);
   CHECK_NOT_NULL(pCxt);

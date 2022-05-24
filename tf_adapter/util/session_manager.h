@@ -32,14 +32,14 @@ class SessionManager {
 
   // Retrieves an already existing ge session to run the compute graph,
   // or create a ge session for future use.
-  bool GetOrCreateGeSession(std::string &tf_session, ge::Session *&ge_session,
+  bool GetOrCreateGeSession(const std::string &tf_session, ge::Session *&ge_session,
                             std::map<std::string, std::string> &sess_options);
 
   // Destroy a ge session divided by tf session.
   void DestroyGeSession(const std::string &tf_session);
 
   // Whether a ge session exist.
-  bool IsGeSessionExist();
+  bool IsGeSessionExist() const ;
 
  private:
   // Create a ge session to run the compute graph divided by tf session.

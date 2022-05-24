@@ -46,17 +46,17 @@ class NpuAttrs {
   static std::map<std::string, std::string> GetSessOptions(const OpKernelConstruction *ctx);
   static std::map<std::string, std::string> GetPassOptions(const GraphOptimizationPassOptions &options);
   static std::map<std::string, std::string> GetPassOptions(const OpKernelConstruction *ctx);
-  static std::map<std::string, std::string> GetPassOptions(AttrSlice attrs);
-  static std::map<std::string, std::string> GetAllAttrOptions(AttrSlice attrs);
+  static std::map<std::string, std::string> GetPassOptions(const AttrSlice &attrs);
+  static std::map<std::string, std::string> GetAllAttrOptions(const AttrSlice &attrs);
   static std::map<std::string, std::string> GetDefaultPassOptions();
   static Status SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node);
   static void LogOptions(const std::map<std::string, std::string> &options);
   static void SetUseTdtStatus(int32_t device_id, bool is_turn_on_tdt);
   static bool GetUseTdtStatus(int32_t device_id);
-  static bool GetUseAdpStatus(std::string iterator_name);
-  static void SetUseAdpStatus(std::string iterator_name, bool is_use_adp);
-  static bool IsDatasetExecuteInDevice(std::string iterator_name);
-  static void SetDatasetExecuteInDeviceStatus(std::string iterator_name, bool is_dataset_execute_device);
+  static bool GetUseAdpStatus(const std::string &iterator_name);
+  static void SetUseAdpStatus(const std::string &iterator_name, bool is_use_adp);
+  static bool IsDatasetExecuteInDevice(const std::string &iterator_name);
+  static void SetDatasetExecuteInDeviceStatus(const std::string &iterator_name, bool is_dataset_execute_device);
 
  private:
   static std::map<int32_t, bool> turn_on_tdt_info_;

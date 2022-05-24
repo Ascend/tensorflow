@@ -95,7 +95,7 @@ limitations under the License.
 // This is usually placed in the private: declarations for a class.
 #define TF_DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;         \
-  void operator=(const TypeName&) = delete
+  TypeName& operator=(const TypeName&) = delete
 
 // The TF_ARRAYSIZE(arr) macro returns the # of elements in an array arr.
 //

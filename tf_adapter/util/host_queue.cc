@@ -85,12 +85,13 @@ Status GetDataTypeByTensorType(acltdtTensorType tensor_type, int32_t &data_type)
     {ACL_TENSOR_DATA_TENSOR, 0}, {ACL_TENSOR_DATA_END_OF_SEQUENCE, 1}, {ACL_TENSOR_DATA_ABNORMAL, 2}};
   auto ret = type_map.find(tensor_type);
   if (ret == type_map.end()) {
-    ADP_LOG(ERROR) << "invalid tensor_type: " << tensor_type;
+    ADP_LOG(ERROR) << "invalid tensor_type: " << static_cast<int32_t>(tensor_type);
     return errors::Internal("invalid tensor type : ", tensor_type);
   }
 
   data_type = ret->second;
-  ADP_LOG(INFO) << "get data type[" << data_type << "] by tensor type[" << tensor_type << "] success";
+  ADP_LOG(INFO) << "get data type[" << data_type << "] by tensor type[" << static_cast<int32_t>(tensor_type)
+    << "] success";
   return Status::OK();
 }
 
@@ -101,7 +102,7 @@ Status AddDataItemInfo(acltdtTensorType tdt_data_type, int32_t tensor_type, cons
   TF_RETURN_IF_ERROR(GetDataTypeByTensorType(tdt_data_type, data_type));
   item.ctrl_info.data_type = data_type;
   item.ctrl_info.tensor_type = tensor_type;
-  item.ctrl_info.dim_num = dim_size;
+  item.ctrl_info.dim_num = static_cast<uint32_t>(dim_size);
   item.ctrl_info.data_len = data_len;
   item.dims.clear();
   for (size_t i = 0UL; i < dim_size; ++i) {
@@ -116,7 +117,7 @@ Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector
                                     std::vector<DataItemInfo> &items,
                                     std::vector<std::unique_ptr<uint8_t[]>> &buff_list) {
   if (acl_type != ACL_TENSOR_DATA_TENSOR) {
-    return AddDataItemInfo(acl_type, ACL_BOOL, nullptr, 0UL, nullptr, 0UL, items);
+    return AddDataItemInfo(acl_type, static_cast<int32_t>(ACL_BOOL), nullptr, 0UL, nullptr, 0UL, items);
   }
 
   for (auto &tensor : tensors) {
@@ -124,22 +125,22 @@ Status MappingTensors2DataItemInfos(acltdtTensorType acl_type, const std::vector
     TF_RETURN_IF_ERROR(MappingTfDtypeToAcl(tensor.dtype(), acl_data_type));
     auto dims = tensor.shape().dim_sizes();
     if (DataTypeCanUseMemcpy(tensor.dtype())) {
-      TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, acl_data_type,
+      TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, static_cast<int32_t>(acl_data_type),
                                          (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())),
                                          dims.size(), const_cast<char *>(tensor.tensor_data().data()),
                                          tensor.tensor_data().size(), items));
     } else if (tensor.dtype() == DT_STRING) {
       if (tensor.dims() == 0) {
         auto value = ge::PtrToPtr<char, tensorflow::tstring>(const_cast<char *>(tensor.tensor_data().data()));
-        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, nullptr, 0UL,
+        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, static_cast<int32_t>(ACL_STRING), nullptr, 0UL,
                                            const_cast<char *>(value->c_str()), value->size(), items));
       } else {
         uint8_t *data_ptr = nullptr;
         uint64_t data_size = 0UL;
         std::vector<int64_t> str_dims;
         TF_RETURN_IF_ERROR(GetDtStringTensorData(tensor, data_ptr, data_size, str_dims, buff_list));
-        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, ACL_STRING, str_dims.data(), str_dims.size(),
-                                           data_ptr, data_size, items));
+        TF_RETURN_IF_ERROR(AddDataItemInfo(ACL_TENSOR_DATA_TENSOR, static_cast<int32_t>(ACL_STRING), str_dims.data(),
+                                           str_dims.size(), data_ptr, data_size, items));
       }
     } else {
       return errors::Internal("unexpected data type ", DataTypeString(tensor.dtype()));
@@ -152,8 +153,8 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
   size_t cnt = items.size();
   size_t total_size = 0UL;
   for (size_t i = 0UL; i < cnt; ++i) {
-    items[i].ctrl_info.cur_cnt = i;
-    items[i].ctrl_info.cnt = cnt;
+    items[i].ctrl_info.cur_cnt = static_cast<uint32_t>(i);
+    items[i].ctrl_info.cnt = static_cast<uint32_t>(cnt);
     total_size += sizeof(ItemInfo) + items[i].ctrl_info.dim_num * sizeof(int64_t) + items[i].ctrl_info.data_len;
   }
 
@@ -271,7 +272,7 @@ Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &q
                errors::Internal("call rtMbufInit failed, ret=", ret));
 
   const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
-  (void) queue_id_to_trans_id_map.insert({queue_id, 0UL});
+  (void) queue_id_to_trans_id_map.emplace(queue_id, 0UL);
   return Status::OK();
 }
 
