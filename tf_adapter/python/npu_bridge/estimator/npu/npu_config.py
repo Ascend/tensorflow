@@ -97,7 +97,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  op_execute_timeout=None,
                  HCCL_algorithm=None,
                  customize_dtypes=None,
-                 op_debug_config=None
+                 op_debug_config=None,
+                 atomic_clean_policy=0
                  ):
         """
         Constructs a NPUConfig.
@@ -232,6 +233,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._HCCL_algorithm = HCCL_algorithm
         self._customize_dtypes = customize_dtypes
         self._op_debug_config = op_debug_config
+        self._atomic_clean_policy = atomic_clean_policy
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

@@ -119,6 +119,7 @@ const char *const OP_PRECISION_MODE = "ge.exec.op_precision_mode";
 const char *const HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
 const char *const OP_WAIT_TIMEOUT = "ge.exec.opWaitTimeout";
 const char *const OP_EXECUTE_TIMEOUT = "ge.exec.opExecuteTimeout";
+const char *const ATOMIC_CLEAN_POLICY = "ge.exec.atomicCleanPolicy";
 }  // namespace configure_option
 // Configure stream num by Session constructor options param,
 // its value should be int32_t type, default value is "1"
@@ -345,6 +346,8 @@ const std::string OP_EXECUTE_TIMEOUT = "ge.exec.opExecuteTimeout";
 
 const std::string HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
 
+const std::string ATOMIC_CLEAN_POLICY = "ge.exec.atomicCleanPolicy";
+
 // Graph run mode
 enum GraphRunMode { PREDICTION = 0, TRAIN };
 
@@ -429,6 +432,7 @@ static const char *const OP_PRECISION_MODE = ge::OP_PRECISION_MODE.c_str();
 static const char *const HCCL_TIMEOUT = ge::HCCL_TIMEOUT.c_str();
 static const char *const OP_WAIT_TIMEOUT = ge::OP_WAIT_TIMEOUT.c_str();
 static const char *const OP_EXECUTE_TIMEOUT = ge::OP_EXECUTE_TIMEOUT.c_str();
+static const char *const ATOMIC_CLEAN_POLICY = ge::ATOMIC_CLEAN_POLICY.c_str();
 
 // for interface: aclgrphBuildModel
 #ifdef __GNUC__
