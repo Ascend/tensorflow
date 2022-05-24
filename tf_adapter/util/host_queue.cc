@@ -196,17 +196,17 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
   for (size_t i = 0UL; i < cnt; ++i) {
     // can not use memcpy_s here, data size may over 2G
     // total_size is calculate by item info, could not overflow here
-    memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &items[i].ctrl_info, sizeof(ItemInfo));
+    (void)memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &items[i].ctrl_info, sizeof(ItemInfo));
     offset += sizeof(ItemInfo);
 
     for (size_t j = 0UL; j < items[i].ctrl_info.dim_num; ++j) {
-      memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &(items[i].dims[j]), sizeof(int64_t));
+      (void)memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &(items[i].dims[j]), sizeof(int64_t));
       offset += sizeof(int64_t);
     }
 
     if (items[i].ctrl_info.data_len == 0UL) { continue; }
 
-    memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), items[i].data_ptr, items[i].ctrl_info.data_len);
+    (void)memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), items[i].data_ptr, items[i].ctrl_info.data_len);
     offset += items[i].ctrl_info.data_len;
   }
 
