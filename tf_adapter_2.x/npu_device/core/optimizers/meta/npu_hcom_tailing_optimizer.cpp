@@ -31,7 +31,6 @@ const static std::string kEnable = "1";
 namespace {
 tensorflow::Status TailingOptimizeInner(tensorflow::FunctionLibraryDefinition *lib_def, tensorflow::Graph *graph,
                                         bool &changed) {
-  std::vector<tensorflow::Node *> in_nodes;
   for (tensorflow::Node *node : graph->op_nodes()) {
     for (auto &attr : node->attrs()) {
       if (attr.second.has_func()) {

@@ -58,7 +58,7 @@ class IteratorH2D : public OpKernel {
       }
       channels_.resize(device_ids_.size());
       for (size_t i = 0; i < device_ids_.size(); i++) {
-        OP_REQUIRES_OK(ctx, npu::HdcChannel::Create(device_ids_[i], channel_name_, &channels_[i]));
+        OP_REQUIRES_OK(ctx, npu::HdcChannel::Create(static_cast<uint32_t>(device_ids_[i]), channel_name_, &channels_[i]));
       }
       LOG(INFO) << "Hdc channel for iterator resource " << channel_name_ << " to device ["
                 << ss.str().substr(0, ss.str().size() - 1) << "] created";
@@ -75,7 +75,7 @@ class IteratorH2D : public OpKernel {
       ctx->SetStatus(tensorflow::errors::Internal("Iterator resource ", channel_name_, " consume after destroyed"));
       return;
     }
-    DeregisterCallbackGuarder guarder([cm, token]() { cm->DeregisterCallback(token); });
+    DeregisterCallbackGuarder guarder([cm, token]() { (void)cm->DeregisterCallback(token); });
 
     data::IteratorResource *iterator;
     OP_REQUIRES_OK(ctx, LookupResource(ctx, HandleFromInput(ctx, 0), &iterator));

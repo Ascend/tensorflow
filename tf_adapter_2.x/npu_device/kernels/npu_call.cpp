@@ -103,7 +103,7 @@ class NpuCallOp : public OpKernel {
       if (index >= args_.size()) {
         args_.resize(index + 1);
       }
-      args_[index] = node;
+      args_[static_cast<size_t>(index)] = node;
     }
     input_shapes_.resize(args_.size(), absl::nullopt);
     initialized_ = true;

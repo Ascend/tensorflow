@@ -89,7 +89,7 @@ class NpuConcreteGraph : public OpExecutor {
   std::map<int, std::shared_ptr<IteratorResourceProvider>> consumed_iterators_;
   std::vector<int32_t> consumed_inputs_;
   std::vector<int32_t> produced_outputs_;
-  std::map<int32_t, int32_t> bypass_outputs_;
+  std::map<int32_t, int64_t> bypass_outputs_;
   std::vector<TFE_TensorHandle *> mutable input_handles_;
   std::vector<TFE_TensorHandle *> mutable output_handles_;
 
@@ -132,7 +132,7 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
 
   const TensorDataTypes &ProducedTypes() { return produced_types_; }
 
-  void SetBypassOutputs(const std::map<int32_t, int32_t> &v) { bypass_outputs_ = v; }
+  void SetBypassOutputs(const std::map<int32_t, int64_t> &v) { bypass_outputs_ = v; }
 
   void SetLoopType(LoopType type) { loop_type_ = type; }
 

@@ -36,9 +36,9 @@ struct Cluster {
   std::unordered_set<tensorflow::Node *> in_nodes;
   std::unordered_set<tensorflow::Node *> out_nodes;
   std::string name;
-  Placement placement;
   uint64_t min_topo;
   uint64_t max_topo;
+  Placement placement;
 
  private:
   const NodePlacer *placer_;  // Not owned
@@ -87,7 +87,7 @@ class NodePlacer {
   tensorflow::Status SpreadNpuNode();
 
   const std::set<tensorflow::Node *> &GetConcreteNodes(tensorflow::Node *node);
-  bool VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end, std::function<bool(tensorflow::Node *)> visitor);
+  bool VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end, const std::function<bool(tensorflow::Node *)> visitor);
 
   NodeOrCluster GetNodeOrCluster(tensorflow::Node *node);
   std::shared_ptr<Cluster> GetOrCreateNpuCluster(tensorflow::Node *node);
@@ -98,9 +98,9 @@ class NodePlacer {
   uint64_t Topo(tensorflow::Node *node) const { return node_topo_.at(node); }
 
  private:
-  static bool IsNpuMeaningLessNode(tensorflow::Node *node);
+  static bool IsNpuMeaningLessNode(const tensorflow::Node *node);
   // Weather the edge can be npu bound
-  bool IsSupportedNpuBound(const tensorflow::Edge &edge);
+  bool IsSupportedNpuBound(const tensorflow::Edge &edge) const;
   // is this node placed in surely device
   bool IsNodePlaced(tensorflow::Node *node);
   // Check weather the node has placed on placement device

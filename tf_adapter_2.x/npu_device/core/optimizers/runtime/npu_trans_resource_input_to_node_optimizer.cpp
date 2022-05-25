@@ -185,7 +185,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
 
   for (auto &fn : functions) {
     DLOG() << "Trans function " << fn << " of node " << node->name();
-    TransFunctionDef(context, fn, fn, substitutes);
+    (void)TransFunctionDef(context, fn, fn, substitutes);
   }
 
   tensorflow::NodeDef ndef = node->def();
@@ -299,7 +299,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
   std::map<int32_t, tensorflow::ResourceHandle> cpu_resources;
   std::map<int32_t, tensorflow::ResourceHandle> mirrored_resources;
 
-  std::map<int32_t, int32_t> bypass_outputs;
+  std::map<int32_t, int64_t> bypass_outputs;
   std::map<int32_t, tensorflow::Node *> indexed_retvals;
   for (auto node : mutable_graph->op_nodes()) {
     if (!node->IsRetval()) {

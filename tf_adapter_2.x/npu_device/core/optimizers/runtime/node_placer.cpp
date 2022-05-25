@@ -38,7 +38,7 @@ bool Cluster::Merge(tensorflow::Node *node) {
   }
   DLOG() << "Place node " << node->name() << " in cluster " << this->name;
   (void)in_nodes.erase(node);
-  out_nodes.erase(node);
+  (void)out_nodes.erase(node);
   for (auto n : node->in_nodes()) {
     if (!nodes.count(n)) {
       (void)in_nodes.insert(n);
@@ -46,14 +46,14 @@ bool Cluster::Merge(tensorflow::Node *node) {
   }
   for (auto n : node->out_nodes()) {
     if (!nodes.count(n)) {
-      out_nodes.insert(n);
+      (void)out_nodes.insert(n);
     }
   }
   UpdateTopo(placer_->Topo(node));
   return true;
 }
 
-void Cluster::Merge(std::shared_ptr<Cluster> other) {
+void Cluster::Merge(const std::shared_ptr<Cluster> other) {
   for (auto node : other->nodes) {
     (void)Merge(node);
   }
@@ -116,7 +116,7 @@ tensorflow::Status NodePlacer::CopyShareableNode() {
       auto copy = graph_->AddNode(node->def(), &status);
       NPU_REQUIRES_OK(status);
       (void)graph_->AddEdge(copy, edge->src_output(), edge->dst(), edge->dst_input());
-      (void)graph_->RemoveEdge(edge);
+      graph_->RemoveEdge(edge);
       for (auto in_edge : node->in_edges()) {
         (void)graph_->AddEdge(in_edge->src(), in_edge->src_output(), copy, in_edge->dst_input());
       }
@@ -137,7 +137,7 @@ std::set<std::shared_ptr<Cluster>> NodePlacer::GetNpuClusters() {
   return clusters;
 }
 
-bool NodePlacer::IsNpuMeaningLessNode(tensorflow::Node *node) {
+bool NodePlacer::IsNpuMeaningLessNode(const tensorflow::Node *node) {
   const static std::unordered_set<std::string> kNpuMeaningLessNodes{"Identity", "NoOp", "Const"};
   return kNpuMeaningLessNodes.count(node->type_string()) != 0U;
 }
@@ -183,7 +183,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
         if (!cluster->nodes.count(edge->src())) {
           if (edge->IsControlEdge()) {
             DLOG() << "Collect control input " << edge->src()->name() << " of cluster " << cluster->name;
-            control_inputs.insert(edge->src());
+            (void)control_inputs.insert(edge->src());
           } else {
             DLOG() << "Collect input edge " << edge->DebugString() << " of cluster " << cluster->name;
             input_edges.push_back(edge);
@@ -247,7 +247,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
                         .Attr("index", int64_t(i))
                         .Attr("T", output_types[i])
                         .Finalize(cluster_graph.get(), &ret));
-      auto e = graph_->AddEdge(npu_op, i, edge->dst(), edge->dst_input());
+      auto e = graph_->AddEdge(npu_op, static_cast<int32_t>(i), edge->dst(), edge->dst_input());
       DLOG() << "Add output edge " << e->DebugString() << " of root graph of " << cluster->name;
     }
 
@@ -269,7 +269,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
     graph_->RemoveNode(node);
   }
 
-  tensorflow::FixupSourceAndSinkEdges(graph_);
+  (void)tensorflow::FixupSourceAndSinkEdges(graph_);
   return tensorflow::Status::OK();
 }
 
@@ -318,7 +318,7 @@ std::vector<tensorflow::Node *> NodePlacer::MergeCopiedSharedNodes(std::vector<t
   for (auto node : all_nodes) {
     auto attr = node->attrs().Find(kSharedGroup);
     if (attr != nullptr) {
-      equal_nodes[attr->i()].insert(node);
+      (void)equal_nodes[attr->i()].insert(node);
     }
   }
   for (auto &item : equal_nodes) {
@@ -328,7 +328,7 @@ std::vector<tensorflow::Node *> NodePlacer::MergeCopiedSharedNodes(std::vector<t
     }
     auto keep = *nodes.begin();
     DLOG() << keep->name() << " has " << nodes.size() << " copied nodes";
-    for (auto iter = ++nodes.begin(); iter != nodes.end(); iter++) {
+    for (auto iter = ++nodes.begin(); iter != nodes.end(); (void)(iter++)) {
       auto &node = *iter;
       for (auto edge : node->out_edges()) {
         // Ignore existed edge
@@ -395,7 +395,7 @@ void NodePlacer::Concrete(tensorflow::Node *src, tensorflow::Node *dst) {
   }
 
   auto visitor = [&target](tensorflow::Node *node) {
-    target->Merge(node);
+    (void)target->Merge(node);
     return true;
   };
   (void)VisitPathNodes(src, dst, visitor);
@@ -488,7 +488,7 @@ tensorflow::Status NodePlacer::BuildConcreteCluster() {
           DLOG() << "Place " << iter2->first->name() << " on cpu as path node " << (*found)->name()
                  << " can not place on npu";
           node_placement_[iter2->first] = Placement::CPU;
-          concrete_clusters_.erase(iter2++);
+          (void)concrete_clusters_.erase(iter2++);
         } else {
           ++iter2;
         }
@@ -587,7 +587,7 @@ tensorflow::Status NodePlacer::SpreadNpuNodeFromPlacement(Placement placement) {
 
 tensorflow::Status NodePlacer::SpreadNpuNode() {
   if (std::any_of(graph_->op_nodes().begin(), graph_->op_nodes().end(),
-                  [](tensorflow::Node *n) { return n->type_string() == "MutexLock"; })) {
+                  [](const tensorflow::Node *n) { return n->type_string() == "MutexLock"; })) {
     DLOG() << "Only compile npu-only nodes as MutexLock found. MutexLock usually caused by using tf.CriticalSection(), "
               "which is meaningless in TF2 auto graph mode, Remove it may improve you train performance";
     for (auto node : graph_->op_nodes()) {
@@ -605,7 +605,7 @@ tensorflow::Status NodePlacer::SpreadNpuNode() {
 }
 
 const std::set<tensorflow::Node *> &NodePlacer::GetConcreteNodes(tensorflow::Node *node) {
-  static std::set<tensorflow::Node *> kEmptyNodes;
+  const static std::set<tensorflow::Node *> kEmptyNodes;
   auto iter = concrete_clusters_.find(node);
   if (iter != concrete_clusters_.end()) {
     return iter->second->nodes;
@@ -624,7 +624,7 @@ void NodeOrCluster::VisitOutNodes(std::function<void(tensorflow::Node *)> visito
     }
   }
 }
-void NodeOrCluster::VisitInNodes(std::function<void(tensorflow::Node *)> visitor) {
+void NodeOrCluster::VisitInNodes(const std::function<void(tensorflow::Node *)> visitor) {
   if (is_cluster_) {
     for (auto &n : cluster_->in_nodes) {
       visitor(n);
@@ -664,7 +664,7 @@ NodeOrCluster NodePlacer::GetNodeOrCluster(tensorflow::Node *node) {
 }
 
 bool NodePlacer::VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end,
-                                std::function<bool(tensorflow::Node *)> visitor) {
+                                const std::function<bool(tensorflow::Node *)> visitor) {
   if (node_topo_[start] > node_topo_[end]) {  // dst->src
     std::swap(start, end);
   }
@@ -786,7 +786,7 @@ bool NodePlacer::ColocateNpu(tensorflow::Node *src, tensorflow::Node *dst) {
 }
 
 // Weather the edge can be npu bound
-bool NodePlacer::IsSupportedNpuBound(const tensorflow::Edge &edge) {
+bool NodePlacer::IsSupportedNpuBound(const tensorflow::Edge &edge) const {
   return edge.IsControlEdge() || device_->SupportedInputAndOutputType(EdgeDataType(edge));
 }
 
