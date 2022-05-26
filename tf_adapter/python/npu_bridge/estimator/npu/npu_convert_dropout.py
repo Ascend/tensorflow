@@ -42,7 +42,7 @@ def dropout_call(self, inputs, training=None):
                 inputs,
                 noise_shape=self._get_noise_shape(inputs),
                 seed=self.seed,
-                keep_prob=1 - self.rate)
+                keep_prob=1.0 - self.rate)
 
     output = tf_utils.smart_cond(training,
                                  dropped_inputs,
