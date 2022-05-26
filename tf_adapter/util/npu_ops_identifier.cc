@@ -95,7 +95,7 @@ bool NpuOpsIdentifier::IsNpuSupported(const std::string &op_name, const std::str
     static const std::string message = "This op is not exsit on npu.";
     infos.code = static_cast<int>(tensorflow::GenerateReport::ReasonCode::TypeNoDefine);
     infos.message = message;
-    tensorflow::GenerateReport::GetInstance()->AddUnSupportedInfo(node_name, op_name, infos);
+    (void)tensorflow::GenerateReport::GetInstance()->AddUnSupportedInfo(node_name, op_name, infos);
     return false;
   }
   if (is_mix_ && ops_info_[op_name][kGray].is_boolean()) {

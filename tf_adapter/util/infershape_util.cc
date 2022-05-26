@@ -61,7 +61,7 @@ Status InferShapeUtil::setArgShapeFromTensorShape(const std::vector<Tensor> vecT
         }
 
         tensorflow::shape_inference::ShapeHandle shapeHandle;
-        pCxt->MakeShapeFromTensorShape(vecTensor[idx].shape(), &shapeHandle);
+        (void)pCxt->MakeShapeFromTensorShape(vecTensor[idx].shape(), &shapeHandle);
         pCxt->set_output(0, shapeHandle);  // this arg has only one output
         idx++;
         break;  // next arg
@@ -99,14 +99,14 @@ Status InferShapeUtil::GetSubGraphFromFunctionDef(const FunctionLibraryDefinitio
 
 bool InferShapeUtil::IsInitializedGraph(const Node *node) {
   Node *logical_not_node = nullptr;
-  node->input_node(0, &logical_not_node);
+  (void)node->input_node(0, &logical_not_node);
   if (logical_not_node == nullptr) {
     return false;
   }
 
   if (logical_not_node->type_string() == "Reshape") {
     Node *reshape_node = logical_not_node;
-    reshape_node->input_node(0, &logical_not_node);
+    (void)reshape_node->input_node(0, &logical_not_node);
     if (logical_not_node == nullptr) {
       return false;
     }
@@ -116,13 +116,13 @@ bool InferShapeUtil::IsInitializedGraph(const Node *node) {
   }
 
   Node *stack_node = nullptr;
-  logical_not_node->input_node(0, &stack_node);
+  (void)logical_not_node->input_node(0, &stack_node);
   if (stack_node == nullptr || stack_node->type_string() != "Pack") {
     return false;
   }
 
   Node *is_var_init_node = nullptr;
-  stack_node->input_node(0, &is_var_init_node);
+  (void)stack_node->input_node(0, &is_var_init_node);
   if (is_var_init_node == nullptr) {
     return false;
   }
@@ -318,7 +318,7 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
       if ((e->src()->type_string() == "NextIteration") || (e->src()->type_string() == "RefNextIteration")) {
         EdgeInfo edgeInfo(e->src(), pNode, e->src_output(), e->dst_input());
         NextIterationEdges.push_back(edgeInfo);
-        needRemoveEdges.insert(e);
+        (void)needRemoveEdges.insert(e);
       }
     }
     for (auto needRemoveEdge : needRemoveEdges) {
@@ -339,7 +339,7 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
   }
 
   for (auto &edgeInfo : NextIterationEdges) {
-    graph->AddEdge(edgeInfo.src_, edgeInfo.src_output_, edgeInfo.dst_, edgeInfo.dst_input_);
+    (void)graph->AddEdge(edgeInfo.src_, edgeInfo.src_output_, edgeInfo.dst_, edgeInfo.dst_input_);
   }
 
   ADP_LOG(INFO) << "InferShapeUtil::InferShape success";

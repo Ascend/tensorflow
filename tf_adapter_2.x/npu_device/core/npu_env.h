@@ -21,31 +21,31 @@
 
 const static bool kDumpExecutionDetail = []() -> bool {
   bool dump_execute_detail = false;
-  tensorflow::ReadBoolFromEnvVar("NPU_DEBUG", false, &dump_execute_detail);
+  (void)tensorflow::ReadBoolFromEnvVar("NPU_DEBUG", false, &dump_execute_detail);
   return dump_execute_detail;
 }();
 
 const static bool kDumpGraph = []() -> bool {
   bool dump_graph = false;
-  tensorflow::ReadBoolFromEnvVar("NPU_DUMP_GRAPH", false, &dump_graph);
+  (void)tensorflow::ReadBoolFromEnvVar("NPU_DUMP_GRAPH", false, &dump_graph);
   return dump_graph;
 }();
 
 const static bool kPerfEnabled = []() -> bool {
   bool perf_enabled = false;
-  tensorflow::ReadBoolFromEnvVar("NPU_ENABLE_PERF", false, &perf_enabled);
+  (void)tensorflow::ReadBoolFromEnvVar("NPU_ENABLE_PERF", false, &perf_enabled);
   return perf_enabled;
 }();
 
 const static bool kGraphEngineGreedyMemory = []() -> bool {
   tensorflow::int64 graph_engine_greedy_memory = 0;
-  tensorflow::ReadInt64FromEnvVar("GE_USE_STATIC_MEMORY", 0, &graph_engine_greedy_memory);
+  (void)tensorflow::ReadInt64FromEnvVar("GE_USE_STATIC_MEMORY", 0, &graph_engine_greedy_memory);
   return graph_engine_greedy_memory == 1;
 }();
 
 const static std::string kOppInstallPath = []() -> std::string {
   std::string opp_install_path;
-  tensorflow::ReadStringFromEnvVar("ASCEND_OPP_PATH", "", &opp_install_path);
+  (void)tensorflow::ReadStringFromEnvVar("ASCEND_OPP_PATH", "", &opp_install_path);
   return opp_install_path;
 }();
 

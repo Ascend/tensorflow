@@ -92,6 +92,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"input_shape", ge::INPUT_SHAPE},
   {"dynamic_node_type", ge::DYNAMIC_NODE_TYPE},
   {"dynamic_dims", ge::kDynamicDims},
+  {"enable_small_channel", ge::ENABLE_SMALL_CHANNEL},
   {"graph_exec_timeout", "ge.exec.graphExecTimeout"},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},

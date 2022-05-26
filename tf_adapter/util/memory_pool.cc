@@ -37,7 +37,7 @@ namespace tensorflow {
           free_it = free_memory_list_.erase(free_it);
           break;
         }
-        free_it++;
+        ++free_it;
       }
       if ((temp_block.ptr == nullptr) && (!free_memory_list_.empty())) {
         if (!FreeMemoryList(free_memory_list_)) {
@@ -83,7 +83,7 @@ namespace tensorflow {
     auto memory_it = memory_list.begin();
     while (memory_it != memory_list.end()) {
       free(memory_it->ptr);
-      memory_it++;
+      ++memory_it;
     }
     memory_list.clear();
     return true;

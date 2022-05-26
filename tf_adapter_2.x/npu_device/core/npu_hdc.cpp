@@ -110,7 +110,7 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
       return tensorflow::errors::Internal("Hdc channel receive size mismatch tensor size acl:", acl_data_len,
                                           " vs. tensorflow:", tensor_size);
     }
-    memcpy(tensor_data, acl_data, tensor_size);
+    (void)memcpy(tensor_data, acl_data, tensor_size);
     tensors.emplace_back(std::move(tensor));
   } else {
     return tensorflow::errors::InvalidArgument("Hdc channel receive un-copyable tensorflow data type",
