@@ -77,7 +77,7 @@ int32_t NpuOpsIdentifier::ParseOps(const std::string &f, json &root) const {
     }
     jsonConfigFileStream.close();
   } else {
-    ADP_LOG(INFO) << "Open " << f << " failed";
+    ADP_LOG(INFO) << "Open " << f << ", ret is not true.";
     return 0;
   }
   return opsCnt;

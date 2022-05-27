@@ -236,7 +236,7 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status == ACL_ERROR_RT_QUEUE_EMPTY || acl_status == ACL_ERROR_RT_QUEUE_FULL) {
     is_need_resend = true;
-    ADP_LOG(INFO) << "Send data failed , need send data again.";
+    ADP_LOG(INFO) << "Send data ret != 0 , need send data again.";
     return Status::OK();
   }
   if (acl_status != ACL_ERROR_NONE) {

@@ -177,7 +177,7 @@ Status MarkStartNodePass::TraverseNode(const Node *start_node) {
     n->AddAttr("_StartNodeName", start_node_name);
     s = TraverseNode(n);
     if (s != Status::OK()) {
-      ADP_LOG(INFO) << "traverse node : " << start_node->name() << " to add start node name failed.";
+      ADP_LOG(INFO) << "traverse node : " << start_node->name() << " can't to add start node name.";
       return s;
     }
   }

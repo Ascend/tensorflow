@@ -83,7 +83,7 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
     if (!device_name.empty() && device_name.find("/job:ps") == std::string::npos) {
       Status s = NpuAttrs::SetNpuOptimizerAttr(options, n);
       if (s != Status::OK()) {
-        ADP_LOG(INFO) << "set npu optimizer error.";
+        ADP_LOG(INFO) << "set npu optimizer ret != 0.";
         return s;
       }
       break;

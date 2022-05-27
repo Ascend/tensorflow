@@ -673,7 +673,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               items.emplace_back(end_item);
               data_deliver_->ParallelSendDataVec(items);
               int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items, dataset()->device_id_);
-              if (tdt_status != 0) { ADP_LOG(INFO) << "End training as tdt host push end data failed " << tdt_status; }
+              if (tdt_status != 0) { ADP_LOG(INFO) << "End training as tdt host push end data, ret != 0 " << tdt_status; }
               cancelled_ = true;
               cond_var_.notify_all();
               return;

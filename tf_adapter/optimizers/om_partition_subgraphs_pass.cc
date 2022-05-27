@@ -1616,7 +1616,7 @@ Status OMSplitter::CopySubgraphNodes(std::unordered_map<const Node *, Node *> *n
 
     Status s = subgraphs_[subgraphId].SetOptions(npu_optimizer_options_, pass_options_, graph_options_);
     if (s != Status::OK()) {
-      ADP_LOG(INFO) << "Subgraph Id: " << subgraphId << "set npu optimizer error.";
+      ADP_LOG(INFO) << "Subgraph Id: " << subgraphId << "set npu optimizer ret != 0.";
       return s;
     }
     Node *image = subgraphs_[subgraphId].MakeNodeImage(graph_in_, node);
