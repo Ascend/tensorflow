@@ -308,7 +308,7 @@ TEST_F(GeOpTest, GeOpAoeTuningOtherTest) {
       AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
       static_cast<GeOp*>(async_op)->session_id_ = 9999;
       async_op->ComputeAsync(ctx.get(), done);
-      EXPECT_EQ(ctx->status().ok(), true); 
+      EXPECT_EQ(ctx->status().ok(), false);
     }
   }
 }

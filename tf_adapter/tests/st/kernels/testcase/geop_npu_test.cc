@@ -1,11 +1,13 @@
 #include "securec.h"
-#include "tf_adapter/kernels/geop_npu.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/graph/graph_constructor.h"
 #include "tensorflow/core/public/version.h"
 #include <stdlib.h>
 #include "gtest/gtest.h"
+#define private public
+#include "tf_adapter/kernels/geop_npu.h"
+#undef private
 
 namespace tensorflow {
 namespace {
@@ -259,6 +261,55 @@ TEST_F(GeOpTest, GeOpAoeTuningTest) {
           EXPECT_EQ(ctx->status().ok(), true);
         }
       }
+    }
+  }
+}
+
+TEST_F(GeOpTest, GeOpAoeTuningTest_fail) {
+  Env *env = Env::Default();
+  GraphDef train_graph_def;
+  std::string train_graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_aoe_tuning.pbtxt";
+  ReadTextProto(env, train_graph_def_path, &train_graph_def);
+  for (int i = 0; i < train_graph_def.node_size(); i++) {
+    NodeDef* node_def = train_graph_def.mutable_node(i);
+    if (node_def->name() == "GeOp2_0") {
+      auto attrs = node_def->attr();
+      EXPECT_TRUE(attrs.find("_aoe_mode") != attrs.end());
+      EXPECT_TRUE(!attrs["_aoe_mode"].s().empty());
+      EXPECT_TRUE(attrs.find("_work_path") != attrs.end());
+
+      OpKernelContext::Params params;
+      params.record_tensor_accesses = false;
+      auto device = absl::make_unique<DummyDevice>(env, params.record_tensor_accesses);
+      params.device = device.get();
+      Status status;
+      std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
+                                   *node_def, TF_GRAPH_DEF_VERSION, &status));
+      EXPECT_TRUE(status.ok());
+      AsyncOpKernel* async_op = op->AsAsync();
+      params.op_kernel = async_op;
+      params.session_handle = "session_0";
+      gtl::InlinedVector<TensorValue, 4> inputs;
+      params.inputs = &inputs;
+
+      //function library
+      FunctionDefLibrary func_def_lib = train_graph_def.library();
+      std::unique_ptr<FunctionLibraryDefinition> lib_def(
+        new FunctionLibraryDefinition(OpRegistry::Global(), func_def_lib));
+      OptimizerOptions opts;
+      std::unique_ptr<ProcessFunctionLibraryRuntime> proc_flr(
+        new ProcessFunctionLibraryRuntime(nullptr, Env::Default(), TF_GRAPH_DEF_VERSION,
+          lib_def.get(), opts, nullptr, nullptr));
+      FunctionLibraryRuntime* flr = proc_flr->GetFLR(ProcessFunctionLibraryRuntime::kDefaultFLRDevice);
+      params.function_library = flr;
+      int forward_from = 0;
+      params.forward_from_array = &forward_from;
+      auto ctx = absl::make_unique<OpKernelContext>(&params);
+      AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
+
+      static_cast<GeOp*>(async_op)->session_id_ = 9999;
+      async_op->ComputeAsync(ctx.get(), done);
+      EXPECT_EQ(ctx->status().ok(), false);
     }
   }
 }

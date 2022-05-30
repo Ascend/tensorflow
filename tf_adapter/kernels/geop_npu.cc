@@ -253,7 +253,6 @@ const int kMaxCacheNum = 10;
 const int kFatalSleepTime = 3000;
 const std::string kAllReduce = "HcomAllReduce";
 
-#ifndef ONLY_COMPILE_OPEN_SRC
 GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false), sess_init_flag_(false),
       compute_graph_empty_(false), data_format_(""), graph_id_(0), is_initialized_graph_(false), need_iteration_(false),
@@ -265,18 +264,6 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       is_input_convert_(false) {
   Initialize(ctx);
 }
-#else
-GeOp::GeOp(OpKernelConstruction *ctx)
-    : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false), sess_init_flag_(false),
-      compute_graph_empty_(false), data_format_(""), graph_id_(0), is_initialized_graph_(false), need_iteration_(false),
-      tf_session_(""), ge_session_(nullptr), job_type_(""), is_host_graph_(false), handle_(nullptr),
-      need_compile_graph_first_(false), session_id_(0), aoe_initialize_(nullptr), aoe_finalize_(nullptr),
-      aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
-      aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
-      tuned_flag_(ATOMIC_FLAG_INIT), is_input_convert_(false) {
-  Initialize(ctx);
-}
-#endif
 
 GeOp::~GeOp() {
   Finalize();
@@ -371,7 +358,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     aoe_tuning_graph_ = (AoeTuningGraphFunc) mmDlsym(handle_, "AoeTuningGraph");
     OP_REQUIRES(ctx, aoe_tuning_graph_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe tuning graph API failed, ", mmDlerror()));
-#ifndef ONLY_COMPILE_OPEN_SRC
     // aoe set tuning depend graphs inputs
     aoe_set_depend_graphs_inputs_ = (AoeSetDependGraphsInputsFunc) mmDlsym(handle_, "AoeSetDependGraphsInputs");
     OP_REQUIRES(ctx, aoe_set_depend_graphs_inputs_ != nullptr,
@@ -380,7 +366,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     aoe_set_tuning_graph_input_ = (AoeSetTuningGraphInputFunc) mmDlsym(handle_, "AoeSetTuningGraphInput");
     OP_REQUIRES(ctx, aoe_set_tuning_graph_input_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set tuning graph inputs API failed, ", mmDlerror()));
-#endif
   }
 
   sess_options_ = NpuAttrs::GetSessOptions(ctx);
@@ -652,14 +637,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       return;
     }
     auto input_vec_aoe = input_vec;
-#ifndef ONLY_COMPILE_OPEN_SRC
     if (RunTuning(input_vec_aoe, inputs, ctx) != 0) {
-#else
-    if (RunTuning(input_vec_aoe, ctx) != 0) {
-#endif
       ADP_LOG(ERROR) << "RunTuning fail.";
-      done();
-      return;
+      std::string error_message = ge::GEGetErrorMsg();
+      std::stringstream ss;
+      ss << std::endl << error_message;
+      OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
     }
     if (InitRebuildFlag(cache_graph_id) != 0) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("Failed to check rebuild flag"), done);
@@ -1309,11 +1292,8 @@ void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes, c
     attr_shape_value.mutable_list()->add_i(std::atoi(dim.c_str()));
   }
 }
-#ifndef ONLY_COMPILE_OPEN_SRC
+
 int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inputs, const OpKernelContext *const ctx) {
-#else
-int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const ctx) {
-#endif
   if (tuned_flag_.test_and_set()) {
     ADP_LOG(INFO) << ctx->op_kernel().name() << " has tuned.";
     return 0;
@@ -1433,14 +1413,12 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const
         ADP_LOG(ERROR) << "exec aoe set graph func failed[" << tune_ret << "].";
         return -1;
       }
-#ifndef ONLY_COMPILE_OPEN_SRC
       // set tuning inputs
       Aoe::AoeStatus set_inputs_ret = (*aoe_set_tuning_graph_input_)(session_id_, inputs);
       if (set_inputs_ret != Aoe::AOE_SUCCESS) {
         ADP_LOG(ERROR) << "exec aoe set tuning inputs func failed[" << set_inputs_ret << "].";
         return -1;
       }
-#endif
       // aoe tuning
       std::map<Aoe::AscendString, Aoe::AscendString> tuingOptions;
       Aoe::AoeStatus aoe_tune_ret = (*aoe_tuning_graph_)(session_id_, tuingOptions);

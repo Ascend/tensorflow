@@ -33,6 +33,7 @@ usage() {
   echo "    -v Verbose"
   echo "    -g GCC compiler prefix, used to specify the compiler toolchain"
   echo "    -u TF_adapter utest"
+  echo "    -s TF_adapter stest"
   echo "to be continued ..."
 }
 

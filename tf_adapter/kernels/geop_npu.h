@@ -40,12 +40,8 @@ using AoeCreateSessionFunc = Aoe::AoeStatus (*)(const std::map<Aoe::AscendString
 using AoeDestroySessionFunc = Aoe::AoeStatus (*)(SessionId);
 using AoeSetGeSessionFunc = Aoe::AoeStatus (*)(SessionId, ge::Session*);
 using AoeSetDependGraphFunc = Aoe::AoeStatus (*)(SessionId, std::vector<ge::Graph>&);
-#endif
-#ifndef ONLY_COMPILE_OPEN_SRC
 using AoeSetDependGraphsInputsFunc = Aoe::AoeStatus (*)(SessionId, std::vector<std::vector<ge::Tensor>> &);
 using AoeSetTuningGraphInputFunc = Aoe::AoeStatus (*)(SessionId, std::vector<ge::Tensor> &);
-#endif
-#ifdef TENSORFLOW_KERNELS_GEOP_NPU_H_
 using AoeSetTuningGraphFunc = Aoe::AoeStatus (*)(SessionId, ge::Graph &);
 using AoeTuningGraphFunc = Aoe::AoeStatus (*)(SessionId, const std::map<Aoe::AscendString, Aoe::AscendString> &);
 
@@ -114,13 +110,8 @@ class GeOp : public AsyncOpKernel {
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                         std::vector<std::string> &input_shapes);
-#endif
-#ifndef ONLY_COMPILE_OPEN_SRC
+
   int RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inputs, const OpKernelContext *const ctx);
-#else
-  int RunTuning(std::vector<Tensor> &input_vec, const OpKernelContext *const ctx);
-#endif
-#ifdef TENSORFLOW_KERNELS_GEOP_NPU_H_
 
   std::string BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::string &graph);
 
@@ -193,12 +184,8 @@ class GeOp : public AsyncOpKernel {
   AoeSetDependGraphFunc aoe_set_dependgraphs_;
   AoeSetTuningGraphFunc aoe_set_tuninggraph_;
   AoeTuningGraphFunc aoe_tuning_graph_;
-#endif
-#ifndef ONLY_COMPILE_OPEN_SRC
   AoeSetDependGraphsInputsFunc aoe_set_depend_graphs_inputs_;
   AoeSetTuningGraphInputFunc aoe_set_tuning_graph_input_;
-#endif
-#ifdef TENSORFLOW_KERNELS_GEOP_NPU_H_
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_
