@@ -229,7 +229,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_gl
 
   bool tdt_uninit_env = false;
   (void) ReadBoolFromEnvVar("ASCEND_TDT_UNINIT", false, &tdt_uninit_env);
-  if (!tdt_uninit_env) {
+  if (!kIsHeterogeneous && !tdt_uninit_env) {
     // Open TsdClient first, then call GEInitialize
     ADP_LOG(INFO) << "[GePlugin] Open TsdClient and Init tdt host.";
     int32_t ret = tdt::TdtOutFeedInit(static_cast<uint32_t>(device_id_));
@@ -294,7 +294,7 @@ void GePlugin::Finalize() {
   if (tdt_uninit_env != nullptr && std::atoi(tdt_uninit_env) == 1) {
     tdt_init = false;
   }
-  if (tdt_init) {
+  if (!kIsHeterogeneous && tdt_init) {
     ADP_LOG(INFO) << "[GePlugin] Close TsdClient and destroy tdt.";
     int32_t ret = tdt::TdtOutFeedDestroy();
     if (ret != 0) {
