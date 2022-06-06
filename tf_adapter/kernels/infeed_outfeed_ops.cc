@@ -49,7 +49,7 @@ class OutfeedDequeueOp : public OpKernel {
  public:
   explicit OutfeedDequeueOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &channel_name_));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &output_types_));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &out_feed_dequeue_output_types_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &output_shapes_));
     // Create log summary acl channel
     ADP_LOG(INFO) << "Start create acl channel for out-feed dequeue op " << channel_name_;
@@ -110,7 +110,7 @@ class OutfeedDequeueOp : public OpKernel {
   }
 
  private:
-  DataTypeVector output_types_;
+  DataTypeVector out_feed_dequeue_output_types_;
   std::vector<PartialTensorShape> output_shapes_;
   std::string channel_name_;
   acltdtChannelHandle *acl_handle_ = nullptr;
