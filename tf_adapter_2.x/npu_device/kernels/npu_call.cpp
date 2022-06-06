@@ -70,7 +70,7 @@ class NpuCallOp : public OpKernel {
     for (auto &handle : outputs) {
       guarder.Guard(handle);
     }
-    for (int i = 0; i < outputs.size(); i++) {
+    for (size_t i = 0; i < outputs.size(); i++) {
       const Tensor *tensor;
       OP_REQUIRES_OK(ctx, npu::GetTensorHandleTensor(outputs[i], &tensor));
       ctx->set_output(i, *tensor);
@@ -100,7 +100,7 @@ class NpuCallOp : public OpKernel {
         continue;
       }
       auto index = node->attrs().Find("index")->i();
-      if (index >= args_.size()) {
+      if (static_cast<size_t>(index) >= args_.size()) {
         args_.resize(index + 1);
       }
       args_[static_cast<size_t>(index)] = node;

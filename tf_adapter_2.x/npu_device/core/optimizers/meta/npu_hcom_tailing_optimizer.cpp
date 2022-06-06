@@ -102,7 +102,7 @@ tensorflow::Status TailingOptimizeInner(tensorflow::FunctionLibraryDefinition *l
 
       if (!grads.empty()) {
         for (auto edge : edges_to_remove) {
-          (void)graph->RemoveEdge(edge);
+          graph->RemoveEdge(edge);
         }
         for (auto grad : grads) {
           (void)graph->AddControlEdge(grad, node);
