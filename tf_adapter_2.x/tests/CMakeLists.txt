@@ -37,6 +37,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/nlohmann_json.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/acl/module.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/tensorflow/module.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/graph_engine/module.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/secure_c.cmake)
 
 add_subdirectory(ut)
 add_subdirectory(st)

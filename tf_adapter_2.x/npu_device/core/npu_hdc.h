@@ -19,7 +19,15 @@
 
 #include "acl/acl_tdt.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/platform/env.h"
+
 namespace npu {
+struct HdcChannelHandle {
+  bool is_mbuf;
+  acltdtChannelHandle *acl_handle;
+  HdcChannelHandle() : is_mbuf(false), acl_handle(nullptr) {}
+};
+
 class HdcChannel {
  public:
   static tensorflow::Status Create(uint32_t device_id, const std::string &name,
@@ -40,16 +48,45 @@ class HdcChannel {
 
   void Destroy();
 
+  bool IsNeedContinuousMem() const { return handle_.is_mbuf; }
+
  private:
   HdcChannel(uint32_t device_id, std::string name);
+
   HdcChannel(uint32_t device_id, std::string name, size_t capacity);
+
   tensorflow::Status Init();
-  acltdtChannelHandle *handle_;
+
+  tensorflow::Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) const;
+
+  tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) const;
+
+  tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors) const;
+
+  tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset,
+                                                std::vector<tensorflow::Tensor> &out_tensors) const;
+
+  tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type,
+                                                const std::vector<tensorflow::Tensor> &tensors,
+                                                acltdtDataset **output_acl_dataset) const;
+
+  tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type,
+                                                const std::vector<tensorflow::Tensor> &tensors,
+                                                acltdtDataset *acl_dataset) const;
+
+  tensorflow::Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item = true) const;
+
+  tensorflow::Status RecvTensorByAcl(std::vector<tensorflow::Tensor> &tensors) const;
+
+  tensorflow::Status SendTensorsByAcl(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors) const;
+
+  HdcChannelHandle handle_;
   int32_t device_id_;
   std::string name_;
   bool limited_capacity_{false};
   size_t capacity_{0U};
   std::atomic_bool destroyed_{false};
+  mutable std::vector<uint8_t> tensors_buffer_;
 };
 }  // end namespace npu
 

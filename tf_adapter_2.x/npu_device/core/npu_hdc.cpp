@@ -13,39 +13,69 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <securec.h>
 #include "npu_hdc.h"
 #include "npu_logger.h"
 #include "npu_micros.h"
+#include "npu_thread_pool.h"
+#include "npu_utils.h"
 
 namespace {
-tensorflow::Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type);
+constexpr size_t kParallelMemCopyThreshold = 10 * 1024 * 1024UL;
 
-tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type);
+/**
+ * @brief: parallel mem copy
+ */
+tensorflow::Status Copy2ContinuousMem(void *dst_ptr, void *src_ptr, const size_t src_size) {
+  if (dst_ptr == nullptr || src_ptr == nullptr) {
+    return tensorflow::errors::Internal("dst_ptr or src_ptr is null before do parallel memory copy.");
+  }
 
-tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors);
+  if (src_size <= kParallelMemCopyThreshold) {
+    if (memcpy_s(dst_ptr, src_size, src_ptr, src_size) != EOK) {
+      return tensorflow::errors::Internal("memory copy failed before hdc send data, dst:", dst_ptr,
+                                          ", dst_size:", src_size, ", src:", src_ptr, ", src_size:", src_size);
+    }
+    return tensorflow::Status::OK();
+  }
 
-tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<tensorflow::Tensor> &out_tensors);
+  std::atomic<uint32_t> parallel_cpy_count{0U};
+  uint32_t enqueue_count = 0;
+  size_t block_size = src_size / npu::kDefaultThreadNum;
+  size_t remained_size = src_size % npu::kDefaultThreadNum;
+  std::vector<tensorflow::Status> copy_results(npu::kDefaultThreadNum);
+  for (int32_t i = 0; i < npu::kDefaultThreadNum; i++) {
+    if (i == npu::kDefaultThreadNum - 1) {
+      block_size += remained_size;
+    }
+    auto &ret = copy_results[i];
+    std::function<void()> closure = [dst_ptr, src_ptr, block_size, &ret, &parallel_cpy_count]() {
+      ret = npu::LoopCopy(dst_ptr, src_ptr, block_size);
+      parallel_cpy_count++;
+    };
+    NPU_REQUIRES_OK(npu::ThreadPool::GetInstance().EnqueueTask(closure));
+    enqueue_count++;
+    dst_ptr += block_size;
+    src_ptr += block_size;
+  }
+  while (parallel_cpy_count < enqueue_count) {
+  }
+  for (auto ret : copy_results) {
+    if (!ret.ok()) {
+      return ret;
+    }
+  }
+  return tensorflow::Status::OK();
+}
+}  // namespace
 
-tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
-                                              acltdtDataset **output_acl_dataset);
-
-tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
-                                              acltdtDataset *acl_dataset);
-
-tensorflow::Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item = true);
-
-tensorflow::Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<tensorflow::Tensor> &tensors);
-
-tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
-                                    const std::vector<tensorflow::Tensor> &tensors);
-
+namespace npu {
 /**
  * @brief: mapping acl data type to tf
  * @param acl_type: acl data type
  * @param tf_type: tensorflow data type
  */
-tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) {
+tensorflow::Status HdcChannel::MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) const {
   const static std::map<aclDataType, tensorflow::DataType> type_mapping = {
     {ACL_FLOAT, tensorflow::DT_FLOAT},   {ACL_FLOAT16, tensorflow::DT_HALF},  {ACL_INT8, tensorflow::DT_INT8},
     {ACL_INT32, tensorflow::DT_INT32},   {ACL_UINT8, tensorflow::DT_UINT8},   {ACL_INT16, tensorflow::DT_INT16},
@@ -66,7 +96,8 @@ tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::
  * @param tensors: tensorflow tensors
  * @param call_by_channel_receive: if call by channel receive or not
  */
-tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors) {
+tensorflow::Status HdcChannel::AssembleAclTensor2Tensor(acltdtDataItem *item,
+                                                        std::vector<tensorflow::Tensor> &tensors) const {
   acltdtTensorType acl_type = acltdtGetTensorTypeFromItem(item);
   if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
     LOG(INFO) << "Hdc channel received end-of-sequence for out-feed op.";
@@ -125,8 +156,8 @@ tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<te
  * @param out_tensors: tensorflow tensors
  * @param call_by_channel_receive: if call by channel receive of not
  */
-tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset,
-                                              std::vector<tensorflow::Tensor> &out_tensors) {
+tensorflow::Status HdcChannel::AssembleAclDataset2Tensors(acltdtDataset *acl_dataset,
+                                                          std::vector<tensorflow::Tensor> &out_tensors) const {
   for (size_t i = 0; i < acltdtGetDatasetSize(acl_dataset); i++) {
     auto acl_data = acltdtGetDataItem(acl_dataset, i);
     if (acl_data == nullptr) {
@@ -142,7 +173,7 @@ tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset,
  * @param acl_dataset: acl tdt dataset
  * @param include_data_item: if include data item or not
  */
-tensorflow::Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item) {
+tensorflow::Status HdcChannel::DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item) const {
   if (include_data_item) {
     for (size_t i = 0; i < acltdtGetDatasetSize(acl_dataset); i++) {
       if (acltdtDestroyDataItem(acltdtGetDataItem(acl_dataset, i)) != ACL_ERROR_NONE) {
@@ -158,16 +189,15 @@ tensorflow::Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_da
 
 /**
  * @brief: recv tensor by acl
- * @param acl_handle: acl tdt channel handle
  * @param tensors: tensorflow tensors
  */
-tensorflow::Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<tensorflow::Tensor> &tensors) {
+tensorflow::Status HdcChannel::RecvTensorByAcl(std::vector<tensorflow::Tensor> &tensors) const {
   auto acl_dataset = acltdtCreateDataset();
   if (acl_dataset == nullptr) {
     return tensorflow::errors::Internal("Failed create hdc channel.");
   }
 
-  auto acl_status = acltdtReceiveTensor(acl_handle, acl_dataset, -1 /* no timeout */);
+  auto acl_status = acltdtReceiveTensor(handle_.acl_handle, acl_dataset, -1 /* no timeout */);
   if (acl_status != ACL_ERROR_NONE) {
     NPU_LOG_IF_ERROR(DestroyAclDataset(acl_dataset, false));
     return tensorflow::errors::Internal("Failed receive data from hdc channel, acl status:", acl_status);
@@ -187,7 +217,7 @@ tensorflow::Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<
  * @tf_type: tensorflow data type
  * @acl_type: acl data type
  */
-tensorflow::Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
+tensorflow::Status HdcChannel::MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) const {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
     {tensorflow::DT_FLOAT, ACL_FLOAT},   {tensorflow::DT_HALF, ACL_FLOAT16},  {tensorflow::DT_INT8, ACL_INT8},
     {tensorflow::DT_INT32, ACL_INT32},   {tensorflow::DT_UINT8, ACL_UINT8},   {tensorflow::DT_INT16, ACL_INT16},
@@ -208,8 +238,9 @@ tensorflow::Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDa
  * @param tensors: tensorflow tensors
  * @param acl_dataset: acl tdt dataset
  */
-tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
-                                              acltdtDataset *acl_dataset) {
+tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_type,
+                                                          const std::vector<tensorflow::Tensor> &tensors,
+                                                          acltdtDataset *acl_dataset) const {
   if (TF_PREDICT_FALSE(acl_type != ACL_TENSOR_DATA_TENSOR)) {
     acltdtDataItem *acl_data = acltdtCreateDataItem(acl_type, nullptr, 0, ACL_BOOL /* whatever */, nullptr, 0);
     if (acl_data == nullptr) {
@@ -225,15 +256,29 @@ tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const s
     }
     return tensorflow::Status::OK();
   }
+  size_t total_size = 0UL;
+  for (auto &tensor : tensors) {
+    total_size += tensor.TotalBytes();
+  }
+  tensors_buffer_.resize(std::max(tensors_buffer_.size(), total_size));
+
+  size_t offset = 0UL;
   for (auto &tensor : tensors) {
     aclDataType acl_data_type;
     TF_RETURN_IF_ERROR(MappingTfDtypeToAcl(tensor.dtype(), acl_data_type));
     acltdtDataItem *acl_data = nullptr;
     if (DataTypeCanUseMemcpy(tensor.dtype())) {
       auto dims = tensor.shape().dim_sizes();
+      void *tensor_data = tensor.data();
+      if (IsNeedContinuousMem()) {
+        size_t src_size = tensor.TotalBytes();
+        tensor_data = tensors_buffer_.data() + offset;
+        NPU_REQUIRES_OK(Copy2ContinuousMem(tensor_data, tensor.data(), src_size));
+        offset += src_size;
+      }
       acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR,
                                       (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())),
-                                      dims.size(), acl_data_type, tensor.data(), tensor.tensor_data().size());
+                                      dims.size(), acl_data_type, tensor_data, tensor.tensor_data().size());
     } else if (tensor.dtype() == tensorflow::DT_STRING) {
       if (tensor.dims() != 0) {
         return tensorflow::errors::Internal("Acl send got unexpected non-scalar string tensor with dim ",
@@ -265,8 +310,9 @@ tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const s
  * @param tensors: tensorflow tensors
  * @param output_acl_dataset: acl tdt dataset
  */
-tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors,
-                                              acltdtDataset **output_acl_dataset) {
+tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_type,
+                                                          const std::vector<tensorflow::Tensor> &tensors,
+                                                          acltdtDataset **output_acl_dataset) const {
   auto acl_dataset = acltdtCreateDataset();
   if (acl_dataset == nullptr) {
     return tensorflow::errors::Internal("Acl create tensor dataset failed");
@@ -282,18 +328,19 @@ tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type, const s
 
 /**
  * @brief: send tensors by acl
- * @param acl_handle: acl tdt channel handle
  * @param acl_type: acl tdt tensor type
  * @param tensors: tensorflow tensors
  */
-tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
-                                    const std::vector<tensorflow::Tensor> &tensors) {
+tensorflow::Status HdcChannel::SendTensorsByAcl(acltdtTensorType acl_type,
+                                                const std::vector<tensorflow::Tensor> &tensors) const {
   acltdtDataset *acl_dataset = nullptr;
 
   TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset));
 
-  auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, -1 /* no timeout */);
-
+  auto acl_status = ACL_ERROR_NONE;
+  do {
+    acl_status = acltdtSendTensor(handle_.acl_handle, acl_dataset, -1 /* no timeout */);
+  } while ((acl_status == ACL_ERROR_RT_QUEUE_EMPTY || acl_status == ACL_ERROR_RT_QUEUE_FULL));
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status != ACL_ERROR_NONE) {
     return tensorflow::errors::Internal("Acl send data failed, acl status:", acl_status);
@@ -301,9 +348,7 @@ tensorflow::Status SendTensorsByAcl(acltdtChannelHandle *acl_handle, acltdtTenso
 
   return tensorflow::Status::OK();
 }
-}  // end namespace
 
-namespace npu {
 /**
  * @brief: create hdc channel
  * @param device_id: device id
@@ -324,8 +369,7 @@ tensorflow::Status HdcChannel::Create(uint32_t device_id, const std::string &nam
   guarded_channel->reset(new (std::nothrow) HdcChannel(device_id, name, capacity));
   NPU_REQUIRES(*guarded_channel,
                tensorflow::errors::Internal("Failed create hdc channel ", name, " on device ", device_id));
-  NPU_REQUIRES_OK((*guarded_channel)->Init());
-  return tensorflow::Status::OK();
+  return (*guarded_channel)->Init();
 }
 
 HdcChannel::~HdcChannel() { Destroy(); }
@@ -334,36 +378,32 @@ HdcChannel::~HdcChannel() { Destroy(); }
  * @brief: send tensors
  */
 tensorflow::Status HdcChannel::SendTensors(const std::vector<tensorflow::Tensor> &tensors) const {
-  return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_TENSOR, tensors);
+  return SendTensorsByAcl(ACL_TENSOR_DATA_TENSOR, tensors);
 }
 
 /**
  * @brief: recv tensors
  */
 tensorflow::Status HdcChannel::RecvTensors(std::vector<tensorflow::Tensor> &tensors) const {
-  return RecvTensorByAcl(handle_, tensors);
+  return RecvTensorByAcl(tensors);
 }
 
 /**
  * @brief: notify finish
  */
-tensorflow::Status HdcChannel::NotifyFinish() const {
-  return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_END_OF_SEQUENCE, {});
-}
+tensorflow::Status HdcChannel::NotifyFinish() const { return SendTensorsByAcl(ACL_TENSOR_DATA_END_OF_SEQUENCE, {}); }
 
 /**
  * @brief: notify abnormal
  */
-tensorflow::Status HdcChannel::NotifyAbnormal() const {
-  return SendTensorsByAcl(handle_, ACL_TENSOR_DATA_ABNORMAL, {});
-}
+tensorflow::Status HdcChannel::NotifyAbnormal() const { return SendTensorsByAcl(ACL_TENSOR_DATA_ABNORMAL, {}); }
 
 /**
  * @brief: destroy hdc channel
  */
 void HdcChannel::Destroy() {
   if (!destroyed_.exchange(true)) {
-    if (acltdtDestroyChannel(handle_) != ACL_ERROR_NONE) {
+    if (handle_.acl_handle != nullptr && acltdtDestroyChannel(handle_.acl_handle) != ACL_ERROR_NONE) {
       LOG(ERROR) << "Failed close hdc channel " << name_;
     } else {
       DLOG() << "Hdc channel " << name_ << " closed";
@@ -371,21 +411,21 @@ void HdcChannel::Destroy() {
   }
 }
 
-HdcChannel::HdcChannel(uint32_t device_id, std::string name)
-    : handle_(nullptr), device_id_(device_id), name_(std::move(name)) {}
+HdcChannel::HdcChannel(uint32_t device_id, std::string name) : device_id_(device_id), name_(std::move(name)) {}
 
 HdcChannel::HdcChannel(uint32_t device_id, std::string name, size_t capacity)
-    : handle_(nullptr), device_id_(device_id), name_(std::move(name)), limited_capacity_(true), capacity_(capacity) {}
+    : device_id_(device_id), name_(std::move(name)), limited_capacity_(true), capacity_(capacity) {}
 /**
  * @brief: init hdc channel
  */
 tensorflow::Status HdcChannel::Init() {
   if (limited_capacity_) {
-    handle_ = acltdtCreateChannelWithCapacity(device_id_, name_.c_str(), capacity_);
+    handle_.acl_handle = acltdtCreateChannelWithCapacity(device_id_, name_.c_str(), capacity_);
+    handle_.is_mbuf = true;
   } else {
-    handle_ = acltdtCreateChannel(device_id_, name_.c_str());
+    handle_.acl_handle = acltdtCreateChannel(device_id_, name_.c_str());
   }
-  if (handle_ == nullptr) {
+  if (handle_.acl_handle == nullptr) {
     return tensorflow::errors::Internal("Failed create hdc channel by acl");
   }
   return tensorflow::Status::OK();

@@ -28,6 +28,7 @@
 #include "npu_global.h"
 #include "npu_managed_buffer.h"
 #include "npu_tensor.h"
+#include "npu_utils.h"
 
 #include "optimizers/npu_optimizer_manager.h"
 
@@ -81,8 +82,24 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   TensorPartialShapes shapes;
   TensorDataTypes types;
   NPU_CTX_REQUIRES_OK(status, GetMirroredIteratorShapesAndTypes(resource, shapes, types));
-  auto dp_provider = npu::IteratorResourceProvider::GetFunctionDef(npu::WrapResourceName(resource.name()),
-                                                                   std::move(device_ids), shapes, types, status);
+  tensorflow::CancellationManager *cancel_manager = CancellationManager();
+  std::string channel_name = npu::WrapResourceName(resource.name());
+
+  NPU_CTX_REQUIRES_OK(status, npu::global::GlobalHdcChannel::GetInstance().Create(
+                                channel_name, CreateChannelCapacity(shapes, types), device_ids));
+  std::vector<std::shared_ptr<npu::HdcChannel>> channels;
+  npu::global::GlobalHdcChannel::GetInstance().Get(channel_name, channels);
+  if (!channels.empty()) {
+    tensorflow::CancellationToken token = cancel_manager->get_cancellation_token();
+    bool cancelled = !cancel_manager->RegisterCallback(
+      token, [channel_name]() { npu::global::GlobalHdcChannel::GetInstance().Destroy(channel_name); });
+    if (cancelled) {
+      status->status = tensorflow::errors::Internal("Iterator resource ", channel_name, " consume after destroyed");
+    }
+  }
+
+  auto dp_provider =
+    npu::IteratorResourceProvider::GetFunctionDef(channel_name, std::move(device_ids), shapes, types, status);
   NPU_REQUIRES_TFE_OK(status);
 
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
@@ -92,7 +109,6 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   tensorflow::FunctionLibraryRuntime::Handle f_handle;
   NPU_CTX_REQUIRES_OK(status, flr->Instantiate(dp_provider.signature().name(), tensorflow::AttrSlice{}, &f_handle));
 
-  tensorflow::CancellationManager *cancel_manager = CancellationManager();
   auto consume_func = [flr, f_handle, cancel_manager](tensorflow::Tensor tensor, int64_t nums) -> tensorflow::Status {
     std::vector<tensorflow::Tensor> get_next_outputs;
     tensorflow::FunctionLibraryRuntime::Options options;

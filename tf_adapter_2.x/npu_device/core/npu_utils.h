@@ -26,6 +26,8 @@
 #include "acl/acl_base.h"
 #include "graph/types.h"
 
+#include "npu_types.h"
+
 namespace npu {
 class NpuDevice;
 class ScopeTensorHandleDeleter {
@@ -149,6 +151,10 @@ class OptimizeStageGraphDumper {
 };
 
 void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::unique_ptr<tensorflow::Graph> *g);
+
+tensorflow::Status LoopCopy(void *dst_ptr, void *src_ptr, const size_t src_size);
+
+size_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types);
 }  // namespace npu
 
 #endif  // NPU_DEVICE_CORE_NPU_UTILS_H

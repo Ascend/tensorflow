@@ -109,9 +109,8 @@ class IteratorResourceProvider {
         }
       }));
   }
-  ~IteratorResourceProvider() {
-    Destroy();
-  }
+  ~IteratorResourceProvider() { Destroy(); }
+
   static tensorflow::FunctionDef GetFunctionDef(std::string channel_name, std::vector<int> device_ids,
                                                 const TensorPartialShapes &shapes, const TensorDataTypes &types,
                                                 TF_Status *status) {
