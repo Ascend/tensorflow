@@ -140,7 +140,7 @@ class DpTfToGEConversionPassImpl {
   Status Run(const GraphOptimizationPassOptions &options);
 
  private:
-  Status ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
+  Status ProcessGraph(const std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                       const OptimizationPassRegistry::Grouping pass_group_value);
   bool RunPass(const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
                const std::map<std::string, std::string> &all_options);
@@ -996,7 +996,7 @@ Status DpTfToGEConversionPass::Run(const GraphOptimizationPassOptions &options) 
   return DpTfToGEConversionPassImpl().Run(options);
 }
 
-Status DpTfToGEConversionPassImpl::ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
+Status DpTfToGEConversionPassImpl::ProcessGraph(const std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                                                 const OptimizationPassRegistry::Grouping pass_group_value) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
 

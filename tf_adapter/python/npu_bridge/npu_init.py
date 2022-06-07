@@ -108,11 +108,11 @@ def npu_config_proto(config_proto=None):
     if not npu_optimizer:
         npu_optimizer = config_proto.graph_options.rewrite_options.custom_optimizers.add()
         npu_optimizer.name = 'NpuOptimizer'
+        config_proto.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
 
     config_proto.allow_soft_placement = True
     config_proto.log_device_placement = False
     config_proto.graph_options.rewrite_options.remapping = RewriterConfig.OFF
-    config_proto.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
     config_proto.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     return config_proto
 
@@ -158,11 +158,11 @@ def set_keras_session_npu_config(config=None):
     if not npu_optimizer:
         npu_optimizer = config.graph_options.rewrite_options.custom_optimizers.add()
         npu_optimizer.name = 'NpuOptimizer'
+        config.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
 
     config.allow_soft_placement = True
     config.log_device_placement = False
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
-    config.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
     config.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     sess = session.Session(config=config)
     backend.set_session(sess)
@@ -182,11 +182,11 @@ def init_resource(config=None):
     if not npu_optimizer:
         npu_optimizer = config.graph_options.rewrite_options.custom_optimizers.add()
         npu_optimizer.name = 'NpuOptimizer'
+        config.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
 
     config.allow_soft_placement = True
     config.log_device_placement = False
     config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
-    config.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
     config.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
 
     util.global_dict_init()

@@ -25,7 +25,7 @@
 namespace tensorflow {
 namespace OMSplitter {
 Status MarkForPartition(const GraphOptimizationPassOptions &options, int &clusterNum, bool mix_compile_mode,
-                        int graph_num, FunctionLibraryDefinition *func_lib,
+                        int graph_num, const FunctionLibraryDefinition *func_lib,
                         std::map<std::string, std::string> pass_options,
                         std::map<std::string, std::string> &graph_options);
 

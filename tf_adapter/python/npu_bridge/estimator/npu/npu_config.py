@@ -377,11 +377,11 @@ def set_npu_default_config(func, args, kwargs):
     if not npu_optimizer:
         npu_optimizer = tf_config.graph_options.rewrite_options.custom_optimizers.add()
         npu_optimizer.name = 'NpuOptimizer'
+        tf_config.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
 
     tf_config.allow_soft_placement = True
     tf_config.log_device_placement = False
     tf_config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
-    tf_config.graph_options.rewrite_options.memory_optimization = RewriterConfig.OFF
     tf_config.graph_options.optimizer_options.global_jit_level = config_pb2.OptimizerOptions.OFF
     kwargs["config"] = tf_config
     if len(args) > config_index:

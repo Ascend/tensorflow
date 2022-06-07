@@ -14,5 +14,6 @@ set_target_properties(_npu_device_backends PROPERTIES PREFIX "")
 
 target_link_libraries(_npu_device_backends PRIVATE
         tensorflow_libs
+        c_sec
         ge_libs
         acl_libs)

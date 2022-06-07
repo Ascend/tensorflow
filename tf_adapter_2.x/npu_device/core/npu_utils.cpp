@@ -17,6 +17,7 @@
 #include "npu_utils.h"
 
 #include <queue>
+#include <securec.h>
 
 #include "tensorflow/core/graph/algorithm.h"
 
@@ -505,5 +506,55 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::un
     return true;
   };
   tensorflow::OptimizeGraph(lib, g, options);
+}
+
+tensorflow::Status LoopCopy(void *dst_ptr, void *src_ptr, size_t src_size) {
+  size_t copy_size = 0UL;
+  size_t org_src_size = src_size;
+  do {
+    size_t src_copy_size = (src_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : src_size;
+    if (memcpy_s(dst_ptr, src_copy_size, src_ptr, src_copy_size) != EOK) {
+      return tensorflow::errors::Internal("loop memory copy failed , dst:", dst_ptr, ", dst_size:", src_copy_size,
+                                          ", src:", src_ptr, ", src_size:", src_copy_size);
+    }
+    copy_size += src_copy_size;
+    dst_ptr += src_copy_size;
+    src_ptr += src_copy_size;
+    src_size -= src_copy_size;
+  } while (copy_size < org_src_size);
+  return tensorflow::Status::OK();
+}
+
+size_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types) {
+  const size_t kMaxChannelCapacity = 128UL;
+  const size_t kStringTypeCapacity = 64UL;
+  const size_t kUnknownShapeCapacity = 3UL;
+  const size_t kMinChannelCapacity = 2UL;
+  const int32_t kInvalidCpacity = -1;
+  constexpr size_t kDefaultDataSize = 2 * 1024 * 1024 * 1024UL;
+  constexpr int64_t kSizeTMaxsize = 16 * 1024 * 1024 * 1024UL;
+
+  size_t total_sizes = 0UL;
+  for (size_t i = 0UL; i < types.size(); i++) {
+    tensorflow::DataType data_type = types.at(i);
+    if (data_type == tensorflow::DT_STRING) {
+      return kStringTypeCapacity;
+    }
+    if (!shapes[i].IsFullyDefined()) {
+      return kUnknownShapeCapacity;
+    }
+    int64_t result = 0;
+    if (shapes[i].num_elements() > 0 &&
+        tensorflow::DataTypeSize(data_type) > (kSizeTMaxsize / shapes[i].num_elements())) {
+      return kInvalidCpacity;
+    } else {
+      result = shapes[i].num_elements() * tensorflow::DataTypeSize(data_type);
+    }
+    if (result > kSizeTMaxsize - total_sizes) {
+      return kInvalidCpacity;
+    }
+    total_sizes += static_cast<size_t>(result);
+  }
+  return std::min(kMaxChannelCapacity, std::max(kMinChannelCapacity, (kDefaultDataSize / total_sizes)));
 }
 }  // namespace npu

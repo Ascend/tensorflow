@@ -51,6 +51,7 @@
 #include "npu_logger.h"
 #include "npu_micros.h"
 #include "npu_utils.h"
+#include "npu_thread_pool.h"
 
 namespace py = pybind11;
 
@@ -172,6 +173,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
             LOG(INFO) << "  " << option.first << ":" << option.second;
             global_options.emplace(option.first, option.second);
           }
+          ThreadPool::GetInstance().Init(kDefaultThreadNum);
           // Currently only support global basic options
           auto status = npu::CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
           pybind11::gil_scoped_acquire acquire;
@@ -180,6 +182,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
 
   m.def("Close", []() {
     pybind11::gil_scoped_release release;
+    ThreadPool::GetInstance().Destroy();
     npu::ReleaseDeviceResource();
     if (graph_engine_started.exchange(false)) {
       auto ge_status = ge::ParserFinalize();

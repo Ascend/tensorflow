@@ -17,6 +17,9 @@
 #ifndef NPU_DEVICE_CORE_NPU_GLOBAL_H
 #define NPU_DEVICE_CORE_NPU_GLOBAL_H
 
+#include <map>
+#include <vector>
+
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/status.h"
@@ -25,6 +28,7 @@
 
 namespace npu {
 class NpuDevice;
+class HdcChannel;
 namespace global {
 // 全局Device循环次数设置
 extern std::atomic_int64_t g_npu_loop_size;
@@ -56,6 +60,24 @@ class NpuCtx {
 
  private:
   static std::map<int, NpuCtx::Ctx> npu_ctx_;
+};
+
+class GlobalHdcChannel {
+ public:
+  static GlobalHdcChannel &GetInstance() {
+    static GlobalHdcChannel Instance;
+    return Instance;
+  }
+
+  void Get(const std::string &name, std::vector<std::shared_ptr<npu::HdcChannel>> &channels);
+
+  tensorflow::Status Create(const std::string &name, size_t channel_capacity, const std::vector<int> &device_ids);
+
+  void Destroy(const std::string &name);
+
+ private:
+  std::map<std::string, std::vector<std::shared_ptr<npu::HdcChannel>>> global_channels_;
+  std::mutex global_channels_mu_;
 };
 
 }  // namespace global

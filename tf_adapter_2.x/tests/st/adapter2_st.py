@@ -17,6 +17,7 @@
 #
 
 import os
+import time
 
 os.environ['ASCEND_OPP_PATH'] = 'non-existed-path'
 
@@ -321,6 +322,19 @@ class Adapter2St(unittest.TestCase):
         dataset = tf.data.Dataset.range(10)
         iterator = iter(dataset)
         f(iterator)
+
+    def test_while_3(self):
+        v = tf.Variable(tf.ones([10, 1024, 1024], dtype=tf.int64), dtype=tf.int64)
+
+        @tf.function
+        def f(iterator):
+            for i in tf.range(10):
+                v.assign_add(next(iterator))
+
+        dataset = tf.data.Dataset.from_tensors(tf.ones([10, 1024, 1024], dtype=tf.int64)).repeat()
+        iterator = iter(dataset)
+        f(iterator)
+        time.sleep(5)
 
     def test_dropout_v3(self):
         @tf.function
