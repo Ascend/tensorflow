@@ -45,12 +45,7 @@ namespace tensorflow {
   }
 
   void HostThreadPool::ParallelForCopyThread() {
-    ADP_LOG(INFO) << "Start parallel copy thread.";
-    auto ret = aclrtSetDevice(device_id_);
-    if (ret != ACL_ERROR_NONE) {
-      ADP_LOG(ERROR) << "Set device failed, device_id: " << device_id_;
-      return;
-    }
+    ADP_LOG(INFO) << "Start parallel copy thread .";
     std::function<void()> closure;
     while (!thread_stop_flag_.load()) {
       {
