@@ -108,7 +108,7 @@ std::unordered_set<std::string> npu_specify_ops_cache;
 }
 namespace npu {
 PYBIND11_MODULE(_npu_device_backends, m) {
-  m.def("Open",
+  (void)m.def("Open",
         [](const py::handle &context, const char *device_name, int device_index,
            std::map<std::string, std::string> user_options,
            std::map<std::string, std::string> device_options) -> std::string {
@@ -171,7 +171,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
           LOG(INFO) << "Create device instance " << full_name << " with extra options:";
           for (const auto &option : device_options) {
             LOG(INFO) << "  " << option.first << ":" << option.second;
-            global_options.emplace(option.first, option.second);
+            (void)global_options.emplace(option.first, option.second);
           }
           ThreadPool::GetInstance().Init(kDefaultThreadNum);
           // Currently only support global basic options
@@ -180,7 +180,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
           return status;
         });
 
-  m.def("Close", []() {
+  (void)m.def("Close", []() {
     pybind11::gil_scoped_release release;
     ThreadPool::GetInstance().Destroy();
     npu::ReleaseDeviceResource();
@@ -204,21 +204,21 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     pybind11::gil_scoped_acquire acquire;
   });
 
-  m.def("StupidRepeat", [](const char *device_name, int times) {
+  (void)m.def("StupidRepeat", [](const char *device_name, int times) {
     for (int i = 0; i < times; i++) {
       LOG(INFO) << device_name;
     }
   });
 
-  m.def("WatchOpRegister", []() {
+  (void)m.def("WatchOpRegister", []() {
     npu_specify_ops_cache.clear();
     tensorflow::OpList ops;
     tensorflow::OpRegistry::Global()->Export(true, &ops);
     for (auto &op : ops.op()) {
-      npu_specify_ops_cache.insert(op.name());
+      (void)npu_specify_ops_cache.insert(op.name());
     }
   });
-  m.def("StopWatchOpRegister", []() {
+  (void)m.def("StopWatchOpRegister", []() {
     tensorflow::OpList ops;
     tensorflow::OpRegistry::Global()->Export(true, &ops);
     for (auto &op : ops.op()) {
@@ -230,7 +230,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     }
   });
 
-  m.def("SetNpuLoopSize", [](int64_t loop_size) {
+  (void)m.def("SetNpuLoopSize", [](int64_t loop_size) {
     if (loop_size <= 0) {
       LOG(ERROR) << "Npu loop size must be greater than 0, got " << loop_size;
       return;

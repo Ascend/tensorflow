@@ -91,7 +91,7 @@ class OpExecutor {
       : op_spec_(op_spec), cache_strategy_(CacheStrategy::DEFAULT) {
     TensorDataTypes input_dtypes;
     TensorDataTypes output_dtypes;
-    tensorflow::InOutTypesForNode(ndef, op_spec->op_def, &input_dtypes, &output_dtypes);
+    (void)tensorflow::InOutTypesForNode(ndef, op_spec->op_def, &input_dtypes, &output_dtypes);
     ndef_ = ndef;
     input_dtypes_ = std::move(input_dtypes);
     input_shapes_ = std::move(input_shapes);

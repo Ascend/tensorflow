@@ -56,7 +56,7 @@ tensorflow::Status NpuStdoutReceiver::Stop() {
     return tensorflow::Status::OK();
   }
   LOG(INFO) << "Stopping npu stdout receiver of device " << device_id_;
-  stopping_.exchange(true);
+  (void)stopping_.exchange(true);
   channel_->Destroy();
   thread_.join();
   started_ = false;

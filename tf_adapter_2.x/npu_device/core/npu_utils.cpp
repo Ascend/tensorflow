@@ -34,7 +34,7 @@ ScopeTensorHandleDeleter::~ScopeTensorHandleDeleter() {
 
 void ScopeTensorHandleDeleter::Guard(TFE_TensorHandle *handle) {
   if (handle != nullptr) {
-    handles_.insert(handle);
+    (void)handles_.insert(handle);
   }
 }
 
@@ -238,7 +238,7 @@ void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::
   }
   std::string graph_name = tensorflow::strings::StrCat(graph_, ".", counter_++, ".", stage, ".pbtxt");
   DLOG() << "Dump graph " << graph_name;
-  WriteTextProto(tensorflow::Env::Default(), graph_name, graph_def);
+  (void)WriteTextProto(tensorflow::Env::Default(), graph_name, graph_def);
 }
 
 void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
@@ -260,7 +260,7 @@ void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const
 void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature) {
   std::unordered_set<tensorflow::StringPiece, tensorflow::StringPieceHasher> control_ret_nodes;
   for (const auto &control_ret : fdef.control_ret()) {
-    control_ret_nodes.insert(control_ret.second);
+    (void)control_ret_nodes.insert(control_ret.second);
   }
 
   std::unordered_set<const tensorflow::Node *> nodes;
@@ -273,12 +273,12 @@ void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorfl
       if ((!keep_signature) && n->IsArg()) {
         continue;
       }
-      nodes.insert(n);
+      (void)nodes.insert(n);
     }
   }
   bool changed = tensorflow::PruneForReverseReachability(g, std::move(nodes));
   if (changed) {
-    tensorflow::FixupSourceAndSinkEdges(g);
+    (void)tensorflow::FixupSourceAndSinkEdges(g);
   }
 }
 
@@ -286,13 +286,13 @@ std::set<std::string> GetNodeSubgraph(const tensorflow::Node *node) {
   std::set<std::string> fns;
   for (const auto &attr : node->attrs()) {
     if (attr.second.has_func()) {
-      fns.insert(attr.second.func().name());
+      (void)fns.insert(attr.second.func().name());
     }
   }
   return fns;
 }
 
-tensorflow::Status GetSubgraphUnsupportedOps(NpuDevice *device, const tensorflow::Node *node,
+tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice *device, const tensorflow::Node *node,
                                              const tensorflow::FunctionLibraryDefinition *lib_def,
                                              std::set<std::string> &unsupported_ops) {
   // For subgraphs of node A, if subgraph has node must place on cpu, A must place on cpu
@@ -311,7 +311,7 @@ tensorflow::Status GetSubgraphUnsupportedOps(NpuDevice *device, const tensorflow
     related_functions.pop();
     for (const auto &n : func->node_def()) {
       if (!device->Supported(n.op())) {
-        unsupported_ops.insert(n.op());
+        (void)unsupported_ops.insert(n.op());
       }
       for (const auto &attr : n.attr()) {
         auto &fn = attr.second.func().name();
@@ -331,7 +331,7 @@ tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *
                                           std::set<std::string> &unsupported_ops) {
   for (auto node : graph->op_nodes()) {
     if (!device->Supported(node->type_string())) {
-      unsupported_ops.insert(node->type_string());
+      (void)unsupported_ops.insert(node->type_string());
     }
     NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(device, node, lib_def, unsupported_ops));
   }
@@ -349,7 +349,7 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
                                    std::queue<std::unique_ptr<tensorflow::Graph>> &q) {
   tensorflow::ShapeRefiner shape_refiner(graph->versions(), lib_def);
   std::atomic<bool> has_unknown_shape_node{false};
-  auto node_shape_inference_lambda = [&q, &lib_def, &has_unknown_shape_node, &shape_refiner](tensorflow::Node *node) {
+  auto node_shape_inference_lambda = [&q, &lib_def, &has_unknown_shape_node, &shape_refiner](const tensorflow::Node *node) {
     if (has_unknown_shape_node) {
       return;
     }
@@ -394,7 +394,7 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
             continue;
           }
           n->AddAttr("_output_shapes",
-                     std::vector<tensorflow::PartialTensorShape>{shapes[n->attrs().Find("index")->i()]});
+                     std::vector<tensorflow::PartialTensorShape>{shapes[static_cast<size_t>(n->attrs().Find("index")->i())]});
         }
         q.push(std::move(fg));
       }

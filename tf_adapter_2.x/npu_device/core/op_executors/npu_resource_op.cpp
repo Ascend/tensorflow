@@ -81,7 +81,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
         }
       }
     } else {
-      consumed_inputs.insert(i);
+      (void)consumed_inputs.insert(i);
     }
   }
 
@@ -113,7 +113,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
     std::unordered_map<std::shared_ptr<tensorflow::NodeDef>, tensorflow::Node *> def_nodes;
 
     for (int i = 0; i < num_inputs; i++) {
-      if (types[i] == tensorflow::DT_RESOURCE) {
+      if (types[static_cast<size_t>(i)] == tensorflow::DT_RESOURCE) {
         std::shared_ptr<ResourceGenerator> generator = nullptr;
         const auto &handle = npu_resources[resource_index++];
         device->GetResourceGeneratorDef(handle, &generator);
@@ -133,7 +133,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
         NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder("arg_" + std::to_string(i), "_Arg")
                                       .Attr("T", types[i])
                                       .Attr("index", arg_index++)
-                                      .Attr("_output_shapes", {shapes[i]})
+                                      .Attr("_output_shapes", {shapes[static_cast<size_t>(i)]})
                                       .Finalize(graph.get(), &node));
         NPU_CTX_REQUIRES(
           status, graph->AddEdge(node, 0, target_node, i),
@@ -151,13 +151,13 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
                                     .Finalize(graph.get(), &node));
     }
 
-    tensorflow::FixupSourceAndSinkEdges(graph.get());
+    (void)tensorflow::FixupSourceAndSinkEdges(graph.get());
     AssembleParserAddons(context, graph.get());
 
     if (kDumpGraph && kDumpExecutionDetail) {
       OptimizeStageGraphDumper graph_dumper(Op());
       std::string suffix = npu_resources[0].name();
-      for (int i = 1; i < npu_resources.size(); i++) {
+      for (int i = 1; i < static_cast<int>(npu_resources.size()); i++) {
         suffix += ".";
         suffix += npu_resources[i].name();
       }

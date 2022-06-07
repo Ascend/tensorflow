@@ -57,7 +57,7 @@ class CustomKernelRegistry {
   void RegisterHook(const std::string &op_name, const NpuFallbackHookFunc &func) {
     std::lock_guard<std::mutex> lk(mu_);
     DCHECK(specific_kernels_.find(op_name) == specific_kernels_.end());
-    specific_hooks_.emplace(std::make_pair(op_name, func));
+    (void)specific_hooks_.emplace(std::make_pair(op_name, func));
   }
 
   bool GetCustomKernelFunc(const std::string &op_name, NpuCustomKernelFunc **func) {
