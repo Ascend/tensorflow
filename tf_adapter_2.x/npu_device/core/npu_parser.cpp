@@ -34,12 +34,12 @@ void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, 
 
     TensorDataTypes input_types;
     TensorDataTypes output_types;
-    tensorflow::InOutTypesForNode(node->def(), node->op_def(), &input_types, &output_types);
+    (void)tensorflow::InOutTypesForNode(node->def(), node->op_def(), &input_types, &output_types);
 
     DLOG() << "Shape of node " << node->name() << "[" << node->type_string() << "]";
     if (kDumpExecutionDetail) {
       for (int i = 0; i < node_ctx->num_inputs(); ++i) {
-        DLOG() << "    input " << i << ": " << tensorflow::DataTypeString(input_types[i])
+        DLOG() << "    input " << i << ": " << tensorflow::DataTypeString(input_types[static_cast<size_t>(i)])
                << node_ctx->DebugString(node_ctx->input(i));
       }
     }
@@ -72,7 +72,7 @@ void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, 
         for (int i = 0; i < node_ctx->num_inputs(); ++i) {
           tensorflow::TensorShapeProto proto;
           node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
-          input_shapes.emplace_back(proto);
+          (void)input_shapes.emplace_back(proto);
         }
         AssembleInputDesc(input_shapes, input_types, node);
       }
@@ -83,8 +83,8 @@ void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, 
       for (int i = 0; i < node_ctx->num_outputs(); ++i) {
         tensorflow::TensorShapeProto proto;
         node_ctx->ShapeHandleToProto(node_ctx->output(i), &proto);
-        output_shapes.emplace_back(proto);
-        DLOG() << "    output " << i << ": " << tensorflow::DataTypeString(output_types[i])
+        (void)output_shapes.emplace_back(proto);
+        DLOG() << "    output " << i << ": " << tensorflow::DataTypeString(output_types[static_cast<size_t>(i)])
                << node_ctx->DebugString(node_ctx->output(i));
       }
       AssembleOutputDesc(output_shapes, output_types, node);

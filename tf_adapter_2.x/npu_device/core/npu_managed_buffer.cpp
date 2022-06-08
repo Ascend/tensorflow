@@ -35,7 +35,7 @@ class NpuMemory {
     }
     NPU_REQUIRES_ACL_OK("Malloc npu memory failed for size " + std::to_string(size),
                         aclrtMalloc(memory, size, ACL_MEM_MALLOC_HUGE_FIRST));
-    npu_memory_usage_ += size;
+    npu_memory_usage_ += static_cast<long>(size);
     DLOG() << "Malloced npu memory " << reinterpret_cast<uintptr_t>(*memory) << ", size " << size << ", usage "
            << npu_memory_usage_;
     return tensorflow::Status::OK();
@@ -45,7 +45,7 @@ class NpuMemory {
     npu::global::dev_memory_shared_lock.lock_shared();
     if (!npu::global::dev_memory_released) {
       if (aclrtFree(memory) == ACL_ERROR_NONE) {
-        npu_memory_usage_ -= size;
+        npu_memory_usage_ -= static_cast<long>(size);
         DLOG() << "Freed npu memory " << reinterpret_cast<uintptr_t>(memory) << ", size " << size << ", usage "
                << npu_memory_usage_;
       } else {
@@ -70,7 +70,7 @@ class RtsStreamGuard {
   explicit RtsStreamGuard(aclrtStream stream) : stream_(stream) {}
   ~RtsStreamGuard() {
     if (stream_ != nullptr) {
-      aclrtDestroyStream(stream_);
+      (void)aclrtDestroyStream(stream_);
       stream_ = nullptr;
     }
   }
@@ -85,7 +85,7 @@ tensorflow::Status CreateAclTensorDesc(ge::DataType dtype, ge::Format format, co
   aclFormat acl_format = ACL_FORMAT_NCHW;
   NPU_REQUIRES_OK(npu::MapGeType2Acl(dtype, acl_dtype));
   NPU_REQUIRES_OK(npu::MapGeFormat2Acl(format, acl_format));
-  aclTensorDesc *acl_desc = aclCreateTensorDesc(acl_dtype, shape.size(), shape.data(), acl_format);
+  aclTensorDesc *acl_desc = aclCreateTensorDesc(acl_dtype, static_cast<int>(shape.size()), shape.data(), acl_format);
   NPU_REQUIRES(acl_desc != nullptr, tensorflow::errors::Internal("Failed create acl tensor desc"));
   desc->reset(acl_desc, [](aclTensorDesc *desc) { aclDestroyTensorDesc(desc); });
   return tensorflow::Status::OK();
@@ -94,7 +94,7 @@ tensorflow::Status CreateAclTensorDesc(ge::DataType dtype, ge::Format format, co
 tensorflow::Status CreateAclDataBuffer(void *data, size_t size, std::shared_ptr<aclDataBuffer> *buf) {
   aclDataBuffer *acl_buf = aclCreateDataBuffer(data, size);
   NPU_REQUIRES(acl_buf != nullptr, tensorflow::errors::Internal("Failed create acl data buffer"));
-  buf->reset(acl_buf, [](aclDataBuffer *buf) { aclDestroyDataBuffer(buf); });
+  (void)buf->reset(acl_buf, [](aclDataBuffer *buf) { aclDestroyDataBuffer(buf); });
   return tensorflow::Status::OK();
 }
 
@@ -197,7 +197,7 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format fmt, const tensorflow::Te
                                             tensorflow::DataType dtype, NpuManagedBuffer **buf) {
   std::vector<int64_t> dims;
   auto dim_sizes = shape.dim_sizes();
-  std::copy(dim_sizes.begin(), dim_sizes.end(), std::back_inserter(dims));
+  (void)std::copy(dim_sizes.begin(), dim_sizes.end(), std::back_inserter(dims));
   ge::DataType ge_type;
   NPU_REQUIRES_OK(MapTfType2Ge(dtype, ge_type));
   return Create(fmt, dims, ge_type, buf);
@@ -322,7 +322,7 @@ tensorflow::Status NpuManagedBuffer::AssembleTo(tensorflow::Tensor *tensor) {
     NPU_REQUIRES_OK(Create(origin_format_, origin_shape_, origin_data_type_, &buf));
     NpuManagedBuffer::Guarder guarder(buf);
     NPU_REQUIRES_OK(TransRepresentationOnNpu(buf));
-    buf->DToH(tensor->data(), tensor->TotalBytes());
+    (void)buf->DToH(tensor->data(), tensor->TotalBytes());
   }
   return tensorflow::Status::OK();
 }
@@ -365,7 +365,8 @@ tensorflow::Status NpuManagedBuffer::AssembleFrom(const tensorflow::Tensor *tens
  */
 tensorflow::Status NpuManagedBuffer::TransRepresentationOnNpu(NpuManagedBuffer *dst_buff) {
   DLOG() << "Trans representation on npu, format " << GetFormatName(format_) << " to "
-         << GetFormatName(dst_buff->format_) << ", data type " << data_type_ << " to " << dst_buff->data_type_;
+         << GetFormatName(dst_buff->format_) << ", data type " << static_cast<int>(data_type_)
+         << " to " << static_cast<int>(dst_buff->data_type_);
   NPU_REQUIRES(format_ != dst_buff->format_ || data_type_ != dst_buff->data_type_, tensorflow::errors::Internal(""));
 
   aclrtStream rts = nullptr;

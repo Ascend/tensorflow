@@ -57,9 +57,9 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
   }
 
   TensorShapes input_shapes;
-  input_shapes.resize(num_inputs);
+  input_shapes.resize(static_cast<size_t>(num_inputs));
   for (int i = 0; i < num_inputs; i++) {
-    NPU_CTX_REQUIRES_OK_RETURN(s, npu::GetTensorHandleShape(inputs[i], input_shapes[i]), nullptr);
+    NPU_CTX_REQUIRES_OK_RETURN(s, npu::GetTensorHandleShape(inputs[i], input_shapes[static_cast<size_t>(i)]), nullptr);
   }
 
   TensorDataTypes input_types;
@@ -109,13 +109,13 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
     for (const auto &dim_size : input_shapes[i].dim_sizes()) {
       dims_handle.push_back(ic.MakeDim(dim_size));
     }
-    ic.SetInput(i, ic.MakeShape(dims_handle));
+    ic.SetInput(static_cast<int>(i), ic.MakeShape(dims_handle));
   }
 
   NPU_CTX_REQUIRES_OK_RETURN(s, ic.Run(op_reg_data->shape_inference_fn), nullptr);
 
   for (size_t i = 0; i < input_shapes.size(); i++) {
-    if (ic.requested_input_tensor(i)) {
+    if (ic.requested_input_tensor(static_cast<int>(i))) {
       return std::make_shared<NpuShapeDependOnValueOp>(op_reg_data, ndef, input_shapes);
     }
   }
@@ -132,8 +132,8 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
       dims.emplace_back(ic.Value(ic.Dim(shape_handle, j)));
     }
 
-    NPU_CTX_REQUIRES_OK_RETURN(
-      s, tensorflow::PartialTensorShape::MakePartialShape(dims.data(), num_dims, &partial_shapes[i]), nullptr);
+    NPU_CTX_REQUIRES_OK_RETURN(s, tensorflow::PartialTensorShape::MakePartialShape(
+        dims.data(), num_dims, &partial_shapes[static_cast<size_t>(i)]), nullptr);
   }
 
   TensorShapes output_shapes(partial_shapes.size());

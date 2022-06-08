@@ -47,7 +47,7 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     TFE_TensorHandle *input = tf_inputs[input_index];
     if (npu::IsNpuTensorHandle(input)) {
       DLOG() << "Copying " << Op() << " tensorflow input " << input_index << " to npu graph input " << i << " type "
-             << tensorflow::DataTypeString(InputTypes()[input_index]) << " from NPU to CPU for graph engine executing";
+             << tensorflow::DataTypeString(InputTypes()[static_cast<size_t>(input_index)]) << " from NPU to CPU for graph engine executing";
       // 这里需要根据算子选择输入格式了
       input = device->CopyTensorD2H(context, input, status);
       scope_handle_deleter.Guard(input);
@@ -91,8 +91,8 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
   if (execution_type_ == ExecutionType::MIX) {
     npu::Timer timer("Mix mode run ", mixed_ndef_.name());
     timer.Start();
-    device->FallbackCPU(context, mixed_ndef_, input_handles_.size(), input_handles_.data(), output_handles_.size(),
-                        output_handles_.data(), status);
+    device->FallbackCPU(context, mixed_ndef_, static_cast<int>(input_handles_.size()), input_handles_.data(),
+                        static_cast<int>(output_handles_.size()), output_handles_.data(), status);
     timer.Stop();
   } else {
     Load(context, device, status);
@@ -108,8 +108,8 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     timer.Start();
     int64_t times = 0;
     do {
-      device->RunGeGraphPin2Cpu(context, GeGraphId(), input_handles_.size(), input_handles_.data(), OutputTypes(),
-                                output_handles_.size(), output_handles_.data(), status);
+      device->RunGeGraphPin2Cpu(context, GeGraphId(), static_cast<int>(input_handles_.size()), input_handles_.data(),
+                                OutputTypes(), static_cast<int>(output_handles_.size()), output_handles_.data(), status);
     } while (++times < iterations_per_loop && loop_type_ == LoopType::HOST_LOOP);
     timer.Stop();
   }
@@ -161,7 +161,7 @@ bool NpuConcreteGraph::NeedFuzzCompile() const {
 }
 
 void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
-  if (Built() && device->GeSession()->IsGraphNeedRebuild(GeGraphId())) {
+  if (Built() && static_cast<uint32_t>(device->GeSession()->IsGraphNeedRebuild(GeGraphId()))) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
     device->RemoveGeGraph(context, GeGraphId(), status);
     NPU_REQUIRES_TFE_OK(status);
@@ -233,11 +233,11 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   for (int i = 0; i < key->num_inputs(); i++) {
     const tensorflow::Edge *edge;
     NPU_REQUIRES_OK(key->input_edge(i, &edge));
-    builder.Input(edge->src(), edge->src_output());
+    (void)builder.Input(edge->src(), edge->src_output());
   }
   for (auto edge : key->in_edges()) {
     if (edge->IsControlEdge()) {
-      builder.ControlInput(edge->src());
+      (void)builder.ControlInput(edge->src());
     }
   }
 
@@ -245,7 +245,7 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   NPU_REQUIRES_OK(builder.Finalize(graph.get(), &fn_node));
 
   graph->RemoveNode(key);
-  tensorflow::FixupSourceAndSinkEdges(graph.get());
+  (void)tensorflow::FixupSourceAndSinkEdges(graph.get());
 
   tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
   tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");

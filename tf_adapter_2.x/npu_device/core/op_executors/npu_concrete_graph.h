@@ -113,7 +113,7 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
     consumed_inputs_.clear();
     input_handles_.resize(v.size());
     for (auto index : v) {
-      consumed_types_.emplace_back(InputTypes()[index]);
+      (void)consumed_types_.emplace_back(InputTypes()[static_cast<size_t>(index)]);
       consumed_inputs_.emplace_back(index);
     }
   }
@@ -123,7 +123,7 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
     produced_outputs_.clear();
     output_handles_.resize(v.size());
     for (auto index : v) {
-      produced_types_.emplace_back(OutputTypes()[index]);
+      (void)produced_types_.emplace_back(OutputTypes()[static_cast<size_t>(index)]);
       produced_outputs_.emplace_back(index);
     }
   }

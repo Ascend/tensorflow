@@ -61,14 +61,14 @@ class MakeIteratorGraphBuilder {
     if (kDumpExecutionDetail || kDumpGraph) {
       std::string file_name = "dp_init_" + shared_name + ".inner.pbtxt";
       DLOG() << "NPU Dump mirrored resource init graph inner graph to: " << file_name;
-      WriteTextProto(tensorflow::Env::Default(), file_name, graph.ToGraphDefDebug());
+      (void)WriteTextProto(tensorflow::Env::Default(), file_name, graph.ToGraphDefDebug());
     }
 
     // Tensorflow model parser bug，如果名字不是dpop开头的，则会被remove掉
     std::string func_name = "dpop_init_func_" + shared_name;
     tensorflow::FunctionDefLibrary fdef_lib;
     tensorflow::FunctionDef *fdef = fdef_lib.add_function();
-    tensorflow::GraphToFunctionDef(graph, func_name, fdef);
+    (void)tensorflow::GraphToFunctionDef(graph, func_name, fdef);
 
     tensorflow::Graph dpop_graph(tensorflow::OpRegistry::Global());
 
@@ -86,15 +86,15 @@ class MakeIteratorGraphBuilder {
                                gdef);
     AssembleOpDef(dpop_node);
     dpop_node->AddAttr("func_def", fdef_lib.SerializeAsString());
-    tensorflow::FixupSourceAndSinkEdges(&dpop_graph);
+    (void)tensorflow::FixupSourceAndSinkEdges(&dpop_graph);
     dpop_graph.ToGraphDef(&gdef);
     return gdef;
   }
 };
 }  // namespace
 
-static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
-                        TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+static const auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
+                              TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
   TF_UNUSED_VARIABLE(ndef);
   TF_UNUSED_VARIABLE(num_outputs);
   TF_UNUSED_VARIABLE(outputs);
@@ -117,7 +117,7 @@ static auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::
       if (kDumpExecutionDetail || kDumpGraph) {
         std::string file_name = "dp_init_" + handle.name() + ".pbtxt";
         DLOG() << "NPU Dump mirrored resource init graph to: " << file_name;
-        WriteTextProto(tensorflow::Env::Default(), file_name, dp_init_graph);
+        (void)WriteTextProto(tensorflow::Env::Default(), file_name, dp_init_graph);
       }
       // 针对推荐网络，Provider需要支持1对N的传输，默认只向资源所处的Device发送
       dev->CreateIteratorProvider(context, tensor, {dev->device_id}, status);

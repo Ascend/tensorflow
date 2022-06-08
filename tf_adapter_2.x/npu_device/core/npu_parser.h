@@ -47,7 +47,7 @@ static inline tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes type
 
     tensorflow::AttrValue shape_value;
     if (shapes[i].unknown_rank()) {
-      const static int kUnknownRankDimSize = -2;
+      const int kUnknownRankDimSize = -2;
       shape_value.mutable_list()->add_i(kUnknownRankDimSize);
     } else {
       for (int j = 0; j < shapes[i].dims(); j++) {
@@ -187,7 +187,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorPartialShapes sh
 TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistrationData *op_data,
                                                      tensorflow::Node *n) {
   std::string serialized_op_def;
-  op_data->op_def.SerializeToString(&serialized_op_def);
+  (void)op_data->op_def.SerializeToString(&serialized_op_def);
   n->AddAttr("op_def", serialized_op_def);
 }
 
@@ -197,9 +197,9 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistr
  */
 TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::Node *n) {
   const tensorflow::OpRegistrationData *op_reg_data;
-  tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
+  (void)tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
   std::string serialized_op_def;
-  op_reg_data->op_def.SerializeToString(&serialized_op_def);
+  (void)op_reg_data->op_def.SerializeToString(&serialized_op_def);
   n->AddAttr("op_def", serialized_op_def);
 }
 
@@ -211,7 +211,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::Node *n) {
 TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistrationData *op_data,
                                                      tensorflow::NodeDef *ndef) {
   std::string serialized_op_def;
-  op_data->op_def.SerializeToString(&serialized_op_def);
+  (void)op_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
 
@@ -221,9 +221,9 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistr
  */
 TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::NodeDef *ndef) {
   const tensorflow::OpRegistrationData *op_reg_data;
-  tensorflow::OpRegistry::Global()->LookUp(ndef->op(), &op_reg_data);
+  (void)tensorflow::OpRegistry::Global()->LookUp(ndef->op(), &op_reg_data);
   std::string serialized_op_def;
-  op_reg_data->op_def.SerializeToString(&serialized_op_def);
+  (void)op_reg_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
 }
 
