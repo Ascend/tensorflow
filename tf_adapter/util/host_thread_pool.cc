@@ -26,18 +26,18 @@ namespace tensorflow {
 
   HostThreadPool::~HostThreadPool() {}
 
-  Status HostThreadPool::Init(uint32_t device_id) {
-    ADP_LOG(INFO) << "Start to start thread pool";
-    device_id_ = device_id;
+  Status HostThreadPool::Init(uint32_t deviceId) {
+    ADP_LOG(INFO) << "Start to start thread pool.";
+    device_id_ = deviceId;
     copy_thread_pool_.resize(MAX_THREAD_NUM);
     if (Env::Default() == nullptr) {
       ADP_LOG(ERROR) << "Env default is nullptr.";
       return errors::InvalidArgument("Init memory pool failed");
     }
-    for (size_t i = 0UL; i < copy_thread_pool_.size(); i++) {
-      if (copy_thread_pool_[i] == nullptr) {
-        std::string thread_name = "thread_pool" + std::to_string(i);
-        copy_thread_pool_[i].reset(
+    for (size_t idx = 0UL; idx < copy_thread_pool_.size(); idx++) {
+      if (copy_thread_pool_[idx] == nullptr) {
+        std::string thread_name = "thread_pool" + std::to_string(idx);
+        copy_thread_pool_[idx].reset(
             Env::Default()->StartThread({}, thread_name, [this]() { ParallelForCopyThread(); }));
       }
     }
@@ -45,7 +45,12 @@ namespace tensorflow {
   }
 
   void HostThreadPool::ParallelForCopyThread() {
-    ADP_LOG(INFO) << "Start parallel copy thread .";
+    ADP_LOG(INFO) << "Start parallel copy thread.";
+    auto ret = aclrtSetDevice(device_id_);
+    if (ret != ACL_ERROR_NONE) {
+      ADP_LOG(ERROR) << "Set device failed, device_id: " << device_id_;
+      return;
+    }
     std::function<void()> closure;
     while (!thread_stop_flag_.load()) {
       {
@@ -60,7 +65,7 @@ namespace tensorflow {
       }
       closure();
     }
-    ADP_LOG(INFO) << "Copy thread is finished";
+    ADP_LOG(INFO) << "Copy thread is finished.";
   }
 
   void HostThreadPool::PushTask(std::function<void()> closure) {
