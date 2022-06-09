@@ -774,34 +774,11 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                                 bool pin_to_npu, const TensorDataTypes &output_types, int num_outputs,
                                 TFE_TensorHandle **outputs, DoneCallback done, TF_Status *status) {
   std::vector<ge::Tensor> ge_inputs;
+  TransTfInputs2GeInputs(num_inputs, inputs, status, ge_inputs);
+  NPU_REQUIRES_TFE_OK(status);
 
   DLOG() << "Ge graph " << graph_id << " input info";
-  for (int i = 0; i < num_inputs; i++) {
-    const tensorflow::Tensor *tensor = nullptr;
-    npu::GetTensorHandleTensor(inputs[i], &tensor);
 
-    const static std::shared_ptr<domi::ModelParser> parser =
-      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
-    if (parser == nullptr) {
-      status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
-      return;
-    }
-    ge::DataType ge_type = parser->ConvertToGeDataType(static_cast<uint32_t>(tensor->dtype()));
-    NPU_CTX_REQUIRES(
-      status, ge_type != ge::DT_UNDEFINED,
-      tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
-                                          tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
-    ge::Tensor input;
-    std::vector<int64_t> dims;
-    for (auto dim_size : tensor->shape().dim_sizes()) {
-      dims.emplace_back(dim_size);
-    }
-    input.SetTensorDesc(ge::TensorDesc(ge::Shape(dims), ge::FORMAT_ND, ge_type));
-    input.SetData(static_cast<const uint8_t *>(tensor->data()), tensor->TotalBytes());
-    ge_inputs.emplace_back(input);
-    DLOG() << "    input " << i << " ge enum " << ge_type << " tf type " << tensorflow::DataTypeString(tensor->dtype())
-           << VecToString(dims);
-  }
   auto ge_callback = [this, context, status, done, pin_to_npu, output_types, num_outputs, outputs, graph_id](
                        ge::Status s, std::vector<ge::Tensor> &ge_outputs) {
     DLOG() << "Graph engine callback with status:" << s;
@@ -885,6 +862,36 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                          ge_session_->RunGraphAsync(graph_id, ge_inputs, ge_callback));
 }
 
+void NpuDevice::TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs, TF_Status *status,
+                                       std::vector<ge::Tensor> &ge_inputs) {
+  for (int i = 0; i < num_inputs; i++) {
+    const tensorflow::Tensor *tensor = nullptr;
+    npu::GetTensorHandleTensor(inputs[i], &tensor);
+
+    const static std::shared_ptr<domi::ModelParser> parser =
+            domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+    if (parser == nullptr) {
+      status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
+      return;
+    }
+    ge::DataType ge_type = parser->ConvertToGeDataType(static_cast<uint32_t>(tensor->dtype()));
+    NPU_CTX_REQUIRES(
+            status, ge_type != ge::DT_UNDEFINED,
+            tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
+                                                tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
+    ge::Tensor input;
+    std::vector<int64_t> dims;
+    for (auto dim_size : tensor->shape().dim_sizes()) {
+      dims.emplace_back(dim_size);
+    }
+    input.SetTensorDesc(ge::TensorDesc(ge::Shape(dims), ge::FORMAT_ND, ge_type));
+    input.SetData(static_cast<const uint8_t *>(tensor->data()), tensor->TotalBytes());
+    ge_inputs.emplace_back(input);
+    DLOG() << "    input " << i << " ge enum " << ge_type << " tf type " << tensorflow::DataTypeString(tensor->dtype())
+           << VecToString(dims);
+  }
+}
+
 /**
  * @brief: add ge graph inner
  * @param context: tfe context
@@ -897,13 +904,31 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
 uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
                                     const tensorflow::GraphDef &def, bool loop, TF_Status *status,
                                     const std::map<std::string, std::string> &options) {
+  if (def.node_size() == 0) {
+    return kEmptyGeGraphId;
+  }
+  ge::Graph ge_graph;
+  NPU_CTX_REQUIRES_OK_RETURN(status, TransTfGraph2GeGraph(context, name, def, status, ge_graph), graph_id);
+  ge_graph.SetNeedIteration(loop);
+
+  if (kDumpExecutionDetail && !options.empty()) {
+    LOG(INFO) << "Add ge graph " << graph_id << " with options:";
+    for (auto &option : options) {
+      LOG(INFO) << "  " << option.first << ":" << option.second;
+    }
+  }
+  NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph, options),
+                                graph_id);
+  return graph_id;
+}
+
+tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
+                                                   const tensorflow::GraphDef &def, TF_Status *status,
+                                                   ge::Graph &ge_graph) {
   auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
   std::shared_ptr<domi::ModelParser> parser =
     domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
-  if (parser == nullptr) {
-    status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
-    return graph_id;
-  }
+  NPU_REQUIRES(parser != nullptr, tensorflow::errors::Internal("NPU Create new tensorflow model parser failed"));
 
   auto request_subgraph = [name, context](const std::string &fn) -> std::string {
     DLOG() << "Tensorflow model parser requesting subgraph " << fn << " for ge graph " << name;
@@ -936,27 +961,15 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     return graph->ToGraphDefDebug().SerializeAsString();
   };
 
-  NPU_CTX_REQUIRES_GE_OK_RETURN(
-    status, "NPU Parse tensorflow model",
-    parser->ParseProtoWithSubgraph(def.SerializeAsString(), request_subgraph, ge_compute_graph), graph_id);
+  NPU_REQUIRES(
+    parser->ParseProtoWithSubgraph(def.SerializeAsString(), request_subgraph, ge_compute_graph) == ge::SUCCESS,
+    tensorflow::errors::Internal("NPU Parse tensorflow model failed"));
 
-  if (ge_compute_graph->GetAllNodesSize() == 0) {
-    return kEmptyGeGraphId;
+  if (ge_compute_graph->GetAllNodesSize() != 0) {
+    ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
   }
 
-  ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
-
-  ge_graph.SetNeedIteration(loop);
-
-  if (kDumpExecutionDetail && !options.empty()) {
-    LOG(INFO) << "Add ge graph " << graph_id << " with options:";
-    for (auto &option : options) {
-      LOG(INFO) << "  " << option.first << ":" << option.second;
-    }
-  }
-  NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph, options),
-                                graph_id);
-  return graph_id;
+  return tensorflow::Status::OK();
 }
 
 /**

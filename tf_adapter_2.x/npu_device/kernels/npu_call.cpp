@@ -22,6 +22,7 @@
 #include "tensorflow/core/kernels/data/iterator_ops.h"
 #include "tensorflow/core/common_runtime/eager/tensor_handle.h"
 
+#include "npu_aoe.h"
 #include "npu_device.h"
 #include "npu_global.h"
 #include "npu_logger.h"
@@ -60,6 +61,12 @@ class NpuCallOp : public OpKernel {
     for (int i = 0; i < ctx->num_inputs(); i++) {
       inputs.push_back(tensorflow::wrap(TensorHandle::CreateLocalHandle(ctx->input(i))));
       guarder.Guard(inputs.back());
+    }
+
+    // run aoe tuning if need
+    if (!device->device_options["aoe_mode"].empty()) {
+      auto aoe = std::make_unique<NpuAoe>(graph_id_, attr_.name(), *graph_def_);
+      NPU_CTX_REQUIRES_OK(status, aoe->RunAoeTuning(device, context, inputs, status.get()));
     }
 
     std::vector<TFE_TensorHandle *> outputs(ctx->num_outputs());

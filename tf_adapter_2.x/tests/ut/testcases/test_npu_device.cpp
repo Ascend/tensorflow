@@ -31,7 +31,6 @@
 
 const char *kNpuDeviceName = "/job:localhost/replica:0/task:0/device:NPU:0";
 const int kNpuDeviceIndex = 0;
-const std::map<std::string, std::string> kDeviceOptions;
 
 namespace {
 class EagerOpResult {
@@ -137,7 +136,10 @@ class ST_NpuDevice : public ::testing::Test {
     TFE_ContextOptions *opts = TFE_NewContextOptions();
     context = TFE_NewContext(opts, status);
     TFE_DeleteContextOptions(opts);
-    npu::CreateDevice(context, kNpuDeviceName, kNpuDeviceIndex, kDeviceOptions);
+    std::map<std::string, std::string> device_options;
+    device_options["aoe_mode"] = "1";
+    device_options["work_path"] = "./";
+    npu::CreateDevice(context, kNpuDeviceName, kNpuDeviceIndex, device_options);
 
     for (const auto &function_def : FunctionStrLibrary::Instance().Get()) {
       TFE_ContextAddFunctionDef(context, function_def.data(), function_def.size(), status);

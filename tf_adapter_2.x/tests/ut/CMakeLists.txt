@@ -10,7 +10,7 @@ target_compile_options(adapter2_ut_main PRIVATE
         -O0 -g --coverage -fprofile-arcs -ftest-coverage)
 
 target_link_libraries(adapter2_ut_main PRIVATE
-        tensorflow_libs gtest_main acl_stub ge_stub c_sec ${PYTHON_LD_LIBRARY} -lrt -ldl -lutil)
+        tensorflow_libs gtest_main acl_stub aoe_stub ge_stub c_sec ${PYTHON_LD_LIBRARY} -lrt -ldl -lutil)
 
 add_custom_target(adapter2_ut ALL
         COMMAND ./adapter2_ut_main

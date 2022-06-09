@@ -29,12 +29,14 @@ foreach (COMPILE_FLAG ${CUSTOM_COMPILE_FLAGS})
 endforeach (COMPILE_FLAG)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../../inc/external) # just for acl
+include_directories(${CMAKE_CURRENT_LIST_DIR}/../../inc/toolchain/tuning_tool)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/stub/include)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../npu_device/core)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/gtest.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/nlohmann_json.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/acl/module.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/aoe/module.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/tensorflow/module.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/graph_engine/module.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/secure_c.cmake)

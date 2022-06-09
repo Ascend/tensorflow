@@ -79,7 +79,7 @@ static const auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensor
           ss << "Output " << j << " unsupported data type " << tensorflow::DataTypeString(type);
         }
       }
-      if (ss.str().empty()) {
+      if (ss.str().empty() && dev->device_options["aoe_mode"].empty()) {
         DLOG() << "Mirrored host resource " << resource.DebugString() << " recorded";
         dev->RecordResourceGeneratorDef(resource, std::make_shared<ResourceGenerator>(generator_ndef, 0));
         dev->RecordIteratorMirror(resource, shapes, types);

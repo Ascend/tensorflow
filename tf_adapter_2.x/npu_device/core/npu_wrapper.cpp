@@ -90,6 +90,8 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"dump_debug_mode", ge::OPTION_EXEC_DUMP_DEBUG_MODE},
   {"enable_profiling", ge::OPTION_EXEC_PROFILING_MODE},
   {"profiling_options", ge::OPTION_EXEC_PROFILING_OPTIONS},
+  {"aoe_mode", "aoe_mode"},
+  {"work_path", "work_path"},
   {"input_shape", ge::INPUT_SHAPE},
   {"dynamic_node_type", ge::DYNAMIC_NODE_TYPE},
   {"dynamic_dims", ge::kDynamicDims},
@@ -131,6 +133,12 @@ PYBIND11_MODULE(_npu_device_backends, m) {
               global_options[ge::OPTION_EXEC_IS_USEHCOM] = kTrue;
               global_options[ge::OPTION_EXEC_HCCL_FLAG] = kTrue;
               global_options["ge.exec.hccl_tailing_optimize"] = kTrue;
+            }
+
+            if (global_options.find("aoe_mode") == global_options.end()) {
+              if (!kAoeMode.empty()) {
+                global_options["aoe_mode"] = kAoeMode;
+              }
             }
 
             global_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_index);

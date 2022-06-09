@@ -115,6 +115,9 @@ class NpuDevice {
                            const tensorflow::GraphDef &def, bool loop, TF_Status *status,
                            const std::map<std::string, std::string> &options = {});
 
+  tensorflow::Status TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
+                                          const tensorflow::GraphDef &def, TF_Status *status, ge::Graph &ge_graph);
+
   void RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status);
 
   void RunGeGraph(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs, bool pin_to_npu,
@@ -139,6 +142,9 @@ class NpuDevice {
   void RunGeGraphPin2NpuAsync(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs,
                               const TensorDataTypes &output_types, int num_outputs, TFE_TensorHandle **outputs,
                               DoneCallback done, TF_Status *status);
+
+  void TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs, TF_Status *status,
+                              std::vector<ge::Tensor> &ge_inputs);
 
   void GetOpExecutor(const tensorflow::NodeDef &ndef, std::shared_ptr<const OpExecutor> *spec, bool &request_shape);
 
