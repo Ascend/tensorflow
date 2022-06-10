@@ -49,4 +49,10 @@ const static std::string kOppInstallPath = []() -> std::string {
   return opp_install_path;
 }();
 
+const static std::string kAoeMode = []() -> std::string {
+  std::string aoe_mode;
+  (void)tensorflow::ReadStringFromEnvVar("AOE_MODE", "", &aoe_mode);
+  return aoe_mode;
+}();
+
 #endif  // NPU_DEVICE_CORE_NPU_ENV_H

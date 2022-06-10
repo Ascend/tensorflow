@@ -21,6 +21,7 @@ from npu_device.configs.profiling_config import NpuProfilingConfig
 from npu_device.configs.experimental_config import NpuExperimentalConfig
 from npu_device.configs.option_base import OptionValue
 from npu_device.configs.option_base import NpuBaseConfig
+from npu_device.configs.aoe_config import NpuAoeConfig
 
 
 class NpuConfig(NpuBaseConfig):
@@ -49,6 +50,7 @@ class NpuConfig(NpuBaseConfig):
         self.modify_mixlist = OptionValue(None, None)
         self.enable_exception_dump = OptionValue(0, [0, 1])
         self.dump_config = NpuDumpConfig()
+        self.aoe_config = NpuAoeConfig()
         self.profiling_config = NpuProfilingConfig()
         self.enable_small_channel = OptionValue(False, [True, False])
         self.graph_exec_timeout = OptionValue(None, None)

@@ -32,6 +32,8 @@ npu_device.global_options().is_tailing_optimization = True
 npu_device.global_options().experimental.multi_branches_config.input_shape = "data_0:-1"
 npu_device.global_options().experimental.multi_branches_config.dynamic_node_type = "0"
 npu_device.global_options().experimental.multi_branches_config.dynamic_dims = "1;2"
+npu_device.global_options().aoe_config.aoe_mode = "1"
+npu_device.global_options().aoe_config.work_path = "./"
 npu = npu_device.open().as_default()
 npu.workers_num = 2  # mock run in 2P env
 
