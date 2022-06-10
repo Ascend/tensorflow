@@ -618,16 +618,17 @@ Status DpTfToGEConversionPassImpl::AddAttr2DeviceNodes(const Node *topo_end, con
     return errors::Internal("There is no connection between MakeIteraotr and IteratorV2");
   }
   // Add dp custom kernel label
+  std::string mark_name("mark_name_" + GetRandomName());
   for (auto node : device_graph->nodes()) {
     REQUIRES_NOT_NULL(node);
     if (node->type_string() == "DeviceQueueDataset") {
-      node->AddAttr(DP_ITERATOR_MARK, iterator_name);
+      node->AddAttr(DP_ITERATOR_MARK, mark_name);
     }
     if (std::find(CUSTOMIZE_DATASET_LIST.begin(), CUSTOMIZE_DATASET_LIST.end(), node->type_string()) !=
         CUSTOMIZE_DATASET_LIST.end()) {
       ADP_LOG(INFO) << node->name() << " is " << node->type_string() << ", need to add label.";
       node->AddAttr("_kernel", "dp");
-      node->AddAttr(DP_ITERATOR_MARK, iterator_name);
+      node->AddAttr(DP_ITERATOR_MARK, mark_name);
     }
   }
   return Status::OK();
