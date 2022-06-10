@@ -364,7 +364,6 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string hccl_timeout;
   std::string HCCL_algorithm;
   std::string atomic_clean_policy = "0";
-  std::string static_memory_policy;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void)ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -420,7 +419,6 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void)ctx->GetAttr("_hccl_timeout", &hccl_timeout);
     (void)ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
     (void)ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
-    (void)ctx->GetAttr("_static_memory_policy", &static_memory_policy);
   }
 
   // session options
@@ -484,8 +482,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = "0";
   std::string profiling_options;
-  std::string atomic_clean_policy = "0";
-  std::string static_memory_policy;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
@@ -513,6 +509,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string customize_dtypes;
   std::string op_debug_config;
   std::string graph_exec_timeout;
+  std::string atomic_clean_policy = "0";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void)ctx->GetAttr("_precision_mode", &precision_mode);
@@ -543,7 +540,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void)ctx->GetAttr("_op_debug_config", &op_debug_config);
     (void)ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
     (void)ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
-    (void)ctx->GetAttr("_static_memory_policy", &static_memory_policy);
   }
 
   if (precision_mode.empty()) {
@@ -575,12 +571,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.customizeDtypes"] = customize_dtypes;
   init_options_["ge.exec.opDebugConfig"] = op_debug_config;
   init_options_["ge.exec.customizeDdtypes"] = customize_dtypes;
-  init_options_["atomic_clean_policy"] = atomic_clean_policy;
   init_options_["ge.exec.atomicCleanPolicy"] = atomic_clean_policy;
-  init_options_["static_memory_policy"] = static_memory_policy;
-  // Commercial version has been released, temporarily used
-  init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
-  init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
   if (!soc_config.empty()) {
     init_options_["ge.socVersion"] = soc_config;
   }
@@ -909,8 +900,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string precision_mode;
   std::string profiling_mode = "0";
   std::string profiling_options;
-  std::string atomic_clean_policy = "0";
-  std::string static_memory_policy;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
@@ -945,6 +934,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string customize_dtypes;
   std::string op_debug_config;
   std::string graph_exec_timeout;
+  std::string atomic_clean_policy = "0";
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -976,8 +966,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto precision_mode_value = attrs.Find("_precision_mode");
   auto profiling_mode_value = attrs.Find("_profiling_mode");
   auto profiling_options_value = attrs.Find("_profiling_options");
-  auto atomic_clean_policy_value = attrs.Find("_atomic_clean_policy");
-  auto static_memory_policy_value = attrs.Find("_static_memory_policy");
   auto auto_tune_mode_value = attrs.Find("_auto_tune_mode");
   auto graph_run_mode_value = attrs.Find("_graph_run_mode");
   auto op_debug_level_value = attrs.Find("_op_debug_level");
@@ -1011,6 +999,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto customize_dtypes_value = attrs.Find("_customize_dtypes");
   auto op_debug_config_value = attrs.Find("_op_debug_config");
   auto graph_exec_timeout_value = attrs.Find("_graph_exec_timeout");
+  auto atomic_clean_policy_value = attrs.Find("_atomic_clean_policy");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1119,12 +1108,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (profiling_options_value != nullptr) {
       profiling_options = profiling_options_value->s();
     }
-    if (atomic_clean_policy_value != nullptr) {
-      atomic_clean_policy = atomic_clean_policy_value->s();
-    }
-    if (static_memory_policy_value != nullptr) {
-      static_memory_policy = static_memory_policy_value->s();
-    }
     if (profiling_mode == "1" && profiling_options.empty()) {
       profiling_options = profiling_default_options;
     }
@@ -1230,6 +1213,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (graph_exec_timeout_value != nullptr) {
       graph_exec_timeout = graph_exec_timeout_value->s();
     }
+    if (atomic_clean_policy_value != nullptr) {
+      atomic_clean_policy = atomic_clean_policy_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1254,10 +1240,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["precision_mode"] = precision_mode;
   all_options["profiling_mode"] = profiling_mode;
   all_options["profiling_options"] = profiling_options;
-  all_options["atomic_clean_policy"] = atomic_clean_policy;
-  all_options["static_memory_policy"] = static_memory_policy;
-  // Commercial version has been released, temporarily used
-  all_options["GE_USE_STATIC_MEMORY"] = static_memory_policy;
   all_options["auto_tune_mode"] = auto_tune_mode;
   all_options["graph_run_mode"] = graph_run_mode;
   all_options["op_debug_level"] = op_debug_level;
@@ -1303,6 +1285,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["HCCL_algorithm"] = HCCL_algorithm;
   all_options["op_debug_config"] = op_debug_config;
   all_options["graph_exec_timeout"] = graph_exec_timeout;
+  all_options["atomic_clean_policy"] = atomic_clean_policy;
 
   return all_options;
 }
@@ -1342,8 +1325,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string precision_mode;
   bool profiling_mode = false;
   std::string profiling_options;
-  int atomic_clean_policy = 0;
-  int static_memory_policy;
   std::string auto_tune_mode;
   int graph_run_mode = 1;
   int op_debug_level = 0;
@@ -1391,6 +1372,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_execute_timeout;
   std::string customize_dtypes;
   int graph_exec_timeout = 600000;
+  int atomic_clean_policy = 0;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1732,9 +1714,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("graph_exec_timeout")) {
         graph_exec_timeout = params.at("graph_exec_timeout").i();
       }
-      if (params.count("static_memory_policy")) {
-        static_memory_policy = params.at("static_memory_policy").i();
-      }
       if (params.count("atomic_clean_policy")) {
         atomic_clean_policy = params.at("atomic_clean_policy").i();
       }
@@ -1823,10 +1802,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.opDebugConfig"] = op_debug_config;
   init_options_["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
   init_options_["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
-  init_options_["static_memory_policy"] = std::to_string(static_memory_policy);
-  // Commercial version has been released, temporarily used
-  init_options_["GE_USE_STATIC_MEMORY"] = std::to_string(static_memory_policy);
-  init_options_["ge.exec.staticMemoryPolicy"] = std::to_string(static_memory_policy);
+
   init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
   init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
   init_options_["ge.fusionSwitchFile"] = fusion_switch_file;
