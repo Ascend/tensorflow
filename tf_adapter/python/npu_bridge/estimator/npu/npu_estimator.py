@@ -507,18 +507,6 @@ class NPUEstimator(estimator_lib.Estimator):
                 custom_op.parameter_map["profiling_options"].s = tf.compat.as_bytes(
                     config._profiling_config._profiling_options)
 
-    def __load_memory_config(self, config, custom_op):
-        """Load memory config ,and add to custom_optimizers
-        Args:
-            config: NPURunConfig.
-            custom_op: Custom optimizers.
-        """
-        if config._memory_config is not None:
-            custom_op.parameter_map["atomic_clean_policy"].i = config._memory_config._atomic_clean_policy
-            if config._memory_config._static_memory_policy is not None:
-                custom_op.parameter_map["static_memory_policy"].i = config._memory_config._static_memory_policy
-        
-
     def __load_mix_precision(self, config, custom_op):
         """Load mix precision config ,and add to custom_optimizers
         Args:
@@ -727,6 +715,7 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["customize_dtypes"].s = tf.compat.as_bytes(config._customize_dtypes)
         if config._op_debug_config is not None:
             custom_op.parameter_map["op_debug_config"].s = tf.compat.as_bytes(config._op_debug_config)
+        custom_op.parameter_map["atomic_clean_policy"].i = config._atomic_clean_policy
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)
@@ -734,8 +723,6 @@ class NPUEstimator(estimator_lib.Estimator):
 
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)
-        self.__load_memory_config(config, custom_op)
-        
 
         # add mix precision to custom_op
         self.__load_mix_precision(config, custom_op)

@@ -20,7 +20,6 @@
 import os
 from npu_bridge.estimator.npu.npu_config import NPURunConfig
 from npu_bridge.estimator.npu.npu_config import ProfilingConfig
-from npu_bridge.estimator.npu.npu_config import MemoryConfig
 from npu_bridge.estimator.npu.npu_config import DumpConfig
 from npu_bridge.estimator.npu.npu_config import DynamicInputConfig
 from npu_bridge.estimator.npu.npu_config import decorator_tf_session
