@@ -27,6 +27,12 @@ TEST_F(NpuAttrTest, GetEnvDeviceIdFailTest) {
   Status s = GetEnvDeviceID(device_id);
   EXPECT_EQ(s.ok(), false);
 }
+TEST_F(NpuAttrTest, GetEnvDeviceIdNotIntFailTest) {
+  uint32_t device_id = 0;
+  setenv("DEVICE_ID", "1.1", true);
+  Status s = GetEnvDeviceID(device_id);
+  EXPECT_EQ(s.ok(), false);
+}
 TEST_F(NpuAttrTest, GetEnvDeviceIdEmptyTest) {
   uint32_t device_id = 0;
   setenv("ASCEND_DEVICE_ID", "1", true);
