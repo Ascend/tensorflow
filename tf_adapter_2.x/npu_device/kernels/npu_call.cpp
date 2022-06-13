@@ -65,8 +65,10 @@ class NpuCallOp : public OpKernel {
 
     // run aoe tuning if need
     if (!device->device_options["aoe_mode"].empty()) {
-      auto aoe = std::make_unique<NpuAoe>(graph_id_, attr_.name(), *graph_def_);
-      NPU_CTX_REQUIRES_OK(status, aoe->RunAoeTuning(device, context, inputs, status.get()));
+      auto aoe = NpuAoe::GetInstance();
+      NPU_CTX_REQUIRES(status, aoe != nullptr, tensorflow::errors::Internal("check instance null"));
+      NPU_CTX_REQUIRES_OK(
+          status, aoe->RunAoeTuning(device, context, graph_id_, attr_.name(), *graph_def_, inputs, status.get()));
     }
 
     std::vector<TFE_TensorHandle *> outputs(ctx->num_outputs());
