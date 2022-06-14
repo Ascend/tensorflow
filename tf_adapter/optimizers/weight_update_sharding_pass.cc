@@ -30,12 +30,12 @@
 namespace tensorflow {
 static const int64 kMicrosToMillis = 1000;
 
-static std::atomic<int> graph_run_num(1);
+static std::atomic<int32_t> graph_run_num(1);
 Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options) {
   if (options.graph == nullptr || options.flib_def == nullptr || options.session_options == nullptr) {
     return Status::OK();
   }
-  int graph_num = graph_run_num++;
+  int32_t graph_num = graph_run_num++;
 
   Graph *graphIn = (options.graph)->get();
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(options);
@@ -79,8 +79,8 @@ Status WeightUpdateShardingPass::Run(const GraphOptimizationPassOptions &options
 
     std::vector<Node *> in_nodes;
     (void) std::copy(graphIn->nodes().begin(), graphIn->nodes().end(), std::back_inserter(in_nodes));
-    for (int i = static_cast<int>(in_nodes.size() - 1); i >= 0; i--) {
-      Node *node = in_nodes.at(static_cast<int>(i));
+    for (int32_t i = static_cast<int32_t>(in_nodes.size()) - 1; i >= 0; i--) {
+      Node *node = in_nodes.at(static_cast<size_t>(i));
       REQUIRES_NOT_NULL(node);
       std::string op_type = node->type_string();
       std::string dst_name;

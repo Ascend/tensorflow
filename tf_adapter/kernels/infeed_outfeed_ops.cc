@@ -72,7 +72,7 @@ class OutfeedDequeueOp : public OpKernel {
         ADP_LOG(INFO) << "Succeed destroy acl channel for out-feed dequeue op " << channel_name_;
       }
     }
-    if (aclrtResetDevice(static_cast<int32_t>(device_id_)) != ACL_SUCCESS) {
+    if (aclrtResetDevice(device_id_) != ACL_SUCCESS) {
       ADP_LOG(ERROR) << "Acl rtResetDevice failed.";
     }
   }

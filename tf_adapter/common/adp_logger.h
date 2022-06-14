@@ -22,7 +22,7 @@
 #define FMK_MODULE_NAME static_cast<int>(FMK)
 
 namespace npu {
-static constexpr char *ADP_MODULE_NAME = "TF_ADAPTER";
+constexpr const char *ADP_MODULE_NAME = "TF_ADAPTER";
 const int ADP_DEBUG = 0;
 const int ADP_INFO = 1;
 const int ADP_WARNING = 2;
@@ -36,7 +36,7 @@ class AdapterLogger : public std::basic_ostringstream<char> {
     *this << " [" << fname << ":" << line << "]"
           << " ";
   }
-  virtual ~AdapterLogger();
+  ~AdapterLogger();
 
  private:
   int severity_;
