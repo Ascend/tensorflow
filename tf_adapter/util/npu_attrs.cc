@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -131,7 +131,7 @@ Status GetEnvDeviceID(uint32_t &device_id) {
     device_id = static_cast<uint32_t>(logic_device_id);
   } else {
     if (!strings::safe_strto64(env_device_id, &phy_device_id)) {
-      return errors::InvalidArgument("DEVICE_ID is valid, not digit.");
+      return errors::InvalidArgument("DEVICE_ID is invalid, should be int, such as 0, 1, 2.");
     }
     if (phy_device_id < 0) {
       return errors::InvalidArgument("DEVICE_ID should be >= 0.");

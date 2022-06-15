@@ -26,8 +26,8 @@ using AoeInitializeFunc = Aoe::AoeStatus (*)(const std::map<Aoe::AscendString, A
 using AoeFinalizeFunc = Aoe::AoeStatus (*)();
 using AoeCreateSessionFunc = Aoe::AoeStatus (*)(const std::map<Aoe::AscendString, Aoe::AscendString> &, SessionId &);
 using AoeDestroySessionFunc = Aoe::AoeStatus (*)(SessionId);
-using AoeSetGeSessionFunc = Aoe::AoeStatus (*)(SessionId, ge::Session*);
-using AoeSetDependGraphFunc = Aoe::AoeStatus (*)(SessionId, std::vector<ge::Graph>&);
+using AoeSetGeSessionFunc = Aoe::AoeStatus (*)(SessionId, ge::Session *);
+using AoeSetDependGraphFunc = Aoe::AoeStatus (*)(SessionId, std::vector<ge::Graph> &);
 using AoeSetDependGraphsInputsFunc = Aoe::AoeStatus (*)(SessionId, std::vector<std::vector<ge::Tensor>> &);
 using AoeSetTuningGraphInputFunc = Aoe::AoeStatus (*)(SessionId, std::vector<ge::Tensor> &);
 using AoeSetTuningGraphFunc = Aoe::AoeStatus (*)(SessionId, ge::Graph &);
@@ -49,23 +49,21 @@ struct AoeFunc {
 class NpuAoe {
  public:
   NpuAoe() = default;
-  NpuAoe(uint64_t graph_id, std::string name, tensorflow::GraphDef graph_def)
-      : graph_id_(graph_id), name_(name), graph_def_(graph_def) {}
-  tensorflow::Status RunAoeTuning(NpuDevice *device, TFE_Context *context, std::vector<TFE_TensorHandle *> &inputs,
-                                  TF_Status *status);
+  ~NpuAoe();
 
- private:
-  tensorflow::Status LoadAoeFunc(void *handle);
-  tensorflow::Status AoeTuningInit(NpuDevice *device, void *handle);
-  tensorflow::Status CallAoeFuncToTuning(NpuDevice *device, TFE_Context *context,
-                                         std::vector<TFE_TensorHandle *> &inputs, TF_Status *status);
+  static std::shared_ptr<NpuAoe> GetInstance();
+
+  static tensorflow::Status AoeTuningInitialize(const std::string &work_path);
+  tensorflow::Status RunAoeTuning(NpuDevice *device, TFE_Context *context, uint64_t graph_id,
+                                  const std::string &name, tensorflow::GraphDef &graph_def,
+                                  std::vector<TFE_TensorHandle *> &inputs, TF_Status *status);
   tensorflow::Status AoeTuningFinalize();
 
-  uint64_t graph_id_ = 0;
-  std::string name_;
-  tensorflow::GraphDef graph_def_;
-  SessionId aoe_session_id_ = 0;
   AoeFunc aoe_func_;
+  void *handle_ = nullptr;
+
+ private:
+  tensorflow::Status LoadAoeFunc();
 };
 }  // namespace npu
 

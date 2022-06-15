@@ -46,6 +46,7 @@
 #include "framework/omg/parser/parser_api.h"
 #include "ge/ge_api.h"
 
+#include "npu_aoe.h"
 #include "npu_device_register.h"
 #include "npu_global.h"
 #include "npu_logger.h"
@@ -156,6 +157,15 @@ PYBIND11_MODULE(_npu_device_backends, m) {
               return "Failed start tensorflow model parser:" + ge::GEGetErrorMsg();
             }
             LOG(INFO) << "Start tensorflow model parser succeed";
+
+            // initialize aoe tuning if need
+            if (!global_options["aoe_mode"].empty()) {
+              auto status = npu::NpuAoe::AoeTuningInitialize(global_options["work_path"]);
+              if (!status.ok()) {
+                return status.error_message();
+              }
+            }
+
             aclrtContext global_rt_ctx = nullptr;
             auto status = [&global_rt_ctx, device_index]() -> tensorflow::Status {
               NPU_REQUIRES_ACL_OK("Acl create rts ctx failed", aclrtCreateContext(&global_rt_ctx, device_index));
@@ -202,6 +212,12 @@ PYBIND11_MODULE(_npu_device_backends, m) {
       npu::global::dev_memory_shared_lock.lock();
       npu::global::dev_memory_released = true;
       npu::global::dev_memory_shared_lock.unlock();
+
+      auto aoe = npu::NpuAoe::GetInstance();
+      if (aoe != nullptr) {
+        (void)aoe->AoeTuningFinalize();
+      }
+
       ge_status = ge::GEFinalize();
       if (ge_status != ge::SUCCESS) {
         LOG(ERROR) << "Failed stop graph engine:" << ge::GEGetErrorMsg();
