@@ -98,7 +98,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  HCCL_algorithm=None,
                  customize_dtypes=None,
                  op_debug_config=None,
-                 atomic_clean_policy=0
+                 memory_config=None
                  ):
         """
         Constructs a NPUConfig.
@@ -233,7 +233,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._HCCL_algorithm = HCCL_algorithm
         self._customize_dtypes = customize_dtypes
         self._op_debug_config = op_debug_config
-        self._atomic_clean_policy = atomic_clean_policy
+        self._memory_config = memory_config
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
@@ -297,6 +297,23 @@ class ProfilingConfig():
 
         self._enable_profiling = enable_profiling
         self._profiling_options = profiling_options
+
+
+class MemoryConfig():
+    """Memory config with NPU support."""
+
+    def __init__(self,
+                 atomic_clean_policy=0,
+                 static_memory_policy=None):
+        """
+        Constructs a MemoryConfig.
+        Args:
+            atomic_clean_policy: atomic_clean_policy, default is 0.
+            static_memory_policy: static_memory_policy.
+        """
+
+        self._atomic_clean_policy = atomic_clean_policy
+        self._static_memory_policy = static_memory_policy
 
 
 class DumpConfig():
