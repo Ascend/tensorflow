@@ -727,6 +727,12 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["customize_dtypes"].s = tf.compat.as_bytes(config._customize_dtypes)
         if config._op_debug_config is not None:
             custom_op.parameter_map["op_debug_config"].s = tf.compat.as_bytes(config._op_debug_config)
+        if config._experimental_config._logical_device_cluster_deploy_mode is not None:
+            custom_op.parameter_map["experimental_logical_device_cluster_deploy_mode"].s = tf.compat.as_bytes(
+                config._experimental_config._logical_device_cluster_deploy_mode)
+        if config._experimental_config._logical_device_id is not None:
+            custom_op.parameter_map["experimental_logical_device_id"].s = tf.compat.as_bytes(
+                config._experimental_config._logical_device_id)
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)

@@ -513,6 +513,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string customize_dtypes;
   std::string op_debug_config;
   std::string graph_exec_timeout;
+  std::string logical_device_cluster_deploy_mode = "LB";
+  std::string logical_device_id;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void)ctx->GetAttr("_precision_mode", &precision_mode);
@@ -544,6 +546,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void)ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
     (void)ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
     (void)ctx->GetAttr("_static_memory_policy", &static_memory_policy);
+    (void)ctx->GetAttr("_logical_device_cluster_deploy_mode", &logical_device_cluster_deploy_mode);
+    (void)ctx->GetAttr("_logical_device_id", &logical_device_id);
   }
 
   if (precision_mode.empty()) {
@@ -586,6 +590,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   }
   init_options_["HCCL_algorithm"] = HCCL_algorithm;
   init_options_["ge.exec.graphExecTimeout"] = graph_exec_timeout;
+  init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
+  init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
 
   return init_options_;
 }
@@ -945,6 +951,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string customize_dtypes;
   std::string op_debug_config;
   std::string graph_exec_timeout;
+  std::string logical_device_cluster_deploy_mode = "LB";
+  std::string logical_device_id;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1011,6 +1019,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto customize_dtypes_value = attrs.Find("_customize_dtypes");
   auto op_debug_config_value = attrs.Find("_op_debug_config");
   auto graph_exec_timeout_value = attrs.Find("_graph_exec_timeout");
+  auto logical_device_cluster_deploy_mode_value = attrs.Find("_logical_device_cluster_deploy_mode");
+  auto logical_device_id_value = attrs.Find("_logical_device_id");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1230,6 +1240,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (graph_exec_timeout_value != nullptr) {
       graph_exec_timeout = graph_exec_timeout_value->s();
     }
+    if (logical_device_cluster_deploy_mode_value != nullptr) {
+      logical_device_cluster_deploy_mode = logical_device_cluster_deploy_mode_value->s();
+    }
+    if (logical_device_id_value != nullptr) {
+      logical_device_id = logical_device_id_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1303,6 +1319,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["HCCL_algorithm"] = HCCL_algorithm;
   all_options["op_debug_config"] = op_debug_config;
   all_options["graph_exec_timeout"] = graph_exec_timeout;
+  all_options["logical_device_cluster_deploy_mode"] = logical_device_cluster_deploy_mode;
+  all_options["logical_device_id"] = logical_device_id;
 
   return all_options;
 }
@@ -1391,6 +1409,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_execute_timeout;
   std::string customize_dtypes;
   int graph_exec_timeout = 600000;
+  std::string logical_device_cluster_deploy_mode = "LB";
+  std::string logical_device_id;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1738,6 +1758,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("atomic_clean_policy")) {
         atomic_clean_policy = params.at("atomic_clean_policy").i();
       }
+      if (params.count("experimental_logical_device_cluster_deploy_mode")) {
+        logical_device_cluster_deploy_mode = params.at("experimental_logical_device_cluster_deploy_mode").s();
+      }
+      if (params.count("experimental_logical_device_id")) {
+        logical_device_id = params.at("experimental_logical_device_id").s();
+      }
     }
   }
 
@@ -1837,6 +1863,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["HCCL_algorithm"] = HCCL_algorithm;
   init_options_["graph_exec_timeout"] = std::to_string(graph_exec_timeout);
   init_options_["ge.exec.graphExecTimeout"] = std::to_string(graph_exec_timeout);
+  init_options_["logical_device_cluster_deploy_mode"] = logical_device_cluster_deploy_mode;
+  init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
+  init_options_["logical_device_id"] = logical_device_id;
+  init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
 
   pass_options["do_npu_optimizer"] = std::to_string(static_cast<int32_t>(do_npu_optimizer));
   pass_options["enable_data_pre_proc"] = std::to_string(static_cast<int32_t>(enable_dp));

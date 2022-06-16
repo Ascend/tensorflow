@@ -16,17 +16,16 @@
 # limitations under the License.
 #
 
-"""Configuration for experiment"""
+"""Configuration for logical device deploy"""
 
+from npu_device.configs.option_base import OptionValue
 from npu_device.configs.option_base import NpuBaseConfig
-from npu_device.configs.multi_branches_config import NpuMultiBranchesConfig
-from npu_device.configs.logical_device_deploy_config import LogicalDeviceDeployConfig
 
 
-class NpuExperimentalConfig(NpuBaseConfig):
-    """Config for experiment"""
+class LogicalDeviceDeployConfig(NpuBaseConfig):
+    """Config for logical device deploy"""
     def __init__(self):
-        self.multi_branches_config = NpuMultiBranchesConfig()
-        self.logical_device_deploy_config = LogicalDeviceDeployConfig()
+        self.logical_device_cluster_deploy_mode = OptionValue('LB', ['LB', 'SINGLE'])
+        self.logical_device_id = OptionValue(None, None)
 
-        super(NpuExperimentalConfig, self).__init__()
+        super(LogicalDeviceDeployConfig, self).__init__()
