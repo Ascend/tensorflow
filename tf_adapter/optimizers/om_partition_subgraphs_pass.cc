@@ -1311,8 +1311,8 @@ class OMSplitter {
     // Maps from source (producer node/slot) and destination
     // (consumer node/slot) tensors in the input graph to _Arg numbers in
     // the subgraph.
-    std::unordered_map<NodeSlot, int, NodeSlot::Hasher> argsBySrc_;
-    std::unordered_map<NodeSlot, int, NodeSlot::Hasher> argsByDst_;
+    std::unordered_map<NodeSlot, size_t, NodeSlot::Hasher> argsBySrc_;
+    std::unordered_map<NodeSlot, size_t, NodeSlot::Hasher> argsByDst_;
 
     // The _Arg nodes in the subgraph, in order by argument number.
     std::vector<Node *> args_;
@@ -1446,17 +1446,17 @@ Graph *OMSplitter::Subgraph::GetGraph() const { return graph_.get(); }
 Status OMSplitter::Subgraph::RecordArg(const Edge *edge, const std::unordered_map<const Node *, Node *> &nodeImages,
                                        std::vector<std::pair<const Node *, Node *>> *srcArgPairs) {
   Node *srcNode = edge->src();
-  int srcSlot = edge->src_output();
-  std::unordered_map<NodeSlot, int, NodeSlot::Hasher>::iterator iter;
+  int32_t srcSlot = edge->src_output();
+  std::unordered_map<NodeSlot, size_t, NodeSlot::Hasher>::iterator iter;
   bool inserted = false;
   std::tie(iter, inserted) = argsBySrc_.emplace(NodeSlot(srcNode, srcSlot), argsBySrc_.size());
-  int argIndex = iter->second;
+  size_t argIndex = iter->second;
   if (inserted) {
     NodeDef argNodeDef;
     NodeDefBuilder builder(npu::CatStr(srcNode->name(), "_", srcSlot, "_arg"), ARG_OP);
     DataType dtype = edge->dst()->input_type(edge->dst_input());
     (void) builder.Attr("T", dtype);
-    (void) builder.Attr("index", argIndex);
+    (void) builder.Attr("index", static_cast<int32_t>(argIndex));
     Status s = builder.Finalize(&argNodeDef);
     if (!s.ok()) { return s; }
 
@@ -1474,7 +1474,7 @@ Status OMSplitter::Subgraph::RecordArg(const Edge *edge, const std::unordered_ma
   Node *dstImage = nodeImages.at(dstNode);
   int dstSlot = edge->dst_input();
   argsByDst_[NodeSlot(dstNode, dstSlot)] = argIndex;
-  (void) graph_->AddEdge(args_[argIndex], 0, dstImage, dstSlot);
+  (void)graph_->AddEdge(args_[argIndex], 0, dstImage, dstSlot);
   return Status::OK();
 }
 

@@ -76,16 +76,13 @@ REGISTER_OP("DynamicGruV2")
       auto num_step = c->Dim(input_shape, 0);
       auto batch_size = c->Dim(input_shape, 1);
       auto hidden_size = c->Dim(weight_hidden_shape, 0);
-      int num_proj = 0;
+      int32_t num_proj = 0;
       TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
       ShapeHandle output_y_shape;
       if (num_proj == 0) {
         output_y_shape = c->MakeShape({num_step, batch_size, hidden_size});
       } else {
-        std::vector<DimensionHandle> num_projs;
-        num_projs.reserve(num_proj);
-        auto num_proj_shape = c->MakeShape(num_projs);
-        DimensionHandle num_proj_size = c->Dim(num_proj_shape, 0);
+        auto num_proj_size = c->MakeDim(shape_inference::DimensionOrConstant(num_proj));
         DimensionHandle output_hidden_size;
         TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
         output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
@@ -182,34 +179,32 @@ REGISTER_OP("DynamicAUGRU")
 .Attr("is_training: bool = true")
 .SetIsStateful()
 .SetShapeFn([](InferenceContext *c) {
-auto input_shape = c->input(0);
-auto weight_hidden_shape = c->input(2);
-auto num_step = c->Dim(input_shape, 0);
-auto batch_size = c->Dim(input_shape, 1);
-auto hidden_size = c->Dim(weight_hidden_shape, 0);
-int num_proj = 0;
-TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
-ShapeHandle output_y_shape;
-if (num_proj == 0) {
-output_y_shape = c->MakeShape({num_step, batch_size, hidden_size});
-} else {
-std::vector<DimensionHandle> num_projs;
-num_projs.reserve(num_proj);
-auto num_proj_shape = c->MakeShape(num_projs);
-DimensionHandle num_proj_size = c->Dim(num_proj_shape, 0);
-DimensionHandle output_hidden_size;
-TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
-output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
-}
-auto output_h_shape = c->MakeShape({num_step, batch_size, hidden_size});
-c->set_output(0, output_y_shape);
-c->set_output(1, output_h_shape);
-c->set_output(2, c->UnknownShape());
-c->set_output(3, c->UnknownShape());
-c->set_output(4, c->UnknownShape());
-c->set_output(5, c->UnknownShape());
-c->set_output(6, c->UnknownShape());
-return Status::OK();
+  auto input_shape = c->input(0);
+  auto weight_hidden_shape = c->input(2);
+  auto num_step = c->Dim(input_shape, 0);
+  auto batch_size = c->Dim(input_shape, 1);
+  auto hidden_size = c->Dim(weight_hidden_shape, 0);
+  int32_t num_proj = 0;
+  TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
+
+  ShapeHandle output_y_shape;
+  if (num_proj == 0) {
+    output_y_shape = c->MakeShape({num_step, batch_size, hidden_size});
+  } else {
+    auto num_proj_size = c->MakeDim(shape_inference::DimensionOrConstant(num_proj));
+    DimensionHandle output_hidden_size;
+    TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
+    output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
+  }
+  auto output_h_shape = c->MakeShape({num_step, batch_size, hidden_size});
+  c->set_output(0, output_y_shape);
+  c->set_output(1, output_h_shape);
+  c->set_output(2, c->UnknownShape());
+  c->set_output(3, c->UnknownShape());
+  c->set_output(4, c->UnknownShape());
+  c->set_output(5, c->UnknownShape());
+  c->set_output(6, c->UnknownShape());
+  return Status::OK();
 });
 
 REGISTER_OP("DynamicAUGRUGrad")
@@ -307,16 +302,13 @@ REGISTER_OP("DynamicRnn")
       auto hidden_size_total = c->Dim(w, 0);
       DimensionHandle hidden_size;
       TF_RETURN_IF_ERROR(c->Subtract(hidden_size_total, input_size, &hidden_size));
-      int num_proj = 0;
+      int32_t num_proj = 0;
       TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
       ShapeHandle output_y_shape;
       if (num_proj == 0) {
         output_y_shape = c->MakeShape({num_step, batch_size, hidden_size});
       } else {
-        std::vector<DimensionHandle> num_projs;
-        num_projs.reserve(num_proj);
-        auto num_proj_shape = c->MakeShape(num_projs);
-        DimensionHandle num_proj_size = c->Dim(num_proj_shape, 0);
+        auto num_proj_size = c->MakeDim(shape_inference::DimensionOrConstant(num_proj));
         DimensionHandle output_hidden_size;
         TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
         output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
@@ -371,16 +363,13 @@ REGISTER_OP("DynamicRnnV2")
       auto hidden_size_total = c->Dim(w, 0);
       DimensionHandle hidden_size;
       TF_RETURN_IF_ERROR(c->Subtract(hidden_size_total, input_size, &hidden_size));
-      int num_proj = 0;
+      int32_t num_proj = 0;
       TF_RETURN_IF_ERROR(c->GetAttr("num_proj", &num_proj));
       ShapeHandle output_y_shape;
       if (num_proj == 0) {
         output_y_shape = c->MakeShape({num_step, batch_size, hidden_size});
       } else {
-        std::vector<DimensionHandle> num_projs;
-        num_projs.reserve(num_proj);
-        auto num_proj_shape = c->MakeShape(num_projs);
-        DimensionHandle num_proj_size = c->Dim(num_proj_shape, 0);
+        auto num_proj_size = c->MakeDim(shape_inference::DimensionOrConstant(num_proj));
         DimensionHandle output_hidden_size;
         TF_RETURN_IF_ERROR(c->Min(num_proj_size, hidden_size, &output_hidden_size));
         output_y_shape = c->MakeShape({num_step, batch_size, output_hidden_size});
@@ -512,7 +501,7 @@ REGISTER_OP("NonZero")
     .Attr("output_type:{int32, int64} = DT_INT64")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext *c) {
-      auto rank = c->Rank(c->input(0));
+      auto rank = InferenceContext::Rank(c->input(0));
       c->set_output(0, c->MakeShape({rank, -1}));
       return Status::OK();
     });
@@ -528,8 +517,8 @@ REGISTER_OP("NonZeroWithValue")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext *c) {
       auto input_shape = c->input(0);
-      int64_t dim1 = c->Value(c->Dim(input_shape, 0));
-      int64_t dim2 = c->Value(c->Dim(input_shape, 1));
+      int64_t dim1 = InferenceContext::Value(c->Dim(input_shape, 0));
+      int64_t dim2 = InferenceContext::Value(c->Dim(input_shape, 1));
       int64_t value_num = dim1 * dim2;
       int64_t index_dim = 2 * dim1 * dim2;
       int64_t count_dim = 1;
@@ -553,8 +542,8 @@ REGISTER_OP("FusedLayerNorm")
     .Attr("epsilon: float = 0.0000001")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext *c) {
-      int real_dim_num = c->Rank(c->input(0));
-      int begin_norm_axis = 0;
+      int32_t real_dim_num = InferenceContext::Rank(c->input(0));
+      int32_t begin_norm_axis = 0;
       TF_RETURN_IF_ERROR(c->GetAttr("begin_norm_axis", &begin_norm_axis));
       if (begin_norm_axis < 0) {
         begin_norm_axis += real_dim_num;
@@ -565,7 +554,7 @@ REGISTER_OP("FusedLayerNorm")
       ShapeHandle input_shape_handle;
       TF_RETURN_IF_ERROR(c->WithRank(c->input(0), real_dim_num, &input_shape_handle));
       ShapeHandle out_shape_handle;
-      for (int i = 0; i < real_dim_num; ++i) {
+      for (int32_t i = 0; i < real_dim_num; ++i) {
         DimensionHandle tmp_dim_handle = c->Dim(input_shape_handle, i);
         if (i >= begin_norm_axis) {
           tmp_dim_handle = c->MakeDim(1);
@@ -603,8 +592,8 @@ REGISTER_OP("GetShape")
     .Attr("T: {float16, float32, uint8}")
     .SetShapeFn([](InferenceContext* c) {
         int64_t sumSize = 0;
-        for (int i = 0; i < c->num_inputs(); i++) {
-            sumSize += c->Rank(c->input(i));
+        for (int32_t i = 0; i < c->num_inputs(); i++) {
+            sumSize += InferenceContext::Rank(c->input(i));
         }
         c->set_output(0, c->MakeShape({c->MakeDim(sumSize)}));
         return Status::OK();
@@ -631,11 +620,11 @@ REGISTER_OP("ProdEnvMatA")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext* c) {
       auto coord_shape = c->input(0);
-      int64_t nsample = c->Value(c->Dim(coord_shape, 0));
+      int64_t nsample = InferenceContext::Value(c->Dim(coord_shape, 0));
       int64_t nloc = 12288;
       int64_t nnei = 0;
-      std::vector<int> sel_a;
-      c->GetAttr("sel_a", &sel_a);
+      std::vector<int32_t> sel_a;
+      TF_RETURN_IF_ERROR(c->GetAttr("sel_a", &sel_a));
       for (size_t i = 0; i < sel_a.size(); ++i) {
         nnei = nnei + sel_a[i];
       }
