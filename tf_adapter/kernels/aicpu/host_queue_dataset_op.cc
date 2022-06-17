@@ -654,7 +654,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               return;
             }
             if (buffer_.front().host_thread_finished) {
-              std::vector<DataItem> items;
+              std::vector<DataItem> data_items;
               DataItem end_item;
               if (buffer_.front().status.ok()) {
                 end_item.dataType_ = TDT_END_OF_SEQUENCE;
@@ -670,10 +670,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               std::shared_ptr<void> data(nullptr);
               end_item.dataLen_ = 0;
               end_item.dataPtr_ = data;
-              items.emplace_back(end_item);
-              data_deliver_->ParallelSendDataVec(items);
-              int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items, dataset()->device_id_);
-              if (tdt_status != 0) { ADP_LOG(INFO) << "End training as tdt host push end data, ret != 0 " << tdt_status; }
+              data_items.emplace_back(end_item);
+              data_deliver_->ParallelSendDataVec(data_items);
+              int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, data_items, dataset()->device_id_);
+              if (tdt_status != 0) {
+                ADP_LOG(INFO) << "End training as tdt host push end data, ret != 0 " << tdt_status;
+              }
               cancelled_ = true;
               cond_var_.notify_all();
               return;
