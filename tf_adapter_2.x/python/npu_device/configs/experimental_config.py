@@ -20,13 +20,11 @@
 
 from npu_device.configs.option_base import NpuBaseConfig
 from npu_device.configs.multi_branches_config import NpuMultiBranchesConfig
-from npu_device.configs.logical_device_deploy_config import LogicalDeviceDeployConfig
 
 
 class NpuExperimentalConfig(NpuBaseConfig):
     """Config for experiment"""
     def __init__(self):
         self.multi_branches_config = NpuMultiBranchesConfig()
-        self.logical_device_deploy_config = LogicalDeviceDeployConfig()
 
         super(NpuExperimentalConfig, self).__init__()
