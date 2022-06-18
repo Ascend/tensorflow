@@ -98,8 +98,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  HCCL_algorithm=None,
                  customize_dtypes=None,
                  op_debug_config=None,
-                 memory_config=None,
-                 experimental_config=None
+                 memory_config=None
                  ):
         """
         Constructs a NPUConfig.
@@ -154,7 +153,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         distribute_config: Specify the NCA configuration file path
         modify_mixlist: Set the path of operator mixed precision configuration file.
         op_precision_mode: Set the path of operator precision mode configuration file (.ini)
-        experimental_config: The experimental configuration.
         """
 
         # Check iterations_per_loop.
@@ -236,7 +234,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._customize_dtypes = customize_dtypes
         self._op_debug_config = op_debug_config
         self._memory_config = memory_config
-        self._experimental_config = self._get_experimental_config(experimental_config)
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
@@ -262,12 +259,6 @@ class NPURunConfig(run_config_lib.RunConfig):
             raise ValueError(
                 '`dump_config` must be provided with type `DumpConfig`')
         return dump_config
-
-    def _get_experimental_config(self, experimental_config):
-        if experimental_config is not None and not isinstance(experimental_config, ExperimentalConfig):
-            raise ValueError(
-                '`experimental_config` must be provided with type `ExperimentalConfig`')
-        return experimental_config
 
     def _get_horovod_mode(self, horovod_mode):
         if not isinstance(horovod_mode, bool):
@@ -352,25 +343,6 @@ class DumpConfig():
         self._dump_mode = dump_mode
         self._enable_dump_debug = enable_dump_debug
         self._dump_debug_mode = dump_debug_mode
-
-
-class ExperimentalConfig():
-    """Experimental Config with NPU support."""
-
-    def __init__(self,
-                 logical_device_cluster_deploy_mode="LB",
-                 logical_device_id=None):
-        """
-        Constructs a ExperimentalConfig.
-
-        Args:
-            logical_device_cluster_deploy_mode: Specify the helper model deployment mode,
-                the default is LB (load balance), or it can be specified as Single.
-            logical_device_id: When logical_device_cluster_deploy_mode is specified as SINGLE mode,
-                the specified model with logical_device_id is deployed on a device of 2PG.
-        """
-        self._logical_device_cluster_deploy_mode = logical_device_cluster_deploy_mode
-        self._logical_device_id = logical_device_id
 
 
 class NpuExecutePlacement(Enum):
