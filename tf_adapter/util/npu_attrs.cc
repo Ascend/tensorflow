@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,12 +47,12 @@ bool GetNewDataTransferFlag() {
   GePlugin::GetInstance()->Init(init_options);
   acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
   if (check_queue_handle != nullptr) {
-    (void)acltdtDestroyChannel(check_queue_handle);
+    (void) acltdtDestroyChannel(check_queue_handle);
     return true;
   }
   check_queue_handle = acltdtCreateChannel(device_id, "check_is_queue");
   if (check_queue_handle != nullptr) {
-    (void)acltdtDestroyChannel(check_queue_handle);
+    (void) acltdtDestroyChannel(check_queue_handle);
     return false;
   } else {
     ADP_LOG(ERROR) << "Create channel failed by acltdtCreateChannelWithCapacity and acltdtCreateChannel";
@@ -62,7 +62,7 @@ bool GetNewDataTransferFlag() {
 
 extern const bool kDumpGraph = []() -> bool {
   bool print_model = false;
-  (void)tensorflow::ReadBoolFromEnvVar("PRINT_MODEL", false, &print_model);
+  (void) tensorflow::ReadBoolFromEnvVar("PRINT_MODEL", false, &print_model);
   return print_model;
 }();
 
@@ -77,12 +77,12 @@ std::string GetDumpPath() {
   (void) ReadStringFromEnvVar("NPU_COLLECT_PATH", "", &npu_collect_path);
   if (!npu_collect_path.empty()) {
     std::string collect_path_str(npu_collect_path);
-    (void)collect_path_str.erase(0, collect_path_str.find_first_not_of(" "));
-    (void)collect_path_str.erase(collect_path_str.find_last_not_of(" ") + 1);
+    (void) collect_path_str.erase(0, collect_path_str.find_first_not_of(" "));
+    (void) collect_path_str.erase(collect_path_str.find_last_not_of(" ") + 1);
     std::string base_path_str = collect_path_str.empty() ? "./" : collect_path_str + "/";
 
     uint32_t device_id = 0;
-    (void)GetEnvDeviceID(device_id);
+    (void) GetEnvDeviceID(device_id);
     base_path_str += "/extra-info/graph/" + std::to_string(mmGetPid()) + "_" + std::to_string(device_id) + "/";
     if (mmAccess2(base_path_str.c_str(), M_F_OK) != EN_OK) {
       int32_t ret = mmMkdir(base_path_str.c_str(), M_IRUSR | M_IWUSR | M_IXUSR);
@@ -96,8 +96,8 @@ std::string GetDumpPath() {
 
   std::string dump_graph_path;
   (void) ReadStringFromEnvVar("DUMP_GRAPH_PATH", "./", &dump_graph_path);
-  (void)dump_graph_path.erase(0, dump_graph_path.find_first_not_of(" "));
-  (void)dump_graph_path.erase(dump_graph_path.find_last_not_of(" ") + 1);
+  (void) dump_graph_path.erase(0, dump_graph_path.find_first_not_of(" "));
+  (void) dump_graph_path.erase(dump_graph_path.find_last_not_of(" ") + 1);
 
   std::string base_path = dump_graph_path.empty() ? "./" : dump_graph_path + "/";
   if (mmAccess2(base_path.c_str(), M_F_OK) != EN_OK) {
@@ -367,14 +367,14 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string static_memory_policy;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
-    (void)ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
-    (void)ctx->GetAttr("_hcom_parallel", &hcom_parallel);
-    (void)ctx->GetAttr("_graph_memory_max_size", &graph_memory_max_size);
-    (void)ctx->GetAttr("_variable_memory_max_size", &variable_memory_max_size);
-    (void)ctx->GetAttr("_enable_dump", &enable_dump);
-    (void)ctx->GetAttr("_enable_dump_debug", &enable_dump_debug);
+    (void) ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
+    (void) ctx->GetAttr("_hcom_parallel", &hcom_parallel);
+    (void) ctx->GetAttr("_graph_memory_max_size", &graph_memory_max_size);
+    (void) ctx->GetAttr("_variable_memory_max_size", &variable_memory_max_size);
+    (void) ctx->GetAttr("_enable_dump", &enable_dump);
+    (void) ctx->GetAttr("_enable_dump_debug", &enable_dump_debug);
     if (enable_dump != "0" || enable_dump_debug != "0") {
-      (void)ctx->GetAttr("_dump_path", &dump_path);
+      (void) ctx->GetAttr("_dump_path", &dump_path);
     }
     if (enable_dump != "0") {
       if (ctx->GetAttr("_dump_step", &dump_step) == Status::OK() && !dump_step.empty()) {
@@ -401,26 +401,26 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
         }
       }
     }
-    (void)ctx->GetAttr("_stream_max_parallel_num", &stream_max_parallel_num);
-    (void)ctx->GetAttr("_is_tailing_optimization", &is_tailing_optimization);
-    (void)ctx->GetAttr("_op_select_implmode", &op_select_implmode);
-    (void)ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
-    (void)ctx->GetAttr("_input_shape", &input_shape);
-    (void)ctx->GetAttr("_dynamic_dims", &dynamic_dims);
-    (void)ctx->GetAttr("_buffer_optimize", &buffer_optimize);
-    (void)ctx->GetAttr("_enable_small_channel", &enable_small_channel);
-    (void)ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
-    (void)ctx->GetAttr("_enable_compress_weight", &enable_compress_weight);
-    (void)ctx->GetAttr("_compress_weight_conf", &compress_weight_conf);
-    (void)ctx->GetAttr("_dynamic_node_type", &dynamic_node_type);
-    (void)ctx->GetAttr("_session_device_id", &session_device_id);
-    (void)ctx->GetAttr("_modify_mixlist", &modify_mixlist);
-    (void)ctx->GetAttr("_op_precision_mode", &op_precision_mode);
-    (void)ctx->GetAttr("_graph_run_mode", &graph_run_mode);
-    (void)ctx->GetAttr("_hccl_timeout", &hccl_timeout);
-    (void)ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
-    (void)ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
-    (void)ctx->GetAttr("_static_memory_policy", &static_memory_policy);
+    (void) ctx->GetAttr("_stream_max_parallel_num", &stream_max_parallel_num);
+    (void) ctx->GetAttr("_is_tailing_optimization", &is_tailing_optimization);
+    (void) ctx->GetAttr("_op_select_implmode", &op_select_implmode);
+    (void) ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
+    (void) ctx->GetAttr("_input_shape", &input_shape);
+    (void) ctx->GetAttr("_dynamic_dims", &dynamic_dims);
+    (void) ctx->GetAttr("_buffer_optimize", &buffer_optimize);
+    (void) ctx->GetAttr("_enable_small_channel", &enable_small_channel);
+    (void) ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
+    (void) ctx->GetAttr("_enable_compress_weight", &enable_compress_weight);
+    (void) ctx->GetAttr("_compress_weight_conf", &compress_weight_conf);
+    (void) ctx->GetAttr("_dynamic_node_type", &dynamic_node_type);
+    (void) ctx->GetAttr("_session_device_id", &session_device_id);
+    (void) ctx->GetAttr("_modify_mixlist", &modify_mixlist);
+    (void) ctx->GetAttr("_op_precision_mode", &op_precision_mode);
+    (void) ctx->GetAttr("_graph_run_mode", &graph_run_mode);
+    (void) ctx->GetAttr("_hccl_timeout", &hccl_timeout);
+    (void) ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
+    (void) ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
+    (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
   }
 
   // session options
@@ -515,35 +515,35 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string graph_exec_timeout;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
-    (void)ctx->GetAttr("_precision_mode", &precision_mode);
-    (void)ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
-    (void)ctx->GetAttr("_graph_run_mode", &graph_run_mode);
-    (void)ctx->GetAttr("_op_debug_level", &op_debug_level);
-    (void)ctx->GetAttr("_enable_scope_fusion_passes", &enable_scope_fusion_passes);
-    (void)ctx->GetAttr("_enable_exception_dump", &enable_exception_dump);
-    (void)ctx->GetAttr("_aoe_mode", &aoe_mode);
-    (void)ctx->GetAttr("_work_path", &work_path);
-    (void)ctx->GetAttr("_op_compiler_cache_mode", &op_compiler_cache_mode);
-    (void)ctx->GetAttr("_op_compiler_cache_dir", &op_compiler_cache_dir);
-    (void)ctx->GetAttr("_debug_dir", &debug_dir);
-    (void)ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
-    (void)ctx->GetAttr("_distribute_config", &distribute_config);
-    (void)ctx->GetAttr("_modify_mixlist", &modify_mixlist);
-    (void)ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
-    (void)ctx->GetAttr("_op_precision_mode", &op_precision_mode);
-    (void)ctx->GetAttr("_op_select_implmode", &op_select_implmode);
-    (void)ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
-    (void)ctx->GetAttr("_device_type", &device_type);
-    (void)ctx->GetAttr("_soc_config", &soc_config);
-    (void)ctx->GetAttr("_hccl_timeout", &hccl_timeout);
-    (void)ctx->GetAttr("_op_wait_timeout", &op_wait_timeout);
-    (void)ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
-    (void)ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
-    (void)ctx->GetAttr("_customize_dtypes", &customize_dtypes);
-    (void)ctx->GetAttr("_op_debug_config", &op_debug_config);
-    (void)ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
-    (void)ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
-    (void)ctx->GetAttr("_static_memory_policy", &static_memory_policy);
+    (void) ctx->GetAttr("_precision_mode", &precision_mode);
+    (void) ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
+    (void) ctx->GetAttr("_graph_run_mode", &graph_run_mode);
+    (void) ctx->GetAttr("_op_debug_level", &op_debug_level);
+    (void) ctx->GetAttr("_enable_scope_fusion_passes", &enable_scope_fusion_passes);
+    (void) ctx->GetAttr("_enable_exception_dump", &enable_exception_dump);
+    (void) ctx->GetAttr("_aoe_mode", &aoe_mode);
+    (void) ctx->GetAttr("_work_path", &work_path);
+    (void) ctx->GetAttr("_op_compiler_cache_mode", &op_compiler_cache_mode);
+    (void) ctx->GetAttr("_op_compiler_cache_dir", &op_compiler_cache_dir);
+    (void) ctx->GetAttr("_debug_dir", &debug_dir);
+    (void) ctx->GetAttr("_hcom_multi_mode", &hcom_multi_mode);
+    (void) ctx->GetAttr("_distribute_config", &distribute_config);
+    (void) ctx->GetAttr("_modify_mixlist", &modify_mixlist);
+    (void) ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
+    (void) ctx->GetAttr("_op_precision_mode", &op_precision_mode);
+    (void) ctx->GetAttr("_op_select_implmode", &op_select_implmode);
+    (void) ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
+    (void) ctx->GetAttr("_device_type", &device_type);
+    (void) ctx->GetAttr("_soc_config", &soc_config);
+    (void) ctx->GetAttr("_hccl_timeout", &hccl_timeout);
+    (void) ctx->GetAttr("_op_wait_timeout", &op_wait_timeout);
+    (void) ctx->GetAttr("_op_execute_timeout", &op_execute_timeout);
+    (void) ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
+    (void) ctx->GetAttr("_customize_dtypes", &customize_dtypes);
+    (void) ctx->GetAttr("_op_debug_config", &op_debug_config);
+    (void) ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
+    (void) ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
+    (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
   }
 
   if (precision_mode.empty()) {
@@ -618,45 +618,45 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
     if (custom_optimizer.name() == "NpuOptimizer") {
       do_npu_optimizer = true;
       const auto &params = custom_optimizer.parameter_map();
-      if (params.count("enable_data_pre_proc")) {
+      if (params.count("enable_data_pre_proc") > 0) {
         enable_dp = params.at("enable_data_pre_proc").b();
       }
-      if (params.count("use_off_line")) {
+      if (params.count("use_off_line") > 0) {
         use_off_line = params.at("use_off_line").b();
       }
-      if (params.count("mix_compile_mode")) {
+      if (params.count("mix_compile_mode") > 0) {
         mix_compile_mode = params.at("mix_compile_mode").b();
       }
-      if (params.count("iterations_per_loop")) {
+      if (params.count("iterations_per_loop") > 0) {
         iterations_per_loop = static_cast<int32_t>(params.at("iterations_per_loop").i());
       }
-      if (params.count("lower_functional_ops")) {
+      if (params.count("lower_functional_ops") > 0) {
         lower_functional_ops = params.at("lower_functional_ops").b();
       }
-      if (params.count("job")) {
+      if (params.count("job") > 0) {
         job = params.at("job").s();
       } else {
         job = "localhost";
       }
-      if (params.count("task_index")) {
+      if (params.count("task_index") > 0) {
         task_index = params.at("task_index").i();
       }
-      if (params.count("dynamic_input")) {
+      if (params.count("dynamic_input") > 0) {
         dynamic_input = params.at("dynamic_input").b();
         if (dynamic_input) {
-          if (params.count("dynamic_graph_execute_mode")) {
+          if (params.count("dynamic_graph_execute_mode") > 0) {
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
               ADP_LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
           }
-          if (params.count("dynamic_inputs_shape_range")) {
+          if (params.count("dynamic_inputs_shape_range") > 0) {
             dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s();
           }
         }
       }
-      if (params.count("local_rank_id")) {
+      if (params.count("local_rank_id") > 0) {
         local_rank_id = params.at("local_rank_id").i();
         Status s = CheckLocalRankId(local_rank_id);
         if (!s.ok()) {
@@ -664,7 +664,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
           LOG(FATAL) << s.error_message();
         }
       }
-      if (params.count("local_device_list")) {
+      if (params.count("local_device_list") > 0) {
         local_device_list = params.at("local_device_list").s();
         Status s = CheckDeviceList(local_device_list);
         if (!s.ok()) {
@@ -672,13 +672,13 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
           LOG(FATAL) << s.error_message();
         }
       }
-      if (params.count("in_out_pair_flag")) {
+      if (params.count("in_out_pair_flag") > 0) {
         in_out_pair_flag = params.at("in_out_pair_flag").b();
       }
-      if (params.count("in_out_pair")) {
+      if (params.count("in_out_pair") > 0) {
         in_out_pair = params.at("in_out_pair").s();
       }
-      if (params.count("const_input")) {
+      if (params.count("const_input") > 0) {
         const_input = params.at("const_input").s();
       }
     }
@@ -737,23 +737,23 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     do_npu_optimizer = "1";
-    (void)ctx->GetAttr("_enable_data_pre_proc", &enable_dp);
+    (void) ctx->GetAttr("_enable_data_pre_proc", &enable_dp);
     if (ctx->GetAttr("_use_off_line", &use_off_line) == Status::OK()) {
-      (void)ctx->GetAttr("_mix_compile_mode", &mix_compile_mode);
-      (void)ctx->GetAttr("_iterations_per_loop", &iterations_per_loop);
-      (void)ctx->GetAttr("_lower_functional_ops", &lower_functional_ops);
+      (void) ctx->GetAttr("_mix_compile_mode", &mix_compile_mode);
+      (void) ctx->GetAttr("_iterations_per_loop", &iterations_per_loop);
+      (void) ctx->GetAttr("_lower_functional_ops", &lower_functional_ops);
       if (ctx->GetAttr("_job", &job) != Status::OK()) {
         job = "localhost";
       }
-      (void)ctx->GetAttr("_task_index", &task_index);
-      (void)ctx->GetAttr("_dynamic_input", &dynamic_input);
-      (void)ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode);
-      (void)ctx->GetAttr("_dynamic_inputs_shape_range", &dynamic_inputs_shape_range);
-      (void)ctx->GetAttr("_local_rank_id", &local_rank_id);
-      (void)ctx->GetAttr("_local_device_list", &local_device_list);
+      (void) ctx->GetAttr("_task_index", &task_index);
+      (void) ctx->GetAttr("_dynamic_input", &dynamic_input);
+      (void) ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode);
+      (void) ctx->GetAttr("_dynamic_inputs_shape_range", &dynamic_inputs_shape_range);
+      (void) ctx->GetAttr("_local_rank_id", &local_rank_id);
+      (void) ctx->GetAttr("_local_device_list", &local_device_list);
     }
-    (void)ctx->GetAttr("_in_out_pair_flag", &in_out_pair_flag);
-    (void)ctx->GetAttr("_in_out_pair", &in_out_pair);
+    (void) ctx->GetAttr("_in_out_pair_flag", &in_out_pair_flag);
+    (void) ctx->GetAttr("_in_out_pair", &in_out_pair);
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -1396,26 +1396,26 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
       const auto &params = custom_optimizer.parameter_map();
-      if (params.count("variable_format_optimize")) {
+      if (params.count("variable_format_optimize") > 0) {
         variable_format_optimize = params.at("variable_format_optimize").b();
       }
-      if (params.count("hcom_parallel")) {
+      if (params.count("hcom_parallel") > 0) {
         hcom_parallel = params.at("hcom_parallel").b();
       }
-      if (params.count("graph_memory_max_size")) {
+      if (params.count("graph_memory_max_size") > 0) {
         graph_memory_max_size = params.at("graph_memory_max_size").s();
       }
-      if (params.count("variable_memory_max_size")) {
+      if (params.count("variable_memory_max_size") > 0) {
         variable_memory_max_size = params.at("variable_memory_max_size").s();
       }
-      if (params.count("enable_dump")) {
+      if (params.count("enable_dump") > 0) {
         enable_dump = params.at("enable_dump").b();
       }
-      if (params.count("enable_dump_debug")) {
+      if (params.count("enable_dump_debug") > 0) {
         enable_dump_debug = params.at("enable_dump_debug").b();
       }
       if ((enable_dump || enable_dump_debug) && (!kIsHeterogeneous)) {
-        if (params.count("dump_path")) {
+        if (params.count("dump_path") > 0) {
           std::string tmp_path = params.at("dump_path").s();
           Status s = CheckPath(tmp_path, dump_path);
           if (!s.ok()) {
@@ -1430,7 +1430,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
       }
       if (enable_dump) {
-        if (params.count("dump_step")) {
+        if (params.count("dump_step") > 0) {
           dump_step = params.at("dump_step").s();
           Status s = checkDumpStep(dump_step);
           if (!s.ok()) {
@@ -1438,7 +1438,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
             LOG(FATAL) << s.error_message();
           }
         }
-        if (params.count("dump_mode")) {
+        if (params.count("dump_mode") > 0) {
           dump_mode = params.at("dump_mode").s();
           Status s = checkDumpMode(dump_mode);
           if (!s.ok()) {
@@ -1448,7 +1448,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
       }
       if (enable_dump_debug) {
-        if (params.count("dump_debug_mode")) {
+        if (params.count("dump_debug_mode") > 0) {
           dump_debug_mode = params.at("dump_debug_mode").s();
           Status s = checkDumpDebugMode(dump_debug_mode);
           if (!s.ok()) {
@@ -1457,41 +1457,41 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           }
         }
       }
-      if (params.count("stream_max_parallel_num")) {
+      if (params.count("stream_max_parallel_num") > 0) {
         stream_max_parallel_num = params.at("stream_max_parallel_num").s();
       }
 
-      if (params.count("is_tailing_optimization")) {
+      if (params.count("is_tailing_optimization") > 0) {
         is_tailing_optimization = params.at("is_tailing_optimization").b();
       }
-      if (params.count("profiling_mode")) {
+      if (params.count("profiling_mode") > 0) {
         profiling_mode = params.at("profiling_mode").b();
       }
       if (profiling_mode) {
-        if (params.count("profiling_options") && params.at("profiling_options").s() != "") {
+        if (params.count("profiling_options") > 0 && params.at("profiling_options").s() != "") {
           profiling_options = params.at("profiling_options").s();
         } else {
           profiling_options = profiling_default_options;
         }
       }
-      if (params.count("auto_tune_mode")) {
+      if (params.count("auto_tune_mode") > 0) {
         auto_tune_mode = params.at("auto_tune_mode").s();
       }
-      if (params.count("graph_run_mode")) {
+      if (params.count("graph_run_mode") > 0) {
         graph_run_mode = params.at("graph_run_mode").i();
         if (graph_run_mode > 1) {
           ADP_LOG(FATAL) << "graph_run_mode value must be 0 or 1";
           LOG(FATAL) << "graph_run_mode value must be 0 or 1";
         }
       }
-      if (params.count("op_debug_level")) {
+      if (params.count("op_debug_level") > 0) {
         op_debug_level = params.at("op_debug_level").i();
       }
-      if (params.count("enable_scope_fusion_passes")) {
+      if (params.count("enable_scope_fusion_passes") > 0) {
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
       }
 
-      if (params.count("aoe_mode")) {
+      if (params.count("aoe_mode") > 0) {
         aoe_mode = params.at("aoe_mode").s();
         if (aoe_mode.empty()) {
           ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']";
@@ -1505,7 +1505,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
-        if (params.count("work_path")) {
+        if (params.count("work_path") > 0) {
           std::string tmp_path = params.at("work_path").s();
           s = CheckPath(tmp_path, work_path);
           if (!s.ok()) {
@@ -1520,51 +1520,51 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
             LOG(FATAL) << s.error_message();
           }
         }
-        if (params.count("distribute_config")) {
+        if (params.count("distribute_config") > 0) {
           distribute_config = params.at("distribute_config").s();
         }
       }
-      if (params.count("precision_mode")) {
+      if (params.count("precision_mode") > 0) {
         precision_mode = params.at("precision_mode").s();
       } else {
-        if (graph_run_mode) {
+        if (static_cast<bool>(graph_run_mode)) {
           precision_mode = "allow_fp32_to_fp16";
         } else {
           precision_mode = "force_fp16";
         }
       }
-      if (params.count("soc_config")) {
+      if (params.count("soc_config") > 0) {
         soc_config = params.at("soc_config").s();
       }
 
       do_npu_optimizer = true;
-      if (params.count("enable_data_pre_proc")) {
+      if (params.count("enable_data_pre_proc") > 0) {
         enable_dp = params.at("enable_data_pre_proc").b();
       }
-      if (params.count("use_off_line")) {
+      if (params.count("use_off_line") > 0) {
         use_off_line = params.at("use_off_line").b();
       }
-      if (params.count("mix_compile_mode")) {
+      if (params.count("mix_compile_mode") > 0) {
         mix_compile_mode = params.at("mix_compile_mode").b();
       }
-      if (params.count("iterations_per_loop")) {
+      if (params.count("iterations_per_loop") > 0) {
         iterations_per_loop = params.at("iterations_per_loop").i();
       }
-      if (params.count("lower_functional_ops")) {
+      if (params.count("lower_functional_ops") > 0) {
         lower_functional_ops = params.at("lower_functional_ops").b();
       }
-      if (params.count("job")) {
+      if (params.count("job") > 0) {
         job = params.at("job").s();
       } else {
         job = "localhost";
       }
-      if (params.count("task_index")) {
+      if (params.count("task_index") > 0) {
         task_index = params.at("task_index").i();
       }
-      if (params.count("dynamic_input")) {
+      if (params.count("dynamic_input") > 0) {
         dynamic_input = params.at("dynamic_input").b();
         if (dynamic_input) {
-          if (params.count("dynamic_graph_execute_mode")) {
+          if (params.count("dynamic_graph_execute_mode") > 0) {
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
               ADP_LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
@@ -1572,12 +1572,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
               return errors::Internal("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.");
             }
           }
-          if (params.count("dynamic_inputs_shape_range")) {
+          if (params.count("dynamic_inputs_shape_range") > 0) {
             dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s();
           }
         }
       }
-      if (params.count("local_rank_id")) {
+      if (params.count("local_rank_id") > 0) {
         local_rank_id = params.at("local_rank_id").i();
         Status s = CheckLocalRankId(local_rank_id);
         if (!s.ok()) {
@@ -1586,7 +1586,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           return errors::Internal(s.error_message());
         }
       }
-      if (params.count("local_device_list")) {
+      if (params.count("local_device_list") > 0) {
         local_device_list = params.at("local_device_list").s();
         Status s = CheckDeviceList(local_device_list);
         if (!s.ok()) {
@@ -1595,26 +1595,26 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           return errors::Internal(s.error_message());
         }
       }
-      if (params.count("in_out_pair_flag")) {
+      if (params.count("in_out_pair_flag") > 0) {
         in_out_pair_flag = params.at("in_out_pair_flag").b();
       }
-      if (params.count("in_out_pair")) {
+      if (params.count("in_out_pair") > 0) {
         in_out_pair = params.at("in_out_pair").s();
       }
 
-      if (params.count("enable_exception_dump")) {
+      if (params.count("enable_exception_dump") > 0) {
         enable_exception_dump = params.at("enable_exception_dump").i();
       }
-      if (!params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
+      if (params.count("op_select_implmode") == 0 && params.count("optypelist_for_implmode") == 0) {
         op_select_implmode = "high_performance";
-      } else if (params.count("op_select_implmode") && !params.count("optypelist_for_implmode")) {
+      } else if (params.count("op_select_implmode") > 0 && params.count("optypelist_for_implmode") == 0) {
         op_select_implmode = params.at("op_select_implmode").s();
         Status s = CheckOpImplMode(op_select_implmode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
-      } else if (params.count("optypelist_for_implmode") && !params.count("op_select_implmode")) {
+      } else if (params.count("optypelist_for_implmode") > 0 && params.count("op_select_implmode") == 0) {
         ADP_LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
         LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
       } else {
@@ -1626,7 +1626,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
         optypelist_for_implmode = params.at("optypelist_for_implmode").s();
       }
-      if (params.count("input_shape") && params.count("dynamic_dims") && params.count("dynamic_node_type")) {
+      if (params.count("input_shape") > 0 && params.count("dynamic_dims") > 0 &&
+          params.count("dynamic_node_type") > 0) {
         input_shape = params.at("input_shape").s();
         Status s = CheckInputShape(input_shape);
         if (!s.ok()) {
@@ -1644,48 +1645,49 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           ADP_LOG(FATAL) << "dynamic_node_type should be 0 or 1.";
           LOG(FATAL) << "dynamic_node_type should be 0 or 1.";
         }
-      } else if (!params.count("input_shape") && !params.count("dynamic_dims") && !params.count("dynamic_node_type")) {
+      } else if (params.count("input_shape") == 0 && params.count("dynamic_dims") == 0 &&
+                 params.count("dynamic_node_type") == 0) {
         // the three parameters are not set normally.
       } else {
         ADP_LOG(FATAL) << "input_shape, dynamic_dims and dynamic_node_type should use together.";
         LOG(FATAL) << "input_shape, dynamic_dims and dynamic_node_type should use together.";
       }
-      if (params.count("buffer_optimize")) {
+      if (params.count("buffer_optimize") > 0) {
         buffer_optimize = params.at("buffer_optimize").s();
         if (buffer_optimize != "l2_optimize" && buffer_optimize != "off_optimize") {
           ADP_LOG(FATAL) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
           LOG(FATAL) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
         }
       }
-      if (params.count("enable_small_channel")) {
+      if (params.count("enable_small_channel") > 0) {
         enable_small_channel = params.at("enable_small_channel").i();
       }
-      if (params.count("fusion_switch_file")) {
+      if (params.count("fusion_switch_file") > 0) {
         fusion_switch_file = params.at("fusion_switch_file").s();
       }
-      if (params.count("enable_compress_weight") && params.count("compress_weight_conf")) {
+      if (params.count("enable_compress_weight") > 0 && params.count("compress_weight_conf") > 0) {
         ADP_LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
         LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
       }
-      if (params.count("enable_compress_weight")) {
+      if (params.count("enable_compress_weight") > 0) {
         enable_compress_weight = params.at("enable_compress_weight").b();
       }
-      if (params.count("compress_weight_conf")) {
+      if (params.count("compress_weight_conf") > 0) {
         compress_weight_conf = params.at("compress_weight_conf").s();
       }
-      if (params.count("op_compiler_cache_mode")) {
+      if (params.count("op_compiler_cache_mode") > 0) {
         op_compiler_cache_mode = params.at("op_compiler_cache_mode").s();
       }
-      if (params.count("op_compiler_cache_dir")) {
+      if (params.count("op_compiler_cache_dir") > 0) {
         op_compiler_cache_dir = params.at("op_compiler_cache_dir").s();
       }
-      if (params.count("debug_dir")) {
+      if (params.count("debug_dir") > 0) {
         debug_dir = params.at("debug_dir").s();
       }
-      if (params.count("hcom_multi_mode")) {
+      if (params.count("hcom_multi_mode") > 0) {
         hcom_multi_mode = params.at("hcom_multi_mode").b();
       }
-      if (params.count("session_device_id")) {
+      if (params.count("session_device_id") > 0) {
         if (params.at("session_device_id").i() >= 0) {
           session_device_id = params.at("session_device_id").i();
         } else {
@@ -1693,8 +1695,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           LOG(FATAL) << "session_device_id must be nonnegative integer.";
         }
       }
-      if (params.count("modify_mixlist")) {
-        if (params.count("precision_mode") && params.at("precision_mode").s() == "allow_mix_precision") {
+      if (params.count("modify_mixlist") > 0) {
+        if (params.count("precision_mode") > 0 && params.at("precision_mode").s() == "allow_mix_precision") {
           modify_mixlist = params.at("modify_mixlist").s();
         } else {
           ADP_LOG(ERROR)
@@ -1705,37 +1707,37 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
               "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
         }
       }
-      if (params.count("op_precision_mode")) {
+      if (params.count("op_precision_mode") > 0) {
         op_precision_mode = params.at("op_precision_mode").s();
       }
-      if (params.count("device_type")) {
+      if (params.count("device_type") > 0) {
         device_type = params.at("device_type").s();
       }
-      if (params.count("hccl_timeout")) {
+      if (params.count("hccl_timeout") > 0) {
         hccl_timeout = std::to_string(params.at("hccl_timeout").i());
       }
-      if (params.count("op_wait_timeout")) {
+      if (params.count("op_wait_timeout") > 0) {
         op_wait_timeout = std::to_string(params.at("op_wait_timeout").i());
       }
-      if (params.count("op_execute_timeout")) {
+      if (params.count("op_execute_timeout") > 0) {
         op_execute_timeout = std::to_string(params.at("op_execute_timeout").i());
       }
-      if (params.count("customize_dtypes")) {
+      if (params.count("customize_dtypes") > 0) {
         customize_dtypes = params.at("customize_dtypes").s();
       }
-      if (params.count("HCCL_algorithm")) {
+      if (params.count("HCCL_algorithm") > 0) {
         HCCL_algorithm = params.at("HCCL_algorithm").s();
       }
-      if (params.count("op_debug_config")) {
+      if (params.count("op_debug_config") > 0) {
         op_debug_config = params.at("op_debug_config").s();
       }
-      if (params.count("graph_exec_timeout")) {
+      if (params.count("graph_exec_timeout") > 0) {
         graph_exec_timeout = params.at("graph_exec_timeout").i();
       }
-      if (params.count("static_memory_policy")) {
+      if (params.count("static_memory_policy") > 0) {
         static_memory_policy = std::to_string(params.at("static_memory_policy").i());
       }
-      if (params.count("atomic_clean_policy")) {
+      if (params.count("atomic_clean_policy") > 0) {
         atomic_clean_policy = params.at("atomic_clean_policy").i();
       }
     }

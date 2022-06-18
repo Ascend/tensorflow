@@ -54,7 +54,7 @@ NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix
   ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << opsJsonPath;
   int32_t opsCnt = NpuOpsIdentifier::ParseOps(opsJsonPath, ops_info_);
   ADP_LOG(INFO) << opsCnt << " ops parsed";
-  VLOG(1) << ops_info_.dump(2);  // 1 is vlog level, 2 is ops info index
+  ADP_LOG(INFO) << ops_info_.dump(2);  // 1 is vlog level, 2 is ops info index
 }
 /**
  * @brief: Parse and store the ops configuration json file, return num of parsed ops
