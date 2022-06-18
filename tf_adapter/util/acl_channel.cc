@@ -247,6 +247,7 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
 
 acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id, const std::string &channel_name,
                                              const size_t capacity) {
+  kIsNewDataTransfer = GetNewDataTransferFlag();
   if (kIsNewDataTransfer) {
     return acltdtCreateChannelWithCapacity(device_id, channel_name.c_str(), capacity);
   }
