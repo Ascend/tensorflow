@@ -41,11 +41,11 @@ class LarsV2OP : public OpKernel {
     auto output_flat = output_tensor->flat<T>();
 
     // Set the value of each element
-    const int N = w_input.size();
+    const int32_t N = static_cast<int32_t>(w_input.size());
 
     auto sum_w = w_input(0);
     auto sum_g = g_input(0);
-    for (int i = 1; i < N; i++) {
+    for (int32_t i = 1; i < N; i++) {
       auto w = w_input(i);
       sum_w += w;
       ADP_LOG(INFO) << "LarsV2OP w " << w << ", sum_w " << sum_w;
@@ -59,7 +59,7 @@ class LarsV2OP : public OpKernel {
     auto g_norm = sqrt(sum_g);
     auto b = g_norm + w_norm + T(0.00001);
 
-    for (int i = 1; i < N; i++) {
+    for (int32_t i = 1; i < N; i++) {
       auto w = w_input(i);
       auto g = g_input(i);
       output_flat(i) = b * (g + w);

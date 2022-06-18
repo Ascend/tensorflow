@@ -16,7 +16,6 @@
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/types.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {

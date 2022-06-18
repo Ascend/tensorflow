@@ -49,7 +49,7 @@ TEST(DynamicRnnOpTest, TestDynamicRnn) {
   delete context;
 }
 
-TEST(DynamicRnnOpTest, TestDynamicRnnShapeInference) {
+TEST(DynamicRnnOpTest, TestDynamicRnnShapeInference02) {
   const OpRegistrationData *reg;
   TF_CHECK_OK(OpRegistry::Global()->LookUp("DynamicRnn", &reg));
   OpDef op_def = reg->op_def;

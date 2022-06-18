@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_CORE_KERNELS_LogTimeStamp_OP_H_
-#define TENSORFLOW_CORE_KERNELS_LogTimeStamp_OP_H_
 #ifdef HISI_OFFLINE
 
 #include "tensorflow/core/framework/op_kernel.h"
@@ -36,5 +34,3 @@ REGISTER_KERNEL_BUILDER(Name("LogTimeStamp").Device(DEVICE_CPU), LogTimeStampOP)
 }  // namespace tensorflow
 
 #endif  // HISI_OFFLINE
-
-#endif  // TENSORFLOW_CORE_KERNELS_LogTimeStamp_OP_H_
