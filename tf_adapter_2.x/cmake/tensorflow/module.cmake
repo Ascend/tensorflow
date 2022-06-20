@@ -19,7 +19,7 @@ else()
     add_library(pywrap_tensorflow_internal SHARED ${fake_sources})
     set_target_properties(pywrap_tensorflow_internal PROPERTIES PREFIX _)
 
-    SET(TF_INCLUDE_DIR /opt/buildtools/tensorflow-2.6.3/tensorflow/include/)
+    SET(TF_INCLUDE_DIR ${TF2X_PATH}/tensorflow/include/)
     target_link_libraries(tensorflow_libs INTERFACE
             tensorflow_framework
             pywrap_tensorflow_internal)
