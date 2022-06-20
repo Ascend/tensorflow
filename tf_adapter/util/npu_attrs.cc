@@ -41,10 +41,15 @@ const static int32_t kRuntimeTypeHeterogeneous = 1;
 bool kIsNewDataTransfer = true;
 bool GetNewDataTransferFlag() {
   uint32_t device_id = 0U;
-  (void) GetEnvDeviceID(device_id);
+  (void)GetEnvDeviceID(device_id);
   std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions();
   NpuAttrs::LogOptions(init_options);
   GePlugin::GetInstance()->Init(init_options);
+  ADP_LOG(INFO) << "Start to set device for data transfer.";
+  auto ret = aclrtSetDevice(device_id);
+  if (ret != ACL_ERROR_NONE) {
+    ADP_LOG(WARNING) << "Set device failed, device_id: " << device_id;
+  }
   acltdtChannelHandle *check_queue_handle = acltdtCreateChannelWithCapacity(device_id, "check_is_queue", 3UL);
   if (check_queue_handle != nullptr) {
     (void) acltdtDestroyChannel(check_queue_handle);
