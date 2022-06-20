@@ -43,10 +43,10 @@ class GeluOp : public tensorflow::OpKernel {
     auto output_flat = output_tensor->flat<T>();
 
     // Set the value of each element
-    const int N = input.size();
+    const int32_t N = static_cast<int32_t>(input.size());
     auto sqrt2overPI = T(sqrt(2 / M_PI));
     // investigate if we can optimize using other TF ops or using MKLDNN or Eigen
-    for (int i = 0; i < N; i++) {
+    for (int32_t i = 0; i < N; i++) {
       auto x = input(i);
 
       auto cdf = T(0.5) * (T(1.0) + tanh(sqrt2overPI * (x + T(0.044715) * pow(x, T(3)))));
@@ -95,10 +95,10 @@ class GeluGradOp : public tensorflow::OpKernel {
     auto grad_output_flat = grad_output_tensor->flat<T>();
 
     // Set the value of each element
-    const int N = input.size();
+    const int32_t N = static_cast<int32_t>(input.size());
     auto sqrt2overPI = T(sqrt(2 / M_PI));
-    // investigate if we can optimize using other TF ops or using MKLDNN or Eigen
-    for (int i = 0; i < N; i++) {
+    // investigate if we can optimize us ing other TF ops or using MKLDNN or Eigen
+    for (int32_t i = 0; i < N; i++) {
       auto dLdy = grad_input(i);
       auto x = input(i);
       auto gelu_x = (x != T(0)) ? (output(i) / x) : T(0.5);

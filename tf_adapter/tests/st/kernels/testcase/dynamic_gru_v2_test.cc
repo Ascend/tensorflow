@@ -72,5 +72,30 @@ TEST(DynamicGRUV2OpTest, TestDynamicGRUV2ShapeInference) {
       {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
+
+TEST(DynamicGRUV2OpTest, TestDynamicGRUV2ShapeInference02) {
+  const OpRegistrationData *reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DynamicGruV2", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("T", DT_FLOAT)
+                  .Attr("direction", "BIDIRECTIONAL")
+                  .Attr("num_proj", 6)
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Input(FakeInputStub(DT_INT32))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(
+      0, &def, op_def,
+      {TShape({1, 16, 16}), TShape({16, 48}), TShape({16, 48}),
+       TShape({16, 16}), TShape({16, 16}), TShape({48}), TShape({16, 16})},
+      {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
 } // namespace
 } // namespace tensorflow
