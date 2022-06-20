@@ -580,6 +580,27 @@ class NPUEstimator(estimator_lib.Estimator):
             if config._dump_config._dump_mode is not None:
                 custom_op.parameter_map["dump_debug_mode"].s = tf.compat.as_bytes(config._dump_config._dump_debug_mode)
 
+    def __load_experimental_config(self, config, custom_op):
+        """Load experimental config ,and add to custom_optimizers
+        Args:
+            config: NPURunConfig.
+            custom_op: Customer optimizers.
+        """
+        if config._experimental_config is None:
+            """
+            there is no experimental config in user's python script,
+            then use the default experimental configuration
+            """
+            custom_op.parameter_map["experimental_logical_device_cluster_deploy_mode"].s = tf.compat.as_bytes("LB")
+
+        else:
+            if config._experimental_config._logical_device_cluster_deploy_mode is not None:
+                custom_op.parameter_map["experimental_logical_device_cluster_deploy_mode"].s = tf.compat.as_bytes(
+                    config._experimental_config._logical_device_cluster_deploy_mode)
+            if config._experimental_config._logical_device_id is not None:
+                custom_op.parameter_map["experimental_logical_device_id"].s = tf.compat.as_bytes(
+                    config._experimental_config._logical_device_id)
+
     def __load_stream_max_config(self, config, custom_op):
         """Load stream_max_parallel_num config ,and add to custom_optimizers
         Args:
@@ -760,6 +781,9 @@ class NPUEstimator(estimator_lib.Estimator):
         self.__load_dynamic_input_config(config, custom_op)
 
         self.__load_mstune_config(config, custom_op)
+
+        # add experimental config to custom_op
+        self.__load_experimental_config(config, custom_op)
 
         return config
 
