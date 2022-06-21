@@ -98,7 +98,7 @@ Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&
 }
 
 bool IsWithoutNpuScope(const NodeDef &node_def) {
-  if (node_def.attr().count(ATTR_VALUE_SCOPE_NAME)) { return node_def.attr().at(ATTR_VALUE_SCOPE_NAME).b(); }
+  if (node_def.attr().count(ATTR_VALUE_SCOPE_NAME) > 0) { return node_def.attr().at(ATTR_VALUE_SCOPE_NAME).b(); }
   return false;
 }
 
