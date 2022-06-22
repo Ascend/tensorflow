@@ -45,6 +45,12 @@ TEST_F(NpuAttrTest, GetEnvAscendDeviceIdFailTest) {
   Status s = GetEnvDeviceID(device_id);
   EXPECT_EQ(s.ok(), false);
 }
+TEST_F(NpuAttrTest, GetEnvAscendDeviceIdNotIntFailTest) {
+uint32_t device_id = 0;
+setenv("ASCEND_DEVICE_ID", "1.1", true);
+Status s = GetEnvDeviceID(device_id);
+EXPECT_EQ(s.ok(), false);
+}
 TEST_F(NpuAttrTest, SplitTest) {
   std::string s = "a,b,c";
   std::vector<std::string> res;
