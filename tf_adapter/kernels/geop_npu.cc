@@ -1063,9 +1063,7 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
 Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
                            GraphDef &graph_def, bool &is_initialize, bool &is_allreduce) {
   const FunctionDef *function_def = flib_def.Find(function_.name());
-  if (function_def == nullptr) {
-    return errors::Internal("%s: fdef is nullptr", function_.name());
-  }
+  NPU_REQUIRES(function_def != nullptr, errors::Internal("Function:", function_.name(), " fdef is nullptr"));
   // get infershape
   Graph graph(OpRegistry::Global());
   Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, function_def, &graph);
@@ -1149,10 +1147,8 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   std::map<ge::AscendString, ge::AscendString> parser_params;
   std::string subgrph_name("onnx_compute_graph_" + node->name() + '_' + CurrentTimeInStr());
   parser_params.insert({ge::AscendString(ge::ir_option::OUTPUT), ge::AscendString(subgrph_name.c_str())});
-  if (ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph) != ge::SUCCESS) {
-    LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Parse Failed.";
-    return errors::Internal("[GEOP] node: %s Onnx Model Parse Failed.", node->name());
-  }
+  NPU_REQUIRES(ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph) == ge::SUCCESS,
+               errors::Internal("[GEOP] node:", node->name(), " Onnx Model Parse Failed."));
 
   // rename the nodes in subgraph of onnx model
   for (auto &sub_node : sub_graph.GetAllNodes()) {
@@ -1165,10 +1161,8 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   ge::Model onnx_model("onnx_compute_model_" + node->name(), "");
   onnx_model.SetGraph(sub_graph);
   ge::Buffer model_buf;
-  if (onnx_model.Save(model_buf, false) != ge::SUCCESS) {
-    LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx Model Serialized Failed.";
-    return errors::Internal("[GEOP] node: %s Onnx Model Serialized Failed.", node->name());
-  }
+  NPU_REQUIRES(onnx_model.Save(model_buf, false) == ge::SUCCESS,
+               errors::Internal("[GEOP] node:", node->name(), " Onnx Model Serialized Failed."));
 
   std::string model_str(reinterpret_cast<const char *>(model_buf.GetData()), model_buf.GetSize());
   AttrValue attr_value;
@@ -1561,18 +1555,15 @@ Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
   }
   ADP_LOG(INFO) << "Begin to convet input to const.";
   is_input_convert_ = true;
-  if (ctx->function_library() == nullptr) {
-    return errors::Internal("%s: ctx function is nullptr", function_.name());
-  }
+  NPU_REQUIRES(ctx->function_library() != nullptr,
+               errors::Internal("Function:", function_.name(), " ctx function is nullptr"));
   FunctionLibraryDefinition *flib_def =
       const_cast<FunctionLibraryDefinition *>(ctx->function_library()->GetFunctionLibraryDefinition());
-  if (flib_def == nullptr) {
-    return errors::Internal("%s: flib def is nullptr", function_.name());
-  }
+  NPU_REQUIRES(flib_def != nullptr,
+               errors::Internal("Function:", function_.name(), " flib def is nullptr"));
   const FunctionDef *function_def = flib_def->Find(function_.name());
-  if (function_def == nullptr) {
-    return errors::Internal("%s: fdef is nullptr", function_.name());
-  }
+  NPU_REQUIRES(function_def != nullptr,
+               errors::Internal("Function:", function_.name(), " fdef is nullptr"));
 
   Graph graph(OpRegistry::Global());
   TF_RETURN_IF_ERROR(InferShapeUtil::GetSubGraphFromFunctionDef(*flib_def, *function_def, &graph));
