@@ -45,7 +45,7 @@ class NpuConfig(NpuBaseConfig):
         self.hcom_parallel = OptionValue(False, [True, False])
         self.hcom_multi_mode = OptionValue(None, None)
         self.is_tailing_optimization = OptionValue(False, [True, False])
-        self.op_debug_level = OptionValue(0, [0, 1, 2, 3])
+        self.op_debug_level = OptionValue(0, [0, 1, 2, 3, 4])
         self.debug_dir = OptionValue(None, None)
         self.modify_mixlist = OptionValue(None, None)
         self.enable_exception_dump = OptionValue(0, [0, 1])
