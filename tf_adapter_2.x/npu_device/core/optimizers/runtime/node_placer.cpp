@@ -699,7 +699,7 @@ bool NodePlacer::VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end,
     if (!b_vst.insert(node).second) {
       continue;
     }
-    if (f_vst.count(node)) {
+    if (f_vst.count(node) > 0) {
       if (!node.VisitNodes(visitor)) {
         return false;
       }
