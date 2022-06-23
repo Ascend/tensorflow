@@ -128,7 +128,7 @@ Status GetEnvDeviceID(uint32_t &device_id) {
                     "session_device_id, session_device_id has a higher priority";
   } else if (!env_ascend_device_id.empty()) {
     if (!strings::safe_strto64(env_ascend_device_id, &logic_device_id)) {
-      return errors::InvalidArgument("ASCEND_DEVICE_ID is valid, should be int, such as 0, 1, 2.");
+      return errors::InvalidArgument("ASCEND_DEVICE_ID is invalid, should be int, such as 0, 1, 2.");
     }
     if (logic_device_id < 0) {
       return errors::InvalidArgument("ASCEND_DEVICE_ID should be >= 0.");
