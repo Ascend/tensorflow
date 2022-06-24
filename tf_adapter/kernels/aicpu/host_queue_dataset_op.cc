@@ -306,6 +306,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           aclError acl_status = acltdtDestroyChannel(acl_handle_);
           if (acl_status != ACL_ERROR_NONE) {
             ADP_LOG(ERROR) << "call acltdtDestroyChannel failed, ret=" << acl_status;
+          } else {
+            acl_handle_ = nullptr;
           }
         }
         ADP_LOG(INFO) << "End to destroy queue.";
@@ -613,7 +615,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               }
             }
             ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_
-                          << "buffer_size:" << buffer_.size() << ", data_type:" << data_type;
+                          << " buffer_size:" << buffer_.size() << ", data_type:" << data_type;
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
