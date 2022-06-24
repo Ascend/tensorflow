@@ -54,6 +54,7 @@ class NpuConfig(NpuBaseConfig):
         self.profiling_config = NpuProfilingConfig()
         self.enable_small_channel = OptionValue(False, [True, False])
         self.graph_exec_timeout = OptionValue(None, None)
+        self.jit_compile = OptionValue(True, [True, False])
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()
