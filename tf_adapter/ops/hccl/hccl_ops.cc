@@ -62,7 +62,7 @@ REGISTER_OP("HcomAllGather")
           ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rank_size should be greater than 0.")));
       TF_RETURN_IF_ERROR(rankSizeStatus);
 
-      int32 inputRank = c->Rank(c->input(0));
+      int32 inputRank = InferenceContext::Rank(c->input(0));
       if (InferenceContext::kUnknownRank == inputRank) {
         c->set_output(0, c->input(0));
         return Status::OK();
@@ -74,7 +74,7 @@ REGISTER_OP("HcomAllGather")
       shape_inference::ShapeHandle inSubshape;
       TF_RETURN_IF_ERROR(c->Subshape(c->input(0), 1, &inSubshape));
 
-      auto inputFirstDimValue = c->Value(c->Dim(c->input(0), 0));
+      auto inputFirstDimValue = InferenceContext::Value(c->Dim(c->input(0), 0));
       if (InferenceContext::kUnknownDim == inputFirstDimValue) {
         c->set_output(0, c->input(0));
         return Status::OK();
@@ -158,7 +158,7 @@ REGISTER_OP("HcomReduceScatter")
           ((rankSize > 0) ? (Status::OK()) : (errors::InvalidArgument("rank_size should be greater than 0.")));
       TF_RETURN_IF_ERROR(rankSizeStatus);
 
-      int32 inputRank = c->Rank(c->input(0));
+      int32 inputRank = InferenceContext::Rank(c->input(0));
       if (InferenceContext::kUnknownRank == inputRank) {
         c->set_output(0, c->input(0));
         return Status::OK();
@@ -170,7 +170,7 @@ REGISTER_OP("HcomReduceScatter")
       shape_inference::ShapeHandle inSubshape;
       TF_RETURN_IF_ERROR(c->Subshape(c->input(0), 1, &inSubshape));
 
-      auto inputFirstDimValue = c->Value(c->Dim(c->input(0), 0));
+      auto inputFirstDimValue = InferenceContext::Value(c->Dim(c->input(0), 0));
       if (InferenceContext::kUnknownDim == inputFirstDimValue) {
         c->set_output(0, c->input(0));
         return Status::OK();

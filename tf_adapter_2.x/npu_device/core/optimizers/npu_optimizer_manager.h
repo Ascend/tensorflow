@@ -59,7 +59,7 @@ class NpuOptimizerManager {
   }
 
   tensorflow::Status MetaOptimize(TFE_Context *context, std::unique_ptr<tensorflow::Graph> *graph,
-                                  std::map<std::string, std::string> options, OptimizeStageGraphDumper &graph_dumper) {
+                                  const std::map<std::string, std::string> &options, OptimizeStageGraphDumper &graph_dumper) {
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     graph_dumper.DumpWithSubGraphs("before_meta_optimize", (*graph)->ToGraphDefDebug(), lib_def);
 
@@ -83,7 +83,7 @@ class NpuOptimizerManager {
   }
 
   tensorflow::Status RuntimeOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
-                                     std::map<std::string, std::string> options, NpuDevice *device, int num_inputs,
+                                     const std::map<std::string, std::string> &options, NpuDevice *device, int num_inputs,
                                      TFE_TensorHandle **inputs, OptimizeStageGraphDumper &dumper) {
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     for (const auto &item : runtime_optimizers_) {
@@ -105,7 +105,7 @@ class NpuOptimizerManager {
 
 class NpuMetaOptimizerReceiver {
  public:
-  explicit NpuMetaOptimizerReceiver(int level, const std::string &name, NpuMetaOptimizeFunc func) {
+  explicit NpuMetaOptimizerReceiver(int level, const std::string &name, const NpuMetaOptimizeFunc &func) {
     DLOG() << "NPU Register meta optimizer " << name << " at phase " << level;
     NpuOptimizerManager::Instance().RegisterMeta(level, name, func);
   }
@@ -113,7 +113,7 @@ class NpuMetaOptimizerReceiver {
 
 class NpuRtOptimizerReceiver {
  public:
-  explicit NpuRtOptimizerReceiver(int level, const std::string &name, NpuRtOptimizeFunc func) {
+  explicit NpuRtOptimizerReceiver(int level, const std::string &name, const NpuRtOptimizeFunc &func) {
     DLOG() << "NPU Register runtime optimizer " << name << " at phase " << level;
     NpuOptimizerManager::Instance().RegisterRt(level, name, func);
   }

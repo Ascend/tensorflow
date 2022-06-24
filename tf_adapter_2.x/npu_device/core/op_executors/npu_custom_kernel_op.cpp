@@ -20,7 +20,7 @@
 
 namespace npu {
 NpuCustomKernelOp::NpuCustomKernelOp(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-                                     TensorShapes input_shapes, NpuCustomKernelFunc custom_kernel)
+                                     TensorShapes input_shapes, const NpuCustomKernelFunc &custom_kernel)
     : OpExecutor(op_spec, ndef, input_shapes) {
   cache_strategy_ = CacheStrategy::BY_OP_NAME;
   custom_kernel_ = custom_kernel;

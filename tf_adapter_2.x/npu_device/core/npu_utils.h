@@ -108,7 +108,7 @@ struct ResourceCompare {
 void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g,
                                    bool keep_signature = false);
 
-void FixGraphArgRetvalIndex(tensorflow::Graph *graph);
+void FixGraphArgRetvalIndex(const tensorflow::Graph *graph);
 
 bool IsSubstituteNode(const tensorflow::Node *node);
 
@@ -124,7 +124,7 @@ std::set<std::string> GetNodeSubgraph(const tensorflow::Node *node);
 tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice *device, const tensorflow::Node *node,
                                              const tensorflow::FunctionLibraryDefinition *lib_def,
                                              std::set<std::string> &unsupported_ops);
-tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *graph,
+tensorflow::Status GetGraphUnsupportedOps(const NpuDevice *device, const tensorflow::Graph *graph,
                                           const tensorflow::FunctionLibraryDefinition *lib_def,
                                           std::set<std::string> &unsupported_ops);
 
@@ -154,7 +154,7 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::un
 
 tensorflow::Status LoopCopy(void *dst_ptr, void *src_ptr, const size_t src_size);
 
-size_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types);
+int64_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types);
 }  // namespace npu
 
 #endif  // NPU_DEVICE_CORE_NPU_UTILS_H

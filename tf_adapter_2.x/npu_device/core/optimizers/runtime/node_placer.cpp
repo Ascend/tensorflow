@@ -575,7 +575,7 @@ tensorflow::Status NodePlacer::SpreadNpuNodeFromPlacement(Placement placement) {
   DLOG() << "Start spread npu from " << GetNodesPlacedOn(placement).size() << " nodes placed on "
          << kPlacementString[placement] << ", npu node size " << GetNodesPlacedOn(Placement::NPU).size();
 
-  const auto enter = [](tensorflow::Node *node) {};
+  const auto enter = [](tensorflow::Node *node) { (void)node; };
   tensorflow::DFSFrom(*graph_, starts, enter, {}, {},
                       [this](const tensorflow::Edge &edge) { return SpreadNpuEdge(edge, true); });
   tensorflow::ReverseDFSFrom(*graph_, starts, enter, {}, {},
@@ -613,7 +613,7 @@ const std::set<tensorflow::Node *> &NodePlacer::GetConcreteNodes(tensorflow::Nod
   return kEmptyNodes;
 }
 
-void NodeOrCluster::VisitOutNodes(std::function<void(tensorflow::Node *)> visitor) {
+void NodeOrCluster::VisitOutNodes(const std::function<void(tensorflow::Node *)> &visitor) {
   if (is_cluster_) {
     for (auto &n : cluster_->out_nodes) {
       visitor(n);
@@ -624,7 +624,7 @@ void NodeOrCluster::VisitOutNodes(std::function<void(tensorflow::Node *)> visito
     }
   }
 }
-void NodeOrCluster::VisitInNodes(const std::function<void(tensorflow::Node *)> visitor) {
+void NodeOrCluster::VisitInNodes(const std::function<void(tensorflow::Node *)> &visitor) {
   if (is_cluster_) {
     for (auto &n : cluster_->in_nodes) {
       visitor(n);
@@ -636,7 +636,7 @@ void NodeOrCluster::VisitInNodes(const std::function<void(tensorflow::Node *)> v
   }
 }
 
-bool NodeOrCluster::VisitNodes(std::function<bool(tensorflow::Node *)> visitor) {
+bool NodeOrCluster::VisitNodes(const std::function<bool(tensorflow::Node *)> &visitor) {
   if (is_cluster_) {
     for (auto &n : cluster_->nodes) {
       if (!visitor(n)) {

@@ -24,9 +24,7 @@ class ProdVirialSeAOp : public OpKernel {
   explicit ProdVirialSeAOp(OpKernelConstruction *context) : OpKernel(context) {
     LOG(INFO) << "new ProdVirialSeAOp";
   }
-  ~ProdVirialSeAOp() override {
-    LOG(INFO) << "del ProdVirialSeAOp";
-  }
+  ~ProdVirialSeAOp() override = default;
   void Compute(OpKernelContext *context) override {
     (void) context;
     LOG(INFO) << "ProdVirialSeAOp Compute";

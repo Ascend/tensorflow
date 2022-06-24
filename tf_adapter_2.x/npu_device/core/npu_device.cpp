@@ -56,12 +56,12 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   }
   std::string Name() override { return "NpuHostFixedAllocator"; }
   void *AllocateRaw(size_t alignment, size_t num_bytes) override {
-    TF_UNUSED_VARIABLE(alignment);
-    TF_UNUSED_VARIABLE(num_bytes);
+    (void)alignment;
+    (void)num_bytes;
     return ptr_.get();
   }
   void DeallocateRaw(void *ptr) override {
-    TF_UNUSED_VARIABLE(ptr);
+    (void)ptr;
     Unref();
   }
   std::unique_ptr<T, DT> ptr_;
@@ -148,7 +148,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
  */
 std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(TFE_Context *context,
                                                                          const tensorflow::ResourceHandle &resource) {
-  TF_UNUSED_VARIABLE(context);
+  (void)context;
   auto provider = iterator_providers_.find(resource);
   if (provider == iterator_providers_.cend()) {
     return nullptr;
@@ -307,7 +307,7 @@ TFE_TensorHandle *NpuDevice::NewDeviceResourceHandle(TFE_Context *context, const
  * @param status: tf status
  */
 TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status) const {
-  TF_UNUSED_VARIABLE(context);
+  (void)context;
   const tensorflow::Tensor *npu_tensor;
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(tensor, &npu_tensor), nullptr);
 
@@ -641,7 +641,7 @@ void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **ou
 namespace {
 tensorflow::Status AddVarInitToGraph(TFE_Context *context, std::string name, tensorflow::Tensor tensor,
                                      tensorflow::Graph *graph) {
-  TF_UNUSED_VARIABLE(context);
+  (void)context;
   tensorflow::Node *variable = nullptr;
   tensorflow::Node *value = nullptr;
   tensorflow::Node *assign_variable = nullptr;
@@ -1006,7 +1006,7 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, co
  * @param status: tf status
  */
 void NpuDevice::RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status) {
-  TF_UNUSED_VARIABLE(context);
+  (void)context;
   NPU_CTX_REQUIRES_GE_OK(status, "Graph engine remove graph", GeSession()->RemoveGraph(graph_id));
 }
 

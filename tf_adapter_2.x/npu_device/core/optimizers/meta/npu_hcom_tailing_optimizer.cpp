@@ -38,7 +38,6 @@ tensorflow::Status TailingOptimizeInner(tensorflow::FunctionLibraryDefinition *l
         const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
         std::unique_ptr<tensorflow::FunctionBody> fbody;
         NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
-        std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> unused_host_resources;
         bool optimized = false;
         NPU_REQUIRES_OK(TailingOptimizeInner(lib_def, fbody->graph, optimized));
         if (optimized) {

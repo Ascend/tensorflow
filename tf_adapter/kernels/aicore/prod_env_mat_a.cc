@@ -24,9 +24,7 @@ class ProdEnvMatAOP : public OpKernel {
   explicit ProdEnvMatAOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new ProdEnvMatAOP";
   }
-  ~ProdEnvMatAOP() override {
-    LOG(INFO) << "del ProdEnvMatAOP";
-  }
+  ~ProdEnvMatAOP() override = default;
   void Compute(OpKernelContext *ctx) override {
     (void) ctx;
     LOG(INFO) << "compute in ProdEnvMatAOP";

@@ -29,6 +29,8 @@ std::string NpuConcreteGraph::AttachedDebugString() const {
 
 void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_num_inputs, TFE_TensorHandle **tf_inputs,
                                int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const {
+  (void)tf_num_inputs;
+  (void)num_outputs;
   for (auto &item : bypass_outputs_) {
     DLOG() << "Ref " << Op() << " output " << item.first << " from input " << item.second;
     outputs[item.first] = tf_inputs[item.second];
@@ -43,6 +45,9 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
   ScopeTensorHandleDeleter scope_handle_deleter;
   for (size_t i = 0; i < consumed_inputs_.size(); i++) {
     auto input_index = consumed_inputs_[i];
+    if (input_index < 0) {
+      return;
+    }
     DLOG() << "Mapping npu graph " << Op() << " input " << i << " from tensorflow input " << input_index;
     TFE_TensorHandle *input = tf_inputs[input_index];
     if (npu::IsNpuTensorHandle(input)) {
@@ -161,7 +166,8 @@ bool NpuConcreteGraph::NeedFuzzCompile() const {
 }
 
 void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
-  if (Built() && static_cast<uint32_t>(device->GeSession()->IsGraphNeedRebuild(GeGraphId()))) {
+  if (Built() &&
+      static_cast<uint32_t>(device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(GeGraphId())))) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
     device->RemoveGeGraph(context, GeGraphId(), status);
     NPU_REQUIRES_TFE_OK(status);

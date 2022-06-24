@@ -23,9 +23,7 @@ public:
   explicit DynamicGruV2GradOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
     LOG(INFO) << "new DynamicGruV2GradOP";
   }
-  ~DynamicGruV2GradOP() override {
-    LOG(INFO) << "del DynamicGruV2GradOP";
-  }
+  ~DynamicGruV2GradOP() override = default;
   void Compute(OpKernelContext* ctx) override {
     (void) ctx;
     LOG(INFO) << "in DynamicGruV2GradOP";

@@ -61,9 +61,9 @@ class HdcChannel {
 
   tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) const;
 
-  tensorflow::Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors) const;
+  tensorflow::Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors) const;
 
-  tensorflow::Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset,
+  tensorflow::Status AssembleAclDataset2Tensors(const acltdtDataset *acl_dataset,
                                                 std::vector<tensorflow::Tensor> &out_tensors) const;
 
   tensorflow::Status AssembleTensors2AclDataset(acltdtTensorType acl_type,
@@ -81,7 +81,7 @@ class HdcChannel {
   tensorflow::Status SendTensorsByAcl(acltdtTensorType acl_type, const std::vector<tensorflow::Tensor> &tensors) const;
 
   HdcChannelHandle handle_;
-  int32_t device_id_;
+  uint32_t device_id_;
   std::string name_;
   bool limited_capacity_{false};
   size_t capacity_{0U};

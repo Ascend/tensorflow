@@ -95,9 +95,9 @@ class MakeIteratorGraphBuilder {
 
 static const auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
                               TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  TF_UNUSED_VARIABLE(ndef);
-  TF_UNUSED_VARIABLE(num_outputs);
-  TF_UNUSED_VARIABLE(outputs);
+  (void)ndef;
+  (void)num_outputs;
+  (void)outputs;
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
     if (tensorflow::unwrap(input)->DataType() == tensorflow::DT_RESOURCE) {

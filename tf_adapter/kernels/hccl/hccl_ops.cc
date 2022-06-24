@@ -152,5 +152,4 @@ public:
 };
 
 REGISTER_KERNEL_BUILDER(Name("HcomAllToAllV").Device(DEVICE_CPU), HcomAllToAllVOpKernel);
-
 } // namespace tensorflow

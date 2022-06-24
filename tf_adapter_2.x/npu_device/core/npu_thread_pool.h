@@ -22,7 +22,7 @@
 #include "tensorflow/core/platform/env.h"
 
 namespace npu {
-const int32_t kDefaultThreadNum = 4;
+const uint32_t kDefaultThreadNum = 4U;
 
 class ThreadPool {
  public:

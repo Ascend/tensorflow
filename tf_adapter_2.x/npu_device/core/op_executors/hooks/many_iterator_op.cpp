@@ -35,9 +35,9 @@
 namespace npu {
 static const auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
                               TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  TF_UNUSED_VARIABLE(context);
-  TF_UNUSED_VARIABLE(num_inputs);
-  TF_UNUSED_VARIABLE(inputs);
+  (void)context;
+  (void)num_inputs;
+  (void)inputs;
   for (int i = 0; i < num_outputs; ++i) {
     TFE_TensorHandle *retval = outputs[i];
     if (tensorflow::unwrap(retval)->DataType() == tensorflow::DT_RESOURCE) {

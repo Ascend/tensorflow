@@ -23,9 +23,7 @@ public:
   explicit DynamicAUGRUGradOP(OpKernelConstruction* ctx) : OpKernel(ctx) {
     LOG(INFO) << "new DynamicAUGRUGradOP";
   }
-  ~DynamicAUGRUGradOP() override {
-    LOG(INFO) << "del DynamicAUGRUGradOP";
-  }
+  ~DynamicAUGRUGradOP() override = default;
   void Compute(OpKernelContext* ctx) override {
     (void) ctx;
     LOG(INFO) << "in DynamicAUGRUGradOP";

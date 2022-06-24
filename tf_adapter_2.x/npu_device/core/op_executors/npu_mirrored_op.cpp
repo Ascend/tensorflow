@@ -20,7 +20,7 @@
 
 namespace npu {
 NpuMirroredOp::NpuMirroredOp(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-                             TensorShapes input_shapes, NpuFallbackHookFunc custom_kernel)
+                             TensorShapes input_shapes, const NpuFallbackHookFunc &custom_kernel)
     : OpExecutor(op_spec, ndef, input_shapes) {
   custom_kernel_ = custom_kernel;
 }

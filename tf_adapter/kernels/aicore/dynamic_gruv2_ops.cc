@@ -23,9 +23,7 @@ class DynamicGruV2OP : public OpKernel {
   explicit DynamicGruV2OP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new DynamicGruV2OP";
   }
-  ~DynamicGruV2OP() override {
-    LOG(INFO) << "del DynamicGruV2OP";
-  }
+  ~DynamicGruV2OP() = default;
   void Compute(OpKernelContext *ctx) override {
     (void) ctx;
     LOG(INFO) << "in DynamicGruV2OP";

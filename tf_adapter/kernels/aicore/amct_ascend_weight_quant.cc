@@ -58,7 +58,7 @@ class AscendWeightQuantOp : public OpKernel {
     input_param.transpose = false;
   }
 
-  ~AscendWeightQuantOp(){}
+  ~AscendWeightQuantOp() {}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor

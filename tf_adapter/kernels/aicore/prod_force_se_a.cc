@@ -23,9 +23,7 @@ class ProdForceSeAOP : public OpKernel {
   explicit ProdForceSeAOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new ProdForceSeAOP";
   }
-  ~ProdForceSeAOP() override {
-    LOG(INFO) << "del ProdForceSeAOP";
-  }
+  ~ProdForceSeAOP() override = default;
   void Compute(OpKernelContext *ctx) override {
     (void) ctx;
     LOG(INFO) << "in ProdForceSeAOP";
