@@ -68,7 +68,7 @@ class AscendDequantOp : public OpKernel {
       input_param.transpose = false;
   }
 
-  ~AscendDequantOp() {}
+  ~AscendDequantOp(){}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
