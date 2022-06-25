@@ -178,7 +178,7 @@ class NpuDevice {
 
   ge::Session *GeSession() { return ge_session_; }
 
-  tensorflow::CancellationManager *CancellationManager() { return cancellation_manager_.get(); }
+  tensorflow::CancellationManager *CancellationManager() const { return cancellation_manager_.get(); }
 
   int device_id;
   tensorflow::string device_name;

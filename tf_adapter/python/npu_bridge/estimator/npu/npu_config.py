@@ -99,7 +99,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  customize_dtypes=None,
                  op_debug_config=None,
                  memory_config=None,
-                 experimental_config=None
+                 experimental_config=None,
+                 jit_compile=True
                  ):
         """
         Constructs a NPUConfig.
@@ -237,6 +238,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._op_debug_config = op_debug_config
         self._memory_config = memory_config
         self._experimental_config = self._get_experimental_config(experimental_config)
+        self._jit_compile = jit_compile
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

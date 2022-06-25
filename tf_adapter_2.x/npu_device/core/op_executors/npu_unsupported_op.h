@@ -30,12 +30,12 @@ class NpuUnsupportedOp : public OpExecutor {
     const static std::string kType = "NpuUnsupportedOp";
     return kType;
   }
-
-  std::string AttachedDebugString() const override;
+  ~NpuUnsupportedOp() = default;
 
   void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                TFE_TensorHandle **outputs, TF_Status *status) const override;
-
+ protected:
+  std::string AttachedDebugString() const override;
  private:
   std::string fallback_reason_;
 };

@@ -25,7 +25,7 @@ template<typename T>
 class LarsOp : public OpKernel {
  public:
   explicit LarsOp(OpKernelConstruction *context) : OpKernel(context) { ADP_LOG(INFO) << "new LarsOp"; }
-  ~LarsOp() override { ADP_LOG(INFO) << "del LarsOp"; }
+  ~LarsOp() override = default;
 
   void Compute(OpKernelContext *context) override {
     int32_t input_num = num_inputs();

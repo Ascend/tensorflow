@@ -39,13 +39,12 @@ class NpuConcreteGraph : public OpExecutor {
       produced_outputs_.push_back(i);
     }
   }
+  ~NpuConcreteGraph() = default;
 
   const std::string &Type() const override {
     const static std::string kType = "NpuFunctionOp";
     return kType;
   }
-
-  std::string AttachedDebugString() const override;
 
   void RunImpl(TFE_Context *context, NpuDevice *device, int tf_num_inputs, TFE_TensorHandle **tf_inputs,
                int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const override;
@@ -76,6 +75,7 @@ class NpuConcreteGraph : public OpExecutor {
   bool NeedFuzzCompile() const;
 
  protected:
+  std::string AttachedDebugString() const override;
   void SetBuilt(bool built) const { built_ = built; }
   bool Built() const { return built_; }
   ExecutionType execution_type_{ExecutionType::NPU};
@@ -105,14 +105,18 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
       : NpuConcreteGraph(name, input_dtypes, output_dtypes, ge_graph_id, std::move(graph)),
         consumed_types_(InputTypes()),
         produced_types_(OutputTypes()) {}
+  ~NpuMutableConcreteGraph() = default;
   void SetGraph(std::unique_ptr<tensorflow::Graph> graph) { graph_.swap(graph); }
-  tensorflow::Graph *MutableGraph() { return graph_.get(); }
+  tensorflow::Graph *MutableGraph() const { return graph_.get(); }
 
   void SetConsumedInputs(const std::set<int32_t> &v) {
     consumed_types_.clear();
     consumed_inputs_.clear();
     input_handles_.resize(v.size());
     for (auto index : v) {
+      if (index < 0) {
+        return;
+      }
       (void)consumed_types_.emplace_back(InputTypes()[static_cast<size_t>(index)]);
       consumed_inputs_.emplace_back(index);
     }
@@ -123,14 +127,17 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
     produced_outputs_.clear();
     output_handles_.resize(v.size());
     for (auto index : v) {
+      if (index < 0) {
+        return;
+      }
       (void)produced_types_.emplace_back(OutputTypes()[static_cast<size_t>(index)]);
       produced_outputs_.emplace_back(index);
     }
   }
 
-  const TensorDataTypes &ConsumedTypes() { return consumed_types_; }
+  const TensorDataTypes &ConsumedTypes() const { return consumed_types_; }
 
-  const TensorDataTypes &ProducedTypes() { return produced_types_; }
+  const TensorDataTypes &ProducedTypes() const { return produced_types_; }
 
   void SetBypassOutputs(const std::map<int32_t, int64_t> &v) { bypass_outputs_ = v; }
 
@@ -147,8 +154,8 @@ class NpuMutableConcreteGraph : public NpuConcreteGraph {
   void SetNpuResources(const std::map<int32_t, tensorflow::ResourceHandle> &resources) { npu_resources_ = resources; }
   void SetCpuResources(const std::map<int32_t, tensorflow::ResourceHandle> &resources) { cpu_resources_ = resources; }
 
-  const std::map<int32_t, tensorflow::ResourceHandle> &NpuResources() { return npu_resources_; }
-  const std::map<int32_t, tensorflow::ResourceHandle> &CpuResources() { return cpu_resources_; }
+  const std::map<int32_t, tensorflow::ResourceHandle> &NpuResources() const { return npu_resources_; }
+  const std::map<int32_t, tensorflow::ResourceHandle> &CpuResources() const { return cpu_resources_; }
 
   tensorflow::Status TryTransToNpuLoopGraph(TFE_Context *context);
 

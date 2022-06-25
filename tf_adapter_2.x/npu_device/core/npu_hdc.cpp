@@ -40,18 +40,18 @@ tensorflow::Status Copy2ContinuousMem(void *dst_ptr, void *src_ptr, const size_t
   }
 
   std::atomic<uint32_t> parallel_cpy_count{0U};
-  uint32_t enqueue_count = 0;
+  uint32_t enqueue_count = 0U;
   size_t block_size = src_size / npu::kDefaultThreadNum;
   size_t remained_size = src_size % npu::kDefaultThreadNum;
   std::vector<tensorflow::Status> copy_results(npu::kDefaultThreadNum);
-  for (int32_t i = 0; i < npu::kDefaultThreadNum; i++) {
-    if (i == npu::kDefaultThreadNum - 1) {
+  for (size_t i = 0UL; i < npu::kDefaultThreadNum; i++) {
+    if (i == npu::kDefaultThreadNum - 1U) {
       block_size += remained_size;
     }
     auto &ret = copy_results[i];
     std::function<void()> closure = [dst_ptr, src_ptr, block_size, &ret, &parallel_cpy_count]() {
       ret = npu::LoopCopy(dst_ptr, src_ptr, block_size);
-      parallel_cpy_count++;
+      ++parallel_cpy_count;
     };
     NPU_REQUIRES_OK(npu::ThreadPool::GetInstance().EnqueueTask(closure));
     enqueue_count++;
@@ -96,7 +96,7 @@ tensorflow::Status HdcChannel::MappingAclDtypeToTf(const aclDataType &acl_type, 
  * @param tensors: tensorflow tensors
  * @param call_by_channel_receive: if call by channel receive or not
  */
-tensorflow::Status HdcChannel::AssembleAclTensor2Tensor(acltdtDataItem *item,
+tensorflow::Status HdcChannel::AssembleAclTensor2Tensor(const acltdtDataItem *item,
                                                         std::vector<tensorflow::Tensor> &tensors) const {
   acltdtTensorType acl_type = acltdtGetTensorTypeFromItem(item);
   if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
@@ -156,7 +156,7 @@ tensorflow::Status HdcChannel::AssembleAclTensor2Tensor(acltdtDataItem *item,
  * @param out_tensors: tensorflow tensors
  * @param call_by_channel_receive: if call by channel receive of not
  */
-tensorflow::Status HdcChannel::AssembleAclDataset2Tensors(acltdtDataset *acl_dataset,
+tensorflow::Status HdcChannel::AssembleAclDataset2Tensors(const acltdtDataset *acl_dataset,
                                                           std::vector<tensorflow::Tensor> &out_tensors) const {
   for (size_t i = 0; i < acltdtGetDatasetSize(acl_dataset); i++) {
     auto acl_data = acltdtGetDataItem(acl_dataset, i);

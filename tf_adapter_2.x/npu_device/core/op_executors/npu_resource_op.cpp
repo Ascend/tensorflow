@@ -69,7 +69,10 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
   std::vector<tensorflow::ResourceHandle> npu_resources;
   std::vector<tensorflow::ResourceHandle> cpu_resources;
   std::set<int> consumed_inputs;
-  for (int i = 0; i < num_inputs; ++i) {
+  if (num_inputs < 0) {
+    return;
+  }
+  for (size_t i = 0UL; i < static_cast<size_t>(num_inputs); ++i) {
     const tensorflow::Tensor *tensor = nullptr;
     NPU_CTX_REQUIRES_OK(status, GetTensorHandleTensor(inputs[i], &tensor));
     if (tensor->dtype() == tensorflow::DT_RESOURCE) {
@@ -109,10 +112,10 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
     const auto &types = InputTypes();
 
     int arg_index = 0;
-    int resource_index = 0;
+    size_t resource_index = 0UL;
     std::unordered_map<std::shared_ptr<tensorflow::NodeDef>, tensorflow::Node *> def_nodes;
 
-    for (int i = 0; i < num_inputs; i++) {
+    for (size_t i = 0UL; i < static_cast<size_t>(num_inputs); i++) {
       if (types[static_cast<size_t>(i)] == tensorflow::DT_RESOURCE) {
         std::shared_ptr<ResourceGenerator> generator = nullptr;
         const auto &handle = npu_resources[resource_index++];
@@ -157,7 +160,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
     if (kDumpGraph && kDumpExecutionDetail) {
       OptimizeStageGraphDumper graph_dumper(Op());
       std::string suffix = npu_resources[0].name();
-      for (int i = 1; i < static_cast<int>(npu_resources.size()); i++) {
+      for (size_t i = 1; i < npu_resources.size(); i++) {
         suffix += ".";
         suffix += npu_resources[i].name();
       }

@@ -24,9 +24,7 @@ class NonZeroWithValueOP : public OpKernel {
   explicit NonZeroWithValueOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new NonZeroWithValueOP";
   }
-  ~NonZeroWithValueOP() override {
-    LOG(INFO) << "del NonZeroWithValueOP";
-  }
+  ~NonZeroWithValueOP() override = default;
   void Compute(OpKernelContext *ctx) override {
     (void) ctx;
     LOG(INFO) << "compute in NonZeroWithValueOP";

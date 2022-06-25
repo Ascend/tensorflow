@@ -71,7 +71,7 @@ class GlobalHdcChannel {
 
   void Get(const std::string &name, std::vector<std::shared_ptr<npu::HdcChannel>> &channels);
 
-  tensorflow::Status Create(const std::string &name, size_t channel_capacity, const std::vector<int> &device_ids);
+  tensorflow::Status Create(const std::string &name, int64_t channel_capacity, const std::vector<int> &device_ids);
 
   void Destroy(const std::string &name);
 

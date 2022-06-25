@@ -69,7 +69,7 @@ class FastGeluGradOp : public tensorflow::OpKernel {
  public:
   explicit FastGeluGradOp(tensorflow::OpKernelConstruction *context)
       : OpKernel(context) {}
-  ~FastGeluGradOp() {}
+  ~FastGeluGradOp() override = default;
   void Compute(tensorflow::OpKernelContext *context) override {
     // Grab the grad input tensor
     CHECK_NOT_NULL(context);

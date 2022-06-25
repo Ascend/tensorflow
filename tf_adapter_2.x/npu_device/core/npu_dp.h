@@ -109,13 +109,13 @@ class IteratorResourceProvider {
         }
       }));
   }
-  ~IteratorResourceProvider() { Destroy(); }
+  ~IteratorResourceProvider() { (void)Destroy(); }
 
   static tensorflow::FunctionDef GetFunctionDef(std::string channel_name, std::vector<int> device_ids,
                                                 const TensorPartialShapes &shapes, const TensorDataTypes &types,
                                                 TF_Status *status) {
-    TF_UNUSED_VARIABLE(shapes);
-    TF_UNUSED_VARIABLE(types);
+    (void)shapes;
+    (void)types;
     tensorflow::FunctionDef fdef;
     std::unique_ptr<tensorflow::Graph> graph = std::make_unique<tensorflow::Graph>(tensorflow::OpRegistry::Global());
 

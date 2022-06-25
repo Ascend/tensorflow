@@ -326,7 +326,7 @@ tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice *device, const tens
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status GetGraphUnsupportedOps(NpuDevice *device, tensorflow::Graph *graph,
+tensorflow::Status GetGraphUnsupportedOps(const NpuDevice *device, const tensorflow::Graph *graph,
                                           const tensorflow::FunctionLibraryDefinition *lib_def,
                                           std::set<std::string> &unsupported_ops) {
   for (auto node : graph->op_nodes()) {
@@ -458,7 +458,7 @@ uint64_t NextUUID() {
  * @brief: fix graph arg return value index
  * @param graph: graph
  */
-void FixGraphArgRetvalIndex(tensorflow::Graph *graph) {
+void FixGraphArgRetvalIndex(const tensorflow::Graph *graph) {
   std::map<int, tensorflow::Node *> indexed_args;
   std::map<int, tensorflow::Node *> indexed_retvals;
   for (auto node : graph->nodes()) {
@@ -525,16 +525,16 @@ tensorflow::Status LoopCopy(void *dst_ptr, void *src_ptr, size_t src_size) {
   return tensorflow::Status::OK();
 }
 
-size_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types) {
-  const size_t kMaxChannelCapacity = 128UL;
-  const size_t kStringTypeCapacity = 64UL;
-  const size_t kUnknownShapeCapacity = 3UL;
-  const size_t kMinChannelCapacity = 2UL;
-  const int32_t kInvalidCpacity = -1;
-  constexpr size_t kDefaultDataSize = 2 * 1024 * 1024 * 1024UL;
-  constexpr int64_t kSizeTMaxsize = 16 * 1024 * 1024 * 1024UL;
+int64_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types) {
+  const int64_t kMaxChannelCapacity = 128L;
+  const int64_t kStringTypeCapacity = 64L;
+  const int64_t kUnknownShapeCapacity = 3L;
+  const int64_t kMinChannelCapacity = 2L;
+  const int64_t kInvalidCpacity = -1L;
+  constexpr int64_t kDefaultDataSize = 2 * 1024 * 1024 * 1024L;
+  constexpr int64_t kSizeTMaxsize = 16 * 1024 * 1024 * 1024L;
 
-  size_t total_sizes = 0UL;
+  int64_t total_sizes = 0L;
   for (size_t i = 0UL; i < types.size(); i++) {
     tensorflow::DataType data_type = types.at(i);
     if (data_type == tensorflow::DT_STRING) {
@@ -543,7 +543,7 @@ size_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::
     if (!shapes[i].IsFullyDefined()) {
       return kUnknownShapeCapacity;
     }
-    int64_t result = 0;
+    int64_t result = 0L;
     if (shapes[i].num_elements() > 0 &&
         tensorflow::DataTypeSize(data_type) > (kSizeTMaxsize / shapes[i].num_elements())) {
       return kInvalidCpacity;
@@ -553,7 +553,7 @@ size_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::
     if (result > kSizeTMaxsize - total_sizes) {
       return kInvalidCpacity;
     }
-    total_sizes += static_cast<size_t>(result);
+    total_sizes += result;
   }
   return std::min(kMaxChannelCapacity, std::max(kMinChannelCapacity, (kDefaultDataSize / total_sizes)));
 }

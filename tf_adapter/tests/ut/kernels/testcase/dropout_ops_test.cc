@@ -3,15 +3,24 @@
 #include "tf_adapter/kernels/aicore/dropout_ops.cc"
 #include "tensorflow/core/framework/node_def.pb.h"
 #include "tensorflow/core/framework/node_def_builder.h"
+#include "tensorflow/core/framework/shape_inference.h"
+#include "tensorflow/core/framework/fake_input.h"
 
 namespace tensorflow {
 namespace {
+PartialTensorShape TShape(std::initializer_list<int64> dims) {
+  return PartialTensorShape(dims);
+}
 
-class DropOutGenOrDoMaskOpTest : public testing::Test {
- protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
-};
+FakeInputFunctor FakeInputStub(DataType dt) {
+  return [dt](const OpDef &op_def, int in_index, const NodeDef &node_def,
+              NodeDefBuilder *builder) {
+    char c = 'a' + (in_index % 26);
+    string in_node = string(&c, 1);
+    builder->Input(in_node, 0, dt);
+    return Status::OK();
+  };
+}
 
 TEST(DropOutGenOrDoMaskOpTest, TestDropOutDoCompute) {
   DataTypeSlice input_types({DT_INT32, DT_INT32});
@@ -57,5 +66,40 @@ TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenCompute) {
   delete dropOutGenmaskOp;
 }
 
+TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenMaskInference) {
+  const OpRegistrationData *reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DropOutGenMask", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("T", DT_INT64)
+                  .Attr("S", DT_FLOAT)
+                  .Input(FakeInputStub(DT_INT64))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(
+      0, &def, op_def,
+      {TShape({16}), TShape({})},
+      {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
+TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenMaskV3Inference) {
+  const OpRegistrationData *reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DropOutGenMaskV3", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("T", DT_INT64)
+                  .Attr("S", DT_FLOAT)
+                  .Input(FakeInputStub(DT_INT64))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(
+      0, &def, op_def,
+      {TShape({16}), TShape({})},
+      {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
 }  // namespace
 }  // namespace tensorflow

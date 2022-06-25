@@ -24,9 +24,7 @@ class NonZeroOP : public OpKernel {
   explicit NonZeroOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new NonZeroOP";
   }
-  ~NonZeroOP() {
-    LOG(INFO) << "del NonZeroOP";
-  }
+  ~NonZeroOP() override = default;
   void Compute(OpKernelContext *ctx) override {
     (void) ctx;
     LOG(INFO) << "compute in NonZeroOP";

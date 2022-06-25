@@ -748,6 +748,7 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["customize_dtypes"].s = tf.compat.as_bytes(config._customize_dtypes)
         if config._op_debug_config is not None:
             custom_op.parameter_map["op_debug_config"].s = tf.compat.as_bytes(config._op_debug_config)
+        custom_op.parameter_map["jit_compile"].b = config._jit_compile
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)

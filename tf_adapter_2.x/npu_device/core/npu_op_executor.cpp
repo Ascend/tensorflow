@@ -57,6 +57,9 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
   }
 
   TensorShapes input_shapes;
+  if (num_inputs < 0) {
+    return nullptr;
+  }
   input_shapes.resize(static_cast<size_t>(num_inputs));
   for (int i = 0; i < num_inputs; i++) {
     NPU_CTX_REQUIRES_OK_RETURN(s, npu::GetTensorHandleShape(inputs[i], input_shapes[static_cast<size_t>(i)]), nullptr);
@@ -129,7 +132,7 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
       continue;
     }
     for (auto j = 0; j < num_dims; ++j) {
-      dims.emplace_back(ic.Value(ic.Dim(shape_handle, j)));
+      dims.emplace_back(tensorflow::shape_inference::InferenceContext::Value(ic.Dim(shape_handle, j)));
     }
 
     NPU_CTX_REQUIRES_OK_RETURN(s, tensorflow::PartialTensorShape::MakePartialShape(

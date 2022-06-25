@@ -30,11 +30,12 @@ class NpuShapeDependOnValueOp : public OpExecutor {
     const static std::string kType = "NpuShapeDependOnValueOp";
     return kType;
   }
-
-  std::string AttachedDebugString() const override;
+  ~NpuShapeDependOnValueOp() = default;
 
   void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                TFE_TensorHandle **outputs, TF_Status *status) const override;
+ protected:
+  std::string AttachedDebugString() const override;
 };
 }  // namespace npu
 

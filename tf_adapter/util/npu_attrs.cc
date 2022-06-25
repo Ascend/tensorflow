@@ -370,6 +370,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string HCCL_algorithm;
   std::string atomic_clean_policy = "0";
   std::string static_memory_policy;
+  std::string jit_compile = "1";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -426,6 +427,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
     (void) ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
+    (void) ctx->GetAttr("_jit_compile", &jit_compile);
   }
 
   // session options
@@ -464,6 +466,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
   sess_options["HCCL_algorithm"] = HCCL_algorithm;
   sess_options["atomic_clean_policy"] = atomic_clean_policy;
+  sess_options["jit_compile"] = jit_compile;
+  sess_options["ge.jit_compile"] = jit_compile;
 
   return sess_options;
 }
@@ -958,6 +962,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string graph_exec_timeout;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
+  std::string jit_compile = "1";
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1026,6 +1031,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto graph_exec_timeout_value = attrs.Find("_graph_exec_timeout");
   auto logical_device_cluster_deploy_mode_value = attrs.Find("_logical_device_cluster_deploy_mode");
   auto logical_device_id_value = attrs.Find("_logical_device_id");
+  auto jit_compile_value = attrs.Find("_jit_compile");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1251,6 +1257,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (logical_device_id_value != nullptr) {
       logical_device_id = logical_device_id_value->s();
     }
+    if (jit_compile_value != nullptr) {
+      jit_compile = jit_compile_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1326,6 +1335,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["graph_exec_timeout"] = graph_exec_timeout;
   all_options["logical_device_cluster_deploy_mode"] = logical_device_cluster_deploy_mode;
   all_options["logical_device_id"] = logical_device_id;
+  all_options["jit_compile"] = jit_compile;
+  all_options["ge.jit_compile"] = jit_compile;
 
   return all_options;
 }
@@ -1416,6 +1427,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   int graph_exec_timeout = 600000;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
+  bool jit_compile = true;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1771,6 +1783,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("experimental_logical_device_id")) {
         logical_device_id = params.at("experimental_logical_device_id").s();
       }
+      if (params.count("jit_compile")) {
+        jit_compile = params.at("jit_compile").b();
+      }
     }
   }
 
@@ -1860,6 +1875,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   // Commercial version has been released, temporarily used
   init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
   init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
+  init_options_["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
+  init_options_["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
+
   init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
   init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
   init_options_["ge.fusionSwitchFile"] = fusion_switch_file;

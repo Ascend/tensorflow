@@ -54,15 +54,15 @@ static inline tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes type
         shape_value.mutable_list()->add_i(shapes[i].dim_size(j));
       }
     }
-    desc->mutable_attr()->insert({kShape, shape_value});
+    (void)desc->mutable_attr()->insert({kShape, shape_value});
 
     tensorflow::AttrValue type_value;
     type_value.set_i(static_cast<int64_t>(types[i]));
-    desc->mutable_attr()->insert({kType, type_value});
+    (void)desc->mutable_attr()->insert({kType, type_value});
 
     tensorflow::AttrValue format_value;
     format_value.set_i(static_cast<int>(ge::Format::FORMAT_NHWC));
-    desc->mutable_attr()->insert({kFormat, format_value});
+    (void)desc->mutable_attr()->insert({kFormat, format_value});
   }
   return desc_attr;
 }

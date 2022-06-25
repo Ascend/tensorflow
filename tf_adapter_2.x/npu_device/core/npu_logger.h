@@ -35,7 +35,7 @@ class Logger : public std::basic_ostringstream<char> {
 class Timer : public std::basic_ostringstream<char> {
  public:
   template <typename... Args>
-  explicit Timer(Args... args) {
+  explicit Timer(const Args... args) {
     *this << tensorflow::strings::StrCat(args...) << " cost ";
   };
   ~Timer() override = default;

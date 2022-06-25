@@ -50,7 +50,10 @@ void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, con
   // 输入如果是CPU,此时要转换成NPU
   std::vector<TFE_TensorHandle *> npu_inputs(num_inputs);
   ScopeTensorHandleDeleter scope_handle_deleter;
-  for (int i = 0; i < num_inputs; ++i) {
+  if (num_inputs < 0) {
+    return;
+  }
+  for (size_t i = 0UL; i < static_cast<size_t>(num_inputs); ++i) {
     TFE_TensorHandle *input = inputs[i];
     // 到达这里的Resource，要么是CPU的镜像 要么是NPU
     if (!npu::IsNpuTensorHandle(input)) {
@@ -74,7 +77,7 @@ void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, con
   }
   /******************************************模拟NPU执行Start************************************/
   std::vector<TFE_TensorHandle *> acl_inputs(num_inputs);
-  for (int i = 0; i < num_inputs; ++i) {
+  for (size_t i = 0UL; i < static_cast<size_t>(num_inputs); ++i) {
     const tensorflow::Tensor *npu_tensor = nullptr;
     NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(npu_inputs[i], &npu_tensor));
     tensorflow::Tensor cpu_tensor(npu_tensor->dtype(), npu_tensor->shape());
@@ -94,7 +97,10 @@ void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, con
   device->FallbackCPU(context, spec->NodeDef(), num_inputs, acl_inputs.data(), num_outputs, acl_outputs.data(), status);
   NPU_REQUIRES_TFE_OK(status);
   /**********调用CPU模拟NPU End***************/
-  for (int i = 0; i < num_outputs; ++i) {
+  if (num_outputs < 0) {
+    return;
+  }
+  for (size_t i = 0UL; i < static_cast<size_t>(num_outputs); ++i) {
     const tensorflow::Tensor *acl_tensor = nullptr;
     NPU_CTX_REQUIRES_OK(status, npu::GetTensorHandleTensor(acl_outputs[i], &acl_tensor));
     const tensorflow::Tensor *npu_tensor = nullptr;
