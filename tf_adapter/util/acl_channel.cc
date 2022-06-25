@@ -71,7 +71,7 @@ Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<Tensor> &tenso
   if (acl_data == nullptr) {
     return errors::Internal("Acl get data addr from item failed when receive tensor data.");
   }
-  if (!kIsNewDataTransfer && call_by_channel_receive) {
+  if (!NpuAttrs::GetNewDataTransferFlag() && call_by_channel_receive) {
     acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str());
   }
   if (tf_type == DT_STRING) {
@@ -247,8 +247,7 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
 
 acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id, const std::string &channel_name,
                                              const size_t capacity) {
-  kIsNewDataTransfer = GetNewDataTransferFlag();
-  if (kIsNewDataTransfer) {
+  if (NpuAttrs::GetNewDataTransferFlag()) {
     return acltdtCreateChannelWithCapacity(device_id, channel_name.c_str(), capacity);
   }
   const static std::string kReceivePrefix = "TF_RECEIVE_";
@@ -256,7 +255,7 @@ acltdtChannelHandle *CreateAclTdtRecvChannel(uint32_t device_id, const std::stri
 }
 
 Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string &channel_name) {
-  if (kIsNewDataTransfer) {
+  if (NpuAttrs::GetNewDataTransferFlag()) {
     if (acltdtDestroyChannel(*handle) != ACL_ERROR_NONE) {
       return errors::Internal("Failed destroy acl data channel for host queue:", channel_name);
     } else {

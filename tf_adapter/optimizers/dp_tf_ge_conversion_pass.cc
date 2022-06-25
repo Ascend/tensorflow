@@ -378,7 +378,7 @@ inline Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std
   if (IsMakeIteratorNode(topo_end)) {
     (void) topo_end->input_node(1, &iterator_node);
   }
-  kIsNewDataTransfer = GetNewDataTransferFlag();
+
   for (const Edge *e : split_edges_.at(topo_end)) {
     REQUIRES_NOT_NULL(e);
     REQUIRES_NOT_NULL(e->src());
@@ -386,7 +386,7 @@ inline Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std
     bool need_add_device_dataset = false;
     if (kIsHeterogeneous) {
       need_add_device_dataset = false;
-    } else if ((!kIsNewDataTransfer) || (IsGeSupportDataset(e->dst()))) {
+    } else if ((!NpuAttrs::GetNewDataTransferFlag()) || (IsGeSupportDataset(e->dst()))) {
       need_add_device_dataset = true;
     } else {
       need_add_device_dataset = false;

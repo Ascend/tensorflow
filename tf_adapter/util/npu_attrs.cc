@@ -31,6 +31,11 @@
 #include "tf_adapter/util/ge_plugin.h"
 #include "ge/ge_api.h"
 namespace tensorflow {
+namespace {
+  bool kIsNewDataTransfer = true;
+  bool kHasSetDataTransferMode = false;
+  std::mutex mu;
+}
 const string profiling_default_options = "{\"output\":\".\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
 \"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metrics\":\"PipeUtilization\",\"msproftx\":\"off\"}";
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
@@ -38,8 +43,8 @@ std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
 std::map<std::string, std::string> NpuAttrs::init_options_;
 const static int32_t kRuntimeTypeHeterogeneous = 1;
-bool kIsNewDataTransfer = true;
-bool GetNewDataTransferFlag() {
+
+bool NpuAttrs::CheckIsNewDataTransfer() {
   uint32_t device_id = 0U;
   (void)GetEnvDeviceID(device_id);
   std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions();
@@ -63,7 +68,23 @@ bool GetNewDataTransferFlag() {
     ADP_LOG(ERROR) << "Create channel failed by acltdtCreateChannelWithCapacity and acltdtCreateChannel";
   }
   return true;
-};
+}
+
+bool NpuAttrs::GetNewDataTransferFlag() {
+  std::unique_lock<std::mutex> lck(mu);
+  if (kHasSetDataTransferMode) {
+    return kIsNewDataTransfer;
+  } else {
+    kHasSetDataTransferMode = true;
+    kIsNewDataTransfer = CheckIsNewDataTransfer();
+    return kIsNewDataTransfer;
+  }
+}
+void NpuAttrs::SetNewDataTransferFlag(bool flag) {
+  std::unique_lock<std::mutex> lck(mu);
+  kHasSetDataTransferMode = true;
+  kIsNewDataTransfer = flag;
+}
 
 extern const bool kDumpGraph = []() -> bool {
   bool print_model = false;
