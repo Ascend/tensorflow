@@ -42,7 +42,7 @@ class AscendAntiQuantOp : public OpKernel {
     input_param.offset = offset;
   }
 
-  ~AscendAntiQuantOp() {}
+  ~AscendAntiQuantOp(){}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor

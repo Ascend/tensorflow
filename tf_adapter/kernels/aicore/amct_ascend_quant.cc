@@ -55,7 +55,7 @@ class AscendQuantOp : public OpKernel {
     }
   }
 
-  ~AscendQuantOp() {}
+  ~AscendQuantOp(){}
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
