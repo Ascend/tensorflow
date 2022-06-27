@@ -101,6 +101,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"logical_device_cluster_deploy_mode", ge::OPTION_EXEC_LOGICAL_DEVICE_CLUSTER_DEPLOY_MODE},
   {"logical_device_id", ge::OPTION_EXEC_LOGICAL_DEVICE_ID},
   {"jit_compile", "ge.jit_compile"},
+  {"customize_dtypes", "ge.customizeDtypes"},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE}};
