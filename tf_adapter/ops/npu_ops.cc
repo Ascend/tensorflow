@@ -161,7 +161,7 @@ REGISTER_OP("DropOutGenMask")
       ShapeHandle inputShapeHandle;
       TF_RETURN_IF_ERROR(c->MakeShapeFromShapeTensor(0, &inputShapeHandle));
 
-      int32 rank = c->Rank(inputShapeHandle);
+      int32 rank = InferenceContext::Rank(inputShapeHandle);
       if (rank == InferenceContext::kUnknownRank) {
         ShapeHandle out = c->UnknownShapeOfRank(1);
         c->set_output(0, out);
@@ -171,7 +171,7 @@ REGISTER_OP("DropOutGenMask")
       bool unknownDimExist = false;
       for (int32 i = 0; i < rank; ++i) {
         DimensionHandle dimHandle = c->Dim(inputShapeHandle, i);
-        int64 value = c->Value(dimHandle);
+        int64 value = InferenceContext::Value(dimHandle);
         if (value == InferenceContext::kUnknownDim) {
           unknownDimExist = true;
           break;
@@ -187,7 +187,7 @@ REGISTER_OP("DropOutGenMask")
       int64 bitCount = 0;
       if (rank != 0) {
         DimensionHandle inputDimHandle = c->NumElements(inputShapeHandle);
-        bitCount = c->Value(inputDimHandle);
+        bitCount = InferenceContext::Value(inputDimHandle);
       }
 
       // align to 128 and around up
@@ -224,13 +224,13 @@ REGISTER_OP("DropOutGenMaskV3")
         c->set_output(0, out);
         return Status::OK();
       }
-      int32 rank = c->Rank(input_shape_handle);
+      int32 rank = InferenceContext::Rank(input_shape_handle);
       // [*batch, M, N] -> [*batch, N/16, M/16, 16, 16]
       if (rank >= 2) {
         DimensionHandle tmp_dim_handle = c->Dim(input_shape_handle, -1);
-        int64 last_dim = c->Value(tmp_dim_handle);
+        int64 last_dim = InferenceContext::Value(tmp_dim_handle);
         tmp_dim_handle = c->Dim(input_shape_handle, -2);
-        int64 second_last_dim = c->Value(tmp_dim_handle);
+        int64 second_last_dim = InferenceContext::Value(tmp_dim_handle);
         const int64 align = 16;
         if (last_dim % align == 0 && second_last_dim % align == 0) {
           last_dim /= align;
@@ -248,7 +248,7 @@ REGISTER_OP("DropOutGenMaskV3")
       }
 
       DimensionHandle input_dim_handle = c->NumElements(input_shape_handle);
-      uint64 random_count = static_cast<uint64>(c->Value(input_dim_handle));
+      uint64 random_count = static_cast<uint64>(InferenceContext::Value(input_dim_handle));
       if (random_count > (INT64_MAX - 15)) {
         return errors::InvalidArgument("Required random count[", random_count, "] exceed INT64_MAX - 15");
       }
@@ -491,10 +491,10 @@ REGISTER_OP("FileConstant")
     .SetShapeFn([](shape_inference::InferenceContext *c) {
       std::vector<int32_t> output_shape;
       TF_RETURN_IF_ERROR(c->GetAttr("shape", &output_shape));
-      int32_t rank = output_shape.size();
+      auto rank = output_shape.size();
       std::vector<DimensionHandle> out_dims(rank);
       for (auto i = 0; i < rank; i++) {
-        out_dims[i] = c->MakeDim(output_shape[i]);
+        out_dims[i] = c->MakeDim(shape_inference::DimensionOrConstant(output_shape[i]));
       }
       c->set_output(0, c->MakeShape(out_dims));
       return Status::OK();

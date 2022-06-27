@@ -25,7 +25,7 @@ class MaxPoolingGradGradWithArgmaxOp : public OpKernel {
   explicit MaxPoolingGradGradWithArgmaxOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
     ADP_LOG(INFO) << "MaxPoolingGradGradWithArgmaxOp built";
   }
-  ~MaxPoolingGradGradWithArgmaxOp() override { ADP_LOG(INFO) << "MaxPoolingGradGradWithArgmaxOp has been destructed"; }
+  ~MaxPoolingGradGradWithArgmaxOp() override = default;
   void Compute(OpKernelContext* ctx) override {
     (void) ctx;
     ADP_LOG(INFO) << "[ATTENTION] MaxPoolingGradGradWithArgmaxOp can not run on cpu, \

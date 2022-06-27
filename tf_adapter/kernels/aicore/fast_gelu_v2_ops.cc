@@ -23,9 +23,7 @@ class FastGeluV2Op : public OpKernel {
   explicit FastGeluV2Op(OpKernelConstruction *context) : OpKernel(context) {
     LOG(INFO) << "new FastGeluV2Op";
   }
-  ~FastGeluV2Op() {
-    LOG(INFO) << "del FastGeluV2Op";
-  }
+  ~FastGeluV2Op() = default;
   void Compute(OpKernelContext *context) override {
     (void) context;
     LOG(INFO) << "FastGeluV2Op Compute";

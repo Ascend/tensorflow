@@ -24,9 +24,7 @@ public:
     (void) context;
     LOG(INFO) << "new LayerNormGradOp";
   }
-  ~LayerNormGradOp() {
-    LOG(INFO) << "del LayerNormGradOp";
-  }
+  ~LayerNormGradOp() override = default;
   void Compute(OpKernelContext *context) override {
     (void) context;
     LOG(INFO) << "LayerNormGradOp Compute";

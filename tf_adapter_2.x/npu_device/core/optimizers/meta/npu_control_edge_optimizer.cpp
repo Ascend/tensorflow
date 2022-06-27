@@ -164,7 +164,7 @@ tensorflow::Status ControlEdgeOptimizeInner(TFE_Context *context, tensorflow::Gr
 namespace npu {
 tensorflow::Status ControlEdgeOptimize(TFE_Context *context, tensorflow::Graph *graph,
                                        std::map<std::string, std::string> options) {
-  TF_UNUSED_VARIABLE(options);
+  (void)options;
   bool unused = false;
   return ControlEdgeOptimizeInner(context, graph, unused);
 }

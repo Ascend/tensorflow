@@ -41,7 +41,7 @@ class NpuMemory {
     return tensorflow::Status::OK();
   }
   static void Free(void *memory, size_t size, void *arg) {
-    TF_UNUSED_VARIABLE(arg);
+    (void)arg;
     npu::global::dev_memory_shared_lock.lock_shared();
     if (!npu::global::dev_memory_released) {
       if (aclrtFree(memory) == ACL_ERROR_NONE) {
@@ -87,21 +87,21 @@ tensorflow::Status CreateAclTensorDesc(ge::DataType dtype, ge::Format format, co
   NPU_REQUIRES_OK(npu::MapGeFormat2Acl(format, acl_format));
   aclTensorDesc *acl_desc = aclCreateTensorDesc(acl_dtype, static_cast<int>(shape.size()), shape.data(), acl_format);
   NPU_REQUIRES(acl_desc != nullptr, tensorflow::errors::Internal("Failed create acl tensor desc"));
-  desc->reset(acl_desc, [](aclTensorDesc *desc) { aclDestroyTensorDesc(desc); });
+  desc->reset(acl_desc, [](const aclTensorDesc *desc) { aclDestroyTensorDesc(desc); });
   return tensorflow::Status::OK();
 }
 
 tensorflow::Status CreateAclDataBuffer(void *data, size_t size, std::shared_ptr<aclDataBuffer> *buf) {
   aclDataBuffer *acl_buf = aclCreateDataBuffer(data, size);
   NPU_REQUIRES(acl_buf != nullptr, tensorflow::errors::Internal("Failed create acl data buffer"));
-  (void)buf->reset(acl_buf, [](aclDataBuffer *buf) { aclDestroyDataBuffer(buf); });
+  buf->reset(acl_buf, [](const aclDataBuffer *buf) { (void)aclDestroyDataBuffer(buf); });
   return tensorflow::Status::OK();
 }
 
 tensorflow::Status CreateTransFormatAttr(ge::Format src, ge::Format dst, std::shared_ptr<aclopAttr> *attr) {
   aclopAttr *acl_attr = aclopCreateAttr();
   NPU_REQUIRES(acl_attr != nullptr, tensorflow::errors::Internal("Failed create acl op attr"));
-  attr->reset(acl_attr, [](aclopAttr *attr) { aclopDestroyAttr(attr); });
+  attr->reset(acl_attr, [](const aclopAttr *attr) { aclopDestroyAttr(attr); });
 
   NPU_REQUIRES_ACL_OK("Acl set op attr src_format failed",
                       aclopSetAttrString(acl_attr, "src_format", GetFormatName(src)));
@@ -112,10 +112,10 @@ tensorflow::Status CreateTransFormatAttr(ge::Format src, ge::Format dst, std::sh
 }
 
 tensorflow::Status CreateCastDtypeAttr(ge::DataType src, ge::DataType dst, std::shared_ptr<aclopAttr> *attr) {
-  TF_UNUSED_VARIABLE(src);
+  (void)src;
   aclopAttr *acl_attr = aclopCreateAttr();
   NPU_REQUIRES(acl_attr != nullptr, tensorflow::errors::Internal(""));
-  attr->reset(acl_attr, [](aclopAttr *attr) { aclopDestroyAttr(attr); });
+  attr->reset(acl_attr, [](const aclopAttr *attr) { aclopDestroyAttr(attr); });
 
   NPU_REQUIRES_ACL_OK("Acl set op attr dst_type failed",
                       aclopSetAttrInt(acl_attr, "dst_type", static_cast<int32_t>(dst)));
@@ -228,11 +228,11 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
                                             ge::DataType data_type, ge::Format origin_format,
                                             const std::vector<int64_t> &origin_shape, NpuManagedBuffer **buf) {
   NPU_REQUIRES_OK(npu::global::RtsCtx::EnsureInitialized());
-  size_t total_bytes;
-  int dtype_size = ge::GetSizeByDataType(data_type);
+  int64_t total_bytes;
+  int32_t dtype_size = ge::GetSizeByDataType(data_type);
   NPU_REQUIRES(dtype_size > 0,
                tensorflow::errors::Internal("Data type size invalid ", dtype_size, " for ge type enum ", data_type));
-  total_bytes = dtype_size;
+  total_bytes = static_cast<int64_t>(dtype_size);
   for (auto dim_size : shape) {
     if (dim_size == 0) {
       total_bytes = 0;
@@ -244,6 +244,7 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
     total_bytes *= dim_size;
   }
   void *data = nullptr;
+  NPU_REQUIRES(total_bytes >= 0, tensorflow::errors::InvalidArgument("Total bytes is invalid, which is less than 0"));
   NPU_REQUIRES_OK(NpuMemory::Malloc(total_bytes, &data));
   auto status =
     Create(format, shape, data_type, origin_format, origin_shape, data, total_bytes, nullptr, NpuMemory::Free, buf);

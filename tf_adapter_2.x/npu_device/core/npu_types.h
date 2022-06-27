@@ -36,7 +36,7 @@ const static uint64_t kEmptyGeGraphId = -2;
 
 class ResourceGenerator {
  public:
-  ResourceGenerator(std::shared_ptr<tensorflow::NodeDef> def, int index) : def_(def), index_(index) {}
+  ResourceGenerator(const std::shared_ptr<tensorflow::NodeDef> &def, int index) : def_(def), index_(index) {}
   std::shared_ptr<tensorflow::NodeDef> NodeDef() const { return def_; }
   int Index() const { return index_; }
 

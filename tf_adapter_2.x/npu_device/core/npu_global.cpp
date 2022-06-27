@@ -84,30 +84,33 @@ void GlobalHdcChannel::Get(const std::string &name, std::vector<std::shared_ptr<
   }
 }
 
-tensorflow::Status GlobalHdcChannel::Create(const std::string &name, size_t channel_capacity,
+tensorflow::Status GlobalHdcChannel::Create(const std::string &name, int64_t channel_capacity,
                                             const std::vector<int> &device_ids) {
-  const int32_t kInvalidCpacity = -1;
+  const int64_t kInvalidCpacity = -1L;
   if (channel_capacity == kInvalidCpacity) {
     return tensorflow::errors::Internal("Overflow, tensor size exceeds the maximum value of uint64.");
   }
   std::vector<std::shared_ptr<npu::HdcChannel>> channels;
   channels.resize(device_ids.size());
-  bool is_use_global_channel = true;
-  int count = 0;
-  for (size_t i = 0; i < device_ids.size(); i++) {
-    if (!npu::HdcChannel::Create(device_ids[i], name, channel_capacity, &channels[i]).ok()) break;
+  uint32_t count = 0U;
+  for (size_t i = 0UL; i < device_ids.size(); i++) {
+    if (!npu::HdcChannel::Create(device_ids[i], name,
+                                 static_cast<size_t>(channel_capacity),
+                                 &channels[i]).ok()) {
+      break;
+    }
     count++;
   }
   if (count == device_ids.size()) {
     DLOG() << "Create hdc channel with capacity success.";
-  } else if (count == 0) {
+  } else if (count == 0U) {
     DLOG() << "Current version not support create hdc channel with capacity by acl.";
     return tensorflow::Status::OK();
   } else {
     return tensorflow::errors::Internal("Failed create hdc channel with capacity.");
   }
   std::unique_lock<std::mutex> lk(global_channels_mu_);
-  global_channels_.insert(std::make_pair(name, channels));
+  (void)global_channels_.insert(std::make_pair(name, channels));
   return tensorflow::Status::OK();
 }
 
@@ -118,7 +121,7 @@ void GlobalHdcChannel::Destroy(const std::string &name) {
     for (const auto &channel : iter->second) {
       channel->Destroy();
     }
-    global_channels_.erase(name);
+    (void)global_channels_.erase(name);
   } else {
     LOG(ERROR) << "Failed get hdc channel " << name << " to destroy.";
   }

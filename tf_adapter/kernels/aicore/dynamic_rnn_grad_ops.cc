@@ -21,7 +21,7 @@ template<typename T>
 class DynamicRnnGradOP : public OpKernel {
  public:
   explicit DynamicRnnGradOP(OpKernelConstruction *ctx) : OpKernel(ctx) { LOG(INFO) << "new DynamicRnnGradOP"; }
-  ~DynamicRnnGradOP() override { LOG(INFO) << "del DynamicRnnGradOP"; }
+  ~DynamicRnnGradOP() override = default;
   void Compute(OpKernelContext* ctx) override {
     (void) ctx;
     LOG(INFO) << "in DynamicRnnGradOP";

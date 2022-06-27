@@ -24,18 +24,18 @@ namespace npu {
 class NpuMirroredOp : public OpExecutor {
  public:
   NpuMirroredOp(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
-                TensorShapes input_shapes, NpuFallbackHookFunc custom_kernel);
+                TensorShapes input_shapes, const NpuFallbackHookFunc &custom_kernel);
 
   const std::string &Type() const override {
     const static std::string kType = "NpuMirroredOp";
     return kType;
   }
-
-  std::string AttachedDebugString() const override;
+  ~NpuMirroredOp() = default;
 
   void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                TFE_TensorHandle **outputs, TF_Status *status) const override;
-
+ protected:
+  std::string AttachedDebugString() const override;
  private:
   NpuFallbackHookFunc custom_kernel_;
 };

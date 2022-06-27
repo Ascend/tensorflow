@@ -31,7 +31,6 @@ const static std::string kAssignOp = "AssignVariableOp";
  */
 tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibraryDefinition *lib_def,
                                                      tensorflow::Graph *graph, bool &changed) {
-  std::vector<tensorflow::Node *> in_nodes;
   for (tensorflow::Node *node : graph->op_nodes()) {
     for (auto &attr : node->attrs()) {
       if (attr.second.has_func()) {
@@ -39,7 +38,6 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
         const tensorflow::FunctionDef *fdef = lib_def->Find(func_name);
         std::unique_ptr<tensorflow::FunctionBody> fbody;
         NPU_REQUIRES_OK(FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
-        std::map<int, std::shared_ptr<npu::IteratorResourceProvider>> unused_host_resources;
         bool optimized = false;
         NPU_REQUIRES_OK(WeightUpdateGroupingOptimizeInner(lib_def, fbody->graph, optimized));
         if (optimized) {
@@ -131,7 +129,7 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
 namespace npu {
 tensorflow::Status WeightUpdateGroupingOptimize(TFE_Context *context, tensorflow::Graph *graph,
                                                 std::map<std::string, std::string> options) {
-  TF_UNUSED_VARIABLE(options);
+  (void)options;
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
   bool unused = false;
   return WeightUpdateGroupingOptimizeInner(lib_def, graph, unused);

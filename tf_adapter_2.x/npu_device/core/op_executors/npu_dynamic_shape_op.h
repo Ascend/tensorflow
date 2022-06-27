@@ -29,12 +29,12 @@ class NpuDynamicShapeOp : public OpExecutor {
     const static std::string kType = "NpuDynamicShapeOp";
     return kType;
   }
-
-  std::string AttachedDebugString() const override;
+  ~NpuDynamicShapeOp() = default;
 
   void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                TFE_TensorHandle **outputs, TF_Status *status) const override;
-
+ protected:
+  std::string AttachedDebugString() const override;
  private:
   TensorPartialShapes output_shapes_;
 };

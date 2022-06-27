@@ -47,9 +47,9 @@ struct Cluster {
 struct NodeOrCluster {
   explicit NodeOrCluster(Cluster *cluster) : is_cluster_(true) { cluster_ = cluster; }
   explicit NodeOrCluster(tensorflow::Node *node) { node_ = node; }
-  void VisitInNodes(std::function<void(tensorflow::Node *)> visitor);
-  void VisitOutNodes(std::function<void(tensorflow::Node *)> visitor);
-  bool VisitNodes(std::function<bool(tensorflow::Node *)> visitor);
+  void VisitInNodes(const std::function<void(tensorflow::Node *)> &visitor);
+  void VisitOutNodes(const std::function<void(tensorflow::Node *)> &visitor);
+  bool VisitNodes(const std::function<bool(tensorflow::Node *)> &visitor);
   size_t Hash() const { return (is_cluster_ ? reinterpret_cast<size_t>(cluster_) : reinterpret_cast<size_t>(node_)); }
   bool operator==(const NodeOrCluster &other) const {
     return (is_cluster_ ? cluster_ == other.cluster_ : node_ == other.node_);
@@ -64,7 +64,7 @@ struct NodeOrCluster {
 };
 
 struct StableNodeCompartor {
-  bool operator()(const tensorflow::Node *a, const tensorflow::Node *b) { return a->id() < b->id(); }
+  bool operator() (const tensorflow::Node *a, const tensorflow::Node *b) const { return a->id() < b->id(); }
 };
 
 class NodePlacer {

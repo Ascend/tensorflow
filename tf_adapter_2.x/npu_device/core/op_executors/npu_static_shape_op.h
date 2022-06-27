@@ -29,8 +29,7 @@ class NpuStaticShapeOp : public OpExecutor {
     const static std::string kType = "NpuStaticShapeOp";
     return kType;
   }
-
-  std::string AttachedDebugString() const override;
+  ~NpuStaticShapeOp() = default;
 
   void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                TFE_TensorHandle **outputs, TF_Status *status) const override;
@@ -40,7 +39,8 @@ class NpuStaticShapeOp : public OpExecutor {
                            TF_Status *status);
 
   TensorShapes OutputShapes() const { return output_shapes_; }
-
+ protected:
+  std::string AttachedDebugString() const override;
  private:
   TensorShapes output_shapes_;
 };

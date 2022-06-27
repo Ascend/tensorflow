@@ -29,7 +29,7 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
   DLOG() << "Start to tune graph id: " << graph_id << ", name: " << name;
 
   std::map<Aoe::AscendString, Aoe::AscendString> session_options;
-  session_options.emplace(Aoe::AscendString("job_type"), Aoe::AscendString(device->device_options["aoe_mode"].c_str()));
+  (void)session_options.emplace(Aoe::AscendString("job_type"), Aoe::AscendString(device->device_options["aoe_mode"].c_str()));
   SessionId aoe_session_id = 0;
   auto ret = aoe_func_.aoe_create_session(session_options, aoe_session_id);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe create session func failed"));
@@ -46,7 +46,7 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe set tuning graph func failed"));
 
   std::vector<ge::Tensor> ge_inputs;
-  device->TransTfInputs2GeInputs(inputs.size(), inputs.data(), status, ge_inputs);
+  device->TransTfInputs2GeInputs(static_cast<int32_t>(inputs.size()), inputs.data(), status, ge_inputs);
   if (TF_GetCode(status) != TF_OK) {
     return tensorflow::errors::Internal("get ge tensor inputs failed");
   }
@@ -78,7 +78,7 @@ tensorflow::Status NpuAoe::AoeTuningInitialize(const std::string &work_path) {
   NPU_REQUIRES_OK(instance_ptr_->LoadAoeFunc());
 
   std::map<Aoe::AscendString, Aoe::AscendString> global_options;
-  global_options.emplace(Aoe::AscendString("work_path"), Aoe::AscendString(work_path.c_str()));
+  (void)global_options.emplace(Aoe::AscendString("work_path"), Aoe::AscendString(work_path.c_str()));
   auto ret = instance_ptr_->aoe_func_.aoe_initialize(global_options);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe initialize func failed"));
 
@@ -154,7 +154,6 @@ tensorflow::Status NpuAoe::AoeTuningFinalize() {
 
 NpuAoe::~NpuAoe() {
   if (handle_ != nullptr) {
-    DLOG() << "close handle";
     (void)dlclose(handle_);
   }
 }

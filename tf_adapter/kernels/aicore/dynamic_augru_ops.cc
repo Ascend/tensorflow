@@ -23,9 +23,7 @@ class DynamicAUGRUOP : public OpKernel {
   explicit DynamicAUGRUOP(OpKernelConstruction *ctx) : OpKernel(ctx) {
     LOG(INFO) << "new DynamicAUGRUOP";
   }
-  ~DynamicAUGRUOP() override {
-    LOG(INFO) << "del DynamicAUGRUOP";
-  }
+  ~DynamicAUGRUOP() override = default;
   void Compute(OpKernelContext *ctx) override {
     (void) ctx;
     LOG(INFO) << "in DynamicAUGRUOP";

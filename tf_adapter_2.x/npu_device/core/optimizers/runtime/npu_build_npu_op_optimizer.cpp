@@ -92,7 +92,7 @@ tensorflow::Status BuildGetNextShape(tensorflow::Graph *graph, tensorflow::Node 
 
 tensorflow::Status UpdateTensorDescForDynDims(const std::vector<std::string> &all_input_shapes,
                                               const std::vector<int32_t> &ordered_indexes,
-                                              tensorflow::Node *dynamic_dims_node) {
+                                              const tensorflow::Node *dynamic_dims_node) {
   DLOG() << "Change " << dynamic_dims_node->name() << " shape desc.";
   tensorflow::NodeDef &node_def = const_cast<tensorflow::NodeDef &>(dynamic_dims_node->def());
   tensorflow::AttrValue &out_tensor_desc = (*node_def.mutable_attr())[kOutputDesc];
@@ -146,9 +146,9 @@ namespace npu {
 tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
                                       std::map<std::string, std::string> options, NpuDevice *device, int num_inputs,
                                       TFE_TensorHandle **inputs) {
-  TF_UNUSED_VARIABLE(options);
-  TF_UNUSED_VARIABLE(num_inputs);
-  TF_UNUSED_VARIABLE(inputs);
+  (void)context;
+  (void)num_inputs;
+  (void)inputs;
   std::stringstream ss;
   ss << device->ValidateInputTypes(graph->ConsumedTypes()).error_message();
   ss << device->ValidateOutputTypes(graph->ProducedTypes()).error_message();

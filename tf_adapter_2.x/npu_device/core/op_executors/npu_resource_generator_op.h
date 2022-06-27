@@ -32,11 +32,12 @@ class NpuResourceGeneratorOp : public OpExecutor {
     const static std::string kType = "NpuResourceGeneratorOp";
     return kType;
   }
-
-  std::string AttachedDebugString() const override;
+  ~NpuResourceGeneratorOp() = default;
 
   void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                TFE_TensorHandle **outputs, TF_Status *status) const override;
+ protected:
+  std::string AttachedDebugString() const override;
 };
 }  // namespace npu
 
