@@ -49,7 +49,7 @@ class GeOpTest : public testing::Test {
  protected:
   virtual void SetUp() {
     *const_cast<bool *>(&kDumpGraph) = true;
-    kIsNewDataTransfer = true;
+    NpuAttrs::SetNewDataTransferFlag(true);
   }
   virtual void TearDown() {}
 };

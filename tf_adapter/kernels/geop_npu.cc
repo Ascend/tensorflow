@@ -883,6 +883,7 @@ void GeOp::ProcessDpOpFuncDef(const Node &node) const {
   const std::string org_func_def_lib = node.def().attr().at("func_def").s();
   FunctionDefLibrary func_def_lib;
   func_def_lib.ParseFromString(org_func_def_lib);
+  bool is_new_transfer_mode = NpuAttrs::GetNewDataTransferFlag();
   for (auto &func_def : *func_def_lib.mutable_function()) {
     if (func_def.signature().name() == func_name) {
       for (auto &node_def : *func_def.mutable_node_def()) {
@@ -891,11 +892,11 @@ void GeOp::ProcessDpOpFuncDef(const Node &node) const {
           NpuAttrs::SetDatasetExecuteInDeviceStatus(tf_session_ + node_def.name(), true);
         }
         if (node_def.op() == "DeviceQueueDataset") {
-          if (kIsNewDataTransfer) {
+          if (is_new_transfer_mode) {
             ChangeChannelNameAttr(node_def);
           }
           tensorflow::AttrValue value;
-          value.set_b(kIsNewDataTransfer);
+          value.set_b(is_new_transfer_mode);
           node_def.mutable_attr()->insert({"_is_new_data_transfer", value});
         }
       }
