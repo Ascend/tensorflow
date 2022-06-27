@@ -16,6 +16,7 @@
 #include <thread>
 #include "nlohmann/json.hpp"
 #include "tensorflow/core/util/env_var.h"
+#include "tensorflow/core/framework/cancellation.h"
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/common/types.h"
 #include "framework/omg/parser/parser_api.h"
@@ -310,6 +311,19 @@ bool GePlugin::IsGlobal() {
   return isGlobal_;
 }
 
+static CancellationManager g_cancellationManager;
+Status RegisterNpuCancellationCallback(std::function<void()> callback,
+    std::function<void()>* deregister_fn) {
+  CancellationToken token = g_cancellationManager.get_cancellation_token();
+  if (!g_cancellationManager.RegisterCallback(token, std::move(callback))) {
+    return errors::Cancelled("Operation was cancelled");
+  }
+  *deregister_fn = [token]() {
+    g_cancellationManager.DeregisterCallback(token);
+  };
+  return Status::OK();
+}
+
 void PluginInit(std::map<std::string, std::string> &init_options) {
   GePlugin::GetInstance()->Init(init_options, true);
   ADP_LOG(INFO) << "[GePlugin] npu plugin init success";
@@ -321,6 +335,8 @@ void PluginFinalize() {
 }
 
 void NpuClose() {
+  ADP_LOG(INFO) << "[GePlugin] Npu close.";
+  g_cancellationManager.StartCancel();
   GeFinalize();
   uint32_t device_id = 0;
   (void) GetEnvDeviceID(device_id);

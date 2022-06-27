@@ -58,9 +58,9 @@ bool compare(const Tensor& a, const Tensor& b) {
     if (flat_a(i) < flat_b(i)) {
 		return true;
 	}
-    if (flat_a(i) > flat_b(i)) 
+    if (flat_a(i) > flat_b(i))
 	{return false;}
-	
+
   }
   return flat_a.size() < length;
 }
@@ -116,7 +116,7 @@ Status DatasetOpsTestBase::ExpectEqual(std::vector<Tensor> tensors1, std::vector
   return Status::OK();
 }
 
-Status DatasetOpsTestBase::CreateTensorSliceDatasetKernel(StringPiece node_name, const DataTypeVector& dtypes, const std::vector<PartialTensorShape>& shape, 
+Status DatasetOpsTestBase::CreateTensorSliceDatasetKernel(StringPiece node_name, const DataTypeVector& dtypes, const std::vector<PartialTensorShape>& shape,
                                                           std::unique_ptr<OpKernel>* dataset_kernel) {
   std::vector<string> com;
   com.reserve(dtypes.size());
@@ -155,7 +155,7 @@ Status DatasetOpsTestBase::CreateTensorSliceDataset(StringPiece node_name, std::
   return Status::OK();
 }
 
-Status DatasetOpsTestBase::MakeRangeDataset(const Tensor& rt, const Tensor& sp, const Tensor& st, const DataTypeVector& output_types, 
+Status DatasetOpsTestBase::MakeRangeDataset(const Tensor& rt, const Tensor& sp, const Tensor& st, const DataTypeVector& output_types,
                                             const std::vector<PartialTensorShape>& output_shapes, Tensor* range_dataset) {
   GraphConstructorOptions gops;
   gops.allow_internal_ops = true;
@@ -182,7 +182,7 @@ Status DatasetOpsTestBase::MakeTakeDataset( const Tensor& input, int64 count, co
   opts.expect_device_spec = false;
 
   Tensor count_tensor = CreateTensor<int64>(TensorShape({}), {count});
-  TF_RETURN_IF_ERROR(RunFunction(test::function::MakeTakeDataset(),{{TakeDatasetOp::kOutputTypes, types}, 
+  TF_RETURN_IF_ERROR(RunFunction(test::function::MakeTakeDataset(),{{TakeDatasetOp::kOutputTypes, types},
                     {TakeDatasetOp::kOutputShapes, shapes}}, {input, count_tensor}, opts,{take_dataset}));
   return Status::OK();
 }
@@ -327,7 +327,7 @@ Status DatasetOpsTestBase::CreateOpKernelContext( OpKernel* kernels, gtl::Inline
   pas = std::move(params_);
   cancellation_manager_ = absl::make_unique<CancellationManager>();
   unique_ptr<CancellationManager> cm = std::move(cancellation_manager_);
-  pas->cancellation_manager = cm.get();
+  pas->cancellation_manager = cm.release();
   pas->device = device_.get();
   pas->frame_iter = FrameAndIter(0, 0);
   pas->function_library = flr_;
@@ -339,7 +339,7 @@ Status DatasetOpsTestBase::CreateOpKernelContext( OpKernel* kernels, gtl::Inline
   pas->slice_reader_cache = slice_reader_cache_.get();
   step_container_ = absl::make_unique<ScopedStepContainer>(0, [](const string&) {});
   unique_ptr<ScopedStepContainer> stc = std::move(step_container_);
-  pas->step_container = stc.get();
+  pas->step_container = stc.release();
 
   allocator_attrs_.clear();
   for (int i = 0; i < pas->op_kernel->num_outputs(); i++) {
@@ -350,7 +350,7 @@ Status DatasetOpsTestBase::CreateOpKernelContext( OpKernel* kernels, gtl::Inline
   }
   pas->output_attr_array = gtl::vector_as_array(&allocator_attrs_);
 
-  *ctx = absl::make_unique<OpKernelContext>(pas.get());
+  *ctx = absl::make_unique<OpKernelContext>(pas.release());
   return Status::OK();
 }
 
@@ -398,6 +398,7 @@ Status DatasetOpsTestBase::CheckIteratorGetNext( const std::vector<Tensor>& expe
   bool end_of_sequence = false;
   std::vector<Tensor> out_tensor;
   while (!end_of_sequence) {
+    // sleep(1);
     std::vector<Tensor> next;
     TF_RETURN_IF_ERROR(iterator_->GetNext(iterator_ctx_.get(), &next, &end_of_sequence));
     out_tensor.insert(out_tensor.end(), next.begin(), next.end());
@@ -447,7 +448,6 @@ Status DatasetOpsTestBase::CheckIteratorPrefix( const string& expected_prefix) {
   EXPECT_EQ(iterator_->prefix(), expected_prefix);
   return Status::OK();
 }
-
 
 }  // namespace data
 }  // namespace tensorflow

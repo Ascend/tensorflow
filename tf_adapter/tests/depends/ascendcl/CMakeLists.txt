@@ -20,6 +20,7 @@ file(GLOB_RECURSE SRC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 include_directories(${TFADAPTER_DIR}/inc/
+                    ${TFADAPTER_DIR}/tf_adapter/common
                     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 

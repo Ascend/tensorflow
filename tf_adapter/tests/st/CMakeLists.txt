@@ -23,6 +23,7 @@ file(GLOB_RECURSE ST_SOURCES
     ${TFADAPTER_DIR}/tf_adapter/optimizers/*.cc
     ${TFADAPTER_DIR}/tf_adapter/util/*.cc
     ${TFADAPTER_DIR}/tf_adapter/kernels/*.cc
+    "kernels/testcase/dataset/*.cc"
     "optimizers/testcase/*.cc"
     "kernels/testcase/*.cc"
     "util/testcase/*.cc"
@@ -35,6 +36,18 @@ add_executable(tfadapter_stest
 
 target_include_directories(tfadapter_stest PRIVATE
     ${TF_INSTALL_LIB_PATH}/include/
+    ${TFADAPTER_DIR}/inc/external/
+    ${TFADAPTER_DIR}/inc/common/
+    ${TFADAPTER_DIR}/graphengine/inc/
+    ${TFADAPTER_DIR}/graphengine/inc/external/
+    ${TFADAPTER_DIR}/graphengine/inc/framework/
+    ${TFADAPTER_DIR}/metadef/inc/
+    ${TFADAPTER_DIR}/metadef/inc/external/
+    ${TFADAPTER_DIR}/tf_adapter/kernels/aicpu
+    ${TFADAPTER_DIR}/tf_adapter/tests/depends/test_util
+    ${TFADAPTER_DIR}/tf_adapter/tests/depends/ascendcl/src
+    ${TFADAPTER_DIR}/tf_adapter/tests/depends/ge_runner/src/
+    ${TFADAPTER_DIR}/tf_adapter/tests/depends/alog/src/
 )
 
 target_compile_options(tfadapter_stest PRIVATE

@@ -43,6 +43,7 @@
 #include "tf_adapter/util/host_thread_pool.h"
 #include "tf_adapter/util/host_allocator.h"
 #include "tf_adapter/kernels/aicpu/data_item_deliver.h"
+#include "tf_adapter/kernels/aicpu/npu_tensor.h"
 
 namespace tensorflow {
 namespace data {
@@ -50,6 +51,7 @@ namespace {
 using namespace std;
 using namespace tdt;
 
+constexpr int64 kSleepUs = 10;
 const uint32_t kMaxValue = 128U;
 const size_t kMaxDepth = 128UL;
 const int32_t kSleepTime = 1;
@@ -292,10 +294,14 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           cancelled_ = true;
         }
         cond_var_.notify_all();
-        delete data_deliver_;
-        if (get_thread_exception_.load()) {
-          FinishMemory();
+
+        while (active_thread_num) {
+          cond_var_.notify_all();
+          usleep(kSleepUs);
         }
+
+        delete data_deliver_;
+        FinishMemory();
         DestroyQueue();
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
@@ -416,14 +422,33 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
       void FinishMemory() {
         if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+          ADP_LOG(INFO) << "FinishMemory ...";
           thread_pool_.StopThreadPool();
           (void)mem_pool_.FreeAllMemory();
         }
       }
 
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
+        {
+          mutex_lock lck(mu_);
+          active_thread_num++;
+        }
+
         RecordStart(ctx.get());
-        auto cleanup = gtl::MakeCleanup([this, ctx] { RecordStop(ctx.get()); });
+        auto cleanup = gtl::MakeCleanup([this, ctx] {
+          RecordStop(ctx.get());
+          {
+            mutex_lock lck(mu_);
+            active_thread_num--;
+          }
+        });
+        enum NPU_ALLOCATOR_CHECK {
+          NPU_ALLOCATOR_UNKNOW,
+          NPU_ALLOCATOR_NONPU,
+          NPU_ALLOCATOR_NPU,
+        } from_npu_dataset = NPU_ALLOCATOR_UNKNOW;
+
+        ADP_LOG(INFO) << "Recv data thread starting ...";
         while (true) {
           {
             mutex_lock lck(mu_);
@@ -466,11 +491,20 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             return;
           }
           uint64_t args_tensor_size = 0ULL;
+          if (from_npu_dataset == NPU_ALLOCATOR_UNKNOW) {
+            if (args.empty()) {
+              ADP_LOG(ERROR) << "args is null";
+              continue;
+            }
+            from_npu_dataset = NpuAllocator::IsNpuAllocator(args[0]) ? NPU_ALLOCATOR_NPU : NPU_ALLOCATOR_NONPU;
+            ADP_LOG(INFO) << "from_npu_dataset = " << from_npu_dataset;
+          }
           bool is_string = false;
           {
             mutex_lock lck(mu_);
+            int i = 0;
             for (auto &tensor : args) {
-              if ((tensor.dtype() == DT_STRING) && (!is_string)) {
+              if ((from_npu_dataset != NPU_ALLOCATOR_NPU) && (tensor.dtype() == DT_STRING) && (!is_string)) {
                 ADP_LOG(INFO) << "Data type is string, do not use memory pool";
                 is_string = true;
               }
@@ -487,7 +521,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               total_bytes_ += tensor.TotalBytes();
             }
           }
-          if ((dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!is_string)) {
+          if ((from_npu_dataset != NPU_ALLOCATOR_NPU) &&
+              (dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!is_string)) {
             if (!HandleMemory(args, buffer_element.value, args_tensor_size)) {
               get_thread_exception_.store(true);
               return;
@@ -497,6 +532,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
           {
             mutex_lock lck(mu_);
+            ADP_LOG(INFO) << "Host-Queue-push-buffer: args_tensor_size = " << args_tensor_size;
             buffer_.push_back(std::move(buffer_element));
             cond_var_.notify_all();
           }
@@ -504,6 +540,17 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       void SendDataThread() {
+        {
+          mutex_lock lck(mu_);
+          active_thread_num++;
+        }
+
+        auto cleanup = gtl::MakeCleanup([this] {
+          {
+            mutex_lock lck(mu_);
+            active_thread_num--;
+          }
+        });
         std::vector<DataItem> items;
         while (data_deliver_->RecvDataVec(items).ok()) {
           int32_t tdt_status = TdtHostPushData(dataset()->channel_name_, items,
@@ -588,6 +635,18 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
       void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
         ADP_LOG(INFO) << "Begin to send data";
+        {
+          mutex_lock lck(mu_);
+          active_thread_num++;
+        }
+
+        auto cleanup = gtl::MakeCleanup([this] {
+          {
+            mutex_lock lck(mu_);
+            active_thread_num--;
+          }
+        });
+
         while (true) {
           std::vector<Tensor> args;
           acltdtTensorType data_type = ACL_TENSOR_DATA_TENSOR;
@@ -640,6 +699,17 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       void SendDataThread(const std::shared_ptr<IteratorContext> &ctx) {
+        {
+          mutex_lock lck(mu_);
+          active_thread_num++;
+        }
+
+        auto cleanup = gtl::MakeCleanup([this] {
+          {
+            mutex_lock lck(mu_);
+            active_thread_num--;
+          }
+        });
         vector<Tensor> args;
         while (true) {
           {
@@ -887,6 +957,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       DataItemDeliver *data_deliver_;
       acltdtChannelHandle *acl_handle_;
       uint32_t queue_id_;
+      int active_thread_num = 0;
     };
     const std::vector<DatasetBase *> inputs_;
     std::string channel_name_;

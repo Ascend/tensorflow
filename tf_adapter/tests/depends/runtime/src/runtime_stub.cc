@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <iostream>
+#include <cstring>
+#include <chrono>
 #include <memory>
 #include <atomic>
 #include <unordered_set>
 #include "runtime/config.h"
 #include "runtime/dev.h"
+#include "runtime/mem.h"
 #include "runtime/rt_mem_queue.h"
 
 struct rtMbuf {
@@ -93,5 +95,20 @@ rtError_t rtGetIsHeterogenous(int32_t *heterogeneous) {
 rtError_t rtMbufGetPrivInfo(rtMbufPtr_t mbuf, void **priv, uint64_t *size) {
   *priv = ((rtMbuf *)mbuf)->data;
   *size = 256;
+  return RT_ERROR_NONE;
+}
+
+rtError_t rtMalloc(void **devPtr, uint64_t size, rtMemType_t type) {
+  *devPtr = malloc(size);
+  return RT_ERROR_NONE;
+}
+
+rtError_t rtFree(void *devPtr) {
+  free(devPtr);
+  return RT_ERROR_NONE;
+}
+
+rtError_t rtMemcpy(void *dst, size_t destMax, const void *src, size_t count, rtMemcpyKind_t kind) {
+  (void)std::memcpy(dst, src, count);
   return RT_ERROR_NONE;
 }

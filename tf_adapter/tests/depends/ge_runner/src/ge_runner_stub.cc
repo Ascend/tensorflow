@@ -31,6 +31,9 @@
 #include "tensorflow/core/graph/graph_constructor.h"
 #include "graph/buffer.h"
 #include "graph/model.h"
+#include "ascendcl_stub.h"
+#include "ge_stub.h"
+#include "tf_adapter/common/adp_logger.h"
 
 #include <iostream>
 
@@ -83,7 +86,7 @@ const std::map<uint32_t, ge::DataType> data_type_map = {
   {tensorflow::DataType::DT_STRING_REF, ge::DataType::DT_STRING},
   {tensorflow::DataType::DT_VARIANT, ge::DataType::DT_VARIANT},
 };
-} // end 
+} // end
 class TensorFlowModelParser : public domi::ModelParser {
  public:
   TensorFlowModelParser() {}
@@ -237,6 +240,15 @@ Status Session::AddGraph(uint32_t graphId, const Graph &graph, const std::map<st
   return ge::SUCCESS;
 }
 
+Status Session::AddGraphWithCopy(uint32_t graphId, const Graph &graph, const std::map<AscendString, AscendString> &options) {
+  auto ret = graphs_map.find(graphId);
+  if (ret != graphs_map.end()) {
+    return ge::FAILED;
+  }
+  graphs_map[graphId] = graph;
+  return ge::SUCCESS;
+}
+
 Status Session::BuildGraph(uint32_t graphId, const std::vector<ge::Tensor> &inputs) {
   auto ret = graphs_map.find(graphId);
   if (ret == graphs_map.end()) {
@@ -257,6 +269,41 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
   }
   callback(ret, outputs);
   return ret;
+}
+
+Status Session::BuildGraph(uint32_t graphId, const std::vector<InputTensorInfo> &inputs) {
+  return ge::SUCCESS;
+}
+
+RunGraphStub g_RunGraphStub = nullptr;
+void RegRunGraphStub(RunGraphStub stub) {
+  g_RunGraphStub = stub;
+}
+
+Status Session::RunGraph(uint32_t graphId, const std::vector<Tensor> &inputs, std::vector<Tensor> &outputs) {
+  if (g_RunGraphStub != nullptr) {
+    return g_RunGraphStub(graphId, inputs, outputs);
+  }
+  return ge::SUCCESS;
+}
+
+RunGraphWithStreamAsyncStub g_RunGraphWithStreamAsyncStub = nullptr;
+void RegRunGraphWithStreamAsyncStub(RunGraphWithStreamAsyncStub stub) {
+  g_RunGraphWithStreamAsyncStub = stub;
+}
+Status Session::RunGraphWithStreamAsync(uint32_t graphId, void *stream, const std::vector<Tensor> &inputs,
+                                        std::vector<Tensor> &outputs) {
+  ADP_LOG(INFO) << "RunGraphWithStreamAsync enter, stream = " << stream;
+  AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
+  stub->input_data = inputs;
+  stub->output_data = &outputs;
+  stub->hook = nullptr;
+  if (g_RunGraphWithStreamAsyncStub != nullptr) {
+    ge::Status status = g_RunGraphWithStreamAsyncStub(graphId, stream, inputs, outputs);
+    ADP_LOG(INFO) << "RunGraphWithStreamAsync proc hook, stream = " << stub << "hook = "
+        << stub->hook.target<ge::Status(*)(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>();
+  }
+  return ge::SUCCESS;
 }
 
 class ComputeGraphImpl {
@@ -358,45 +405,6 @@ ConstProtoAttrMap &Model::GetAttrMap() const {
 ProtoAttrMap &Model::MutableAttrMap() {
   return attrs_;
 }
-
-Tensor::Tensor() {}
-
-graphStatus Tensor::SetTensorDesc(const TensorDesc &tensorDesc) { return GRAPH_SUCCESS; }
-
-TensorDesc Tensor::GetTensorDesc() const { return TensorDesc(); }
-
-graphStatus Tensor::SetData(const uint8_t *data, size_t size) { return GRAPH_SUCCESS; }
-
-graphStatus Tensor::SetData(uint8_t *data, size_t size, const Tensor::DeleteFunc &deleter_func) { return GRAPH_SUCCESS; }
-
-size_t Tensor::GetSize() const { return 4; }
-
-Shape::Shape(const std::vector<int64_t> &dims) {}
-
-Shape::Shape() {}
-
-std::vector<int64_t> Shape::GetDims() const {
-  std::vector<int64_t> dims;
-  return dims;
-}
-
-TensorDesc::TensorDesc() {}
-
-TensorDesc::TensorDesc(Shape shape, Format format, DataType dt) {}
-
-void TensorDesc::SetDataType(DataType dt) {}
-
-Shape TensorDesc::GetShape() const { return Shape(); }
-
-static Placement ge_placement = ge::kPlacementHost;
-
-Placement TensorDesc::GetPlacement() const { return ge_placement; }
-
-void TensorDesc::SetPlacement(ge::Placement placement) { ge_placement = placement; }
-
-void TensorDesc::SetOriginShape(const Shape &originShape) {}
-
-std::unique_ptr<uint8_t[], Tensor::DeleteFunc> Tensor::ResetData() { return nullptr; }
 
 ParserContext &GetParserContext() {
   static ParserContext context;

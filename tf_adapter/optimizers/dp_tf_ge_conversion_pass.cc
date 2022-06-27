@@ -53,6 +53,9 @@ const static std::vector<std::string> CUSTOMIZE_DATASET_LIST = {"BatchDataset", 
 // Skip dataset list
 const static std::vector<std::string> SKIP_DATASET_LIST = {"ModelDataset", "OptimizeDataset"};
 
+// Need add option attr
+const static std::vector<std::string> NEED_OPTION_ATTR_DATASET_LIST = {"NpuMapDataset", "NpuMapAndBatchDataset"};
+
 // GE fun black list
 const static std::vector<std::string> GE_FUN_BLACKLIST = {"PyFunc",
                                                           "SaveV2",
@@ -145,6 +148,7 @@ class DpTfToGEConversionPassImpl {
   bool RunPass(const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
                const std::map<std::string, std::string> &all_options);
   inline bool IsMakeIteratorNode(const Node *n) const;
+  inline bool IsAddOptionAttrNode(const Node *n) const;
   inline bool IsIteratorNode(const Node *n) const;
   inline bool IsSkipDataset(const Node *n) const;
   inline bool IsGeSupportDataset(const Node *n) const;
@@ -182,6 +186,7 @@ class DpTfToGEConversionPassImpl {
   Status AddGeOpDatasetAndDpGroupDataset(const Node *topo_end, const std::string &fn_geop_dataset,
                                          const std::string &host_channel_name,
                                          const std::string &device_channel_name) const;
+  void AddOptionAttr(std::vector<Node *> nodes, const std::map<std::string, std::string> &all_options);
 
   // graph num
   int graph_run_num_;
@@ -198,6 +203,11 @@ class DpTfToGEConversionPassImpl {
 
 inline bool DpTfToGEConversionPassImpl::IsMakeIteratorNode(const Node *n) const {
   return str_util::StartsWith(n->type_string(), DP_INIT_GRAPH_MARK);
+}
+
+inline bool DpTfToGEConversionPassImpl::IsAddOptionAttrNode(const Node *n) const {
+  return std::find(NEED_OPTION_ATTR_DATASET_LIST.begin(), NEED_OPTION_ATTR_DATASET_LIST.end(),
+                   n->type_string()) != NEED_OPTION_ATTR_DATASET_LIST.end();
 }
 
 inline bool DpTfToGEConversionPassImpl::IsIteratorNode(const Node *n) const {
@@ -874,6 +884,18 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
   return Status::OK();
 }
 
+void DpTfToGEConversionPassImpl::AddOptionAttr(std::vector<Node *> nodes, const std::map<std::string, std::string> &all_options) {
+  std::string attr_name;
+  for (auto node : nodes) {
+    ADP_LOG(INFO) << "Node[" << node->name() << "] add options attr.";
+    for (const auto &option : all_options) {
+      attr_name = std::string("_") + option.first;
+      node->AddAttr(attr_name, option.second);
+    }
+    node->AddAttr("_NpuOptimizer", "NpuOptimizer");
+  }
+}
+
 bool DpTfToGEConversionPassImpl::RunPass(const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,
                                          const std::map<std::string, std::string> &all_options) {
   ADP_LOG(INFO) << ">>>> DpTfToGEConversionPassImpl::RunPass <<<<";
@@ -1023,6 +1045,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(const std::unique_ptr<Graph> *gr
   std::map<std::string, std::string> all_options;
   std::map<std::string, std::string> pass_options;
   pass_options = NpuAttrs::GetDefaultPassOptions();
+  std::vector<Node *> add_options_nodes;
 
   for (Node *n : graph->get()->nodes()) {
     REQUIRES_NOT_NULL(n);
@@ -1039,7 +1062,14 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(const std::unique_ptr<Graph> *gr
       pass_options = NpuAttrs::GetPassOptions(n->attrs());
       all_options = NpuAttrs::GetAllAttrOptions(n->attrs());
     }
+
+    if (IsAddOptionAttrNode(n)) {
+      add_options_nodes.push_back(n);
+    }
   }
+
+  AddOptionAttr(add_options_nodes, all_options);
+
   std::string job = pass_options["job"];
   if (job == "ps" || job == "default") {
     ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : DpTfToGEConversionPass.";

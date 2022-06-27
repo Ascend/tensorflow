@@ -20,6 +20,7 @@
 #include <mutex>
 #include <string>
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow/core/lib/core/status.h"
 
 // Singleton class for manage the relationship between
 // tf session and ge session
@@ -48,6 +49,8 @@ class GePlugin {
   std::map<std::string, std::string> init_options_;
   std::mutex mutex_;
 };
+
+tensorflow::Status RegisterNpuCancellationCallback(std::function<void()> callback, std::function<void()>* deregister_fn);
 // } // tensorflow
 
 #endif

@@ -15,8 +15,12 @@
 #include <vector>
 #include <memory>
 
+#include "ge/ge_api.h"
+#include "ge/ge_api_types.h"
+#include "graph/tensor.h"
 #include "acl/acl_base.h"
 #include "acl/acl_tdt.h"
+#include "acl/acl_rt.h"
 
 struct acltdtDataItem {
     acltdtDataItem(acltdtTensorType tdtType,
@@ -77,6 +81,16 @@ struct acltdtChannelHandle {
     std::string recvName;
     uint32_t devId;
 };
+
+using AclStreamStubHook = std::function<ge::Status(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>;
+struct AclStreamStub{
+  std::vector<ge::Tensor> input_data;
+  std::vector<ge::Tensor> *output_data;
+  AclStreamStubHook hook;
+  aclrtEventStatus status;
+};
+
+typedef AclStreamStub AclEventStub;
 
 #endif //ACL_TENSOR_DATA_TRANSFER_H
 

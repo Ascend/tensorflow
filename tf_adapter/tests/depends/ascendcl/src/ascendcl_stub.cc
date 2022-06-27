@@ -20,6 +20,7 @@
 #include "securec.h"
 #include <map>
 #include <mutex>
+#include "tf_adapter/common/adp_logger.h"
 
 namespace {
     std::mutex aclChannleMutex;
@@ -81,7 +82,7 @@ aclError aclrtMallocHost(void **hostPtr, size_t size) {
     return ACL_SUCCESS;
 }
 
-aclError aclrtMemcpy(void *dst, size_t destMax, 
+aclError aclrtMemcpy(void *dst, size_t destMax,
                      const void *src, size_t count,
                      aclrtMemcpyKind kind) {
     auto ret = memcpy_s(dst, destMax, src, count);
@@ -290,4 +291,91 @@ aclError acltdtStopChannel(acltdtChannelHandle *handle)
         return ACL_TENSOR_DATA_UNDEFINED;
     }
     return ACL_SUCCESS;
+}
+
+aclError aclrtCreateStream(aclrtStream *stream) {
+  ADP_LOG(INFO) << "aclrtCreateStream stub enter";
+  AclStreamStub *stream_ = new (std::nothrow)AclStreamStub();
+  if (stream_ == nullptr) {
+    ADP_LOG(INFO) << "new AclStreamStub failed";
+    *stream = nullptr;
+    return ACL_ERROR_INVALID_PARAM;
+  }
+  stream_->status = ACL_EVENT_STATUS_NOT_READY;
+  *stream = stream_;
+  ADP_LOG(INFO) << "aclrtCreateStream stub out, stream_ = " << stream_;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtDestroyStream(aclrtStream stream) {
+  ADP_LOG(INFO) << "aclrtDestroyStream stub enter";
+  delete (AclStreamStub*)stream;
+  ADP_LOG(INFO) << "aclrtDestroyStream stub out";
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtCreateEvent(aclrtEvent *event) {
+  ADP_LOG(INFO) << "aclrtCreateEvent stub enter";
+  *event = new (std::nothrow)AclEventStub();
+  ADP_LOG(INFO) << "aclrtCreateEvent stub out";
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtDestroyEvent(aclrtEvent event) {
+  ADP_LOG(INFO) << "aclrtDestroyEvent stub enter";
+  delete (AclEventStub*)(event);
+  ADP_LOG(INFO) << "aclrtDestroyEvent stub out";
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtSynchronizeStream(aclrtStream stream) {
+  ADP_LOG(INFO) << "aclrtSynchronizeStream stub enter, stream = " << stream;
+  AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
+  if (stub->hook != nullptr) {
+      ADP_LOG(INFO) << "aclrtSynchronizeStream:: stream = " << stream << ", process hook = "
+            << stub->hook.target<ge::Status(*)(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>();
+      return stub->hook(stub->input_data, *stub->output_data);
+  }
+  ADP_LOG(INFO) << "aclrtSynchronizeStream stub out, stream = " << stream;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtSynchronizeEvent(aclrtEvent event) {
+  ADP_LOG(INFO) << "aclrtSynchronizeEvent stub enter, event = " << event;
+  AclEventStub *stub = static_cast<AclEventStub*>(event);
+  if (stub->hook != nullptr) {
+    ADP_LOG(INFO) << "aclrtSynchronizeEvent:: event = " << event << ", process hook = "
+        << stub->hook.target<ge::Status(*)(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>();
+    (void)stub->hook(stub->input_data, *stub->output_data);
+  }
+  ADP_LOG(INFO) << "aclrtSynchronizeEvent stub out, event = " << event;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtQueryEvent(aclrtEvent event, aclrtEventStatus *status) {
+  ADP_LOG(INFO) << "aclrtQueryEvent stub enter, event = " << event;
+  AclEventStub *stub = static_cast<AclEventStub*>(event);
+  *status = stub->status;
+  if (stub->status == ACL_EVENT_STATUS_COMPLETE) {
+    ADP_LOG(INFO) << "aclrtQueryEvent:: event = " << event << ", process hook = "
+        << stub->hook.target<ge::Status(*)(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>();
+    (void)stub->hook(stub->input_data, *stub->output_data);
+  }
+  ADP_LOG(INFO) << "aclrtQueryEvent stub out, event = " << event;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtRecordEvent(aclrtEvent event, aclrtStream stream) {
+  AclStreamStub *stubStream = static_cast<AclStreamStub*>(stream);
+  AclEventStub *stubEvent = static_cast<AclEventStub*>(event);
+  ADP_LOG(INFO) << "aclrtRecordEvent stub enter, stream = " << stream
+      << ", event = " << event << ", process hook = "
+      << stubStream->hook.target<ge::Status(*)(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>();
+  stubEvent->input_data = stubStream->input_data;
+  stubEvent->output_data = stubStream->output_data;
+  stubEvent->hook = stubStream->hook;
+  stubEvent->status = stubStream->status;
+  ADP_LOG(INFO) << "aclrtRecordEvent stub out, event = " << event << ", process hook = "
+        << stubEvent->hook.target<ge::Status(*)(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>();
+  return ACL_ERROR_NONE;
 }
