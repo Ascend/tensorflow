@@ -128,7 +128,10 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
           NPU_CTX_REQUIRES_OK(status, s);
           def_nodes[generator->NodeDef()] = node;
         }
-        NPU_CTX_REQUIRES(status, graph->AddEdge(def_nodes[generator->NodeDef()], generator->Index(), target_node, i),
+        NPU_CTX_REQUIRES(status, graph->AddEdge(def_nodes[generator->NodeDef()],
+                                                generator->Index(),
+                                                target_node,
+                                                static_cast<int32_t>(i)),
                          tensorflow::errors::Internal("Failed add edge from ", def_nodes[generator->NodeDef()]->name(),
                                                       " to ", target_node->name()));
       } else {
@@ -138,19 +141,18 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
                                       .Attr("index", arg_index++)
                                       .Attr("_output_shapes", {shapes[static_cast<size_t>(i)]})
                                       .Finalize(graph.get(), &node));
-        NPU_CTX_REQUIRES(
-          status, graph->AddEdge(node, 0, target_node, i),
-          tensorflow::errors::Internal("Failed add edge from ", node->name(), " to ", target_node->name()));
+        NPU_CTX_REQUIRES(status, graph->AddEdge(node, 0, target_node, static_cast<int32_t>(i)),
+                         tensorflow::errors::Internal("Failed add edge from ", node->name(), " to ", target_node->name()));
       }
     }
 
     const auto &output_types = OutputTypes();
-    for (int i = 0; i < num_outputs; i++) {
+    for (size_t i = 0UL; i < static_cast<size_t>(num_outputs); i++) {
       tensorflow::Node *node = nullptr;
       NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder("ret_" + std::to_string(i), "_Retval")
                                     .Input(target_node, i)
                                     .Attr("T", output_types[i])
-                                    .Attr("index", i)
+                                    .Attr("index", static_cast<int32_t>(i))
                                     .Finalize(graph.get(), &node));
     }
 

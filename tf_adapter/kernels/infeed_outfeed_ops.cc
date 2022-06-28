@@ -72,7 +72,7 @@ class OutfeedDequeueOp : public OpKernel {
         ADP_LOG(INFO) << "Succeed destroy acl channel for out-feed dequeue op " << channel_name_;
       }
     }
-    if (aclrtResetDevice(static_cast<uint32_t>(device_id_)) != ACL_SUCCESS) {
+    if (aclrtResetDevice(device_id_) != ACL_SUCCESS) {
       ADP_LOG(ERROR) << "Acl rtResetDevice failed.";
     }
   }
@@ -114,7 +114,7 @@ class OutfeedDequeueOp : public OpKernel {
   std::vector<PartialTensorShape> output_shapes_;
   std::string channel_name_;
   acltdtChannelHandle *acl_handle_ = nullptr;
-  uint32_t device_id_ = 0;
+  uint32_t device_id_ = 0U;
 };
 
 REGISTER_KERNEL_BUILDER(Name("OutfeedDequeueOp").Device(DEVICE_CPU), OutfeedDequeueOp);

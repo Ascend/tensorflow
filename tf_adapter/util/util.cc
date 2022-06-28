@@ -35,14 +35,14 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
   int64_t total_nums = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<int64_t>());
   uint64_t total_size = 0UL;
   for (int64_t i = 0; i < total_nums; ++i) { total_size += tensor.flat<tstring>()(i).size(); }
-  uint64_t buff_size = sizeof(ge::StringHead) * total_nums + total_size;
+  uint64_t buff_size = sizeof(ge::StringHead) * static_cast<uint64_t>(total_nums) + total_size;
   std::unique_ptr<uint8_t[]> buffer(new (std::nothrow) uint8_t[buff_size]);
   REQUIRES_NOT_NULL(buffer);
   buff_list.push_back(std::move(buffer));
 
   uint8_t *base_ptr = buff_list.back().get();
-  uint64_t offset = sizeof(ge::StringHead) * total_nums;
-  for (int64_t i = 0; i < total_nums; ++i) {
+  uint64_t offset = sizeof(ge::StringHead) * static_cast<uint64_t>(total_nums);
+  for (uint64_t i = 0UL; i < static_cast<uint64_t>(total_nums); ++i) {
     ge::StringHead *head = ge::PtrToPtr<uint8_t, ge::StringHead>(base_ptr + i * sizeof(ge::StringHead));
     head->addr = offset;
     head->len = tensor.flat<tstring>()(i).size();

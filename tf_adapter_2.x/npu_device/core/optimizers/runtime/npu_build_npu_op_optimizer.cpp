@@ -57,7 +57,7 @@ tensorflow::Status SetShapeToOutputDesc(const std::vector<std::string> &input_sh
   return tensorflow::Status::OK();
 }
 
-void GetOutputDataIndex(tensorflow::Node *node, std::vector<int32_t> &ordered_indexes) {
+void GetOutputDataIndex(const tensorflow::Node *node, std::vector<int32_t> &ordered_indexes) {
   std::set<int32_t> out_index;
   for (const auto &out_edge : node->out_edges()) {
     if (!out_edge->IsControlEdge()) {

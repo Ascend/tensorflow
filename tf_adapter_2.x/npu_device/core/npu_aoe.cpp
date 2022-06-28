@@ -24,7 +24,7 @@ static std::shared_ptr<NpuAoe> instance_ptr_ = nullptr;
 std::shared_ptr<NpuAoe> NpuAoe::GetInstance() { return instance_ptr_; }
 
 tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context, uint64_t graph_id,
-                                        const std::string &name, tensorflow::GraphDef &graph_def,
+                                        const std::string &name, const tensorflow::GraphDef &graph_def,
                                         std::vector<TFE_TensorHandle *> &inputs, TF_Status *status) {
   DLOG() << "Start to tune graph id: " << graph_id << ", name: " << name;
 
