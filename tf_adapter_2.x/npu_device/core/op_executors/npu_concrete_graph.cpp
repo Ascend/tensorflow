@@ -16,6 +16,7 @@
 
 #include "npu_concrete_graph.h"
 
+#include "npu_aoe.h"
 #include "npu_device.h"
 #include "npu_global.h"
 #include "tensorflow/core/graph/algorithm.h"
@@ -70,6 +71,9 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     }
   }
 
+  RunAoeTuning(context, device, input_handles_, status);
+  NPU_REQUIRES_TFE_OK(status);
+
   bool looped = (loop_type_ != LoopType::NO_LOOP);
   int64_t consume_resource_times = 1;
   if (looped) {
@@ -121,6 +125,19 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
   for (size_t i = 0; i < output_handles_.size(); i++) {
     DLOG() << "Mapping npu graph " << Op() << " output " << i << " to tensorflow output " << produced_outputs_[i];
     outputs[produced_outputs_[i]] = output_handles_[i];
+  }
+}
+
+void NpuConcreteGraph::RunAoeTuning(TFE_Context *context, NpuDevice *device, std::vector<TFE_TensorHandle *> inputs,
+                                    TF_Status *status) const {
+  if (function_op_) {
+    // run aoe tuning if need
+    if (!device->device_options["ge.jobType"].empty()) {
+      auto aoe = NpuAoe::GetInstance();
+      NPU_CTX_REQUIRES(status, aoe != nullptr, tensorflow::errors::Internal("check instance null"));
+      NPU_CTX_REQUIRES_OK(
+          status, aoe->RunAoeTuning(device, context, GeGraphId(), Op(), GraphDef(), inputs, status));
+    }
   }
 }
 
