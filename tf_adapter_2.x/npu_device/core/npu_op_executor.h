@@ -84,6 +84,7 @@ class OpExecutor {
 
   virtual void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs,
                        int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const = 0;
+  virtual ~OpExecutor() = default;
  protected:
   virtual std::string AttachedDebugString() const = 0;
   OpExecutor(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef, TensorShapes input_shapes)
@@ -102,7 +103,6 @@ class OpExecutor {
     input_dtypes_ = std::move(input_dtypes);
     output_dtypes_ = std::move(output_dtypes);
   };
-  virtual ~OpExecutor() = default;
   const tensorflow::OpRegistrationData *op_spec_;  // 算子IR注册的信息，非实例
   tensorflow::NodeDef ndef_;                       // 节点的NodeDef，主要存储实例化属性信息
   tensorflow::NodeDef attached_attrs_;             // NPU 附件的属性

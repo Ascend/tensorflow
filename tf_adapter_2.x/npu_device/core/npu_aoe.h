@@ -55,7 +55,7 @@ class NpuAoe {
 
   static tensorflow::Status AoeTuningInitialize(const std::string &work_path);
   tensorflow::Status RunAoeTuning(NpuDevice *device, TFE_Context *context, uint64_t graph_id,
-                                  const std::string &name, tensorflow::GraphDef &graph_def,
+                                  const std::string &name, const tensorflow::GraphDef &graph_def,
                                   std::vector<TFE_TensorHandle *> &inputs, TF_Status *status);
   tensorflow::Status AoeTuningFinalize();
 

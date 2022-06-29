@@ -55,7 +55,7 @@ class NpuCallOp : public OpKernel {
     OP_REQUIRES_OK(ctx, global::NpuCtx::GetDeviceCtx(device_id_, &context, &device));
 
     std::vector<TFE_TensorHandle *> inputs;
-    inputs.reserve(ctx->num_inputs());
+    inputs.reserve(static_cast<size_t>(ctx->num_inputs()));
 
     npu::ScopeTensorHandleDeleter guarder;
     for (int i = 0; i < ctx->num_inputs(); i++) {
@@ -72,14 +72,15 @@ class NpuCallOp : public OpKernel {
     }
 
     std::vector<TFE_TensorHandle *> outputs(ctx->num_outputs());
-    device->RunGeGraphPin2Cpu(context, graph_id_, inputs.size(), inputs.data(), output_types(), outputs.size(),
+    device->RunGeGraphPin2Cpu(context, graph_id_, static_cast<int32_t>(inputs.size()),
+                              inputs.data(), output_types(), static_cast<int32_t>(outputs.size()),
                               outputs.data(), status.get());
     OP_REQUIRES_OK(ctx, status->status);
 
     for (auto &handle : outputs) {
       guarder.Guard(handle);
     }
-    for (size_t i = 0; i < outputs.size(); i++) {
+    for (size_t i = 0UL; i < outputs.size(); i++) {
       const Tensor *tensor;
       OP_REQUIRES_OK(ctx, npu::GetTensorHandleTensor(outputs[i], &tensor));
       ctx->set_output(i, *tensor);
@@ -108,11 +109,11 @@ class NpuCallOp : public OpKernel {
       if (!node->IsArg()) {
         continue;
       }
-      auto index = node->attrs().Find("index")->i();
-      if (static_cast<size_t>(index) >= args_.size()) {
+      size_t index = static_cast<size_t>(node->attrs().Find("index")->i());
+      if (index >= args_.size()) {
         args_.resize(index + 1);
       }
-      args_[static_cast<size_t>(index)] = node;
+      args_[index] = node;
     }
     input_shapes_.resize(args_.size(), absl::nullopt);
     initialized_ = true;
@@ -121,7 +122,7 @@ class NpuCallOp : public OpKernel {
 
   bool MaybeUpdateShape(OpKernelContext *ctx) {
     bool updated = false;
-    for (int i = 0; i < ctx->num_inputs(); i++) {
+    for (size_t i = 0UL; i < static_cast<size_t>(ctx->num_inputs()); i++) {
       auto &shape = input_shapes_[i];
       auto &value_shape = ctx->input(i).shape();
       if (!shape.has_value()) {
@@ -181,11 +182,13 @@ class NpuCallOp : public OpKernel {
         DLOG() << "Fuzz compile npu graph of " << name() << " as input shape changed since last built";
         fuzz_compile_ = true;
       }
-      if (shape_changed || device->GeSession()->IsGraphNeedRebuild(graph_id_)) {
+      if (shape_changed || device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(graph_id_))) {
         DLOG() << "Remove and re-add ge graph " << attr_.name() << " with id " << graph_id_ << " as "
                << (shape_changed ? "shape changed" : "need rebuild");
         [this, &status, &device]() {
-          NPU_CTX_REQUIRES_GE_OK(status, "Graph engine remove graph", device->GeSession()->RemoveGraph(graph_id_));
+          NPU_CTX_REQUIRES_GE_OK(status,
+                                 "Graph engine remove graph",
+                                 device->GeSession()->RemoveGraph(static_cast<uint32_t>(graph_id_)));
         }();
         NPU_REQUIRES_OK(status->status);
         const static std::map<std::string, std::string> kOptions;
@@ -213,7 +216,7 @@ class NpuCallOp : public OpKernel {
     for (int i = 0; i < a.dims(); i++) {
       dims.push_back((a.dim_size(i) != b.dim_size(i)) ? kUnknownDim : a.dim_size(i));
     }
-    auto status = PartialTensorShape::MakePartialShape(dims.data(), dims.size(), &shape);
+    auto status = PartialTensorShape::MakePartialShape(dims.data(), static_cast<int32_t>(dims.size()), &shape);
     NPU_LOG_IF_ERROR(status);
     return status.ok() ? shape : kUnknownRankShape;
   }

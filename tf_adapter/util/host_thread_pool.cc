@@ -22,7 +22,7 @@ namespace {
   const uint32_t MAX_THREAD_NUM = 4U;
 }
 namespace tensorflow {
-  HostThreadPool::HostThreadPool() : thread_stop_flag_(false) {}
+  HostThreadPool::HostThreadPool() : thread_stop_flag_(false), device_id_(0U) {}
 
   HostThreadPool::~HostThreadPool() {}
 
@@ -63,7 +63,7 @@ namespace tensorflow {
     ADP_LOG(INFO) << "Copy thread is finished.";
   }
 
-  void HostThreadPool::PushTask(std::function<void()> closure) {
+  void HostThreadPool::PushTask(const std::function<void()> &closure) {
     std::unique_lock<std::mutex> lck(queue_lock_);
     task_queue_.push(closure);
     queue_var_.notify_one();

@@ -48,7 +48,7 @@ int64 InferShapeUtil::GetCurrentTimestap() {
 Status InferShapeUtil::setArgShapeFromTensorShape(const std::vector<Tensor> vecTensor, const Graph *graph,
                                                   const OpDef &sig, ShapeRefiner &shapeRef) {
   REQUIRES_NOT_NULL(graph);
-  int idx = 0;
+  size_t idx = 0UL;
   for (const OpDef::ArgDef &arg_def : sig.input_arg()) {
     for (Node *pNode : graph->nodes()) {
       REQUIRES_NOT_NULL(pNode);
@@ -151,14 +151,17 @@ Status InferShapeUtil::getInputShapesOfNode(const ShapeRefiner &shapeRef, const 
       return errors::Internal("Can't get context of the input ", pNodeIn->name(), " of the node ", pNode->name(), ".");
     }
 
-    int iDstInput = pEdge->dst_input();
+    int32_t iDstInput = pEdge->dst_input();
+    if (iDstInput < 0) {
+      return errors::Internal("iDstInput is less than zero");
+    }
     inputShapeVec[iDstInput] = pCxtIn->output(pEdge->src_output());
   }
 
   return Status::OK();
 }
 
-void InferShapeUtil::setShapeOfEnterOP(ShapeRefiner &shapeRef, Node *pNode) {
+void InferShapeUtil::setShapeOfEnterOP(const ShapeRefiner &shapeRef, const Node *pNode) {
   CHECK_NOT_NULL(pNode);
   tensorflow::shape_inference::InferenceContext *pCxt = shapeRef.GetContext(pNode);
   CHECK_NOT_NULL(pCxt);
@@ -183,7 +186,7 @@ void InferShapeUtil::setShapeOfEnterOP(ShapeRefiner &shapeRef, Node *pNode) {
   pCxt->set_output(0, inputShapes.at(0));  // Enter op can't be unknown shape.
 }
 
-void InferShapeUtil::setShapeOfMergeOP(ShapeRefiner &shapeRef, const Node *pNode) {
+void InferShapeUtil::setShapeOfMergeOP(const ShapeRefiner &shapeRef, const Node *pNode) {
   CHECK_NOT_NULL(pNode);
   tensorflow::shape_inference::InferenceContext *pCxt = shapeRef.GetContext(pNode);
   CHECK_NOT_NULL(pCxt);
@@ -288,9 +291,9 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
   REQUIRES_NOT_NULL(graph);
   REQUIRES_NOT_NULL(func_def);
   ADP_LOG(INFO) << "InferShapeUtil::InferShape";
-  int iTensorNums = vecTensor.size();
+  size_t iTensorNums = vecTensor.size();
   const OpDef &sig = func_def->signature();
-  int iInputArgNums = sig.input_arg_size();
+  size_t iInputArgNums = static_cast<size_t>(sig.input_arg_size());
   if (iTensorNums < iInputArgNums) {
     return errors::Internal("Input tensor num ", iTensorNums, " is less than arg num ", iInputArgNums, ".");
   }

@@ -46,7 +46,7 @@ class SendH2D : public OpKernel {
         ss << device_id << " ";
       }
       channels_.resize(device_ids_.size());
-      for (size_t i = 0; i < device_ids_.size(); i++) {
+      for (size_t i = 0UL; i < device_ids_.size(); i++) {
         OP_REQUIRES_OK(ctx, npu::HdcChannel::Create(device_ids_[i], channel_name_, &channels_[i]));
       }
       LOG(INFO) << "Hdc channel for iterator resource " << channel_name_ << " to device ["
@@ -55,7 +55,7 @@ class SendH2D : public OpKernel {
     OpInputList inputs;
     OP_REQUIRES_OK(ctx, ctx->input_list("inputs", &inputs));
     std::vector<Tensor> tensors;
-    for (int64 i = 0; i < inputs.size(); i++) {
+    for (size_t i = 0UL; i < inputs.size(); i++) {
       tensors.push_back(inputs[i]);
     }
     for (auto channel : channels_) {
