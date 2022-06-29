@@ -32,8 +32,6 @@ namespace tensorflow {
 std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
-bool GetNewDataTransferFlag();
-extern bool kIsNewDataTransfer;
 extern const bool kDumpGraph;
 extern const bool kIsHeterogeneous;
 
@@ -57,8 +55,11 @@ class NpuAttrs {
   static void SetUseAdpStatus(const std::string &iterator_name, bool is_use_adp);
   static bool IsDatasetExecuteInDevice(const std::string &iterator_name);
   static void SetDatasetExecuteInDeviceStatus(const std::string &iterator_name, bool is_dataset_execute_device);
-
+  static bool GetNewDataTransferFlag();
+  // only use for ut/st
+  static void SetNewDataTransferFlag(bool flag);
  private:
+  static bool CheckIsNewDataTransfer();
   static std::map<int32_t, bool> turn_on_tdt_info_;
   static std::map<std::string, bool> use_adp_info_;
   static std::map<std::string, bool> dataset_execute_info_;

@@ -123,7 +123,7 @@ TestCase NormalizeTestCase03() {
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext) {
-  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  NpuAttrs::SetNewDataTransferFlag(true);
   int thread_num = 2, cpu_num = 2;
   TF_ASSERT_OK(InitThreadPool(thread_num));
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
@@ -179,7 +179,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext) {
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext02) {
-  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  NpuAttrs::SetNewDataTransferFlag(true);
   int thread_num = 2, cpu_num = 2;
   TF_ASSERT_OK(InitThreadPool(thread_num));
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
@@ -235,7 +235,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext02) {
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext03) {
-  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  NpuAttrs::SetNewDataTransferFlag(true);
   int thread_num = 2, cpu_num = 2;
   TF_ASSERT_OK(InitThreadPool(thread_num));
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
@@ -286,7 +286,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext03) {
 
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext04) {
-  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  NpuAttrs::SetNewDataTransferFlag(true);
   int thread_num = 2, cpu_num = 2;
   TF_ASSERT_OK(InitThreadPool(thread_num));
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
@@ -316,7 +316,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext04) {
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext05) {
-  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  NpuAttrs::SetNewDataTransferFlag(true);
   int thread_num = 2, cpu_num = 2;
   TF_ASSERT_OK(InitThreadPool(thread_num));
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
@@ -372,7 +372,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext05) {
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext_tdt) {
-  *const_cast<bool *>(&kIsNewDataTransfer) = false;
+  NpuAttrs::SetNewDataTransferFlag(false);
   int thread_num = 2, cpu_num = 2;
   TF_ASSERT_OK(InitThreadPool(thread_num));
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
@@ -428,7 +428,7 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext_tdt) {
 }
 
 TEST_F(HostQueueDatasetOpTest, iterator_getnext05_tdt) {
-  *const_cast<bool *>(&kIsNewDataTransfer) = false;
+  NpuAttrs::SetNewDataTransferFlag(false);
   int thread_num = 2, cpu_num = 2;
   TF_ASSERT_OK(InitThreadPool(thread_num));
   TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));

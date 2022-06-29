@@ -33,7 +33,7 @@ class InfeedOutfeedTest : public testing::Test {
 };
 
 TEST_F(InfeedOutfeedTest, LogSummaryTest)  {
-  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  NpuAttrs::SetNewDataTransferFlag(true);
   std::initializer_list<int64> dims = {};
   TensorShapeProto shape_proto;
   TensorShape(dims).AsProto(&shape_proto);
@@ -72,6 +72,6 @@ TEST_F(InfeedOutfeedTest, LogSummaryTest)  {
   OpKernelContext ctx(&params);
   op->Compute(&ctx);
   TF_EXPECT_OK(ctx.status());
-  *const_cast<bool *>(&kIsNewDataTransfer) = false;
+  NpuAttrs::SetNewDataTransferFlag(false);
 }
 } //end tensorflow

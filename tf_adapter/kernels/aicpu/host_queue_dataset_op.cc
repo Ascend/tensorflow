@@ -123,10 +123,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   void SetChannelType() {
-    ADP_LOG(INFO) << "Mbuf flag is: " << kIsNewDataTransfer;
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
-    } else if (kIsNewDataTransfer) {
+    } else if (NpuAttrs::GetNewDataTransferFlag()) {
+      ADP_LOG(INFO) << "Transfer mode is muf ";
       channel_type_ = ChannelType::ACL_QUEUE;
     } else {
       channel_type_ = ChannelType::TDT;

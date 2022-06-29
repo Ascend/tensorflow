@@ -100,14 +100,14 @@ TEST_F(DpOptimizationPassTest, DatasetNotInDeviceTest) {
 }
 TEST_F(DpOptimizationPassTest, NewDatasetNotInDeviceTest) {
   string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/dp_test_no_dataset_in_device.pbtxt";
-  *const_cast<bool *>(&kIsNewDataTransfer) = true;
+  NpuAttrs::SetNewDataTransferFlag(true);
   InitGraph(org_graph_def_path);
   std::string target_graph = "Const->TensorSliceDataset;TensorSliceDataset->BatchDatasetV2;Const->BatchDatasetV2:1;"\
     "Const->BatchDatasetV2:2;BatchDatasetV2->RepeatDataset;Const->RepeatDataset:1;RepeatDataset->OptimizeDataset;"\
     "Const->OptimizeDataset:1;OptimizeDataset->ModelDataset;IteratorV2->MakeIterator:1;ModelDataset->HostQueueDataset:1;"\
     "HostQueueDataset->DPGroupDataset;GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
   EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
-  *const_cast<bool *>(&kIsNewDataTransfer) = false;
+  NpuAttrs::SetNewDataTransferFlag(false);
 }
 } // end namespace
 } // end tensorflow
