@@ -14,7 +14,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""import files when initiating"""
 
 from npu_device.distribute.hccl import all_reduce
 from npu_device.distribute.hccl import broadcast

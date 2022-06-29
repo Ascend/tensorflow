@@ -14,7 +14,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""import files when initiating"""
 
 from npu_device.npu_device import enable_v1
 from . import v1

@@ -14,7 +14,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""import files when initiating"""
 
 from npu_device.npu_device import open
 from npu_device.npu_device import npu_compat_function
