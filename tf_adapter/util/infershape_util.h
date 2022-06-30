@@ -53,9 +53,9 @@ class InferShapeUtil {
   static Status getInputShapesOfNode(const ShapeRefiner &shapeRef, const Node *pNode,
                                      std::vector<tensorflow::shape_inference::ShapeHandle> &inputShapeVec);
 
-  static void setShapeOfEnterOP(ShapeRefiner &shapeRef, Node *pNode);
+  static void setShapeOfEnterOP(const ShapeRefiner &shapeRef, const Node *pNode);
 
-  static void setShapeOfMergeOP(ShapeRefiner &shapeRef, const Node *pNode);
+  static void setShapeOfMergeOP(const ShapeRefiner &shapeRef, const Node *pNode);
 
   static void inferShapeOfGraph(const Graph *graph, ShapeRefiner &shapeRef, int iTime);
 

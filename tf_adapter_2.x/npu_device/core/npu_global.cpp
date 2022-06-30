@@ -94,7 +94,7 @@ tensorflow::Status GlobalHdcChannel::Create(const std::string &name, int64_t cha
   channels.resize(device_ids.size());
   uint32_t count = 0U;
   for (size_t i = 0UL; i < device_ids.size(); i++) {
-    if (!npu::HdcChannel::Create(device_ids[i], name,
+    if (!npu::HdcChannel::Create(static_cast<uint32_t>(device_ids[i]), name,
                                  static_cast<size_t>(channel_capacity),
                                  &channels[i]).ok()) {
       break;

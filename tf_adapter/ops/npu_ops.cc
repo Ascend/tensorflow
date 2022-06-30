@@ -491,9 +491,9 @@ REGISTER_OP("FileConstant")
     .SetShapeFn([](shape_inference::InferenceContext *c) {
       std::vector<int32_t> output_shape;
       TF_RETURN_IF_ERROR(c->GetAttr("shape", &output_shape));
-      auto rank = output_shape.size();
+      size_t rank = output_shape.size();
       std::vector<DimensionHandle> out_dims(rank);
-      for (auto i = 0; i < rank; i++) {
+      for (size_t i = 0UL; i < rank; i++) {
         out_dims[i] = c->MakeDim(shape_inference::DimensionOrConstant(output_shape[i]));
       }
       c->set_output(0, c->MakeShape(out_dims));

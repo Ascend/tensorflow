@@ -31,7 +31,7 @@ class HostThreadPool {
  public:
   HostThreadPool();
   Status Init(uint32_t device_id);
-  void PushTask(std::function<void()> closure);
+  void PushTask(const std::function<void()> &closure);
   void StopThreadPool();
   ~HostThreadPool();
  private:

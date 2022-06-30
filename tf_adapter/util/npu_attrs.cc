@@ -764,7 +764,6 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
   std::string local_device_list;
   std::string in_out_pair_flag = "1";
   std::string in_out_pair;
-  Status s = Status::OK();
   std::string npuOptimizer;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
@@ -824,7 +823,6 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &att
   std::string local_device_list;
   std::string in_out_pair_flag = "1";
   std::string in_out_pair;
-  Status s = Status::OK();
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1386,11 +1384,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string precision_mode;
   bool profiling_mode = false;
   std::string profiling_options;
-  int atomic_clean_policy = 0;
+  int64_t atomic_clean_policy = 0L;
   std::string static_memory_policy;
   std::string auto_tune_mode;
-  int graph_run_mode = 1;
-  int op_debug_level = 0;
+  int64_t graph_run_mode = 1L;
+  int64_t op_debug_level = 0L;
   std::string enable_scope_fusion_passes;
 
   std::map<std::string, std::string> pass_options;
@@ -1398,28 +1396,28 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool enable_dp = false;
   bool use_off_line = true;
   bool mix_compile_mode = false;
-  int iterations_per_loop = 1;
+  int64_t iterations_per_loop = 1U;
   bool lower_functional_ops = false;
   std::string job = "localhost";
-  int task_index = 0;
+  int64_t task_index = 0L;
   bool dynamic_input = false;
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
-  int local_rank_id = -1;
+  int64_t local_rank_id = -1L;
   std::string local_device_list;
   bool in_out_pair_flag = true;
   std::string in_out_pair;
-  int enable_exception_dump = 0;
+  int64_t enable_exception_dump = 0L;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string input_shape;
   std::string dynamic_dims;
-  int dynamic_node_type = -1;
+  int64_t dynamic_node_type = -1L;
   std::string aoe_mode;
   std::string work_path = "./";
   std::string distribute_config;
   std::string buffer_optimize = "l2_optimize";
-  int enable_small_channel = 0;
+  int64_t enable_small_channel = 0L;
   std::string fusion_switch_file;
   bool enable_compress_weight = false;
   std::string compress_weight_conf;
@@ -1427,14 +1425,14 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string op_compiler_cache_dir;
   std::string debug_dir;
   bool hcom_multi_mode = false;
-  int session_device_id = -1;
+  int64_t session_device_id = -1L;
   std::string modify_mixlist;
   std::string op_precision_mode;
   std::string device_type = "default_device_type";
   std::string op_wait_timeout;
   std::string op_execute_timeout;
   std::string customize_dtypes;
-  int graph_exec_timeout = 600000;
+  int64_t graph_exec_timeout = 600000L;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
 
