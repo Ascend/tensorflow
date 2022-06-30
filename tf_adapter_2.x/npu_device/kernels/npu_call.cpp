@@ -64,7 +64,7 @@ class NpuCallOp : public OpKernel {
     }
 
     // run aoe tuning if need
-    if (!device->device_options["aoe_mode"].empty()) {
+    if (!device->device_options["ge.jobType"].empty()) {
       auto aoe = NpuAoe::GetInstance();
       NPU_CTX_REQUIRES(status, aoe != nullptr, tensorflow::errors::Internal("check instance null"));
       NPU_CTX_REQUIRES_OK(

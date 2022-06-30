@@ -14,6 +14,5 @@
 # limitations under the License.
 # ==============================================================================
 
-"""import files when initiating"""
 
 from . import optimizer

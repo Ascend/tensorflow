@@ -74,6 +74,13 @@ class NpuConcreteGraph : public OpExecutor {
 
   bool NeedFuzzCompile() const;
 
+  void RunAoeTuning(TFE_Context *context, NpuDevice *device, std::vector<TFE_TensorHandle *> inputs,
+                    TF_Status *status) const;
+
+  void SetFunctionOpFlag(bool is_function_op) {
+    function_op_ = is_function_op;
+  }
+
  protected:
   std::string AttachedDebugString() const override;
   void SetBuilt(bool built) const { built_ = built; }
@@ -96,6 +103,7 @@ class NpuConcreteGraph : public OpExecutor {
  private:
   bool mutable graph_def_serialized_{false};
   bool mutable empty_ge_graph_{false};
+  bool mutable function_op_{false};
 };
 
 class NpuMutableConcreteGraph : public NpuConcreteGraph {

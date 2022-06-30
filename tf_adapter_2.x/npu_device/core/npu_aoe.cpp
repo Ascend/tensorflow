@@ -29,7 +29,8 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
   DLOG() << "Start to tune graph id: " << graph_id << ", name: " << name;
 
   std::map<Aoe::AscendString, Aoe::AscendString> session_options;
-  (void)session_options.emplace(Aoe::AscendString("job_type"), Aoe::AscendString(device->device_options["aoe_mode"].c_str()));
+  (void)session_options.emplace(Aoe::AscendString("job_type"),
+                                Aoe::AscendString(device->device_options["ge.jobType"].c_str()));
   SessionId aoe_session_id = 0;
   auto ret = aoe_func_.aoe_create_session(session_options, aoe_session_id);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe create session func failed"));
@@ -145,8 +146,10 @@ tensorflow::Status NpuAoe::LoadAoeFunc() {
 tensorflow::Status NpuAoe::AoeTuningFinalize() {
   DLOG() << "Start to run aoe finalize";
 
-  auto ret = aoe_func_.aoe_finalize();
-  NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe finalize func failed"));
+  if (handle_ != nullptr) {
+    auto ret = aoe_func_.aoe_finalize();
+    NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe finalize func failed"));
+  }
 
   DLOG() << "run aoe finalize success";
   return tensorflow::Status::OK();
