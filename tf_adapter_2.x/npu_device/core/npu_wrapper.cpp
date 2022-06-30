@@ -220,16 +220,16 @@ PYBIND11_MODULE(_npu_device_backends, m) {
       npu::global::dev_memory_released = true;
       npu::global::dev_memory_shared_lock.unlock();
 
-      auto aoe = npu::NpuAoe::GetInstance();
-      if (aoe != nullptr) {
-        (void)aoe->AoeTuningFinalize();
-      }
-
       ge_status = ge::GEFinalize();
       if (ge_status != ge::SUCCESS) {
         LOG(ERROR) << "Failed stop graph engine:" << ge::GEGetErrorMsg();
       } else {
         LOG(INFO) << "Stop graph engine succeed";
+      }
+
+      auto aoe = npu::NpuAoe::GetInstance();
+      if (aoe != nullptr) {
+        (void)aoe->AoeTuningFinalize();
       }
     }
     pybind11::gil_scoped_acquire acquire;
