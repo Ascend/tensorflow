@@ -183,8 +183,7 @@ bool NpuConcreteGraph::NeedFuzzCompile() const {
 }
 
 void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
-  if (Built() &&
-      static_cast<uint32_t>(device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(GeGraphId())))) {
+  if (Built() && device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(GeGraphId()))) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
     device->RemoveGeGraph(context, GeGraphId(), status);
     NPU_REQUIRES_TFE_OK(status);
@@ -198,9 +197,9 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
       {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
       {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
       {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
-    if (kEmptyGeGraphId == device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(),
-                                                   (loop_type_ == LoopType::NPU_LOOP), status,
-                                                   (NeedFuzzCompile() ? kFuzzCompileOptions : kOptions))) {
+    if (device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(),
+                                (loop_type_ == LoopType::NPU_LOOP), status,
+                                (NeedFuzzCompile() ? kFuzzCompileOptions : kOptions)) == kEmptyGeGraphId) {
       empty_ge_graph_ = true;
     }
     NPU_REQUIRES_TFE_OK(status);

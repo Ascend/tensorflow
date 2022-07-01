@@ -47,9 +47,9 @@ struct Cluster {
 struct NodeOrCluster {
   explicit NodeOrCluster(Cluster *cluster) : is_cluster_(true) { cluster_ = cluster; }
   explicit NodeOrCluster(tensorflow::Node *node) { node_ = node; }
-  void VisitInNodes(const std::function<void(tensorflow::Node *)> &visitor);
-  void VisitOutNodes(const std::function<void(tensorflow::Node *)> &visitor);
-  bool VisitNodes(const std::function<bool(tensorflow::Node *)> &visitor);
+  void VisitInNodes(const std::function<void(tensorflow::Node *)> &visitor) const;
+  void VisitOutNodes(const std::function<void(tensorflow::Node *)> &visitor) const;
+  bool VisitNodes(const std::function<bool(tensorflow::Node *)> &visitor) const;
   size_t Hash() const { return (is_cluster_ ? reinterpret_cast<size_t>(cluster_) : reinterpret_cast<size_t>(node_)); }
   bool operator==(const NodeOrCluster &other) const {
     return (is_cluster_ ? cluster_ == other.cluster_ : node_ == other.node_);
@@ -73,11 +73,11 @@ class NodePlacer {
       : context_(context), graph_(graph), device_(device) {}
   tensorflow::Status Apply(size_t depth = 0);
   void InitNodeTopo();
-  tensorflow::Status PlaceCpuNodeSubgraphs(size_t depth);
+  tensorflow::Status PlaceCpuNodeSubgraphs(size_t depth) const;
   tensorflow::Status BuildNpuOp();
   tensorflow::Status CopyShareableNode();
   tensorflow::Status MergeCopiedSharedNodes();
-  std::vector<tensorflow::Node *> MergeCopiedSharedNodes(std::vector<tensorflow::Node *> all_nodes);
+  std::vector<tensorflow::Node *> MergeCopiedSharedNodes(std::vector<tensorflow::Node *> all_nodes) const;
   tensorflow::Status DeterminedSurelyNodes();
   tensorflow::Status BuildConcreteCluster();
 
@@ -113,7 +113,7 @@ class NodePlacer {
   TFE_Context *context_;      // not owned
   tensorflow::Graph *graph_;  // not owned
   NpuDevice *device_;         // not owned
-  std::map<tensorflow::Node *, uint64_t> node_topo_;
+  std::map<const tensorflow::Node *, uint64_t> node_topo_;
   std::map<tensorflow::Node *, Placement, StableNodeCompartor>
     node_placement_;  // Just npu or cpu, never store wherever here
   std::map<tensorflow::Node *, std::shared_ptr<Cluster>, StableNodeCompartor>

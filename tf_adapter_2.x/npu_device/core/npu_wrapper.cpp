@@ -253,7 +253,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     tensorflow::OpList ops;
     tensorflow::OpRegistry::Global()->Export(true, &ops);
     for (auto &op : ops.op()) {
-      if (!npu_specify_ops_cache.count(op.name())) {
+      if (npu_specify_ops_cache.count(op.name()) == 0) {
         if (global::g_npu_specify_ops.insert(op.name()).second) {
           DLOG() << "Register npu specific op " << op.name();
         }

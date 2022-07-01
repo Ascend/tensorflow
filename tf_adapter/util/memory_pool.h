@@ -46,7 +46,7 @@ class MemoryPool {
   Status FreeAllMemory();
   ~MemoryPool();
  private:
-  bool FreeMemoryList(std::list<MemoryBlock> &memory_list);
+  bool FreeMemoryList(std::list<MemoryBlock> &memory_list) const;
   std::mutex memory_pool_lock_;
   std::list<MemoryBlock> used_memory_list_;
   std::list<MemoryBlock> free_memory_list_;

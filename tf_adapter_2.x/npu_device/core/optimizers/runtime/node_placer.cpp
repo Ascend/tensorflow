@@ -40,12 +40,12 @@ bool Cluster::Merge(tensorflow::Node *node) {
   (void)in_nodes.erase(node);
   (void)out_nodes.erase(node);
   for (auto n : node->in_nodes()) {
-    if (!nodes.count(n)) {
+    if (nodes.count(n) == 0) {
       (void)in_nodes.insert(n);
     }
   }
   for (auto n : node->out_nodes()) {
-    if (!nodes.count(n)) {
+    if (nodes.count(n) == 0) {
       (void)out_nodes.insert(n);
     }
   }
@@ -84,7 +84,7 @@ tensorflow::Status NodePlacer::Apply(size_t depth) {
 }
 void NodePlacer::InitNodeTopo() {
   uint64_t topo = 0U;
-  auto leave = [this, &topo](tensorflow::Node *node) { node_topo_[node] = topo++; };
+  auto leave = [this, &topo](const tensorflow::Node *node) { node_topo_[node] = topo++; };
   tensorflow::ReverseDFS(*graph_, {}, leave);
 }
 
@@ -180,7 +180,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
     }
     for (auto &node : nodes) {
       for (auto edge : node->in_edges()) {
-        if (!cluster->nodes.count(edge->src())) {
+        if (cluster->nodes.count(edge->src()) == 0) {
           if (edge->IsControlEdge()) {
             DLOG() << "Collect control input " << edge->src()->name() << " of cluster " << cluster->name;
             (void)control_inputs.insert(edge->src());
@@ -196,7 +196,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
         }
       }
       for (auto edge : node->out_edges()) {
-        if (!cluster->nodes.count(edge->dst())) {
+        if (cluster->nodes.count(edge->dst()) == 0) {
           if (edge->IsControlEdge()) {
             DLOG() << "Collect control output " << edge->src()->name() << " of cluster " << cluster->name;
             (void)control_outputs.insert(edge->dst());
@@ -273,7 +273,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status NodePlacer::PlaceCpuNodeSubgraphs(size_t depth) {
+tensorflow::Status NodePlacer::PlaceCpuNodeSubgraphs(size_t depth) const {
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context_)->FuncLibDef();
   for (auto node : graph_->op_nodes()) {
     if (node->type_string() == "NpuCall") {  // Nodes placed on cpu except npu call
@@ -313,7 +313,7 @@ bool NodePlacer::IsClusterMustPlaceOnNpu(const Cluster &cluster) {
   return false;
 }
 
-std::vector<tensorflow::Node *> NodePlacer::MergeCopiedSharedNodes(std::vector<tensorflow::Node *> all_nodes) {
+std::vector<tensorflow::Node *> NodePlacer::MergeCopiedSharedNodes(std::vector<tensorflow::Node *> all_nodes) const {
   std::vector<tensorflow::Node *> merged_nodes;
   std::map<uint64_t, std::unordered_set<tensorflow::Node *>> equal_nodes;
   for (auto node : all_nodes) {
@@ -614,7 +614,7 @@ const std::set<tensorflow::Node *> &NodePlacer::GetConcreteNodes(tensorflow::Nod
   return kEmptyNodes;
 }
 
-void NodeOrCluster::VisitOutNodes(const std::function<void(tensorflow::Node *)> &visitor) {
+void NodeOrCluster::VisitOutNodes(const std::function<void(tensorflow::Node *)> &visitor) const {
   if (is_cluster_) {
     for (auto &n : cluster_->out_nodes) {
       visitor(n);
@@ -625,7 +625,7 @@ void NodeOrCluster::VisitOutNodes(const std::function<void(tensorflow::Node *)> 
     }
   }
 }
-void NodeOrCluster::VisitInNodes(const std::function<void(tensorflow::Node *)> &visitor) {
+void NodeOrCluster::VisitInNodes(const std::function<void(tensorflow::Node *)> &visitor) const {
   if (is_cluster_) {
     for (auto &n : cluster_->in_nodes) {
       visitor(n);
@@ -637,7 +637,7 @@ void NodeOrCluster::VisitInNodes(const std::function<void(tensorflow::Node *)> &
   }
 }
 
-bool NodeOrCluster::VisitNodes(const std::function<bool(tensorflow::Node *)> &visitor) {
+bool NodeOrCluster::VisitNodes(const std::function<bool(tensorflow::Node *)> &visitor) const {
   if (is_cluster_) {
     for (auto &n : cluster_->nodes) {
       if (!visitor(n)) {
