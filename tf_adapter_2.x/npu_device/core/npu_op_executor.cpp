@@ -53,6 +53,7 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
     if (TF_GetCode(s) != TF_OK) {
       return nullptr;
     }
+    concrete_graph->SetFunctionOpFlag(true);
     return concrete_graph;
   }
 

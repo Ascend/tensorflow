@@ -137,8 +137,8 @@ class ST_NpuDevice : public ::testing::Test {
     context = TFE_NewContext(opts, status);
     TFE_DeleteContextOptions(opts);
     std::map<std::string, std::string> device_options;
-    device_options["aoe_mode"] = "1";
-    device_options["work_path"] = "./";
+    device_options["ge.jobType"] = "1";
+    device_options["ge.tuningPath"] = "./";
     npu::CreateDevice(context, kNpuDeviceName, kNpuDeviceIndex, device_options);
 
     for (const auto &function_def : FunctionStrLibrary::Instance().Get()) {
