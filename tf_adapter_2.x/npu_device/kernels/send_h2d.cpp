@@ -55,7 +55,7 @@ class SendH2D : public OpKernel {
     OpInputList inputs;
     OP_REQUIRES_OK(ctx, ctx->input_list("inputs", &inputs));
     std::vector<Tensor> tensors;
-    for (size_t i = 0UL; i < inputs.size(); i++) {
+    for (int32_t i = 0; i < inputs.size(); i++) {
       tensors.push_back(inputs[i]);
     }
     for (auto channel : channels_) {

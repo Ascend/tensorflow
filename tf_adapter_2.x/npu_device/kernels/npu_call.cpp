@@ -124,7 +124,7 @@ class NpuCallOp : public OpKernel {
     bool updated = false;
     for (size_t i = 0UL; i < static_cast<size_t>(ctx->num_inputs()); i++) {
       auto &shape = input_shapes_[i];
-      auto &value_shape = ctx->input(i).shape();
+      auto &value_shape = ctx->input(static_cast<int32_t>(i)).shape();
       if (!shape.has_value()) {
         updated = true;
         shape = value_shape;

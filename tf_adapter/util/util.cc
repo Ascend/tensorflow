@@ -42,7 +42,7 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
 
   uint8_t *base_ptr = buff_list.back().get();
   uint64_t offset = sizeof(ge::StringHead) * static_cast<uint64_t>(total_nums);
-  for (uint64_t i = 0UL; i < static_cast<uint64_t>(total_nums); ++i) {
+  for (int64_t i = 0L; i < total_nums; ++i) {
     ge::StringHead *head = ge::PtrToPtr<uint8_t, ge::StringHead>(base_ptr + i * sizeof(ge::StringHead));
     head->addr = offset;
     head->len = tensor.flat<tstring>()(i).size();
