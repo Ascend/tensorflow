@@ -30,7 +30,7 @@ class NodePlacer;
 struct Cluster {
   explicit Cluster(const NodePlacer *placer, tensorflow::Node *node, uint64_t topo, Placement place);
   bool Merge(tensorflow::Node *node);
-  void Merge(std::shared_ptr<Cluster> other);
+  void Merge(const std::shared_ptr<Cluster> other);
   void UpdateTopo(uint64_t topo);
   std::set<tensorflow::Node *> nodes;
   std::unordered_set<tensorflow::Node *> in_nodes;
@@ -87,7 +87,8 @@ class NodePlacer {
   tensorflow::Status SpreadNpuNode();
 
   const std::set<tensorflow::Node *> &GetConcreteNodes(tensorflow::Node *node);
-  bool VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end, const std::function<bool(tensorflow::Node *)> visitor);
+  bool VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end,
+                      const std::function<bool(tensorflow::Node *)> visitor);
 
   NodeOrCluster GetNodeOrCluster(tensorflow::Node *node);
   std::shared_ptr<Cluster> GetOrCreateNpuCluster(tensorflow::Node *node);

@@ -66,7 +66,7 @@ void GetOutputDataIndex(const tensorflow::Node *const node, std::vector<int32_t>
     }
   }
   ordered_indexes.clear();
-  (void)ordered_indexes.insert(ordered_indexes.end(), out_index.begin(), out_index.end());
+  (void)ordered_indexes.insert(ordered_indexes.end(), out_index.cbegin(), out_index.cend());
 }
 
 tensorflow::Status BuildGetNextShape(tensorflow::Graph *graph, tensorflow::Node *node,

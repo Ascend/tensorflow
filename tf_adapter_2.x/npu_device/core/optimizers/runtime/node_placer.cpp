@@ -168,7 +168,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
     std::vector<const tensorflow::Edge *> input_edges;
     std::vector<const tensorflow::Edge *> output_edges;
 
-    std::vector<tensorflow::Node *> nodes(cluster->nodes.begin(), cluster->nodes.end());
+    std::vector<tensorflow::Node *> nodes(cluster->nodes.cbegin(), cluster->nodes.cend());
     std::sort(nodes.begin(), nodes.end(), StableNodeCompartor{});
 
     auto cluster_graph = std::make_unique<tensorflow::Graph>(tensorflow::OpRegistry::Global());
@@ -481,7 +481,7 @@ tensorflow::Status NodePlacer::BuildConcreteCluster() {
       continue;
     }
     auto cluster = iter->second;
-    auto found = std::find_if(cluster->nodes.begin(), cluster->nodes.end(),
+    auto found = std::find_if(cluster->nodes.cbegin(), cluster->nodes.cend(),
                               [this](tensorflow::Node *node) { return !IsNodeCanPlacedOn(node, Placement::NPU); });
     if (found != cluster->nodes.end()) {
       for (auto iter2 = concrete_clusters_.begin(); iter2 != concrete_clusters_.end();) {

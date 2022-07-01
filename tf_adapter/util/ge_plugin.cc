@@ -76,7 +76,7 @@ GePlugin *GePlugin::GetInstance() {
   return &instance;
 }
 
-void GePlugin::Init(std::map<std::string, std::string> &init_options, bool is_global) {
+void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool is_global) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (isInit_) {
     ADP_LOG(INFO) << "[GePlugin] Ge has already initialized";

@@ -15,9 +15,9 @@
  */
 
 #include "memory_pool.h"
-#include "securec.h"
 #include <vector>
 #include <string>
+#include "securec.h"
 #include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {

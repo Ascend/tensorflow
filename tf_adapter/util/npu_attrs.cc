@@ -1796,13 +1796,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("atomic_clean_policy") > 0) {
         atomic_clean_policy = params.at("atomic_clean_policy").i();
       }
-      if (params.count("experimental_logical_device_cluster_deploy_mode")) {
+      if (params.count("experimental_logical_device_cluster_deploy_mode") > 0) {
         logical_device_cluster_deploy_mode = params.at("experimental_logical_device_cluster_deploy_mode").s();
       }
-      if (params.count("experimental_logical_device_id")) {
+      if (params.count("experimental_logical_device_id") > 0) {
         logical_device_id = params.at("experimental_logical_device_id").s();
       }
-      if (params.count("jit_compile")) {
+      if (params.count("jit_compile") > 0) {
         jit_compile = params.at("jit_compile").b();
       }
     }

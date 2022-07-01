@@ -20,7 +20,8 @@
 
 namespace npu {
 static const auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
-                              TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+                              TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
+                              TF_Status *status) {
   if (!IsNpuTensorHandle(inputs[0])) {
     dev->FallbackCPU(context, ndef, num_inputs, inputs, num_outputs, outputs, status);
     return;

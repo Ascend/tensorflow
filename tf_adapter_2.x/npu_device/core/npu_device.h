@@ -116,7 +116,7 @@ class NpuDevice {
                            const std::map<std::string, std::string> &options = {});
 
   tensorflow::Status TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
-                                          const tensorflow::GraphDef &def, TF_Status *status, ge::Graph &ge_graph);
+                                          const tensorflow::GraphDef &def, ge::Graph &ge_graph) const;
 
   void RemoveGeGraph(const TFE_Context *const context, uint64_t graph_id, TF_Status *status);
 

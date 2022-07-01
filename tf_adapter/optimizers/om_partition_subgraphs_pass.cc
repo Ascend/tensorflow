@@ -119,7 +119,10 @@ Status OMSubGraphToFunctionDef(const Graph &graph, const string &name, FunctionD
         if (inEdges.size() <= dst_input) {
           try {
             inEdges.resize(dst_input + 1);
-          } catch (std::bad_alloc &ba) { return errors::InvalidArgument("inEdges resize is failed, resize is %u, error msg:%s.", dst_input + 1, ba.what()); }
+          } catch (std::bad_alloc &ba) {
+            return errors::InvalidArgument("inEdges resize is failed, resize is %u, error msg:%s.", dst_input + 1,
+                                           ba.what());
+          }
         }
         inEdges[dst_input] = edge;
       }
@@ -455,8 +458,9 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
   return size;
 }
 
-Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates, const FunctionLibraryDefinition *func_lib,
-                                 const std::string &in_out_pair, const std::string &in_out_pair_flag) {
+Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet *candidates,
+                                 const FunctionLibraryDefinition *func_lib, const std::string &in_out_pair,
+                                 const std::string &in_out_pair_flag) {
   AllGraphIOP all_graph_iop;
   if (ParseInOutPair(in_out_pair, all_graph_iop) <= 0) {
     return errors::Internal("in_out_pair: ", in_out_pair, " is invalid.");
@@ -1171,8 +1175,8 @@ struct NodeSlot {
   };
 };
 
-Node *AddIdentityNode(Graph *graph, const Edge *edge, const std::string &srcName, int srcIndex, const std::string &device,
-                      Status *status) {
+Node *AddIdentityNode(Graph *graph, const Edge *edge, const std::string &srcName, int srcIndex,
+                      const std::string &device, Status *status) {
   // edge is not nullptr
   if (edge->src() == nullptr) { return nullptr; }
   NodeDef identityDef;
@@ -1198,8 +1202,9 @@ Node *AddIdentityNode(Graph *graph, const Edge *edge, const std::string &srcName
 
 class OMSplitter {
  public:
-  OMSplitter(std::string groupAttribute, Graph const *graph_in, std::map<std::string, std::string> npu_optimizer_options,
-             std::map<std::string, std::string> pass_options, std::map<std::string, std::string> graph_options)
+  OMSplitter(std::string groupAttribute, Graph const *graph_in,
+             std::map<std::string, std::string> npu_optimizer_options, std::map<std::string, std::string> pass_options,
+             std::map<std::string, std::string> graph_options)
       : groupAttribute_(std::move(groupAttribute)), graph_in_(graph_in),
         npu_optimizer_options_(std::move(npu_optimizer_options)), pass_options_(std::move(pass_options)),
         graph_options_(std::move(graph_options)) {}
@@ -1252,7 +1257,8 @@ class OMSplitter {
 
     // Builds a FunctionDef, and adds it to 'library'. The value of the
     // 'groupAttribute' annotations becomes the function name.
-    Status BuildFunctionDef(const std::string &name, FunctionLibraryDefinition *library, const std::string &graph_format);
+    Status BuildFunctionDef(const std::string &name, FunctionLibraryDefinition *library,
+                            const std::string &graph_format);
 
     // Adds the GEOp node to graphOut.
     Status AddGEOpNode(const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut);
@@ -1879,8 +1885,8 @@ Status OMSplitter::BuildOutputGraph(Graph *graphOut) {
   return Status::OK();
 }
 
-Status OMPartitionSubgraphsInFunctions(std::string groupAttribute, std::unique_ptr<Graph> *graph, const std::string &graph_format,
-                                       FunctionLibraryDefinition *flib_def,
+Status OMPartitionSubgraphsInFunctions(std::string groupAttribute, std::unique_ptr<Graph> *graph,
+                                       const std::string &graph_format, FunctionLibraryDefinition *flib_def,
                                        std::map<std::string, std::string> npu_optimizer_options,
                                        std::map<std::string, std::string> pass_options,
                                        std::map<std::string, std::string> graph_options) {
@@ -1999,8 +2005,8 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
   }
 }
 
-Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, const std::string enable_dp, std::vector<Node *> &remove_nodes,
-                                                Graph *graph_in) const {
+Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, const std::string enable_dp,
+                                                std::vector<Node *> &remove_nodes, Graph *graph_in) const {
   for (auto output_type: node->output_types()) {
     if (output_type == DT_STRING && enable_dp == "0") {
       ADP_LOG(WARNING) << "Dataset outputs have string output_type, please set enable_data_pre_proc=True.";

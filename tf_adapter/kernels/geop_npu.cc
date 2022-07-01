@@ -1638,8 +1638,7 @@ Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
   return Status::OK();
 }
 
-Status GeOp::GraphCheckInputEqualConstOp(OpKernelContext *ctx, Tensor &tensor, int32_t index, bool &is_equal) {
-  // ctx is not nullptr
+Status GeOp::GraphCheckInputEqualConstOp(Tensor &tensor, int32_t index, bool &is_equal) {
   if (remove_index_.size() == 0) {
     return Status::OK();
   }
@@ -1670,7 +1669,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<Tensor> &inp
   for (int i = 0; i < num_inputs; i++) {
     Tensor tensor(ctx->input(i));
     bool is_equal = false;
-    if (GraphCheckInputEqualConstOp(ctx, tensor, i, is_equal) != Status::OK()) {
+    if (GraphCheckInputEqualConstOp(tensor, i, is_equal) != Status::OK()) {
       return errors::Internal("Const op value not equal with tensor :", i);
     } else if (is_equal) {
       continue;
