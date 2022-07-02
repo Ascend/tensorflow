@@ -78,6 +78,12 @@ private:
 
     string DebugString() const override { return "GEOPDatasetOp::Dataset"; }
 
+#ifdef TF_VERSION_TF2
+    Status InputDatasets(std::vector<const DatasetBase*>* inputs) const override {
+      return Status::OK();
+    }
+#endif
+
     STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
 
     GEOPDatasetOp *op_kernel_;

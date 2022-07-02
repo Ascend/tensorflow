@@ -69,11 +69,22 @@ private:
 
     string DebugString() const override { return "DPGroupDatasetOp::Dataset"; }
 
+#ifdef TF_VERSION_TF2
+    Status InputDatasets(std::vector<const DatasetBase*>* inputs) const override {
+      for (const auto &input : inputs_) { inputs->push_back(input); }
+      return Status::OK();
+    }
+#endif
+
     STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
 
   protected:
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
+#ifdef TF_VERSION_TF2
+      return errors::Unimplemented(DebugString(), " does not support serialization");
+#else
       return Status::OK();
+#endif
     }
 
   private:
