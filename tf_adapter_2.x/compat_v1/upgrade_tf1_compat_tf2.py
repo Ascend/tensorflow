@@ -28,9 +28,11 @@ REMOVED_LINES = []
 REPLACE_RULES['from npu_bridge'] = 'from npu_device.compat.v1'
 REPLACE_RULES['import tensorflow'] = 'import tensorflow.compat.v1'
 REPLACE_RULES[
-    'from tensorflow.distribute.experimental import ParameterServerStrategy'] = 'from tensorflow.python.distribute.parameter_server_strategy import ParameterServerStrategyV1 as ParameterServerStrategy'
+    'from tensorflow.distribute.experimental import ParameterServerStrategy'] = \
+    'from tensorflow.python.distribute.parameter_server_strategy import ParameterServerStrategyV1 as ParameterServerStrategy'
 REPLACE_RULES[
-    'from tensorflow.contrib.distribute import DistributeConfig'] = 'from tensorflow.python.distribute.distribute_config import DistributeConfig'
+    'from tensorflow.contrib.distribute import DistributeConfig'] = \
+    'from tensorflow.python.distribute.distribute_config import DistributeConfig'
 REPLACE_RULES['from tensorflow.python.keras import backend'] = 'from keras import backend'
 
 REMOVED_LINES.append("@ops.RegisterGradient('HcomAllReduce')")
