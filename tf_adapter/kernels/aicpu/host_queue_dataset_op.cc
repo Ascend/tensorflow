@@ -254,6 +254,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
     string DebugString() const override { return "HostQueueDatasetOp::Dataset"; }
 
+#ifdef TF_VERSION_TF2
+    Status InputDatasets(std::vector<const DatasetBase*>* inputs) const override {
+      for (const auto &input : inputs_) { inputs->push_back(input); }
+      return Status::OK();
+    }
+#endif
+
     STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
 
    protected:
