@@ -232,7 +232,7 @@ inline Status CheckPath(const std::string &input, std::string &output) {
   if (mmIsDir(input.c_str()) != EN_OK) {
     return errors::InvalidArgument("the path ", input.c_str(), " is not directory.");
   }
-  char trusted_path[MMPA_MAX_PATH] = {"\0"};
+  char trusted_path[MMPA_MAX_PATH] = {};
   if (mmRealPath(input.c_str(), trusted_path, MMPA_MAX_PATH) != EN_OK) {
     return errors::InvalidArgument("the path ", input.c_str(), " is invalid.");
   }

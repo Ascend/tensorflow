@@ -356,7 +356,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             }
             uint64_t temp_len = 0ULL;
             do {
-              uint64_t copy_size = (len > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : len;
+              uint64_t temp_copy_size = len - temp_len;
+              uint64_t copy_size = (temp_copy_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : temp_copy_size;
               if (memcpy_s(dst, static_cast<size_t>(dst_len), src, static_cast<size_t>(copy_size)) != EOK) {
                 ADP_LOG(ERROR) << "Memcpy failed, start:" << start_pos << ", len: " << copy_size;
                 closure_ret = false;

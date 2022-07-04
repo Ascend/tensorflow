@@ -295,6 +295,7 @@ tensorflow::Status NodePlacer::PlaceCpuNodeSubgraphs(size_t depth) {
       NPU_REQUIRES_OK(lib_def->AddLibrary(flib));
     }
   }
+  return tensorflow::Status::OK();
 }
 
 bool NodePlacer::IsClusterMustPlaceOnNpu(const Cluster &cluster) {
