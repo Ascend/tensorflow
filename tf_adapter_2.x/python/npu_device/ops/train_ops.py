@@ -15,3 +15,41 @@
 # ==============================================================================
 
 """NPU training ops"""
+
+from npu_device.npu_device import gen_npu_ops
+from tensorflow.python.eager import context
+from tensorflow.python.ops import nn_ops
+from tensorflow.python.framework import ops
+
+
+@ops.RegisterGradient("FastGelu")
+def fast_gelu_grad(op, grad):
+    """The gradient for `fast_gelu`.
+
+    Args:
+        op: The `fast_gelu` `Operation` that we are differentiating, which we can use
+            to find the inputs and outputs of the original op.
+        grad: Gradient with respect to the output of the `fast_gelu` op.
+
+    Returns:
+        Gradients with respect to the input of `fast_gelu`.
+    """
+    return [gen_npu_ops.fast_gelu_grad(grad, op.inputs[0])]
+
+
+def gelu(x):
+    """ fast_gelu operator interface implementation.
+
+    An approximate implementation of Computing the Gaussian Error Linear Unit (GELU) activation function.
+    It is used to replace `tf.nn.gelu` to get performance improvements, but the result will have some difference
+    in precision from the origin.
+
+    Args:
+        x: A input tensor representing preactivation values, with type is float16 or float32.
+
+    Returns:
+         A tensor with the same type as `x`.
+    """
+    if context.executing_eagerly():
+        return nn_ops.gelu(x)
+    return gen_npu_ops.fast_gelu(x)
