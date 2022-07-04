@@ -509,7 +509,7 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::un
   tensorflow::OptimizeGraph(lib, g, options);
 }
 
-tensorflow::Status LoopCopy(void *dst_ptr, void *src_ptr, size_t src_size) {
+tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size) {
   size_t copy_size = 0UL;
   size_t org_src_size = src_size;
   do {
