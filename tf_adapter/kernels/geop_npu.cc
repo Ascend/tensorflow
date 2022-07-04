@@ -1119,15 +1119,12 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   std::string enable_force_v2_control;
   (void) ReadStringFromEnvVar("ENABLE_FORCE_V2_CONTROL", "", &enable_force_v2_control);
   if (enable_force_v2_control == "1") {
-    WriteTextProto(Env::Default(), GetDumpPath() + function_.name() + "_v1.pbtxt", graph_def);
-
     Status status = FunctionalizeControlFlow(&graph, &flib_def);
     if (status != Status::OK()) {
       LOG(WARNING) << "[GEOP] Failed functionalize control flow: " << status.error_message();
       return Status::OK();
     }
     graph.ToGraphDef(&graph_def);
-    WriteTextProto(Env::Default(), GetDumpPath() + function_.name() + "_v2.pbtxt", graph_def);
   }
   return Status::OK();
 }
