@@ -51,7 +51,7 @@ bool NpuAttrs::CheckIsNewDataTransfer() {
   NpuAttrs::LogOptions(init_options);
   GePlugin::GetInstance()->Init(init_options);
   ADP_LOG(INFO) << "Start to set device for data transfer.";
-  auto ret = aclrtSetDevice(device_id);
+  auto ret = aclrtSetDevice(static_cast<int32_t>(device_id));
   if (ret != ACL_ERROR_NONE) {
     ADP_LOG(WARNING) << "Set device failed, device_id: " << device_id;
   }
@@ -297,9 +297,9 @@ inline Status CheckDynamicDims(const std::string &dynamic_dims) {
   return Status::OK();
 }
 
-inline Status CheckLocalRankId(int local_rank_id) {
-  int kMaxDeviceId = 7;
-  if (local_rank_id < 0 || local_rank_id > kMaxDeviceId) {
+inline Status CheckLocalRankId(int64_t local_rank_id) {
+  int64_t kMaxDeviceId = 7LL;
+  if (local_rank_id < 0LL || local_rank_id > kMaxDeviceId) {
     return errors::InvalidArgument("local rank id should be in [0,7]");
   }
   return Status::OK();
@@ -640,11 +640,11 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   int iterations_per_loop = 1;
   bool lower_functional_ops = false;
   std::string job = "default";
-  int task_index = 0;
+  int64_t task_index = 0L;
   bool dynamic_input = false;
   std::string dynamic_graph_execute_mode = "dynamic_execute";
   std::string dynamic_inputs_shape_range;
-  int local_rank_id = -1;
+  int64_t local_rank_id = -1L;
   std::string local_device_list;
   bool in_out_pair_flag = true;
   std::string in_out_pair;
@@ -1796,13 +1796,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("atomic_clean_policy") > 0) {
         atomic_clean_policy = params.at("atomic_clean_policy").i();
       }
-      if (params.count("experimental_logical_device_cluster_deploy_mode")) {
+      if (params.count("experimental_logical_device_cluster_deploy_mode") > 0) {
         logical_device_cluster_deploy_mode = params.at("experimental_logical_device_cluster_deploy_mode").s();
       }
-      if (params.count("experimental_logical_device_id")) {
+      if (params.count("experimental_logical_device_id") > 0) {
         logical_device_id = params.at("experimental_logical_device_id").s();
       }
-      if (params.count("jit_compile")) {
+      if (params.count("jit_compile") > 0) {
         jit_compile = params.at("jit_compile").b();
       }
     }

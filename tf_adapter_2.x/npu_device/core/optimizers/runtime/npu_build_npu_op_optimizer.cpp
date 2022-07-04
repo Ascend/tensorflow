@@ -57,7 +57,7 @@ tensorflow::Status SetShapeToOutputDesc(const std::vector<std::string> &input_sh
   return tensorflow::Status::OK();
 }
 
-void GetOutputDataIndex(const tensorflow::Node *node, std::vector<int32_t> &ordered_indexes) {
+void GetOutputDataIndex(const tensorflow::Node *const node, std::vector<int32_t> &ordered_indexes) {
   std::set<int32_t> out_index;
   for (const auto &out_edge : node->out_edges()) {
     if (!out_edge->IsControlEdge()) {
@@ -66,7 +66,7 @@ void GetOutputDataIndex(const tensorflow::Node *node, std::vector<int32_t> &orde
     }
   }
   ordered_indexes.clear();
-  (void)ordered_indexes.insert(ordered_indexes.end(), out_index.begin(), out_index.end());
+  (void)ordered_indexes.insert(ordered_indexes.end(), out_index.cbegin(), out_index.cend());
 }
 
 tensorflow::Status BuildGetNextShape(tensorflow::Graph *graph, tensorflow::Node *node,
@@ -146,7 +146,6 @@ namespace npu {
 tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
                                       std::map<std::string, std::string> options, NpuDevice *device, int num_inputs,
                                       TFE_TensorHandle **inputs) {
-  (void)context;
   (void)num_inputs;
   (void)inputs;
   std::stringstream ss;

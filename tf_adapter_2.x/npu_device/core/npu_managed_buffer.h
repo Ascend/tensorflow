@@ -42,7 +42,7 @@ class NpuManagedBuffer {
                                    NpuManagedBuffer **buf);
   static tensorflow::Status Create(ge::Format format, const std::vector<int64_t> &shape, ge::DataType data_type,
                                    ge::Format origin_format, const std::vector<int64_t> &origin_shape, void *addr,
-                                   size_t size, void *arg, void (*deallocator)(void *, size_t, void *),
+                                   size_t size, void *arg, void (*deallocator)(void *, size_t, const void *),
                                    NpuManagedBuffer **buf);
 
   // 将输入的CPU Tensor的数据填充到当前buffer管理的NPU内存上，CPU
@@ -82,7 +82,7 @@ class NpuManagedBuffer {
 
   size_t size_{};                                  // NPU上占用的内存大小
   void *data_{};                                   // NPU地址指针
-  void (*deallocator_)(void *, size_t, void *){};  // NP内存的释放函数，内存可能会来自于内存池或者rtMalloc
+  void (*deallocator_)(void *, size_t, const void *) {};  // NP内存的释放函数，内存可能会来自于内存池或者rtMalloc
   void *deallocator_arg_{};                        // 地址释放时传给释放函数的参数
 };
 

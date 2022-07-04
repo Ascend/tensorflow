@@ -39,7 +39,7 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe set session func failed"));
 
   ge::Graph ge_graph;
-  NPU_REQUIRES_OK(device->TransTfGraph2GeGraph(context, name, graph_def, status, ge_graph));
+  NPU_REQUIRES_OK(device->TransTfGraph2GeGraph(context, name, graph_def, ge_graph));
   ge_graph.SetNeedIteration(false);
 
   // set tuning graph

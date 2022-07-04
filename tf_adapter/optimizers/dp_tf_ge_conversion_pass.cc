@@ -161,8 +161,8 @@ class DpTfToGEConversionPassImpl {
   inline bool IsDeviceSupportedFunc(const std::string &fn) const;
   inline Status GetSplitEdges(const Node *n, std::vector<const Edge *> &split_edges, const Edge *last_edge);
   inline void RemoveSplitEdges(Node *topo_end);
-  inline Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name, std::string &device_queue_name,
-                                   const std::map<std::string, std::string> &all_options) const;
+  Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name, std::string &device_queue_name,
+                            const std::map<std::string, std::string> &all_options) const;
   bool GetNodeFuncs(const FunctionLibraryDefinition *flib_def, const Node *node, std::vector<string> &node_funcs) const;
   bool RemoveIsolatedNode(Graph *g, std::unordered_set<Node *> visited) const;
   Status RemoveNotSupportDataset(Graph *g, const std::string &device_queue_dataset,
@@ -379,9 +379,9 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vect
   return Status::OK();
 }
 
-inline Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
-                                                             std::string &device_queue_name,
-                                                             const std::map<std::string, std::string> &all_options) const {
+Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
+                                                      std::string &device_queue_name,
+                                                      const std::map<std::string, std::string> &all_options) const {
   ADP_LOG(INFO) << "Start to insert HostQueueDataset and DeviceQueueDataset.";
   REQUIRES_NOT_NULL(topo_end);
   const Node *iterator_node = nullptr;
@@ -1019,7 +1019,8 @@ Status DpTfToGEConversionPass::Run(const GraphOptimizationPassOptions &options) 
   return DpTfToGEConversionPassImpl().Run(options);
 }
 
-Status DpTfToGEConversionPassImpl::ProcessGraph(const std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
+Status DpTfToGEConversionPassImpl::ProcessGraph(const std::unique_ptr<Graph> *graph,
+                                                FunctionLibraryDefinition *func_lib,
                                                 const OptimizationPassRegistry::Grouping pass_group_value) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
 

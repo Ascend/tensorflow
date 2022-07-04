@@ -95,6 +95,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
       token, [channel_name]() { npu::global::GlobalHdcChannel::GetInstance().Destroy(channel_name); });
     if (cancelled) {
       status->status = tensorflow::errors::Internal("Iterator resource ", channel_name, " consume after destroyed");
+      return;
     }
   }
 
@@ -146,7 +147,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
  * @param device_ids: device ids
  * @param status: tf status
  */
-std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(TFE_Context *context,
+std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(const TFE_Context *const context,
                                                                          const tensorflow::ResourceHandle &resource) {
   (void)context;
   auto provider = iterator_providers_.find(resource);
@@ -306,7 +307,7 @@ TFE_TensorHandle *NpuDevice::NewDeviceResourceHandle(TFE_Context *context, const
  * @param tensor: tfe tensor handle
  * @param status: tf status
  */
-TFE_TensorHandle *NpuDevice::CopyTensorD2H(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status) const {
+TFE_TensorHandle *NpuDevice::CopyTensorD2H(const TFE_Context *const context, TFE_TensorHandle *tensor, TF_Status *status) const {
   (void)context;
   const tensorflow::Tensor *npu_tensor;
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(tensor, &npu_tensor), nullptr);
@@ -639,7 +640,7 @@ void NpuDevice::Execute(const TFE_Op *op, int num_outputs, TFE_TensorHandle **ou
 }
 
 namespace {
-tensorflow::Status AddVarInitToGraph(TFE_Context *context, std::string name, tensorflow::Tensor tensor,
+tensorflow::Status AddVarInitToGraph(const TFE_Context *const context, std::string name, tensorflow::Tensor tensor,
                                      tensorflow::Graph *graph) {
   (void)context;
   tensorflow::Node *variable = nullptr;
@@ -863,22 +864,22 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
 }
 
 void NpuDevice::TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs, TF_Status *status,
-                                       std::vector<ge::Tensor> &ge_inputs) {
+                                       std::vector<ge::Tensor> &ge_inputs) const {
   for (int i = 0; i < num_inputs; i++) {
     const tensorflow::Tensor *tensor = nullptr;
     npu::GetTensorHandleTensor(inputs[i], &tensor);
 
     const static std::shared_ptr<domi::ModelParser> parser =
-            domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
     if (parser == nullptr) {
       status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
       return;
     }
     ge::DataType ge_type = parser->ConvertToGeDataType(static_cast<uint32_t>(tensor->dtype()));
     NPU_CTX_REQUIRES(
-            status, ge_type != ge::DT_UNDEFINED,
-            tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
-                                                tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
+      status, ge_type != ge::DT_UNDEFINED,
+      tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
+                                          tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
     ge::Tensor input;
     std::vector<int64_t> dims;
     for (auto dim_size : tensor->shape().dim_sizes()) {
@@ -908,7 +909,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     return kEmptyGeGraphId;
   }
   ge::Graph ge_graph;
-  NPU_CTX_REQUIRES_OK_RETURN(status, TransTfGraph2GeGraph(context, name, def, status, ge_graph), graph_id);
+  NPU_CTX_REQUIRES_OK_RETURN(status, TransTfGraph2GeGraph(context, name, def, ge_graph), graph_id);
   ge_graph.SetNeedIteration(loop);
 
   if (kDumpExecutionDetail && !options.empty()) {
@@ -923,9 +924,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
 }
 
 tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
-                                                   const tensorflow::GraphDef &def, TF_Status *status,
-                                                   ge::Graph &ge_graph) {
-  (void)status;
+                                                   const tensorflow::GraphDef &def, ge::Graph &ge_graph) const {
   auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
   std::shared_ptr<domi::ModelParser> parser =
     domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -1006,7 +1005,7 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, co
  * @param graph_id: graph id
  * @param status: tf status
  */
-void NpuDevice::RemoveGeGraph(TFE_Context *context, uint64_t graph_id, TF_Status *status) {
+void NpuDevice::RemoveGeGraph(const TFE_Context *const context, uint64_t graph_id, TF_Status *status) {
   (void)context;
   NPU_CTX_REQUIRES_GE_OK(status, "Graph engine remove graph", GeSession()->RemoveGraph(graph_id));
 }
@@ -1195,7 +1194,7 @@ void NpuDevice::GetOpExecutor(const tensorflow::NodeDef &ndef, std::shared_ptr<c
   const auto &op = ndef.op();
   if (cached_func_specs_.find(op) == cached_func_specs_.end()) {
     HashKey attr_hash = Hash(ndef);
-    request_shape = cached_op_specs_.count(op) && cached_op_specs_[op].count(attr_hash);
+    request_shape = (cached_op_specs_.count(op) > 0) && (cached_op_specs_[op].count(attr_hash) > 0);
     return;
   }
   *spec = cached_func_specs_[op];
@@ -1229,8 +1228,8 @@ void NpuDevice::GetOpExecutor(const tensorflow::NodeDef &ndef, const TensorShape
   HashKey attr_hash = Hash(ndef);
   HashKey shape_hash = Hash(shapes);
   const auto &op = ndef.op();
-  if (cached_op_specs_.count(op) && cached_op_specs_[op].count(attr_hash) &&
-      cached_op_specs_[op][attr_hash].count(shape_hash)) {
+  if (cached_op_specs_.count(op) > 0 && cached_op_specs_[op].count(attr_hash) > 0 &&
+      cached_op_specs_[op][attr_hash].count(shape_hash) > 0) {
     *spec = cached_op_specs_[op][attr_hash][shape_hash];
   }
 }
@@ -1256,7 +1255,7 @@ tensorflow::Status NpuDevice::LoadSupportedOps(std::unordered_set<std::string> &
   }
   fs.close();
   const static std::vector<std::string> kAddonOps{"IteratorV2", "IteratorGetNext"};
-  ops.insert(kAddonOps.begin(), kAddonOps.end());
+  ops.insert(kAddonOps.cbegin(), kAddonOps.cend());
   return tensorflow::Status::OK();
 }
 

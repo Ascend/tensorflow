@@ -84,7 +84,7 @@ class GeOp : public AsyncOpKernel {
 
   Status GraphInputConvertToConst(OpKernelContext *ctx);
 
-  Status GraphCheckInputEqualConstOp(OpKernelContext *ctx, Tensor &tensor, int32_t index, bool &is_equal);
+  Status GraphCheckInputEqualConstOp(Tensor &tensor, int32_t index, bool &is_equal);
 
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
@@ -109,7 +109,7 @@ class GeOp : public AsyncOpKernel {
   Status ChangeInputsShapeDesc();
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
-                        std::vector<std::string> &input_shapes);
+                        std::vector<std::string> &input_shapes) const;
 
   int RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inputs, const OpKernelContext *const ctx);
 

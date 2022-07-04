@@ -150,7 +150,7 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
     for (size_t i = 0UL; i < static_cast<size_t>(num_outputs); i++) {
       tensorflow::Node *node = nullptr;
       NPU_CTX_REQUIRES_OK(status, tensorflow::NodeBuilder("ret_" + std::to_string(i), "_Retval")
-                                    .Input(target_node, i)
+                                    .Input(target_node, static_cast<int32_t>(i))
                                     .Attr("T", output_types[i])
                                     .Attr("index", static_cast<int32_t>(i))
                                     .Finalize(graph.get(), &node));
