@@ -72,9 +72,6 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     }
   }
 
-  RunAoeTuning(context, device, input_handles_, status);
-  NPU_REQUIRES_TFE_OK(status);
-
   bool looped = (loop_type_ != LoopType::NO_LOOP);
   int64_t consume_resource_times = 1;
   if (looped) {
@@ -110,6 +107,9 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
       DLOG() << "Skipped run empty ge graph";
       return;
     }
+
+    RunAoeTuning(context, device, input_handles_, status);
+    NPU_REQUIRES_TFE_OK(status);
 
     if (loop_type_ == LoopType::NPU_LOOP || loop_type_ == LoopType::HOST_LOOP || kDumpExecutionDetail) {
       LOG(INFO) << "Start run ge graph " << GeGraphId() << " pin to cpu, loop size " << iterations_per_loop;
