@@ -53,7 +53,8 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     TFE_TensorHandle *input = tf_inputs[input_index];
     if (npu::IsNpuTensorHandle(input)) {
       DLOG() << "Copying " << Op() << " tensorflow input " << input_index << " to npu graph input " << i << " type "
-             << tensorflow::DataTypeString(InputTypes()[static_cast<size_t>(input_index)]) << " from NPU to CPU for graph engine executing";
+             << tensorflow::DataTypeString(InputTypes()[static_cast<size_t>(input_index)])
+             << " from NPU to CPU for graph engine executing";
       // 这里需要根据算子选择输入格式了
       input = device->CopyTensorD2H(context, input, status);
       scope_handle_deleter.Guard(input);
@@ -118,7 +119,8 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     int64_t times = 0;
     do {
       device->RunGeGraphPin2Cpu(context, GeGraphId(), static_cast<int>(input_handles_.size()), input_handles_.data(),
-                                OutputTypes(), static_cast<int>(output_handles_.size()), output_handles_.data(), status);
+                                OutputTypes(), static_cast<int>(output_handles_.size()), output_handles_.data(),
+                                status);
     } while (++times < iterations_per_loop && loop_type_ == LoopType::HOST_LOOP);
     timer.Stop();
   }

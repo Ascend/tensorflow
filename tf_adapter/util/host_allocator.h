@@ -17,8 +17,8 @@
 #ifndef TENSORFLOW_HOST_ALLOCATOR_H_
 #define TENSORFLOW_HOST_ALLOCATOR_H_
 
-#include "tensorflow/core/framework/allocator.h"
 #include <string>
+#include "tensorflow/core/framework/allocator.h"
 
 namespace tensorflow {
   class HostAllocator : public Allocator {

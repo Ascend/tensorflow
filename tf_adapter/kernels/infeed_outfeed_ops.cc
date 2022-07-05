@@ -57,7 +57,8 @@ class OutfeedDequeueOp : public OpKernel {
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id));
     device_id_ = device_id;
     const size_t kDefaultCapacity = 3;
-    OP_REQUIRES(ctx, aclrtSetDevice(static_cast<int32_t>(device_id_)) == ACL_SUCCESS, errors::Internal("Acl rtSetDevice failed."));
+    OP_REQUIRES(ctx, aclrtSetDevice(static_cast<int32_t>(device_id_)) == ACL_SUCCESS,
+                errors::Internal("Acl rtSetDevice failed."));
     acl_handle_ = CreateAclTdtRecvChannel(device_id_, channel_name_, kDefaultCapacity);
     OP_REQUIRES(ctx, acl_handle_ != nullptr, errors::Internal("Acl create receive channel failed."));
     ADP_LOG(INFO) << "Succeed create acl channel for out-feed dequeue op " << channel_name_;

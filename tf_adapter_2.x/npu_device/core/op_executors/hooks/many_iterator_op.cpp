@@ -34,7 +34,8 @@
 
 namespace npu {
 static const auto kernel = [](TFE_Context *context, NpuDevice *dev, const tensorflow::NodeDef &ndef, int num_inputs,
-                              TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
+                              TFE_TensorHandle **inputs, int num_outputs, TFE_TensorHandle **outputs,
+                              TF_Status *status) {
   (void)context;
   (void)num_inputs;
   (void)inputs;

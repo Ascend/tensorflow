@@ -349,7 +349,8 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
                                    std::queue<std::unique_ptr<tensorflow::Graph>> &q) {
   tensorflow::ShapeRefiner shape_refiner(graph->versions(), lib_def);
   std::atomic<bool> has_unknown_shape_node{false};
-  auto node_shape_inference_lambda = [&q, &lib_def, &has_unknown_shape_node, &shape_refiner](const tensorflow::Node *node) {
+  auto node_shape_inference_lambda = [&q, &lib_def, &has_unknown_shape_node,
+                                      &shape_refiner](const tensorflow::Node *node) {
     if (has_unknown_shape_node) {
       return;
     }
@@ -393,8 +394,8 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
           if (!n->IsArg()) {
             continue;
           }
-          n->AddAttr("_output_shapes",
-                     std::vector<tensorflow::PartialTensorShape>{shapes[static_cast<size_t>(n->attrs().Find("index")->i())]});
+          n->AddAttr("_output_shapes", std::vector<tensorflow::PartialTensorShape>{
+                                         shapes[static_cast<size_t>(n->attrs().Find("index")->i())]});
         }
         q.push(std::move(fg));
       }

@@ -95,6 +95,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
       token, [channel_name]() { npu::global::GlobalHdcChannel::GetInstance().Destroy(channel_name); });
     if (cancelled) {
       status->status = tensorflow::errors::Internal("Iterator resource ", channel_name, " consume after destroyed");
+      return;
     }
   }
 
@@ -869,16 +870,16 @@ void NpuDevice::TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs
     npu::GetTensorHandleTensor(inputs[i], &tensor);
 
     const static std::shared_ptr<domi::ModelParser> parser =
-            domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
     if (parser == nullptr) {
       status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
       return;
     }
     ge::DataType ge_type = parser->ConvertToGeDataType(static_cast<uint32_t>(tensor->dtype()));
     NPU_CTX_REQUIRES(
-            status, ge_type != ge::DT_UNDEFINED,
-            tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
-                                                tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
+      status, ge_type != ge::DT_UNDEFINED,
+      tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
+                                          tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
     ge::Tensor input;
     std::vector<int64_t> dims;
     for (auto dim_size : tensor->shape().dim_sizes()) {
@@ -908,7 +909,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     return kEmptyGeGraphId;
   }
   ge::Graph ge_graph;
-  NPU_CTX_REQUIRES_OK_RETURN(status, TransTfGraph2GeGraph(context, name, def, status, ge_graph), graph_id);
+  NPU_CTX_REQUIRES_OK_RETURN(status, TransTfGraph2GeGraph(context, name, def, ge_graph), graph_id);
   ge_graph.SetNeedIteration(loop);
 
   if (kDumpExecutionDetail && !options.empty()) {
@@ -923,9 +924,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
 }
 
 tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
-                                                   const tensorflow::GraphDef &def, TF_Status *status,
-                                                   ge::Graph &ge_graph) {
-  (void)status;
+                                                   const tensorflow::GraphDef &def, ge::Graph &ge_graph) const {
   auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
   std::shared_ptr<domi::ModelParser> parser =
     domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -1256,7 +1255,7 @@ tensorflow::Status NpuDevice::LoadSupportedOps(std::unordered_set<std::string> &
   }
   fs.close();
   const static std::vector<std::string> kAddonOps{"IteratorV2", "IteratorGetNext"};
-  ops.insert(kAddonOps.begin(), kAddonOps.end());
+  ops.insert(kAddonOps.cbegin(), kAddonOps.cend());
   return tensorflow::Status::OK();
 }
 
