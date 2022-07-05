@@ -115,7 +115,7 @@ _npu_device_instances = dict()
 
 
 def enable_v1():
-    if len(_npu_device_instances):
+    if len(_npu_device_instances) > 0:
         os.environ['ASCEND_DEVICE_ID'] = str(list(_npu_device_instances.keys())[0])
 
     tf.compat.v1.disable_v2_behavior()
@@ -138,7 +138,7 @@ def open(device_id=None):
             logging.info('Npu instance on device %s already created', str(device_id))
             return _npu_device_instances.get(device_id)
 
-        if len(_npu_device_instances):
+        if len(_npu_device_instances) > 0:
             raise RuntimeError('Failed create npu instance on device {} as existed instance on {}'
                                ''.format(device_id, list(_npu_device_instances.keys())))
 

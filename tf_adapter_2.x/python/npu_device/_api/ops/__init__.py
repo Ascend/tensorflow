@@ -14,3 +14,5 @@
 # limitations under the License.
 # ==============================================================================
 
+
+from npu_device.ops.train_ops import gelu
