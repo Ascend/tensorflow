@@ -46,28 +46,32 @@ class NPULossScaleOptimizer(lso.LossScaleOptimizer):
         self._name = "NPULossScaleOptimizer{}".format(type(optimizer).__name__)
         super(NPULossScaleOptimizer, self).__init__(opt=opt, loss_scale_manager=loss_scale_manager)
 
+    def __getattr__(self, attr):
+        return getattr(self._opt, attr)
+
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
         """Apply gradients. See base class `tf.compat.v1.train.Optimizer`."""
         if self._enable_overflow_check():
             with tf.name_scope(self._name):
-                self._float_status = gen_npu_ops.npu_alloc_float_status()
-            grads = []
-            for (g, _) in grads_and_vars:
-                if g is not None:
-                    grads.append(g)
-            with tf.get_default_graph().control_dependencies(grads):
-                local_float_status = gen_npu_ops.npu_get_float_status(self._float_status)
-                cleared_float_status = gen_npu_ops.npu_clear_float_status(local_float_status)
+                grads = []
+                for (g, _) in grads_and_vars:
+                    if g is not None:
+                        grads.append(g)
+                with tf.get_default_graph().control_dependencies(grads):
+                    local_float_status = gen_npu_ops.npu_get_float_status_v2()
+                with tf.get_default_graph().control_dependencies([local_float_status]):
+                    cleared_float_status = gen_npu_ops.npu_clear_float_status_v2()
 
             if self._is_distributed:
-                with tf.get_default_graph().control_dependencies([local_float_status]):
-                    aggregated_float_status = hccl_ops.allreduce([self._float_status], "sum", fusion=0)
-                    is_overall_finite = math_ops.reduce_all(tf.equal(aggregated_float_status,
-                                                                     cleared_float_status),
+                aggregated_float_status = hccl_ops.allreduce([local_float_status], "sum", fusion=0)
+                with tf.get_default_graph().control_dependencies([cleared_float_status]):
+                    op = tf.equal(aggregated_float_status, 0)
+                    is_overall_finite = math_ops.reduce_all(op,
                                                             name="overflow_status_reduce_all")
             else:
-                is_overall_finite = math_ops.reduce_all(tf.equal(self._float_status,
-                                                                 cleared_float_status),
+                with tf.get_default_graph().control_dependencies([cleared_float_status]):
+                    op_ = tf.equal(0, local_float_status)
+                is_overall_finite = math_ops.reduce_all(op_,
                                                         name="overflow_status_reduce_all")
         else:
             is_overall_finite = tf.constant(True, dtype=tf.bool)
@@ -88,6 +92,3 @@ class NPULossScaleOptimizer(lso.LossScaleOptimizer):
                 issubclass(type(self._loss_scale_manager), FixedLossScaleManager):
             return self._loss_scale_manager.get_enable_overflow_check()
         return True
-
-    def __getattr__(self, attr):
-        return getattr(self._opt, attr)
