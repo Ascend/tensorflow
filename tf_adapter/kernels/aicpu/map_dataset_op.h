@@ -41,7 +41,7 @@ public:
 
   explicit NpuMapDatasetOp(OpKernelConstruction* ctx);
 
-  ~NpuMapDatasetOp() {
+  ~NpuMapDatasetOp() override {
       ADP_LOG(INFO) << "~NpuMapDatasetOp";
   };
 

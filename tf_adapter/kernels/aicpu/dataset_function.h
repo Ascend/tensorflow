@@ -125,7 +125,8 @@ class DatasetFunction {
 
   private:
     void DumpTfGraph(const std::string &procPrifex, const std::string &func_name, const GraphDef &graph);
-    void DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name, const ge::ComputeGraphPtr &graph);
+    void DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name,
+        const ge::ComputeGraphPtr &graph);
     Status GeError(std::string errorDesc, ge::Status status) const;
     Status AddOpDef(Node &node) const;
     Status RefreshNodeDesc(Node &node) const;
@@ -133,7 +134,8 @@ class DatasetFunction {
     Status CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser, FunctionLibraryDefinition &flib_def);
     ge::InputTensorInfo BuildTensorInfo(const std::shared_ptr<domi::ModelParser> &model_parser,
         DataType type, const PartialTensorShape &shape) const;
-    std::vector<ge::InputTensorInfo> BuildInputTensorInfos(const std::shared_ptr<domi::ModelParser> &model_parser) const;
+    std::vector<ge::InputTensorInfo> BuildInputTensorInfos(
+        const std::shared_ptr<domi::ModelParser> &model_parser) const;
     Status BuildGeGraph(const Instance &instance, const std::shared_ptr<domi::ModelParser> &model_parser);
     Status InitGeGraph(FunctionLibraryDefinition &flib_def);
     static void LogOptions(const std::map<std::string, std::string> &options);

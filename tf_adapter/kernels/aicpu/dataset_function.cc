@@ -246,8 +246,8 @@ std::vector<int64_t> DatasetFunction::GetTfShapeDims(const TensorShape &tf_shape
 
 ge::InputTensorInfo DatasetFunction::BuildTensorInfo(const std::shared_ptr<domi::ModelParser> &model_parser,
     DataType type, const PartialTensorShape &shape) const {
-  ge::InputTensorInfo tensorInfo = {static_cast<uint32_t>(model_parser->ConvertToGeDataType(static_cast<uint32_t>(type))),
-      {}, nullptr, 0};
+  ge::InputTensorInfo tensorInfo =
+    {static_cast<uint32_t>(model_parser->ConvertToGeDataType(static_cast<uint32_t>(type))), {}, nullptr, 0};
   tensorInfo.dims = GetTfShapeDims(shape);
   return tensorInfo;
 }

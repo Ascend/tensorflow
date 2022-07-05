@@ -228,6 +228,7 @@ class MapDataset(NpuUnaryDataset):
                  name=None):
         """See `Dataset.map()` for details."""
         self._input_dataset = input_dataset
+        self._output_device = output_device
         self._map_func = StructuredFunctionWrapper(
             map_func,
             self._transformation_name(),
@@ -246,7 +247,7 @@ class MapDataset(NpuUnaryDataset):
             output_device=self._output_device,
             deterministic=self._deterministic,
             preserve_cardinality=self._preserve_cardinality,
-            **self._common_args)
+            **self._flat_structure)
         super(MapDataset, self).__init__(input_dataset, variant_tensor, output_device)
 
     @property

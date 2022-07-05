@@ -873,7 +873,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             errors::Unavailable("tensor is too big"));
         int64_t type_size = DataTypeSize(dataset()->output_types_[i]);
         DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(tensor_size, type_size),
-            errors::Unavailable("tensor is too big, tensor_size = ", tensor_size, ", type = ", dataset()->output_types_[i]));
+            errors::Unavailable("tensor is too big, tensor_size = ", tensor_size,
+                                ", type = ", dataset()->output_types_[i]));
         tensor_size *= type_size;
         ADP_LOG(INFO) << "BatchMem, tensor_size[" << i << "] : " << tensor_size
             << ", datatype: " << dataset()->output_types_[i];
@@ -954,8 +955,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         ge::TensorDesc tensor_desc = tensors[i].GetTensorDesc();
         (void)tensor_desc.Update(ge::Shape(func_output_shape_[i]), GetFormat(), ge_output_type[i]);
         (void)tensors[i].SetTensorDesc(tensor_desc);
-        (void)tensors[i].SetData(batch_result.outputs[i] + step * func_tensor_size_[i], func_tensor_size_[i], [](uint8_t *p) {
-          ADP_LOG(INFO) << "DeInitOutTensorsMem, p = " << static_cast<const void*>(p);
+        (void)tensors[i].SetData(batch_result.outputs[i] + step * func_tensor_size_[i],
+            func_tensor_size_[i], [](uint8_t *p) {
+          ADP_LOG(INFO) << "DeInitOutTensorsMem.";
+          (void)p;
           return;
         });
       }
@@ -990,11 +993,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
    protected:
     uint8_t* GetStartAddr(BatchResultBase &batch_result) override {
-      ADP_LOG(INFO) << "GetStartAddr return batch_result->output = " << (void*)batch_result.output;
       return batch_result.output;
     }
 
-    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step, std::function<void(void *)> del) override {
+    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step,
+        std::function<void(void *)> del) override {
       return NpuAllocator::CreateNpuAllocator(batch_result.outputs[step], del);
     }
   };
@@ -1030,7 +1033,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return batch_result.output_cpu;
     }
 
-    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step, std::function<void(void *)> del) override {
+    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step,
+        std::function<void(void *)> del) override {
       return  NpuAllocator::CreateCpuAllocator(batch_result.outputs_cpu[step], del);
     }
   };
@@ -1070,7 +1074,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         shape_size = ((shape_size == 0) ? 1 : shape_size); // note the scale
         int64_t type_size = DataTypeSize(dataset()->output_types_[i]);
         DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(shape_size, type_size),
-            errors::Unavailable("tensor is too big, shape_size = ", shape_size, ", type = ", dataset()->output_types_[i]));
+            errors::Unavailable("tensor is too big, shape_size = ", shape_size,
+            ", type = ", dataset()->output_types_[i]));
         int64_t tensor_size = shape_size * type_size;
         ADP_LOG(INFO) << "BatchMem, tensor_size[" << i << "] : " << tensor_size
             << ", datatype: " << dataset()->output_types_[i];
@@ -1149,14 +1154,14 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       if (batch_result.output != nullptr) {
-        ADP_LOG(INFO) << "GetStartAddr return batch_result->output = " << (void*)batch_result.output;
         return MemCpyData(static_cast<BatchDynResult&>(batch_result));
       }
 
       return nullptr;
     }
 
-    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step, std::function<void(void *)> del) override {
+    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step,
+        std::function<void(void *)> del) override {
       return  NpuAllocator::CreateNpuAllocator(batch_result.outputs[step], del);
     }
    private:
@@ -1203,14 +1208,14 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       if (batch_result.output_cpu != nullptr) {
-        ADP_LOG(INFO) << "GetStartAddr return batch_result.output_cpu = " << (void*)batch_result.output_cpu;
         return MemCpyData(static_cast<BatchDynResult&>(batch_result));
       }
 
       return nullptr;
     }
 
-    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step, std::function<void(void *)> del) override {
+    NpuAllocator* CreateAllocator(BatchResultBase &batch_result, uint64_t step,
+        std::function<void(void *)> del) override {
       return  NpuAllocator::CreateCpuAllocator(batch_result.outputs_cpu[step], del);
     }
 
