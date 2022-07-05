@@ -155,7 +155,8 @@ Status InferShapeUtil::getInputShapesOfNode(const ShapeRefiner &shapeRef, const 
     if (iDstInput < 0) {
       return errors::Internal("iDstInput is less than zero");
     }
-    inputShapeVec[iDstInput] = pCxtIn->output(pEdge->src_output());
+    size_t iDstInputIndex = static_cast<size_t>(iDstInput);
+    inputShapeVec[iDstInputIndex] = pCxtIn->output(pEdge->src_output());
   }
 
   return Status::OK();
