@@ -1974,7 +1974,7 @@ void OMPartitionSubgraphsPass::ParseInputShapeRange(const std::string dynamic_in
 }
 
 void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool enable_dp,
-    std::map<std::string, std::string> &graph_options) {
+    std::map<std::string, std::string> &graph_options) const {
   // get attr from graph_options
   auto node_attrs = node->def().attr();
   const std::string kDynamicInput = "_graph_dynamic_input";
@@ -2084,7 +2084,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   bool mix_compile_mode = pass_options["mix_compile_mode"] == "1";
   int iterations_per_loop = std::atoi(pass_options["iterations_per_loop"].c_str());
   int task_index = std::atoi(pass_options["task_index"].c_str());
-  if (!iterations_per_loop) {
+  if (iterations_per_loop < 1) {
     ADP_LOG(FATAL) << "iterator_per_loop should be int and must >= 1";
     LOG(FATAL) << "iterator_per_loop should be int and must >= 1";
   }

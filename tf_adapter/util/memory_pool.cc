@@ -79,7 +79,7 @@ namespace tensorflow {
     return Status::OK();
   }
 
-  bool MemoryPool::FreeMemoryList(std::list<MemoryBlock> &memory_list) {
+  bool MemoryPool::FreeMemoryList(std::list<MemoryBlock> &memory_list) const {
     auto memory_it = memory_list.begin();
     while (memory_it != memory_list.end()) {
       free(memory_it->ptr);

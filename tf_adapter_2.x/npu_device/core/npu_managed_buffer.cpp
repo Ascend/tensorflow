@@ -40,7 +40,7 @@ class NpuMemory {
            << npu_memory_usage_;
     return tensorflow::Status::OK();
   }
-  static void Free(void *memory, size_t size, void *arg) {
+  static void Free(void *memory, size_t size, const void *arg) {
     (void)arg;
     npu::global::dev_memory_shared_lock.lock_shared();
     if (!npu::global::dev_memory_released) {
@@ -270,7 +270,7 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
 tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector<int64_t> &shape,
                                             ge::DataType data_type, ge::Format origin_format,
                                             const std::vector<int64_t> &origin_shape, void *addr, size_t size,
-                                            void *arg, void (*deallocator)(void *, size_t, void *),
+                                            void *arg, void (*deallocator)(void *, size_t, const void *),
                                             NpuManagedBuffer **buf) {
   *buf = new (std::nothrow) NpuManagedBuffer();
   if (*buf == nullptr) {

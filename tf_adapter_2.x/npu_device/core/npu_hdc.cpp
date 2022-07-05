@@ -277,7 +277,7 @@ tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_t
         offset += src_size;
       }
       acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR,
-                                      (dims.empty() ? nullptr : reinterpret_cast<const int64_t *>(dims.data())),
+                                      (dims.empty() ? nullptr : dims.data()),
                                       dims.size(), acl_data_type, tensor_data, tensor.tensor_data().size());
     } else if (tensor.dtype() == tensorflow::DT_STRING) {
       if (tensor.dims() != 0) {

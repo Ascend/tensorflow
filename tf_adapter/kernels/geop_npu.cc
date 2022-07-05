@@ -359,11 +359,13 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     OP_REQUIRES(ctx, aoe_tuning_graph_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe tuning graph API failed, ", mmDlerror()));
     // aoe set tuning depend graphs inputs
-    aoe_set_depend_graphs_inputs_ = (AoeSetDependGraphsInputsFunc) mmDlsym(handle_, "AoeSetDependGraphsInputs");
+    aoe_set_depend_graphs_inputs_ =
+        reinterpret_cast<AoeSetDependGraphsInputsFunc>(mmDlsym(handle_, "AoeSetDependGraphsInputs"));
     OP_REQUIRES(ctx, aoe_set_depend_graphs_inputs_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set tuning depend graphs inputs API failed, ", mmDlerror()));
     // aoe set tuning graph inputs
-    aoe_set_tuning_graph_input_ = (AoeSetTuningGraphInputFunc) mmDlsym(handle_, "AoeSetTuningGraphInput");
+    aoe_set_tuning_graph_input_ =
+        reinterpret_cast<AoeSetTuningGraphInputFunc>(mmDlsym(handle_, "AoeSetTuningGraphInput"));
     OP_REQUIRES(ctx, aoe_set_tuning_graph_input_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set tuning graph inputs API failed, ", mmDlerror()));
   }
@@ -1490,7 +1492,7 @@ void GeOp::SetDynamicInput() {
 }
 
 void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
-                            std::vector<std::string> &input_shapes) {
+                            std::vector<std::string> &input_shapes) const {
   ADP_LOG(INFO) << "[GEOP] Start analyze input tensor.";
   NpuGetNextOutputInfo *output_info = static_cast<NpuGetNextOutputInfo *>(tensor_ptr);
   std::vector<int64> tmp_dims;
@@ -1585,7 +1587,7 @@ Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
       }
     }
 
-    if (check_value == true) {
+    if (check_value) {
       int32_t index = 0;
       TF_RETURN_IF_ERROR(GetNodeAttr(node->attrs(), "index", &index));
       Tensor tensor(ctx->input(index));
@@ -1650,7 +1652,7 @@ Status GeOp::GraphCheckInputEqualConstOp(OpKernelContext *ctx, Tensor &tensor, i
     char *tensor_input = ge::PtrToPtr<void, char>(DMAHelper::base(&tensor));
     is_equal = ((it.first.TotalBytes() == tensor.TotalBytes()) &&
                 (memcmp(tensor_const, tensor_input, tensor.TotalBytes()) == 0));
-    if (is_equal != true) {
+    if (!is_equal) {
       return errors::Internal("Const input not equal with the input tensor value.");
     }
   }

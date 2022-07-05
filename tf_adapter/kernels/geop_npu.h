@@ -109,7 +109,7 @@ class GeOp : public AsyncOpKernel {
   Status ChangeInputsShapeDesc();
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
-                        std::vector<std::string> &input_shapes);
+                        std::vector<std::string> &input_shapes) const;
 
   int RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inputs, const OpKernelContext *const ctx);
 
