@@ -65,7 +65,7 @@ class TfTensorTransToHostAllocator : public TensorTransAllocator {
     return addr;
   }
   std::function<void(void *)> FreeFunction() override {
-    return [](void *addr) { };
+    return [](void *addr) { (void)addr; };
   }
 };
 
@@ -90,8 +90,8 @@ class TfTensorTransToDeviceAllocator : public TensorTransAllocator {
   }
 };
 
-static Status TransTfTensorToGeTensor(std::shared_ptr<domi::ModelParser> &model_parser, Tensor &tf_tensor, ge::Tensor &ge_tensor,
-    TensorTransAllocator &allocater) {
+static Status TransTfTensorToGeTensor(std::shared_ptr<domi::ModelParser> &model_parser, Tensor &tf_tensor,
+    ge::Tensor &ge_tensor, TensorTransAllocator &allocater) {
   void *tensor_ptr = DMAHelper::base(&tf_tensor);
   REQUIRES_NOT_NULL(tensor_ptr);
 
@@ -144,15 +144,16 @@ void DatasetFunction::DumpTfGraph(const std::string &procPrifex, const std::stri
   }
 }
 
-void DatasetFunction::DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name, const ge::ComputeGraphPtr &graph) {
+void DatasetFunction::DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name,
+    const ge::ComputeGraphPtr &graph) {
   if (kDumpGraph) {
     const std::string fileName = GetPrefix() + "_" + procPrifex + "_ge_" + func_name;
-    // ge::GraphUtils::DumpGeGraph(graph, fileName);
-    // ge::GraphUtils::DumpGeGraphToOnnx(*graph, fileName);
+    ge::GraphUtils::DumpGEGraph(graph, fileName);
+    ge::GraphUtils::DumpGEGraphToOnnx(*graph, fileName);
   }
 }
 
-Status DatasetFunction::GeError(std::string errorDesc, ge::Status status) {
+Status DatasetFunction::GeError(std::string errorDesc, ge::Status status) const {
   std::stringstream error;
   error << errorDesc << " ret : " << status << std::endl
         << "Error message is : " << std::endl
@@ -160,7 +161,7 @@ Status DatasetFunction::GeError(std::string errorDesc, ge::Status status) {
   return errors::Internal(error.str());
 }
 
-Status DatasetFunction::AddOpDef(Node &node) {
+Status DatasetFunction::AddOpDef(Node &node) const {
   const OpDef &op_def = node.op_def();
   NodeDef &node_def = const_cast<NodeDef &>(node.def());
 
@@ -173,17 +174,17 @@ Status DatasetFunction::AddOpDef(Node &node) {
   return Status::OK();
 }
 
-Status DatasetFunction::RefreshNodeDesc(Node &node) {
+Status DatasetFunction::RefreshNodeDesc(Node &node) const {
   return AddOpDef(node);
 }
 
-std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::string &func_name) {
-  const FunctionDef *func_def = flib_def->Find(func_name);
+std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) {
+  const FunctionDef *func_def = flib_def.Find(func_name);
   DATASET_REQUIRES(func_def != nullptr, "");
 
-  Graph sub_graph(flib_def);
+  Graph sub_graph(&flib_def);
 
-  Status status = InferShapeUtil::GetSubGraphFromFunctionDef(*flib_def, *func_def, &sub_graph);
+  Status status = InferShapeUtil::GetSubGraphFromFunctionDef(flib_def, *func_def, &sub_graph);
   if (!status.ok()) {
     ADP_LOG(ERROR) << status.ToString();
     return "";
@@ -201,11 +202,12 @@ std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition *flib_def, 
   return sub_graph_def.SerializeAsString();
 }
 
-Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser, FunctionLibraryDefinition *flib_def) {
+Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser,
+    FunctionLibraryDefinition &flib_def) {
   ge::ComputeGraphPtr compute_graph = std::make_shared<ge::ComputeGraph>(funcName_);
   DATASET_REQUIRES(model_parser != nullptr, errors::Internal("Create compute graph failed."));
 
-  auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
+  auto build_sub_graph = [this, &flib_def](const std::string &graph) -> std::string {
     return this->BuildSubGraph(flib_def, graph);
   };
   auto graph_def = build_sub_graph(funcName_);
@@ -250,7 +252,8 @@ ge::InputTensorInfo DatasetFunction::BuildTensorInfo(const std::shared_ptr<domi:
   return tensorInfo;
 }
 
-std::vector<ge::InputTensorInfo> DatasetFunction::BuildInputTensorInfos(const std::shared_ptr<domi::ModelParser> &model_parser) const {
+std::vector<ge::InputTensorInfo> DatasetFunction::BuildInputTensorInfos(
+    const std::shared_ptr<domi::ModelParser> &model_parser) const {
   std::vector<ge::InputTensorInfo> inputTensorInfos;
   int input_num = input_types_.size();
   for (int i = 0; i < input_num; i++) {
@@ -259,14 +262,15 @@ std::vector<ge::InputTensorInfo> DatasetFunction::BuildInputTensorInfos(const st
   return inputTensorInfos;
 }
 
-Status DatasetFunction::BuildGeGraph(const Instance &instance, const std::shared_ptr<domi::ModelParser> &model_parser) {
+Status DatasetFunction::BuildGeGraph(const Instance &instance,
+    const std::shared_ptr<domi::ModelParser> &model_parser) {
   std::vector<ge::InputTensorInfo> inputs = BuildInputTensorInfos(model_parser);
   ge::Status status = ge_session_->BuildGraph(instance, inputs);
   DATASET_REQUIRES(status == ge::SUCCESS, GeError("Build graph failed.", status));
   return Status::OK();
 }
 
-Status DatasetFunction::InitGeGraph(FunctionLibraryDefinition *flib_def) {
+Status DatasetFunction::InitGeGraph(FunctionLibraryDefinition &flib_def) {
   std::shared_ptr<domi::ModelParser> model_parser =
         domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
   DATASET_REQUIRES(model_parser != nullptr, errors::Unavailable("create model parser ret failed."));
@@ -314,15 +318,17 @@ Status DatasetFunction::Initialize(const std::map<std::string, std::string> &ses
   LogOptions(session_options);
   ge_session_.reset(new (std::nothrow)ge::Session(session_options));
 
-  return InitGeGraph(flib_def);
+  return InitGeGraph(*flib_def);
 }
 
-Status DatasetFunction::Run(Instance instance, std::vector<ge::Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors) {
+Status DatasetFunction::Run(Instance instance, std::vector<ge::Tensor> &in_tensors,
+    std::vector<ge::Tensor> &out_tensors) {
   ge::Status status = ge_session_->RunGraph(instance, in_tensors, out_tensors);
   return (status == ge::SUCCESS) ? Status::OK() : GeError("Run graph failed.", status);
 }
 
-Status DatasetFunction::Run(Instance instance, std::vector<Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors) {
+Status DatasetFunction::Run(Instance instance, std::vector<Tensor> &in_tensors,
+    std::vector<ge::Tensor> &out_tensors) {
   std::vector<ge::Tensor> inputs;
   TfTensorTransToHostAllocator trans_alloc;
   Status status = TransTfTensorsToGeTensors(in_tensors, inputs, trans_alloc);
@@ -331,12 +337,14 @@ Status DatasetFunction::Run(Instance instance, std::vector<Tensor> &in_tensors, 
   return Run(instance, inputs, out_tensors);
 }
 
-Status DatasetFunction::RunWithStreamAsyn(Instance instance, void *stream, std::vector<ge::Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors) {
-  ge::Status status = ge_session_->RunGraphWithStreamAsync(instance, reinterpret_cast<void*>(stream), in_tensors, out_tensors);
+Status DatasetFunction::RunWithStreamAsyn(Instance instance, void *stream, std::vector<ge::Tensor> &in_tensors,
+    std::vector<ge::Tensor> &out_tensors) {
+  ge::Status status = ge_session_->RunGraphWithStreamAsync(instance, stream, in_tensors, out_tensors);
   return (status == ge::SUCCESS) ? Status::OK() : GeError("Run graph with stream failed.", status);
 }
 
-Status DatasetFunction::RunWithStreamAsyn(Instance instance, void *stream, std::vector<Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors) {
+Status DatasetFunction::RunWithStreamAsyn(Instance instance, void *stream, std::vector<Tensor> &in_tensors,
+    std::vector<ge::Tensor> &out_tensors) {
   std::vector<ge::Tensor> inputs;
   TfTensorTransToDeviceAllocator trans_alloc;
   Status status = TransTfTensorsToGeTensors(in_tensors, inputs, trans_alloc);

@@ -339,6 +339,17 @@ Graph::Graph(char const* name) {}
 
 Graph GraphUtils::CreateGraphFromComputeGraph(const ComputeGraphPtr compute_graph) { return Graph("ge"); }
 
+void GraphUtils::DumpGEGraph(const ComputeGraphPtr &graph,
+                 const std::string &suffix,
+                 bool is_always_dump,
+                 const std::string &user_graph_name) {
+  return;
+}
+
+void GraphUtils::DumpGEGraphToOnnx(const ComputeGraph &compute_graph, const std::string &suffix) {
+  return;
+}
+
 void Graph::SetNeedIteration(bool need_iteration) {}
 
 GNode::GNode() {}

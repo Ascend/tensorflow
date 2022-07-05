@@ -18,6 +18,8 @@
 #include <mutex>
 #include <functional>
 #include "tensorflow/core/framework/allocator.h"
+#include "tensorflow/core/framework/tensor_description.pb.h"
+#include "tensorflow/core/framework/tensor.h"
 
 #ifndef TENSORFLOW_CORE_KERNELS_NPU_TENSOR_H_
 #define TENSORFLOW_CORE_KERNELS_NPU_TENSOR_H_
@@ -59,6 +61,8 @@ class NpuAllocator : public Allocator {
   static int64_t AlignSize(int64_t size) { return ((size + kAllocatorAlignment - 1) / kAllocatorAlignment) * kAllocatorAlignment; }
 
   void* AllocateRaw(size_t alignment, size_t num_bytes) override {
+    (void)alignment;
+    (void)num_bytes;
     return addr_;
   }
 

@@ -20,7 +20,6 @@
 #include <unordered_map>
 #include <atomic>
 
-#include "tensorflow/core/platform/macros.h"
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/framework/partial_tensor_shape.h"
@@ -29,11 +28,9 @@
 #include "tensorflow/core/framework/graph.pb.h"
 #include "tensorflow/core/kernels/data/captured_function.h"
 #include "tensorflow/core/lib/core/error_codes.pb.h"
-#include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 
 #include "graph/tensor.h"
-#include "graph/ascend_string.h"
 #include "graph/utils/graph_utils.h"
 #include "graph/compute_graph.h"
 #include "ge/ge_api.h"
@@ -44,7 +41,7 @@
 #define DATASET_REQUIRES(EXP, STATUS)    \
   do {                                   \
     if (!(EXP)) {                        \
-      ADP_LOG(ERROR) << (STATUS);          \
+      ADP_LOG(ERROR) << (STATUS);        \
       return (STATUS);                   \
     }                                    \
   } while (0)
@@ -56,8 +53,8 @@ class DatasetFunction {
   public:
     using Instance = uint32_t;
     DatasetFunction(const std::map<std::string, std::string> &init_options, const std::string &funcName,
-      const DataTypeVector &input_types, const DataTypeVector &output_types,
-      const std::vector<PartialTensorShape> &input_shape, const std::vector<PartialTensorShape> &output_shape)
+        const DataTypeVector &input_types, const DataTypeVector &output_types,
+        const std::vector<PartialTensorShape> &input_shape, const std::vector<PartialTensorShape> &output_shape)
       : init_options_(init_options),
         funcName_(funcName),
         input_types_(input_types),
@@ -73,18 +70,34 @@ class DatasetFunction {
     Status Run(Instance instance, std::vector<ge::Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
     Status Run(Instance instance, std::vector<Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
 
-    Status RunWithStreamAsyn(Instance instance, void *stream, std::vector<ge::Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
-    Status RunWithStreamAsyn(Instance instance, void *stream, std::vector<Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
+    Status RunWithStreamAsyn(Instance instance, void *stream, std::vector<ge::Tensor> &in_tensors,
+        std::vector<ge::Tensor> &out_tensors);
+    Status RunWithStreamAsyn(Instance instance, void *stream, std::vector<Tensor> &in_tensors,
+        std::vector<ge::Tensor> &out_tensors);
     static Status RegisterNpuCancellation(std::function<void()> callback, std::function<void()>* deregister_fn);
-    inline const std::vector<ge::DataType>& GetGeDataTypes() { return ge_output_types_; }
+    inline const std::vector<ge::DataType>& GetGeDataTypes() const { return ge_output_types_; }
     static bool HaveUnknowShape(const std::vector<PartialTensorShape> tf_shapes);
     static bool IsUnknowShape(const PartialTensorShape &tf_shape);
     static std::vector<int64_t> GetTfShapeDims(const PartialTensorShape &tf_shape);
     static std::vector<int64_t> GetTfShapeDims(const TensorShape &tf_shape);
+    static inline bool CheckMultiplyOverflow(int64_t a, int64_t b) {
+      const static int64_t max_int64 = 0x7FFFFFFFFFFFFFFFUL;
+      return (a != 0) && (b != 0) && (a > (max_int64 / b));
+    }
+
+    static inline bool CheckAddOverflow(int64_t a, int64_t b) {
+      const static int64_t max_int64 = 0x7FFFFFFFFFFFFFFFUL;
+      return (a > (max_int64 - b));
+    }
+
     static int64_t GetShapeDims(const std::vector<int64_t> &shape) {
       int64_t dims = 1;
       for (auto it : shape) {
         if (it < 0) {
+          return -1;
+        }
+
+        if (CheckMultiplyOverflow(dims, it)) {
           return -1;
         }
 
@@ -97,7 +110,8 @@ class DatasetFunction {
       return std::equal(shape.cbegin(), shape.cend(), tensor.GetTensorDesc().GetShape().GetDims().cbegin());
     }
 
-    static Status EqualShapes(const std::vector<ge::Tensor> &tensors, const std::vector<std::vector<int64_t>> &shapes) {
+    static Status EqualShapes(const std::vector<ge::Tensor> &tensors,
+        const std::vector<std::vector<int64_t>> &shapes) {
       if (tensors.size() != shapes.size()) {
         return errors::InvalidArgument("tensor num is match, out tensor num: ", tensors.size(),
             ", require num: ", shapes.size());
@@ -112,15 +126,16 @@ class DatasetFunction {
   private:
     void DumpTfGraph(const std::string &procPrifex, const std::string &func_name, const GraphDef &graph);
     void DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name, const ge::ComputeGraphPtr &graph);
-    Status GeError(std::string errorDesc, ge::Status status);
-    Status AddOpDef(Node &node);
-    Status RefreshNodeDesc(Node &node);
-    std::string BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::string &func_name);
-    Status CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser, FunctionLibraryDefinition *flib_def);
-    ge::InputTensorInfo BuildTensorInfo(const std::shared_ptr<domi::ModelParser> &model_parser, DataType type, const PartialTensorShape &shape) const;
+    Status GeError(std::string errorDesc, ge::Status status) const;
+    Status AddOpDef(Node &node) const;
+    Status RefreshNodeDesc(Node &node) const;
+    std::string BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name);
+    Status CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser, FunctionLibraryDefinition &flib_def);
+    ge::InputTensorInfo BuildTensorInfo(const std::shared_ptr<domi::ModelParser> &model_parser,
+        DataType type, const PartialTensorShape &shape) const;
     std::vector<ge::InputTensorInfo> BuildInputTensorInfos(const std::shared_ptr<domi::ModelParser> &model_parser) const;
     Status BuildGeGraph(const Instance &instance, const std::shared_ptr<domi::ModelParser> &model_parser);
-    Status InitGeGraph(FunctionLibraryDefinition *flib_def);
+    Status InitGeGraph(FunctionLibraryDefinition &flib_def);
     static void LogOptions(const std::map<std::string, std::string> &options);
 
     static uint64_t NewGraphId() {
@@ -128,7 +143,7 @@ class DatasetFunction {
       return graphId.fetch_add(1);
     }
 
-    const std::string& GetPrefix() { return prefix_; }
+    const std::string& GetPrefix() const { return prefix_; }
 
     const std::string prefix_ = "DatasetFunc";
 

@@ -16,8 +16,13 @@
 #include <cstdint>
 #include <thread>
 #include <mutex>
+#include <functional>
+#include <deque>
 
 #include "acl/acl_rt.h"
+#include "tf_adapter/common/adp_logger.h"
+#include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/lib/core/errors.h"
 
 #ifndef TENSORFLOW_CORE_KERNELS_NPU_STREAM_H_
 #define TENSORFLOW_CORE_KERNELS_NPU_STREAM_H_
