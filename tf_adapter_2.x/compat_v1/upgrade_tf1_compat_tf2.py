@@ -36,7 +36,6 @@ REPLACE_RULES[
 REPLACE_RULES['from tensorflow.python.keras import backend'] = 'from keras import backend'
 
 REMOVED_LINES.append("@ops.RegisterGradient('HcomAllReduce')")
-REMOVED_LINES.append("@ops.RegisterGradient(\"FastGelu\")")
 REMOVED_LINES.append("from npu_bridge.estimator.npu.npu_loss_scale_optimizer import NPULossScaleOptimizer")
 REMOVED_LINES.append("from npu_bridge.estimator.npu.npu_loss_scale_manager import FixedLossScaleManager")
 REMOVED_LINES.append("from npu_bridge.estimator.npu.npu_loss_scale_manager import ExponentialUpdateLossScaleManager")
