@@ -169,6 +169,7 @@ class NPUOptimizer(tf.train.Optimizer):
             loss_scale = self._loss_scale_manager.get_loss_scale()
             loss_value = loss() if callable(loss) else loss
             scaled_loss = loss_value * math_ops.cast(loss_scale, loss_value.dtype.base_dtype)
+            self._float_status = gen_npu_ops.npu_alloc_float_status()
         else:
             scaled_loss = loss
 
@@ -222,18 +223,17 @@ class NPUOptimizer(tf.train.Optimizer):
 
     def _reduce_all(self, grads):
         with tf.get_default_graph().control_dependencies([grad for grad in grads if grad is not None]):
-            local_float_status = gen_npu_ops.npu_get_float_status_v2()
-        with tf.get_default_graph().control_dependencies([local_float_status]):
-            cleared_float_status = gen_npu_ops.npu_clear_float_status_v2()
+            local_float_status = gen_npu_ops.npu_get_float_status(self._float_status)
+            cleared_float_status = gen_npu_ops.npu_clear_float_status(local_float_status)
+
         if self._is_distributed:
-            aggregated_float_status = hccl_ops.allreduce([local_float_status], "sum", fusion=0)
-            with tf.get_default_graph().control_dependencies([cleared_float_status]):
-                op = tf.equal(aggregated_float_status, 0)
-                self._is_overall_finite = math_ops.reduce_all(op)
+            with tf.get_default_graph().control_dependencies([local_float_status]):
+                aggregated_float_status = hccl_ops.allreduce([self._float_status], "sum", fusion=0)
+                self._is_overall_finite = math_ops.reduce_all(tf.equal(aggregated_float_status,
+                                                                       cleared_float_status))
         else:
-            with tf.get_default_graph().control_dependencies([cleared_float_status]):
-                op_ = tf.equal(0, local_float_status)
-            self._is_overall_finite = math_ops.reduce_all(op_)
+            self._is_overall_finite = math_ops.reduce_all(tf.equal(self._float_status,
+                                                                   cleared_float_status))
 
     def get_slot(self, *args, **kwargs):
         """Calls this same method on the underlying optimizer."""

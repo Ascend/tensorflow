@@ -40,17 +40,14 @@ def _npu_finite_status_after_executed(executed_ops):
     with ops.get_default_graph()._attr_scope(
             {"_npu_loss_scale": attr_value_pb2.AttrValue(b=True)}):
         with tf.control_dependencies([v for v in executed_ops if v is not None]):
-            assign_float_status = gen_npu_ops.npu_get_float_status_v2()
-        with tf.control_dependencies([assign_float_status]):
-            finite_status = gen_npu_ops.npu_clear_float_status_v2()
+            current_status = gen_npu_ops.npu_alloc_float_status()
+        assign_float_status = gen_npu_ops.npu_get_float_status(current_status)
+        finite_status = gen_npu_ops.npu_clear_float_status(assign_float_status)
         if global_npu_ctx() and global_npu_ctx().workers_num > 1:
-            reduced_status = all_reduce([assign_float_status], 'sum', fusion=0)
-            with tf.control_dependencies([finite_status]):
-                op = tf.equal(reduced_status, 0)
-            return tf.reduce_all(op)
-        with tf.control_dependencies([finite_status]):
-            op_ = tf.equal(0, [assign_float_status])
-        return tf.reduce_all(op_)
+            with tf.control_dependencies([assign_float_status]):
+                reduced_status = all_reduce(current_status, 'sum', fusion=0)
+            return tf.reduce_all(tf.equal(reduced_status, finite_status))
+        return tf.reduce_all(tf.equal(current_status, finite_status))
 
 
 def _npu_compat_loss_scale_update(m, grads):

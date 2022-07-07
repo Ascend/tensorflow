@@ -55,7 +55,10 @@ REGISTER_OP("NpuGetFloatStatus")
     .SetIsStateful();
 
 REGISTER_OP("NpuGetFloatStatusV2")
-    .Output("data: int32")
+    .Input("addr: N * T")
+    .Output("data: T")
+    .Attr("N: int >= 0")
+    .Attr("T: {float}")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext *c) {
         std::vector<DimensionHandle> output_dims;
