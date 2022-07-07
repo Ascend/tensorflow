@@ -75,6 +75,8 @@ def write_report_terminator(content):
     """Write content to report and update global variable"""
     report_path = util_global.get_value('report')
     value = util_global.get_value('report_file_status')
+    if value is None:
+        return
     times = value.bit_length()
     while times > 0:
         if get_bit_val(value, times - 1):

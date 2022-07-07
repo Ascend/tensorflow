@@ -19,6 +19,7 @@
 
 import ast
 import util_global
+import config
 
 
 class VisitCall(ast.NodeVisitor):
@@ -136,10 +137,8 @@ def get_tf_api(file_name):
     # get tensorflow related api
     api = []
     lineno = []
-    import_list = ['tf', 'hvd']
-    keras_dropout_api = ['tf.layers.dropout', 'tf.layers.Dropout', 'tf.keras.layers.Dropout',
-                         'tf.keras.layers.SpatialDropout1D', 'tf.keras.layers.SpatialDropout2D',
-                         'tf.keras.layers.SpatialDropout3D']
+    import_list = config.import_list
+    keras_dropout_api = config.keras_dropout_api
     for module in import_list:
         for i in range(len(visitor.call_nodes)):
             if "".join([module, '.']) in visitor.call_nodes[i] and visitor.call_nodes[i].split('.')[0] == module:
@@ -210,3 +209,27 @@ def get_unsupport_api(file_name):
             api.append(visitor.call_nodes[i])
             lineno.append(visitor.line_nos[i])
     return api, module, lineno
+
+
+class PreProcessVisitor(ast.NodeVisitor):
+    """Class for visiting python ast before convert"""
+    def visit_ClassDef(self, node):
+        """visit ast node classdef"""
+        self.generic_visit(node)
+
+        for base in node.bases:
+            if isinstance(base, ast.Attribute) and \
+                base.attr == "Model":
+                custom_keras_model_name = node.name
+                custom_keras_models = util_global.get_value('custom_keras_models', [])
+                custom_keras_models.append(custom_keras_model_name)
+                util_global.set_value('custom_keras_models', custom_keras_models)
+                break
+
+
+def preprocess_visit(file_name):
+    with open(file_name, 'r', encoding='utf-8') as file:
+        source = file.read()
+    tree = ast.parse(source)
+    visitor = PreProcessVisitor()
+    visitor.visit(tree)

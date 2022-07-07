@@ -29,13 +29,24 @@ import util_global
 from conver import conver
 from log import init_loggers
 from util import check_input_and_output_dir
+import config
 
 
-class Analyse:
+def has_distribute_opt():
+    """judge if has distribute mode option"""
+    return True if 'd' in config.param_config.short_opts else False
+
+
+def has_compat_v1_opt():
+    """judge if has compat v1 options"""
+    return True if 'c' in config.param_config.short_opts else False
+
+
+class Analyse(object):
     """Use Tkinter to display ayalysis result"""
     def __init__(self, parent):
         self.root = parent
-        self.root.title("Tensorflow1.15 API Analysis")
+        self.root.title(config.TOOL_TITLE)
 
         self.script_path = tk.StringVar()
         tk.Label(self.root, text="原始脚本路径：").grid(row=0, stick=tk.W)
@@ -57,9 +68,15 @@ class Analyse:
         tk.Entry(self.root, textvariable=self.main_file, width=30).grid(row=3, column=1, padx=10, pady=10)
         tk.Button(self.root, text="文件选择", command=self.select_main_file).grid(row=3, column=2)
 
-        tk.Label(self.root, text="分布式模式：").grid(row=4, stick=tk.W)
-        self.distributed_mode = ttk.Combobox(self.root, values=["horovod", "tf_strategy"], width=28)
-        self.distributed_mode.grid(row=4, column=1, padx=10, pady=10)
+        if has_distribute_opt():
+            tk.Label(self.root, text="分布式模式：").grid(row=4, stick=tk.W)
+            self.distributed_mode = ttk.Combobox(self.root, values=["horovod", "tf_strategy"], width=28)
+            self.distributed_mode.grid(row=4, column=1, padx=10, pady=10)
+
+        if has_compat_v1_opt():
+            tk.Label(self.root, text="迁移后以TF1.X方式运行：").grid(row=5, stick=tk.W)
+            self.compat_v1_option = ttk.Combobox(self.root, values=["是", "否"], width=28)
+            self.compat_v1_option.grid(row=5, column=1, padx=10, pady=10)
 
         tk.Button(self.root, text="开始分析", command=self.analyse).grid(row=5, column=2, padx=10, pady=10)
         tk.Button(self.root, text="退出", command=exit).grid(row=5, column=1, padx=10, pady=10, stick=tk.E)
@@ -141,9 +158,16 @@ class Analyse:
             distributed_mode = self.distributed_mode.get()
         return distributed_mode
 
+    def get_compat_v1_option(self):
+        """Get compat v1 option"""
+        is_compat_v1 = False
+        if self.compat_v1_option.get() == "是":
+            is_compat_v1 = True
+        return is_compat_v1
+
     def analyse(self):
         """Initiate API analysis"""
-        util_global._init()
+        util_global.init()
 
         # verify input arguments
         if not self.script_path.get():
@@ -153,12 +177,14 @@ class Analyse:
             input_dir = input_dir[:-1]
         input_dir = input_dir.replace('\\', '/')
 
-        support_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tf1.15_api_support_list.xlsx")
+        support_list = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+            config.param_config.support_list_filename)
 
         output = self.get_output_dir()
         report = self.get_report_dir()
         main_file = self.get_main_file()
-        distributed_mode = self.get_distributed_mode()
+        distributed_mode = self.get_distributed_mode() if has_distribute_opt() else None
+        is_compat_v1 = self.get_compat_v1_option() if has_compat_v1_opt() else False
 
         if input_dir + '/' in output + '/' or input_dir + '/' in report + '/':
             print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
@@ -170,6 +196,7 @@ class Analyse:
         util_global.set_value('report', report)
         util_global.set_value('main', main_file)
         util_global.set_value('distributed_mode', distributed_mode)
+        util_global.set_value('is_compat_v1', is_compat_v1)
         check_input_and_output_dir(input_dir, output)
         init_loggers(report)
         conver()
@@ -178,8 +205,8 @@ class Analyse:
         new_frame = tk.Toplevel()
         new_frame.title("Report")
         handler = lambda: self.back_to_main(new_frame)
-        tk.Button(new_frame, text='重新开始分析', command=handler).grid(row=5, column=2, padx=10, pady=10, stick=tk.W)
-        tk.Button(new_frame, text='退出', command=exit).grid(row=5, column=1, padx=10, pady=10, stick=tk.E)
+        tk.Button(new_frame, text='重新开始分析', command=handler).grid(row=6, column=2, padx=10, pady=10, stick=tk.W)
+        tk.Button(new_frame, text='退出', command=exit).grid(row=6, column=1, padx=10, pady=10, stick=tk.E)
 
         # load analysis report
         if self.report_path.get() == '':
@@ -234,6 +261,9 @@ class Analyse:
 
 if __name__ == '__main__':
     root = tk.Tk()
-    root.geometry('430x260')
+    if has_compat_v1_opt():
+        root.geometry('460x300')
+    else:
+        root.geometry('430x220')
     app = Analyse(root)
     root.mainloop()

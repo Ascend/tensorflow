@@ -23,7 +23,8 @@ import getopt
 import util_global
 from conver import conver
 from log import init_loggers
-from util import check_input_and_output_dir
+import util
+import config
 
 
 def get_para_input(arg):
@@ -78,7 +79,7 @@ def get_para_distributed_mode(arg):
 def para_check_and_set(argv):
     """Verify validation and set parameters"""
     input_dir = "npu_input"
-    support_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tf1.15_api_support_list.xlsx")
+    support_list = os.path.join(os.path.dirname(os.path.abspath(__file__)), config.param_config.support_list_filename)
     output = "output" + util_global.get_value('timestap')
     report = "report" + util_global.get_value('timestap')
     report_suffix = report
@@ -86,36 +87,15 @@ def para_check_and_set(argv):
     distributed_mode = ""
 
     try:
-        opts, _ = getopt.getopt(argv, "hi:l:o:r:m:d:",
-                                ["help", "input=", "list=", "output=", "report=", "main=", "distributed_mode"])
+        opts, _ = getopt.getopt(argv, config.param_config.short_opts,
+                                config.param_config.long_opts)
     except getopt.GetoptError:
-        print('Parameter error, please check.')
-        print('    this tool just support to convert tf-1.15 scripts.')
-        print('    main.py -i <input> -l <list> -o <output> -r <report> -m <main>')
-        print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report> --main=<main>')
-        print('-i or --input:  The source script to be converted.')
-        print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
-        print('-o or --output: The destination script after converted, Default value: output_npu_***/')
-        print('-r or --report: Conversion report, Default value: report_npu_***/')
-        print('-m or --main: The executed entry *.py file, default:None')
-        print('-d or --distributed_mode: The distribute mode to choose, '
-              'including horovod distributed and tensorflow distributed strategy. '
-              'the value should be one of [horovod, tf_strategy]')
+        print(config.param_config.opt_err_prompt)
         sys.exit(2)
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
-            print('    this tool just support to convert tf-1.15 scripts.')
-            print('    main.py -i <input> -l <list> -o <output> -r <report> -m <main>')
-            print('or: main.py --input=<input> --list=<list> --output=<output> --report=<report> --main=<main>')
-            print('-i or --input:  The source script to be converted')
-            print('-l or --list:  The list of supported api, Default value: tf1.15_api_support_list.xlsx')
-            print('-o or --output: The destination script after converted, Default value: output_npu_***/')
-            print('-r or --report: Conversion report, Default value: report_npu_***/')
-            print('-m or --main: The executed entry *.py file, default:None')
-            print('-d or --distributed_mode: The distribute mode to choose, '
-                  'including horovod distributed and tensorflow distributed strategy. '
-                  'the value should be one of [horovod, tf_strategy]')
+            print(config.param_config.opt_help)
             sys.exit()
         elif opt in ("-i", "--input"):
             input_dir = get_para_input(arg)
@@ -127,6 +107,8 @@ def para_check_and_set(argv):
             report = get_para_report(arg, report_suffix)
         elif opt in ("-m", "--main"):
             main_file = get_para_main(arg)
+        elif opt in ("-c", "--compat"):
+            util_global.set_value('is_compat_v1', True)
         elif opt in ("-d", "--distributed_mode"):
             distributed_mode = get_para_distributed_mode(arg)
 
@@ -137,7 +119,12 @@ def para_check_and_set(argv):
         print("<output> or <report> could not be the subdirectory of <input>, please try another option.")
         sys.exit(2)
 
-    check_input_and_output_dir(input_dir, output)
+    if distributed_mode == "horovod" and 'c' in config.param_config.short_opts \
+        and not util_global.get_value('is_compat_v1', False):
+        print("Horovod distribute mode is only supported in compat.v1 mode now! Please wait for our later updates.")
+        sys.exit(2)
+
+    util.check_input_and_output_dir(input_dir, output)
     util_global.set_value('input', input_dir)
     util_global.set_value('list', support_list)
     util_global.set_value('output', output)
@@ -147,7 +134,7 @@ def para_check_and_set(argv):
     init_loggers(report)
 
 if __name__ == "__main__":
-    util_global._init()
+    util_global.init()
     util_global.set_value('already_check_distributed_mode_arg', False)
     util_global.set_value('already_check_main_arg', False)
     para_check_and_set(sys.argv[1:])

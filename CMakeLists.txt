@@ -226,6 +226,7 @@ else()
         && mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && cp -r ${BASE_DIR}/tf_adapter/python/. ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && cp -r ${BASE_DIR}/convert_tf2npu ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
+        && rm -rf ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge/convert_tf2npu/v2
         && cp -r ${CMAKE_CURRENT_BINARY_DIR}/_tf_adapter.so ${CMAKE_CURRENT_BINARY_DIR}/wheel/npu_bridge
         && cd ${CMAKE_CURRENT_BINARY_DIR}/wheel
         && ${HI_PYTHON} setup.py bdist_wheel >/dev/null

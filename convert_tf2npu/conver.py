@@ -18,6 +18,7 @@
 """main function to convert user scripts"""
 
 import os
+import ast
 import pandas as pd
 import util_global
 from conver_by_ast import conver_ast
@@ -29,6 +30,7 @@ from file_op import get_api_statistic
 from file_op import adjust_index
 from util import check_path_length
 from util import log_warning
+from visit_by_ast import preprocess_visit
 
 
 def conver():
@@ -42,6 +44,13 @@ def conver():
     mkdir(report_dir)
     report_xlsx = os.path.join(report_dir, 'api_analysis_report.xlsx')
     util_global.set_value('generate_dir_report', pd.DataFrame())
+
+
+    for path, _, file_list in os.walk(util_global.get_value('input')):
+        for file_name in file_list:
+            file_path = os.path.join(path, file_name).replace('\\', '/')
+            if file_path.endswith('.py'):
+                preprocess_visit(file_path)
 
     for path, _, file_list in conver_path:
         for file_name in file_list:
