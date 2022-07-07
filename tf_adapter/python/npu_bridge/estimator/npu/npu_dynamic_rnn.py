@@ -17,6 +17,7 @@
 """NPU impletemented RNN"""
 
 import math
+import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.layers import base as base_layer
 from tensorflow.python.ops import init_ops
@@ -27,6 +28,7 @@ gen_npu_ops = helper.get_gen_ops()
 
 DYNAMIC_RNN_UNIDIRECTION = "UNIDIRECTIONAL"
 DYNAMIC_RNN_BIDIRECTION = "BIDIRECTIONAL"
+DYNAMIC_RNN_REDIRECTIONAL = "REDIRECTIONAL"
 
 
 class _DynamicBasic(base_layer.Layer):
@@ -112,6 +114,11 @@ class _DynamicBasic(base_layer.Layer):
         if self._direction not in (DYNAMIC_RNN_UNIDIRECTION, DYNAMIC_RNN_BIDIRECTION):
             raise ValueError("Invalid direction: %s, expecting %s or %s" %
                              (self._direction, DYNAMIC_RNN_UNIDIRECTION, DYNAMIC_RNN_BIDIRECTION))
+
+    def reshape(self, shape):
+        if self._direction == DYNAMIC_RNN_BIDIRECTION:
+            return [2] + shape
+        return shape
 
     def build(self, input_shape):
         """Build class"""
@@ -397,12 +404,12 @@ class DynamicRNN(_DynamicBasic):
 
         self._rnn_w = self.add_variable(
             "dynamicrnn/w",
-            shape=[input_size + self._hidden_size, 4 * self._hidden_size],
+            shape=self.reshape([input_size + self._hidden_size, 4 * self._hidden_size]),
             dtype=self._dtype,
             initializer=init_ops.glorot_uniform_initializer(seed=10, dtype=self._dtype))
         self._rnn_b = self.add_variable(
             "dynamicrnn/b",
-            shape=[4 * self._hidden_size],
+            shape=self.reshape([4 * self._hidden_size]),
             dtype=self._dtype,
             initializer=init_ops.zeros_initializer(dtype=self._dtype))
         super(DynamicRNN, self).build(input_shape)
@@ -421,17 +428,59 @@ class DynamicRNN(_DynamicBasic):
         if batch_size is None:
             batch_size = array_ops.shape(x)[1]
 
+        init_shape = [1, batch_size, self._hidden_size]
+        if self._direction == DYNAMIC_RNN_BIDIRECTION:
+            init_shape = [2, batch_size, self._hidden_size]
+
         if init_h is None:
-            self._init_h = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
+            self._init_h = array_ops.zeros(init_shape, dtype=self._dtype)
             init_h = self._init_h
         if init_c is None:
-            self._init_c = array_ops.zeros([1, batch_size, self._hidden_size], dtype=self._dtype)
+            self._init_c = array_ops.zeros(init_shape, dtype=self._dtype)
             init_c = self._init_c
 
         if weight is None:
             weight = self._rnn_w
         if bias is None:
             bias = self._rnn_b
+
+        if self._direction == DYNAMIC_RNN_BIDIRECTION:
+            init_h_f, init_h_b = tf.split(init_h, 2, 0)
+            init_c_f, init_c_b = tf.split(init_c, 2, 0)
+            weight_f, weight_b = tf.split(weight, 2, 0)
+            bias_f, bias_b = tf.split(bias, 2, 0)
+
+            self._args["direction"] = DYNAMIC_RNN_UNIDIRECTION
+            self._args["w"] = tf.reshape(weight_f, weight_f.shape[1:])
+            self._args["b"] = tf.reshape(bias_f, bias_f.shape[1:])
+            self._args["init_h"] = init_h_f
+            self._args["init_c"] = init_c_f
+            if seq_length is None:
+                self._args.pop("seq_length")
+                forward = gen_npu_ops.dynamic_rnn_v2(**self._args)
+            else:
+                forward = gen_npu_ops.dynamic_rnn(**self._args)
+
+            self._args["direction"] = DYNAMIC_RNN_REDIRECTIONAL
+            self._args["w"] = tf.reshape(weight_b, weight_b.shape[1:])
+            self._args["b"] = tf.reshape(bias_b, bias_b.shape[1:])
+            self._args["init_h"] = init_h_b
+            self._args["init_c"] = init_c_b
+            if seq_length is None:
+                reverse = gen_npu_ops.dynamic_rnn_v2(**self._args)
+            else:
+                reverse = gen_npu_ops.dynamic_rnn(**self._args)
+
+            concat_y = tf.concat([tf.expand_dims(forward[0], 0), tf.expand_dims(reverse[0], 0)], 0)
+            concat_h = tf.concat([tf.expand_dims(forward[1], 0), tf.expand_dims(reverse[1], 0)], 0)
+            concat_c = tf.concat([tf.expand_dims(forward[2], 0), tf.expand_dims(reverse[2], 0)], 0)
+            concat_i = tf.concat([tf.expand_dims(forward[3], 0), tf.expand_dims(reverse[3], 0)], 0)
+            concat_j = tf.concat([tf.expand_dims(forward[4], 0), tf.expand_dims(reverse[4], 0)], 0)
+            concat_f = tf.concat([tf.expand_dims(forward[5], 0), tf.expand_dims(reverse[5], 0)], 0)
+            concat_o = tf.concat([tf.expand_dims(forward[6], 0), tf.expand_dims(reverse[6], 0)], 0)
+            concat_tanhc = tf.concat([tf.expand_dims(forward[7], 0), tf.expand_dims(reverse[7], 0)], 0)
+            return [concat_y, concat_h, concat_c, concat_i, concat_j, concat_f, concat_o, concat_tanhc]
+
         self._args["w"] = weight
         self._args["b"] = bias
         self._args["init_h"] = init_h
