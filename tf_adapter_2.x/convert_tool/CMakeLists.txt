@@ -16,5 +16,6 @@ add_custom_target(convert_tool_v2 ALL
         && mv ${CONVERT_TOOL_DIST}/v2/ast_impl_v2.py  ${CONVERT_TOOL_DIST}/ast_impl.py
         && mv ${CONVERT_TOOL_DIST}/v2/config_v2.py  ${CONVERT_TOOL_DIST}/config.py
         && mv ${CONVERT_TOOL_DIST}/v2/tf_func_def_v2.py ${CONVERT_TOOL_DIST}/tf_func_def_v2.py
+        && mv ${CONVERT_TOOL_DIST}/v2/TF2.6.0_api_support_list.xlsx ${CONVERT_TOOL_DIST}/TF2.6.0_api_support_list.xlsx
         && rm -r ${CONVERT_TOOL_DIST}/v2
         VERBATIM)
