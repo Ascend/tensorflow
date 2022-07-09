@@ -48,10 +48,11 @@ set(COMPAT_V1_DST ${CMAKE_BINARY_DIR}/dist/python/npu_device/compat/v1)
 add_subdirectory(npu_device)
 add_subdirectory(npu_ops)
 add_subdirectory(compat_v1)
+add_subdirectory(convert_tool)
 
 add_custom_target(ascend_adapter2 ALL
         COMMAND cd ${CMAKE_BINARY_DIR}/dist/python/ && ${PYTHON_BIN_PATH} setup.py bdist_wheel
-        DEPENDS _npu_ops _npu_device_backends _tf_adapter
+        DEPENDS _npu_ops _npu_device_backends _tf_adapter convert_tool_v2
         VERBATIM)
 
 install(CODE "execute_process(COMMAND ${PYTHON_BIN_PATH} -m pip install ${CMAKE_BINARY_DIR}/dist/python/dist/npu_device-0.1-py3-none-any.whl --upgrade)")

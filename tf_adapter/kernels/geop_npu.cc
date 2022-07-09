@@ -300,11 +300,13 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     ctx->GetAttr("_placeholder_index", &placeholder_index_);
   }
   ctx->GetAttr("_train_graph", &is_train_graph_);
+  ctx->GetAttr("_is_var_init_graph", &is_var_init_graph_);
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
-                << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_;
+                << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
+                << ", is_var_init_graph: " << is_var_init_graph_;
 
   // global environment Initialize, invoke once for each process
   std::string sess_config = "";
@@ -755,6 +757,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
     SetDynamicInput();
+    graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
 
     // call ge session addGraph api
     auto graph_options = graph_options_;
