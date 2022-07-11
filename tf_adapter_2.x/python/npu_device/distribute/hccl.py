@@ -17,6 +17,7 @@
 """NPU hccl functions"""
 
 from npu_device.distribute import hccl_ops
+from npu_device.distribute.npu_callbacks import NPUBroadcastGlobalVariablesCallback
 from npu_device.npu_device import global_npu_ctx
 from npu_device.npu_device import npu_compat_function
 
@@ -111,3 +112,11 @@ def npu_distributed_keras_optimizer_wrapper(optimizer, reduce_reduction="mean", 
 
     optimizer.apply_gradients = _npu_distribute_apply_gradients
     return optimizer
+
+
+def npu_callbacks_append(callbacks_list=()):
+    """Appand NPU callback functions"""
+    if not isinstance(callbacks_list, list):
+        callbacks_list = []
+    callbacks_list.append(NPUBroadcastGlobalVariablesCallback(0))
+    return callbacks_list

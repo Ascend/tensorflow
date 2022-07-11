@@ -22,113 +22,26 @@ import sys
 import ast
 import pasta
 import util_global
-from file_op import write_output_after_conver
-from file_op import write_report_after_conver
 from file_op import scan_file
-from util import log_warning_main_arg_not_set
-from ast_impl import log_strategy_distributed_mode_error
-from ast_impl import node_tree
-from ast_impl import attribute
-from ast_impl import ast_function_def
-from ast_impl import ast_call
-from ast_impl import import_from
-from ast_impl import ast_import
-from ast_impl import ast_if
-from ast_impl import insert_npu_import
-from ast_impl import insert_npu_resource_init
-from ast_impl import insert_npu_resource_shutdown
-from ast_impl import insert_keras_dropout_import
-from ast_impl import insert_keras_sess_npu_config
-from ast_impl import insert_keras_sess_close
-from visit_by_ast import get_tf_api
+from ast_impl import ConverByAst
+from ast_impl import conver
+import visit_by_ast
 
 
-class ConverByAst(ast.NodeTransformer):
-    """Class for transforming python ast node"""
-    def generic_visit(self, node):
-        ast.NodeTransformer.generic_visit(self, node)
-        return node
-
-    def visit_Attribute(self, node):
-        """Visit and transform attr node"""
-        self.generic_visit(node)
-        if node.attr == "keras":
-            util_global.set_value('is_keras_net', True)
-        if node.attr in util_global.get_value('hvd'):
-            distributed_mode = util_global.get_value("distributed_mode", "")
-            if isinstance(node.value, ast.Name) and 'hvd' in str(node.value.id):
-                if distributed_mode in ("tf_strategy", ""):
-                    log_strategy_distributed_mode_error(node)
-                    return node
-                return attribute(node)
-        return node
-
-    def visit_FunctionDef(self, node):
-        """Visit and transform function def node"""
-        if node.name == 'gelu':
-            return ast_function_def(node)
-        self.generic_visit(node)
-        return node
-
-    def visit_Call(self, node):
-        """Visit and transform call node"""
-        self.generic_visit(node)
-        node = ast_call(node)
-        return node
-
-    def visit_ImportFrom(self, node):
-        """Visit and transform importfrom node"""
-        self.generic_visit(node)
-        node = import_from(node)
-        return node
-
-    def visit_Import(self, node):
-        """Visit and transform import node"""
-        self.generic_visit(node)
-        node = ast_import(node)
-        return node
-
-    def visit_Assign(self, node):
-        """Visit and transform assign node"""
-        self.generic_visit(node)
-        return node
-
-    def visit_If(self, node):
-        """Visit and transform if node"""
-        self.generic_visit(node)
-        ast_if(node)
-        return node
-
-
-def conver(r_node, out_path_dst, file_name):
-    """Add necessary imported modules"""
-    if file_name != "__init__.py":
-        insert_npu_import(r_node)
-    if util_global.get_value('use_keras_dropout', False):
-        insert_keras_dropout_import(r_node)
-    distributed_mode = util_global.get_value('distributed_mode', "")
-    if not util_global.get_value('has_main_func', False) and \
-            (util_global.get_value('has_hvd_api', False) or
-             util_global.get_value('is_keras_net', False)) and \
-            not util_global.get_value('main', ""):
-        log_warning_main_arg_not_set()
-    if distributed_mode == "horovod" and util_global.get_value('is_main_file', False):
-        insert_npu_resource_init(r_node)
-        insert_npu_resource_shutdown(r_node)
-    if util_global.get_value('is_main_file', False) and util_global.get_value('is_keras_net', False):
-        insert_keras_sess_npu_config(r_node)
-        insert_keras_sess_close(r_node)
-    dst_content = pasta.dump(r_node)
-    write_output_after_conver(os.path.join(util_global.get_value('output'), out_path_dst, file_name), dst_content)
-
-
-def conver_ast(path, out_path_dst, file_name):
-    """Convert script by python ast"""
+def clean_up_global():
     util_global.set_value('need_conver', False)
     util_global.set_value('is_keras_net', False)
     util_global.set_value('has_hvd_api', False)
     util_global.set_value('is_main_file', False)
     util_global.set_value('has_main_func', False)
+    util_global.set_value('need_import_npu_callbacks_func', False)
+    util_global.set_value('need_import_npu_broadcast_func', False)
+    util_global.set_value('need_import_experimental_loss_scale_optimizer', False)
+
+
+def conver_ast(path, out_path_dst, file_name):
+    """Convert script by python ast"""
+    clean_up_global()
     if os.path.join(path, file_name) == util_global.get_value('main', ""):
         util_global.set_value('is_main_file', True)
     with open(os.path.join(path, file_name), "r", encoding='utf-8') as file:
@@ -148,7 +61,7 @@ def conver_ast(path, out_path_dst, file_name):
     visitor.visit(r_node)
     ast.fix_missing_locations(r_node)
 
-    (api, lineno) = get_tf_api(os.path.join(path, file_name))
+    (api, lineno) = visit_by_ast.get_tf_api(os.path.join(path, file_name))
     if len(api) == 0:
         print("No Tensorflow module is imported in script {}.".format(file_name))
     scan_file(path, file_name, api, lineno)
@@ -156,5 +69,3 @@ def conver_ast(path, out_path_dst, file_name):
     if util_global.get_value('need_conver', False):
         conver(r_node, out_path_dst, file_name)
 
-    if file_name.endswith("a.py"):
-        write_report_after_conver("only_for_test", file_name, node_tree(ast.dump(r_node)))

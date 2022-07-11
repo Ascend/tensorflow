@@ -1,2 +1,4 @@
 recursive-include * *.py
+recursive-include * *.xlsx
+recursive-include * *.json
 recursive-include * _npu_device_backends.so _npu_ops.so _tf_adapter.so

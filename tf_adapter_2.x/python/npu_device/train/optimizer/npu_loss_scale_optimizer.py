@@ -125,3 +125,55 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
         self._last_step_finite.assign(should_apply_grads)
         maybe_apply_op = smart_cond.smart_cond(should_apply_grads, apply_fn, do_not_apply_fn)
         return tf.group(maybe_apply_op, loss_scale_update_op)
+
+
+
+class NpuExperimentalLossScaleOptimizer(tf.keras.mixed_precision.experimental.LossScaleOptimizer):
+    """NPU implemented loss scale optimizer, to replace keras.mixed_precision.experimental.LossScaleOptimizer
+    Warning: Class tf.keras.mixed_precision.experimental.LossScaleOptimizer is deprecated and
+    will be removed in a future version of TensorFlow. Please use the non-experimental class
+    `npu.train.optimizer.NpuLossScaleOptimizer` instead
+    """
+    def __init__(self, optimizer, loss_scale):
+        super().__init__(optimizer, loss_scale)
+        self._last_step_finite = variable_scope.variable(
+            initial_value=False,
+            name="npu_last_step_finite",
+            dtype=tf.bool,
+            trainable=False,
+            use_resource=True,
+            synchronization=variables.VariableSynchronization.AUTO,
+            aggregation=variables.VariableAggregation.NONE
+        )
+
+    @property
+    def last_step_finite(self):
+        """Return property"""
+        return self._last_step_finite
+
+    def apply_gradients(self,
+                        grads_and_vars,
+                        name=None):
+        """Apply gradients on variables"""
+        if global_npu_ctx() is None:
+            super().apply_gradients(grads_and_vars, name)
+
+        grads_and_vars = tuple(grads_and_vars)  # grads_and_vars origin type is zip and can only be iter once
+        grads = [g for g, _ in grads_and_vars]
+
+        def apply_fn():
+            wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
+            return self._apply_gradients(grads, wrapped_vars, name)
+
+        def do_not_apply_fn():
+            return self._optimizer.iterations.assign_add(1, read_value=False)
+
+        if self.dynamic:
+            loss_scale_update_op, should_apply_grads = _npu_compat_loss_scale_update(self._loss_scale, grads)
+        else:
+            loss_scale_update_op = tf.no_op()
+            should_apply_grads = _npu_finite_status_after_executed(grads)
+
+        self._last_step_finite.assign(should_apply_grads)
+        maybe_apply_op = smart_cond.smart_cond(should_apply_grads, apply_fn, do_not_apply_fn)
+        return tf.group(maybe_apply_op, loss_scale_update_op)

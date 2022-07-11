@@ -20,9 +20,13 @@
 import json
 import time
 import os
+import collections
+
+ParamConfig = collections.namedtuple('ParamConfig', \
+    ['short_opts', 'long_opts', 'opt_err_prompt', 'opt_help', 'support_list_filename', 'main_arg_not_set_promt'])
 
 
-def _init():
+def init():
     global _global_dict
     _global_dict = {}
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mappings', 'ast.json')) as f:

@@ -27,6 +27,7 @@ from file_op import mkdir
 from log import logger_success_report
 from log import logger_failed_report
 from log import logger_need_migration_doc
+import config
 
 
 def log_msg(lineno, msg):
@@ -135,10 +136,7 @@ def log_strategy_distributed_mode_error(node):
 def log_warning_main_arg_not_set():
     """Log error when main file for keras script is not set"""
     while not util_global.get_value('already_check_main_arg', False):
-        message = input(
-            "As your script contains Horovod or Keras API, ensure that the Python entry script contains "
-            "the main function and the '-m' option is included to avoid porting failures. "
-            "Enter 'continue' or 'c' to continue or enter 'exit' to exit: ")
+        message = input(config.param_config.main_arg_not_set_promt)
         if message in ("continue", "c"):
             break
         elif message == "exit":
