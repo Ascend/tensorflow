@@ -295,7 +295,10 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
  * @breif: npu managed buffer destroy
  * @param buf: npu managed buffer
  */
-void NpuManagedBuffer::Destroy(NpuManagedBuffer *buf) { delete buf; }
+void NpuManagedBuffer::Destroy(NpuManagedBuffer *buf) {
+  (void)npu::global::RtsCtx::EnsureInitialized();
+  delete buf;
+}
 
 /**
  * @breif: npu managed buffer assemble to tensor
