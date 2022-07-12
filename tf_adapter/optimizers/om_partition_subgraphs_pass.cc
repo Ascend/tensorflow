@@ -2182,6 +2182,10 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       return errors::InvalidArgument("job type is : ", job, " not support. ");
     }
 
+    if (node->type_string() == "Restore" || node->type_string() == "RestoreV2") {
+      graph_options["is_var_init_graph"] = "1";
+    }
+
     node->set_assigned_device_name(device_name);
 
     string node_format_value;
