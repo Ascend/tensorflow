@@ -21,16 +21,22 @@
 const static std::string kHcomAllReduce = "HcomAllReduce";
 const static std::string kDropOutGenMaskV3 = "DropOutGenMaskV3";
 const static std::string kDropOutDoMaskV3 = "DropOutDoMaskV3";
+const static std::string kDropOutGenMask = "DropOutGenMask";
+const static std::string kDropOutDoMask = "DropOutDoMask";
+const static std::set<std::string> kDropOutGenMasks = {kDropOutGenMaskV3, kDropOutGenMask};
+const static std::set<std::string> kDropOutDoMasks = {kDropOutDoMaskV3, kDropOutDoMask};
 const static std::string kNpuLossScaleAttr = "_npu_loss_scale";
 const static std::string kNpuGetFloatStatusOp = "NpuGetFloatStatus";
 
 namespace {
+bool IsDropoutGenMask(const tensorflow::Node *node) { return kDropOutGenMasks.count(node->type_string()) > 0U; }
+bool IsDropoutDoMask(const tensorflow::Node *node) { return kDropOutDoMasks.count(node->type_string()) > 0U; }
 bool IsFirstDropoutNode(const tensorflow::Node *node) {
-  if (node->type_string() != kDropOutGenMaskV3) {
+  if (!IsDropoutGenMask(node)) {
     return false;
   }
   for (const auto edge : node->in_edges()) {
-    if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {
+    if (edge->IsControlEdge() && IsDropoutDoMask(edge->src())) {
       return false;
     }
   }
@@ -44,9 +50,9 @@ void FineTuneDropoutControlEdge(tensorflow::Graph *graph, tensorflow::Node *firs
 
   const std::function<void(tensorflow::Node *)> &enter = [&dropout_gen_masks, &dropout_do_masks,
                                                           &seen_masks](tensorflow::Node *node) {
-    if (node->type_string() == kDropOutGenMaskV3) {
+    if (IsDropoutGenMask(node)) {
       for (auto edge : node->in_edges()) {
-        if (edge->IsControlEdge() && edge->src()->type_string() == kDropOutDoMaskV3) {
+        if (edge->IsControlEdge() && IsDropoutDoMask(edge->src())) {
           if (seen_masks.insert(edge->src()).second) {
             dropout_do_masks.push_back(edge->src());
           }
@@ -94,7 +100,7 @@ bool IsEdgeRedundant(const tensorflow::Edge *edge) {
   if ((dst == kHcomAllReduce && src != kNpuGetFloatStatusOp) ||
       (src == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
     return true;
-  } else if (src == kDropOutDoMaskV3 && dst == kDropOutGenMaskV3) {
+  } else if (IsDropoutDoMask(edge->src()) && IsDropoutGenMask(edge->dst())) {
     return true;
   } else if (edge->src()->IsArg() && edge->dst()->IsOp()) {
     return true;
