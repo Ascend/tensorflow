@@ -37,7 +37,7 @@ std::atomic_int64_t g_npu_loop_size{[]() -> int64_t {
 std::unordered_set<std::string> g_npu_specify_ops;
 
 tensorflow::mutex dev_memory_shared_lock;
-bool dev_memory_released{false};
+bool dev_memory_released = false;
 
 void RtsCtx::SetGlobalCtx(aclrtContext global_ctx) {
   static std::atomic_bool already_set{false};
@@ -47,12 +47,11 @@ void RtsCtx::SetGlobalCtx(aclrtContext global_ctx) {
   }
 }
 
-// 存在rtMalloc和rtFree在不同线程操作的情况，这里保证全局唯一的ctx，因而不保证任何在NPU初始化完成前对rts的接口调用成功
+// 存在rtMalloc和rtFree在不同线程操作的情况，也存在同一线程会切换context的场景
+// 这里保证全局唯一的ctx，且对device资源操作时都设置这个全局ctx
 tensorflow::Status RtsCtx::EnsureInitialized() {
-  static thread_local bool already_set{false};
-  if (!already_set && global_ctx_set_) {
+  if (global_ctx_set_) {
     NPU_REQUIRES_ACL_OK("Acl set current thread ctx failed", aclrtSetCurrentContext(global_ctx_));
-    already_set = true;
   }
   return tensorflow::Status::OK();
 }
