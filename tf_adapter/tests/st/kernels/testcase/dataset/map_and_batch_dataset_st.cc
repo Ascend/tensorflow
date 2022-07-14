@@ -518,7 +518,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams9() {
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }
-#if 1
+#if 0
 TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam9) {
   ADP_LOG(INFO) << "====== UT case-9 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams9();
