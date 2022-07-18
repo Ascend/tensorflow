@@ -33,6 +33,21 @@ namespace {
 std::mutex queue_id_to_trans_id_map_mutex;
 std::unordered_map<uint32_t, uint64_t> queue_id_to_trans_id_map;
 
+constexpr int64_t kMaxDimSize = 32;
+
+#pragma pack(push, 1)
+struct RuntimeTensorDesc {
+  uint64_t data_addr;
+  int64_t data_offset_size;
+  int64_t dtype;
+  int64_t shape[kMaxDimSize + 1];           // shape:Dim_Num|DIM0|DIM1|...|DIM31
+  int64_t original_shape[kMaxDimSize + 1];  // original_shape:Dim_Num|DIM0|DIM1|...|DIM31
+  int64_t format;
+  int64_t sub_format;
+  uint8_t reserved[456];  // padding to 1024 bytes
+};
+#pragma pack(pop)
+
 struct ItemInfo {
   int32_t version;
   int32_t data_type;
@@ -158,6 +173,9 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
     total_size += sizeof(ItemInfo) + items[i].ctrl_info.dim_num * sizeof(int64_t) + items[i].ctrl_info.data_len;
   }
 
+  if (kIsHeterogeneous) {
+    total_size += sizeof(RuntimeTensorDesc);
+  }
   auto rt_error = rtMbufAlloc(&buff, total_size);
   if (rt_error != ACL_RT_SUCCESS) {
     return errors::Internal("call rtMbufAlloc with size[", total_size, "] failed, ret = ", rt_error);
@@ -192,7 +210,10 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
     MsgInfo *msg_info = reinterpret_cast<MsgInfo *>(static_cast<uint8_t *>(head_buf) + head_size - sizeof(MsgInfo));
     msg_info->ret_code = 0;
   }
-
+  if (kIsHeterogeneous) {
+    // need skip RuntimeTensorDesc, this data for GetNext op, so the RuntimeTensorDesc can be left blank
+    data = ge::ValueToPtr(ge::PtrToValue(data) + sizeof(RuntimeTensorDesc));
+  }
   size_t offset = 0UL;
   for (size_t i = 0UL; i < cnt; ++i) {
     // can not use memcpy_s here, data size may over 2G
