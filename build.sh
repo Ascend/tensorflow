@@ -115,7 +115,7 @@ build_tfadapter() {
 
 release_tfadapter() {
   logging "Create output directory"
-  cd ${CMAKE_PATH}/dist/python/dist && mkdir -p fwkplugin/bin && cp -r "${BASE_PATH}/script" fwkplugin/ && mv npu_bridge-*.whl fwkplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" fwkplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
+  cd ${CMAKE_PATH}/dist/python/dist && mkdir -p fwkplugin/bin && mv npu_bridge-*.whl fwkplugin/bin && mv "${BASE_PATH}/tf_adapter_2.x/build/dist/python/dist/npu_device-0.1-py3-none-any.whl" fwkplugin/bin && tar cfz "${RELEASE_TARGET}" * && mv "${RELEASE_TARGET}" "${RELEASE_PATH}"
 }
 
 main() {
