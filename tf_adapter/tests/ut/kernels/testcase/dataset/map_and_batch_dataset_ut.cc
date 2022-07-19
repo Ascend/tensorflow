@@ -593,6 +593,38 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam11) {
   ADP_LOG(INFO) << "====== UT case-11 end ======";
 }
 #endif
+
+TEST_F(NpuMapAndBatchDatasetOpTest, DebugString) {
+  ADP_LOG(INFO) << "====== UT case-12 begin ======";
+  auto dataset_params = NpuMapAndBatchDatasetParams1();
+  TF_ASSERT_OK(Initialize(&dataset_params));
+  EXPECT_EQ(dataset_->DebugString(), "NpuMapAndBatchDatasetOp::DataSet");
+  ADP_LOG(INFO) << "====== UT case-12 end ======";
+}
+
+NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams12() {
+  return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 4, 1),
+                                  /*other_arguments=*/{},
+                                  /*batch_size=*/3,
+                                  /*num_parallel_calls=*/1,
+                                  /*drop_remainder=*/false,
+                                  /*func=*/MapFunc("AddOne", DT_INT64),
+                                  /*func_lib=*/{AddOne()},
+                                  /*type_arguments*/ {},
+                                  /*preserve_cardinality=*/true,
+                                  /*output_dtypes=*/{DT_INT64},
+                                  /*output_shapes=*/{PartialTensorShape({3})},
+                                  /*output_device=*/"cpu",
+                                  /*node_name=*/kNodeName);
+}
+TEST_F(NpuMapAndBatchDatasetOpTest, Cardinality) {
+  ADP_LOG(INFO) << "====== UT case-13 begin ======";
+  auto dataset_params = NpuMapAndBatchDatasetParams12();
+  TF_ASSERT_OK(Initialize(&dataset_params));
+  int64_t ret_val = 1;
+  EXPECT_EQ(dataset_->Cardinality(), ret_val);
+  ADP_LOG(INFO) << "====== UT case-13 end ======";
+}
 }  // namespace
 }  // namespace data
 }  // namespace tensorflow

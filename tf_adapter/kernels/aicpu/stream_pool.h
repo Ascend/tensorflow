@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cstdint>
 #include <thread>
 #include <mutex>
 #include <functional>
 #include <deque>
 
+#include "securec.h"
 #include "acl/acl_rt.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tensorflow/core/lib/core/status.h"
@@ -28,11 +28,16 @@
 #define TENSORFLOW_CORE_KERNELS_NPU_STREAM_H_
 namespace tensorflow {
 namespace data {
+enum class StreamNum {
+  DEFAULT_STREAM_NUM = 28,
+  MAX_STREAM_NUM = 1024
+};
+
 class Stream;
 class StreamPool;
 
 class StreamEvent {
- public:
+public:
   ~StreamEvent() {
     if (event_ != nullptr) {
       aclError rt = aclrtDestroyEvent(event_);
@@ -43,8 +48,8 @@ class StreamEvent {
     }
   }
 
- private:
-  static std::shared_ptr<StreamEvent> CreateEvent(Stream *stream, std::function<void(StreamEvent *)> del) {
+private:
+  static std::shared_ptr<StreamEvent> CreateEvent(Stream *stream, const std::function<void(StreamEvent *)> del) {
     aclrtEvent event;
     aclError rt = aclrtCreateEvent(&event);
     if (rt != ACL_SUCCESS) {
@@ -89,7 +94,7 @@ class StreamEvent {
 };
 
 class Stream {
- public:
+public:
   ~Stream() {
     ADP_LOG(INFO) << "~Stream: stream_id = " << stream_id_
         << "stream = " << stream_;
@@ -104,12 +109,12 @@ class Stream {
     }
   }
 
-  aclrtStream GetStream() {
+  const aclrtStream GetStream() {
     return stream_;
   }
 
- private:
-  inline int GetStreamId() { return stream_id_; }
+private:
+  inline int GetStreamId() const { return stream_id_; }
 
   static std::shared_ptr<Stream> CreateStream(StreamPool *owner, int stream_id) {
     aclrtStream stream;
@@ -126,7 +131,7 @@ class Stream {
     return std::shared_ptr<Stream>(new (std::nothrow)Stream(owner, stream_id, stream), del);
   }
 
-  Status RecordEvent(std::function<void(Status status)> func_, std::function<void(StreamEvent *)> del) {
+  Status RecordEvent(const std::function<void(Status status)> func_, const std::function<void(StreamEvent *)> del) {
     std::unique_lock<std::mutex> lck(mtx_);
     std::shared_ptr<StreamEvent> stream_event;
     std::function<void(StreamEvent *)> equeue_del = [this, del](StreamEvent *event) {
@@ -159,7 +164,7 @@ class Stream {
         count++;
         it = waiting_event_queue_.erase(it);
       } else {
-        it++;
+        ++it;
       }
     }
 
@@ -207,7 +212,7 @@ class Stream {
   friend class StreamPool;
 };
 
-Status StreamEvent::RecordEvent(std::function<void(Status status)> hook) {
+Status StreamEvent::RecordEvent(const std::function<void(Status status)> hook) {
   if (event_ != nullptr) {
     aclError rt = aclrtRecordEvent(event_, stream_->GetStream());
     if (rt != ACL_SUCCESS) {
@@ -243,13 +248,16 @@ Status StreamEvent::Wait() {
 }
 
 class StreamPool {
- public:
+public:
   explicit StreamPool(int stream_num, int max_task)
     : max_stream_(stream_num),
       max_task_(max_task) {
-    cur_event_num_ = new int[stream_num];
-    memset_s(cur_event_num_, sizeof(int) * stream_num, 0, sizeof(int) * stream_num);
-    streams_.resize(stream_num, nullptr);
+    uint64_t pos_stream_num = StreamPool::CheckStreamNum(stream_num);
+    cur_event_num_ = new int[pos_stream_num];
+    if (memset_s(cur_event_num_, sizeof(int) * pos_stream_num, 0, sizeof(int) * pos_stream_num) != 0) {
+      ADP_LOG(ERROR) << "[StreamPool] Failed to reset cur_event_num_ memory.";
+    }
+    streams_.resize(pos_stream_num, nullptr);
   }
 
   ~StreamPool() {
@@ -262,14 +270,15 @@ class StreamPool {
       return nullptr;
     }
     std::unique_lock<std::mutex> lck(mtx_);
-    if (streams_[streamid] == nullptr) {
-      streams_[streamid] = Stream::CreateStream(this, streamid);
+    uint64_t streamid_idx = static_cast<uint64_t>(streamid);
+    if (streams_[streamid_idx] == nullptr) {
+      streams_[streamid_idx] = Stream::CreateStream(this, streamid);
     }
 
-    return streams_[streamid];
+    return streams_[streamid_idx];
   }
 
-  Status RecordEvent(std::shared_ptr<Stream> stream, std::function<void(Status status)> func_) {
+  Status RecordEvent(const std::shared_ptr<Stream> stream, const std::function<void(Status status)> func_) {
     int stream_id = stream->GetStreamId();
     {
       std::unique_lock<std::mutex> lck(mtx_);
@@ -285,7 +294,7 @@ class StreamPool {
     });
   }
 
-  int GetIdleEventCount(int stream_id) {
+  int GetIdleEventCount(const int stream_id) const {
     if ((stream_id >= max_stream_) || (cur_event_num_[stream_id] >= max_task_)) {
       return 0;
     }
@@ -303,10 +312,22 @@ class StreamPool {
     if (stream_id >= max_stream_) {
       return errors::InvalidArgument("stream_id is invalid, ", stream_id);
     }
-    return streams_[stream_id]->WaitOneEvent();
+    return streams_[static_cast<uint64_t>(stream_id)]->WaitOneEvent();
   }
 
- private:
+  static uint64_t CheckStreamNum(int stream_num) {
+    uint64_t ret_streams = static_cast<uint64_t>(stream_num);
+    if (stream_num <= 0) {
+      ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
+      ret_streams = static_cast<uint64_t>(StreamNum::DEFAULT_STREAM_NUM);
+    } else if (stream_num > static_cast<int>(StreamNum::MAX_STREAM_NUM)) {
+      ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
+      ret_streams = static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM);
+    }
+    return ret_streams;
+  }
+
+private:
   std::mutex mtx_;
   const int max_stream_;
   const int max_task_;

@@ -65,7 +65,7 @@ class TfTensorTransToHostAllocator : public TensorTransAllocator {
     return addr;
   }
   std::function<void(void *)> FreeFunction() override {
-    return [](void *addr) { (void)addr; };
+    return [](const void *addr) { (void)addr; };
   }
 };
 
@@ -137,7 +137,8 @@ DatasetFunction::~DatasetFunction() {
   ADP_LOG(INFO) << "~DatasetFunction";
 }
 
-void DatasetFunction::DumpTfGraph(const std::string &procPrifex, const std::string &func_name, const GraphDef &graph) {
+void DatasetFunction::DumpTfGraph(const std::string &procPrifex,
+    const std::string &func_name, const GraphDef &graph) const {
   if (kDumpGraph) {
     const std::string pbtxt_path = GetDumpPath() + GetPrefix() + "_" + procPrifex + "_tf_" + func_name + ".pbtxt";
     (void)WriteTextProto(Env::Default(), pbtxt_path, graph);
@@ -145,7 +146,7 @@ void DatasetFunction::DumpTfGraph(const std::string &procPrifex, const std::stri
 }
 
 void DatasetFunction::DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name,
-    const ge::ComputeGraphPtr &graph) {
+    const ge::ComputeGraphPtr &graph) const {
   if (kDumpGraph) {
     const std::string fileName = GetPrefix() + "_" + procPrifex + "_ge_" + func_name;
     ge::GraphUtils::DumpGEGraph(graph, fileName);

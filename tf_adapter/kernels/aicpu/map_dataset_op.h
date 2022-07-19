@@ -55,7 +55,6 @@ private:
   std::shared_ptr<FunctionMetadata> func_metadata_ = nullptr;
   DataTypeVector output_types_;
   std::vector<PartialTensorShape> output_shapes_;
-  bool sloppy_;
   bool preserve_cardinality_;
   bool deterministic_;
   const std::map<std::string, std::string> sess_options_;

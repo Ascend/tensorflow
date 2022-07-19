@@ -268,7 +268,7 @@ NpuMapDatasetParams NpuMapDatasetParams1() {
                                   /*preserve_cardinality=*/false,
                                   /*deterministic=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({1})},
+                                  /*output_shapes=*/{PartialTensorShape({})},
                                   /*output_device=*/"cpu",
                                   /*node_name=*/kNodeName);
 }
@@ -297,7 +297,7 @@ NpuMapDatasetParams NpuMapDatasetParams2() {
                                   /*preserve_cardinality=*/false,
                                   /*deterministic=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({1})},
+                                  /*output_shapes=*/{PartialTensorShape({})},
                                   /*output_device=*/"cpu",
                                   /*node_name=*/kNodeName);
 }
@@ -328,7 +328,7 @@ NpuMapDatasetParams NpuMapDatasetParams3() {
                                   /*preserve_cardinality=*/false,
                                   /*deterministic=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({1})},
+                                  /*output_shapes=*/{PartialTensorShape({})},
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }
@@ -359,7 +359,7 @@ NpuMapDatasetParams NpuMapDatasetParams4() {
                                   /*preserve_cardinality=*/false,
                                   /*deterministic=*/true,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({1})},
+                                  /*output_shapes=*/{PartialTensorShape({})},
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }

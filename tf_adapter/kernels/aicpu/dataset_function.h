@@ -81,13 +81,23 @@ class DatasetFunction {
     static std::vector<int64_t> GetTfShapeDims(const PartialTensorShape &tf_shape);
     static std::vector<int64_t> GetTfShapeDims(const TensorShape &tf_shape);
     static inline bool CheckMultiplyOverflow(int64_t a, int64_t b) {
-      const static int64_t max_int64 = 0x7FFFFFFFFFFFFFFFUL;
+      const static int64_t max_int64 = INT64_MAX;
       return (a != 0) && (b != 0) && (a > (max_int64 / b));
     }
 
+    static inline bool CheckMultiplyOverflow(uint64_t a, uint64_t b) {
+      const static uint64_t max_uint64 = UINT64_MAX;
+      return (a != 0) && (b != 0) && (a > (max_uint64 / b));
+    }
+
     static inline bool CheckAddOverflow(int64_t a, int64_t b) {
-      const static int64_t max_int64 = 0x7FFFFFFFFFFFFFFFUL;
+      const static int64_t max_int64 = INT64_MAX;
       return (a > (max_int64 - b));
+    }
+
+    static inline bool CheckAddOverflow(uint64_t a, uint64_t b) {
+      const static uint64_t max_uint64 = UINT64_MAX;
+      return (a > (max_uint64 - b));
     }
 
     static int64_t GetShapeDims(const std::vector<int64_t> &shape) {
@@ -124,9 +134,9 @@ class DatasetFunction {
     }
 
   private:
-    void DumpTfGraph(const std::string &procPrifex, const std::string &func_name, const GraphDef &graph);
+    void DumpTfGraph(const std::string &procPrifex, const std::string &func_name, const GraphDef &graph) const;
     void DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name,
-        const ge::ComputeGraphPtr &graph);
+        const ge::ComputeGraphPtr &graph) const;
     Status GeError(std::string errorDesc, ge::Status status) const;
     Status AddOpDef(Node &node) const;
     Status RefreshNodeDesc(Node &node) const;

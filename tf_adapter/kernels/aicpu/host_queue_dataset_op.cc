@@ -304,7 +304,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
         while (active_thread_num) {
           cond_var_.notify_all();
-          usleep(kSleepUs);
+          (void)usleep(kSleepUs);
         }
 
         delete data_deliver_;
@@ -505,12 +505,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               continue;
             }
             from_npu_dataset = NpuAllocator::IsNpuAllocator(args[0]) ? NPU_ALLOCATOR_NPU : NPU_ALLOCATOR_NONPU;
-            ADP_LOG(INFO) << "from_npu_dataset = " << from_npu_dataset;
+            ADP_LOG(INFO) << "from_npu_dataset = " << static_cast<int>(from_npu_dataset);
           }
           bool is_string = false;
           {
             mutex_lock lck(mu_);
-            int i = 0;
             for (auto &tensor : args) {
               if ((from_npu_dataset != NPU_ALLOCATOR_NPU) && (tensor.dtype() == DT_STRING) && (!is_string)) {
                 ADP_LOG(INFO) << "Data type is string, do not use memory pool";

@@ -1,4 +1,4 @@
-/* Copyright 2019 The TensorFlow Authors. All Rights Reserved.
+/* Copyright (c) Huawei Technologies Co., Ltd. 2022-2022. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ namespace data {
 // description of the following op.
 
 class NpuMapAndBatchDatasetOp : public UnaryDatasetOpKernel {
- public:
+public:
   static constexpr const char* const kDatasetType = "NpuMapAndBatch";
   static constexpr const char* const kInputDataset = "input_dataset";
   static constexpr const char* const kOtherArguments = "other_arguments";
@@ -42,15 +42,15 @@ class NpuMapAndBatchDatasetOp : public UnaryDatasetOpKernel {
 
   explicit NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx);
 
-  ~NpuMapAndBatchDatasetOp() {
+  ~NpuMapAndBatchDatasetOp() override {
     ADP_LOG(INFO) << "~NpuMapAndBatchDatasetOp";
   };
 
- protected:
+protected:
   void MakeDataset(OpKernelContext* ctx, DatasetBase* input,
                    DatasetBase** output) override;
 
- private:
+private:
   Status CheckOutputType();
   class Dataset;
   std::shared_ptr<FunctionMetadata> func_metadata_ = nullptr;

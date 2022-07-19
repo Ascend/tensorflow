@@ -26,12 +26,12 @@
 namespace tensorflow {
 namespace data {
 class NpuAllocator : public Allocator {
- public:
-  static NpuAllocator* CreateNpuAllocator(void *addr, std::function<void(void *)> del) {
+public:
+  static NpuAllocator* CreateNpuAllocator(void *addr, const std::function<void(void *)> del) {
     return new (std::nothrow)NpuAllocator(kNpuAllocatorName, addr, del);
   }
 
-  static NpuAllocator* CreateCpuAllocator(void *addr, std::function<void(void *)> del) {
+  static NpuAllocator* CreateCpuAllocator(void *addr, const std::function<void(void *)> del) {
     return new (std::nothrow)NpuAllocator(kCpuAllocatorName, addr, del);
   }
 
@@ -43,7 +43,7 @@ class NpuAllocator : public Allocator {
     return kNpuAllocatorName;
   }
 
-  static bool IsNpuAllocator(std::string name) {
+  static bool IsNpuAllocator(const std::string name) {
     return (name.compare(kNpuAllocatorName) == 0) ||
         (name.compare(kCpuAllocatorName) == 0);
   }
@@ -57,8 +57,11 @@ class NpuAllocator : public Allocator {
     return false;
   }
 
-  static int64_t GetAlignment() { return kAllocatorAlignment; }
-  static int64_t AlignSize(int64_t size) { return ((size + kAllocatorAlignment - 1) / kAllocatorAlignment) * kAllocatorAlignment; }
+  static int64_t GetAlignment() { return static_cast<int64_t>(kAllocatorAlignment); }
+  static int64_t AlignSize(int64_t size) {
+    int64_t alignment = static_cast<int64_t>(kAllocatorAlignment);
+    return ((size + alignment - 1) / alignment) * alignment;
+  }
 
   void* AllocateRaw(size_t alignment, size_t num_bytes) override {
     (void)alignment;
@@ -66,10 +69,13 @@ class NpuAllocator : public Allocator {
     return addr_;
   }
 
-  void DeallocateRaw(void* ptr) override { delete this; }
+  void DeallocateRaw(void* ptr) override {
+    (void)ptr;
+    delete this;
+  }
 
- private:
-  explicit NpuAllocator(std::string name, void *addr, std::function<void(void *)> del)
+private:
+  explicit NpuAllocator(const std::string name, void *addr, std::function<void(void *)> del)
       : name_(name),
         addr_(addr),
         delete_(del) {
