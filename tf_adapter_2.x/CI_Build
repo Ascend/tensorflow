@@ -6,12 +6,6 @@ set -o pipefail
 CONFIGURE_DIR=$(dirname "$0")
 cd "${CONFIGURE_DIR}"
 
-if [ "$(arch)" != "x86_64" ];then
-  mkdir -p build/dist/python/dist/
-  touch build/dist/python/dist/npu_device-0.1-py3-none-any.whl
-  exit 0
-fi
-
 if [ ! -f "/home/jenkins/tensorflow26/.env/bin/activate" ];then
   echo "No venv for tensorflow2.x installed, skip CI build"
   exit 0
@@ -19,7 +13,11 @@ fi
 
 source /home/jenkins/tensorflow26/.env/bin/activate
 
-PYTHON_BIN_PATH=$(which python3.9)
+if [ "${OS_TYPE}" = "centos_aarch64" ]; then
+    PYTHON_BIN_PATH=$(which python3.7)
+else
+    PYTHON_BIN_PATH=$(which python3.9)
+fi
 
 export ADAPTER_TARGET_PYTHON_PATH="$PYTHON_BIN_PATH"
 export ASCEND_INSTALLED_PATH="$ASCEND_CUSTOM_PATH"
