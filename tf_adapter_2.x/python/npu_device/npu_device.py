@@ -319,4 +319,7 @@ class NpuDeviceHandle:
             logging.info("Warmup graph engine in static memory mode")
             _graph_engine_warmup()
 
+        from npu_device.train import npu_convert
+        npu_convert.npu_convert_api()
+
         return self
