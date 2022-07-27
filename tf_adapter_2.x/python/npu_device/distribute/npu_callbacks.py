@@ -17,26 +17,43 @@
 """NPU callback functions"""
 
 import os
+import weakref
 from tensorflow.python import keras
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import control_flow_ops
 import tensorflow as tf
 from npu_device.distribute import hccl
 
-broadcast_registry = set()
+# mapping id(var) to weakref.ref(var), which id(var) return memory address of var
+broadcast_registry = weakref.WeakValueDictionary()
 
 
 def broadcast_keras_model(model, root_rank=0):
     """Broadcast trainable variables of keras Model"""
     if not isinstance(model, tf.keras.Model):
         return model
-    candicates = []
-    for var in model.trainable_variables:
-        if id(var) not in broadcast_registry:
-            candicates.append(var)
-    if candicates:
-        hccl.broadcast(candicates)
-        broadcast_registry.update([id(value) for value in candicates])
+
+    def broadcast_inner(variables):
+        candicates = []
+        for var in variables:
+            if hasattr(var, '_cast_dtype') and getattr(var, "_cast_dtype") != var.dtype:
+                continue
+            if id(var) not in broadcast_registry:
+                candicates.append(var)
+        if candicates:
+            hccl.broadcast(candicates)
+            for value in candicates:
+                broadcast_registry[id(value)] = value
+
+    if model.built:
+        broadcast_inner(model.trainable_variables)
+    else:
+        org_build = model.build
+        def _npu_distribute_model_build(input_shape):
+            org_build(input_shape)
+            if model.built:
+                broadcast_inner(model.trainable_variables)
+        model.build = _npu_distribute_model_build
     return model
 
 
