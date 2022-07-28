@@ -65,10 +65,8 @@ class NpuCallOp : public OpKernel {
 
     // run aoe tuning if need
     if (!device->device_options["ge.jobType"].empty()) {
-      auto aoe = NpuAoe::GetInstance();
-      NPU_CTX_REQUIRES(status, aoe != nullptr, tensorflow::errors::Internal("check instance null"));
-      NPU_CTX_REQUIRES_OK(
-          status, aoe->RunAoeTuning(device, context, graph_id_, attr_.name(), *graph_def_, inputs, status.get()));
+      auto &aoe = NpuAoe::GetInstance();
+      NPU_CTX_REQUIRES_OK(status, aoe.RunAoeTuning(device, context, graph_id_, attr_.name(), *graph_def_, inputs));
     }
 
     std::vector<TFE_TensorHandle *> outputs(ctx->num_outputs());
@@ -181,6 +179,8 @@ class NpuCallOp : public OpKernel {
       if (!fuzz_compile_ && shape_changed) {  // Input shape changed since graph was built
         DLOG() << "Fuzz compile npu graph of " << name() << " as input shape changed since last built";
         fuzz_compile_ = true;
+        NPU_REQUIRES(device->device_options["ge.jobType"].empty(),
+                     tensorflow::errors::Internal("Dynamic shape networks are not supported to do aoe tuning"));
       }
       if (shape_changed || device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(graph_id_))) {
         DLOG() << "Remove and re-add ge graph " << attr_.name() << " with id " << graph_id_ << " as "

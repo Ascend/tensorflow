@@ -19,14 +19,16 @@
 #include <dlfcn.h>
 
 namespace npu {
-static std::shared_ptr<NpuAoe> instance_ptr_ = nullptr;
-
-std::shared_ptr<NpuAoe> NpuAoe::GetInstance() { return instance_ptr_; }
+NpuAoe& NpuAoe::GetInstance() {
+  static NpuAoe instance;
+  return instance;
+}
 
 tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context, uint64_t graph_id,
                                         const std::string &name, const tensorflow::GraphDef &graph_def,
-                                        std::vector<TFE_TensorHandle *> &inputs, TF_Status *status) {
+                                        std::vector<TFE_TensorHandle *> &inputs) {
   DLOG() << "Start to tune graph id: " << graph_id << ", name: " << name;
+  ++exec_num_;
 
   std::map<Aoe::AscendString, Aoe::AscendString> session_options;
   (void)session_options.emplace(Aoe::AscendString("job_type"),
@@ -46,9 +48,10 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
   ret = aoe_func_.aoe_set_tuninggraph(aoe_session_id, ge_graph);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe set tuning graph func failed"));
 
+  std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)> status(TF_NewStatus(), TF_DeleteStatus);
   std::vector<ge::Tensor> ge_inputs;
-  device->TransTfInputs2GeInputs(static_cast<int32_t>(inputs.size()), inputs.data(), status, ge_inputs);
-  if (TF_GetCode(status) != TF_OK) {
+  device->TransTfInputs2GeInputs(static_cast<int32_t>(inputs.size()), inputs.data(), status.get(), ge_inputs);
+  if (TF_GetCode(status.get()) != TF_OK) {
     return tensorflow::errors::Internal("get ge tensor inputs failed");
   }
 
@@ -72,15 +75,14 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
 tensorflow::Status NpuAoe::AoeTuningInitialize(const std::string &work_path) {
   DLOG() << "Start to run aoe initialize";
 
-  instance_ptr_ = std::make_shared<NpuAoe>();
-  instance_ptr_->handle_ = dlopen("libaoe_tuning.so", RTLD_NOW);
-  NPU_REQUIRES(instance_ptr_->handle_ != nullptr, tensorflow::errors::Internal("libaoe_tuning.so dlopen failed"));
+  handle_ = dlopen("libaoe_tuning.so", RTLD_NOW);
+  NPU_REQUIRES(handle_ != nullptr, tensorflow::errors::Internal("libaoe_tuning.so dlopen failed"));
 
-  NPU_REQUIRES_OK(instance_ptr_->LoadAoeFunc());
+  NPU_REQUIRES_OK(LoadAoeFunc());
 
   std::map<Aoe::AscendString, Aoe::AscendString> global_options;
   (void)global_options.emplace(Aoe::AscendString("work_path"), Aoe::AscendString(work_path.c_str()));
-  auto ret = instance_ptr_->aoe_func_.aoe_initialize(global_options);
+  auto ret = aoe_func_.aoe_initialize(global_options);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe initialize func failed"));
 
   DLOG() << "run aoe initialize success";
@@ -144,20 +146,24 @@ tensorflow::Status NpuAoe::LoadAoeFunc() {
 }
 
 tensorflow::Status NpuAoe::AoeTuningFinalize() {
-  DLOG() << "Start to run aoe finalize";
-
   if (handle_ != nullptr) {
+    DLOG() << "Start to run aoe finalize";
+
     auto ret = aoe_func_.aoe_finalize();
     NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe finalize func failed"));
+
+    DLOG() << "total number of aoe executions is: " << exec_num_;
+    DLOG() << "run aoe finalize success";
   }
 
-  DLOG() << "run aoe finalize success";
   return tensorflow::Status::OK();
 }
 
 NpuAoe::~NpuAoe() {
   if (handle_ != nullptr) {
+    DLOG() << "close handle";
     (void)dlclose(handle_);
+    handle_ = nullptr;
   }
 }
 }  // namespace npu

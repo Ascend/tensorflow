@@ -103,6 +103,7 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
     timer.Stop();
   } else {
     Load(context, device, status);
+    NPU_REQUIRES_TFE_OK(status);
     if (empty_ge_graph_) {
       DLOG() << "Skipped run empty ge graph";
       return;
@@ -135,10 +136,8 @@ void NpuConcreteGraph::RunAoeTuning(TFE_Context *context, NpuDevice *device, std
   if (function_op_) {
     // run aoe tuning if need
     if (!device->device_options["ge.jobType"].empty()) {
-      auto aoe = NpuAoe::GetInstance();
-      NPU_CTX_REQUIRES(status, aoe != nullptr, tensorflow::errors::Internal("check instance null"));
-      NPU_CTX_REQUIRES_OK(
-          status, aoe->RunAoeTuning(device, context, GeGraphId(), Op(), GraphDef(), inputs, status));
+      auto &aoe = NpuAoe::GetInstance();
+      NPU_CTX_REQUIRES_OK(status, aoe.RunAoeTuning(device, context, GeGraphId(), Op(), GraphDef(), inputs));
     }
   }
 }
@@ -199,9 +198,14 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
       {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
       {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
       {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
+    const auto need_fuzz_compile = NeedFuzzCompile();
+    if (need_fuzz_compile) {
+      NPU_CTX_REQUIRES(status, device->device_options["ge.jobType"].empty(),
+                       tensorflow::errors::Internal("Dynamic shape networks are not supported to do aoe tuning"));
+    }
     if (device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(),
                                 (loop_type_ == LoopType::NPU_LOOP), status,
-                                (NeedFuzzCompile() ? kFuzzCompileOptions : kOptions)) == kEmptyGeGraphId) {
+                                (need_fuzz_compile ? kFuzzCompileOptions : kOptions)) == kEmptyGeGraphId) {
       empty_ge_graph_ = true;
     }
     NPU_REQUIRES_TFE_OK(status);

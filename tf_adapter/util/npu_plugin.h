@@ -39,6 +39,8 @@ void PluginFinalize();
 
 void NpuClose();
 
+void AoeFinalizeIfNeed();
+
 int32_t InitRdmaPool(size_t size);
 
 int32_t RegistRdmaRemoteAddr(const std::vector<ge::HostVarInfo> &var_info);

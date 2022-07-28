@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <thread>
+#include <mmpa/mmpa_api.h>
 #include "nlohmann/json.hpp"
 #include "tensorflow/core/util/env_var.h"
 #include "tensorflow/core/framework/cancellation.h"
@@ -27,6 +28,8 @@
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/npu_plugin.h"
+#include "aoe_tuning_api.h"
+using AoeFinalizeFunc = Aoe::AoeStatus (*)();
 using json = nlohmann::json;
 
 using namespace tdt;
@@ -334,10 +337,36 @@ void PluginFinalize() {
   ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success";
 }
 
+void AoeFinalizeIfNeed() {
+  auto attr = GePlugin::GetInstance()->GetInitOptions();
+  if (attr["ge.jobType"].empty() || attr["ge.tuningPath"].empty()) {
+    return;
+  }
+
+  ADP_LOG(INFO) << "Start to call aoe finalize when npu close.";
+  void *handle = mmDlopen("libaoe_tuning.so", MMPA_RTLD_NOW);
+  if (handle == nullptr) {
+    ADP_LOG(WARNING) << "open libaoe_tuning.so failed.";
+    return;
+  }
+
+  auto aoe_finalize = (AoeFinalizeFunc)mmDlsym(handle, "AoeFinalize");
+  if (aoe_finalize == nullptr) {
+    ADP_LOG(WARNING) << "load aoe finalize function failed.";
+    return;
+  }
+
+  (void)aoe_finalize();
+  (void)mmDlclose(handle);
+
+  ADP_LOG(INFO) << "Finish to call aoe finalize when npu close.";
+}
+
 void NpuClose() {
   ADP_LOG(INFO) << "[GePlugin] Npu close.";
   g_cancellationManager.StartCancel();
   GeFinalize();
+  AoeFinalizeIfNeed();
   uint32_t device_id = 0;
   (void) GetEnvDeviceID(device_id);
   if (NpuAttrs::GetUseTdtStatus(device_id)) {
