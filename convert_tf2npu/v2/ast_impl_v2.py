@@ -66,7 +66,7 @@ def _npu_train_optimizer_node_helper(attr_name):
 def get_npu_func_node(npu_func_name):
     """get npu func name node"""
     npu_func_map = {
-        "npu.distribute.npu_distributed_keras_optimizer_wrapper": 
+        "npu.distribute.npu_distributed_keras_optimizer_wrapper":
             _npu_distribute_node_helper('npu_distributed_keras_optimizer_wrapper'),
         "npu.distribute.all_reduce": _npu_distribute_node_helper('all_reduce'),
         "npu.train.optimizer.NpuLossScaleOptimizer": _npu_train_optimizer_node_helper('NpuLossScaleOptimizer'),
@@ -183,7 +183,7 @@ def pattern_match(node, name, part, func):
 def insert_npu_exprimental_loss_scale_optimizer_import(r_node):
     """Add NPU import module"""
     npu_alias = ast.alias(name='NpuExperimentalLossScaleOptimizer', asname=None)
-    npu_import = ast.ImportFrom(module='npu_device.train.optimizer.npu_loss_scale_optimizer', 
+    npu_import = ast.ImportFrom(module='npu_device.train.optimizer.npu_loss_scale_optimizer',
         names=[npu_alias], level=0)
 
     max_import_npu_pos = 5
@@ -288,6 +288,15 @@ def _decorate_distribute_optimizer_wrapper_at_call(node):
 
 def convert_tf_distribute_apis(node):
     """Convert distributed strategy API"""
+    if (isinstance(node.func, ast.Name) and is_custom_keras_model(node.func.id)) \
+        or (isinstance(node.func, ast.Attribute) and is_custom_keras_model(node.func.attr)):
+        log_msg(getattr(node, "lineno", "None"), "add npu broadcast_keras_model to tensorflow keras Model")
+        new_node = ast.Call(func=get_npu_func_node("broadcast_keras_model"), args=[node],
+                            keywords=[])
+        ast.copy_location(new_node, node)
+        util_global.set_value('need_conver', True)
+        util_global.set_value('need_import_npu_broadcast_func', True)
+        return new_node
     if isinstance(node.func, ast.Attribute) and is_keras_optimizer_name(node.func.attr):
         return _decorate_distribute_optimizer_wrapper_at_call(node)
     if isinstance(node.func, ast.Name) and is_keras_optimizer_name(node.func.id):
@@ -297,7 +306,7 @@ def convert_tf_distribute_apis(node):
             if is_keras_get_optimizer_param_name(node.args[0].value):
                 return _decorate_distribute_optimizer_wrapper_at_call(node)
     if isinstance(node.func, ast.Attribute) and node.func.attr == "fit":
-        node = convert_origin_func_to_npu(node, tf_v2_func_map.get("tf.keras.Model.fit"), 
+        node = convert_origin_func_to_npu(node, tf_v2_func_map.get("tf.keras.Model.fit"),
             "Model.fit", ["callbacks"], True)
         util_global.set_value('need_import_npu_callbacks_func', True)
         return node
@@ -323,22 +332,12 @@ def insert_enable_v1(r_node):
 
 def is_custom_keras_model(func_name):
     custom_keras_models = util_global.get_value('custom_keras_models', [])
-    return func_name in custom_keras_models
+    return func_name == "Model" or (func_name in custom_keras_models)
 
 
 def ast_call(node):
     """Visit and transform ast call node"""
     distributed_mode = util_global.get_value("distributed_mode", "")
-
-    if isinstance(node.func, ast.Attribute) and \
-        ((node.func.attr == "Model") or is_custom_keras_model(node.func.attr)):
-        log_msg(getattr(node, "lineno", "None"), "add npu broadcast_keras_model to tensorflow keras Model")
-        new_node = ast.Call(func=get_npu_func_node("broadcast_keras_model"), args=[node],
-                            keywords=[])
-        ast.copy_location(new_node, node)
-        util_global.set_value('need_conver', True)
-        util_global.set_value('need_import_npu_broadcast_func', True)
-        return new_node
 
     if isinstance(node.func, ast.Attribute) and (node.func.attr == 'set_memory_growth'):
         log_success_report(getattr(node, 'lineno', 'None'), 'set_memory_growth')
@@ -448,10 +447,11 @@ def conver(r_node, out_path_dst, file_name):
     """Add necessary imported modules"""
     is_compat_v1 = util_global.get_value('is_compat_v1', False)
     correct_num_main_func = 1
+    if not is_compat_v1:
+        if util_global.get_value('need_import_npu_broadcast_func', False):
+            insert_npu_broadcast_func_import(r_node)
     if file_name != "__init__.py":
         if not is_compat_v1:
-            if util_global.get_value('need_import_npu_broadcast_func', False):
-                insert_npu_broadcast_func_import(r_node)
             if util_global.get_value('need_import_npu_callbacks_func', False):
                 insert_npu_callbacks_func_import(r_node)
             if util_global.get_value('need_import_experimental_loss_scale_optimizer', False):
@@ -468,7 +468,7 @@ def conver(r_node, out_path_dst, file_name):
         (not util_global.get_value('main', "") and util_global.get_value('has_main_func', False)):
         if not is_compat_v1:
             insert_npu_device_init(r_node)
-    
+
     if is_compat_v1:
         distributed_mode = util_global.get_value('distributed_mode', "")
         if distributed_mode == "horovod" and util_global.get_value('is_main_file', False):
