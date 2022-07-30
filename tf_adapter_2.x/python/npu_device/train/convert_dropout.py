@@ -45,13 +45,13 @@ def npu_dropout_v2(x, rate, noise_shape=None, seed=None, name=None):
         A tensor.
     """
     keep_prob = 1.0 - rate
-    if noise_shape:
+    if noise_shape is not None:
         if hasattr(npu_dropout_v2, "__OriginCall__"):
-            npu_dropout_v2.__OriginCall__(x,
-                                          noise_shape=noise_shape,
-                                          seed=seed,
-                                          name=name,
-                                          rate=(1.0 - keep_prob))
+            return npu_dropout_v2.__OriginCall__(x,
+                                                 noise_shape=noise_shape,
+                                                 seed=seed,
+                                                 name=name,
+                                                 rate=(1.0 - keep_prob))
         else:
             raise Exception("dropout_v2 has no __OriginCall__ attr")
     if context.executing_eagerly():
@@ -77,10 +77,12 @@ def dropout_api_convert():
     """ Replace dropout API """
     from npu_device.train import npu_convert
     # Replace Api function which define in __init__
-    tf.nn.dropout = npu_convert.dropout_convert(npu_dropout_v2, version=['2.6.2'], mode=['graph'])(tf.nn.dropout)
-    tf2.nn.dropout = npu_convert.dropout_convert(npu_dropout_v2, version=['2.6.2'], mode=['graph'])(tf2.nn.dropout)
+    tf.nn.dropout = npu_convert.dropout_convert(npu_dropout_v2, version=['2.6.2~2.6.999'], mode=['graph'])(
+        tf.nn.dropout)
+    tf2.nn.dropout = npu_convert.dropout_convert(npu_dropout_v2, version=['2.6.2~2.6.999'], mode=['graph'])(
+        tf2.nn.dropout)
     # Replace Api function in nn_ops.py
-    nn_ops.dropout_v2 = npu_convert.dropout_convert(npu_dropout_v2, version=['2.6.2'], mode=['graph'])(
+    nn_ops.dropout_v2 = npu_convert.dropout_convert(npu_dropout_v2, version=['2.6.2~2.6.999'], mode=['graph'])(
         nn_ops.dropout_v2)
 
 
