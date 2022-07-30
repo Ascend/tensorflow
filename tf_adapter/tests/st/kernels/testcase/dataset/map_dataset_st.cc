@@ -310,7 +310,7 @@ TEST_F(NpuMapDatasetOpTest, DatasetParam2) {
                                      CreateTensor<int64>(TensorShape({}), {3}),
                                      CreateTensor<int64>(TensorShape({}), {4}),
                                      CreateTensor<int64>(TensorShape({}), {5}),
-                                     CreateTensor<int64>(TensorShape({}), {6})}, /*compare_order=*/ true));
+                                     CreateTensor<int64>(TensorShape({}), {6})}, /*compare_order=*/ false));
   ADP_LOG(INFO) << "====== UT case-2 end ======";
 }
 #endif
@@ -341,7 +341,7 @@ TEST_F(NpuMapDatasetOpTest, DatasetParam3) {
                                      CreateTensor<int64>(TensorShape({}), {3}),
                                      CreateTensor<int64>(TensorShape({}), {4}),
                                      CreateTensor<int64>(TensorShape({}), {5}),
-                                     CreateTensor<int64>(TensorShape({}), {6})}, /*compare_order=*/ true));
+                                     CreateTensor<int64>(TensorShape({}), {6})}, /*compare_order=*/ false));
   ADP_LOG(INFO) << "====== UT case-3 end ======";
 }
 #endif

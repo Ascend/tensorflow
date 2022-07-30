@@ -17,11 +17,11 @@ Status IsEqual2(const Tensor& tensor1, const Tensor& tensor2) {
     return tensorflow::errors::Internal("Tensor1 and tensor2 is different in dtypes: ", DataTypeString(tensor1.dtype())," and. ", DataTypeString(tensor2.dtype()));
   }
   if (!tensor1.IsSameSize(tensor2)) {
-    return tensorflow::errors::Internal("Tensor1 and tensor2 is different in sha: ", tensor1.shape().DebugString()," and. ", tensor2.shape().DebugString());
+    return tensorflow::errors::Internal("Tensor1 and tensor2 is different in shape: ", tensor1.shape().DebugString()," and. ", tensor2.shape().DebugString());
   }
 
   auto flat_t1 = tensor1.flat<T>();
-  auto flat_t2 = tensor1.flat<T>();
+  auto flat_t2 = tensor2.flat<T>();
   auto length = flat_t1.size();
 
   for (int i = 0; i < length; ++i) {

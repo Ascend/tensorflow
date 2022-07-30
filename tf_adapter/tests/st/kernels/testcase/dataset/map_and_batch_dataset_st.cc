@@ -160,22 +160,16 @@ class NpuMapAndBatchDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapAndBatchDa
         int expected_size = expected_outputs_.size();
         Status status;
         bool is_exist = false;
-        // for (; i < expected_size; i+=size) {
         for (; i < expected_size; i++) {
           int j;
           for (j = 0; j < size; j++) {
             status = DatasetOpsTestBase::ExpectEqual(expected_outputs_[i + j], next[j]);
-            // ADP_LOG(INFO) << "Result check: compare expected_outputs_["<<i+j<<"] and next["<<j
-            //   <<"]  status.ok="<<status.ok();
             if (!status.ok()) {
               break;
             }
           }
           if (status.ok() && j == size) {
             is_exist = true;
-            // ADP_LOG(INFO) << "Result check: erase data from i="<< i <<" to i+size="
-            //   << i+size << " in expected_outputs_.size="<<expected_outputs_.size();
-            // TF_EXPECT_OK(Status::OK());
             expected_outputs_.erase(expected_outputs_.begin() + i, expected_outputs_.begin() + i + size);
             break;
           }

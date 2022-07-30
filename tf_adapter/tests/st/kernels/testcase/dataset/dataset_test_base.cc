@@ -21,7 +21,7 @@ Status IsEqual2(const Tensor& tensor1, const Tensor& tensor2) {
   }
 
   auto flat_t1 = tensor1.flat<T>();
-  auto flat_t2 = tensor1.flat<T>();
+  auto flat_t2 = tensor2.flat<T>();
   auto length = flat_t1.size();
 
   for (int i = 0; i < length; ++i) {

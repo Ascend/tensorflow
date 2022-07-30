@@ -372,7 +372,7 @@ private:
       return true;
     }
     virtual int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
-        DatasetFunction::Instance instance, uint64_t result_id, std::vector<Tensor> &input) = 0;
+        DatasetFunction::Instance instance, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) = 0;
     virtual Status InitOutputResults() = 0;
     virtual uint8_t* GetStartAddr(OutputResultBase &output_result) = 0;
     virtual NpuAllocator* CreateAllocator(OutputResultBase &output_result, uint64_t step,
@@ -526,6 +526,7 @@ private:
         }
 
         uint64_t result_id;
+        uint64_t write_idx;
         bool map_func = false;
         std::vector<Tensor> in_tensors;
         {
@@ -538,6 +539,8 @@ private:
                 << ", end_of_input_=" << end_of_input_;
             if (status.ok() && !end_of_input_) {
               map_func = true;
+              write_idx = write_idx_;
+              write_idx_++;
               recved_num_++;
             } else {
               if (!status.ok()) {
@@ -563,7 +566,7 @@ private:
         }
         if (map_func) {
           ADP_LOG(INFO) << "MapFunc enter: thread_id = " << thread_id << ", result_id = " << result_id;
-          run_res = MapFunc(ctx, thread_id, instance, result_id, in_tensors);
+          run_res = MapFunc(ctx, thread_id, instance, write_idx, result_id, in_tensors);
         } else {
           run_res = WaitRunRes(ctx, thread_id);
         }
@@ -766,18 +769,17 @@ private:
     }
 
     int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::Instance instance,
-        uint64_t result_id, std::vector<Tensor> &input) LOCKS_EXCLUDED(*mu_) override {
+        uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;
       std::shared_ptr<std::vector<ge::Tensor>> out_tensors = std::make_shared<std::vector<ge::Tensor>>();
-      auto done = [this, out_tensors, result_id = result_id](const Status &status)
+      auto done = [this, out_tensors, write_idx, result_id = result_id](const Status &status)
         EXCLUSIVE_LOCKS_REQUIRED(*mu_) mutable {
         {
           mutex_lock l(*this->mu_);
           if (status.ok()) {
-            (void)this->results_ready_que_.insert(std::pair<uint64_t, uint64_t>(this->write_idx_, result_id));
-            ADP_LOG(INFO) << "Call GE run function success. update results_ready_que_ enqueue with write_idx_="
-                << this->write_idx_ << " result_id = " << result_id;
-            this->write_idx_++;
+            (void)this->results_ready_que_.insert(std::pair<uint64_t, uint64_t>(write_idx, result_id));
+            ADP_LOG(INFO) << "Call GE run function success. update results_ready_que_ enqueue with write_idx="
+                << write_idx << " result_id = " << result_id;
           } else {
             this->results_empty_que_.emplace_back(result_id);
             ADP_LOG(INFO) << "Call GE run function failed. update results_empty_que_ enqueue with result_id = "
@@ -836,8 +838,7 @@ private:
         ge::TensorDesc tensor_desc = tensors[i].GetTensorDesc();
         tensor_desc.Update(ge::Shape(func_output_shape_[i]), GetFormat(), ge_output_type[i]);
         (void)tensors[i].SetTensorDesc(tensor_desc);
-        (void)tensors[i].SetData(output_result.outputs[i] + func_tensor_size_[i],
-            func_tensor_size_[i], [](const uint8_t *p) {
+        (void)tensors[i].SetData(output_result.outputs[i], func_tensor_size_[i], [](const uint8_t *p) {
           ADP_LOG(INFO) << "DeInitOutTensorsMem.";
           (void)p;
           return;
@@ -970,7 +971,7 @@ private:
     }
 
     int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
-        DatasetFunction::Instance instance, uint64_t result_id, std::vector<Tensor> &input)
+        DatasetFunction::Instance instance, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input)
         LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;
       OutputDynResult *output_dyn_result = static_cast<OutputDynResult*>(output_results_[result_id].get());
@@ -979,11 +980,10 @@ private:
       {
         mutex_lock l(*mu_);
         if (status.ok()) {
-          (void)results_ready_que_.insert(std::pair<uint64_t, uint64_t>(write_idx_, result_id));
+          (void)results_ready_que_.insert(std::pair<uint64_t, uint64_t>(write_idx, result_id));
           output_dyn_result->output_tensor = std::move(output);
-          ADP_LOG(INFO) << "Call GE run function success. update results_ready_que_ enqueue with write_idx_="
-              << write_idx_ << " result_id = " << result_id;
-          write_idx_++;
+          ADP_LOG(INFO) << "Call GE run function success. update results_ready_que_ enqueue with write_idx="
+              << write_idx << " result_id = " << result_id;
         } else {
           results_empty_que_.emplace_back(result_id);
           ADP_LOG(INFO) << "Call GE run function failed. update results_empty_que_ enqueue with result_id = "
