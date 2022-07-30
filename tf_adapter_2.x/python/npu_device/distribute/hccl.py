@@ -20,6 +20,8 @@ from npu_device.distribute import hccl_ops
 from npu_device.distribute.npu_callbacks import NPUBroadcastGlobalVariablesCallback
 from npu_device.npu_device import global_npu_ctx
 from npu_device.npu_device import npu_compat_function
+from npu_device.utils.scope import npu_gradients_scope
+from npu_device.utils.scope import npu_optimizer_scope
 
 import tensorflow as tf
 from absl import logging
@@ -104,13 +106,26 @@ def npu_distributed_keras_optimizer_wrapper(optimizer, reduce_reduction="mean", 
     """NPU implemented keras optimizer"""
     optimizer = tf.keras.optimizers.get(optimizer)
     org_apply_gradients = optimizer.apply_gradients
+    org_get_gradient = optimizer.get_gradients
+    org_compute_gradients = optimizer._compute_gradients
 
     def _npu_distribute_apply_gradients(grads_and_vars, *args, **kwargs):
         grads, variables = zip(*grads_and_vars)
-        return org_apply_gradients(zip(all_reduce(grads, reduce_reduction, fusion, fusion_id, group), variables),
-                                   *args, **kwargs)
+        with npu_optimizer_scope():
+            return org_apply_gradients(zip(all_reduce(grads, reduce_reduction, fusion, fusion_id, group), variables),
+                                       *args, **kwargs)
+
+    def _npu_get_gradients(*args, **kwargs):
+        with npu_gradients_scope():
+            return org_get_gradient(*args, **kwargs)
+
+    def _npu_compute_gradients(*args, **kwargs):
+        with npu_gradients_scope():
+            return org_compute_gradients(*args, **kwargs)
 
     optimizer.apply_gradients = _npu_distribute_apply_gradients
+    optimizer.get_gradient = _npu_get_gradients
+    optimizer._compute_gradients = _npu_compute_gradients
     return optimizer
 
 

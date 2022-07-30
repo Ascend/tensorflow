@@ -26,3 +26,30 @@ def keep_dtype_scope():
     """Execute in keep_dtype_scope"""
     with ops.get_default_graph()._attr_scope({'_keep_dtype': attr_value_pb2.AttrValue(i=1)}):
         yield
+
+
+@tf_contextlib.contextmanager
+def npu_optimizer_scope():
+    """
+    add _optimizer attr to node within the scope.
+    """
+    with ops.get_default_graph()._attr_scope({"_optimizer": attr_value_pb2.AttrValue(b=True)}):
+        yield
+
+
+@tf_contextlib.contextmanager
+def npu_gradients_scope():
+    """
+    add _backward attr to node within the scope.
+    """
+    with ops.get_default_graph()._attr_scope({"_backward": attr_value_pb2.AttrValue(b=True)}):
+        yield
+
+
+@tf_contextlib.contextmanager
+def npu_recompute_scope():
+    """
+    add _recompute attr to node within the scope.
+    """
+    with ops.get_default_graph()._attr_scope({"_recompute": attr_value_pb2.AttrValue(b=True)}):
+        yield

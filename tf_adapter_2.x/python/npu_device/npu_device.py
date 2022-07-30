@@ -30,6 +30,7 @@ from tensorflow.python.ops import script_ops
 from tensorflow.python.util import tf_contextlib
 
 from npu_device.configs.npu_config import NpuConfig
+from npu_device.configs.npu_run_context_option import NpuRunContextOptions
 
 NPU = "/job:localhost/replica:0/task:0/device:NPU"
 
@@ -323,3 +324,20 @@ class NpuDeviceHandle:
         npu_convert.npu_convert_api()
 
         return self
+
+
+@tf_contextlib.contextmanager
+def npu_run_context(options=None):
+    if options is not None and not isinstance(options, NpuRunContextOptions):
+        raise ValueError("options type must be NpuRunContextOptions")
+    if options is None:
+        options = NpuRunContextOptions()
+    _thread_local.npu_run_options = options
+    try:
+        if _thread_local.npu_run_options.experimental.graph_memory_optimize_config.recompute.value is not None:
+            _npu_device_backends.RunContextOptionsSetMemoryOptimizeOptions(
+                _thread_local.npu_run_options.experimental.graph_memory_optimize_config.recompute.value)
+        yield
+    finally:
+        _npu_device_backends.CleanRunContextOptions()
+        _thread_local.npu_run_context = None

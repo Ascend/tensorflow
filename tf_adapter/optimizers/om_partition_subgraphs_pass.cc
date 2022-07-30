@@ -1987,6 +1987,7 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
   const std::string kDynamicGraphExecuteMode = "_graph_dynamic_graph_execute_mode";
   const std::string kDynamicInputsShapeRange = "_graph_dynamic_inputs_shape_range";
   const std::string kIsTrainGraph = "_is_train_graph";
+  const std::string kRecomputeMode = "_recompute_mode";
   if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
     bool dynamic_input = node_attrs.at(kDynamicInput).b();
     graph_options["dynamic_input"] = std::to_string(static_cast<int32_t>(dynamic_input));
@@ -2002,6 +2003,10 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
   if (node_attrs.find(kIsTrainGraph) != node_attrs.end()) {
     bool is_train_graph = node_attrs.at(kIsTrainGraph).b();
     graph_options["train_graph"] = std::to_string(static_cast<int32_t>(is_train_graph));
+  }
+  if (node_attrs.find(kRecomputeMode) != node_attrs.end()) {
+    std::string recompute_mode = node_attrs.at(kRecomputeMode).s();
+    graph_options["recompute_mode"] = recompute_mode;
   }
 }
 

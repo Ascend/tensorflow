@@ -600,6 +600,9 @@ class NPUEstimator(estimator_lib.Estimator):
             if config._experimental_config._logical_device_id is not None:
                 custom_op.parameter_map["experimental_logical_device_id"].s = tf.compat.as_bytes(
                     config._experimental_config._logical_device_id)
+            if config._experimental_config._resource_config_path is not None:
+                custom_op.parameter_map["resource_config_path"].s = tf.compat.as_bytes(
+                    config._experimental_config._resource_config_path)
 
     def __load_stream_max_config(self, config, custom_op):
         """Load stream_max_parallel_num config ,and add to custom_optimizers

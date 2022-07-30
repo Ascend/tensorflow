@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2021. Huawei Technologies Co., Ltd. All rights reserved.
+# Copyright (C) 2022. Huawei Technologies Co., Ltd. All rights reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,19 +14,14 @@
 # limitations under the License.
 # ==============================================================================
 
+from npu_device.configs.option_base import OptionValue
+from npu_device.configs.option_base import NpuBaseConfig
 
-from npu_device.npu_device import open
-from npu_device.npu_device import npu_compat_function
-from npu_device.npu_device import gen_npu_ops
-from npu_device.npu_device import global_options
-from npu_device.npu_device import set_npu_loop_size
-from npu_device.npu_device import npu_run_context
 
-from npu_device.utils.scope import keep_dtype_scope
-from npu_device.utils.scope import npu_recompute_scope
+class GraphMemoryOptimizeConfig(NpuBaseConfig):
+    """Config for memory optimize"""
 
-from npu_device._api import distribute
-from npu_device._api import train
-from npu_device._api import ops
-from npu_device._api import compat
-from npu_device._api import configs
+    def __init__(self):
+        self.recompute = OptionValue(None, ["auto", "manual"])
+
+        super(GraphMemoryOptimizeConfig, self).__init__()

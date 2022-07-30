@@ -291,6 +291,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     ADP_LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_;
   }
 
+  ctx->GetAttr("_recompute_mode", &recompute_mode_);
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
@@ -756,6 +757,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options_["ge.exec.placement"] = "HOST";
     }
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
+    if (!recompute_mode_.empty()) {
+      graph_options_["ge.recompute"] = recompute_mode_;
+    }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
 
@@ -1375,7 +1379,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
 
   // run aoe tuning
   if ((init_options_["ge.jobType"] == "1") || (init_options_["ge.jobType"] == "2") ||
-      ((init_options_["ge.jobType"] == "4") && is_allreduce)) {
+      ((init_options_["ge.jobType"] == "4") && is_allreduce) || (recompute_mode_ == "auto")) {
     std::function<void()> callback = [this]() {
       if (aoe_destroy_session_ != nullptr) {
         Aoe::AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(session_id_);
@@ -1391,6 +1395,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     // aoe create session
     std::map<Aoe::AscendString, Aoe::AscendString> session_options;
     session_options.insert({Aoe::AscendString("job_type"), Aoe::AscendString(init_options_["ge.jobType"].c_str())});
+    session_options.insert({Aoe::AscendString("ge.resource_config_path"),
+                            Aoe::AscendString(sess_options_["ge.resource_config_path"].c_str())});
     Aoe::AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
     if (session_ret != Aoe::AOE_SUCCESS) {
       ADP_LOG(ERROR) << "exec aoe create session func failed[" << session_ret << "].";
@@ -1418,6 +1424,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
       }
       // aoe tuning
       std::map<Aoe::AscendString, Aoe::AscendString> tuingOptions;
+      tuingOptions.insert({Aoe::AscendString("ge.recompute"), Aoe::AscendString(recompute_mode_.c_str())});
       Aoe::AoeStatus aoe_tune_ret = (*aoe_tuning_graph_)(session_id_, tuingOptions);
       if ((aoe_tune_ret != Aoe::AOE_SUCCESS) && (aoe_tune_ret != Aoe::AOE_ERROR_NO_AICORE_GRAPH)) {
         ADP_LOG(ERROR) << "exec aoe tuning func failed[" << aoe_tune_ret << "].";

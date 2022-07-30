@@ -175,6 +175,7 @@ class GeOp : public AsyncOpKernel {
   std::atomic_flag tuned_flag_;
   std::vector<std::pair<Tensor, int32_t>> remove_index_;
   std::string is_var_init_graph_;
+  std::string recompute_mode_;
 
   SessionId session_id_;
   AoeInitializeFunc aoe_initialize_;
