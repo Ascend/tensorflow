@@ -167,7 +167,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
 
             // initialize aoe tuning if need
             if (!global_options["ge.jobType"].empty()) {
-              auto status = npu::NpuAoe::AoeTuningInitialize(global_options["ge.tuningPath"]);
+              auto status = npu::NpuAoe::GetInstance().AoeTuningInitialize(global_options["ge.tuningPath"]);
               if (!status.ok()) {
                 return status.error_message();
               }
@@ -227,10 +227,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
         LOG(INFO) << "Stop graph engine succeed";
       }
 
-      auto aoe = npu::NpuAoe::GetInstance();
-      if (aoe != nullptr) {
-        (void)aoe->AoeTuningFinalize();
-      }
+      (void)npu::NpuAoe::GetInstance().AoeTuningFinalize();
     }
     pybind11::gil_scoped_acquire acquire;
   });

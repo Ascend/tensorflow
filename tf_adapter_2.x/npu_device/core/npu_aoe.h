@@ -51,19 +51,24 @@ class NpuAoe {
   NpuAoe() = default;
   ~NpuAoe();
 
-  static std::shared_ptr<NpuAoe> GetInstance();
-
-  static tensorflow::Status AoeTuningInitialize(const std::string &work_path);
+  static NpuAoe &GetInstance();
+  tensorflow::Status AoeTuningInitialize(const std::string &work_path);
   tensorflow::Status RunAoeTuning(NpuDevice *device, TFE_Context *context, uint64_t graph_id,
                                   const std::string &name, const tensorflow::GraphDef &graph_def,
-                                  std::vector<TFE_TensorHandle *> &inputs, TF_Status *status);
+                                  std::vector<TFE_TensorHandle *> &inputs);
   tensorflow::Status AoeTuningFinalize();
 
-  AoeFunc aoe_func_;
-  void *handle_ = nullptr;
+  NpuAoe(const NpuAoe&) = delete;
+  NpuAoe(NpuAoe &&) = delete;
+  NpuAoe& operator=(const NpuAoe&) = delete;
+  NpuAoe& operator=(NpuAoe &&) = delete;
 
  private:
   tensorflow::Status LoadAoeFunc();
+
+  AoeFunc aoe_func_;
+  void *handle_ = nullptr;
+  int64_t exec_num_ = 0;
 };
 }  // namespace npu
 

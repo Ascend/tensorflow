@@ -82,6 +82,10 @@ TEST_F(GePluginTest, MallocSharedMemOKTest) {
   EXPECT_EQ(ret, 0);
 }
 TEST_F(GePluginTest, NpuCloseTest) {
+  std::map<std::string, std::string> init_options;
+  init_options["ge.jobType"] = "1";
+  init_options["ge.tuningPath"] = "./";
+  PluginInit(init_options);
   NpuClose();
 }
 TEST_F(GePluginTest, RdmaInitAndRegisterFail1Test) {
