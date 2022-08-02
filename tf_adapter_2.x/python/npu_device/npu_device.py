@@ -337,6 +337,11 @@ def npu_run_context(options=None):
         if _thread_local.npu_run_options.experimental.graph_memory_optimize_config.recompute.value is not None:
             _npu_device_backends.RunContextOptionsSetMemoryOptimizeOptions(
                 _thread_local.npu_run_options.experimental.graph_memory_optimize_config.recompute.value)
+        if ((_thread_local.npu_run_options.experimental.graph_parallel_config.config_path.value is not None) and
+            (_thread_local.npu_run_options.experimental.graph_parallel_config.enable_graph_parallel.value is not None)):
+            _npu_device_backends.RunContextOptionsSetGraphParallelOptions(
+                _thread_local.npu_run_options.experimental.graph_parallel_config.enable_graph_parallel.value,
+                _thread_local.npu_run_options.experimental.graph_parallel_config.config_path.value)
         yield
     finally:
         _npu_device_backends.CleanRunContextOptions()

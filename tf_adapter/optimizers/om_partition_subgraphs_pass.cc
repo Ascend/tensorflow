@@ -1979,8 +1979,8 @@ void OMPartitionSubgraphsPass::ParseInputShapeRange(const std::string dynamic_in
   }
 }
 
-void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool enable_dp,
-    std::map<std::string, std::string> &graph_options) const {
+void OMPartitionSubgraphsPass::GetGraphConfig(const Node *node, bool enable_dp,
+                                              std::map<std::string, std::string> &graph_options) const {
   // get attr from graph_options
   auto node_attrs = node->def().attr();
   const std::string kDynamicInput = "_graph_dynamic_input";
@@ -1988,6 +1988,8 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
   const std::string kDynamicInputsShapeRange = "_graph_dynamic_inputs_shape_range";
   const std::string kIsTrainGraph = "_is_train_graph";
   const std::string kRecomputeMode = "_recompute_mode";
+  const std::string kGraphParallelOptionPath = "_graph_parallel_option_path";
+  const std::string kEnableGraphParallel = "_enable_graph_parallel";
   if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
     bool dynamic_input = node_attrs.at(kDynamicInput).b();
     graph_options["dynamic_input"] = std::to_string(static_cast<int32_t>(dynamic_input));
@@ -2007,6 +2009,15 @@ void OMPartitionSubgraphsPass::GetGraphDynamicExecConfig(const Node *node, bool 
   if (node_attrs.find(kRecomputeMode) != node_attrs.end()) {
     std::string recompute_mode = node_attrs.at(kRecomputeMode).s();
     graph_options["recompute_mode"] = recompute_mode;
+  }
+  // define for graph parallel
+  if (node_attrs.find(kGraphParallelOptionPath) != node_attrs.end()) {
+    const auto graph_parallel_option_path = node_attrs.at(kGraphParallelOptionPath).s();
+    graph_options["graph_parallel_option_path"] = graph_parallel_option_path;
+  }
+  if (node_attrs.find(kEnableGraphParallel) != node_attrs.end()) {
+    const auto enable_graph_parallel = node_attrs.at(kEnableGraphParallel).b();
+    graph_options["enable_graph_parallel"] = std::to_string(static_cast<const int32_t>(enable_graph_parallel));
   }
 }
 
@@ -2176,7 +2187,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
     }
     // get attr from graph options.
-    GetGraphDynamicExecConfig(node, enable_dp, graph_options);
+    GetGraphConfig(node, enable_dp, graph_options);
     string device_name;
     if (job != "localhost" && job != "ps" && job != "default") {
       device_name = std::string("/job:") + std::string(job) + std::string("/replica:0/task:")

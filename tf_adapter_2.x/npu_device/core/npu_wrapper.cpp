@@ -272,5 +272,6 @@ PYBIND11_MODULE(_npu_device_backends, m) {
 
   (void)m.def("RunContextOptionsSetMemoryOptimizeOptions", &RunContextOptionsSetMemoryOptimizeOptions);
   (void)m.def("CleanRunContextOptions", &CleanRunContextOptions);
+  (void)m.def("RunContextOptionsSetGraphParallelOptions", &RunContextOptionsSetGraphParallelOptions);
 };
 }  // namespace npu

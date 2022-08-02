@@ -291,6 +291,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     ADP_LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_;
   }
 
+  ctx->GetAttr("_enable_graph_parallel", &enable_graph_parallel_);
+  ctx->GetAttr("_graph_parallel_option_path", &graph_parallel_option_path_);
   ctx->GetAttr("_recompute_mode", &recompute_mode_);
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
@@ -436,7 +438,7 @@ void GeOp::Finalize() {
   return;
 }
 
-int GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
+int32_t GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
   if (!build_flag_) {
     ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_ << ", graph id: " << cache_graph_id
                   << " does not build yet, no need to check rebuild";
@@ -759,6 +761,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
     if (!recompute_mode_.empty()) {
       graph_options_["ge.recompute"] = recompute_mode_;
+    }
+    if (!graph_parallel_option_path_.empty()) {
+      graph_options_["ge.graphParallelOptionPath"] = graph_parallel_option_path_;
+    }
+    if (!enable_graph_parallel_.empty()) {
+      graph_options_["ge.enableGraphParallel"] = enable_graph_parallel_;
     }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
@@ -1141,12 +1149,12 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
 
   // Get input and output numbers of NpuOnnxGraphOp op
   AttrValue in_value;
-  int inout_nums = node->num_inputs();
-  in_value.set_i(static_cast<int>(inout_nums));
+  int32_t inout_nums = node->num_inputs();
+  in_value.set_i(static_cast<int32_t>(inout_nums));
   node_def.mutable_attr()->insert({"_input_num", in_value});
   inout_nums = node->num_outputs();
   AttrValue ot_value;
-  ot_value.set_i(static_cast<int>(inout_nums));
+  ot_value.set_i(static_cast<int32_t>(inout_nums));
   node_def.mutable_attr()->insert({"_output_num", ot_value});
 
   std::string model_path = node_def.attr().find("model_path")->second.s();
@@ -1184,7 +1192,7 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
     // add shape node to get getnext node real shape
     if (dynamic_node_type == "0" && node->type_string() == "IteratorGetNext") {
       dynamic_shape_nodes_.emplace_back(node);
-      std::set<int> out_index;
+      std::set<int32_t> out_index;
       for (auto out_edge : node->out_edges()) {
         if (!out_edge->IsControlEdge()) {
           std::string msg = "Src:" + out_edge->src()->name() + ":" + std::to_string(out_edge->src_output()) +
@@ -1193,7 +1201,7 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
           out_index.insert(out_edge->src_output());
         }
       }
-      for (int idx : out_index) {
+      for (int32_t idx : out_index) {
         std::string shape_name = "getnext_shape_" + std::to_string(idx);
         Node *shape_node = nullptr;
         TF_CHECK_OK(NodeBuilder(shape_name, "Shape")

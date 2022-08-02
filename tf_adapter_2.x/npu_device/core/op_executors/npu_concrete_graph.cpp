@@ -195,7 +195,9 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
   if (!built_) {
     DLOG() << "Load ge graph " << GeGraphId() << " of op " << Op();
     const std::map<std::string, std::string> kOptions{
-      {"ge.recompute", GetRunContextOptions().memory_optimize_options.recompute}
+      {"ge.recompute", GetRunContextOptions().memory_optimize_options.recompute},
+      {"ge.graphParallelOptionPath", GetRunContextOptions().graph_parallel_configs.config_path},
+      {"ge.enableGraphParallel", GetRunContextOptions().graph_parallel_configs.enable_graph_parallel}
     };
     const static std::map<std::string, std::string> kFuzzCompileOptions{
       {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
