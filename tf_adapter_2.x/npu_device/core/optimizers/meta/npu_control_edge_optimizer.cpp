@@ -91,6 +91,13 @@ void FineTuneDropoutControlEdge(tensorflow::Graph *graph, tensorflow::Node *firs
   }
 }
 
+bool IsRedundantDropoutControlEdge(const tensorflow::Edge *edge) {
+  if ((edge->src()->type_string() == kDropOutDoMask) && (edge->dst()->type_string() == kDropOutGenMask)) {
+    return false;
+  }
+  return (IsDropoutDoMask(edge->src()) && IsDropoutGenMask(edge->dst()));
+}
+
 bool IsEdgeRedundant(const tensorflow::Edge *edge) {
   if (!edge->IsControlEdge()) {
     return false;
@@ -100,7 +107,7 @@ bool IsEdgeRedundant(const tensorflow::Edge *edge) {
   if ((dst == kHcomAllReduce && src != kNpuGetFloatStatusOp) ||
       (src == kHcomAllReduce && edge->src()->attrs().Find(kNpuLossScaleAttr) == nullptr)) {
     return true;
-  } else if (IsDropoutDoMask(edge->src()) && IsDropoutGenMask(edge->dst())) {
+  } else if (IsRedundantDropoutControlEdge(edge)) {
     return true;
   } else if (edge->src()->IsArg() && edge->dst()->IsOp()) {
     return true;
