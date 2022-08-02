@@ -75,7 +75,7 @@ public:
   }
 
 private:
-  explicit NpuAllocator(const std::string name, void *addr, std::function<void(void *)> del)
+  explicit NpuAllocator(const std::string name, void *addr, const std::function<void(void *)> del)
       : name_(name),
         addr_(addr),
         delete_(del) {
@@ -84,8 +84,8 @@ private:
   const std::string name_;
   void *addr_;
   std::function<void(void *)> delete_;
-  static constexpr char *kNpuAllocatorName = "NpuAllocator";
-  static constexpr char *kCpuAllocatorName = "CpuAllocator";
+  static constexpr const char* const kNpuAllocatorName = "NpuAllocator";
+  static constexpr const char* const kCpuAllocatorName = "CpuAllocator";
 };
 }  // namespace data
 }  // namespace tensorflow

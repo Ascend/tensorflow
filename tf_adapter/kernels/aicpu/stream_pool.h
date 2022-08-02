@@ -39,6 +39,7 @@ class StreamPool;
 class StreamEvent {
 public:
   ~StreamEvent() {
+    ADP_LOG(INFO) << "~StreamEvent";
     if (event_ != nullptr) {
       aclError rt = aclrtDestroyEvent(event_);
       if (rt != ACL_SUCCESS) {
@@ -46,6 +47,7 @@ public:
         event_ = nullptr;
       }
     }
+    stream_ = nullptr;
   }
 
 private:
@@ -59,7 +61,7 @@ private:
     return std::shared_ptr<StreamEvent>(new StreamEvent(stream, event), del);
   }
 
-  inline Status RecordEvent(std::function<void(Status status)> hook);
+  inline Status RecordEvent(const std::function<void(Status status)> hook);
   inline Status Wait();
 
   Status TryWait() {
@@ -301,7 +303,7 @@ public:
     return max_task_ - cur_event_num_[stream_id];
   }
 
-  int GetWaitingEventCount(int stream_id) {
+  int GetWaitingEventCount(const int stream_id) const {
     if (stream_id >= max_stream_) {
       return 0;
     }

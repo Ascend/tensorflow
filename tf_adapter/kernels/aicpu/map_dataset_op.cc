@@ -90,7 +90,7 @@ constexpr char kCpu[] = "cpu";
 class NpuMapDatasetOp::Dataset : public DatasetBase {
 public:
   Dataset(OpKernelContext* ctx, const DatasetBase* input,
-          uint64_t num_parallel_calls, const DataTypeVector& output_types,
+          int64 num_parallel_calls, const DataTypeVector& output_types,
           const std::vector<PartialTensorShape>& output_shapes,
           const std::string output_device,
           bool deterministic,
@@ -101,7 +101,7 @@ public:
           std::vector<std::pair<StringPiece, AttrValue>> &attrs)
       : DatasetBase(DatasetContext(ctx)),
         input_(input),
-        num_parallel_calls_(num_parallel_calls),
+        num_parallel_calls_(static_cast<uint64_t>(num_parallel_calls)),
         output_types_(output_types),
         output_shapes_(output_shapes),
         output_device_(output_device),
@@ -275,7 +275,7 @@ private:
 #endif
 
       return func_.Initialize(dataset()->sess_options_,
-          const_cast<FunctionLibraryDefinition *>(dataset()->captured_func_->lib_def()));
+          const_cast<FunctionLibraryDefinition &>(*dataset()->captured_func_->lib_def()));
     }
 
     Status GetNextInternal(IteratorContext* ctx,
@@ -285,7 +285,7 @@ private:
       {
         mutex_lock l(*mu_);
         *end_of_sequence = false;
-        Status status = EnsureRunnerThreadStarted(ctx);
+        Status status = EnsureRunnerThreadStarted(*ctx);
         // 1. No data, return ok, end_of_sequence is false
         // 2. get first data failed, return status
         if (!status.ok()) {
@@ -379,10 +379,11 @@ private:
         std::function<void(void *)> del) = 0;
     virtual int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) {
       (void)ctx;
+      (void)thread_id;
       return 0;
     }
 
-    void Finalize() throw() {
+    void Finalize() noexcept {
       ADP_LOG(INFO) << "~Finalize enter.";
       CancelThreads(true);
       if (deregister_fn_) {
@@ -516,12 +517,12 @@ private:
           << "device_id_ = " << device_id_;
       }
 
-      uint64_t run_res = 1;
+      int run_res = 1;
       while (!cancelled_) {
         // Implementation class to implement
         // if no run res, need to wait run res
         // if end of input, need to wait run end
-        while (!HasRunRes(thread_id) || (end_of_input_ && run_res)) {
+        while (!HasRunRes(thread_id) || (end_of_input_ && (run_res > 0))) {
           run_res = WaitRunRes(ctx, thread_id);
         }
 
@@ -573,7 +574,7 @@ private:
       }
     }
 
-    Status EnsureRunnerThreadStarted(IteratorContext* ctx) EXCLUSIVE_LOCKS_REQUIRED(*mu_) {
+    Status EnsureRunnerThreadStarted(IteratorContext &ctx) EXCLUSIVE_LOCKS_REQUIRED(*mu_) {
       if (runner_threads_.empty()) {
         rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
         if (rt != ACL_RT_SUCCESS) {
@@ -584,11 +585,11 @@ private:
           return status;
         }
 
-        ctx_ = std::make_shared<IteratorContext>(*ctx);
+        ctx_ = std::make_shared<IteratorContext>(ctx);
         for (uint64_t i = 0; i < GetParallelCallsNum(); i++) {
-          runner_threads_.emplace_back(ctx->StartThread(
+          runner_threads_.emplace_back(std::move(ctx.StartThread(
               kNpuMapDataset + std::to_string(i),
-              std::bind(&IteratorMeBase::RunnerThread, this, ctx_, static_cast<int>(i))));
+              std::bind(&IteratorMeBase::RunnerThread, this, ctx_, static_cast<int>(i)))));
         }
       }
       return Status::OK();
@@ -674,9 +675,11 @@ private:
     }
 
     const std::shared_ptr<mutex> mu_;
+    const std::shared_ptr<condition_variable> cond_var_;
+    const std::shared_ptr<model::SharedState> num_parallel_calls_;
     std::shared_ptr<IteratorContext> ctx_;
     std::vector<std::unique_ptr<Thread>> runner_threads_ GUARDED_BY(*mu_);
-    const std::shared_ptr<condition_variable> cond_var_;
+
     std::unique_ptr<IteratorBase> input_impl_;
     bool cancelled_ GUARDED_BY(*mu_) = false;
     int64 waiting_ GUARDED_BY(*mu_) = 0;
@@ -685,7 +688,6 @@ private:
 #endif
     std::function<void()> deregister_fn_;
 
-    const std::shared_ptr<model::SharedState> num_parallel_calls_;
     uint64_t max_output_results_ = 0;
     bool end_of_input_ GUARDED_BY(*mu_) = false;
     std::vector<std::vector<int64_t>> func_output_shape_;
@@ -696,9 +698,9 @@ private:
     uint64_t write_idx_ GUARDED_BY(*mu_) = 0;
     uint64_t read_idx_ = 0;
 
-    DatasetFunction func_;
     const bool deterministic_;
     const bool preserve_cardinality_;
+    DatasetFunction func_;
     std::vector<int64> func_tensor_size_;
     std::vector<int64> func_tensor_align_size_;
     uint64_t output_mem_size_ = 0;
@@ -740,7 +742,7 @@ private:
         int64_t type_size = DataTypeSize(dataset()->output_types_[i]);
         DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(tensor_size, type_size),
             errors::Unavailable("tensor is too big, tensor_size = ", tensor_size,
-                                ", type = ", dataset()->output_types_[i]));
+                                ", type = ", static_cast<int>(dataset()->output_types_[i])));
         tensor_size *= type_size;
         ADP_LOG(INFO) << "OutputMem, tensor_size[" << i << "] : " << tensor_size
             << ", datatype: " << dataset()->output_types_[i];
@@ -772,18 +774,18 @@ private:
         uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;
       std::shared_ptr<std::vector<ge::Tensor>> out_tensors = std::make_shared<std::vector<ge::Tensor>>();
-      auto done = [this, out_tensors, write_idx, result_id = result_id](const Status &status)
+      auto done = [this, out_tensors, write_idx, result_idx=result_id](const Status &status)
         EXCLUSIVE_LOCKS_REQUIRED(*mu_) mutable {
         {
           mutex_lock l(*this->mu_);
           if (status.ok()) {
-            (void)this->results_ready_que_.insert(std::pair<uint64_t, uint64_t>(write_idx, result_id));
+            (void)this->results_ready_que_.emplace(std::pair<uint64_t, uint64_t>(write_idx, result_idx));
             ADP_LOG(INFO) << "Call GE run function success. update results_ready_que_ enqueue with write_idx="
-                << write_idx << " result_id = " << result_id;
+                << write_idx << " result_idx = " << result_idx;
           } else {
-            this->results_empty_que_.emplace_back(result_id);
-            ADP_LOG(INFO) << "Call GE run function failed. update results_empty_que_ enqueue with result_id = "
-                << result_id;
+            this->results_empty_que_.emplace_back(result_idx);
+            ADP_LOG(INFO) << "Call GE run function failed. update results_empty_que_ enqueue with result_idx = "
+                << result_idx;
           }
         }
         this->CallCompleted();
@@ -974,13 +976,14 @@ private:
         DatasetFunction::Instance instance, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input)
         LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;
+      (void)thread_id;
       OutputDynResult *output_dyn_result = static_cast<OutputDynResult*>(output_results_[result_id].get());
       std::vector<ge::Tensor> output;
       Status status = func_.Run(instance, input, output);
       {
         mutex_lock l(*mu_);
         if (status.ok()) {
-          (void)results_ready_que_.insert(std::pair<uint64_t, uint64_t>(write_idx, result_id));
+          (void)results_ready_que_.emplace(std::pair<uint64_t, uint64_t>(write_idx, result_id));
           output_dyn_result->output_tensor = std::move(output);
           ADP_LOG(INFO) << "Call GE run function success. update results_ready_que_ enqueue with write_idx="
               << write_idx << " result_id = " << result_id;
@@ -1115,7 +1118,7 @@ private:
         = result_tensor.output_tensor[tensor_id].ResetData();
       std::function<void(uint8_t *)> pdel = addr.get_deleter();
       NpuAllocator *npu_allocator = NpuAllocator::CreateCpuAllocator(std::move(addr.release()),
-          [pdel](void *p) mutable {
+          [pdel](void *p) {
             if (pdel != nullptr) {
               pdel(reinterpret_cast<uint8_t *>(p));
             }else {
@@ -1140,21 +1143,20 @@ private:
     }
   }; // class IteratorDynCpu
 
-  const bool deterministic_;
   const DatasetBase* const input_;
   const uint64_t num_parallel_calls_;
   const DataTypeVector output_types_;
   const std::vector<PartialTensorShape> output_shapes_;
-  const std::unique_ptr<CapturedFunction> captured_func_;
-  const bool preserve_cardinality_;
   const std::string output_device_;
-#if defined(TF_VERSION_TF2)
-  const TraceMeMetadata traceme_metadata_;
-#endif
-
+  const bool deterministic_;
+  const bool preserve_cardinality_;
+  const std::unique_ptr<CapturedFunction> captured_func_;
   const std::map<std::string, std::string> sess_options_;
   const std::map<std::string, std::string> init_options_;
   std::vector<std::pair<StringPiece, AttrValue>>& attrs_;
+#if defined(TF_VERSION_TF2)
+  const TraceMeMetadata traceme_metadata_;
+#endif
 }; // class Dataet
 
 Status NpuMapDatasetOp::CheckOutputType() {
@@ -1206,7 +1208,7 @@ void NpuMapDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* input,
   }
 
   *output =
-      new Dataset(ctx, input, static_cast<uint64_t>(num_parallel_calls), output_types_, output_shapes_,
+      new Dataset(ctx, input, num_parallel_calls, output_types_, output_shapes_,
                   output_device_, deterministic_, std::move(captured_func),
                   preserve_cardinality_, sess_options_, init_options_, attrs_);
 }

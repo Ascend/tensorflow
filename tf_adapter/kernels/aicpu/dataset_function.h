@@ -65,7 +65,7 @@ class DatasetFunction {
     };
     ~DatasetFunction();
 
-    Status Initialize(const std::map<std::string, std::string> &session_options, FunctionLibraryDefinition *flib_def);
+    Status Initialize(const std::map<std::string, std::string> &session_options, FunctionLibraryDefinition &flib_def);
     Status Instantialte(Instance &instance);
     Status Run(Instance instance, std::vector<ge::Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
     Status Run(Instance instance, std::vector<Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
@@ -140,7 +140,7 @@ class DatasetFunction {
     Status GeError(std::string errorDesc, ge::Status status) const;
     Status AddOpDef(Node &node) const;
     Status RefreshNodeDesc(Node &node) const;
-    std::string BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name);
+    std::string BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) const;
     Status CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser, FunctionLibraryDefinition &flib_def);
     ge::InputTensorInfo BuildTensorInfo(const std::shared_ptr<domi::ModelParser> &model_parser,
         DataType type, const PartialTensorShape &shape) const;

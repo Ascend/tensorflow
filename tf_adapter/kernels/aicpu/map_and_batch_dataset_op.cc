@@ -118,7 +118,7 @@ std::ostream& operator << (std::ostream &os, DataStatus status) {
 class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
  public:
   Dataset(OpKernelContext* ctx, const DatasetBase* input, uint64_t batch_size,
-          uint64_t num_parallel_calls, bool drop_remainder,
+          int64 num_parallel_calls, bool drop_remainder,
           const DataTypeVector& output_types,
           const std::vector<PartialTensorShape>& output_shapes,
           std::unique_ptr<CapturedFunction> captured_func,
@@ -130,7 +130,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       : DatasetBase(DatasetContext(ctx)),
         input_(input),
         batch_size_(batch_size),
-        num_parallel_calls_(num_parallel_calls),
+        num_parallel_calls_(static_cast<uint64_t>(num_parallel_calls)),
         drop_remainder_(drop_remainder),
         output_types_(output_types),
         output_shapes_(output_shapes),
@@ -221,7 +221,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     if (n == kInfiniteCardinality || n == kUnknownCardinality) {
       return n;
     }
-    return n / batch_size_ + ((n % batch_size_ == 0 || drop_remainder_) ? 0 : 1);
+    return n / static_cast<int64>(batch_size_) +
+      ((n % static_cast<int64>(batch_size_) == 0 || drop_remainder_) ? 0 : 1);
   }
 #if defined(TF_VERSION_TF2)
   Status InputDatasets(std::vector<const DatasetBase*>* inputs) const override {
@@ -310,7 +311,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             IteratorContext(params), prefix(), &input_impl_));
 #endif
         return func_.Initialize(dataset()->sess_options_,
-            const_cast<FunctionLibraryDefinition *>(dataset()->captured_func_->lib_def()));
+            const_cast<FunctionLibraryDefinition &>(*dataset()->captured_func_->lib_def()));
       }
 
       Status GetNextInternal(IteratorContext* ctx,
@@ -393,7 +394,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           uint8_t *align_addr = start_addr;
           for (uint64_t i = 0; i < dim_num; i++) {
             outputs_.push_back(align_addr + offset);
-            offset += tensor_align_size[i] * batch_size;
+            offset += static_cast<uint64_t>(tensor_align_size[i]) * batch_size;
           }
         }
 
@@ -477,7 +478,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           return (status_offset == INVALID_INDEX) ? num_ok : status_offset;
         }
 
-        void SetAction(std::function<void(uint64_t, DataStatus, DataStatus)> act_) {
+        void SetAction(const std::function<void(uint64_t, DataStatus, DataStatus)> act_) {
           act = act_;
         }
 
@@ -519,17 +520,17 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void InitBatchResultAction(BatchResultBase &batch_result) {
-        batch_result.SetAction([this](uint64_t batch_id, DataStatus old_status, DataStatus new_status) mutable {
+        batch_result.SetAction([this](uint64_t batch_id, DataStatus old_status, DataStatus new_status) {
           if (batch_id == INVALID_INDEX) {
             return;
           }
           if ((old_status <= DataStatus::WRITING) && (new_status > DataStatus::WRITING)) {
-            this->write_index_++;
+            (void)this->write_index_++;
           }
         });
       }
 
-      void Finalize() throw() {
+      void Finalize() noexcept {
         ADP_LOG(INFO) << "~Finalize enter.";
         CancelThreads(true);
         if (deregister_fn_) {
@@ -674,12 +675,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             << "device_id_ = " << device_id_;
         }
 
-        uint64_t run_res = 1;
+        int run_res = 1;
         while (!cancelled_) {
           // Implementation class to implement
           // if no run res, need to wait run res
           // if end of input, need to wait run end
-          while (!HasRunRes(thread_id) || (end_of_input_ && (run_res != 0))) {
+          while (!HasRunRes(thread_id) || (end_of_input_ && (run_res > 0))) {
             run_res = WaitRunRes(ctx, thread_id);
           }
 
@@ -749,7 +750,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         return Status::OK();
       }
 
-      Status TransBatchResultToTensor(std::shared_ptr<BatchResultBase> &batch_result,
+      Status TransBatchResultToTensor(const std::shared_ptr<BatchResultBase> &batch_result,
           std::vector<Tensor> &out_tensors) {
         out_tensors.clear();
         std::shared_ptr<uint8_t> npu_addr(GetStartAddr(*batch_result), [this, batch_result](uint8_t *) {
@@ -771,7 +772,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               npu_addr.reset();
               (void)addr;
             });
-        TensorShape shape = {batch_result.GetNumElements()};
+        TensorShape shape = {static_cast<int64_t>(batch_result.GetNumElements())};
         (void)std::for_each(func_output_shape_[tensor_id].cbegin(), func_output_shape_[tensor_id].cend(),
             [&shape](int64_t i) { shape.AddDim(static_cast<int64>(i)); });
         return Tensor(npu_allocator, dataset()->output_types_[tensor_id], shape);
@@ -879,8 +880,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
      public:
       explicit BatchStaticResult(uint64_t batch_id_, uint64_t batch_size_)
           : BatchResultBase(batch_id_, batch_size_) {
-            ADP_LOG(INFO) << "BatchStaticResult batch_id = " << batch_id;
-          };
+        ADP_LOG(INFO) << "BatchStaticResult batch_id = " << batch_id;
+      }
       ~BatchStaticResult() override {
         ADP_LOG(INFO) << "~BatchStaticResult.";
       }
@@ -909,7 +910,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, static_cast<uint64_t>(tensor_size)),
             errors::Unavailable("batch_mem_size_ is too big, batch_mem_size_ = ",
                 batch_mem_size_, ", tensor_size = ", tensor_size));
-        batch_mem_size_ += tensor_size;
+        batch_mem_size_ += static_cast<uint64_t>(tensor_size);
       }
       DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(batch_mem_size_, dataset()->batch_size_),
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
@@ -1089,7 +1090,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       explicit BatchDynResult(uint64_t batch_id_, uint64_t batch_size_)
           : BatchResultBase(batch_id_, batch_size_) {
         output_tensors.resize(static_cast<size_t>(batch_size_));
-      };
+      }
       void InitTensors(uint64_t tensor_num) {
         for (auto it : output_tensors) {
           it.resize(tensor_num);
@@ -1111,7 +1112,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
                 ", type = ", static_cast<int>(dataset()->output_types_[i])));
         uint64_t tensor_size = static_cast<uint64_t>(shape_size * type_size);
         ADP_LOG(INFO) << "BatchMem, tensor_size[" << i << "] : " << tensor_size
-            << ", datatype: " << dataset()->output_types_[i];
+            << ", datatype: " << static_cast<int>(dataset()->output_types_[i]);
         func_tensor_size_.push_back(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
         DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, tensor_size),
@@ -1134,6 +1135,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::Instance instance,
         uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) override {
       (void)ctx;
+      (void)thread_id;
       BatchDynResult *batch_dyn_result = static_cast<BatchDynResult*>(batch_results_[batch_id].get());
       std::vector<ge::Tensor> output;
       Status status = func_.Run(instance, input, output);
@@ -1290,13 +1292,13 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   const std::unique_ptr<CapturedFunction> captured_func_;
   const bool preserve_cardinality_;
   const std::string output_device_;
-#if defined(TF_VERSION_TF2)
-  const TraceMeMetadata traceme_metadata_;
-#endif
 
   const std::map<std::string, std::string> sess_options_;
   const std::map<std::string, std::string> init_options_;
   std::vector<std::pair<StringPiece, AttrValue>>& attrs_;
+#if defined(TF_VERSION_TF2)
+  const TraceMeMetadata traceme_metadata_;
+#endif
 };
 
 Status NpuMapAndBatchDatasetOp::CheckOutputType() {
@@ -1355,7 +1357,7 @@ void NpuMapAndBatchDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* inp
     metrics::RecordTFDataAutotune(kDatasetType);
   }
 
-  *output = new Dataset(ctx, input, static_cast<uint64_t>(batch_size), static_cast<uint64_t>(num_parallel_calls),
+  *output = new Dataset(ctx, input, static_cast<uint64_t>(batch_size), num_parallel_calls,
                         drop_remainder, output_types_, output_shapes_,
                         std::move(captured_func), preserve_cardinality_, output_device_,
                         sess_options_, init_options_, attrs_);

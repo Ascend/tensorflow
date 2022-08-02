@@ -62,6 +62,7 @@ class TensorTransAllocator {
 class TfTensorTransToHostAllocator : public TensorTransAllocator {
  public:
   void *ReAlloc(void *addr, size_t len) override {
+    (void)len;
     return addr;
   }
   std::function<void(void *)> FreeFunction() override {
@@ -179,7 +180,7 @@ Status DatasetFunction::RefreshNodeDesc(Node &node) const {
   return AddOpDef(node);
 }
 
-std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) {
+std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) const {
   const FunctionDef *func_def = flib_def.Find(func_name);
   DATASET_REQUIRES(func_def != nullptr, "");
 
@@ -293,13 +294,13 @@ Status DatasetFunction::Instantialte(Instance &instance) {
 }
 
 void DatasetFunction::LogOptions(const std::map<std::string, std::string> &options) {
-  for (const auto& [key, value] : options) {
-    ADP_LOG(INFO) << "  name: " << key << ", value = " << value;
+  for (const auto option : options) {
+    ADP_LOG(INFO) << "  name: " << option.first << ", value = " << option.second;
   }
 }
 
 Status DatasetFunction::Initialize(const std::map<std::string, std::string> &session_options,
-    FunctionLibraryDefinition *flib_def) {
+    FunctionLibraryDefinition &flib_def) {
   session_options_ = session_options;
 
   if (!GePlugin::GetInstance()->IsGlobal()) {
@@ -319,7 +320,7 @@ Status DatasetFunction::Initialize(const std::map<std::string, std::string> &ses
   LogOptions(session_options);
   ge_session_.reset(new (std::nothrow)ge::Session(session_options));
 
-  return InitGeGraph(*flib_def);
+  return InitGeGraph(flib_def);
 }
 
 Status DatasetFunction::Run(Instance instance, std::vector<ge::Tensor> &in_tensors,
