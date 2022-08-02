@@ -336,6 +336,21 @@ class Adapter2St(unittest.TestCase):
         iterator = iter(dataset)
         f(iterator)
         time.sleep(5)
+    
+    def test_while_4(self):
+        v = tf.Variable(tf.ones([2, 10, 1024, 1024], dtype=tf.int64), dtype=tf.int64)
+
+        @tf.function
+        def f(iterator):
+            for i in tf.range(5):
+                v.assign_add(next(iterator))
+ 
+        dataset = tf.data.Dataset.from_tensors(tf.ones([10, 1024, 1024], dtype=tf.int64)).repeat()
+        dataset = dataset.batch(2)
+        iterator = iter(dataset)
+        f(iterator)
+        del iterator
+        time.sleep(5)
 
     def test_dropout_v3(self):
         @tf.function
