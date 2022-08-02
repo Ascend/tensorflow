@@ -150,3 +150,39 @@ def subgraph_multi_dims_scope(index):
     }
     with ops.get_default_graph()._attr_scope(attrs):
         yield
+
+
+@contextlib.contextmanager
+def npu_optimizer_scope():
+    """
+    Enable the non npu compilation of operators within the scope.
+    """
+    attrs = {
+        "_optimizer": attr_value_pb2.AttrValue(b=True)
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield
+
+
+@contextlib.contextmanager
+def npu_gradients_scope():
+    """
+    Enable the non npu compilation of operators within the scope.
+    """
+    attrs = {
+        "_backward": attr_value_pb2.AttrValue(b=True)
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield
+
+
+@contextlib.contextmanager
+def npu_recompute_scope():
+    """
+    Enable the non npu compilation of operators within the scope.
+    """
+    attrs = {
+        "_recompute": attr_value_pb2.AttrValue(b=True)
+    }
+    with ops.get_default_graph()._attr_scope(attrs):
+        yield

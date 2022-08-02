@@ -331,7 +331,7 @@ class Adapter2St(unittest.TestCase):
         def f(iterator):
             for i in tf.range(10):
                 v.assign_add(next(iterator))
- 
+
         dataset = tf.data.Dataset.from_tensors(tf.ones([10, 1024, 1024], dtype=tf.int64)).repeat()
         iterator = iter(dataset)
         f(iterator)
@@ -494,6 +494,19 @@ class Adapter2St(unittest.TestCase):
         ds = tf.data.Dataset.from_tensor_slices([[1, 1, 1], [1, 2, 3]])
         train_iterator = iter(ds)
         train_loop(train_iterator)
+
+    def test_npu_run_context(self):
+        v = tf.Variable(1.0)
+
+        @tf.function
+        def f():
+            v.assign_add(1.0)
+            return v
+
+        options = npu_device.configs.run_context_options()
+        options.experimental.graph_memory_optimize_config.recompute = "manual"
+        with npu_device.npu_run_context(options=options):
+            f()
 
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):

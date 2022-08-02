@@ -34,6 +34,9 @@ from tensorflow.core.framework import attr_value_pb2
 from tensorflow.core.framework import variable_pb2
 from tensorflow.python.ops import resource_variable_ops
 
+from npu_bridge.estimator.npu.npu_config import GraphMemoryOptimizeConfig
+from npu_bridge.estimator.npu.npu_config import ExperimentalConfig
+
 _NPU_RUNCONFIG = 'npu_runconfig'
 _ITERATIONS_PER_LOOP_VAR = 'iterations_per_loop'
 _LOOP_COND_VAR = 'loop_cond'
@@ -151,11 +154,11 @@ def check_aoe_mode(aoe_mode):
     Return:
         aoe_mode
     Raise:
-        If aoe_mode is null or not in ['1', '2', '3', '4'].
+        If aoe_mode is null or not in ['1', '2', '3', '4', 'mdat'].
     """
-    aoe_modes = ['1', '2', '3', '4']
+    aoe_modes = ['1', '2', '3', '4', 'mdat']
     if aoe_mode not in aoe_modes:
-        raise ValueError("aoe_mode is valid, should be in ['1', '2', '3', '4']")
+        raise ValueError("aoe_mode is valid, should be in ['1', '2', '3', '4', 'mdat']")
 
 
 def register_func(var_name):
@@ -232,6 +235,7 @@ class IterationPerLoop():
     """
     An object provide two API to create and set iterations_per_loop
     """
+
     def __init__(self):
         self._const_one = None
         self._const_zero = None
@@ -297,6 +301,7 @@ def variable_initializer_in_host(var_list):
 
 def fair_division(inputs, number):
     """Calculate fain division"""
+
     def get_sum(input_list):
         """Calculate sum"""
         res = 0
@@ -366,6 +371,7 @@ def fair_division(inputs, number):
 
 class GradDivisionItem():
     """Class for processing gradient and value"""
+
     def __init__(self, grad, var):
         self.grad = grad
         self.var = var
@@ -423,10 +429,23 @@ def get_all_grad_item():
     return _GRADIENTS_AND_VARS
 
 
+def _get_experimental_config(experimental_config):
+    recompute_attr = None
+    if experimental_config is not None:
+        if not isinstance(experimental_config, ExperimentalConfig):
+            raise ValueError("experimental_config type must be ExperimentalConfig")
+        if (experimental_config._graph_memory_optimize_config is not None) and (
+                experimental_config._graph_memory_optimize_config._recompute is not None):
+            recompute_attr = attr_value_pb2.AttrValue(
+                s=compat.as_bytes(experimental_config._graph_memory_optimize_config._recompute))
+    return recompute_attr
+
+
 def set_graph_exec_config(fetch, dynamic_input=False,
                           dynamic_graph_execute_mode="dynamic_execute",
                           dynamic_inputs_shape_range=None,
-                          is_train_graph=False):
+                          is_train_graph=False,
+                          experimental_config=None):
     """
     add dynamic exec config to operation or tensor.
     Args:
@@ -440,17 +459,21 @@ def set_graph_exec_config(fetch, dynamic_input=False,
     """
 
     def _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
-                     dynamic_inputs_shape_range_attr, is_train_graph_attr):
+                     dynamic_inputs_shape_range_attr, is_train_graph_attr, recompute_attr):
         if isinstance(fetch, ops.Operation):
             fetch._set_attr("_graph_dynamic_input", dynamic_input_attr)
             fetch._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
             fetch._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
             fetch._set_attr("_is_train_graph", is_train_graph_attr)
+            if recompute_attr is not None:
+                fetch._set_attr("_recompute_mode", recompute_attr)
         else:
             fetch.op._set_attr("_graph_dynamic_input", dynamic_input_attr)
             fetch.op._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
             fetch.op._set_attr("_graph_dynamic_inputs_shape_range", dynamic_inputs_shape_range_attr)
             fetch.op._set_attr("_is_train_graph", is_train_graph_attr)
+            if recompute_attr is not None:
+                fetch.op._set_attr("_recompute_mode", recompute_attr)
 
     if dynamic_graph_execute_mode not in ("lazy_recompile", "dynamic_execute"):
         raise ValueError("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute")
@@ -460,17 +483,18 @@ def set_graph_exec_config(fetch, dynamic_input=False,
         dynamic_inputs_shape_range = ""
     dynamic_inputs_shape_range_attr = attr_value_pb2.AttrValue(s=compat.as_bytes(dynamic_inputs_shape_range))
     is_train_graph_attr = attr_value_pb2.AttrValue(b=is_train_graph)
+    recompute_attr = _get_experimental_config(experimental_config)
     if isinstance(fetch, (ops.Operation, ops.Tensor)):
         _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
-                     dynamic_inputs_shape_range_attr, is_train_graph_attr)
+                     dynamic_inputs_shape_range_attr, is_train_graph_attr, recompute_attr)
     elif isinstance(fetch, (tuple, list)):
         for tensor in fetch:
             tensor = set_graph_exec_config(tensor, dynamic_input, dynamic_graph_execute_mode,
-                                           dynamic_inputs_shape_range, is_train_graph)
+                                           dynamic_inputs_shape_range, is_train_graph, experimental_config)
     elif isinstance(fetch, str):
         tensor = set_graph_exec_config(ops.get_default_graph().get_tensor_by_name(fetch),
                                        dynamic_input, dynamic_graph_execute_mode, dynamic_inputs_shape_range,
-                                       is_train_graph)
+                                       is_train_graph, experimental_config)
         return tensor
     else:
         raise ValueError("fetch is invalid, should be op, tensor, list, tuple or tensor name.")

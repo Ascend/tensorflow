@@ -291,6 +291,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     ADP_LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_;
   }
 
+  ctx->GetAttr("_recompute_mode", &recompute_mode_);
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
@@ -756,6 +757,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options_["ge.exec.placement"] = "HOST";
     }
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
+    if (!recompute_mode_.empty()) {
+      graph_options_["ge.recompute"] = recompute_mode_;
+    }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
 

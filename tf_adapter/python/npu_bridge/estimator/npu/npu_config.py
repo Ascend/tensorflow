@@ -356,12 +356,25 @@ class DumpConfig():
         self._dump_debug_mode = dump_debug_mode
 
 
+class GraphMemoryOptimizeConfig():
+
+    def __init__(self, recompute=None):
+        """
+        Args: recompute: "auto" or "manual"
+        """
+        if recompute is not None and recompute not in ["auto", "manual"]:
+            raise ValueError("recompute should be in ['auto', 'manual']")
+        self._recompute = recompute
+
+
 class ExperimentalConfig():
     """Experimental Config with NPU support."""
 
     def __init__(self,
                  logical_device_cluster_deploy_mode="LB",
-                 logical_device_id=None):
+                 logical_device_id=None,
+                 graph_memory_optimize_config=None,
+                 resource_config_path=None):
         """
         Constructs a ExperimentalConfig.
 
@@ -373,6 +386,11 @@ class ExperimentalConfig():
         """
         self._logical_device_cluster_deploy_mode = logical_device_cluster_deploy_mode
         self._logical_device_id = logical_device_id
+        if graph_memory_optimize_config is not None and not isinstance(graph_memory_optimize_config,
+                                                                       GraphMemoryOptimizeConfig):
+            raise ValueError("graph_memory_optimize_config type must be GraphMemoryOptimizeConfig")
+        self._graph_memory_optimize_config = graph_memory_optimize_config
+        self._resource_config_path = resource_config_path
 
 
 class NpuExecutePlacement(Enum):

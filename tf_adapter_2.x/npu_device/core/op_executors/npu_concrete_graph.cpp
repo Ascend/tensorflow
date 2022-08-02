@@ -19,6 +19,7 @@
 #include "npu_aoe.h"
 #include "npu_device.h"
 #include "npu_global.h"
+#include "npu_run_context.h"
 #include "tensorflow/core/graph/algorithm.h"
 #include "tensorflow/core/grappler/op_types.h"
 
@@ -193,7 +194,9 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
 
   if (!built_) {
     DLOG() << "Load ge graph " << GeGraphId() << " of op " << Op();
-    const static std::map<std::string, std::string> kOptions;
+    const std::map<std::string, std::string> kOptions{
+      {"ge.recompute", GetRunContextOptions().memory_optimize_options.recompute}
+    };
     const static std::map<std::string, std::string> kFuzzCompileOptions{
       {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
       {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},

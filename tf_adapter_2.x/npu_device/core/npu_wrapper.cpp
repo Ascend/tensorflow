@@ -53,6 +53,7 @@
 #include "npu_micros.h"
 #include "npu_utils.h"
 #include "npu_thread_pool.h"
+#include "npu_run_context.h"
 
 namespace py = pybind11;
 
@@ -246,6 +247,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
       (void)npu_specify_ops_cache.insert(op.name());
     }
   });
+
   (void)m.def("StopWatchOpRegister", []() {
     tensorflow::OpList ops;
     tensorflow::OpRegistry::Global()->Export(true, &ops);
@@ -267,5 +269,8 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     LOG(INFO) << "Npu loop size is set to " << npu::global::g_npu_loop_size
               << ", it will take effect in the next training loop";
   });
+
+  (void)m.def("RunContextOptionsSetMemoryOptimizeOptions", &RunContextOptionsSetMemoryOptimizeOptions);
+  (void)m.def("CleanRunContextOptions", &CleanRunContextOptions);
 };
 }  // namespace npu
