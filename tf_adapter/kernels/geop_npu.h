@@ -104,9 +104,7 @@ class GeOp : public AsyncOpKernel {
   void SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
                              const int &index, AttrValue &attr_shape_value) const;
 
-  void BuildShapeNodeAndCacheArgNodes(Graph &graph);
-
-  Status ChangeInputsShapeDesc();
+  void CollectDynamicNodes(Graph &graph);
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                         std::vector<std::string> &input_shapes) const;
@@ -125,6 +123,14 @@ class GeOp : public AsyncOpKernel {
   void HandleDpOpAndGetNextNodes(Graph &graph);
 
   void ChangeChannelNameAttr(NodeDef &node_def) const;
+
+  bool IsDynamicConfig();
+
+  Status UpdateDynamicConfigAttrs();
+
+  Status UpdateSubgraphMultiDimsAttr(Node *node, const std::string &pre_input_shape,
+                                     const std::string &pre_input_dims, const std::string &new_input_shape,
+                                     const std::string &new_input_dims);
 
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;

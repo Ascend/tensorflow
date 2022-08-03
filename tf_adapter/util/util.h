@@ -24,6 +24,7 @@
 #include "tf_adapter/util/host_queue.h"
 
 namespace tensorflow {
+using DimsVector = std::vector<std::vector<std::string>>;
 Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t &data_size,
                              std::vector<int64_t> &dims, std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
 
@@ -35,5 +36,26 @@ Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&
 
 bool IsWithoutNpuScope(const NodeDef &node_def);
 bool IsWithoutNpuScope(const Node *node);
+
+Status BuildSubgraphMuliDimsInput(const std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map,
+                                  const DimsVector &dynamic_dims_vec,
+                                  std::vector<std::string> &subgraph_multi_dims_input_shape,
+                                  std::vector<std::string> &subgraph_multi_dims_input_dims);
+
+Status ParseDynamicShapesAndDims(const std::string &input_shapes, const std::string &dynamic_dims,
+                                 std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map,
+                                 DimsVector &dynamic_dims_vec,
+                                 std::vector<std::pair<std::string, std::vector<int64_t>>> &max_shape_range_map);
+
+Status ParseDynamicDims(const std::string &dynamic_dims, DimsVector &dynamic_dims_vec,
+                        std::vector<std::vector<int64_t>> &dynamic_dims_digit_vec,
+                        const std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map);
+
+Status ParseDynamicShapes(const std::string &input_shapes,
+                          std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map);
+
+Status ParseMaxShapeRange(const std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map,
+                          const std::vector<std::vector<int64_t>> &dynamic_dims_digit_vec,
+                          std::vector<std::pair<std::string, std::vector<int64_t>>> &max_shape_range_map);
 } // namespace tensorflow
 #endif // TENSORFLOW_UTILS_H_

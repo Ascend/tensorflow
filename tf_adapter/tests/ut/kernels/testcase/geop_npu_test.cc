@@ -405,5 +405,11 @@ TEST_F(GeOpTest, GeOpNpuStringMaxSizeTest) {
   buff = nullptr;
 }
 
+TEST_F(GeOpTest, UpdateSubgraphMultiDimsAttrTest) {
+  GeOp* geop_node;
+  Status ret = geop_node->UpdateSubgraphMultiDimsAttr(nullptr, "-1:1", "1:2", "2,2" ,"3,4");
+  EXPECT_TRUE(!ret.ok());
+}
+
 }  // namespace
 }  // namespace tensorflow
