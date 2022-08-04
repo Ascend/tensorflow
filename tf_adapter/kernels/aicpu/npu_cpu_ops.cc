@@ -148,14 +148,14 @@ class BatchDilatePolysOp : public OpKernel {
   public:
   explicit BatchDilatePolysOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~BatchDilatePolysOp() override {}
-  void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"BatchDilatePolysOp Compute";}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO)<<"BatchDilatePolysOp Compute"; }
 };
 
 class OCRFindContoursOp : public OpKernel {
   public:
   explicit OCRFindContoursOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~OCRFindContoursOp() override {}
-  void Compute(OpKernelContext *context) override{ADP_LOG(INFO)<<"OCRFindContoursOp Compute";}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO)<<"OCRFindContoursOp Compute"; }
 };
 
 class OCRDetectionPostHandleOp : public OpKernel {
@@ -186,6 +186,21 @@ class NonZeroWithValueShapeOp : public OpKernel {
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "NonZeroWithValueShapeOp Compute"; }
 };
 
+class ScatterElementsV2Op : public OpKernel {
+ public:
+  explicit ScatterElementsV2Op(OpKernelConstruction *context) : OpKernel(context) {}
+  ~ScatterElementsV2Op() override = default;
+  void Compute(OpKernelContext *context) override {
+    (void) (context);
+    ADP_LOG(INFO) << "in ScatterElementsV2";
+  }
+  bool IsExpensive() override {
+    ADP_LOG(INFO) << "in ScatterElementsV2 IsExpensive";
+    return false;
+  }
+};
+
+REGISTER_KERNEL_BUILDER(Name("ScatterElementsV2").Device(DEVICE_CPU), ScatterElementsV2Op);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
 REGISTER_KERNEL_BUILDER(Name("LruCache").Device(DEVICE_CPU), LruCacheOp);

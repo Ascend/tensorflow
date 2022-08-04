@@ -261,6 +261,16 @@ REGISTER_OP("DenseImageWarpGrad")
       c->set_output(0, data_shape);
       return Status::OK();
     });
+  
+  REGISTER_OP("ScatterElementsV2")
+    .Input("data: T")
+    .Input("indices: indexT")
+    .Input("updates: T")
+    .Output("y: T")
+    .Attr("axis: int = 0")
+    .Attr("T: numbertype")
+    .Attr("indexT: {int32, int64}")
+    .Attr("reduction: string = 'None'");
 
   REGISTER_OP("BatchEnqueue")
     .Input("x: T")
