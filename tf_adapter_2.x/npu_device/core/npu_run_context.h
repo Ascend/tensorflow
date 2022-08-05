@@ -22,9 +22,22 @@ struct MemoryOptimizeOptions {
   std::string recompute;
 };
 
+struct GraphParallelConfigs {
+  void Clean() {
+    config_path.clear();
+    enable_graph_parallel.clear();
+  }
+  std::string config_path;
+  std::string enable_graph_parallel;
+};
+
 struct RunContextOptions {
   MemoryOptimizeOptions memory_optimize_options;
-  void Clean() { memory_optimize_options.Clean(); }
+  GraphParallelConfigs graph_parallel_configs;
+  void Clean() {
+    memory_optimize_options.Clean();
+    graph_parallel_configs.Clean();
+  }
 };
 
 RunContextOptions& GetRunContextOptions();
@@ -32,4 +45,6 @@ RunContextOptions& GetRunContextOptions();
 extern "C" {
 extern void RunContextOptionsSetMemoryOptimizeOptions(const std::string &recompute);
 extern void CleanRunContextOptions();
+extern void RunContextOptionsSetGraphParallelOptions(const std::string &enable_graph_parallel,
+                                                     const std::string &config_path);
 }
