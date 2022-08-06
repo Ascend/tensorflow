@@ -24,7 +24,6 @@ constexpr char kNodeName[] = "npu_map_and_batch_dataset";
 
 typedef FunctionDefHelper FDH;
 
-// class NpuMapAndBatchDatasetParams : public DataSetParasBaseV3<RangeDatasetParams> {
 class NpuMapAndBatchDatasetParams : public DatasetParams {
  public:
   NpuMapAndBatchDatasetParams(
@@ -57,7 +56,40 @@ class NpuMapAndBatchDatasetParams : public DatasetParams {
          {NpuMapAndBatchDatasetOp::kOutputTypes, output_dtypes},
          {NpuMapAndBatchDatasetOp::kPreserveCardinality, preserve_cardinality},
          {NpuMapAndBatchDatasetOp::kOutputDevice, output_device}});
-    };
+    }
+
+  NpuMapAndBatchDatasetParams(
+      std::vector<Tensor> input_tensors, std::vector<Tensor> other_arguments,
+      int64 batch_size, int64 num_parallel_calls, bool drop_remainder,
+      FunctionDefHelper::AttrValueWrapper func,
+      std::vector<FunctionDef> func_lib, DataTypeVector type_arguments,
+      bool preserve_cardinality, DataTypeVector output_dtypes,
+      std::vector<PartialTensorShape> output_shapes,
+      std::string output_device,
+      string node_name)
+      : DatasetParams(output_dtypes, output_shapes, node_name),
+        base_dataset_params(RangeDatasetParams(1, 2, 1)),
+        input_tensors_(std::move(input_tensors)),
+        other_arguments_(std::move(other_arguments)),
+        batch_size_(CreateTensor<int64>(TensorShape({}), {batch_size})),
+        num_parallel_calls_(CreateTensor<int64>(TensorShape({}), {num_parallel_calls})),
+        drop_remainder_(CreateTensor<bool>(TensorShape({}), {drop_remainder})),
+        func_lib_(std::move(func_lib)) {
+      FunctionDef *func_def = &func_lib_[0];
+      *func_def->mutable_attr() = func.proto.func().attr();
+      dataset_node_def = test::function::NDef(
+        node_name, name_utils::OpName(NpuMapAndBatchDatasetOp::kDatasetType),
+        {NpuMapAndBatchDatasetOp::kInputDataset,
+         NpuMapAndBatchDatasetOp::kBatchSize,
+         NpuMapAndBatchDatasetOp::kNumParallelCalls,
+         NpuMapAndBatchDatasetOp::kDropRemainder},
+        {{NpuMapAndBatchDatasetOp::kFunc, func},
+         {NpuMapAndBatchDatasetOp::kTarguments, type_arguments},
+         {NpuMapAndBatchDatasetOp::kOutputShapes, output_shapes},
+         {NpuMapAndBatchDatasetOp::kOutputTypes, output_dtypes},
+         {NpuMapAndBatchDatasetOp::kPreserveCardinality, preserve_cardinality},
+         {NpuMapAndBatchDatasetOp::kOutputDevice, output_device}});
+    }
 
   Status MakeInputs(gtl::InlinedVector<TensorValue, 4>* inputs) override {
     if (!IsDatasetTensor(input_dataset)) {
@@ -81,6 +113,7 @@ class NpuMapAndBatchDatasetParams : public DatasetParams {
   }
 
   RangeDatasetParams base_dataset_params;
+  std::vector<Tensor> input_tensors_;
   Tensor input_dataset;
   NodeDef dataset_node_def;
  private:
@@ -90,16 +123,8 @@ class NpuMapAndBatchDatasetParams : public DatasetParams {
   Tensor drop_remainder_;
   std::vector<FunctionDef> func_lib_;
 };
-#if 0
-class NpuMapAndBatchDatasetOpTest : public BaseRangeDatasetOpTest<NpuMapAndBatchDatasetParams> {
- protected:
-  Status InitializeForDataset(TestDatasetParamsT* dataset_params) override {
-    return InitFunctionLibraryRuntime(map_dataset_params->func_lib(), cpu_num_);
-  }
-};
-#endif
 
-class NpuMapAndBatchDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapAndBatchDatasetParams> {
+class NpuMapAndBatchDatasetOpTestBase : public DatasetOpsTestBaseV2<NpuMapAndBatchDatasetParams> {
  public:
   Status Initialize(NpuMapAndBatchDatasetParams* dataset_params) override {
     TF_RETURN_IF_ERROR(InitThreadPool(thread_num_));
@@ -107,9 +132,7 @@ class NpuMapAndBatchDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapAndBatchDa
 
     TF_RETURN_IF_ERROR(
         MakeDatasetOpKernel(*dataset_params, &dataset_kernel_));
-    TF_RETURN_IF_ERROR(
-        MakeBaseDataset(dataset_params->base_dataset_params,
-                         &dataset_params->input_dataset));
+    TF_RETURN_IF_ERROR(InitializeInput(dataset_params));
     gtl::InlinedVector<TensorValue, 4> inputs;
     TF_RETURN_IF_ERROR(dataset_params->MakeInputs(&inputs));
     TF_RETURN_IF_ERROR(
@@ -123,6 +146,8 @@ class NpuMapAndBatchDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapAndBatchDa
     return Status::OK();
   }
 
+  virtual Status InitializeInput(NpuMapAndBatchDatasetParams* dataset_params) = 0;
+
  protected:
   // Creates a new MapDataset op kernel.
   Status MakeDatasetOpKernel(const NpuMapAndBatchDatasetParams& dataset_params,
@@ -133,10 +158,6 @@ class NpuMapAndBatchDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapAndBatchDa
 
   Status InitializeForDataset(NpuMapAndBatchDatasetParams* dataset_params) {
     return InitFunctionLibraryRuntime(dataset_params->func_lib(), cpu_num_);
-  }
-
-  Status MakeBaseDataset(const RangeDatasetParams& params, Tensor* input_dataset) {
-    return MakeRangeDataset(params, input_dataset);
   }
 
   Status CheckIteratorGetNext(const std::vector<Tensor>& expected_outputs, bool orders) {
@@ -181,6 +202,24 @@ class NpuMapAndBatchDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapAndBatchDa
     }
     ADP_LOG(INFO) << "Call self defined CheckIteratorGetNext. out";
     return Status::OK();
+  }
+
+  void TearDown() {
+    ge::RegRunGraphWithStreamAsyncStub(nullptr);
+    ClearLogLevelForC();
+  }
+};
+
+class NpuMapAndBatchDatasetOpTest : public NpuMapAndBatchDatasetOpTestBase {
+ public:
+  Status InitializeInput(NpuMapAndBatchDatasetParams* dataset_params) override {
+    return MakeBaseDataset(dataset_params->base_dataset_params,
+                           &dataset_params->input_dataset);
+  }
+
+ protected:
+  Status MakeBaseDataset(const RangeDatasetParams& params, Tensor* input_dataset) {
+    return MakeRangeDataset(params, input_dataset);
   }
 
   void SetUp() {
@@ -237,16 +276,63 @@ class NpuMapAndBatchDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapAndBatchDa
 
     SetLogLevelForC(0);
   }
+};
 
-  void TearDown() {
-    ge::RegRunGraphWithStreamAsyncStub(nullptr);
-    ClearLogLevelForC();
+class NpuMapAndBatchDatasetOpDTStringTest : public NpuMapAndBatchDatasetOpTestBase {
+ public:
+  Status InitializeInput(NpuMapAndBatchDatasetParams* dataset_params) override {
+    dataset_params->input_dataset = Tensor(DT_VARIANT, TensorShape({}));
+    return CreateTensorSliceDatasetTensor(&dataset_params->input_tensors_,
+                                          &dataset_params->input_dataset);
+  }
+
+ protected:
+  // Creates `TensorSliceDataset` variant tensor from the input vector of
+  // tensors.
+  Status CreateTensorSliceDatasetTensor(
+      std::vector<Tensor> *const tensor_vector, Tensor *dataset_tensor) {
+    DatasetBase *tensor_slice_dataset;
+    TF_RETURN_IF_ERROR(CreateTensorSliceDataset(
+        "tensor_slice_node", tensor_vector, &tensor_slice_dataset));
+    TF_RETURN_IF_ERROR(
+        StoreDatasetInVariantTensor(tensor_slice_dataset, dataset_tensor));
+    return Status::OK();
+  }
+
+  void SetUp() {
+    ge::RegRunGraphWithStreamAsyncStub([](uint32_t graph_id, void *stream, const std::vector<ge::Tensor> &inputs,
+        std::vector<ge::Tensor> &outputs) -> ge::Status {
+      ADP_LOG(INFO) << "Map and batch test RunGraphWithStreamAsyncStub, stream = " << stream;
+      AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
+      stub->hook = std::bind([](const std::vector<ge::Tensor> &inputs, std::vector<ge::Tensor> &outputs) -> ge::Status {
+        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.num = "
+            << inputs.size() << ", output.num = " << outputs.size();
+        uint64_t addr_offset = sizeof(ge::StringHead);
+        const uint8_t *input = inputs[0].GetData() + addr_offset;
+        uint8_t *output = outputs[0].GetData();
+        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.addr = "
+            << (void*)input << ", size = " << inputs[0].GetSize()
+            << ", output.addr = " << (void*)output << ", size = " << outputs[0].GetSize();
+        *reinterpret_cast<float*>(output) = (*reinterpret_cast<const char*>(input));
+        return ge::SUCCESS;
+      }, std::placeholders::_1, std::placeholders::_2);
+
+      return ge::SUCCESS;
+    });
+
+    SetLogLevelForC(0);
   }
 };
 
 FunctionDefHelper::AttrValueWrapper MapFunc(const string& func_name,
                                             const DataType& dtype) {
   return FunctionDefHelper::FunctionRef(func_name, {{"T", dtype}});
+}
+
+FunctionDefHelper::AttrValueWrapper MapFuncConvertString2Num(const DataType& dtype_input,
+                                                             const DataType& dtype_output) {
+  return FunctionDefHelper::FunctionRef("ConvertString2Num",{{"T_input", dtype_input},
+                                                             {"T_output", dtype_output}});
 }
 
 FunctionDef AddOne() {
@@ -265,6 +351,15 @@ FunctionDef AddOne() {
           {{"one"}, "Const", {}, {{"value", kOne}, {"dtype", DT_INT64}}},
           {{"y"}, "Add", {"x", "one"}, {{"T", "$T"}}},
       });
+}
+
+FunctionDef ConvertString2Num() {
+  return FDH::Define(
+      "ConvertString2Num",
+      {"x: T_input"},
+      {"y: T_output"},
+      {"T_input: {string}", "T_output: {float, double, int32, int64}"},
+      {{{"y"}, "StringToNumber", {"x"}, {{"T_output", "$T_output"}}}});
 }
 
 // test case 1: num_parallel_calls = 1, drop_remainder = false,
@@ -512,7 +607,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams9() {
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }
-#if 0
+#if 1
 TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam9) {
   ADP_LOG(INFO) << "====== UT case-9 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams9();
@@ -585,6 +680,64 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam11) {
   TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({3}), {2, 3, 4}),
                                      CreateTensor<int64>(TensorShape({1}), {5})}, /*compare_order=*/ true));
   ADP_LOG(INFO) << "====== UT case-11 end ======";
+}
+#endif
+
+TEST_F(NpuMapAndBatchDatasetOpTest, DebugString) {
+  ADP_LOG(INFO) << "====== UT case-12 begin ======";
+  auto dataset_params = NpuMapAndBatchDatasetParams1();
+  TF_ASSERT_OK(Initialize(&dataset_params));
+  EXPECT_EQ(dataset_->DebugString(), "NpuMapAndBatchDatasetOp::DataSet");
+  ADP_LOG(INFO) << "====== UT case-12 end ======";
+}
+
+NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams12() {
+  return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 4, 1),
+                                  /*other_arguments=*/{},
+                                  /*batch_size=*/3,
+                                  /*num_parallel_calls=*/1,
+                                  /*drop_remainder=*/false,
+                                  /*func=*/MapFunc("AddOne", DT_INT64),
+                                  /*func_lib=*/{AddOne()},
+                                  /*type_arguments*/ {},
+                                  /*preserve_cardinality=*/true,
+                                  /*output_dtypes=*/{DT_INT64},
+                                  /*output_shapes=*/{PartialTensorShape({3})},
+                                  /*output_device=*/"cpu",
+                                  /*node_name=*/kNodeName);
+}
+TEST_F(NpuMapAndBatchDatasetOpTest, Cardinality) {
+  ADP_LOG(INFO) << "====== UT case-13 begin ======";
+  auto dataset_params = NpuMapAndBatchDatasetParams12();
+  TF_ASSERT_OK(Initialize(&dataset_params));
+  int64_t ret_val = 1;
+  EXPECT_EQ(dataset_->Cardinality(), ret_val);
+  ADP_LOG(INFO) << "====== UT case-13 end ======";
+}
+
+// test case 14: test for DT_String input datatype
+NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetDTStringParams1() {
+  return NpuMapAndBatchDatasetParams({CreateTensor<tstring>(TensorShape{3}, {"a", "b", "c"})},
+                                      /*other_arguments=*/{},
+                                      /*batch_size=*/3,
+                                      /*num_parallel_calls=*/1,
+                                      /*drop_remainder=*/false,
+                                      /*func=*/MapFuncConvertString2Num(DT_STRING, DT_FLOAT),
+                                      /*func_lib=*/{ConvertString2Num()},
+                                      /*type_arguments*/ {},
+                                      /*preserve_cardinality=*/false,
+                                      /*output_dtypes=*/{DT_FLOAT},
+                                      /*output_shapes=*/{PartialTensorShape({3})},
+                                      /*output_device=*/"cpu",
+                                      /*node_name=*/kNodeName);
+}
+#if 1
+TEST_F(NpuMapAndBatchDatasetOpDTStringTest, DatasetDTStringParam1) {
+  ADP_LOG(INFO) << "====== UT case-14 begin ======";
+  auto dataset_params = NpuMapAndBatchDatasetDTStringParams1();
+  TF_ASSERT_OK(Initialize(&dataset_params));
+  TF_ASSERT_OK(CheckIteratorGetNext(CreateTensors<float>(TensorShape({3}), {{97, 98, 99}}), /*compare_order=*/ true));
+  ADP_LOG(INFO) << "====== UT case-14 end ======";
 }
 #endif
 }  // namespace

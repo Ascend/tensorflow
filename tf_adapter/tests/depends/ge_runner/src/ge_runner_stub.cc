@@ -31,6 +31,7 @@
 #include "tensorflow/core/graph/graph_constructor.h"
 #include "graph/buffer.h"
 #include "graph/model.h"
+#include "graph/op_desc.h"
 #include "ascendcl_stub.h"
 #include "ge_stub.h"
 #include "tf_adapter/common/adp_logger.h"
@@ -312,8 +313,19 @@ public:
   ~ComputeGraphImpl() {}
 public:
   std::string name_;
+  std::list<NodePtr> nodes_;
   AttrStore attrs_;
 };
+
+ComputeGraph::Vistor<NodePtr> ComputeGraph::GetDirectNode() const {
+  ConstComputeGraphPtr compute_graph = std::make_shared<ComputeGraph>("name");
+  impl_->nodes_.resize(1);
+  return Vistor<NodePtr>(compute_graph, impl_->nodes_);
+}
+
+bool AttrUtils::SetBool(AttrHolderAdapter &&obj, const string &name, const bool &value) {
+  return true;
+}
 
 ComputeGraph::ComputeGraph(const std::string &name)
     : impl_(std::shared_ptr<ComputeGraphImpl>(new ComputeGraphImpl(name))) {
@@ -370,7 +382,8 @@ std::string Node::GetName() const {
 }
 
 OpDescPtr Node::GetOpDesc() const {
-  return nullptr;
+  OpDescPtr opDescPtr = std::make_shared<OpDesc>("name", "type");
+  return opDescPtr;
 }
 
 void OpDesc::SetName(std::string const &name) {}
@@ -420,6 +433,31 @@ ProtoAttrMap &Model::MutableAttrMap() {
 ParserContext &GetParserContext() {
   static ParserContext context;
   return context;
+}
+
+OpDesc::OpDesc() {
+  // Stub
+}
+
+OpDesc::~OpDesc() {
+  // Stub
+}
+
+std::string OpDesc::GetName() const {
+  // Stub
+  return "op name";
+}
+
+OpDesc::OpDesc(std::string const&, std::string const&) {
+  // Stub
+}
+
+ProtoAttrMap &OpDesc::MutableAttrMap() {
+  // Stub
+}
+
+ConstProtoAttrMap &OpDesc::GetAttrMap() const{
+  // Stub
 }
 } // end ge
 

@@ -43,7 +43,7 @@ public:
   explicit NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx);
 
   ~NpuMapAndBatchDatasetOp() override {
-    ADP_LOG(INFO) << "~NpuMapAndBatchDatasetOp";
+    ADP_LOG(EVENT) << "~NpuMapAndBatchDatasetOp";
   };
 
 protected:

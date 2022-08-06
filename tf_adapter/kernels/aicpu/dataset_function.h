@@ -61,7 +61,7 @@ class DatasetFunction {
         output_types_(output_types),
         input_shape_(input_shape),
         output_shape_(output_shape) {
-      ADP_LOG(INFO) << "[DatasetFunction] init success";
+      ADP_LOG(EVENT) << "[DatasetFunction] init success";
     };
     ~DatasetFunction();
 
@@ -80,6 +80,7 @@ class DatasetFunction {
     static bool IsUnknowShape(const PartialTensorShape &tf_shape);
     static std::vector<int64_t> GetTfShapeDims(const PartialTensorShape &tf_shape);
     static std::vector<int64_t> GetTfShapeDims(const TensorShape &tf_shape);
+    static Status ConvertDTStringTensor(ge::Tensor &input, uint64_t count, std::string &str_vec);
     static inline bool CheckMultiplyOverflow(int64_t a, int64_t b) {
       const static int64_t max_int64 = INT64_MAX;
       return (a != 0) && (b != 0) && (a > (max_int64 / b));

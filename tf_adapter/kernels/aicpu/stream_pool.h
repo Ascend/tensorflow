@@ -39,7 +39,7 @@ class StreamPool;
 class StreamEvent {
 public:
   ~StreamEvent() {
-    ADP_LOG(INFO) << "~StreamEvent";
+    ADP_LOG(EVENT) << "~StreamEvent";
     if (event_ != nullptr) {
       aclError rt = aclrtDestroyEvent(event_);
       if (rt != ACL_SUCCESS) {
@@ -98,8 +98,7 @@ private:
 class Stream {
 public:
   ~Stream() {
-    ADP_LOG(INFO) << "~Stream: stream_id = " << stream_id_
-        << "stream = " << stream_;
+    ADP_LOG(EVENT) << "~Stream: stream_id = " << stream_id_;
     waiting_event_queue_.clear();
     for (auto event : event_queue_) {
       delete event;
@@ -137,7 +136,6 @@ private:
     std::unique_lock<std::mutex> lck(mtx_);
     std::shared_ptr<StreamEvent> stream_event;
     std::function<void(StreamEvent *)> equeue_del = [this, del](StreamEvent *event) {
-      ADP_LOG(INFO) << "Stream event complete. stream id = " << this->GetStreamId();
       del(event);
       this->event_queue_.push_back(event);
     };
@@ -179,7 +177,6 @@ private:
     {
       std::unique_lock<std::mutex> lck(mtx_);
       count = ProcessAllReadyEvent();
-      ADP_LOG(INFO) << "ProcessAllReadyEvent return " << count;
       if (count > 0) {
         return Status::OK();
       }
@@ -191,10 +188,7 @@ private:
       waiting_event_queue_.pop_front();
     }
 
-    ADP_LOG(INFO) << "Stream event wait, stream id = " << GetStreamId() << ", stream = " << stream_;
     Status status = event->Wait();
-    ADP_LOG(INFO) << "Stream event wait return status = " << status.ToString()
-        << ", stream id = " << GetStreamId() << ", stream = " << stream_;
     return Status::OK();
   }
 
@@ -202,7 +196,7 @@ private:
     : stream_(stream),
       stream_id_(stream_id),
       owner_(owner) {
-    ADP_LOG(INFO) << "[StreamPool] Create stream, id = " << stream_id << ", stream = " << stream;
+    ADP_LOG(EVENT) << "[StreamPool] Create stream, id = " << stream_id;
   };
 
   std::mutex mtx_;

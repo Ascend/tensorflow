@@ -29,6 +29,7 @@ limitations under the License.
 #include "npu_tensor.h"
 #include "dataset_function.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter/util/infershape_util.h"
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/common_runtime/input_colocation_exemption_registry.h"
@@ -45,7 +46,6 @@ limitations under the License.
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/gtl/cleanup.h"
 #include "tensorflow/core/lib/random/random.h"
-#include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/thread_annotations.h"
 #include "tensorflow/core/platform/cpu_info.h"
 #include "tensorflow/core/platform/env_time.h"
@@ -73,6 +73,7 @@ constexpr const char* const NpuMapAndBatchDatasetOp::kOutputDevice;
 // Maximum number of batch results to buffer.
 
 namespace {
+constexpr int64 kMicrosToMillis = 1000;
 constexpr int64_t kSleepUs = 10;
 constexpr int64_t kMaxBatchSize = 2;
 constexpr char kParallelism[] = "parallelism";
@@ -150,13 +151,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 #endif
   {
     input_->Ref();
-    ADP_LOG(INFO) << "Dataset.";
+    ADP_LOG(EVENT) << "Dataset.";
   }
 
   ~Dataset() override {
-    ADP_LOG(INFO) << "~Dataset enter.";
     (void)input_->Unref();
-    ADP_LOG(INFO) << "~Dataset finish.";
+    ADP_LOG(EVENT) << "~Dataset finish.";
   }
 
   bool IsStaticShape() const {
@@ -172,9 +172,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   std::unique_ptr<IteratorBase> MakeIteratorInternal(
       const string& prefix) const override {
 #if defined(TF_VERSION_TF2)
-    string prefix_para = name_utils::IteratorPrefix(kDatasetType, prefix);
+    std::string prefix_para = name_utils::IteratorPrefix(kDatasetType, prefix);
 #else
-    string prefix_para = strings::StrCat(prefix, "::", kDatasetType);
+    std::string prefix_para = prefix + "::" + kDatasetType;
 #endif
     if (IsStaticShape()) {
       if (output_device_ == kCpu) {
@@ -282,7 +282,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           ADP_LOG(ERROR) << "GetEnvDeviceID failed: rt = " << status.ToString()
                          << "device_id_ = " << device_id_;
         }
-        ADP_LOG(INFO) << "IteratorMeBase finish.";
+        ADP_LOG(EVENT) << "IteratorMeBase finish.";
       }
 
       virtual ~IteratorMeBase() = default;
@@ -295,8 +295,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       Status Initialize(IteratorContext* ctx) override {
+        int64 startTime = InferShapeUtil::GetCurrentTimestap();
         mutex_lock l(*mu_);
-
         TF_RETURN_IF_ERROR(DatasetFunction::RegisterNpuCancellation(
             [this]() { CancelThreads(/*wait=*/ true); }, &deregister_fn_));
 
@@ -310,8 +310,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         TF_RETURN_IF_ERROR(dataset()->input_->MakeIterator(
             IteratorContext(params), prefix(), &input_impl_));
 #endif
-        return func_.Initialize(dataset()->sess_options_,
+        Status status = func_.Initialize(dataset()->sess_options_,
             const_cast<FunctionLibraryDefinition &>(*dataset()->captured_func_->lib_def()));
+        int64 endTime = InferShapeUtil::GetCurrentTimestap();
+        ADP_LOG(EVENT) << "[MapAndBatchDatasetOp] Initialize finish, cost: "
+                       << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+        return status;
       }
 
       Status GetNextInternal(IteratorContext* ctx,
@@ -335,7 +339,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             }
             ++waiting_;
             RecordStop(ctx);
-            ADP_LOG(INFO) << "Wait data ...";
             cond_var_->wait(l);
             RecordStart(ctx);
             --waiting_;
@@ -352,15 +355,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         read_index_ = 0;
       }
 
-      Status status = ProcessBatch(batch_results_[result_index], *out_tensors, *end_of_sequence);
-      ADP_LOG(INFO) << "GetNext return result_index = " << result_index
-          << ", status = " << status.ToString()
-          << ", end_of_sequence = " << *end_of_sequence
-          << ", out_tensors.size = " << out_tensors->size();
-      for (uint64_t i = 0; i < out_tensors->size(); i++) {
-        ADP_LOG(INFO) << "Tensor-" << i << ", shape: " << (*out_tensors)[i].shape().DebugString();
-      }
-      return status;
+      return ProcessBatch(batch_results_[result_index], *out_tensors, *end_of_sequence);
     }
 
     protected:
@@ -371,7 +366,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               status(Status::OK()),
               batch_size(batch_size_) {};
         virtual ~BatchResultBase() {
-          ADP_LOG(INFO) << "~BatchResultBase enter.";
           if (output != nullptr) {
             rtError_t rt = rtFree(output);
             if (rt != RT_ERROR_NONE) {
@@ -384,7 +378,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             delete[] output_cpu;
             output_cpu = nullptr;
           }
-          ADP_LOG(INFO) << "~BatchResultBase finish.";
+          ADP_LOG(EVENT) << "~BatchResultBase finish.";
         }
 
         void InitOutputs(uint8_t *start_addr, std::vector<int64_t> &tensor_align_size,
@@ -402,8 +396,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           if (data_status == DataStatus::WAIT_WRITE) {
             num_run = 1;
             (num_run < batch_size) ? UpdateState(DataStatus::WRITING) : UpdateState(DataStatus::WAIT_RESULT);
-            ADP_LOG(INFO) << "GetNextOffset::Batch result status change, batch_id = " << batch_id
-                << ", data status => " << data_status;
             return 0;
           }
 
@@ -415,8 +407,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             num_run++;
             if (num_run >= batch_size) {
               UpdateState(DataStatus::WAIT_RESULT);
-              ADP_LOG(INFO) << "GetNextOffset::Batch result status change, batch_id = " << batch_id
-                  << ", data status => " << data_status;
             }
             return batch_offset;
           }
@@ -531,7 +521,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void Finalize() noexcept {
-        ADP_LOG(INFO) << "~Finalize enter.";
         CancelThreads(true);
         if (deregister_fn_) {
           deregister_fn_();
@@ -546,7 +535,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         rtError_t rt = rtMalloc(reinterpret_cast<void **>(&batch_result.output), batch_mem_size_, RT_MEMORY_HBM);
         DATASET_REQUIRES(rt == RT_ERROR_NONE, errors::InvalidArgument(
             "Alloc mem failed: ", batch_mem_size_, "rtError_t: ", rt));
-        ADP_LOG(INFO) << "InitBatchResultNpuMem:: batch_mem_size_ = " << batch_mem_size_;
         batch_result.InitOutputs(batch_result.output, func_tensor_align_size_, batch_result.outputs);
         return Status::OK();
       }
@@ -654,9 +642,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         }
 
         {
-          ADP_LOG(INFO)<<"RunnerThread enter. before get lock";
           mutex_lock l(*mu_);
-          ADP_LOG(INFO)<<"RunnerThread enter. after get lock";
           thread_num_++;
           RecordStart(ctx.get());
         }
@@ -693,9 +679,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             //  if tf restore the data status, this will continue;
             if (!end_of_input_ && GetNextBatchIndex(batch_id, batch_offset)) {
               status = input_impl_->GetNext(ctx.get(), &in_tensors, &end_of_input_);
-              ADP_LOG(INFO) << "input_impl_->GetNext return status = " << status.ToString()
-                  << ", thread_id = " << thread_id << ", batch_id = " << batch_id
-                  << ", batch_offset = " << batch_offset << ", end_of_input_ = "<<end_of_input_;
               if (status.ok() && !end_of_input_) {
                 map_func = true;
               } else {
@@ -710,7 +693,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               if (run_res > 0) {
                 // to wait run complete
               } else {
-                ADP_LOG(INFO) << "RunnerThread: thread_id = " << thread_id <<", end_of_input_ = "<<end_of_input_;
                 RecordStop(ctx.get());
                 cond_var_->wait(l);
                 RecordStart(ctx.get());
@@ -719,8 +701,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             }
           }
           if (map_func) {
-            ADP_LOG(INFO) << "MapFunc enter: thread_id = " << thread_id << ", batch_id = " << batch_id
-              << ", batch_offset = " << batch_offset;
             run_res = MapFunc(ctx, thread_id, instance, batch_id, batch_offset, in_tensors);
           } else {
             run_res = WaitRunRes(ctx, thread_id);
@@ -756,7 +736,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         std::shared_ptr<uint8_t> npu_addr(GetStartAddr(*batch_result), [this, batch_result](uint8_t *) {
             batch_result->Clear();
             this->cond_var_->notify_all();
-            ADP_LOG(INFO) << "Batch result reset, batch_id = " << batch_result->batch_id;
           });
         DATASET_REQUIRES((npu_addr != nullptr),
             errors::InvalidArgument("Alloc mem failed: mem_size = ", batch_mem_size_));
@@ -815,7 +794,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 #else
       string BuildTraceMeName() override {
-        return strings::StrCat(prefix(), "#parallelism=", num_parallel_calls_->value, "#");
+        return prefix() + "#parallelism=" + std::to_string(num_parallel_calls_->value) + "#";
       }
 
       Status SaveInternal(IteratorStateWriter* writer) override {
@@ -863,7 +842,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
    public:
     explicit IteratorStatic(const Params& params)
         : IteratorMeBase(params) {
-      ADP_LOG(INFO) << "IteratorStatic";
+      ADP_LOG(EVENT) << "IteratorStatic";
       max_batch_results_ = CeilDiv(GetParallelCallsNum() * kMaxTask, params.dataset->batch_size_);
       if (max_batch_results_ <= 1) {
         max_batch_results_ = kMaxBatchSize;
@@ -872,7 +851,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     }
 
     ~IteratorStatic() override {
-      ADP_LOG(INFO) << "~IteratorStatic.";
+      ADP_LOG(EVENT) << "~IteratorStatic.";
     }
 
    protected:
@@ -880,10 +859,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
      public:
       explicit BatchStaticResult(uint64_t batch_id_, uint64_t batch_size_)
           : BatchResultBase(batch_id_, batch_size_) {
-        ADP_LOG(INFO) << "BatchStaticResult batch_id = " << batch_id;
+        ADP_LOG(EVENT) << "BatchStaticResult batch_id = " << batch_id;
       }
       ~BatchStaticResult() override {
-        ADP_LOG(INFO) << "~BatchStaticResult.";
+        ADP_LOG(EVENT) << "~BatchStaticResult.";
       }
     };
 
@@ -903,8 +882,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             errors::Unavailable("tensor is too big, tensor_size = ", tensor_size,
                                 ", type = ", dataset()->output_types_[i]));
         tensor_size *= type_size;
-        ADP_LOG(INFO) << "BatchMem, tensor_size[" << i << "] : " << tensor_size
-            << ", datatype: " << static_cast<int>(dataset()->output_types_[i]);
         func_tensor_size_.push_back(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
         DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, static_cast<uint64_t>(tensor_size)),
@@ -948,7 +925,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       out_tensors->resize(func_output_shape_.size());
       InitOutTensorsMem(*out_tensors, *static_cast<BatchStaticResult*>(batch_results_[batch_id].get()), batch_offset);
-      ADP_LOG(INFO) << "InitOutTensorsMem finish";
 
       std::shared_ptr<Stream> stream = stream_pool_->GetStream(thread_id);
       if (stream == nullptr) {
@@ -968,10 +944,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) override {
       (void)ctx;
-      ADP_LOG(INFO) << "stream_pool_->WaitOneEvent(thread_id) enter. thread_id = " << thread_id;
       Status status = stream_pool_->WaitOneEvent(thread_id);
-      ADP_LOG(INFO) << "stream_pool_->WaitOneEvent(thread_id) out. thread_id = " << thread_id
-                    << ", status = " << status.ToString();
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
@@ -990,7 +963,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         (void)tensors[i].SetTensorDesc(tensor_desc);
         (void)tensors[i].SetData(batch_result.outputs[i] + step * func_tensor_size_[i],
             func_tensor_size_[i], [](const uint8_t *p) {
-          ADP_LOG(INFO) << "DeInitOutTensorsMem.";
           (void)p;
           return;
         });
@@ -1017,12 +989,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
    public:
     explicit IteratorStaticNpu(const Params& params)
         : IteratorStatic(params) {
+      ADP_LOG(EVENT) << "IteratorStaticNpu";
     }
 
     ~IteratorStaticNpu() override {
-      ADP_LOG(INFO) << "~IteratorStaticNpu enter.";
       Finalize();
-      ADP_LOG(INFO) << "~IteratorStaticNpu finish.";
+      ADP_LOG(EVENT) << "~IteratorStaticNpu finish.";
     }
 
    protected:
@@ -1040,13 +1012,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
    public:
     explicit IteratorStaticCpu(const Params& params)
         : IteratorStatic(params) {
-      ADP_LOG(INFO) << "IteratorStaticCpu";
+      ADP_LOG(EVENT) << "IteratorStaticCpu";
     }
 
     ~IteratorStaticCpu() override {
-      ADP_LOG(INFO) << "~IteratorStaticCpu enter.";
       Finalize();
-      ADP_LOG(INFO) << "~IteratorStaticCpu finish.";
+      ADP_LOG(EVENT) << "~IteratorStaticCpu finish.";
     }
 
    protected:
@@ -1078,10 +1049,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     explicit IteratorDyn(const Params& params)
         : IteratorMeBase(params) {
       max_batch_results_ = CeilDiv(GetParallelCallsNum(), params.dataset->batch_size_);
+      ADP_LOG(EVENT) << "IteratorDyn.";
     };
 
     ~IteratorDyn() override {
-      ADP_LOG(INFO) << "~IteratorDyn.";
+      ADP_LOG(EVENT) << "~IteratorDyn.";
     }
 
   protected:
@@ -1111,8 +1083,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             errors::Unavailable("tensor is too big, shape_size = ", shape_size,
                 ", type = ", static_cast<int>(dataset()->output_types_[i])));
         uint64_t tensor_size = static_cast<uint64_t>(shape_size * type_size);
-        ADP_LOG(INFO) << "BatchMem, tensor_size[" << i << "] : " << tensor_size
-            << ", datatype: " << static_cast<int>(dataset()->output_types_[i]);
         func_tensor_size_.push_back(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
         DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, tensor_size),
@@ -1126,9 +1096,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
               ", batch_size_ = ", dataset()->batch_size_));
       batch_mem_size_ *= dataset()->batch_size_;
-      ADP_LOG(INFO) << "InitTensorSize, tensor->size = " << tensors.size()
-          << "batch_size_ = " << dataset()->batch_size_
-          << "batch_mem_size_ = " << batch_mem_size_;
       return Status::OK();
     }
 
@@ -1175,9 +1142,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     };
 
     ~IteratorDynNpu() override {
-      ADP_LOG(INFO) << "~IteratorDynNpu enter.";
       Finalize();
-      ADP_LOG(INFO) << "~IteratorDynNpu finish.";
+      ADP_LOG(EVENT) << "~IteratorDynNpu finish.";
     }
 
    protected:
@@ -1234,9 +1200,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     };
 
     ~IteratorDynCpu() override {
-      ADP_LOG(INFO) << "~IteratorDynCpu enter.";
       Finalize();
-      ADP_LOG(INFO) << "~IteratorDynCpu finish.";
+      ADP_LOG(EVENT) << "~IteratorDynCpu finish.";
     }
    protected:
     uint8_t* GetStartAddr(BatchResultBase &batch_result) override {
@@ -1314,7 +1279,7 @@ NpuMapAndBatchDatasetOp::NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx)
     : UnaryDatasetOpKernel(ctx),
       sess_options_(NpuAttrs::GetSessOptions(ctx)),
       init_options_(NpuAttrs::GetInitOptions(ctx)) {
-  ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp";
+  ADP_LOG(EVENT) << "NpuMapAndBatchDatasetOp";
   OP_REQUIRES_OK(ctx, FunctionMetadata::Create(ctx, kFunc, /*params=*/{},
                                                &func_metadata_));
   OP_REQUIRES_OK(ctx, ctx->GetAttr(kOutputTypes, &output_types_));

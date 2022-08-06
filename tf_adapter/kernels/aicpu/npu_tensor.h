@@ -79,7 +79,7 @@ private:
       : name_(name),
         addr_(addr),
         delete_(del) {
-    ADP_LOG(INFO) << "NpuAllocator: name = " << name << ", addr = " << addr;
+    ADP_LOG(INFO) << "NpuAllocator: name = " << name;
   };
   const std::string name_;
   void *addr_;

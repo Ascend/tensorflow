@@ -48,6 +48,8 @@
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/ge_plugin.h"
 #include "graph/utils/graph_utils.h"
+#include "graph/compute_graph.h"
+#include "graph/op_desc.h"
 #include "runtime/dev.h"
 #include "runtime/mem.h"
 
@@ -91,6 +93,49 @@ class TfTensorTransToDeviceAllocator : public TensorTransAllocator {
   }
 };
 
+Status ConvertDTStringTensor(ge::Tensor &input, uint64_t count, std::string &str_vec) {
+  std::string *string_vector = &str_vec;
+  uint64_t total_size = 0U;
+  uint64_t string_head_size = sizeof(ge::StringHead);
+  for (uint64_t i = 0U; i < count; i++) {
+    // add 1U for the end of string identifier '\0'
+    total_size += (string_vector[i].size() + string_head_size + 1U);
+  }
+  if (total_size == 0U) {
+    return Status::OK();
+  }
+  std::unique_ptr<char[]> addr = absl::make_unique<char[]>(total_size);
+  REQUIRES_NOT_NULL(addr);
+  ge::StringHead *string_head = ge::PtrToPtr<char, ge::StringHead>(addr.get());
+  DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(count, string_head_size),
+      errors::Unavailable("Wrong offset, count = ", count,
+                          ", string_head_size = ", string_head_size));
+  uint64_t offset = count * string_head_size;
+  char *data_addr = addr.get() + offset;
+  for (uint64_t i = 0U; i < count; ++i) {
+    string_head[i].addr = offset;
+    const string &str = string_vector[i];
+    string_head[i].len = static_cast<int64_t>(str.size());
+    size_t str_size = str.size();
+    const char *string_addr = str.c_str();
+    while (str_size >= SECUREC_MEM_MAX_LEN) {
+      const auto ret = memcpy_s(data_addr, SECUREC_MEM_MAX_LEN, string_addr, SECUREC_MEM_MAX_LEN);
+      DATASET_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+      str_size -= SECUREC_MEM_MAX_LEN;
+      offset += SECUREC_MEM_MAX_LEN;
+      data_addr += SECUREC_MEM_MAX_LEN;
+      string_addr += SECUREC_MEM_MAX_LEN;
+    }
+    auto remain_size = ((total_size - offset) > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : (total_size - offset);
+    const auto ret = memcpy_s(data_addr, remain_size, string_addr, str_size + 1U);
+    DATASET_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+    data_addr += (str_size + 1U);
+    offset += (static_cast<int64_t>(str_size) + 1);
+  }
+  input.SetData(ge::PtrToPtr<char, const uint8_t>(addr.get()), total_size);
+  return Status::OK();
+}
+
 static Status TransTfTensorToGeTensor(std::shared_ptr<domi::ModelParser> &model_parser, Tensor &tf_tensor,
     ge::Tensor &ge_tensor, TensorTransAllocator &allocater) {
   void *tensor_ptr = DMAHelper::base(&tf_tensor);
@@ -98,8 +143,8 @@ static Status TransTfTensorToGeTensor(std::shared_ptr<domi::ModelParser> &model_
 
   ge::DataType type = model_parser->ConvertToGeDataType(static_cast<uint32_t>(tf_tensor.dtype()));
   if (type == ge::DT_UNDEFINED) {
-    ADP_LOG(ERROR) << "[GEOP] No Supported datatype : " << tf_tensor.dtype();
-    LOG(ERROR) << "[GEOP] No Supported datatype : " << tf_tensor.dtype();
+    ADP_LOG(ERROR) << "[DatasetFunction] No Supported datatype : " << tf_tensor.dtype();
+    LOG(ERROR) << "[DatasetFunction] No Supported datatype : " << tf_tensor.dtype();
     return errors::InvalidArgument("No Supported datatype : ", tf_tensor.dtype());
   }
 
@@ -110,7 +155,12 @@ static Status TransTfTensorToGeTensor(std::shared_ptr<domi::ModelParser> &model_
   ge_tensor_desc.SetOriginShape(ge_shape);
   ge_tensor.SetTensorDesc(ge_tensor_desc);
   if (type == ge::DT_STRING) {
-    return errors::Internal("The ge_tensor string data analyze failed.");
+    REQUIRES_NOT_NULL(tensor_ptr);
+    const uint64_t count = static_cast<uint64_t>(tf_tensor.NumElements());
+    std::string *string_vector = static_cast<std::string *>(tensor_ptr);
+    if (ConvertDTStringTensor(ge_tensor, count, *string_vector) != Status::OK()) {
+      return errors::Internal("The input string data analyze failed.");
+    }
   } else {
     void *paddr = allocater.ReAlloc(tensor_ptr, tf_tensor.TotalBytes());
     ge_tensor.SetData(static_cast<uint8_t *>(paddr), tf_tensor.TotalBytes(), allocater.FreeFunction());
@@ -135,7 +185,7 @@ static Status TransTfTensorsToGeTensors(std::vector<Tensor> &tf_tensors, std::ve
 }
 
 DatasetFunction::~DatasetFunction() {
-  ADP_LOG(INFO) << "~DatasetFunction";
+  ADP_LOG(EVENT) << "[DatasetFunction] ~DatasetFunction";
 }
 
 void DatasetFunction::DumpTfGraph(const std::string &procPrifex,
@@ -216,6 +266,13 @@ Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &
   ge::Status status = model_parser->ParseProtoWithSubgraph(graph_def, build_sub_graph, compute_graph);
   DATASET_REQUIRES(status == ge::SUCCESS, GeError("Parse proto with graph failed.", status));
 
+  // add performance priority tag for each node
+  for (const auto &node : compute_graph->GetDirectNode()) {
+    ge::OpDescPtr op_desc = node->GetOpDesc();
+    DATASET_REQUIRES(op_desc != nullptr, errors::Internal("Param op_desc is nullptr, check invalid."));
+    (void)ge::AttrUtils::SetBool(op_desc, "performance_prior", true);
+  }
+
   DumpGeComputeGraph(std::string("Build"), funcName_, compute_graph);
 
   ge_graph_ = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
@@ -286,6 +343,8 @@ Status DatasetFunction::Instantialte(Instance &instance) {
   DATASET_REQUIRES(model_parser != nullptr, errors::Unavailable("create model parser ret failed."));
 
   std::map<ge::AscendString, ge::AscendString> graph_options;
+  // add graph level tag to exclude aicore engine
+  graph_options[ge::AscendString("ge.exec.exclude_engines")] = ge::AscendString("aicore");
   instance = NewGraphId();
   ge::Status status = ge_session_->AddGraphWithCopy(instance, ge_graph_, graph_options);
   DATASET_REQUIRES(status == ge::SUCCESS, GeError("Add graph failed.", status));
@@ -304,7 +363,7 @@ Status DatasetFunction::Initialize(const std::map<std::string, std::string> &ses
   session_options_ = session_options;
 
   if (!GePlugin::GetInstance()->IsGlobal()) {
-    ADP_LOG(INFO) << "init_options:";
+    ADP_LOG(INFO) << "[DatasetFunction] init_options:";
     LogOptions(init_options_);
     GePlugin::GetInstance()->Init(init_options_);
   }
@@ -316,7 +375,6 @@ Status DatasetFunction::Initialize(const std::map<std::string, std::string> &ses
   std::transform(output_types_.begin(), output_types_.end(), std::back_inserter(ge_output_types_),
       [&model_parser](const DataType type) { return model_parser->ConvertToGeDataType(static_cast<uint32_t>(type)); });
 
-  ADP_LOG(INFO) << "session_options:";
   LogOptions(session_options);
   ge_session_.reset(new (std::nothrow)ge::Session(session_options));
 
