@@ -20,6 +20,9 @@ from npu_device.npu_device import gen_npu_ops
 from tensorflow.python.eager import context
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.framework import ops
+from tensorflow.python.util import nest
+from keras.engine import keras_tensor
+from npu_device.utils import npu_wrapper
 
 
 @ops.RegisterGradient("FastGelu")
@@ -37,6 +40,9 @@ def fast_gelu_grad(op, grad):
     return [gen_npu_ops.fast_gelu_grad(grad, op.inputs[0])]
 
 
+npu_wrapper.npu_symbol_register("npu.ops.gelu", gen_npu_ops.fast_gelu)
+
+
 def gelu(x):
     """ fast_gelu operator interface implementation.
 
@@ -50,6 +56,12 @@ def gelu(x):
     Returns:
          A tensor with the same type as `x`.
     """
+    if any(
+        isinstance(e, keras_tensor.KerasTensor) for e in nest.flatten([x])):
+        # in case that Functional API construction
+        return npu_wrapper.NpuOpLambda(gen_npu_ops.fast_gelu)(x)
+
     if context.executing_eagerly():
         return nn_ops.gelu(x)
+    x = ops.convert_to_tensor(x)
     return gen_npu_ops.fast_gelu(x)
