@@ -118,8 +118,9 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
     return flr->RunSync(options, f_handle, {std::move(tensor), tensorflow::Tensor(tensorflow::int64(nums))},
                         &get_next_outputs);
   };
-  auto destroy_func = [resource, flr, f_handle]() -> tensorflow::Status {
+  auto destroy_func = [channel_name, resource, flr, f_handle]() -> tensorflow::Status {
     LOG(INFO) << "Stopping iterator resource provider for " << resource.name();
+    npu::global::GlobalHdcChannel::GetInstance().Destroy(channel_name);
     return flr->ReleaseHandle(f_handle);
   };
 
@@ -155,6 +156,17 @@ std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(const T
     return nullptr;
   }
   return provider->second;
+}
+
+/**
+ * @brief: erase iterator provider
+ * @param context: tfe context
+ * @param resource: tensorflow resource handle
+ */
+void NpuDevice::EraseIteratorProvider(const TFE_Context *const context, const tensorflow::ResourceHandle &resource) {
+  (void)context;
+  DLOG() << "Start to erase provider: " << resource.DebugString();
+  iterator_providers_.erase(resource);
 }
 
 /**
