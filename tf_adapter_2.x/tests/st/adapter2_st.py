@@ -33,6 +33,10 @@ npu_device.global_options().experimental.multi_branches_config.input_shape = "da
 npu_device.global_options().experimental.multi_branches_config.dynamic_node_type = "0"
 npu_device.global_options().experimental.multi_branches_config.dynamic_dims = "1;2"
 npu_device.global_options().aoe_config.work_path = "./"
+npu_device.global_options().graph_run_mode = 0
+os.environ['RANK_TABLE_FILE'] = "rankTable"
+os.environ['RANK_SIZE'] = "2"
+os.environ['RANK_ID'] = "1"
 npu = npu_device.open().as_default()
 npu.workers_num = 2  # mock run in 2P env
 

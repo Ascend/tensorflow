@@ -1,6 +1,7 @@
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/../../python DESTINATION ${CMAKE_BINARY_DIR}/dist)
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/adapter2_st.py DESTINATION ${CMAKE_BINARY_DIR}/dist/python)
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/adapter2_aoe_st.py DESTINATION ${CMAKE_BINARY_DIR}/dist/python)
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/../stub/hccl DESTINATION ${CMAKE_BINARY_DIR}/dist/python)
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/dist/python/npu_device)
 

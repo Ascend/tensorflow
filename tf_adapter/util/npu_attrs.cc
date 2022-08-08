@@ -1728,6 +1728,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_small_channel") > 0) {
         enable_small_channel = params.at("enable_small_channel").i();
       }
+      if (graph_run_mode == 0L) {
+        enable_small_channel = 1L;
+      }
       if (params.count("fusion_switch_file") > 0) {
         fusion_switch_file = params.at("fusion_switch_file").s();
       }
