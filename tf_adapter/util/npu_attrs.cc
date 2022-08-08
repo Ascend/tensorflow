@@ -491,7 +491,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["atomic_clean_policy"] = atomic_clean_policy;
   sess_options["jit_compile"] = jit_compile;
   sess_options["ge.jit_compile"] = jit_compile;
-  sess_options["ge.resource_config_path"] = resource_config_path;
+  sess_options["ge.resourceConfigPath"] = resource_config_path;
 
   return sess_options;
 }
