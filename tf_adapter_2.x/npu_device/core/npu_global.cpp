@@ -121,6 +121,8 @@ void GlobalHdcChannel::Destroy(const std::string &name) {
       channel->Destroy();
     }
     (void)global_channels_.erase(name);
+  } else {
+    LOG(ERROR) << "Failed get hdc channel " << name << " to destroy.";
   }
 }
 }  // namespace global

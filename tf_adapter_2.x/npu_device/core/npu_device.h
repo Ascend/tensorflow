@@ -173,6 +173,8 @@ class NpuDevice {
   std::shared_ptr<IteratorResourceProvider> GetIteratorProvider(const TFE_Context *const context,
                                                                 const tensorflow::ResourceHandle &resource);
 
+  void EraseIteratorProvider(const TFE_Context *const context, const tensorflow::ResourceHandle &resource);
+
   tensorflow::Status GetMirroredIteratorShapesAndTypes(const tensorflow::ResourceHandle &src,
                                                        TensorPartialShapes &shapes, TensorDataTypes &types);
 

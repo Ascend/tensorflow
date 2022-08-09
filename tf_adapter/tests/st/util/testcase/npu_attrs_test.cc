@@ -1,6 +1,13 @@
 #include "tf_adapter/util/npu_attrs.h"
 #include "gtest/gtest.h"
 #include <stdlib.h>
+#include "tensorflow/core/graph/graph.h"
+#include "tensorflow/core/graph/graph_constructor.h"
+#include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/platform/env.h"
+#include "tensorflow/core/platform/logging.h"
+#include "tensorflow/core/public/session_options.h"
+#include "tensorflow/core/common_runtime/optimization_registry.h"
 
 namespace tensorflow {
 Status CheckOpImplMode(const string &op_select_implmode);
@@ -76,6 +83,25 @@ TEST_F(NpuAttrTest, GetCollectionPath) {
   setenv("DUMP_GRAPH_PATH", "./dump_fold", 1);
   string new_path = GetDumpPath();
   EXPECT_NE(new_path, "./dump_fold/");
+}
+
+TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableOnlineInference) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  session_options.config.mutable_graph_options()
+      ->mutable_optimizer_options()
+      ->set_do_function_inlining(true);
+  auto *custom_config = session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue graph_run_mode = AttrValue();
+  graph_run_mode.set_i(0);
+  (*custom_config->mutable_parameter_map())["graph_run_mode"] = graph_run_mode;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
 }
 }
 } // end tensorflow

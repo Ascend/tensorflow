@@ -491,7 +491,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["atomic_clean_policy"] = atomic_clean_policy;
   sess_options["jit_compile"] = jit_compile;
   sess_options["ge.jit_compile"] = jit_compile;
-  sess_options["ge.resource_config_path"] = resource_config_path;
+  sess_options["ge.resourceConfigPath"] = resource_config_path;
 
   return sess_options;
 }
@@ -1727,6 +1727,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("enable_small_channel") > 0) {
         enable_small_channel = params.at("enable_small_channel").i();
+      }
+      if (graph_run_mode == 0L) {
+        enable_small_channel = 1L;
       }
       if (params.count("fusion_switch_file") > 0) {
         fusion_switch_file = params.at("fusion_switch_file").s();

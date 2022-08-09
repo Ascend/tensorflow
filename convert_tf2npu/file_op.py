@@ -19,6 +19,7 @@
 
 import os
 import re
+import stat
 import shutil
 import util_global
 import pandas as pd
@@ -53,7 +54,9 @@ def mkdir_and_copyfile(srcfile, dstpath, file_name):
 
 def write_output_after_conver(out_file, dst_content):
     """Write content to output file"""
-    with open(out_file, 'w') as f:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    modes = stat.S_IWUSR | stat.S_IRUSR
+    with os.fdopen(os.open(out_file, flags, modes), 'w', encoding='utf-8') as f:
         f.write(dst_content)
 
 

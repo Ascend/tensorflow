@@ -105,7 +105,8 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"customize_dtypes", "ge.customizeDtypes"},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
-  {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE}};
+  {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},
+  {"resource_config_path", "ge.resourceConfigPath"}};
 }  // namespace
 
 #undef PYBIND11_CHECK_PYTHON_VERSION
@@ -115,6 +116,41 @@ namespace {
 std::unordered_set<std::string> npu_specify_ops_cache;
 }
 namespace npu {
+void ParseGlobalOptions(int device_index,
+                        const std::map<std::string, std::string> &user_options,
+                        std::map<std::string, std::string> &global_options) {
+  for (const auto &option : user_options) {
+    auto iter = kConfigurableOptions.find(option.first);
+    if (iter != kConfigurableOptions.end()) {
+      global_options[iter->second] = option.second;
+    } else {
+      LOG(WARNING) << "Unrecognized graph engine option " << option.first << ":" << option.second;
+    }
+  }
+  if (global_options.find(ge::OPTION_EXEC_RANK_TABLE_FILE) != global_options.end() &&
+      global_options.find(ge::OPTION_EXEC_RANK_ID) != global_options.end()) {
+    const static std::string kTrue = "1";
+    global_options[ge::OPTION_EXEC_DEPLOY_MODE] = "0";
+    global_options[ge::OPTION_EXEC_IS_USEHCOM] = kTrue;
+    global_options[ge::OPTION_EXEC_HCCL_FLAG] = kTrue;
+    global_options["ge.exec.hccl_tailing_optimize"] = kTrue;
+  }
+
+  if (global_options.find("ge.jobType") == global_options.end()) {
+    if (!kAoeMode.empty()) {
+      global_options["ge.jobType"] = kAoeMode;
+      global_options["ge.buildMode"] = "tuning";
+    }
+  } else {
+    global_options["ge.buildMode"] = "tuning";
+  }
+
+  global_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_index);
+  if (global_options[ge::OPTION_GRAPH_RUN_MODE] == "0") {
+    global_options[ge::ENABLE_SMALL_CHANNEL] = "1";
+  }
+}
+
 PYBIND11_MODULE(_npu_device_backends, m) {
   (void)m.def("Open",
         [](const py::handle &context, const char *device_name, int device_index,
@@ -123,34 +159,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
           pybind11::gil_scoped_release release;
           static std::map<std::string, std::string> global_options;
           if (!graph_engine_started.exchange(true)) {
-            for (const auto &option : user_options) {
-              auto iter = kConfigurableOptions.find(option.first);
-              if (iter != kConfigurableOptions.end()) {
-                global_options[iter->second] = option.second;
-              } else {
-                LOG(WARNING) << "Unrecognized graph engine option " << option.first << ":" << option.second;
-              }
-            }
-
-            if (global_options.find(ge::OPTION_EXEC_RANK_TABLE_FILE) != global_options.end() &&
-                global_options.find(ge::OPTION_EXEC_RANK_ID) != global_options.end()) {
-              const static std::string kTrue = "1";
-              global_options[ge::OPTION_EXEC_DEPLOY_MODE] = "0";
-              global_options[ge::OPTION_EXEC_IS_USEHCOM] = kTrue;
-              global_options[ge::OPTION_EXEC_HCCL_FLAG] = kTrue;
-              global_options["ge.exec.hccl_tailing_optimize"] = kTrue;
-            }
-
-            if (global_options.find("ge.jobType") == global_options.end()) {
-              if (!kAoeMode.empty()) {
-                global_options["ge.jobType"] = kAoeMode;
-                global_options["ge.buildMode"] = "tuning";
-              }
-            } else {
-              global_options["ge.buildMode"] = "tuning";
-            }
-
-            global_options[ge::OPTION_EXEC_DEVICE_ID] = std::to_string(device_index);
+            ParseGlobalOptions(device_index, user_options, global_options);
             LOG(INFO) << "Start graph engine with options:";
             for (const auto &option : global_options) {
               LOG(INFO) << "  " << option.first << ":" << option.second;
