@@ -93,12 +93,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       local_device_list_.push_back(device_id);
     }
     SetChannelType();
-    ADP_LOG(INFO) << "Start to init channel";
+    ADP_LOG(INFO) << "Start to init channel.";
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
     if (channel_type_ == ChannelType::TDT) {
       int32_t tdt_status = TdtInFeedInit(device_id_);
       OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
-      ADP_LOG(INFO) << "End init tdt host success";
+      ADP_LOG(INFO) << "End init tdt host success.";
     }
     tdt_release = false;
   }
@@ -112,13 +112,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       return;
     }
 
-    ADP_LOG(INFO) << "Start to destroy tdt";
+    ADP_LOG(INFO) << "Start to destroy tdt.";
     int32_t tdt_status = TdtInFeedDestroy(device_id_);
     if (tdt_status != 0) {
       ADP_LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
       LOG(ERROR) << "Tdt client close failed, and response code is " << tdt_status;
     } else {
-      ADP_LOG(INFO) << "Tdt client close success";
+      ADP_LOG(INFO) << "Tdt client close success.";
       tdt_release = true;
       NpuAttrs::SetUseTdtStatus(device_id_, false);
     }
@@ -128,7 +128,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
     } else if (NpuAttrs::GetNewDataTransferFlag()) {
-      ADP_LOG(INFO) << "Transfer mode is muf ";
+      ADP_LOG(INFO) << "Transfer mode is MBuf.";
       channel_type_ = ChannelType::ACL_QUEUE;
     } else {
       channel_type_ = ChannelType::TDT;
@@ -484,7 +484,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
           buffer_element.status = input_impls_[1]->GetNext(ctx.get(), &args, &end_of_sequence);
           if ((!buffer_element.status.ok()) || (buffer_element.status.ok() && end_of_sequence)) {
-            if (!buffer_element.status.ok()) {
+            if ((!buffer_element.status.ok()) &&
+                (!errors::IsCancelled(buffer_element.status))) {
               ADP_LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
               LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
             } else {
