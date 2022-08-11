@@ -91,8 +91,6 @@ const std::string ATTR_NAME_CONST_INPUT_NAME = "_const_input";
 const std::string ATTR_NAME_SUBGRAPH_MULTI_DIMS_INDEX = "_subgraph_multi_dims_index";
 const std::string ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE = "_subgraph_multi_dims_input_shape";
 const std::string ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS = "_subgraph_multi_dims_input_dims";
-const std::string kMdatTuning = "mdat";
-const std::string kAutoRecompute = "auto";
 using geDataUniquePtr = std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>>;
 
 class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::core::RefCounted {
@@ -1409,9 +1407,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
   SetDynamicInput();
 
   // run aoe tuning
-  bool is_mdat_tuning = (init_options_["ge.jobType"] == kMdatTuning) && (recompute_mode_ == kAutoRecompute);
   if ((init_options_["ge.jobType"] == "1") || (init_options_["ge.jobType"] == "2") ||
-      ((init_options_["ge.jobType"] == "4") && is_allreduce) || is_mdat_tuning) {
+      ((init_options_["ge.jobType"] == "4") && is_allreduce)) {
     std::function<void()> callback = [this]() {
       if (aoe_destroy_session_ != nullptr) {
         Aoe::AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(session_id_);
@@ -1427,8 +1424,6 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     // aoe create session
     std::map<Aoe::AscendString, Aoe::AscendString> session_options;
     session_options.insert({Aoe::AscendString("job_type"), Aoe::AscendString(init_options_["ge.jobType"].c_str())});
-    session_options.insert({Aoe::AscendString("ge.resourceConfigPath"),
-                            Aoe::AscendString(sess_options_["ge.resourceConfigPath"].c_str())});
     Aoe::AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
     if (session_ret != Aoe::AOE_SUCCESS) {
       ADP_LOG(ERROR) << "exec aoe create session func failed[" << session_ret << "].";
@@ -1456,7 +1451,6 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
       }
       // aoe tuning
       std::map<Aoe::AscendString, Aoe::AscendString> tuingOptions;
-      tuingOptions.insert({Aoe::AscendString("ge.recompute"), Aoe::AscendString(recompute_mode_.c_str())});
       Aoe::AoeStatus aoe_tune_ret = (*aoe_tuning_graph_)(session_id_, tuingOptions);
       if ((aoe_tune_ret != Aoe::AOE_SUCCESS) && (aoe_tune_ret != Aoe::AOE_ERROR_NO_AICORE_GRAPH)) {
         ADP_LOG(ERROR) << "exec aoe tuning func failed[" << aoe_tune_ret << "].";
