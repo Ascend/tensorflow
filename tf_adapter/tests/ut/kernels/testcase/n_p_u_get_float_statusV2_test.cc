@@ -28,7 +28,7 @@ FakeInputFunctor FakeInputStub(DataType dt) {
 }
 
 TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2) {
-  DataTypeSlice input_types({DT_FLOAT});
+  DataTypeSlice input_types({});
   MemoryTypeSlice input_memory_types;
   DataTypeSlice output_types({DT_FLOAT});
   MemoryTypeSlice output_memory_types;
@@ -72,15 +72,9 @@ TEST(NPUGetFloatStatusV2OpTest, TestNPUGetFloatStatusV2OShapeInference) {
   TF_CHECK_OK(OpRegistry::Global()->LookUp("NpuGetFloatStatusV2", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
-  std::vector<NodeDefBuilder::NodeOut> src_list;
-  src_list.emplace_back("in0", 0, DT_FLOAT);
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
-                  .Input(src_list)
-                  .Attr("T", DT_FLOAT)
-                  .Attr("N", 1)
                   .Finalize(&def));
-  shape_inference::InferenceContext c(0, &def, op_def, {TShape({8})}, {}, {}, {});
-  std::vector<shape_inference::ShapeHandle> input_shapes;
+  shape_inference::InferenceContext c(0, &def, op_def, {TShape({0})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
   ASSERT_EQ("[8]", c.DebugString(c.output(0)));
 }
