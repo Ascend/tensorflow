@@ -44,6 +44,15 @@
 #include "tf_adapter/util/util.h"
 
 namespace tensorflow {
+namespace {
+const std::string kNpuRecomputePrefix = "NpuRecompute";
+const std::string kNpuGradientsPrefix = "NpuGradients";
+const std::string kNpuOptimizerPrefix = "NpuOptimizer";
+const std::string kGradientsPrefix = "gradients/";
+const std::string kRecomputeAttr = "_recompute";
+const std::string kBackwardAttr = "_backward";
+const std::string kOptimizerAttr = "_optimizer";
+} // namespace
 static const int64 kMicrosToMillis = 1000;
 
 namespace OMSplitter {
@@ -2182,6 +2191,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   std::map<std::string, std::string> graph_options;
   bool enable_dp = (pass_options["enable_dp"] == "1") && include_getnext;
   for (Node *node : graph_in->op_nodes()) {
+    InheritAttributes(node);
     if (node->type_string() == "OneShotIterator" && iterations_per_loop != 1) {
       ADP_LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
       LOG(FATAL) << "iterator_per_loop only support 1 when using OneShotIterator";
@@ -2429,6 +2439,19 @@ Status OMPartitionSubgraphsPass::AccumulateNFusion(Graph *graph_in, Node *node) 
     graph_in->RemoveNode(delete_node);
   }
   return Status::OK();
+}
+
+void OMPartitionSubgraphsPass::InheritAttributes(Node *node) const {
+  if (node->name().find(kNpuRecomputePrefix) != std::string::npos &&
+      node->name().find(kGradientsPrefix) == std::string::npos) {
+    node->AddAttr(kRecomputeAttr, true);
+  }
+  if (node->name().find(kNpuGradientsPrefix) != std::string::npos) {
+    node->AddAttr(kBackwardAttr, true);
+  }
+  if (node->name().find(kNpuOptimizerPrefix) != std::string::npos) {
+    node->AddAttr(kOptimizerAttr, true);
+  }
 }
 
 REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, 3, OMPartitionSubgraphsPass);

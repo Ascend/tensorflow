@@ -61,6 +61,7 @@ class OMPartitionSubgraphsPass : public GraphOptimizationPass {
   Status SplitUnaryOpsComposition(Graph *graph, Node *node) const;
   Status CopyVarsBetweenGeOp(Graph *graph) const;
   Status CopyConstBetweenGeOp(Graph *graph) const;
+  void InheritAttributes(Node *node) const;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_OM_PARTITION_SUBGRAPHS_PASS_H_
