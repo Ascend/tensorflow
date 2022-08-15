@@ -8,6 +8,7 @@
 
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/npu_plugin.h"
+#include "tf_adapter/util/util.h"
 #define private public
 #include "tf_adapter/kernels/geop_npu.h"
 #undef private
@@ -411,5 +412,13 @@ TEST_F(GeOpTest, UpdateSubgraphMultiDimsAttrTest) {
   EXPECT_TRUE(!ret.ok());
 }
 
+TEST_F(GeOpTest, BuildSubgraphMuliDimsInput) {
+  std::vector<std::pair<std::string, std::vector<int64_t>>> user_shape_map = {{"data0", {4, -1}}, {"data1", {3, 1}}, {"data2", {-1,-1, 5}}};
+  std::vector<std::vector<std::string>> dynamic_dims_vec = {{"3", "3", "3"}, {"4", "4", "4"}, {"5", "5", "5"}};
+  std::vector<std::string> subgraph_multi_dims_input_shape;
+  std::vector<std::string> subgraph_multi_dims_input_dim;
+  Status ret = BuildSubgraphMuliDimsInput(user_shape_map, dynamic_dims_vec, subgraph_multi_dims_input_shape, subgraph_multi_dims_input_dim);
+  EXPECT_TRUE(ret.ok());
+}
 }  // namespace
 }  // namespace tensorflow

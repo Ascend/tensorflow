@@ -122,9 +122,9 @@ Status BuildSubgraphMuliDimsInput(const std::vector<std::pair<std::string, std::
                                   const DimsVector &dynamic_dims_vec,
                                   std::vector<std::string> &subgraph_multi_dims_input_shape,
                                   std::vector<std::string> &subgraph_multi_dims_input_dims) {
-  size_t nodes_num = user_shape_map.size();
+  const size_t nodes_num = user_shape_map.size();  // e.g. inputshape:  [{"data0", [-1,3]}, {"data1", [-1,4]}]
   size_t count = 0U;
-  size_t dynamic_count = dynamic_dims_vec.size();
+  const size_t dynamic_count = dynamic_dims_vec.size();  // e.g. dims： [["3","3"],["4","4"]]
   for (size_t i = 0U; i < nodes_num; ++i) {
     std::vector<std::string> tmp(dynamic_count);
     auto &nodes_shape = user_shape_map[i].second;
@@ -140,12 +140,14 @@ Status BuildSubgraphMuliDimsInput(const std::vector<std::pair<std::string, std::
     std::string tmp_dims;
     for (size_t j = 0U; j < dynamic_count; ++j) {
       if (tmp[j].empty()) {
-        return errors::Internal("build subgraph multi dims input dims failed");
+        ADP_LOG(WARNING) << "input shape ["<< i <<"] matched dims is empty";
+        tmp_dims.clear();
+        break;
       }
       tmp_dims.append(tmp[j].substr(0, tmp[j].size() - 1)).append(";");
     }
     std::string tmp_shape;
-    for (size_t j = 0U; j < nodes_shape.size(); ++j) {
+    for (size_t j = 0U; (j < nodes_shape.size()) && (!tmp_dims.empty()); ++j) {
       tmp_shape.append(std::to_string(nodes_shape[j])).append(",");
     }
     subgraph_multi_dims_input_dims.push_back(tmp_dims.substr(0, tmp_dims.size() - 1));
