@@ -67,7 +67,7 @@ class NPUInit : public OpKernel {
 };
 
 NPUInit::NPUInit(OpKernelConstruction *ctx) : OpKernel(ctx) {
-  ADP_LOG(INFO) << "NPUInit";
+  ADP_LOG(INFO) << "NPUInit.";
   mutex_lock lock{g_mu};
   g_npuInitNum++;
   string sess_config;
@@ -88,11 +88,11 @@ void NPUInit::Compute(OpKernelContext *ctx) {
     return;
   }
   GePlugin::GetInstance()->Init(init_options_);
-  ADP_LOG(INFO) << "[NPUInit] GePlugin init success";
+  ADP_LOG(INFO) << "[NPUInit] GePlugin init success.";
 }
 
 NPUInit::~NPUInit() {
-  ADP_LOG(INFO) << "[~NPUInit] NPUInit destructed";
+  ADP_LOG(INFO) << "[~NPUInit] NPUInit destructed.";
   int64 unInitStartTime = GetCurrentTimestamp();
   {
     mutex_lock lock{g_mu};
@@ -115,7 +115,7 @@ NPUInit::~NPUInit() {
 
   int64 unInitEndTime = GetCurrentTimestamp();
   ADP_LOG(INFO) << "[~NPUInit] NPU Shutdown success. [" << ((unInitEndTime - unInitStartTime) / kMicrosToMillis)
-                << " ms]";
+                << " ms].";
 }
 
 class NPUShutdown : public OpKernel {
@@ -126,7 +126,7 @@ class NPUShutdown : public OpKernel {
 };
 void NPUShutdown::Compute(OpKernelContext *ctx) {
   (void) ctx;
-  ADP_LOG(INFO) << "[NPUShutdown] NPUShutdown Compute";
+  ADP_LOG(INFO) << "[NPUShutdown] NPUShutdown Compute.";
   {
     mutex_lock lock{g_mu};
     g_npuInitNum = 0;

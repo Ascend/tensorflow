@@ -1256,14 +1256,17 @@ Status GeOp::UpdateDynamicConfigAttrs() {
     return Status::OK();
   }
 
-  std::vector<std::pair<std::string, std::vector<int64_t>>> user_shape_map;
-  std::vector<std::pair<std::string, std::vector<int64_t>>> max_shape_map;
+  std::vector<std::pair<std::string, std::vector<int64_t>>>
+      user_shape_map;  // e.g. "data0:-1,3;data1:-1,4"-> [{"data0", [-1,3]}, {"data1", [-1,4]}]
+  std::vector<std::pair<std::string, std::vector<int64_t>>>
+      max_shape_map;  // e.g. "3,3;4,4" -> [["3","3"],["4","4"]] , digitvec [[3,3], [4,4]]
   std::vector<std::vector<std::string>> dynamic_dims_vec;
   TF_RETURN_IF_ERROR(ParseDynamicShapesAndDims(sess_options_["ge.inputShape"], sess_options_["ge.dynamicDims"],
                                                user_shape_map, dynamic_dims_vec, max_shape_map));
 
   if (user_shape_map.size() != dynamic_shape_nodes_.size()) {
-    return errors::Internal("user_shape_map size[", user_shape_map.size(), "] and dynamic_shape_nodes_ size[",
+    const std::string dynamic_node_type = (sess_options_["ge.dynamicDims"] == "0" ? "dataset" : "placeholder");
+    return errors::Internal("user_shape_map size[", user_shape_map.size(), "] and ", dynamic_node_type, " nodes size[",
                             dynamic_shape_nodes_.size(), "] not match");
   }
   std::vector<std::string> subgraph_multi_dims_input_shape;
@@ -1282,6 +1285,9 @@ Status GeOp::UpdateDynamicConfigAttrs() {
       if (input_shape_exist != input_dims_exist) {
         return errors::Internal("input_shape_exist[%d] and input_dims_exist[%d] not match",
                                 input_shape_exist, input_dims_exist);
+      }
+      if ((subgraph_multi_dims_input_shape[i].empty()) || (subgraph_multi_dims_input_dims.empty())) {
+        continue;
       }
       std::string subgraph_input_shape = std::to_string(idx) + ":" + subgraph_multi_dims_input_shape[i];
       if (!input_shape_exist && !input_dims_exist) {
