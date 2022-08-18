@@ -47,10 +47,8 @@ namespace tensorflow {
 namespace {
 const std::string kNpuRecomputePrefix = "NpuRecompute";
 const std::string kGradientsPrefix = "gradients/";
-const std::string kNpuOptimizerPrefix = "NpuTrainOptimizer";
 const std::string kRecomputeAttr = "_recompute";
 const std::string kBackwardAttr = "_backward";
-const std::string kOptimizerAttr = "_optimizer";
 } // namespace
 static const int64 kMicrosToMillis = 1000;
 
@@ -2442,16 +2440,11 @@ Status OMPartitionSubgraphsPass::AccumulateNFusion(Graph *graph_in, Node *node) 
 
 void OMPartitionSubgraphsPass::InheritAttributes(Node *node) const {
   if (node->name().find(kNpuRecomputePrefix) != std::string::npos &&
-      node->name().find(kGradientsPrefix) == std::string::npos &&
-      node->name().find(kNpuOptimizerPrefix) == std::string::npos) {
+      node->name().find(kGradientsPrefix) == std::string::npos) {
     node->AddAttr(kRecomputeAttr, true);
   }
   if (node->name().find(kGradientsPrefix) != std::string::npos) {
     node->AddAttr(kBackwardAttr, true);
-  }
-  if (node->name().find(kNpuOptimizerPrefix) != std::string::npos &&
-      node->name().find(kGradientsPrefix) == std::string::npos) {
-    node->AddAttr(kOptimizerAttr, true);
   }
 }
 

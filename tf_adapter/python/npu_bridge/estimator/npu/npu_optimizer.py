@@ -153,13 +153,10 @@ class NPUOptimizer(tf.train.Optimizer):
         self._is_overall_finite = None
         if is_loss_scale and loss_scale_manager is None:
             raise ValueError("is_loss_scale is True, loss_scale_manager can not be None")
-        # NpuTrainOptimizer prefix is used as the basis for setting '_optimizer' properties
         if name is None:
-            name = "NpuTrainOptimizer{}".format(type(opt).__name__)
-        else:
-            name = "".join(["NpuTrainOptimizer_", name])
-        self._opt._name = name
-        super(NPUOptimizer, self).__init__(name=name, use_locking=False)
+            name = "NPUOptimizer{}".format(type(opt).__name__)
+        self._name = name
+        super(NPUOptimizer, self).__init__(name=self._name, use_locking=False)
 
     def compute_gradients(self,
                           loss,
@@ -197,8 +194,6 @@ class NPUOptimizer(tf.train.Optimizer):
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
         """Apply gradients on variables"""
-        if name is not None:
-            name = "".join([self._name, "_", name])
         if self._is_loss_scale:
             if not self._is_tailing_optimization:
                 grads = [g for (g, _) in grads_and_vars]
@@ -293,13 +288,9 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
                 optimizer type.
                 See Optimizer.__init__ for more info.
         """
-        # NpuTrainOptimizer prefix is used as the basis for setting '_optimizer' properties
         if name is None:
-            name = "NpuTrainOptimizer{}".format(type(optimizer).__name__)
-        else:
-            name = "".join(["NpuTrainOptimizer_", name])
+            name = "Distributed{}".format(type(optimizer).__name__)
         self._optimizer = optimizer
-        self._optimizer._name = name
         self._is_weight_update_sharding = is_weight_update_sharding
         super(NPUDistributedOptimizer, self).__init__(name=name, use_locking=False)
 
@@ -331,9 +322,6 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
         """Apply gradients on variables"""
-        if name is not None:
-            name = "".join([self._name, "_", name])
-
         rank_size = os.getenv('RANK_SIZE')
         if rank_size is None or int(rank_size) <= 1:
             return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
@@ -401,7 +389,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
     average gradient values before applying gradients to model weights.
     """
 
-    def __init__(self, optimizer, name=None, **kwargs):
+    def __init__(self, optimizer, name="NpuKerasOptimizer", **kwargs):
         """
         Construct a new KerasDistributeOptimizer, which uses another optimizer
         under the hood for computing single-process gradient values and
@@ -411,15 +399,8 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
         Args:
             optimizer: Optimizer to use for get_updates gradients.
         """
-        # NpuTrainOptimizer prefix is used as the basis for setting '_optimizer' properties
-        if name is None:
-            name = "NpuTrainOptimizer{}".format(type(optimizer).__name__)
-        else:
-            name = "".join(["NpuTrainOptimizer_", name])
-
         super(KerasDistributeOptimizer, self).__init__(name, **kwargs)
         self._optimizer = optimizer
-        self._optimizer._name = name
         old_get_gradient = self._optimizer.get_gradients
 
         def new_get_gradient(loss, params):
@@ -428,7 +409,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
             if rank_size is None or int(rank_size) <= 1:
                 return grads
             averaged_grads = []
-            with tf.name_scope(self._name + "_Allreduce"):
+            with tf.name_scope(name + "_Allreduce"):
                 for grad in grads:
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_grads.append(avg_grad)
@@ -454,8 +435,6 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
 
     def apply_gradients(self, grads_and_vars, name=None):
         """Apply gradients on variables"""
-        if name is not None:
-            name = "".join([self._name, "_", name])
         return self._optimizer.apply_gradients(grads_and_vars, name)
 
     def get_config(self):
@@ -474,8 +453,6 @@ def npu_distributed_optimizer_wrapper(optimizer):
     """
     if isinstance(optimizer, str):
         optimizer = optimizers.get(optimizer)
-    # NpuTrainOptimizer prefix is used as the basis for setting '_optimizer' properties
-    optimizer._name = "NpuTrainOptimizer{}".format(type(optimizer).__name__)
     rank_size = os.getenv('RANK_SIZE')
     if hasattr(optimizer, "compute_gradients"):
         org_compute_gradients = optimizer.compute_gradients
@@ -489,7 +466,7 @@ def npu_distributed_optimizer_wrapper(optimizer):
             if rank_size is None or int(rank_size) <= 1:
                 return gradients
             averaged_gradients = []
-            with tf.name_scope("NpuTrainOptimizer_Allreduce"):
+            with tf.name_scope("Npu_Distributed_optimizer_Allreduce"):
                 for grad, var in gradients:
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_gradients.append((avg_grad, var))
@@ -505,7 +482,7 @@ def npu_distributed_optimizer_wrapper(optimizer):
             if rank_size is None or int(rank_size) <= 1:
                 return grads
             averaged_grads = []
-            with tf.name_scope("NpuTrainOptimizer_Allreduce"):
+            with tf.name_scope("Npu_Distributed_optimizer_get_grads_Allreduce"):
                 for grad in grads:
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_grads.append(avg_grad)
@@ -521,33 +498,13 @@ def npu_distributed_optimizer_wrapper(optimizer):
             if rank_size is None or int(rank_size) <= 1:
                 return gradients
             averaged_grads = []
-            with tf.name_scope("NpuTrainOptimizer_Allreduce"):
+            with tf.name_scope("Npu_Distributed_optimizer_compute_grads_Allreduce"):
                 for grad, var in gradients:
                     avg_grad = allreduce(grad, True) if grad is not None else None
                     averaged_grads.append((avg_grad, var))
             return averaged_grads
 
         optimizer._compute_gradients = _npu_compute_gradients
-
-    if hasattr(optimizer, "apply_gradients"):
-        is_v2_optimizer = isinstance(optimizer, optimizer_v2.OptimizerV2)
-        org_apply_gradients = optimizer.apply_gradients
-
-        def _npu_apply_gradients_v1(grads_and_vars, global_step=None, name=None):
-            if name is not None:
-                name = "".join([optimizer._name, "_", name])
-            return org_apply_gradients(grads_and_vars, global_step, name)
-
-        def _npu_apply_gradients_v2(grads_and_vars, name=None):
-            if name is not None:
-                name = "".join([optimizer._name, "_", name])
-            return org_apply_gradients(grads_and_vars, name)
-
-        if is_v2_optimizer:
-            optimizer.apply_gradients = _npu_apply_gradients_v2
-        else:
-            optimizer.apply_gradients = _npu_apply_gradients_v1
-
     return optimizer
 
 

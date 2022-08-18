@@ -60,7 +60,7 @@ node {
     key: "_class"
     value {
       list {
-        s: "loc:@NpuTrainOptimizer/Momentum/update_Variable/ApplyMomentum"
+        s: "loc:@Momentum/update_Variable/ApplyMomentum"
       }
     }
   }
@@ -145,7 +145,7 @@ node {
     key: "_class"
     value {
       list {
-        s: "loc:@NpuTrainOptimizer/Momentum/update_Variable/ApplyMomentum"
+        s: "loc:@Momentum/update_Variable/ApplyMomentum"
       }
     }
   }
@@ -356,7 +356,7 @@ node {
     key: "_class"
     value {
       list {
-        s: "loc:@NpuTrainOptimizer/Momentum/update_Variable/ApplyMomentum"
+        s: "loc:@Momentum/update_Variable/ApplyMomentum"
       }
     }
   }
@@ -581,7 +581,7 @@ node {
   }
 }
 node {
-  name: "NpuTrainOptimizer/Momentum/update_Variable/ApplyMomentum"
+  name: "Momentum/update_Variable/ApplyMomentum"
   op: "ApplyMomentum"
   input: "Variable"
   input: "Variable/Momentum"
@@ -611,7 +611,7 @@ node {
 node {
   name: "Momentum"
   op: "NoOp"
-  input: "^NpuTrainOptimizer/Momentum/update_Variable/ApplyMomentum"
+  input: "^Momentum/update_Variable/ApplyMomentum"
   input: "^Momentum/update_Variable_1/ApplyMomentum"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
 }
