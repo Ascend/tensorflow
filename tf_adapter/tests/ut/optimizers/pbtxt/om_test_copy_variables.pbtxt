@@ -407,7 +407,7 @@ node {
   }
 }
 node {
-  name: "add"
+  name: "NpuRecompute/add"
   op: "AddV2"
   input: "MatMul"
   input: "Variable_1/read"
@@ -428,7 +428,7 @@ node {
 node {
   name: "Softmax"
   op: "Softmax"
-  input: "add"
+  input: "NpuRecompute/add"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "T"
