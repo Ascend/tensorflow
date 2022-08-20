@@ -553,7 +553,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
 
   if (hasMakeIteratorOp && hasIteratorOp) {
     candidates->clear();
-    ADP_LOG(INFO) << "Preprocessing subgraph will at dp_tf_ge_conversion_pass.";
+    ADP_LOG(INFO) << "Preprocessing subgraph will at dp_tf_to_ge_conversion_pass.";
     return Status::OK();
   }
 
