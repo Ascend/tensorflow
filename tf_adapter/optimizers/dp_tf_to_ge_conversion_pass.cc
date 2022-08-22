@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tf_adapter/optimizers/dp_tf_ge_conversion_pass.h"
+#include "tf_adapter/optimizers/dp_tf_to_ge_conversion_pass.h"
 
 #include <memory>
 #include <queue>
@@ -186,7 +186,7 @@ class DpTfToGEConversionPassImpl {
   Status AddGeOpDatasetAndDpGroupDataset(const Node *topo_end, const std::string &fn_geop_dataset,
                                          const std::string &host_channel_name,
                                          const std::string &device_channel_name) const;
-  void AddOptionAttr(std::vector<Node *> nodes, const std::map<std::string, std::string> &all_options);
+  void AddOptionAttr(std::vector<Node *> nodes, const std::map<std::string, std::string> &all_options) const;
 
   // graph num
   int graph_run_num_;
@@ -674,10 +674,11 @@ Status DpTfToGEConversionPassImpl::AddGeopNodeFunctionDef(FunctionDefLibrary &fd
   return Status::OK();
 }
 
-Status
-DpTfToGEConversionPassImpl::AddGeopDatasetFunctionDef(FunctionDefLibrary &fdeflib, const std::string &fn_geop,
-                                                      const std::string &fn_geop_dataset, const string &default_device,
-                                                      const std::map<std::string, std::string> &all_options) const {
+Status DpTfToGEConversionPassImpl::AddGeopDatasetFunctionDef(FunctionDefLibrary &fdeflib,
+                                                             const std::string &fn_geop,
+                                                             const std::string &fn_geop_dataset,
+                                                             const string &default_device,
+                                                             const std::map<std::string, std::string> &all_options) const {
   // GEOP node should created by function of geopDataset
   ADP_LOG(INFO) << "Start to convert geop node to geopdataset function";
   FunctionDef *fd = fdeflib.add_function();
@@ -708,10 +709,11 @@ DpTfToGEConversionPassImpl::AddGeopDatasetFunctionDef(FunctionDefLibrary &fdefli
   return Status::OK();
 }
 
-Status
-DpTfToGEConversionPassImpl::BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, Graph *device_graph,
-                                                     const std::string &fn_geop_dataset, const string &default_device,
-                                                     const std::map<std::string, std::string> &all_options) const {
+Status DpTfToGEConversionPassImpl::BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib,
+                                                            Graph *device_graph,
+                                                            const std::string &fn_geop_dataset,
+                                                            const string &default_device,
+                                                            const std::map<std::string, std::string> &all_options) const {
   // Convert GE graph to GEOP function body
   Status ret;
   std::string fn_dpop = GetRandomName("dpop_function");
@@ -884,7 +886,8 @@ Status DpTfToGEConversionPassImpl::AddGeOpDatasetAndDpGroupDataset(const Node *t
   return Status::OK();
 }
 
-void DpTfToGEConversionPassImpl::AddOptionAttr(std::vector<Node *> nodes, const std::map<std::string, std::string> &all_options) {
+void DpTfToGEConversionPassImpl::AddOptionAttr(std::vector<Node *> nodes,
+                                               const std::map<std::string, std::string> &all_options) const {
   std::string attr_name;
   for (auto node : nodes) {
     ADP_LOG(INFO) << "Node[" << node->name() << "] add options attr.";

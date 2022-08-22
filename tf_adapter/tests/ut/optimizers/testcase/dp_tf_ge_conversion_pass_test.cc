@@ -1,4 +1,4 @@
-#include "tf_adapter/optimizers/dp_tf_ge_conversion_pass.h"
+#include "tf_adapter/optimizers/dp_tf_to_ge_conversion_pass.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "gtest/gtest.h"
 #include "mmpa/mmpa_api.h"

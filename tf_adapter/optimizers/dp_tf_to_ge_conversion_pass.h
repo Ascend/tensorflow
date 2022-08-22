@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_DP_TF_GE_CONVERSION_PASS_H_
-#define TENSORFLOW_DP_TF_GE_CONVERSION_PASS_H_
+#ifndef TENSORFLOW_DP_TF_TO_GE_CONVERSION_PASS_H_
+#define TENSORFLOW_DP_TF_TO_GE_CONVERSION_PASS_H_
 
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/framework/function.h"
@@ -31,6 +31,4 @@ class DpTfToGEConversionPass : public GraphOptimizationPass {
 };
 }  // namespace tensorflow
 
-//#endif // HISI_OFFLINE
-
-#endif  // TENSORFLOW_DP_TF_GE_CONVERSION_PASS_H_
+#endif  // TENSORFLOW_DP_TF_TO_GE_CONVERSION_PASS_H_

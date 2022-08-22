@@ -489,6 +489,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
   sess_options["HCCL_algorithm"] = HCCL_algorithm;
   sess_options["atomic_clean_policy"] = atomic_clean_policy;
+  sess_options["ge.exec.atomicCleanPolicy"] = atomic_clean_policy;
   sess_options["jit_compile"] = jit_compile;
   sess_options["ge.jit_compile"] = jit_compile;
   sess_options["ge.resourceConfigPath"] = resource_config_path;
@@ -517,7 +518,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = "0";
   std::string profiling_options;
-  std::string atomic_clean_policy = "0";
   std::string static_memory_policy;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
@@ -577,7 +577,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_customize_dtypes", &customize_dtypes);
     (void) ctx->GetAttr("_op_debug_config", &op_debug_config);
     (void) ctx->GetAttr("_graph_exec_timeout", &graph_exec_timeout);
-    (void) ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
     (void) ctx->GetAttr("_logical_device_cluster_deploy_mode", &logical_device_cluster_deploy_mode);
     (void) ctx->GetAttr("_logical_device_id", &logical_device_id);
@@ -612,8 +611,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.customizeDtypes"] = customize_dtypes;
   init_options_["ge.exec.opDebugConfig"] = op_debug_config;
   init_options_["ge.exec.customizeDdtypes"] = customize_dtypes;
-  init_options_["atomic_clean_policy"] = atomic_clean_policy;
-  init_options_["ge.exec.atomicCleanPolicy"] = atomic_clean_policy;
   init_options_["static_memory_policy"] = static_memory_policy;
   // Commercial version has been released, temporarily used
   init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
@@ -1859,6 +1856,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["hccl_timeout"] = hccl_timeout;
   sess_options["HCCL_algorithm"] = HCCL_algorithm;
   sess_options["resource_config_path"] = resource_config_path;
+  sess_options["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
+  sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
 
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {
@@ -1905,8 +1904,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.customizeDtypes"] = customize_dtypes;
   init_options_["op_debug_config"] = op_debug_config;
   init_options_["ge.exec.opDebugConfig"] = op_debug_config;
-  init_options_["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
-  init_options_["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
   init_options_["static_memory_policy"] = static_memory_policy;
   // Commercial version has been released, temporarily used
   init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
