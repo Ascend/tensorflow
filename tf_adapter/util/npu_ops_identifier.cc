@@ -25,6 +25,7 @@
 using json = nlohmann::json;
 
 const static std::string kOpsInfoJson = "/framework/built-in/tensorflow/npu_supported_ops.json";
+const static std::string kCustomOpsInfoJson = "/framework/custom/tensorflow/npu_supported_ops.json";
 const static std::string kGray = "isGray";
 const static std::string kHeavy = "isHeavy";
 
@@ -53,6 +54,10 @@ NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix
   std::string opsJsonPath = opsPath + kOpsInfoJson;
   ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << opsJsonPath;
   int32_t opsCnt = NpuOpsIdentifier::ParseOps(opsJsonPath, ops_info_);
+  std::string customOpsJsonPath = opsPath + kCustomOpsInfoJson;
+  ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << customOpsJsonPath;
+  opsCnt += NpuOpsIdentifier::ParseOps(customOpsJsonPath, ops_info_);
+
   ADP_LOG(INFO) << opsCnt << " ops parsed";
   ADP_LOG(INFO) << ops_info_.dump(2);  // 1 is vlog level, 2 is ops info index
 }
