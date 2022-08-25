@@ -206,13 +206,14 @@ def insert_npu_callbacks_func_import(r_node):
 
 def insert_npu_broadcast_func_import(r_node):
     """Add NPU import module"""
-    npu_alias = ast.alias(name='broadcast_keras_model', asname=None)
+    npu_alias = ast.alias(name='npu_broadcast_scope_wrapper', asname=None)
     npu_import = ast.ImportFrom(module='npu_device.distribute.npu_callbacks', names=[npu_alias], level=0)
 
     max_import_npu_pos = 5
     insert_pos = find_import_insert_pos(r_node, max_import_npu_pos)
     r_node.body.insert(insert_pos, npu_import)
-    log_msg(insert_pos, "from npu_device.distribute.npu_callbacks import broadcast_keras_model")
+    log_msg(insert_pos,
+        "from npu_device.distribute.npu_callbacks import npu_broadcast_scope_wrapper")
 
 
 def insert_npu_import(r_node):
@@ -288,15 +289,14 @@ def _decorate_distribute_optimizer_wrapper_at_call(node):
 
 def convert_tf_distribute_apis(node):
     """Convert distributed strategy API"""
-    if (isinstance(node.func, ast.Name) and is_custom_keras_model(node.func.id)) \
-        or (isinstance(node.func, ast.Attribute) and is_custom_keras_model(node.func.attr)):
-        log_msg(getattr(node, "lineno", "None"), "add npu broadcast_keras_model to tensorflow keras Model")
-        new_node = ast.Call(func=get_npu_func_node("broadcast_keras_model"), args=[node],
-                            keywords=[])
-        ast.copy_location(new_node, node)
+    if isinstance(node.func, ast.Attribute) and node.func.attr == "scope":
+        log_msg(getattr(node, "lineno", "None"), "add npu_broadcast_scope_wrapper to tensorflow strategy scope")
+        ori_value = node.func.value
+        node.func.value = ast.Call(func=get_npu_func_node("npu_broadcast_scope_wrapper"),
+                                   args=[ori_value], keywords=[])
         util_global.set_value('need_conver', True)
         util_global.set_value('need_import_npu_broadcast_func', True)
-        return new_node
+        return node
     if isinstance(node.func, ast.Attribute) and is_keras_optimizer_name(node.func.attr):
         return _decorate_distribute_optimizer_wrapper_at_call(node)
     if isinstance(node.func, ast.Name) and is_keras_optimizer_name(node.func.id):
