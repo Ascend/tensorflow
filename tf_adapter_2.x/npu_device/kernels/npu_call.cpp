@@ -179,8 +179,6 @@ class NpuCallOp : public OpKernel {
       if (!fuzz_compile_ && shape_changed) {  // Input shape changed since graph was built
         DLOG() << "Fuzz compile npu graph of " << name() << " as input shape changed since last built";
         fuzz_compile_ = true;
-        NPU_REQUIRES(device->device_options["ge.jobType"].empty(),
-                     tensorflow::errors::Internal("Dynamic shape networks are not supported to do aoe tuning"));
       }
       if (shape_changed || device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(graph_id_))) {
         DLOG() << "Remove and re-add ge graph " << attr_.name() << " with id " << graph_id_ << " as "
