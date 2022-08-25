@@ -2069,7 +2069,7 @@ Status OMPartitionSubgraphsPass::ProcessGetNext(Node *node, const std::string en
 }
 
 Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
-                                              const OptimizationPassRegistry::Grouping pass_group_value) {
+                                              const OptimizationPassRegistry::Grouping pass_group_value) const {
   int graph_num = graph_run_num++;
 
   if (graph == nullptr) { return Status::OK(); }

@@ -36,7 +36,7 @@ class AdapterLogger : public std::basic_ostringstream<char> {
     *this << " [" << fname << ":" << line << "]"
           << " ";
   }
-  ~AdapterLogger();
+  ~AdapterLogger() override;
 
  private:
   int severity_;

@@ -9,7 +9,7 @@
 #ifndef INC_TDT_INDEX_TRANSFORM_H
 #define INC_TDT_INDEX_TRANSFORM_H
 
-#include "stdint.h"
+#include <cstdint>
 /**
 * @ingroup IndexTransform
 * @brief get logical device id by phy device id.

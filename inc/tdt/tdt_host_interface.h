@@ -17,7 +17,7 @@
 #ifndef HOST_INNER_INC_TDT_HOST_INTERFACE_H_
 #define HOST_INNER_INC_TDT_HOST_INTERFACE_H_
 
-#include <string.h>
+#include <cstring>
 #include <memory>
 #include <vector>
 #include "tdt/data_common.h"
