@@ -100,7 +100,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  op_debug_config=None,
                  memory_config=None,
                  experimental_config=None,
-                 jit_compile=True
+                 jit_compile=True,
+                 topo_sorting_mode=None
                  ):
         """
         Constructs a NPUConfig.
@@ -156,6 +157,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         modify_mixlist: Set the path of operator mixed precision configuration file.
         op_precision_mode: Set the path of operator precision mode configuration file (.ini)
         experimental_config: The experimental configuration.
+        topo_sorting_mode: Provides an interface for users to customize topology sorting
         """
 
         # Check iterations_per_loop.
@@ -239,6 +241,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._memory_config = memory_config
         self._experimental_config = self._get_experimental_config(experimental_config)
         self._jit_compile = jit_compile
+        self.topo_sorting_mode = topo_sorting_mode
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

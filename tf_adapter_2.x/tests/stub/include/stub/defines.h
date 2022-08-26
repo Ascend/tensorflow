@@ -10,6 +10,9 @@ namespace ge {
 const char *const OPTION_GRAPH_RUN_MODE = "ge.graphRunMode";
 const char *const OPTION_DEVICE_TYPE = "ge.deviceType";
 
+// Option key: topo sorting mode
+const char *const OPTION_TOPO_SORTING_MODE = "ge.topoSortingMode";
+
 // Option key: ome init
 const char *const OPTION_EXEC_SESSION_ID = "ge.exec.sessionId";
 const char *const OPTION_EXEC_DEVICE_ID = "ge.exec.deviceId";
@@ -281,6 +284,8 @@ const std::string OP_PRECISION_MODE = "ge.exec.op_precision_mode";
 
 // Graph run mode
 enum GraphRunMode { PREDICTION = 0, TRAIN };
+// Topo sorting mode
+enum class TopoSortingMode { BFS = 0, DFS = 1 };
 
 using Status = uint32_t;
 class ComputeGraph;

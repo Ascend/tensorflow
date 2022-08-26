@@ -21,12 +21,10 @@
 #define MSPROFILER_PROF_CALLBACK_H_
 
 #ifdef __cplusplus
+#include <cstddef>
+#include <cstdint>
 extern "C" {
 #endif // __cplusplus
-
-
-#include "stddef.h"
-#include "stdint.h"
 
 /**
  * @name  MsprofErrorCode

@@ -28,32 +28,26 @@ from npu_device.distribute import hccl
 broadcast_registry = weakref.WeakValueDictionary()
 
 
+def broadcast_helper(variables, root_rank=0):
+    """Broadcast trainable variables, and register to avoid repetitive processing"""
+    candicates = []
+    for var in variables:
+        if hasattr(var, '_cast_dtype') and getattr(var, "_cast_dtype") != var.dtype:
+            continue
+        if id(var) not in broadcast_registry:
+            candicates.append(var)
+    if candicates:
+        hccl.broadcast(candicates)
+        for value in candicates:
+            broadcast_registry[id(value)] = value
+
+
 def broadcast_keras_model(model, root_rank=0):
     """Broadcast trainable variables of keras Model"""
     if not isinstance(model, tf.keras.Model):
         return model
-
-    def broadcast_inner(variables):
-        candicates = []
-        for var in variables:
-            if hasattr(var, '_cast_dtype') and getattr(var, "_cast_dtype") != var.dtype:
-                continue
-            if id(var) not in broadcast_registry:
-                candicates.append(var)
-        if candicates:
-            hccl.broadcast(candicates)
-            for value in candicates:
-                broadcast_registry[id(value)] = value
-
     if model.built:
-        broadcast_inner(model.trainable_variables)
-    else:
-        org_build = model.build
-        def _npu_distribute_model_build(input_shape):
-            org_build(input_shape)
-            if model.built:
-                broadcast_inner(model.trainable_variables)
-        model.build = _npu_distribute_model_build
+        broadcast_helper(model.trainable_variables, root_rank)
     return model
 
 
@@ -83,6 +77,64 @@ class NPUBroadcastGlobalVariablesCallback(keras.callbacks.Callback):
 
             rank_size = os.getenv("RANK_SIZE", "1")
             if int(rank_size) > 1:
-                broadcast_keras_model(self.model, self.root_rank)
+                broadcast_helper(self.model.trainable_variables, self.root_rank)
 
             self.broadcast_done = True
+
+
+class NpuBroadcastScopeContext(object):
+    """
+    A context manager, used to record and broadcast trainable varibles in its
+    scope automatically.
+    """
+    _is_in_scope = False
+
+    def __init__(self, org_scope_ctx):
+        self.org_scope_ctx = org_scope_ctx
+        self.enter_scope_again_count = 0
+
+        def _variable_broadcast_creator(next_creator, **kwargs):
+            var = next_creator(**kwargs)
+            if var.trainable:
+                broadcast_helper([var])
+            return var
+
+        # all var created in scope ctx will auto-broadcast
+        self.broadcast_scope = tf.variable_creator_scope(
+            _variable_broadcast_creator)
+
+    def __enter__(self):
+        if not NpuBroadcastScopeContext._is_in_scope:
+            NpuBroadcastScopeContext._is_in_scope = True
+            if self.broadcast_scope:
+                self.broadcast_scope.__enter__()
+        else:
+            self.enter_scope_again_count += 1 # handle with reentry
+        if self.org_scope_ctx:
+            self.org_scope_ctx.__enter__()
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if self.org_scope_ctx:
+            self.org_scope_ctx.__exit__(exception_type, exception_value, traceback)
+        if self.enter_scope_again_count > 0:
+            self.enter_scope_again_count -= 1
+            return
+        if self.broadcast_scope:
+            self.broadcast_scope.__exit__(exception_type, exception_value, traceback)
+        NpuBroadcastScopeContext._is_in_scope = False
+
+
+def npu_broadcast_scope_wrapper(strategy):
+    """ wrap strategy.scope with NpuBroadcastScopeContext """
+    if not isinstance(strategy, tf.distribute.Strategy):
+        return strategy
+
+    org_scope = strategy.scope
+    def _npu_broadcast_scope():
+        org_scope_ctx = org_scope()
+        return NpuBroadcastScopeContext(org_scope_ctx)
+
+    if not hasattr(strategy, '_npu_scope_wrapped'):
+        strategy.scope = _npu_broadcast_scope
+        setattr(strategy, '_npu_scope_wrapped', True)
+    return strategy

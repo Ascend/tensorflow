@@ -51,7 +51,7 @@ class OMPartitionSubgraphsPass : public GraphOptimizationPass {
 
  private:
   Status ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
-                      const OptimizationPassRegistry::Grouping pass_group_value);
+                      const OptimizationPassRegistry::Grouping pass_group_value) const;
   Status AccumulateNFusion(Graph *graph_in, Node *node) const;
   void GetGraphConfig(const Node *node, bool enable_dp, std::map<std::string, std::string> &graph_options) const;
   void ParseInputShapeRange(const std::string dynamic_inputs_shape_range, bool enable_dp,

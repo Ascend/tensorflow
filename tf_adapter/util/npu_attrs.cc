@@ -392,6 +392,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string atomic_clean_policy = "0";
   std::string static_memory_policy;
   std::string jit_compile = "1";
+  std::string topo_sorting_mode = "";
   std::string resource_config_path;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
@@ -450,6 +451,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
     (void) ctx->GetAttr("_jit_compile", &jit_compile);
+    (void) ctx->GetAttr("_topo_sorting_mode", &topo_sorting_mode);
     (void) ctx->GetAttr("_resource_config_path", &resource_config_path);
   }
 
@@ -492,6 +494,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.exec.atomicCleanPolicy"] = atomic_clean_policy;
   sess_options["jit_compile"] = jit_compile;
   sess_options["ge.jit_compile"] = jit_compile;
+  sess_options["topo_sorting_mode"] = topo_sorting_mode;
+  sess_options["ge.topoSortingMode"] = topo_sorting_mode;
   sess_options["ge.resourceConfigPath"] = resource_config_path;
 
   return sess_options;
@@ -982,6 +986,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
   std::string jit_compile = "1";
+  std::string topo_sorting_mode;
   std::string resource_config_path;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
@@ -1052,6 +1057,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto logical_device_cluster_deploy_mode_value = attrs.Find("_logical_device_cluster_deploy_mode");
   auto logical_device_id_value = attrs.Find("_logical_device_id");
   auto jit_compile_value = attrs.Find("_jit_compile");
+  auto topo_sorting_mode_value = attrs.Find("_topo_sorting_mode");
   auto resource_config_path_value = attrs.Find("_resource_config_path");
 
   if (NpuOptimizer_value != nullptr) {
@@ -1284,6 +1290,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (resource_config_path_value != nullptr) {
       resource_config_path = resource_config_path_value->s();
     }
+    if (topo_sorting_mode_value != nullptr) {
+      topo_sorting_mode = topo_sorting_mode_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1361,6 +1370,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["logical_device_id"] = logical_device_id;
   all_options["jit_compile"] = jit_compile;
   all_options["ge.jit_compile"] = jit_compile;
+  all_options["topo_sorting_mode"] = topo_sorting_mode;
+  all_options["ge.topoSortingMode"] = topo_sorting_mode;
   all_options["resource_config_path"] = resource_config_path;
 
   return all_options;
@@ -1454,6 +1465,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
   bool jit_compile = true;
+  int64_t topo_sorting_mode;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1815,6 +1827,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("jit_compile") > 0) {
         jit_compile = params.at("jit_compile").b();
       }
+      if (params.count("topo_sorting_mode") > 0) {
+        topo_sorting_mode = params.at("topo_sorting_mode").i();
+      }
       if (params.count("resource_config_path") > 0) {
         resource_config_path = params.at("resource_config_path").s();
       }
@@ -1858,6 +1873,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["resource_config_path"] = resource_config_path;
   sess_options["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
+  sess_options["topo_sorting_mode"] = std::to_string(topo_sorting_mode);
+  sess_options["ge.topoSortingMode"] = std::to_string(topo_sorting_mode);
 
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {

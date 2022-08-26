@@ -204,10 +204,6 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
       {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
       {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
     const auto need_fuzz_compile = NeedFuzzCompile();
-    if (need_fuzz_compile) {
-      NPU_CTX_REQUIRES(status, device->device_options["ge.jobType"].empty(),
-                       tensorflow::errors::Internal("Dynamic shape networks are not supported to do aoe tuning"));
-    }
     if (device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(),
                                 (loop_type_ == LoopType::NPU_LOOP), status,
                                 (need_fuzz_compile ? kFuzzCompileOptions : kOptions)) == kEmptyGeGraphId) {
