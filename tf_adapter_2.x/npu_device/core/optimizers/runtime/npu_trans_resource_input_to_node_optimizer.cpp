@@ -47,7 +47,7 @@ tensorflow::Status TransFunctionDef(TFE_Context *context, const std::string &fun
   }
 
   NPU_REQUIRES_OK(TransResourceInput2Node(context, fbody->graph, subgraph_substitutes, is_while_body_graph));
-  npu::FixGraphArgRetvalIndex(fbody->graph);
+  npu::FixGraphArgRetvalIndex(*(fbody->graph));
 
   tensorflow::FunctionDef optimized_fdef;
   auto lookup = [&fdef](const tensorflow::Node *node) -> absl::optional<std::string> {
@@ -396,7 +396,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
     }
   }
 
-  FixGraphArgRetvalIndex(mutable_graph);
+  FixGraphArgRetvalIndex(*mutable_graph);
 
   graph->SetNpuResources(npu_resources);
   graph->SetCpuResources(cpu_resources);

@@ -108,7 +108,7 @@ struct ResourceCompare {
 void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g,
                                    bool keep_signature = false);
 
-void FixGraphArgRetvalIndex(const tensorflow::Graph *graph);
+void FixGraphArgRetvalIndex(const tensorflow::Graph &graph);
 
 bool IsSubstituteNode(const tensorflow::Node *node);
 
@@ -120,11 +120,11 @@ bool IsNodeHasSubstituteInput(const tensorflow::Node *node);
 
 tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge);
 
-std::set<std::string> GetNodeSubgraph(const tensorflow::Node *node);
-tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice *device, const tensorflow::Node *node,
+std::set<std::string> GetNodeSubgraph(const tensorflow::Node &node);
+tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice &device, const tensorflow::Node &node,
                                              const tensorflow::FunctionLibraryDefinition *lib_def,
                                              std::set<std::string> &unsupported_ops);
-tensorflow::Status GetGraphUnsupportedOps(const NpuDevice *device, const tensorflow::Graph *graph,
+tensorflow::Status GetGraphUnsupportedOps(const NpuDevice &device, const tensorflow::Graph &graph,
                                           const tensorflow::FunctionLibraryDefinition *lib_def,
                                           std::set<std::string> &unsupported_ops);
 

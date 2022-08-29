@@ -14,7 +14,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""import files when initiating"""
 
 from npu_device.configs.npu_run_context_option import NpuRunContextOptions as run_context_options
 from . import experimental

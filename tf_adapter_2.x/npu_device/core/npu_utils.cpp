@@ -282,9 +282,9 @@ void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorfl
   }
 }
 
-std::set<std::string> GetNodeSubgraph(const tensorflow::Node *node) {
+std::set<std::string> GetNodeSubgraph(const tensorflow::Node &node) {
   std::set<std::string> fns;
-  for (const auto &attr : node->attrs()) {
+  for (const auto &attr : node.attrs()) {
     if (attr.second.has_func()) {
       (void)fns.insert(attr.second.func().name());
     }
@@ -292,7 +292,7 @@ std::set<std::string> GetNodeSubgraph(const tensorflow::Node *node) {
   return fns;
 }
 
-tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice *device, const tensorflow::Node *node,
+tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice &device, const tensorflow::Node &node,
                                              const tensorflow::FunctionLibraryDefinition *lib_def,
                                              std::set<std::string> &unsupported_ops) {
   // For subgraphs of node A, if subgraph has node must place on cpu, A must place on cpu
@@ -310,7 +310,7 @@ tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice *device, const tens
     const auto *func = related_functions.front();
     related_functions.pop();
     for (const auto &n : func->node_def()) {
-      if (!device->Supported(n.op())) {
+      if (!device.Supported(n.op())) {
         (void)unsupported_ops.insert(n.op());
       }
       for (const auto &attr : n.attr()) {
@@ -326,14 +326,14 @@ tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice *device, const tens
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status GetGraphUnsupportedOps(const NpuDevice *device, const tensorflow::Graph *graph,
+tensorflow::Status GetGraphUnsupportedOps(const NpuDevice &device, const tensorflow::Graph &graph,
                                           const tensorflow::FunctionLibraryDefinition *lib_def,
                                           std::set<std::string> &unsupported_ops) {
-  for (auto node : graph->op_nodes()) {
-    if (!device->Supported(node->type_string())) {
+  for (auto node : graph.op_nodes()) {
+    if (!device.Supported(node->type_string())) {
       (void)unsupported_ops.insert(node->type_string());
     }
-    NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(device, node, lib_def, unsupported_ops));
+    NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(device, *node, lib_def, unsupported_ops));
   }
   return tensorflow::Status::OK();
 }
@@ -459,10 +459,10 @@ uint64_t NextUUID() {
  * @brief: fix graph arg return value index
  * @param graph: graph
  */
-void FixGraphArgRetvalIndex(const tensorflow::Graph *graph) {
+void FixGraphArgRetvalIndex(const tensorflow::Graph &graph) {
   std::map<int, tensorflow::Node *> indexed_args;
   std::map<int, tensorflow::Node *> indexed_retvals;
-  for (auto node : graph->nodes()) {
+  for (auto node : graph.nodes()) {
     if (node->IsArg()) {
       indexed_args[node->attrs().Find("index")->i()] = node;
     }

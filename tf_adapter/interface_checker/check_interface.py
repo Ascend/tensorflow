@@ -457,13 +457,11 @@ def compare_class_spec(spec1: ClassIntfSpec, spec2: ClassIntfSpec, file_name1=""
     func_list_1 = spec1.func_list
     func_list_2 = spec2.func_list
     # remove private func api
-    func_names_1 = sorted([x for x in func_list_1.keys() \
-                           if x == "__init__" or x == "__new__" \
-                           or not x.startswith("__") and not x.startswith("_")])
+    func_names_1 = sorted([x for x in func_list_1.keys() if
+                           x == "__init__" or x == "__new__" or not x.startswith("__") and not x.startswith("_")])
 
-    func_names_2 = sorted([x for x in func_list_2.keys() \
-                           if x == "__init__" or x == "__new__" \
-                           or not x.startswith("__") and not x.startswith("_")])
+    func_names_2 = sorted([x for x in func_list_2.keys() if
+                           x == "__init__" or x == "__new__" or not x.startswith("__") and not x.startswith("_")])
     if spec1.supper_classes != spec2.supper_classes:
         print("[EEEE] compare class: \"%s\", supper_classes is different in interface define: \"%s\","
               " in source file: \"%s\"" % (spec1.class_name, spec1.supper_classes, spec2.supper_classes))
@@ -478,7 +476,7 @@ def compare_class_spec(spec1: ClassIntfSpec, spec2: ClassIntfSpec, file_name1=""
         elif not compare_func_spec(func_list_1[func_name], func_list_2[func_name], file_name1, file_name2):
             compare_matched = False
     print("[====] compare class: \"%s\" end, result: \"%s\"" % (
-    spec1.class_name, "Success" if compare_matched else "Fail"))
+        spec1.class_name, "Success" if compare_matched else "Fail"))
     return compare_matched
 
 
@@ -499,7 +497,7 @@ def compare_global_var_spec(spec1: GlobalVarSpec, spec2: GlobalVarSpec, file_nam
 
 def compare_file_spec(spec1: FileSpec, spec2: FileSpec):
     print("\n[====] compare interface define: \"%s\", source file: \"%s\"" % (
-    spec1.spec_file_name, spec1.source_file_name))
+        spec1.spec_file_name, spec1.source_file_name))
     compare_matched = True
 
     def _compare_global_var(compare_matched, spec1, spec2):
@@ -554,7 +552,7 @@ def compare_file_spec(spec1: FileSpec, spec2: FileSpec):
     compare_matched = _compare_class(compare_matched, spec1, spec2)
 
     print("[====] compare result: \"%s\". interface define: \"%s\", source file: \"%s\"" % (
-    "Success" if compare_matched else "Fail", spec1.spec_file_name, spec1.source_file_name))
+        "Success" if compare_matched else "Fail", spec1.spec_file_name, spec1.source_file_name))
     return compare_matched
 
 

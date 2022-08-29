@@ -53,7 +53,7 @@ class NpuDevice {
 
   void ReleaseResource();
 
-  tensorflow::Status InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
+  tensorflow::Status InferShape(const TFE_Context *const context, const tensorflow::OpRegistrationData *op_reg_data,
                                 const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
                                 TensorPartialShapes &shapes) const;
 

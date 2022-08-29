@@ -85,6 +85,7 @@ class OpExecutor {
   virtual void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs,
                        int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const = 0;
   virtual ~OpExecutor() = default;
+
  protected:
   virtual std::string AttachedDebugString() const = 0;
   OpExecutor(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef, TensorShapes input_shapes)

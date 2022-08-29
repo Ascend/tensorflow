@@ -151,7 +151,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
 std::shared_ptr<IteratorResourceProvider> NpuDevice::GetIteratorProvider(const TFE_Context *const context,
                                                                          const tensorflow::ResourceHandle &resource) {
   (void)context;
-  auto provider = iterator_providers_.find(resource);
+  const decltype(iterator_providers_)::const_iterator provider = iterator_providers_.find(resource);
   if (provider == iterator_providers_.cend()) {
     return nullptr;
   }
@@ -319,7 +319,8 @@ TFE_TensorHandle *NpuDevice::NewDeviceResourceHandle(TFE_Context *context, const
  * @param tensor: tfe tensor handle
  * @param status: tf status
  */
-TFE_TensorHandle *NpuDevice::CopyTensorD2H(const TFE_Context *const context, TFE_TensorHandle *tensor, TF_Status *status) const {
+TFE_TensorHandle *NpuDevice::CopyTensorD2H(const TFE_Context *const context, TFE_TensorHandle *tensor,
+                                           TF_Status *status) const {
   (void)context;
   const tensorflow::Tensor *npu_tensor;
   NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(tensor, &npu_tensor), nullptr);
@@ -403,7 +404,8 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
  * @param inputs: tfe tensor handle inputs
  * @param shapes: tensor partial shapes
  */
-tensorflow::Status NpuDevice::InferShape(TFE_Context *context, const tensorflow::OpRegistrationData *op_reg_data,
+tensorflow::Status NpuDevice::InferShape(const TFE_Context *const context,
+                                         const tensorflow::OpRegistrationData *op_reg_data,
                                          const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
                                          TensorPartialShapes &shapes) const {
   NPU_REQUIRES(op_reg_data->shape_inference_fn,
@@ -1345,7 +1347,7 @@ bool NpuDevice::Mirrored(const tensorflow::ResourceHandle &src) {
 tensorflow::Status NpuDevice::GetMirroredIteratorShapesAndTypes(const tensorflow::ResourceHandle &src,
                                                                 TensorPartialShapes &shapes, TensorDataTypes &types) {
   tensorflow::tf_shared_lock lk(mutex_);
-  auto iter = iterator_mirrors_.find(src);
+  const decltype(iterator_mirrors_)::const_iterator iter = iterator_mirrors_.find(src);
   if (iter == iterator_mirrors_.end()) {
     return tensorflow::errors::Internal("Resource ", src.DebugString(), " has not been mirrored");
   }

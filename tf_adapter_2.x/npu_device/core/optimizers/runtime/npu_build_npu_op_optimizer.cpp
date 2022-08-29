@@ -153,7 +153,7 @@ tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGr
   ss << device->ValidateOutputTypes(graph->ProducedTypes()).error_message();
   std::set<std::string> unsupported_ops;
   NPU_REQUIRES_OK(
-    GetGraphUnsupportedOps(device, graph->MutableGraph(), npu::UnwrapCtx(context)->FuncLibDef(), unsupported_ops));
+    GetGraphUnsupportedOps(*device, *(graph->MutableGraph()), npu::UnwrapCtx(context)->FuncLibDef(), unsupported_ops));
   if (!unsupported_ops.empty()) {
     ss << "Unsupported ops " << SetToString(unsupported_ops);
   }

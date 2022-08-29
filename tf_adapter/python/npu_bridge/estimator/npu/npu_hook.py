@@ -109,6 +109,7 @@ class NPUBroadcastGlobalVariablesHook(session_run_hook.SessionRunHook):
 
 class NPUCheckpointSaverHook(basic_session_run_hooks.CheckpointSaverHook):
     """Hook to save training checkpoints"""
+
     def __init__(self,
                  checkpoint_dir,
                  save_secs=None,
@@ -140,6 +141,7 @@ class NPUCheckpointSaverHook(basic_session_run_hooks.CheckpointSaverHook):
 
 class SetIterationsVarHook(session_run_hook.SessionRunHook):
     """Hook to set iteration variables."""
+
     def __init__(self, iterations_per_loop=None):
         if os.getenv("AOE_MODE") is not None:
             iterations_per_loop = 1
@@ -190,6 +192,7 @@ class _SIGNAL:
 
 class _OpQueueContext:
     """Manages work queue and thread for a infeed/outfeed thread."""
+
     def __init__(self, name, target, args):
         self._name = name
         self._queue = Queue.Queue()
@@ -205,6 +208,7 @@ class _OpQueueContext:
 
 class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
     """Hook to logout feed session"""
+
     def __init__(self, output_stream):
         self._output_stream = output_stream
         self._stopped = False
@@ -216,19 +220,10 @@ class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
         """Call when session hook begins"""
         self._finalize_ops = []
         outfeed_log_tensors = npu_ops.outfeed_dequeue_op(
-                channel_name="_npu_log",
-                output_types=[tf.string],
-                output_shapes=[()])
+            channel_name="_npu_log",
+            output_types=[tf.string],
+            output_shapes=[()])
         self._dequeue_ops = tf.print(outfeed_log_tensors, output_stream=self._output_stream)
-
-    def _run_outfeed(self, queue_ctx, session):
-        logging.info('Starting log outfeed thread controller.')
-        while True:
-            try:
-                session.run(self._dequeue_ops)
-            except Exception:
-                logging.info('Log outfeed thread finished')
-                break
 
     def after_create_session(self, session, coord):
         """Call when session is created"""
@@ -242,9 +237,19 @@ class NPULogOutfeedSessionHook(session_run_hook.SessionRunHook):
             if self._finalize_ops:
                 session.run(self._finalize_ops)
 
+    def _run_outfeed(self, queue_ctx, session):
+        logging.info('Starting log outfeed thread controller.')
+        while True:
+            try:
+                session.run(self._dequeue_ops)
+            except Exception:
+                logging.info('Log outfeed thread finished')
+                break
+
 
 class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
     """Hook to in feed out feed session"""
+
     def __init__(self,
                  dequeue_ops,
                  channel_name):
@@ -267,16 +272,6 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
         for op in summary_writer_init_ops:
             self._finalize_ops.append(contrib_summary.flush(writer=op.inputs[0]))
 
-    def _run_outfeed(self, queue_ctx, session):
-        logging.info('Starting outfeed thread controller.')
-        while True:
-            try:
-                session.run(self._dequeue_ops)
-            except Exception:
-                logging.info('summary outfeed thread finished')
-                break
-        logging.info('Outfeed thread finished, shutting down')
-
     def after_create_session(self, session, coord):
         """Call when session is created"""
         logging.info('Init NPU system')
@@ -298,6 +293,16 @@ class NPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
             self._stopped = True
             if self._finalize_ops:
                 session.run(self._finalize_ops)
+
+    def _run_outfeed(self, queue_ctx, session):
+        logging.info('Starting outfeed thread controller.')
+        while True:
+            try:
+                session.run(self._dequeue_ops)
+            except Exception:
+                logging.info('summary outfeed thread finished')
+                break
+        logging.info('Outfeed thread finished, shutting down')
 
 
 class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):

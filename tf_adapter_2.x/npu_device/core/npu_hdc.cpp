@@ -53,7 +53,7 @@ tensorflow::Status Copy2ContinuousMem(void *dst_ptr, void *src_ptr, const size_t
       ret = npu::LoopCopy(static_cast<char *>(dst_ptr), static_cast<char *>(src_ptr), block_size);
       ++parallel_cpy_count;
     };
-    NPU_REQUIRES_OK(npu::ThreadPool::GetInstance().EnqueueTask(closure));
+    NPU_REQUIRES_OK(npu::NpuThreadPool::GetInstance().EnqueueTask(closure));
     enqueue_count++;
     dst_ptr += block_size;
     src_ptr += block_size;

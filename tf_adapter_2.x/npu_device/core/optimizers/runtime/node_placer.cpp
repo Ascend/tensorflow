@@ -279,7 +279,7 @@ tensorflow::Status NodePlacer::PlaceCpuNodeSubgraphs(size_t depth) const {
     if (node->type_string() == "NpuCall") {  // Nodes placed on cpu except npu call
       continue;
     }
-    auto fns = GetNodeSubgraph(node);
+    auto fns = GetNodeSubgraph(*node);
     for (auto &fn : fns) {
       DLOG() << "Device placement for subgraph " << fn << " of cpu node " << node->name();
       std::unique_ptr<tensorflow::FunctionBody> fbody;
@@ -305,7 +305,7 @@ bool NodePlacer::IsClusterMustPlaceOnNpu(const Cluster &cluster) {
       DLOG() << cluster.name << " must place on npu as has determined npu node " << node->name();
       return true;
     }
-    if (!GetNodeSubgraph(node).empty()) {
+    if (!GetNodeSubgraph(*node).empty()) {
       DLOG() << cluster.name << " prefer place on npu as has subgraph";
       return true;
     }
@@ -372,7 +372,7 @@ tensorflow::Status NodePlacer::DeterminedSurelyNodes() {
       node_placement_[node] = Placement::NPU;
     } else {
       std::set<std::string> unsupported_ops;
-      NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(device_, node, lib_def, unsupported_ops));
+      NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(*device_, *node, lib_def, unsupported_ops));
       if (!unsupported_ops.empty()) {
         DLOG() << "Determined cpu " << node->name() << " " << node->type_string()
                << " as npu unsupported subgraph node " << SetToString(unsupported_ops);
