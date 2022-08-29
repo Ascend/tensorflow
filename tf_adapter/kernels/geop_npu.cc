@@ -1264,18 +1264,24 @@ Status GeOp::UpdateDynamicConfigAttrs() {
   TF_RETURN_IF_ERROR(ParseDynamicShapesAndDims(sess_options_["ge.inputShape"], sess_options_["ge.dynamicDims"],
                                                user_shape_map, dynamic_dims_vec, max_shape_map));
 
-  if (user_shape_map.size() != dynamic_shape_nodes_.size()) {
-    const std::string dynamic_node_type = (sess_options_["ge.dynamicDims"] == "0" ? "dataset" : "placeholder");
-    return errors::Internal("user_shape_map size[", user_shape_map.size(), "] and ", dynamic_node_type, " nodes size[",
-                            dynamic_shape_nodes_.size(), "] not match");
+  size_t input_count = 0U;
+  for (const auto node : dynamic_shape_nodes_) {
+    input_count += static_cast<size_t>(node->num_outputs());
+  }
+  if (user_shape_map.size() != input_count) {
+    const std::string dynamic_node_type = (sess_options_["ge.dynamicNodeType"] == "0" ? "dataset" : "placeholder");
+    return errors::Internal("user_shape_map size[", user_shape_map.size(), "] and input count [", input_count,
+                            "] not match, node type is [", dynamic_node_type, "].");
   }
   std::vector<std::string> subgraph_multi_dims_input_shape;
   std::vector<std::string> subgraph_multi_dims_input_dims;
   TF_RETURN_IF_ERROR(BuildSubgraphMuliDimsInput(user_shape_map, dynamic_dims_vec,
                                                 subgraph_multi_dims_input_shape, subgraph_multi_dims_input_dims));
+  size_t input_index_begin = 0U;
   for (size_t i = 0U; i < dynamic_shape_nodes_.size(); ++i) {
     Node *src_node = dynamic_shape_nodes_[i];
     for (auto out : src_node->out_edges()) {
+      const size_t input_index = input_index_begin + static_cast<size_t>(out->src_output());
       int idx = out->dst_input();
       Node *dst_node = out->dst();
       std::string pre_subgraph_input_shape;
@@ -1286,18 +1292,23 @@ Status GeOp::UpdateDynamicConfigAttrs() {
         return errors::Internal("input_shape_exist[%d] and input_dims_exist[%d] not match",
                                 input_shape_exist, input_dims_exist);
       }
-      if ((subgraph_multi_dims_input_shape[i].empty()) || (subgraph_multi_dims_input_dims.empty())) {
+      NPU_REQUIRES((input_index < subgraph_multi_dims_input_shape.size()) &&
+                   (input_index < subgraph_multi_dims_input_dims.size()),
+                   errors::Internal("input_index[%d] is greater than input_shape[%d] or input_dims[%d]", input_index,
+                                    subgraph_multi_dims_input_shape.size(), subgraph_multi_dims_input_dims.size()));
+      if ((subgraph_multi_dims_input_shape[input_index].empty()) || (subgraph_multi_dims_input_dims[input_index].empty())) {
         continue;
       }
-      std::string subgraph_input_shape = std::to_string(idx) + ":" + subgraph_multi_dims_input_shape[i];
+      std::string subgraph_input_shape = std::to_string(idx) + ":" + subgraph_multi_dims_input_shape[input_index];
       if (!input_shape_exist && !input_dims_exist) {
         dst_node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE, subgraph_input_shape);
-        dst_node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, subgraph_multi_dims_input_dims[i]);
+        dst_node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, subgraph_multi_dims_input_dims[input_index]);
       } else {
         TF_RETURN_IF_ERROR(UpdateSubgraphMultiDimsAttr(dst_node, pre_subgraph_input_shape, pre_subgraph_input_dims,
-                                                       subgraph_input_shape, subgraph_multi_dims_input_dims[i]));
+                                                       subgraph_input_shape, subgraph_multi_dims_input_dims[input_index]));
       }
     }
+    input_index_begin += static_cast<size_t>(src_node->num_outputs());
   }
   return Status::OK();
 }
