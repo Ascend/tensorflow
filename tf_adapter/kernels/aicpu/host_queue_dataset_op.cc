@@ -540,7 +540,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
           {
             mutex_lock lck(mu_);
-            ADP_LOG(INFO) << "Host-Queue-push-buffer: args_tensor_size = " << args_tensor_size;
             buffer_.push_back(std::move(buffer_element));
             cond_var_.notify_all();
           }
