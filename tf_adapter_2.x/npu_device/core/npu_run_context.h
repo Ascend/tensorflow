@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef NPU_DEVICE_CORE_NPU_RUN_CONTEXT_H
+#define NPU_DEVICE_CORE_NPU_RUN_CONTEXT_H
 
 #include <string>
 
+namespace npu {
 struct MemoryOptimizeOptions {
   MemoryOptimizeOptions() {}
   void Clean() { recompute.clear(); }
@@ -40,7 +43,8 @@ struct RunContextOptions {
   }
 };
 
-RunContextOptions& GetRunContextOptions();
+RunContextOptions &GetRunContextOptions();
+}  // namespace npu
 
 extern "C" {
 extern void RunContextOptionsSetMemoryOptimizeOptions(const std::string &recompute);
@@ -48,3 +52,5 @@ extern void CleanRunContextOptions();
 extern void RunContextOptionsSetGraphParallelOptions(const std::string &enable_graph_parallel,
                                                      const std::string &config_path);
 }
+
+#endif  // NPU_DEVICE_CORE_NPU_RUN_CONTEXT_H

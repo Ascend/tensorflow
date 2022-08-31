@@ -25,7 +25,7 @@
   if (kDumpExecutionDetail) LOG(INFO)
 
 namespace npu {
-// TODO:日志适配层，需要对接slog，当前未使用，复用的tensorflow
+// 日志适配层，需要对接slog，当前未使用，复用的tensorflow
 class Logger : public std::basic_ostringstream<char> {
  public:
   Logger(const char *f, int line) { *this << f << ":" << line << " "; }
@@ -47,7 +47,8 @@ class Timer : public std::basic_ostringstream<char> {
   }
   void Stop() {
     if (started_ && TF_PREDICT_FALSE(kPerfEnabled)) {
-      *this << (tensorflow::Env::Default()->NowMicros() - start_) / 1000 << " ms";
+      constexpr uint64_t kMicrosToMillis = 1000ULL;
+      *this << (tensorflow::Env::Default()->NowMicros() - start_) / kMicrosToMillis << " ms";
       LOG(INFO) << str();
     }
     started_ = false;

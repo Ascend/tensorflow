@@ -19,7 +19,7 @@
 #include <dlfcn.h>
 
 namespace npu {
-NpuAoe& NpuAoe::GetInstance() {
+NpuAoe &NpuAoe::GetInstance() {
   static NpuAoe instance;
   return instance;
 }
@@ -85,7 +85,7 @@ tensorflow::Status NpuAoe::AoeTuningInitialize(const std::string &work_path) {
   auto ret = aoe_func_.aoe_initialize(global_options);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe initialize func failed"));
 
-  DLOG() << "run aoe initialize success";
+  DLOG() << "Run aoe initialize success";
   return tensorflow::Status::OK();
 }
 
@@ -93,51 +93,53 @@ tensorflow::Status NpuAoe::LoadAoeFunc() {
   DLOG() << "Start to load aoe function";
 
   // aoe init
-  aoe_func_.aoe_initialize = (AoeInitializeFunc)dlsym(handle_, "AoeInitialize");
+  aoe_func_.aoe_initialize = reinterpret_cast<AoeInitializeFunc>(dlsym(handle_, "AoeInitialize"));
   NPU_REQUIRES(aoe_func_.aoe_initialize != nullptr,
                tensorflow::errors::Internal("dlsym Aoe InmmDladdritialize API failed"));
 
   // aoe finalize
-  aoe_func_.aoe_finalize = (AoeFinalizeFunc)dlsym(handle_, "AoeFinalize");
+  aoe_func_.aoe_finalize = reinterpret_cast<AoeFinalizeFunc>(dlsym(handle_, "AoeFinalize"));
   NPU_REQUIRES(aoe_func_.aoe_finalize != nullptr, tensorflow::errors::Internal("dlsym Aoe Finalize API failed"));
 
   // aoe create session
-  aoe_func_.aoe_create_session = (AoeCreateSessionFunc)dlsym(handle_, "AoeCreateSession");
+  aoe_func_.aoe_create_session = reinterpret_cast<AoeCreateSessionFunc>(dlsym(handle_, "AoeCreateSession"));
   NPU_REQUIRES(aoe_func_.aoe_create_session != nullptr,
                tensorflow::errors::Internal("dlsym Aoe create session API failed"));
 
   // aoe destroy session
-  aoe_func_.aoe_destroy_session = (AoeDestroySessionFunc)dlsym(handle_, "AoeDestroySession");
+  aoe_func_.aoe_destroy_session = reinterpret_cast<AoeDestroySessionFunc>(dlsym(handle_, "AoeDestroySession"));
   NPU_REQUIRES(aoe_func_.aoe_destroy_session != nullptr,
                tensorflow::errors::Internal("dlsym Aoe destroy session API failed"));
 
   // aoe set session
-  aoe_func_.aoe_set_gesession = (AoeSetGeSessionFunc)dlsym(handle_, "AoeSetGeSession");
+  aoe_func_.aoe_set_gesession = reinterpret_cast<AoeSetGeSessionFunc>(dlsym(handle_, "AoeSetGeSession"));
   NPU_REQUIRES(aoe_func_.aoe_set_gesession != nullptr,
                tensorflow::errors::Internal("dlsym Aoe set session API failed"));
 
   // aoe set depend graphs
-  aoe_func_.aoe_set_dependgraphs = (AoeSetDependGraphFunc)dlsym(handle_, "AoeSetDependGraphs");
+  aoe_func_.aoe_set_dependgraphs = reinterpret_cast<AoeSetDependGraphFunc>(dlsym(handle_, "AoeSetDependGraphs"));
   NPU_REQUIRES(aoe_func_.aoe_set_dependgraphs != nullptr,
                tensorflow::errors::Internal("dlsym Aoe set depend graphs API failed"));
 
   // aoe set tuning graph
-  aoe_func_.aoe_set_tuninggraph = (AoeSetTuningGraphFunc)dlsym(handle_, "AoeSetTuningGraph");
+  aoe_func_.aoe_set_tuninggraph = reinterpret_cast<AoeSetTuningGraphFunc>(dlsym(handle_, "AoeSetTuningGraph"));
   NPU_REQUIRES(aoe_func_.aoe_set_tuninggraph != nullptr,
                tensorflow::errors::Internal("dlsym Aoe set tuning graph API failed"));
 
   // aoe tuning
-  aoe_func_.aoe_tuning_graph = (AoeTuningGraphFunc)dlsym(handle_, "AoeTuningGraph");
+  aoe_func_.aoe_tuning_graph = reinterpret_cast<AoeTuningGraphFunc>(dlsym(handle_, "AoeTuningGraph"));
   NPU_REQUIRES(aoe_func_.aoe_tuning_graph != nullptr,
                tensorflow::errors::Internal("dlsym Aoe tuning graph API failed"));
 
   // aoe set tuning depend graphs inputs
-  aoe_func_.aoe_set_depend_graphs_inputs = (AoeSetDependGraphsInputsFunc)dlsym(handle_, "AoeSetDependGraphsInputs");
+  aoe_func_.aoe_set_depend_graphs_inputs =
+    reinterpret_cast<AoeSetDependGraphsInputsFunc>(dlsym(handle_, "AoeSetDependGraphsInputs"));
   NPU_REQUIRES(aoe_func_.aoe_set_depend_graphs_inputs != nullptr,
                tensorflow::errors::Internal("dlsym Aoe set tuning depend graphs inputs API failed"));
 
   // aoe set tuning graph inputs
-  aoe_func_.aoe_set_tuning_graph_input = (AoeSetTuningGraphInputFunc)dlsym(handle_, "AoeSetTuningGraphInput");
+  aoe_func_.aoe_set_tuning_graph_input =
+    reinterpret_cast<AoeSetTuningGraphInputFunc>(dlsym(handle_, "AoeSetTuningGraphInput"));
   NPU_REQUIRES(aoe_func_.aoe_set_tuning_graph_input != nullptr,
                tensorflow::errors::Internal("dlsym Aoe set tuning graph inputs API failed"));
 
@@ -152,8 +154,8 @@ tensorflow::Status NpuAoe::AoeTuningFinalize() {
     auto ret = aoe_func_.aoe_finalize();
     NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe finalize func failed"));
 
-    DLOG() << "total number of aoe executions is: " << exec_num_;
-    DLOG() << "run aoe finalize success";
+    DLOG() << "Total number of aoe executions is: " << exec_num_;
+    DLOG() << "Run aoe finalize success";
   }
 
   return tensorflow::Status::OK();

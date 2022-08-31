@@ -117,8 +117,7 @@ namespace {
 std::unordered_set<std::string> npu_specify_ops_cache;
 }
 namespace npu {
-void ParseGlobalOptions(int device_index,
-                        const std::map<std::string, std::string> &user_options,
+void ParseGlobalOptions(int device_index, const std::map<std::string, std::string> &user_options,
                         std::map<std::string, std::string> &global_options) {
   for (const auto &option : user_options) {
     auto iter = kConfigurableOptions.find(option.first);
@@ -154,71 +153,72 @@ void ParseGlobalOptions(int device_index,
 
 PYBIND11_MODULE(_npu_device_backends, m) {
   (void)m.def("Open",
-        [](const py::handle &context, const char *device_name, int device_index,
-           std::map<std::string, std::string> user_options,
-           std::map<std::string, std::string> device_options) -> std::string {
-          pybind11::gil_scoped_release release;
-          static std::map<std::string, std::string> global_options;
-          if (!graph_engine_started.exchange(true)) {
-            ParseGlobalOptions(device_index, user_options, global_options);
-            LOG(INFO) << "Start graph engine with options:";
-            for (const auto &option : global_options) {
-              LOG(INFO) << "  " << option.first << ":" << option.second;
-            }
-            auto ge_status = ge::GEInitialize(global_options);
-            if (ge_status != ge::SUCCESS) {
-              return "Failed start graph engine:" + ge::GEGetErrorMsg();
-            }
-            LOG(INFO) << "Start graph engine succeed";
-            ge_status = ge::ParserInitialize(global_options);
-            if (ge_status != ge::SUCCESS) {
-              return "Failed start tensorflow model parser:" + ge::GEGetErrorMsg();
-            }
-            LOG(INFO) << "Start tensorflow model parser succeed";
+              [](const py::handle &context, const char *device_name, int device_index,
+                 const std::map<std::string, std::string> &user_options,
+                 std::map<std::string, std::string> device_options) -> std::string {
+                pybind11::gil_scoped_release release;
+                static std::map<std::string, std::string> global_options;
+                if (!graph_engine_started.exchange(true)) {
+                  ParseGlobalOptions(device_index, user_options, global_options);
+                  LOG(INFO) << "Start graph engine with options:";
+                  for (const auto &option : global_options) {
+                    LOG(INFO) << "  " << option.first << ":" << option.second;
+                  }
+                  auto ge_status = ge::GEInitialize(global_options);
+                  if (ge_status != ge::SUCCESS) {
+                    return "Failed start graph engine:" + ge::GEGetErrorMsg();
+                  }
+                  LOG(INFO) << "Start graph engine succeed";
+                  ge_status = ge::ParserInitialize(global_options);
+                  if (ge_status != ge::SUCCESS) {
+                    return "Failed start tensorflow model parser:" + ge::GEGetErrorMsg();
+                  }
+                  LOG(INFO) << "Start tensorflow model parser succeed";
 
-            // initialize aoe tuning if need
-            if (!global_options["ge.jobType"].empty()) {
-              auto status = npu::NpuAoe::GetInstance().AoeTuningInitialize(global_options["ge.tuningPath"]);
-              if (!status.ok()) {
-                return status.error_message();
-              }
-            }
+                  // initialize aoe tuning if need
+                  if (!global_options["ge.jobType"].empty()) {
+                    auto status = npu::NpuAoe::GetInstance().AoeTuningInitialize(global_options["ge.tuningPath"]);
+                    if (!status.ok()) {
+                      return status.error_message();
+                    }
+                  }
 
-            aclrtContext global_rt_ctx = nullptr;
-            auto status = [&global_rt_ctx, device_index]() -> tensorflow::Status {
-              NPU_REQUIRES_ACL_OK("Acl create rts ctx failed", aclrtCreateContext(&global_rt_ctx, device_index));
-              return tensorflow::Status::OK();
-            }();
-            if (!status.ok()) {
-              return status.error_message();
-            }
-            npu::global::RtsCtx::SetGlobalCtx(global_rt_ctx);
-            status = npu::global::RtsCtx::EnsureInitialized();
-            if (!status.ok()) {
-              return status.error_message();
-            }
-          }
+                  aclrtContext global_rt_ctx = nullptr;
+                  auto status = [&global_rt_ctx, device_index]() -> tensorflow::Status {
+                    NPU_REQUIRES_ACL_OK("Acl create rts ctx failed", aclrtCreateContext(&global_rt_ctx, device_index));
+                    return tensorflow::Status::OK();
+                  }();
+                  if (!status.ok()) {
+                    return status.error_message();
+                  }
+                  npu::global::RtsCtx::SetGlobalCtx(global_rt_ctx);
+                  status = npu::global::RtsCtx::EnsureInitialized();
+                  if (!status.ok()) {
+                    return status.error_message();
+                  }
+                }
 
-          std::string full_name = tensorflow::strings::StrCat(device_name, ":", device_index);
-          tensorflow::DeviceNameUtils::ParsedName parsed_name;
-          if (!tensorflow::DeviceNameUtils::ParseFullName(full_name, &parsed_name)) {
-            return "Invalid npu device name " + full_name;
-          }
-          LOG(INFO) << "Create device instance " << full_name << " with extra options:";
-          for (const auto &option : device_options) {
-            LOG(INFO) << "  " << option.first << ":" << option.second;
-            (void)global_options.emplace(option.first, option.second);
-          }
-          ThreadPool::GetInstance().Init(kDefaultThreadNum);
-          // Currently only support global basic options
-          auto status = npu::CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
-          pybind11::gil_scoped_acquire acquire;
-          return status;
-        });
+                std::string full_name = tensorflow::strings::StrCat(device_name, ":", device_index);
+                tensorflow::DeviceNameUtils::ParsedName parsed_name;
+                if (!tensorflow::DeviceNameUtils::ParseFullName(full_name, &parsed_name)) {
+                  return "Invalid npu device name " + full_name;
+                }
+                LOG(INFO) << "Create device instance " << full_name << " with extra options:";
+                for (const auto &option : device_options) {
+                  LOG(INFO) << "  " << option.first << ":" << option.second;
+                  (void)global_options.emplace(option.first, option.second);
+                }
+                NpuThreadPool::GetInstance().Init(kDefaultThreadNum);
+                // Currently only support global basic options
+                auto status =
+                  npu::CreateDevice(InputTFE_Context(context), full_name.c_str(), device_index, global_options);
+                pybind11::gil_scoped_acquire acquire;
+                return status;
+              });
 
   (void)m.def("Close", []() {
     pybind11::gil_scoped_release release;
-    ThreadPool::GetInstance().Destroy();
+    NpuThreadPool::GetInstance().Destroy();
     npu::ReleaseDeviceResource();
     if (graph_engine_started.exchange(false)) {
       auto ge_status = ge::ParserFinalize();

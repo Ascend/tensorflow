@@ -34,19 +34,19 @@ static T *Unwrap(const tensorflow::Tensor *tensor) {
   return reinterpret_cast<T *>(const_cast<char *>(tensor->tensor_data().data()));
 }
 
-static inline tensorflow::EagerContext *UnwrapCtx(TFE_Context *context) {
+inline tensorflow::EagerContext *UnwrapCtx(TFE_Context *context) {
   return tensorflow::ContextFromInterface(tensorflow::unwrap(context));
 }
 
-static const tensorflow::AttrBuilder *UnwrapAttrs(const TFE_OpAttrs *attrs) {
+inline const tensorflow::AttrBuilder *UnwrapAttrs(const TFE_OpAttrs *attrs) {
   return static_cast<const tensorflow::AttrBuilder *>(tensorflow::unwrap(attrs));
 }
 
-static bool IsNpuTensorHandle(TFE_TensorHandle *handle) {
+inline bool IsNpuTensorHandle(TFE_TensorHandle *handle) {
   return tensorflow::CustomDeviceTensorHandle::classof(tensorflow::unwrap(handle));
 }
 
-static bool IsCpuTensorHandle(TFE_TensorHandle *handle) {
+inline bool IsCpuTensorHandle(TFE_TensorHandle *handle) {
   return !tensorflow::CustomDeviceTensorHandle::classof(tensorflow::unwrap(handle));
 }
 

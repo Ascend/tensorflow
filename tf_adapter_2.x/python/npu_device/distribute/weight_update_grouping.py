@@ -27,6 +27,23 @@ from npu_device.npu_device import global_npu_ctx
 
 class GroupingVars():
     """Class for grouping variables"""
+
+    class _GradDivisionItem():
+        def __init__(self, var):
+            self.var = var
+            self.size = self.__get_size()
+            self.root_rank_id = -1
+
+        def __get_size(self):
+            size = 1
+            var_shape = self.var.shape
+            if len(var_shape) <= 0:
+                return 0
+            for s in var_shape:
+                size = size * int(s)
+            size = size * self.var.dtype.size
+            return size
+
     def __init__(self, variables, rank_size):
         self._vars = []
         for var in variables:
@@ -89,22 +106,6 @@ class GroupingVars():
                         left_vars[i].root_rank_id = j
                     break
         return
-
-    class _GradDivisionItem():
-        def __init__(self, var):
-            self.var = var
-            self.size = self.__get_size()
-            self.root_rank_id = -1
-
-        def __get_size(self):
-            size = 1
-            var_shape = self.var.shape
-            if len(var_shape) <= 0:
-                return 0
-            for s in var_shape:
-                size = size * int(s)
-            size = size * self.var.dtype.size
-            return size
 
     def get_gid_by_var(self, var):
         """Get gradient id by variable"""

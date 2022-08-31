@@ -21,18 +21,19 @@
 #include "tensorflow/c/eager/tfe_tensorhandle_internal.h"
 
 namespace npu {
-using TensorPartialShapes = tensorflow::gtl::InlinedVector<tensorflow::PartialTensorShape, 4>;
-using TensorShapes = tensorflow::gtl::InlinedVector<tensorflow::TensorShape, 4>;
-using TensorDataTypes = tensorflow::gtl::InlinedVector<tensorflow::DataType, 4>;
+constexpr size_t kDefaultElememts = 4;
+using TensorPartialShapes = tensorflow::gtl::InlinedVector<tensorflow::PartialTensorShape, kDefaultElememts>;
+using TensorShapes = tensorflow::gtl::InlinedVector<tensorflow::TensorShape, kDefaultElememts>;
+using TensorDataTypes = tensorflow::gtl::InlinedVector<tensorflow::DataType, kDefaultElememts>;
 
-using VecTensorPartialShapes = tensorflow::gtl::InlinedVector<TensorPartialShapes, 4>;
-using VecTensorShapes = tensorflow::gtl::InlinedVector<TensorShapes, 4>;
-using VecTensorDataTypes = tensorflow::gtl::InlinedVector<TensorDataTypes, 4>;
+using VecTensorPartialShapes = tensorflow::gtl::InlinedVector<TensorPartialShapes, kDefaultElememts>;
+using VecTensorShapes = tensorflow::gtl::InlinedVector<TensorShapes, kDefaultElememts>;
+using VecTensorDataTypes = tensorflow::gtl::InlinedVector<TensorDataTypes, kDefaultElememts>;
 
 const static tensorflow::TensorShape kScalarShape;
 
-const static uint64_t kInvalidGeGraphId = -1;
-const static uint64_t kEmptyGeGraphId = -2;
+constexpr uint64_t kInvalidGeGraphId = -1;
+constexpr uint64_t kEmptyGeGraphId = -2;
 
 class ResourceGenerator {
  public:

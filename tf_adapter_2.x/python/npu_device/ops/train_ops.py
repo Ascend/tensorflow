@@ -57,7 +57,7 @@ def gelu(x):
          A tensor with the same type as `x`.
     """
     if any(
-        isinstance(e, keras_tensor.KerasTensor) for e in nest.flatten([x])):
+            isinstance(e, keras_tensor.KerasTensor) for e in nest.flatten([x])):
         # in case that Functional API construction
         return npu_wrapper.NpuOpLambda(gen_npu_ops.fast_gelu)(x)
 

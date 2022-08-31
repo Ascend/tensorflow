@@ -74,10 +74,8 @@ static inline tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes type
  * @param name: node name
  * @param ndef: tensorflow node def
  */
-static inline void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes types, const std::string &name,
-                                tensorflow::NodeDef *ndef) {
-  tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), ndef);
-}
+void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes types, const std::string &name,
+                  tensorflow::NodeDef *ndef);
 
 /**
  * @breif: assemble desc
@@ -86,10 +84,7 @@ static inline void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes type
  * @param name: node name
  * @param ndef: tensorflow node def
  */
-static inline void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::string &name,
-                                tensorflow::NodeDef *ndef) {
-  tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), ndef);
-}
+void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::string &name, tensorflow::NodeDef *ndef);
 
 /**
  * @breif: assemble input desc
@@ -97,10 +92,8 @@ static inline void AssembleDesc(TensorShapes shapes, TensorDataTypes types, cons
  * @param types: tensor data types
  * @param ndef: tensorflow node ndef
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types,
-                                                         tensorflow::NodeDef *ndef) {
-  AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
-}
+TF_ATTRIBUTE_UNUSED void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types,
+                                           tensorflow::NodeDef *ndef);
 
 /**
  * @breif: assemble output desc
@@ -108,10 +101,8 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorPartialShapes sha
  * @param types: tensor data types
  * @param ndef: tensorflow node ndef
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types,
-                                                          tensorflow::NodeDef *ndef) {
-  AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
-}
+TF_ATTRIBUTE_UNUSED void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types,
+                                            tensorflow::NodeDef *ndef);
 
 /**
  * @breif: assemble input desc
@@ -119,10 +110,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorPartialShapes sh
  * @param types: tensor data types
  * @param ndef: tensorflow node def
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types,
-                                                         tensorflow::NodeDef *ndef) {
-  AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
-}
+TF_ATTRIBUTE_UNUSED void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef);
 
 /**
  * @breif: assemble output desc
@@ -130,10 +118,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorShapes shapes, Te
  * @param types: tensor data types
  * @param ndef: tensorflow node def
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types,
-                                                          tensorflow::NodeDef *ndef) {
-  AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
-}
+TF_ATTRIBUTE_UNUSED void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef);
 
 /**
  * @breif: assemble input desc
@@ -141,10 +126,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorShapes shapes, T
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types,
-                                                         tensorflow::Node *n) {
-  n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
-}
+TF_ATTRIBUTE_UNUSED void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n);
 
 /**
  * @breif: assemble output desc
@@ -152,10 +134,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorShapes shapes, Te
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types,
-                                                          tensorflow::Node *n) {
-  n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
-}
+TF_ATTRIBUTE_UNUSED void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n);
 
 /**
  * @breif: assemble input desc
@@ -163,10 +142,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorShapes shapes, T
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types,
-                                                         tensorflow::Node *n) {
-  n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
-}
+TF_ATTRIBUTE_UNUSED void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n);
 
 /**
  * @breif: assemble output desc
@@ -174,42 +150,28 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleInputDesc(TensorPartialShapes sha
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types,
-                                                          tensorflow::Node *n) {
-  n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
-}
+TF_ATTRIBUTE_UNUSED void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n);
 
 /**
  * @breif: assemble op def
  * @param op_data: tensorflow op registration data
  * @param n: tensorflow node
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistrationData *op_data,
-                                                     tensorflow::Node *n) {
-  std::string serialized_op_def;
-  (void)op_data->op_def.SerializeToString(&serialized_op_def);
-  n->AddAttr("op_def", serialized_op_def);
-}
+TF_ATTRIBUTE_UNUSED void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::Node *n);
 
 /**
  * @breif: assemble op def
  * @param n: tensorflow node
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::Node *n) {
-  const tensorflow::OpRegistrationData *op_reg_data;
-  (void)tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
-  std::string serialized_op_def;
-  (void)op_reg_data->op_def.SerializeToString(&serialized_op_def);
-  n->AddAttr("op_def", serialized_op_def);
-}
+TF_ATTRIBUTE_UNUSED void AssembleOpDef(tensorflow::Node *n);
 
 /**
  * @breif: assemble op def
  * @param op_data: tensorflow op registration data
  * @param ndef: tensorflow node def
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistrationData *op_data,
-                                                     tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED inline void AssembleOpDef(const tensorflow::OpRegistrationData *op_data,
+                                              tensorflow::NodeDef *ndef) {
   std::string serialized_op_def;
   (void)op_data->op_def.SerializeToString(&serialized_op_def);
   tensorflow::AddNodeAttr("op_def", serialized_op_def, ndef);
@@ -219,7 +181,7 @@ TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(const tensorflow::OpRegistr
  * @breif: assemble op def
  * @param ndef: tensorflow node def
  */
-TF_ATTRIBUTE_UNUSED static inline void AssembleOpDef(tensorflow::NodeDef *ndef) {
+TF_ATTRIBUTE_UNUSED inline void AssembleOpDef(tensorflow::NodeDef *ndef) {
   const tensorflow::OpRegistrationData *op_reg_data;
   (void)tensorflow::OpRegistry::Global()->LookUp(ndef->op(), &op_reg_data);
   std::string serialized_op_def;

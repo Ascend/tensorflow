@@ -246,8 +246,8 @@ tensorflow::Status NpuManagedBuffer::Create(ge::Format format, const std::vector
   void *data = nullptr;
   NPU_REQUIRES(total_bytes >= 0, tensorflow::errors::InvalidArgument("Total bytes is invalid, which is less than 0"));
   NPU_REQUIRES_OK(NpuMemory::Malloc(static_cast<size_t>(total_bytes), &data));
-  auto status =
-    Create(format, shape, data_type, origin_format, origin_shape, data, static_cast<size_t>(total_bytes), nullptr, NpuMemory::Free, buf);
+  auto status = Create(format, shape, data_type, origin_format, origin_shape, data, static_cast<size_t>(total_bytes),
+                       nullptr, NpuMemory::Free, buf);
   if (!status.ok()) {
     NpuMemory::Free(data, static_cast<size_t>(total_bytes), nullptr);
   }

@@ -61,7 +61,8 @@ class HdcChannel {
 
   tensorflow::Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) const;
 
-  tensorflow::Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<tensorflow::Tensor> &tensors) const;
+  tensorflow::Status AssembleAclTensor2Tensor(const acltdtDataItem *item,
+                                              std::vector<tensorflow::Tensor> &tensors) const;
 
   tensorflow::Status AssembleAclDataset2Tensors(const acltdtDataset *acl_dataset,
                                                 std::vector<tensorflow::Tensor> &out_tensors) const;

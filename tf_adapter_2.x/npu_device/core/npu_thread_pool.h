@@ -24,10 +24,10 @@
 namespace npu {
 const uint32_t kDefaultThreadNum = 4U;
 
-class ThreadPool {
+class NpuThreadPool {
  public:
-  static ThreadPool &GetInstance() {
-    static ThreadPool Instance;
+  static NpuThreadPool &GetInstance() {
+    static NpuThreadPool Instance;
     return Instance;
   }
 
@@ -74,9 +74,9 @@ class ThreadPool {
     workers_.clear();
   }
 
-  ThreadPool() : request_stop_(false) {}
+  NpuThreadPool() : request_stop_(false) {}
 
-  ~ThreadPool() { Destroy(); }
+  ~NpuThreadPool() { Destroy(); }
 
  private:
   bool request_stop_;

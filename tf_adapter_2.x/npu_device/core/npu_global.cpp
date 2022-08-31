@@ -67,7 +67,7 @@ void NpuCtx::SetDeviceCtx(int id, TFE_Context *ctx, NpuDevice *device) {
   npu_ctx.device = device;
 }
 tensorflow::Status NpuCtx::GetDeviceCtx(int id, TFE_Context **ctx, NpuDevice **device) {
-  auto iter = npu_ctx_.find(id);
+  const decltype(npu_ctx_)::const_iterator iter = npu_ctx_.find(id);
   NPU_REQUIRES(iter != npu_ctx_.end(),
                tensorflow::errors::Internal("Device instance on device ", id, " has not been created"));
   *ctx = iter->second.ctx;
@@ -93,9 +93,9 @@ tensorflow::Status GlobalHdcChannel::Create(const std::string &name, int64_t cha
   channels.resize(device_ids.size());
   uint32_t count = 0U;
   for (size_t i = 0UL; i < device_ids.size(); i++) {
-    if (!npu::HdcChannel::Create(static_cast<uint32_t>(device_ids[i]), name,
-                                 static_cast<size_t>(channel_capacity),
-                                 &channels[i]).ok()) {
+    if (!npu::HdcChannel::Create(static_cast<uint32_t>(device_ids[i]), name, static_cast<size_t>(channel_capacity),
+                                 &channels[i])
+           .ok()) {
       break;
     }
     count++;
