@@ -678,5 +678,79 @@ REGISTER_OP("ProdForceSeA")
       c->set_output(0, force_shape);
       return Status::OK();
     });
+
+REGISTER_OP("TabulateFusionSeA")
+    .Input("table:T")
+    .Input("table_info:T")
+    .Input("em_x:T")
+    .Input("em:T")
+    .Output("descriptor:T")
+    .Attr("last_layer_size:int")
+    .Attr("T: {float16, float32, float64}")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      auto input_shape = c->input(3);
+      auto nloc = c->Dim(input_shape, 0);
+
+      int32_t last_layer_size;
+      TF_RETURN_IF_ERROR(c->GetAttr("last_layer_size", &last_layer_size));
+      ShapeHandle out_shape = c->MakeShape({nloc, 4, last_layer_size});
+      c->set_output(0, out_shape);
+      return Status::OK();
+    });
+
+REGISTER_OP("TabulateFusionSeAGrad")
+    .Input("table:T")
+    .Input("table_info:T")
+    .Input("em_x:T")
+    .Input("em:T")
+    .Input("dy:T")
+    .Input("descriptor:T")
+    .Output("dy_dem_x:T")
+    .Output("dy_dem:T")
+    .Attr("T: {float16, float32, float64}")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      c->set_output(0, c->input(2));
+      c->set_output(1, c->input(3));
+      return Status::OK();
+    });
+
+REGISTER_OP("TabulateFusion")
+    .Input("table:T")
+    .Input("table_info:T")
+    .Input("em_x:T")
+    .Input("em:T")
+    .Output("descriptor:T")
+    .Attr("last_layer_size:int")
+    .Attr("T: {float16, float32, float64}")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      auto input_shape = c->input(3);
+      auto nloc = c->Dim(input_shape, 0);
+
+      int32_t last_layer_size;
+      TF_RETURN_IF_ERROR(c->GetAttr("last_layer_size", &last_layer_size));
+      ShapeHandle out_shape = c->MakeShape({nloc, 4, last_layer_size});
+      c->set_output(0, out_shape);
+      return Status::OK();
+    });
+
+REGISTER_OP("TabulateFusionGrad")
+    .Input("table:T")
+    .Input("table_info:T")
+    .Input("em_x:T")
+    .Input("em:T")
+    .Input("dy:T")
+    .Input("descriptor:T")
+    .Output("dy_dem_x:T")
+    .Output("dy_dem:T")
+    .Attr("T: {float16, float32, float64}")
+    .SetIsStateful()
+    .SetShapeFn([](InferenceContext* c) {
+      c->set_output(0, c->input(2));
+      c->set_output(1, c->input(3));
+      return Status::OK();
+    });
 }  // namespace
 }  // namespace tensorflow
