@@ -150,8 +150,8 @@ class NPUBasics(object):
     def size(self):
         """A function that returns the number of Tensorflow processes.
         Returns:
-        An integer scalar containing the number of Tensorflow processes.
-      """
+            An integer scalar containing the number of Tensorflow processes.
+        """
         return self._job_info._rank_size
 
     def _read_job_info(self, file_name):
