@@ -236,7 +236,7 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
 }
 }  // namespace
 
-Status HostQueueSetTransId(uint32_t queue_id, void *&buff) {
+Status HostQueueSetTransId(const uint32_t queue_id, void *&buff) {
   void *head_buff = nullptr;
   uint64_t head_size = 0UL;
   const auto ret = rtMbufGetPrivInfo(buff, &head_buff, &head_size);

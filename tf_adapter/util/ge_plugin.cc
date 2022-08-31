@@ -350,7 +350,7 @@ void AoeFinalizeIfNeed() {
     return;
   }
 
-  auto aoe_finalize = (AoeFinalizeFunc)mmDlsym(handle, "AoeFinalize");
+  auto aoe_finalize = reinterpret_cast<AoeFinalizeFunc>(mmDlsym(handle, "AoeFinalize"));
   if (aoe_finalize == nullptr) {
     ADP_LOG(WARNING) << "load aoe finalize function failed.";
     return;

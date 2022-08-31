@@ -51,8 +51,8 @@ GenerateReport *GenerateReport::GetInstance() {
   return &generate_report;
 }
 
-Status GenerateReport::AddUnSupportedInfo(const Node * const node, const Details &infos) {
-  return GenerateReport::AddUnSupportedInfo(node->name(), node->type_string(), infos);
+Status GenerateReport::AddUnSupportedInfo(const Node &node, const Details &infos) {
+  return GenerateReport::AddUnSupportedInfo(node.name(), node.type_string(), infos);
 }
 
 Status GenerateReport::AddUnSupportedInfo(const std::string &name, const std::string &type, const Details &infos) {

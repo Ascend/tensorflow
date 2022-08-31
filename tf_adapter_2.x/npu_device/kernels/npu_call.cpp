@@ -81,7 +81,7 @@ class NpuCallOp : public OpKernel {
     for (size_t i = 0UL; i < outputs.size(); i++) {
       const Tensor *tensor;
       OP_REQUIRES_OK(ctx, npu::GetTensorHandleTensor(outputs[i], &tensor));
-      ctx->set_output(i, *tensor);
+      ctx->set_output(static_cast<int32_t>(i), *tensor);
     }
   }
 
@@ -146,7 +146,7 @@ class NpuCallOp : public OpKernel {
     return updated;
   }
 
-  tensorflow::Status Build(OpKernelContext *ctx) {
+  tensorflow::Status Build(const OpKernelContext *const ctx) {
     if (built_ && empty_ge_graph_) {
       DLOG() << "Skip check re-build for empty ge graph " << attr_.name() << " of " << name();
       return tensorflow::Status::OK();

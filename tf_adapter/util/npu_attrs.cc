@@ -521,7 +521,6 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstruction *ctx) {
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = "0";
-  std::string profiling_options;
   std::string static_memory_policy;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
@@ -954,7 +953,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string op_debug_level = "0";
   std::string enable_scope_fusion_passes;
   std::string enable_exception_dump;
-  std::string npuOptimizer;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string input_shape;
