@@ -1286,8 +1286,10 @@ Status GeOp::UpdateDynamicConfigAttrs() {
       Node *dst_node = out->dst();
       std::string pre_subgraph_input_shape;
       std::string pre_subgraph_input_dims;
-      bool input_shape_exist = TryGetNodeAttr(dst_node->attrs(), ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE, &pre_subgraph_input_shape);
-      bool input_dims_exist = TryGetNodeAttr(dst_node->attrs(), ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, &pre_subgraph_input_dims);
+      bool input_shape_exist = TryGetNodeAttr(dst_node->attrs(),
+                                              ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE, &pre_subgraph_input_shape);
+      bool input_dims_exist = TryGetNodeAttr(dst_node->attrs(),
+                                             ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, &pre_subgraph_input_dims);
       if (input_shape_exist != input_dims_exist) {
         return errors::Internal("input_shape_exist[%d] and input_dims_exist[%d] not match",
                                 input_shape_exist, input_dims_exist);
@@ -1315,7 +1317,7 @@ Status GeOp::UpdateDynamicConfigAttrs() {
 
 Status GeOp::UpdateSubgraphMultiDimsAttr(Node *node, const std::string &pre_input_shape,
                                          const std::string &pre_input_dims, const std::string &new_input_shape,
-                                         const std::string &new_input_dims) {
+                                         const std::string &new_input_dims) const {
   std::vector<std::string> pre_input_dims_vec = ge::StringUtils::Split(pre_input_dims, ';');
   std::vector<std::string> new_input_dims_vec = ge::StringUtils::Split(new_input_dims, ';');
   if (pre_input_dims_vec.size() != new_input_dims_vec.size()) {

@@ -130,7 +130,7 @@ class GeOp : public AsyncOpKernel {
 
   Status UpdateSubgraphMultiDimsAttr(Node *node, const std::string &pre_input_shape,
                                      const std::string &pre_input_dims, const std::string &new_input_shape,
-                                     const std::string &new_input_dims);
+                                     const std::string &new_input_dims) const;
 
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;

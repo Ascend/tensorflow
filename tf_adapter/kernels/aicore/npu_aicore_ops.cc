@@ -112,5 +112,3 @@ Device(tensorflow::DEVICE_CPU)
 .TypeConstraint<Eigen::half>("T"),
 FastGeluGradOp<Eigen::half>);
 }  // namespace tensorflow
-
-
