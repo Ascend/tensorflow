@@ -51,7 +51,7 @@ Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf
   return Status::OK();
 }
 
-Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<Tensor> &tensors, bool call_by_channel_receive) {
+Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> &tensors, bool call_by_channel_receive) {
   acltdtTensorType acl_type = acltdtGetTensorTypeFromItem(item);
   if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
     LOG(INFO) << "Acl channel received end-of-sequence for out-feed op.";
@@ -116,7 +116,7 @@ Status AssembleAclTensor2Tensor(acltdtDataItem *item, std::vector<Tensor> &tenso
   return Status::OK();
 }
 
-Status AssembleAclDataset2Tensors(acltdtDataset *acl_dataset, std::vector<Tensor> &out_tensors,
+Status AssembleAclDataset2Tensors(const acltdtDataset *acl_dataset, std::vector<Tensor> &out_tensors,
                                   bool call_by_channel_receive) {
   for (size_t i = 0; i < acltdtGetDatasetSize(acl_dataset); i++) {
     auto acl_data = acltdtGetDataItem(acl_dataset, i);
@@ -202,7 +202,7 @@ Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item) {
   return Status::OK();
 }
 
-Status RecvTensorByAcl(acltdtChannelHandle *acl_handle, std::vector<Tensor> &tensors) {
+Status RecvTensorByAcl(const acltdtChannelHandle *acl_handle, std::vector<Tensor> &tensors) {
   auto acl_dataset = acltdtCreateDataset();
   if (acl_dataset == nullptr) {
     return errors::Internal("Failed create acl channel.");

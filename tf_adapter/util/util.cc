@@ -54,7 +54,7 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
 
   uint8_t *base_ptr = buff_list.back().get();
   uint64_t offset = sizeof(ge::StringHead) * static_cast<uint64_t>(total_nums);
-  for (int64_t i = 0L; i < total_nums; ++i) {
+  for (uint64_t i = 0UL; i < static_cast<uint64_t>(total_nums); ++i) {
     ge::StringHead *head = ge::PtrToPtr<uint8_t, ge::StringHead>(base_ptr + i * sizeof(ge::StringHead));
     head->addr = offset;
     head->len = tensor.flat<tstring>()(i).size();
@@ -133,7 +133,7 @@ Status BuildSubgraphMuliDimsInput(const std::vector<std::pair<std::string, std::
         continue;
       }
       for (size_t j = 0U; j < dynamic_count; ++j) {
-        tmp[j].append(dynamic_dims_vec[j][count]).append(",");
+        (void) tmp[j].append(dynamic_dims_vec[j][count]).append(",");
       }
       ++count;
     }
@@ -144,11 +144,11 @@ Status BuildSubgraphMuliDimsInput(const std::vector<std::pair<std::string, std::
         tmp_dims.clear();
         break;
       }
-      tmp_dims.append(tmp[j].substr(0, tmp[j].size() - 1)).append(";");
+      (void) tmp_dims.append(tmp[j].substr(0, tmp[j].size() - 1)).append(";");
     }
     std::string tmp_shape;
     for (size_t j = 0U; (j < nodes_shape.size()) && (!tmp_dims.empty()); ++j) {
-      tmp_shape.append(std::to_string(nodes_shape[j])).append(",");
+      (void) tmp_shape.append(std::to_string(nodes_shape[j])).append(",");
     }
     subgraph_multi_dims_input_dims.push_back(tmp_dims.substr(0, tmp_dims.size() - 1));
     subgraph_multi_dims_input_shape.push_back(tmp_shape.substr(0, tmp_shape.size() - 1));
@@ -186,8 +186,9 @@ Status ParseMaxShapeRange(const std::vector<std::pair<std::string, std::vector<i
   for (auto &shape_range : max_shape_range_map) {
     std::vector<int64_t> &shapes = shape_range.second;
     for (size_t i = 0U; i < shapes.size(); ++i) {
-      if (shapes[i] == -1)
+      if (shapes[i] == -1) {
         shapes[i] = tmp[count++];
+      }
     }
   }
   return Status::OK();
@@ -196,7 +197,7 @@ Status ParseMaxShapeRange(const std::vector<std::pair<std::string, std::vector<i
 Status ParseDynamicDims(const std::string &dynamic_dims, DimsVector &dynamic_dims_vec,
                         std::vector<std::vector<int64_t>> &dynamic_dims_digit_vec,
                         const std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map) {
-  int32_t dynamic_dim_num = 0;
+  int64_t dynamic_dim_num = 0;
   for (auto &info_shapes : user_shape_map) {
     auto &shapes = info_shapes.second;
     dynamic_dim_num += std::count(shapes.begin(), shapes.end(), -1);

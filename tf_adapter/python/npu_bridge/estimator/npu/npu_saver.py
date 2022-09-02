@@ -156,6 +156,10 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
 
 class NPUSaver(Saver):
     """NPU saver for saving checkpoints"""
+    def __init__(self):
+        super().__init__()
+        self._builder = None
+
     def _build(self, checkpoint_path, build_save, build_restore):
         if not self.saver_def or context.executing_eagerly():
             if self._builder is None:

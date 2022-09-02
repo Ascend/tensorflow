@@ -55,10 +55,14 @@ NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix
   ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << opsJsonPath;
   int32_t opsCnt = NpuOpsIdentifier::ParseOps(opsJsonPath, ops_info_);
   std::string customOpsJsonPath = opsPath + kCustomOpsInfoJson;
+  json custom_ops_info;
   ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << customOpsJsonPath;
-  opsCnt += NpuOpsIdentifier::ParseOps(customOpsJsonPath, ops_info_);
-
+  int32_t customOpsCnt = NpuOpsIdentifier::ParseOps(customOpsJsonPath, custom_ops_info);
+  for (const auto elem : custom_ops_info.items()) {
+    ops_info_[elem.key()] = elem.value();
+  }
   ADP_LOG(INFO) << opsCnt << " ops parsed";
+  ADP_LOG(INFO) << customOpsCnt << " custom ops parsed";
   ADP_LOG(INFO) << ops_info_.dump(2);  // 1 is vlog level, 2 is ops info index
 }
 /**

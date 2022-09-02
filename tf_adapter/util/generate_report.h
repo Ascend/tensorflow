@@ -33,7 +33,7 @@ class GenerateReport {
 
   Status AddUnSupportedInfo(const std::string &name, const std::string &type, const Details &infos);
 
-  Status AddUnSupportedInfo(const Node * const node, const Details &infos);
+  Status AddUnSupportedInfo(const Node &node, const Details &infos);
 
   Status SaveUnsupportedInfo();
 

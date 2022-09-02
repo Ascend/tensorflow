@@ -2,16 +2,7 @@ import os
 import ctypes
 
 
-def load_lib(lib_name):
-    try:
-        lib = ctypes.CDLL(lib_name)
-    except Exception as e:
-        raise ValueError('load lib ', lib_name, ' error')
-
-    return lib
-
-
-hccl_graph_adp_ctypes = load_lib('libhcom_graph_adaptor.so')
+hccl_graph_adp_ctypes = ctypes.CDLL('libhcom_graph_adaptor.so')
 
 
 def c_str(string):

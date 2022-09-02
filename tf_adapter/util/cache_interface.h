@@ -24,7 +24,7 @@
 #include "tensorflow/core/framework/types.h"
 
 namespace tensorflow {
-//All implementations must be thread-safe.
+// All implementations must be thread-safe.
 class CacheInterface : public ResourceBase {
  public:
   virtual void add(std::vector<uint64> &ids_vec, std::vector<uint64> &swap_in_id_temp,
@@ -32,9 +32,9 @@ class CacheInterface : public ResourceBase {
                    std::vector<uint64> &swap_out_idx_temp, int64 &swap_in_num, int64 &swap_out_num) = 0;
 
   virtual void remoteIndexToLocal(const std::vector<uint64> &ids_vec, Tensor &local_idx) = 0;
-  //Return the num of elements in cache
+  // Return the num of elements in cache
   virtual int64 size() const = 0;
-  //Return a debug string for *this
+  // Return a debug string for *this
   string DebugString() const override {
     return strings::StrCat("A Cache of size: ", size());
   }

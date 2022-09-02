@@ -199,10 +199,12 @@ void InferShapeUtil::setShapeOfMergeOP(const ShapeRefiner &shapeRef, const Node 
 
   for (const Edge *e : pNode->in_edges()) {
     CHECK_NOT_NULL(e);
-    if (e->IsControlEdge())
+    if (e->IsControlEdge()) {
       continue;
-    if (e->dst_input() < 0)
+    }
+    if (e->dst_input() < 0) {
       continue;
+    }
 
     if (e->src()->type_string() == "Enter" || e->src()->type_string() == "RefEnter") {
       Node *pNodeIn = e->src();
@@ -313,10 +315,12 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
     needRemoveEdges.clear();
     for (const Edge *e : pNode->in_edges()) {
       REQUIRES_NOT_NULL(e);
-      if (e->IsControlEdge())
+      if (e->IsControlEdge()) {
         continue;
-      if (e->dst_input() < 0)
+      }
+      if (e->dst_input() < 0) {
         continue;
+      }
 
       ADP_LOG(INFO) << "in_edges: " << e->src()->name() << " --> " << pNode->name();
       if ((e->src()->type_string() == "NextIteration") || (e->src()->type_string() == "RefNextIteration")) {

@@ -54,7 +54,7 @@ def no_check_override():
     """Without checking override"""
     class _Manager:
         def __init__(self):
-            pass
+            self.__orign = None
 
         def __enter__(self):
             self.__orign = estimator_lib.Estimator._assert_members_are_not_overridden
@@ -126,7 +126,7 @@ class _OutfeedHostCall:
 
             Raises:
               RuntimeError: If outfeed tensor is scalar.
-            """
+        """
         if not self._names:
             return {}
 

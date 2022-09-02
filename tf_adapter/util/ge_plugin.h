@@ -50,7 +50,8 @@ class GePlugin {
   std::mutex mutex_;
 };
 
-tensorflow::Status RegisterNpuCancellationCallback(std::function<void()> callback, std::function<void()>* deregister_fn);
+tensorflow::Status RegisterNpuCancellationCallback(std::function<void()> callback,
+                                                   std::function<void()> *deregister_fn);
 // } // tensorflow
 
 #endif

@@ -232,3 +232,55 @@ def prodforcesea(net_deriv, in_deriv, nlist, natoms, n_a_sel=0, n_r_sel=0, name=
     result = npu_aicore_ops.prod_force_se_a(net_deriv, in_deriv, nlist, natoms, n_a_sel, n_r_sel,
                                              name=name)
     return result
+
+
+def tabulatefusionsea(table, table_info, em_x, em, last_layer_size=128, name=None):
+    """
+    TabulateFusionSeA op
+    """
+    table = ops.convert_to_tensor(table, name="table")
+    table_info = ops.convert_to_tensor(table_info, name="table_info")
+    em_x = ops.convert_to_tensor(em_x, name="em_x")
+    em = ops.convert_to_tensor(em, name="em")
+    result = npu_aicore_ops.tabulate_fusion_se_a(table, table_info, em_x, em, last_layer_size, name=name)
+    return result
+
+
+def tabulatefusionseagrad(table, table_info, em_x, em, dy_dem_x, dy_dem, name=None):
+    """
+    TabulateFusionSeAGrad op
+    """
+    table = ops.convert_to_tensor(table, name="table")
+    table_info = ops.convert_to_tensor(table_info, name="table_info")
+    em_x = ops.convert_to_tensor(em_x, name="em_x")
+    em = ops.convert_to_tensor(em, name="em")
+    dy_dem_x = ops.convert_to_tensor(dy_dem_x, name="dy_dem_x")
+    dy_dem = ops.convert_to_tensor(dy_dem, name="dy_dem")
+    result = npu_aicore_ops.tabulate_fusion_se_a_grad(table, table_info, em_x, em, dy_dem_x, dy_dem, name=name)
+    return result
+
+
+def tabulatefusion(table, table_info, em_x, em, last_layer_size=128, name=None):
+    """
+    TabulateFusion op
+    """
+    table = ops.convert_to_tensor(table, name="table")
+    table_info = ops.convert_to_tensor(table_info, name="table_info")
+    em_x = ops.convert_to_tensor(em_x, name="em_x")
+    em = ops.convert_to_tensor(em, name="em")
+    result = npu_aicore_ops.tabulate_fusion(table, table_info, em_x, em, last_layer_size, name=name)
+    return result
+
+
+def tabulatefusiongrad(table, table_info, em_x, em, dy_dem_x, dy_dem, name=None):
+    """
+    TabulateFusionGrad op
+    """
+    table = ops.convert_to_tensor(table, name="table")
+    table_info = ops.convert_to_tensor(table_info, name="table_info")
+    em_x = ops.convert_to_tensor(em_x, name="em_x")
+    em = ops.convert_to_tensor(em, name="em")
+    dy_dem_x = ops.convert_to_tensor(dy_dem_x, name="dy_dem_x")
+    dy_dem = ops.convert_to_tensor(dy_dem, name="dy_dem")
+    result = npu_aicore_ops.tabulate_fusion_grad(table, table_info, em_x, em, dy_dem_x, dy_dem, name=name)
+    return result

@@ -26,9 +26,9 @@ namespace tensorflow {
 
   HostThreadPool::~HostThreadPool() {}
 
-  Status HostThreadPool::Init(uint32_t deviceId) {
+  Status HostThreadPool::Init(uint32_t device_id) {
     ADP_LOG(INFO) << "Start to start thread pool.";
-    device_id_ = deviceId;
+    device_id_ = device_id;
     copy_thread_pool_.resize(MAX_THREAD_NUM);
     if (Env::Default() == nullptr) {
       ADP_LOG(ERROR) << "Env default is nullptr.";
