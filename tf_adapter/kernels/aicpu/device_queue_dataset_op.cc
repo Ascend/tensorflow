@@ -31,31 +31,28 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
 
   explicit DeviceQueueDatasetOp(OpKernelConstruction *ctx) : DatasetOpKernel(ctx) {
     CHECK_NOT_NULL(ctx);
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("channel_name", &defStr_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_types", &outputTypes_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("output_shapes", &outputShapes_));
   }
   ~DeviceQueueDatasetOp() override = default;
+
+ protected:
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
     CHECK_NOT_NULL(ctx);
     CHECK_NOT_NULL(output);
-    *output = new (std::nothrow) Dataset(ctx, defStr_, outputTypes_, outputShapes_);
+    *output = new (std::nothrow) Dataset(ctx, outputTypes_, outputShapes_);
     OP_REQUIRES(ctx, *output != nullptr, errors::InvalidArgument("DeviceQueueDatasetOp: new dataset failed"));
   }
 
  private:
   class Dataset : public DatasetBase {
    public:
-    explicit Dataset(OpKernelContext *ctx, string &sourcedata, const DataTypeVector &outputTypes,
+    explicit Dataset(OpKernelContext *ctx, const DataTypeVector &outputTypes,
                      const std::vector<PartialTensorShape> &outputShapes)
-        : DatasetBase(DatasetContext(ctx)), sourcedata_(sourcedata), outputTypes_(outputTypes),
+        : DatasetBase(DatasetContext(ctx)), outputTypes_(outputTypes),
           outputShapes_(outputShapes) {}
 
     ~Dataset() override = default;
-
-    std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return std::unique_ptr<IteratorBase>(new Iterator({this, npu::CatStr(prefix, "::DeviceQueue")}));
-    }
 
     const DataTypeVector &output_dtypes() const override { return outputTypes_; }
 
@@ -66,6 +63,10 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
     STATUS_FUNCTION_ONLY_TF2(CheckExternalState() const override);
 
    protected:
+    std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
+      return std::unique_ptr<IteratorBase>(new Iterator({this, npu::CatStr(prefix, "::DeviceQueue")}));
+    }
+
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {
       return Status::OK();
     }
@@ -77,23 +78,17 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
 
       ~Iterator() override = default;
 
+     protected:
       Status GetNextInternal(IteratorContext *ctx, std::vector<Tensor> *out_tensors, bool *end_of_sequence) override {
         *end_of_sequence = false;
         return Status::OK();
       };
-     protected:
       STATUS_FUNCTION_ONLY_TF2(SaveInternal(SerializationContext *ctx, IteratorStateWriter *writer) override);
       STATUS_FUNCTION_ONLY_TF2(RestoreInternal(IteratorContext *ctx, IteratorStateReader *reader) override);
-
-     private:
-      std::mutex mu_;
-      std::unique_ptr<IteratorBase> inputImpl_;
     };
-    std::string sourcedata_;
     const DataTypeVector outputTypes_;
     const std::vector<PartialTensorShape> outputShapes_;
   };
-  string defStr_;
   DataTypeVector outputTypes_;
   std::vector<PartialTensorShape> outputShapes_;
 };
