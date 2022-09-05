@@ -32,27 +32,26 @@
 #define MMPA_FUNC_VISIBILITY
 #endif
 
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <time.h>
+#include <cstring>
+#include <cstdio>
+#include <cerrno>
+#include <ctime>
 #include <unistd.h>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <dlfcn.h>
-#include <signal.h>
+#include <csignal>
 #include <pthread.h>
 #include <syslog.h>
 #include <dirent.h>
 #include <arpa/inet.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
 #include <poll.h>
 #include <net/if.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <ctype.h>
-#include <stddef.h>
+#include <cstdarg>
+#include <climits>
+#include <cctype>
+#include <cstddef>
 #include <dirent.h>
 #include <getopt.h>
 #include <libgen.h>
@@ -91,7 +90,7 @@
 #endif
 
 
-#if(OS_TYPE == WIN) //lint !e553
+#if(OS_TYPE == WIN) // lint !e553
 
 #ifdef FUNC_VISIBILITY
 #define MMPA_FUNC_VISIBILITY _declspec(dllexport)

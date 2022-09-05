@@ -17,6 +17,7 @@
 #ifndef NPU_DEVICE_CORE_NPU_AOE_H
 #define NPU_DEVICE_CORE_NPU_AOE_H
 
+#include <map>
 #include "aoe_tuning_api.h"
 #include "npu_device.h"
 
@@ -53,7 +54,7 @@ class NpuAoe {
 
   static NpuAoe &GetInstance();
   tensorflow::Status AoeTuningInitialize(const std::string &work_path);
-  tensorflow::Status RunAoeTuning(NpuDevice *device, TFE_Context *context, uint64_t graph_id,
+  tensorflow::Status RunAoeTuning(NpuDevice *device, TFE_Context *context, bool need_build, uint64_t graph_id,
                                   const std::string &name, const tensorflow::GraphDef &graph_def,
                                   std::vector<TFE_TensorHandle *> &inputs);
   tensorflow::Status AoeTuningFinalize();
@@ -69,6 +70,7 @@ class NpuAoe {
   AoeFunc aoe_func_;
   void *handle_ = nullptr;
   int64_t exec_num_ = 0;
+  std::map<uint64_t, ge::Graph> ge_graph_;
 };
 }  // namespace npu
 

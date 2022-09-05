@@ -24,7 +24,7 @@ NpuAoe &NpuAoe::GetInstance() {
   return instance;
 }
 
-tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context, uint64_t graph_id,
+tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context, bool need_build, uint64_t graph_id,
                                         const std::string &name, const tensorflow::GraphDef &graph_def,
                                         std::vector<TFE_TensorHandle *> &inputs) {
   DLOG() << "Start to tune graph id: " << graph_id << ", name: " << name;
@@ -41,8 +41,16 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe set session func failed"));
 
   ge::Graph ge_graph;
-  NPU_REQUIRES_OK(device->TransTfGraph2GeGraph(context, name, graph_def, ge_graph));
-  ge_graph.SetNeedIteration(false);
+  const auto iter = ge_graph_.find(graph_id);
+  if (need_build || (iter == ge_graph_.cend())) {
+    DLOG() << "Convert tf graph to ge graph of graph id: " << graph_id;
+    NPU_REQUIRES_OK(device->TransTfGraph2GeGraph(context, name, graph_def, ge_graph));
+    ge_graph.SetNeedIteration(false);
+    ge_graph_[graph_id] = ge_graph;
+  } else {
+   ge_graph = iter->second;
+   DLOG() << "Get ge graph cache of graph id: " << graph_id;
+  }
 
   // set tuning graph
   ret = aoe_func_.aoe_set_tuninggraph(aoe_session_id, ge_graph);

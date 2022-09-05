@@ -62,6 +62,20 @@ def attribute(node):
     return node
 
 
+def is_tpu(node):
+    """Check node tpu configuration"""
+    return ((isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'tpu')) or
+            (isinstance(node.func.value, ast.Name) and (node.func.value.id == 'tpu')))
+
+
+def is_not_train(node):
+    """Check node train configuration"""
+    is_map_and_batch = (node.func.attr == 'map_and_batch')
+    is_batch = node.func.attr == 'batch' and (not isinstance(node.func.value, ast.Attribute) or (
+            isinstance(node.func.value, ast.Attribute) and node.func.value.attr != 'train'))
+    return is_map_and_batch or is_batch
+
+
 def ast_import_from_helper(node):
     """Helper function. Modify node based on import module"""
     if node.module:
@@ -417,10 +431,7 @@ def ast_call(node):
             node.keywords = keywords_new
             util_global.set_value('need_conver', True)
         return node
-    if isinstance(node.func, ast.Attribute) and \
-            ((node.func.attr == 'map_and_batch') or
-             (node.func.attr == 'batch' and (not isinstance(node.func.value, ast.Attribute) or (
-                     isinstance(node.func.value, ast.Attribute) and node.func.value.attr != 'train')))):
+    if isinstance(node.func, ast.Attribute) and is_not_train(node):
         exist = False
         for keyword in node.keywords:
             if keyword.arg == 'drop_remainder':
@@ -464,9 +475,7 @@ def ast_call(node):
             util_global.set_value('need_conver', True)
             node.keywords.append(ast.keyword(arg='save_summary_steps', value=pasta.parse('0')))
         return node
-    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator') and \
-            ((isinstance(node.func.value, ast.Attribute) and (node.func.value.attr == 'tpu')) or
-             (isinstance(node.func.value, ast.Name) and (node.func.value.id == 'tpu'))):
+    if isinstance(node.func, ast.Attribute) and (node.func.attr == 'TPUEstimator') and is_tpu(node):
         add_eval_on_tpu = True
         add_use_tpu = True
         add_export_to_tpu = True

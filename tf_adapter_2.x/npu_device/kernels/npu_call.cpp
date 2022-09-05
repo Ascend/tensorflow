@@ -42,7 +42,8 @@ class NpuCallOp : public OpKernel {
     DLOG() << "Compute npu op " << name() << " with function " << attr_.name();
     std::lock_guard<std::mutex> lk(mu_);  // Prevent run same npu graph parallel
     OP_REQUIRES_OK(ctx, Initilize(ctx));
-    OP_REQUIRES_OK(ctx, Build(ctx));
+    bool loaded = false;
+    OP_REQUIRES_OK(ctx, Build(ctx, loaded));
 
     if (empty_ge_graph_) {
       DLOG() << "Compute bypass for cluster graph " << attr_.name() << " of " << name() << " as empty ge graph";
@@ -66,7 +67,8 @@ class NpuCallOp : public OpKernel {
     // run aoe tuning if need
     if (!device->device_options["ge.jobType"].empty()) {
       auto &aoe = NpuAoe::GetInstance();
-      NPU_CTX_REQUIRES_OK(status, aoe.RunAoeTuning(device, context, graph_id_, attr_.name(), *graph_def_, inputs));
+      NPU_CTX_REQUIRES_OK(status,
+                          aoe.RunAoeTuning(device, context, loaded, graph_id_, attr_.name(), *graph_def_, inputs));
     }
 
     std::vector<TFE_TensorHandle *> outputs(ctx->num_outputs());
@@ -146,7 +148,7 @@ class NpuCallOp : public OpKernel {
     return updated;
   }
 
-  tensorflow::Status Build(const OpKernelContext *const ctx) {
+  tensorflow::Status Build(const OpKernelContext *const ctx, bool &loaded) {
     if (built_ && empty_ge_graph_) {
       DLOG() << "Skip check re-build for empty ge graph " << attr_.name() << " of " << name();
       return tensorflow::Status::OK();
@@ -175,6 +177,7 @@ class NpuCallOp : public OpKernel {
         DLOG() << "Ge graph of " << attr_.name() << " is empty for " << name();
       }
       built_ = true;
+      loaded = true;
     } else {
       if (!fuzz_compile_ && shape_changed) {  // Input shape changed since graph was built
         DLOG() << "Fuzz compile npu graph of " << name() << " as input shape changed since last built";
@@ -197,6 +200,7 @@ class NpuCallOp : public OpKernel {
         (void)device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(),
             (fuzz_compile_ ? kFuzzCompileOptions : kOptions));
         NPU_REQUIRES_OK(status->status);
+        loaded = true;
       }
     }
     return tensorflow::Status::OK();

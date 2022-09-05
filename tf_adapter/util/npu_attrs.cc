@@ -392,7 +392,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string atomic_clean_policy = "0";
   std::string static_memory_policy;
   std::string jit_compile = "1";
-  std::string topo_sorting_mode = "";
+  std::string topo_sorting_mode;
   std::string resource_config_path;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
@@ -1463,7 +1463,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
   bool jit_compile = true;
-  int64_t topo_sorting_mode;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -1826,7 +1825,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         jit_compile = params.at("jit_compile").b();
       }
       if (params.count("topo_sorting_mode") > 0) {
-        topo_sorting_mode = params.at("topo_sorting_mode").i();
+        int64_t topo_sorting_mode = params.at("topo_sorting_mode").i();
+        sess_options["topo_sorting_mode"] = std::to_string(topo_sorting_mode);
+        sess_options["ge.topoSortingMode"] = std::to_string(topo_sorting_mode);
       }
       if (params.count("resource_config_path") > 0) {
         resource_config_path = params.at("resource_config_path").s();
@@ -1871,8 +1872,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["resource_config_path"] = resource_config_path;
   sess_options["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
-  sess_options["topo_sorting_mode"] = std::to_string(topo_sorting_mode);
-  sess_options["ge.topoSortingMode"] = std::to_string(topo_sorting_mode);
 
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {

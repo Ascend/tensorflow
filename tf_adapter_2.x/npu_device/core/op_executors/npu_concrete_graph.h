@@ -67,14 +67,14 @@ class NpuConcreteGraph : public OpExecutor {
   void RunOneShot(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs, int num_outputs,
                   TFE_TensorHandle **outputs, TF_Status *status) const;
 
-  void Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const;
+  void Load(TFE_Context *context, NpuDevice *device, bool &loaded, TF_Status *status) const;
   void UnLoad(TFE_Context *context, NpuDevice *device, TF_Status *status) const;
 
   const std::string &GraphLoopTypeString() const;
 
   bool NeedFuzzCompile() const;
 
-  void RunAoeTuning(TFE_Context *context, NpuDevice *device, std::vector<TFE_TensorHandle *> inputs,
+  void RunAoeTuning(TFE_Context *context, NpuDevice *device, std::vector<TFE_TensorHandle *> inputs, bool loaded,
                     TF_Status *status) const;
 
   void SetFunctionOpFlag(bool is_function_op) {

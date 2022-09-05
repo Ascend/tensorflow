@@ -103,14 +103,15 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
                         static_cast<int>(output_handles_.size()), output_handles_.data(), status);
     timer.Stop();
   } else {
-    Load(context, device, status);
+    bool loaded = false;
+    Load(context, device, loaded, status);
     NPU_REQUIRES_TFE_OK(status);
     if (empty_ge_graph_) {
       DLOG() << "Skipped run empty ge graph";
       return;
     }
 
-    RunAoeTuning(context, device, input_handles_, status);
+    RunAoeTuning(context, device, input_handles_, loaded, status);
     NPU_REQUIRES_TFE_OK(status);
 
     if (loop_type_ == LoopType::NPU_LOOP || loop_type_ == LoopType::HOST_LOOP || kDumpExecutionDetail) {
@@ -133,12 +134,12 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
 }
 
 void NpuConcreteGraph::RunAoeTuning(TFE_Context *context, NpuDevice *device, std::vector<TFE_TensorHandle *> inputs,
-                                    TF_Status *status) const {
+                                    bool loaded, TF_Status *status) const {
   if (function_op_) {
     // run aoe tuning if need
     if (!device->device_options["ge.jobType"].empty()) {
       auto &aoe = NpuAoe::GetInstance();
-      NPU_CTX_REQUIRES_OK(status, aoe.RunAoeTuning(device, context, GeGraphId(), Op(), GraphDef(), inputs));
+      NPU_CTX_REQUIRES_OK(status, aoe.RunAoeTuning(device, context, loaded, GeGraphId(), Op(), GraphDef(), inputs));
     }
   }
 }
@@ -184,7 +185,7 @@ bool NpuConcreteGraph::NeedFuzzCompile() const {
   return fuzz_compile_.value();
 }
 
-void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *status) const {
+void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, bool &loaded, TF_Status *status) const {
   if (Built() && device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(GeGraphId()))) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
     device->RemoveGeGraph(context, GeGraphId(), status);
@@ -211,6 +212,7 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, TF_Status *
     }
     NPU_REQUIRES_TFE_OK(status);
     built_ = true;
+    loaded = true;
     graph_def_serialized_ = true;
   }
 }
