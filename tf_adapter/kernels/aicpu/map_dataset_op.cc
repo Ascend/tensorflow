@@ -128,11 +128,6 @@ public:
   }
 
   bool IsStaticShape() const {
-    // DT_STRING is dyn len type;
-    if (std::any_of(output_types_.cbegin(), output_types_.cend(),
-        [](DataType type) { return type == DT_STRING; })) {
-      return true;
-    }
     return (!DatasetFunction::HaveUnknowShape(output_shapes_));
   }
 
@@ -236,7 +231,6 @@ private:
           num_parallel_calls_(std::make_shared<model::SharedState>(
               params.dataset->num_parallel_calls_, mu_, cond_var_)),
           deterministic_(params.dataset->deterministic_),
-          preserve_cardinality_(params.dataset->preserve_cardinality_),
           func_(dataset()->init_options_, dataset()->captured_func_->func().name(),
               dataset()->input_->output_dtypes(), dataset()->output_dtypes(),
               dataset()->input_->output_shapes(), dataset()->output_shapes()) {
@@ -245,10 +239,14 @@ private:
         ADP_LOG(ERROR) << "GetEnvDeviceID failed: rt = " << status.ToString()
                        << "device_id_ = " << device_id_;
       }
+      timestat = std::make_shared<TimeStatistic>(static_cast<int64_t>(GetParallelCallsNum()));
       ADP_LOG(EVENT) << "Dataset::IteratorMeBase";
     }
 
-    virtual ~IteratorMeBase() = default;
+    virtual ~IteratorMeBase() {
+      timestat->ShowTimeStatistic();
+      ADP_LOG(EVENT) << "~Dataset::IteratorMeBase";
+    }
 
     uint64_t GetParallelCallsNum() const {
       uint64_t threads = static_cast<uint64_t>((num_parallel_calls_->value <= 0) && (ctx_ != nullptr) ?
@@ -285,6 +283,7 @@ private:
     Status GetNextInternal(IteratorContext* ctx,
                            std::vector<Tensor>* out_tensors,
                            bool* end_of_sequence) override {
+      timestat->RecordStartTime(timestat->statis);
       uint64_t result_id = 0;
       {
         mutex_lock l(*mu_);
@@ -315,8 +314,10 @@ private:
         }
       }
 
-      output_results_[result_id]->result_id= result_id;
-      return ProcessOutputResults(output_results_[result_id], *out_tensors);
+      output_results_[result_id]->result_id = result_id;
+      Status status = ProcessOutputResults(output_results_[result_id], *out_tensors);
+      timestat->RecordEndTime(timestat->statis);
+      return status;
     }
 
   protected:
@@ -326,9 +327,9 @@ private:
           : status(Status::OK()) {};
       virtual ~OutputResultBase() {
         if (output != nullptr) {
-          rtError_t rt = rtFree(output);
-          if (rt != RT_ERROR_NONE) {
-            ADP_LOG(ERROR) << "RT FREE failed, rtError_t = " << rt;
+          aclError rt = aclrtFree(output);
+          if (rt != ACL_SUCCESS) {
+            ADP_LOG(ERROR) << "Acl free failed, aclError = " << rt;
           }
           output = nullptr;
         }
@@ -366,12 +367,14 @@ private:
       (void)thread_id;
       return true;
     }
-    virtual int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
-        DatasetFunction::Instance instance, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) = 0;
+
     virtual Status InitOutputResults() = 0;
     virtual uint8_t* GetStartAddr(OutputResultBase &output_result) = 0;
+    virtual void DestroyOutputDataset(OutputResultBase &output_result) = 0;
     virtual NpuAllocator* CreateAllocator(OutputResultBase &output_result, uint64_t step,
         std::function<void(void *)> del) = 0;
+    virtual int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
+        DatasetFunction::ModelId model_id, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) = 0;
     virtual int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) {
       (void)ctx;
       (void)thread_id;
@@ -396,9 +399,10 @@ private:
     }
 
     virtual Status InitOutputResultNpuMem(OutputResultBase &output_result) {
-      rtError_t rt = rtMalloc(reinterpret_cast<void **>(&output_result.output), output_mem_size_, RT_MEMORY_HBM);
+      aclError rt = aclrtMalloc(reinterpret_cast<void **>(&output_result.output), output_mem_size_,
+                                ACL_MEM_MALLOC_HUGE_FIRST);
       DATASET_REQUIRES(rt == RT_ERROR_NONE, errors::InvalidArgument(
-          "Alloc rtMalloc mem failed: ", output_mem_size_, "rtError_t: ", rt));
+          "Alloc rtMalloc mem failed: ", output_mem_size_, " aclError: ", rt));
 
       output_result.InitOutputs(output_result.output, func_tensor_align_size_, output_result.outputs);
       return Status::OK();
@@ -423,7 +427,7 @@ private:
     }
 
     void CancelThreads(bool wait) LOCKS_EXCLUDED(*mu_) {
-      ADP_LOG(INFO) << "CancelThreads wait="<<wait;
+      ADP_LOG(INFO) << "CancelThreads wait=" << wait;
 #if defined(TF_VERSION_TF2)
       cancellation_manager_->StartCancel();
 #endif
@@ -443,6 +447,12 @@ private:
 
     void CallCompleted() LOCKS_EXCLUDED(*mu_) {
       mutex_lock l(*mu_);
+      cond_var_->notify_all();
+    }
+
+    void CallCompleted(int thread_id, std::shared_ptr<Items> &it) LOCKS_EXCLUDED(*mu_) {
+      mutex_lock l(*mu_);
+      timestat->UpdateWithTimeTag(timestat->statis_threads_ge[thread_id], it);
       cond_var_->notify_all();
     }
 
@@ -481,8 +491,15 @@ private:
     }
 
     void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, int thread_id) LOCKS_EXCLUDED(*mu_) {
-      DatasetFunction::Instance instance;
-      Status status = func_.Instantialte(instance);
+      rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
+      if (rt != ACL_RT_SUCCESS) {
+        ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
+          << "thread_num = " << this->thread_num_
+          << "device_id_ = " << device_id_;
+      }
+
+      DatasetFunction::ModelId model_id;
+      Status status = func_.LoadGeModelFromMem(model_id);
       if (!status.ok()) {
         ADP_LOG(ERROR) << "DatasetFunction Instantialte failed, status = " << status.ToString()
           << " , thread_id=" << thread_id;
@@ -500,13 +517,6 @@ private:
         this->thread_num_--;
         ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id << "thread_num = " << this->thread_num_;
       });
-
-      rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
-      if (rt != ACL_RT_SUCCESS) {
-        ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
-          << "thread_num = " << this->thread_num_
-          << "device_id_ = " << device_id_;
-      }
 
       int run_res = 1;
       while (!cancelled_) {
@@ -553,7 +563,9 @@ private:
           }
         }
         if (map_func) {
-          run_res = MapFunc(ctx, thread_id, instance, write_idx, result_id, in_tensors);
+          timestat->RecordStartTime(timestat->statis_threads[thread_id]);
+          run_res = MapFunc(ctx, thread_id, model_id, write_idx, result_id, in_tensors);
+          timestat->RecordEndTime(timestat->statis_threads[thread_id]);
         } else {
           run_res = WaitRunRes(ctx, thread_id);
         }
@@ -595,7 +607,7 @@ private:
       for (uint64_t i = 0; i < tensor_num; i++) {
         out_tensors.push_back(BuildTensorByMem(i, npu_addr, *output_result.get()));
       }
-
+      DestroyOutputDataset(*output_result);
       return Status::OK();
     }
 
@@ -628,6 +640,9 @@ private:
         mu_->unlock();
       }
       auto result = dataset()->traceme_metadata_;
+      result.push_back(std::make_pair(
+          "max_output_results",
+          strings::Printf("%lld", static_cast<long long>(max_output_results))));
       result.push_back(std::make_pair(
           "parallelism",
           parallelism == -1
@@ -683,7 +698,6 @@ private:
     uint64_t read_idx_ = 0;
 
     const bool deterministic_;
-    const bool preserve_cardinality_;
     DatasetFunction func_;
     std::vector<int64> func_tensor_size_;
     std::vector<int64> func_tensor_align_size_;
@@ -691,13 +705,14 @@ private:
     uint64_t max_output_mem_size_ = 0;
     uint64_t thread_num_ = 0;
     uint32_t device_id_ = 0;
+    std::shared_ptr<TimeStatistic> timestat = nullptr;
   }; // class IteratorMeBase
 
   class IteratorStatic : public IteratorMeBase {
   public:
     explicit IteratorStatic(const Params& params)
         : IteratorMeBase(params) {
-      max_output_results_ = GetParallelCallsNum()<<1;
+      max_output_results_ = GetParallelCallsNum() << 1;
     }
 
     ~IteratorStatic() override {
@@ -751,12 +766,19 @@ private:
       return stream_pool_->GetIdleEventCount(thread_id) > 0;
     }
 
-    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::Instance instance,
+    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::ModelId model_id,
         uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;
-      std::shared_ptr<std::vector<ge::Tensor>> out_tensors = std::make_shared<std::vector<ge::Tensor>>();
-      auto done = [this, out_tensors, write_idx, result_idx=result_id](const Status &status)
-        EXCLUSIVE_LOCKS_REQUIRED(*mu_) mutable {
+      aclmdlDataset *input_dataset = nullptr;
+      aclmdlDataset *output_dataset = nullptr;
+
+      input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
+      output_dataset = InitOutTensorsMem(*static_cast<OutputStaticResult*>(output_results_[result_id].get()));
+
+      std::shared_ptr<Items> time_tag = std::make_shared<Items>();
+      uint64_t result_idx = result_id;
+      auto done = [this, input_dataset, output_dataset, write_idx, result_idx,
+          thread_id, time_tag](const Status &status) EXCLUSIVE_LOCKS_REQUIRED(*mu_) mutable {
         {
           mutex_lock l(*this->mu_);
           if (status.ok()) {
@@ -765,24 +787,28 @@ private:
             this->results_empty_que_.emplace_back(result_idx);
           }
         }
-        this->CallCompleted();
-        out_tensors.reset();
+        this->CallCompleted(thread_id, time_tag);
+        // free input_dataset by current dataset op
+        DatasetFunction::DestroyAclOutputDataset(output_dataset);
+        DatasetFunction::DestroyAclInputDataset(input_dataset);
       };
 
-      if (out_tensors == nullptr) {
-        done(errors::Unavailable("create out_tensors failed."));
+      if (input_dataset == nullptr) {
+        done(errors::Unavailable("Create input dataset with tf tensor failed."));
         return stream_pool_->GetWaitingEventCount(thread_id);
       }
-
-      out_tensors->resize(func_output_shape_.size());
-      InitOutTensorsMem(*out_tensors, *static_cast<OutputStaticResult*>(output_results_[result_id].get()));
+      if (output_dataset == nullptr) {
+        done(errors::Unavailable("Create output dataset failed."));
+        return stream_pool_->GetWaitingEventCount(thread_id);
+      }
 
       std::shared_ptr<Stream> stream = stream_pool_->GetStream(thread_id);
       if (stream == nullptr) {
         done(errors::Unavailable("Get Stream failed"));
+        return stream_pool_->GetWaitingEventCount(thread_id);
       }
-
-      Status status = func_.RunWithStreamAsyn(instance, stream->GetStream(), input, *out_tensors);
+      timestat->RecordStartTime(*time_tag);
+      Status status = func_.RunWithStreamAsyn(model_id, input_dataset, output_dataset, stream->GetStream());
       if (status.ok()) {
         status = stream_pool_->RecordEvent(stream, done);
       }
@@ -799,6 +825,10 @@ private:
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
+    void DestroyOutputDataset(OutputResultBase &output_result) override {
+      (void)output_result;
+    }
+
     ge::Format GetFormat() const {
       return ge::Format::FORMAT_ND;
     }
@@ -806,18 +836,25 @@ private:
     std::unique_ptr<StreamPool> stream_pool_ = nullptr;
 
   private:
-    void InitOutTensorsMem(std::vector<ge::Tensor> &tensors, OutputStaticResult &output_result) {
-      uint64_t tensor_num = tensors.size();
-      const std::vector<ge::DataType> &ge_output_type = func_.GetGeDataTypes();
+    aclmdlDataset* InitOutTensorsMem(OutputStaticResult &output_result) {
+      aclmdlDataset* output_dataset = aclmdlCreateDataset();
+      DATASET_REQUIRES_RETURN_NULL(output_dataset != nullptr,
+          errors::Internal("Can't create dataset, create output failed."));
+
+      uint64_t tensor_num = func_output_shape_.size();
+      // const std::vector<ge::DataType> &ge_output_type = func_.GetGeDataTypes();
       for (uint64_t i = 0; i < tensor_num; i++) {
-        ge::TensorDesc tensor_desc = tensors[i].GetTensorDesc();
-        tensor_desc.Update(ge::Shape(func_output_shape_[i]), GetFormat(), ge_output_type[i]);
-        (void)tensors[i].SetTensorDesc(tensor_desc);
-        (void)tensors[i].SetData(output_result.outputs[i], func_tensor_size_[i], [](const uint8_t *p) {
-          (void)p;
-          return;
-        });
+        aclDataBuffer *data_buff = aclCreateDataBuffer(output_result.outputs[i],
+                                                       func_tensor_size_[i]);
+        aclError ret = aclmdlAddDatasetBuffer(output_dataset, data_buff);
+        if (ret != ACL_SUCCESS) {
+          // tensor的description不需要添加进去吗？
+          (void)aclDestroyDataBuffer(data_buff);
+          ADP_LOG(ERROR) << "Add data buffer to output dataset failed.";
+          return nullptr;
+        }
       }
+      return output_dataset;
     }
 
     Status InitOutputResultsMem() {
@@ -863,7 +900,7 @@ private:
   public:
     explicit IteratorStaticCpu(const Params& params)
         : IteratorStatic(params) {
-      ADP_LOG(EVENT)<<"Construct IteratorStaticCpu";
+      ADP_LOG(EVENT) << "Construct IteratorStaticCpu";
     }
 
     ~IteratorStaticCpu() override {
@@ -878,9 +915,10 @@ private:
       }
 
       if (output_result.output_cpu != nullptr) {
-        rtError_t rt = rtMemcpy(output_result.output_cpu, output_mem_size_,
-            output_result.output, output_mem_size_, RT_MEMCPY_DEVICE_TO_HOST);
-        if (rt != RT_ERROR_NONE) {
+        aclError ret = aclrtMemcpy(output_result.output_cpu, output_mem_size_,
+            output_result.output, output_mem_size_, ACL_MEMCPY_DEVICE_TO_HOST);
+        if (ret != ACL_ERROR_NONE) {
+          ADP_LOG(ERROR) << "aclrtMemcpy failed, return " << ret;
           return nullptr;
         }
       }
@@ -890,7 +928,7 @@ private:
 
     NpuAllocator* CreateAllocator(OutputResultBase &output_result, uint64_t step,
       std::function<void(void *)> del) override {
-        return  NpuAllocator::CreateCpuAllocator(output_result.outputs_cpu[step], del);
+        return NpuAllocator::CreateCpuAllocator(output_result.outputs_cpu[step], del);
     }
   }; // class IteratorStaticCpu
 
@@ -898,7 +936,7 @@ private:
   public:
     explicit IteratorDyn(const Params& params)
         : IteratorMeBase(params) {
-      max_output_results_ = GetParallelCallsNum()<<1;
+      max_output_results_ = GetParallelCallsNum() << 1;
     };
 
     ~IteratorDyn() override {
@@ -909,14 +947,11 @@ private:
     class OutputDynResult : public OutputResultBase {
     public:
       explicit OutputDynResult() {};
-      void InitTensors(uint64_t tensor_num) {
-        output_tensor.resize(tensor_num);
-      }
-      std::vector<ge::Tensor> output_tensor;
+      aclmdlDataset *output_data;
     };
 
-    void InitTensorSize(OutputDynResult &output_result) {
-      std::vector<ge::Tensor> &tensors = output_result.output_tensor;
+    Status InitTensorSize(OutputDynResult &output_result) {
+      aclmdlDataset *output = output_result.output_data;
 
       // reset infos for current output
       output_mem_size_ = 0;
@@ -924,40 +959,64 @@ private:
       func_output_shape_.clear();
       func_tensor_align_size_.clear();
       output_result.outputs.clear();
+      output_result.outputs_cpu.clear();
 
       uint64_t i = 0;
-      for (auto it : tensors) {
-        ge::Shape shape = it.GetTensorDesc().GetShape();
-        int64_t shape_size = shape.GetShapeSize();
-        int64_t tensor_size = ((shape_size == 0) ? 1 : shape_size) * DataTypeSize(dataset()->output_types_[i]);
+      for (size_t idx = 0; idx < aclmdlGetDatasetNumBuffers(output); idx++) {
+        // get output desc and size
+        aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(output, idx);
+        DATASET_REQUIRES(out_desc != nullptr, errors::Internal("Get aclTensorDesc failed."));
+
+        uint64_t tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
+        DATASET_REQUIRES(tensor_size != 0U, errors::Internal("Get tensor_size == 0."));
+
         func_tensor_size_.push_back(tensor_size);
         tensor_size = NpuAllocator::AlignSize(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
         output_mem_size_ += static_cast<uint64_t>(tensor_size);
-        func_output_shape_.emplace_back(std::move(shape.GetDims()));
+
+        std::vector<int64_t> dims;
+        Status status = DatasetFunction::GetAclTenorDescDims(out_desc, dims);
+        DATASET_REQUIRES(status.ok(), status);
+        func_output_shape_.emplace_back(std::move(dims));
         i++;
       }
       output_mem_size_ += static_cast<uint64_t>(NpuAllocator::GetAlignment());
+      return Status::OK();
     }
 
     int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
-        DatasetFunction::Instance instance, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input)
+        DatasetFunction::ModelId model_id, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input)
         LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;
       (void)thread_id;
+      aclmdlDataset *input_dataset = nullptr;
+      input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
+      if (input_dataset == nullptr) {
+        return 0;
+      }
+
+      aclmdlDataset *output_dataset = nullptr;
+      output_dataset = DatasetFunction::CreateAclOutputDataset(model_id);
+      if (output_dataset == nullptr) {
+        return 0;
+      }
+
       OutputDynResult *output_dyn_result = static_cast<OutputDynResult*>(output_results_[result_id].get());
-      std::vector<ge::Tensor> output;
-      Status status = func_.Run(instance, input, output);
+      timestat->RecordStartTime(timestat->statis_threads_ge[thread_id]);
+      Status status = func_.Run(model_id, input_dataset, output_dataset);
+      timestat->RecordEndTime(timestat->statis_threads_ge[thread_id]);
       {
         mutex_lock l(*mu_);
         if (status.ok()) {
           (void)results_ready_que_.emplace(std::pair<uint64_t, uint64_t>(write_idx, result_id));
-          output_dyn_result->output_tensor = std::move(output);
+          output_dyn_result->output_data = std::move(output_dataset);
         } else {
           results_empty_que_.emplace_back(result_id);
         }
       }
       CallCompleted();
+      DatasetFunction::DestroyAclInputDataset(input_dataset);
       return 0;
     }
 
@@ -969,11 +1028,14 @@ private:
         output_results_[i].reset(new (std::nothrow)OutputDynResult());
         DATASET_REQUIRES(output_results_[i] != nullptr,
             errors::InvalidArgument("Make output result faild: i = ", i));
-        OutputDynResult *dyn_result = static_cast<OutputDynResult*>(output_results_[i].get());
-        dyn_result->InitTensors(static_cast<uint64_t>(dataset()->output_types_.size()));
       }
       InitOutputResultsQueue();
       return Status::OK();
+    }
+
+    void DestroyOutputDataset(OutputResultBase &output_result) override {
+      OutputDynResult& results = static_cast<OutputDynResult&>(output_result);
+      DatasetFunction::DestroyAclOutputDataset(results.output_data);
     }
 
   private:
@@ -994,13 +1056,28 @@ private:
     }
 
   protected:
-    uint8_t* GetStartAddr(OutputResultBase &output_result) override {
-      InitTensorSize(static_cast<OutputDynResult&>(output_result));
+    void CheckAndFreeNpuMem(OutputResultBase &output_result) {
+      if (output_result.output != nullptr) {
+        aclError ret = aclrtFree(output_result.output);
+        if (ret != ACL_SUCCESS) {
+          ADP_LOG(ERROR) << "Free old device memory failed.";
+        }
+        output_result.output = nullptr;
+      }
+    }
 
-      // reuse the device memory if needed
+    uint8_t* GetStartAddr(OutputResultBase &output_result) override {
+      Status status = InitTensorSize(static_cast<OutputDynResult&>(output_result));
+      if (!status.ok()) {
+        return nullptr;
+      }
+
       if (output_mem_size_ < max_output_mem_size_) {
+        // reuse the device memory if needed
         output_result.InitOutputs(output_result.output, func_tensor_align_size_, output_result.outputs);
       } else {
+        // free old memory and then malloc new memory when we need bigger memory currently
+        CheckAndFreeNpuMem(output_result);
         (void)InitOutputResultNpuMem(output_result);
         max_output_mem_size_ = output_mem_size_;
       }
@@ -1023,11 +1100,19 @@ private:
       for (uint64_t i = 0; i < tensor_num; i++) {
         uint8_t *npu_addr = output_result.outputs[i];
         uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
-        rtError_t rt = rtMemcpy(npu_addr, tensor_size, output_result.output_tensor[i].GetData(),
-            output_result.output_tensor[i].GetSize(), RT_MEMCPY_HOST_TO_DEVICE);
-        if (rt != RT_ERROR_NONE) {
-          ADP_LOG(ERROR) << "Mem copy from host to device failed: hostsize: " << tensor_size <<
-              "device size: " << output_result.output_tensor[i].GetSize() << "rt: " << rt;
+
+        aclmdlDataset *out_dataset = output_result.output_data;
+        aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);
+        uint64_t out_tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
+        aclDataBuffer *data_buff = aclmdlGetDatasetBuffer(out_dataset, i);
+        void* data_addr = aclGetDataBufferAddr(data_buff);
+        DATASET_REQUIRES_RETURN_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
+
+        aclError ret = aclrtMemcpy(npu_addr, tensor_size, data_addr, out_tensor_size,
+            ACL_MEMCPY_DEVICE_TO_DEVICE);
+        if (ret != ACL_ERROR_NONE) {
+          ADP_LOG(ERROR) << "Mem copy from device to device failed. from "
+              << out_tensor_size << " to " << tensor_size << " ret: " << ret;
           return nullptr;
         }
         npu_addr += tensor_size;
@@ -1048,58 +1133,64 @@ private:
     }
 
   protected:
-    Status TransOutputResultToTensor(std::shared_ptr<OutputResultBase> &output_result,
-     std::vector<Tensor> &out_tensors) override {
-      InitTensorSize(static_cast<OutputDynResult&>(*output_result));
-
-      out_tensors.clear();
-      uint64_t tensor_num = func_tensor_size_.size();
-      for (uint64_t i = 0; i < tensor_num; i++) {
-        Tensor tensor;
-        Status status = BuildTensor(i, tensor, *output_result);
-        if (!status.ok()) {
-          return status;
-        }
-        out_tensors.push_back(std::move(tensor));
+    void CheckAndFreeCpuMem(OutputResultBase &output_result) {
+      if (output_result.output_cpu != nullptr) {
+        delete[] output_result.output_cpu;
+        output_result.output_cpu = nullptr;
       }
-
-      results_empty_que_.emplace_back(output_result->result_id);
-      cond_var_->notify_all();
-      return Status::OK();
-    }
-
-    Status BuildTensor(uint64_t tensor_id, Tensor &tensor, OutputResultBase &output_result) const {
-      OutputDynResult &result_tensor = static_cast<OutputDynResult&>(output_result);
-      TensorShape shape = {};
-      (void)std::for_each(func_output_shape_[tensor_id].cbegin(), func_output_shape_[tensor_id].cend(),
-          [&shape](int64_t i) { shape.AddDim(static_cast<int64>(i)); });
-
-      std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>> addr
-        = result_tensor.output_tensor[tensor_id].ResetData();
-      std::function<void(uint8_t *)> pdel = addr.get_deleter();
-      NpuAllocator *npu_allocator = NpuAllocator::CreateCpuAllocator(std::move(addr.release()),
-          [pdel](void *p) {
-            if (pdel != nullptr) {
-              pdel(reinterpret_cast<uint8_t *>(p));
-            }else {
-              delete p;
-            }});
-
-      tensor = Tensor(npu_allocator, dataset()->output_types_[tensor_id], shape);
-      return Status::OK();
     }
 
     uint8_t* GetStartAddr(OutputResultBase &output_result) override {
-      (void)output_result;
+      Status status = InitTensorSize(static_cast<OutputDynResult&>(output_result));
+      if (!status.ok()) {
+        return nullptr;
+      }
+
+      if (output_mem_size_ < max_output_mem_size_) {
+        // reuse the device memory if needed
+        output_result.InitOutputs(output_result.output_cpu, func_tensor_align_size_, output_result.outputs_cpu);
+      } else {
+        // free old memory and then malloc new memory when we need bigger memory currently
+        CheckAndFreeCpuMem(output_result);
+        (void)InitOutputResultCpuMem(output_result);
+        max_output_mem_size_ = output_mem_size_;
+      }
+
+      if (output_result.output_cpu != nullptr) {
+        return MemCpyData(static_cast<OutputDynResult&>(output_result));
+      }
       return nullptr;
     }
 
     NpuAllocator* CreateAllocator(OutputResultBase &output_result, uint64_t step,
       std::function<void(void *)> del) override {
-        (void)output_result;
-        (void)step;
-        (void)del;
-        return  nullptr;
+        return NpuAllocator::CreateCpuAllocator(output_result.outputs_cpu[step], del);
+    }
+
+  private:
+    uint8_t *MemCpyData(OutputDynResult &output_result) const {
+      uint64_t tensor_num = output_result.outputs_cpu.size();
+      for (uint64_t i = 0; i < tensor_num; i++) {
+        uint8_t *npu_addr = output_result.outputs_cpu[i];
+        uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
+
+        aclmdlDataset *out_dataset = output_result.output_data;
+        aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);
+        uint64_t out_tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
+        aclDataBuffer *data_buff = aclmdlGetDatasetBuffer(out_dataset, i);
+        void* data_addr = aclGetDataBufferAddr(data_buff);
+        DATASET_REQUIRES_RETURN_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
+
+        aclError ret = aclrtMemcpy(npu_addr, tensor_size, data_addr, out_tensor_size,
+            ACL_MEMCPY_DEVICE_TO_HOST);
+        if (ret != ACL_ERROR_NONE) {
+          ADP_LOG(ERROR) << "Mem copy from device to host failed. from "
+              << out_tensor_size << " to " << tensor_size << " ret: " << ret;
+          return nullptr;
+        }
+        npu_addr += tensor_size;
+      }
+      return output_result.output_cpu;
     }
   }; // class IteratorDynCpu
 
@@ -1151,6 +1242,12 @@ NpuMapDatasetOp::NpuMapDatasetOp(OpKernelConstruction* ctx)
 void NpuMapDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* input,
                                   DatasetBase** output) {
   ADP_LOG(INFO) << "NpuMapDatasetOp::MakeDataset";
+  if (std::any_of(output_types_.cbegin(), output_types_.cend(),
+      [](DataType type) { return type == DT_STRING; })) {
+    ADP_LOG(ERROR) << "NpuMapDatasetOp does not support output type DT_STRING.";
+    return;
+  }
+
   int64 num_parallel_calls = 0;
   OP_REQUIRES_OK(
       ctx, ParseScalarArgument(ctx, kNumParallelCalls, &num_parallel_calls));

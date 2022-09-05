@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "dataset_function.h"
+
 #include <chrono>
 #include <cstdint>
 #include <dirent.h>
@@ -29,8 +31,6 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
-
-#include "dataset_function.h"
 
 #include "tensorflow/core/common_runtime/dma_helper.h"
 #include "framework/common/ge_inner_error_codes.h"
@@ -55,45 +55,139 @@
 
 namespace tensorflow {
 namespace data {
-class TensorTransAllocator {
- public:
-  virtual void *ReAlloc(void *addr, size_t len) = 0;
-  virtual std::function<void(void *)> FreeFunction() = 0;
-};
+namespace {
+static constexpr const char* const kInputDesc = "input_tensor_desc";
+static constexpr const char* const kOutputDesc = "output_tensor_desc";
+static constexpr const char* const kFormat = "serialize_format";
+static constexpr const char* const kType = "serialize_datatype";
+static constexpr const char* const kShape = "serialize_shape";
+} // namespace
 
-class TfTensorTransToHostAllocator : public TensorTransAllocator {
- public:
-  void *ReAlloc(void *addr, size_t len) override {
-    (void)len;
-    return addr;
+void *DatasetFunction::ReAllocDeviceMem(void *addr, size_t len) {
+  void *ret_addr;
+  aclError ret = aclrtMalloc(&ret_addr, len, ACL_MEM_MALLOC_NORMAL_ONLY);
+  if (ret != ACL_SUCCESS) {
+    return nullptr;
   }
-  std::function<void(void *)> FreeFunction() override {
-    return [](const void *addr) { (void)addr; };
+  ret = aclrtMemcpy(ret_addr, len, addr, len, ACL_MEMCPY_HOST_TO_DEVICE);
+  if (ret != ACL_ERROR_NONE) {
+    (void)aclrtFree(ret_addr);
+    return nullptr;
   }
-};
+  return ret_addr;
+}
 
-class TfTensorTransToDeviceAllocator : public TensorTransAllocator {
- public:
-  void *ReAlloc(void *addr, size_t len) override {
-    void *ret_addr;
-    rtError_t rt = rtMalloc(&ret_addr, len, RT_MEMORY_HBM);
-    if (rt != RT_ERROR_NONE) {
-      return nullptr;
+template <typename T>
+tensorflow::AttrValue DatasetFunction::BuildDescAttr(T shapes, TensorDataTypes types) const {
+  tensorflow::AttrValue desc_attr;
+  for (size_t i = 0; i < types.size(); i++) {
+    auto desc = desc_attr.mutable_list()->add_func();
+    desc->set_name(std::to_string(i));
+
+    tensorflow::AttrValue shape_value;
+    if (shapes[i].unknown_rank()) {
+      const int kUnknownRankDimSize = -2;
+      shape_value.mutable_list()->add_i(kUnknownRankDimSize);
+    } else {
+      for (int j = 0; j < shapes[i].dims(); j++) {
+        shape_value.mutable_list()->add_i(shapes[i].dim_size(j));
+      }
     }
-    rt = rtMemcpy(ret_addr, len, addr, len, RT_MEMCPY_HOST_TO_DEVICE);
-    if (rt != RT_ERROR_NONE) {
-      rtFree(ret_addr);
-      return nullptr;
+    (void)desc->mutable_attr()->insert({kShape, shape_value});
+
+    tensorflow::AttrValue type_value;
+    type_value.set_i(static_cast<int64_t>(types[i]));
+    (void)desc->mutable_attr()->insert({kType, type_value});
+
+    tensorflow::AttrValue format_value;
+    format_value.set_i(static_cast<int>(ge::Format::FORMAT_NHWC));
+    (void)desc->mutable_attr()->insert({kFormat, format_value});
+  }
+  return desc_attr;
+}
+
+void DatasetFunction::AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const {
+  n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+}
+
+void DatasetFunction::AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const {
+  n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+}
+
+void DatasetFunction::AssembleOpDef(tensorflow::Node *n) const {
+  const tensorflow::OpRegistrationData *op_reg_data;
+  (void)tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
+  std::string serialized_op_def;
+  (void)op_reg_data->op_def.SerializeToString(&serialized_op_def);
+  n->AddAttr("op_def", serialized_op_def);
+}
+
+void DatasetFunction::AssembleParserAddons(const tensorflow::FunctionLibraryDefinition &lib_def,
+    tensorflow::Graph &graph) const {
+  tensorflow::ShapeRefiner shape_refiner(graph.versions(), &lib_def);
+  auto node_shape_inference_lambda = [this, &shape_refiner](tensorflow::Node *node) {
+    this->AssembleOpDef(node);
+    auto status = shape_refiner.AddNode(node);
+    if (!status.ok()) {
+      ADP_LOG(INFO) << "  " << node->name() << "[" << node->type_string() << "] Skip infer " << status.error_message();
+      return;
     }
-    return ret_addr;
-  }
+    auto node_ctx = shape_refiner.GetContext(node);
 
-  std::function<void(void *)> FreeFunction() override {
-    return [](void *addr) { rtFree(addr); };
-  }
-};
+    TensorDataTypes input_types;
+    TensorDataTypes output_types;
+    (void)tensorflow::InOutTypesForNode(node->def(), node->op_def(), &input_types, &output_types);
 
-Status ConvertDTStringTensor(ge::Tensor &input, uint64_t count, std::string &str_vec) {
+    if (!input_types.empty()) {
+      tensorflow::AttrValue input_desc_attrs;
+      bool input_desc_incomplete = false;
+      for (int i = 0; i < node->num_inputs(); i++) {
+        const tensorflow::Edge *edge = nullptr;
+        status = node->input_edge(i, &edge);
+        if (!status.ok()) {
+          ADP_LOG(ERROR) << status.ToString();
+          return;
+        }
+
+        auto input_attr = edge->src()->attrs().Find(kOutputDesc);
+        if (input_attr == nullptr) {
+          input_desc_incomplete = true;
+          ADP_LOG(WARNING) << node->DebugString() << " input node " << edge->src()->DebugString()
+                           << " has no desc for output " << edge->src_output();
+          break;
+        }
+        *input_desc_attrs.mutable_list()->add_func() =
+          edge->src()->attrs().Find(kOutputDesc)->list().func(edge->src_output());
+      }
+      if (!input_desc_incomplete) {
+        node->AddAttr(kInputDesc, input_desc_attrs);
+      } else {
+        TensorPartialShapes input_shapes;
+        for (int i = 0; i < node_ctx->num_inputs(); ++i) {
+          tensorflow::TensorShapeProto proto;
+          node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
+          (void)input_shapes.emplace_back(proto);
+        }
+        this->AssembleInputDesc(input_shapes, input_types, node);
+      }
+    }
+
+    if (!output_types.empty()) {
+      TensorPartialShapes output_shapes;
+      for (int i = 0; i < node_ctx->num_outputs(); ++i) {
+        tensorflow::TensorShapeProto proto;
+        node_ctx->ShapeHandleToProto(node_ctx->output(i), &proto);
+        (void)output_shapes.emplace_back(proto);
+        ADP_LOG(INFO) << "    output " << i << ": " << tensorflow::DataTypeString(output_types[static_cast<size_t>(i)])
+               << node_ctx->DebugString(node_ctx->output(i));
+      }
+      this->AssembleOutputDesc(output_shapes, output_types, node);
+    }
+  };
+  tensorflow::ReverseDFS(graph, {}, node_shape_inference_lambda);
+}
+
+void *DatasetFunction::ConvertDTStringTensor(uint64_t count, std::string &str_vec, uint64_t &tensor_size) {
   std::string *string_vector = &str_vec;
   uint64_t total_size = 0U;
   uint64_t string_head_size = sizeof(ge::StringHead);
@@ -101,13 +195,14 @@ Status ConvertDTStringTensor(ge::Tensor &input, uint64_t count, std::string &str
     // add 1U for the end of string identifier '\0'
     total_size += (string_vector[i].size() + string_head_size + 1U);
   }
-  if (total_size == 0U) {
-    return Status::OK();
-  }
+  DATASET_REQUIRES_RETURN_NULL(total_size != 0U,
+      errors::Internal("Convert string data failed with total size equals 0."));
+
   std::unique_ptr<char[]> addr = absl::make_unique<char[]>(total_size);
-  REQUIRES_NOT_NULL(addr);
+  DATASET_REQUIRES_RETURN_NULL(addr != nullptr,
+      errors::Internal("Malloc host memory failed."));
   ge::StringHead *string_head = ge::PtrToPtr<char, ge::StringHead>(addr.get());
-  DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(count, string_head_size),
+  DATASET_REQUIRES_RETURN_NULL(!DatasetFunction::CheckMultiplyOverflow(count, string_head_size),
       errors::Unavailable("Wrong offset, count = ", count,
                           ", string_head_size = ", string_head_size));
   uint64_t offset = count * string_head_size;
@@ -120,7 +215,7 @@ Status ConvertDTStringTensor(ge::Tensor &input, uint64_t count, std::string &str
     const char *string_addr = str.c_str();
     while (str_size >= SECUREC_MEM_MAX_LEN) {
       const auto ret = memcpy_s(data_addr, SECUREC_MEM_MAX_LEN, string_addr, SECUREC_MEM_MAX_LEN);
-      DATASET_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+      DATASET_REQUIRES_RETURN_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
       str_size -= SECUREC_MEM_MAX_LEN;
       offset += SECUREC_MEM_MAX_LEN;
       data_addr += SECUREC_MEM_MAX_LEN;
@@ -128,18 +223,30 @@ Status ConvertDTStringTensor(ge::Tensor &input, uint64_t count, std::string &str
     }
     auto remain_size = ((total_size - offset) > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : (total_size - offset);
     const auto ret = memcpy_s(data_addr, remain_size, string_addr, str_size + 1U);
-    DATASET_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+    DATASET_REQUIRES_RETURN_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
     data_addr += (str_size + 1U);
     offset += (static_cast<int64_t>(str_size) + 1);
   }
-  input.SetData(ge::PtrToPtr<char, const uint8_t>(addr.get()), total_size);
-  return Status::OK();
+
+  char *addr_device = nullptr;
+  aclError ret = aclrtMalloc(reinterpret_cast<void **>(&addr_device), total_size, ACL_MEM_MALLOC_NORMAL_ONLY);
+  DATASET_REQUIRES_RETURN_NULL(addr_device != nullptr,
+      errors::Internal("Malloc device memory failed."));
+
+  ret = aclrtMemcpy(addr_device, total_size, addr.get(), total_size, ACL_MEMCPY_HOST_TO_DEVICE);
+  DATASET_REQUIRES_RETURN_NULL(ret == ACL_SUCCESS, errors::Internal("Copy host memory to device failed, ret:", ret));
+
+  tensor_size = total_size;
+  return reinterpret_cast<void *>(addr_device);
 }
 
-static Status TransTfTensorToGeTensor(std::shared_ptr<domi::ModelParser> &model_parser, Tensor &tf_tensor,
-    ge::Tensor &ge_tensor, TensorTransAllocator &allocater) {
+Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, Tensor &tf_tensor) {
   void *tensor_ptr = DMAHelper::base(&tf_tensor);
   REQUIRES_NOT_NULL(tensor_ptr);
+
+  std::shared_ptr<domi::ModelParser> model_parser =
+        domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+  DATASET_REQUIRES(model_parser != nullptr, errors::Unavailable("create model parser ret failed."));
 
   ge::DataType type = model_parser->ConvertToGeDataType(static_cast<uint32_t>(tf_tensor.dtype()));
   if (type == ge::DT_UNDEFINED) {
@@ -148,38 +255,160 @@ static Status TransTfTensorToGeTensor(std::shared_ptr<domi::ModelParser> &model_
     return errors::InvalidArgument("No Supported datatype : ", tf_tensor.dtype());
   }
 
-  std::vector<int64_t> dims = DatasetFunction::GetTfShapeDims(tf_tensor.shape());
-  ge::Shape ge_shape(dims);
-  ge::TensorDesc ge_tensor_desc(ge_shape);
-  ge_tensor_desc.SetDataType(type);
-  ge_tensor_desc.SetOriginShape(ge_shape);
-  ge_tensor.SetTensorDesc(ge_tensor_desc);
+  void *tensor_addr = nullptr;
+  uint64_t tensor_size = 0ULL;
   if (type == ge::DT_STRING) {
-    REQUIRES_NOT_NULL(tensor_ptr);
     const uint64_t count = static_cast<uint64_t>(tf_tensor.NumElements());
     std::string *string_vector = static_cast<std::string *>(tensor_ptr);
-    if (ConvertDTStringTensor(ge_tensor, count, *string_vector) != Status::OK()) {
-      return errors::Internal("The input string data analyze failed.");
-    }
+    tensor_addr = DatasetFunction::ConvertDTStringTensor(count, *string_vector, tensor_size);
   } else {
-    void *paddr = allocater.ReAlloc(tensor_ptr, tf_tensor.TotalBytes());
-    ge_tensor.SetData(static_cast<uint8_t *>(paddr), tf_tensor.TotalBytes(), allocater.FreeFunction());
+    tensor_addr = tensor_ptr;
+    tensor_size = tf_tensor.TotalBytes();
+  }
+  DATASET_REQUIRES(tensor_addr != nullptr,
+      errors::Internal("Convert input string data failed. tensor addr is nullptr."));
+  DATASET_REQUIRES(tensor_size != 0ULL,
+      errors::Internal("Convert input string data failed. tensor size is 0."));
+
+  void *device_addr = ReAllocDeviceMem(tensor_addr, tensor_size);
+  aclDataBuffer* inputData = aclCreateDataBuffer(device_addr, tensor_size);
+  DATASET_REQUIRES(inputData != nullptr, errors::Internal("Create data buffer for input tensor failed."));
+
+  aclError ret = aclmdlAddDatasetBuffer(input_dataset, inputData);
+  if (ret != ACL_SUCCESS) {
+    (void)aclrtFree(device_addr);
+    (void)aclDestroyDataBuffer(inputData);
+    return errors::Internal("Can't add data buffer, create input failed.");
   }
   return Status::OK();
 }
 
-static Status TransTfTensorsToGeTensors(std::vector<Tensor> &tf_tensors, std::vector<ge::Tensor> &ge_tensors,
-    TensorTransAllocator &allocater) {
-  // populate inputs
-  std::shared_ptr<domi::ModelParser> model_parser =
-        domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
-  DATASET_REQUIRES(model_parser != nullptr, errors::Unavailable("create model parser ret failed."));
+aclmdlDataset *DatasetFunction::CreateAclInputDatasetWithTFTensors(std::vector<Tensor> &tf_tensors) {
+  aclmdlDataset* input_dataset = aclmdlCreateDataset();
+  if (input_dataset == nullptr) {
+    return nullptr;
+  }
 
-  for (auto tensor : tf_tensors) {
-    ge::Tensor ge_tensor;
-    Status status = TransTfTensorToGeTensor(model_parser, tensor, ge_tensor, allocater);
-    DATASET_REQUIRES(status.ok(), status);
-    ge_tensors.push_back(ge_tensor);
+  for (size_t i = 0; i < tf_tensors.size(); i++) {
+    Status status = TransTfTensorToDataBuffer(input_dataset, tf_tensors[i]);
+    DATASET_REQUIRES_RETURN_NULL(status.ok(), status);
+  }
+
+  return input_dataset;
+}
+
+void DatasetFunction::DestroyAclInputDataset(aclmdlDataset *input) {
+  if (input == nullptr) {
+    return;
+  }
+  for (size_t i = 0; i < aclmdlGetDatasetNumBuffers(input); i++) {
+    aclDataBuffer* data_buffer = aclmdlGetDatasetBuffer(input, i);
+    void* data_addr = aclGetDataBufferAddr(data_buffer);
+    CHECK_NOT_NULL(data_addr);
+    aclError ret = aclrtFree(data_addr);
+    if (ret != ACL_ERROR_NONE) {
+      ADP_LOG(ERROR) << "Free acl device memory failed.";
+      return;
+    }
+    ret = aclDestroyDataBuffer(data_buffer);
+    if (ret != ACL_ERROR_NONE) {
+      ADP_LOG(ERROR) << "Destory acl input dataset buffer failed.";
+      return;
+    }
+  }
+  aclError ret = aclmdlDestroyDataset(input);
+  if (ret != ACL_ERROR_NONE) {
+    ADP_LOG(ERROR) << "Destory acl input dataset failed.";
+    return;
+  }
+  input = nullptr;
+}
+
+aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
+  aclmdlDesc *model_desc = nullptr;
+  model_desc = DatasetFunction::CreateAclModelDesc(model_id);
+  DATASET_REQUIRES_RETURN_NULL(model_desc != nullptr, errors::Internal("No model description, create ouput failed."));
+
+  aclmdlDataset* output = aclmdlCreateDataset();
+  DATASET_REQUIRES_RETURN_NULL(output != nullptr, errors::Internal("Can't create dataset, create output failed."));
+
+  size_t output_num = aclmdlGetNumOutputs(model_desc);
+  for (size_t i = 0; i < output_num; ++i) {
+    // create aclDataBuffer with nullptr, aclmdlExecute() will set device memory for it
+    aclDataBuffer *outputData = aclCreateDataBuffer(nullptr, 0U);
+    DATASET_REQUIRES_RETURN_NULL(outputData != nullptr, errors::Internal("Can't create data buffer, create output failed."));
+
+    aclError ret = aclmdlAddDatasetBuffer(output, outputData);
+    if (ret != ACL_SUCCESS) {
+      (void)aclDestroyDataBuffer(outputData);
+      ADP_LOG(ERROR) << "Can't add data buffer, create output failed, errorCode is " << ret;
+      return nullptr;
+    }
+    // 当前修改只针对同步接口+动态图，acl会反刷tensordesc; 同步接口+静态图，acl不会反刷tensordesc
+    int64_t shape[1] = {-1};
+    aclTensorDesc *output_desc = aclCreateTensorDesc(ACL_FLOAT, 1, shape, ACL_FORMAT_NCHW);
+    ret = aclmdlSetDatasetTensorDesc(output, output_desc, i);
+    if (ret != ACL_SUCCESS) {
+      (void)aclDestroyTensorDesc(output_desc);
+      ADP_LOG(ERROR) << "Add tensor desc failed, errorCode is " << ret;
+      return nullptr;
+    }
+  }
+
+  DestoryAclModelDesc(model_desc);
+  return output;
+}
+
+void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output) {
+  if (output == nullptr) {
+    return;
+  }
+  aclError ret = ACL_ERROR_NONE;
+  for (size_t i = 0; i < aclmdlGetDatasetNumBuffers(output); i++) {
+    aclDataBuffer* data_buffer = aclmdlGetDatasetBuffer(output, i);
+    // only destroy aclDataBuffer, ACL module will free this device memory
+    ret = aclDestroyDataBuffer(data_buffer);
+    if (ret != ACL_ERROR_NONE) {
+      ADP_LOG(ERROR) << "Destory acl output data buffer failed.";
+      return;
+    }
+  }
+  ret = aclmdlDestroyDataset(output);
+  if (ret != ACL_ERROR_NONE) {
+    ADP_LOG(ERROR) << "Destory acl output dataset failed.";
+    return;
+  }
+  output = nullptr;
+}
+
+aclmdlDesc *DatasetFunction::CreateAclModelDesc(ModelId model_id) {
+  aclmdlDesc* model_desc = aclmdlCreateDesc();
+  DATASET_REQUIRES_RETURN_NULL(model_desc != nullptr, errors::Internal("Create model description failed."));
+
+  aclError ret = aclmdlGetDesc(model_desc, model_id);
+  DATASET_REQUIRES_RETURN_NULL(ret == ACL_SUCCESS, errors::Internal("Get model description failed."));
+
+  return model_desc;
+}
+
+void DatasetFunction::DestoryAclModelDesc(aclmdlDesc *model_desc) {
+  if (model_desc != nullptr) {
+    aclError ret = aclmdlDestroyDesc(model_desc);
+    if (ret != ACL_SUCCESS) {
+      ADP_LOG(ERROR) << "Destory model desc failed.";
+    }
+    model_desc = nullptr;
+  }
+}
+
+Status DatasetFunction::GetAclTenorDescDims(aclTensorDesc *desc, std::vector<int64_t> &ret_dims) {
+  size_t dims = aclGetTensorDescNumDims(desc);
+  for (size_t i = 0U; i < dims; i++) {
+    int64_t dim = aclGetTensorDescDim(desc, i);
+    if (dim == -1) {
+      return errors::Internal("Get dim from acl tensor failed.");
+    }
+    ret_dims.emplace_back(dim);
   }
   return Status::OK();
 }
@@ -213,40 +442,81 @@ Status DatasetFunction::GeError(std::string errorDesc, ge::Status status) const 
   return errors::Internal(error.str());
 }
 
-Status DatasetFunction::AddOpDef(Node &node) const {
-  const OpDef &op_def = node.op_def();
-  NodeDef &node_def = const_cast<NodeDef &>(node.def());
-
-  std::string op_def_string;
-  op_def.SerializeToString(&op_def_string);
-
-  tensorflow::AttrValue value;
-  value.set_s(op_def_string);
-  node_def.mutable_attr()->insert({"op_def", value});
-  return Status::OK();
+PartialTensorShape DatasetFunction::MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const {
+  const static auto kUnknownRankShape = PartialTensorShape();
+  if (a.dims() != b.dims()) {
+    return kUnknownRankShape;
+  }
+  PartialTensorShape shape;
+  static constexpr int64 kUnknownDim = -1;
+  std::vector<int64> dims;
+  for (int i = 0; i < a.dims(); i++) {
+    dims.push_back((a.dim_size(i) != b.dim_size(i)) ? kUnknownDim : a.dim_size(i));
+  }
+  auto status = PartialTensorShape::MakePartialShape(dims.data(), static_cast<int32_t>(dims.size()), &shape);
+  return status.ok() ? shape : kUnknownRankShape;
 }
 
-Status DatasetFunction::RefreshNodeDesc(Node &node) const {
-  return AddOpDef(node);
+void DatasetFunction::UpdateShapeForArgOp(Graph &graph) const {
+  std::vector<tensorflow::Node *> args;
+  std::vector<absl::optional<PartialTensorShape>> input_shapes;
+  for (auto node : graph.op_nodes()) {
+    if (!node->IsArg()) {
+      continue;
+    }
+    size_t index = static_cast<size_t>(node->attrs().Find("index")->i());
+    if (index >= args.size()) {
+      args.resize(index + 1);
+    }
+    args[index] = node;
+  }
+  input_shapes.resize(args.size(), absl::nullopt);
+
+  for (size_t i = 0UL; i < input_shape_.size(); i++) {
+    auto &shape = input_shapes[i];
+    auto &value_shape = input_shape_[i];
+    if (!shape.has_value()) {
+      shape = value_shape;
+      ADP_LOG(INFO) << "Init input " << i << " shape " << shape.value().DebugString();
+      args[i]->ClearAttr("_output_shapes");
+      args[i]->AddAttr("_output_shapes", std::vector<PartialTensorShape>{shape.value()});
+    } else {
+      if (shape.value().IsCompatibleWith(value_shape)) {
+        continue;
+      } else {
+        ADP_LOG(INFO) << "Compat input " << i << " shape " << shape.value().DebugString() << " vs. "
+                << value_shape.DebugString();
+        shape = MakeCompatShape(shape.value(), value_shape);
+        ADP_LOG(INFO) << "Refresh input " << i << " shape to " << shape.value().DebugString();
+        args[i]->ClearAttr("_output_shapes");
+        args[i]->AddAttr("_output_shapes", std::vector<PartialTensorShape>{shape.value()});
+      }
+    }
+  }
 }
 
 std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) const {
   const FunctionDef *func_def = flib_def.Find(func_name);
   DATASET_REQUIRES(func_def != nullptr, "");
 
+  // step-1 create and initialize a graph
   Graph sub_graph(&flib_def);
-
   Status status = InferShapeUtil::GetSubGraphFromFunctionDef(flib_def, *func_def, &sub_graph);
   if (!status.ok()) {
     ADP_LOG(ERROR) << status.ToString();
     return "";
   }
 
-  for (Node *node : sub_graph.nodes()) {
-    status = RefreshNodeDesc(*node);
-    DATASET_REQUIRES(status.ok(), "");
-  }
+  // step-2 Add _output_shapes for arg op.
+  // If we do not add "_output_shapes" for arg op, it's shape_inference (tensorflow/core/ops/function_ops.cc)
+  // function will set UnknownShape output for this op. A static graph can be misinterpreted as a dynamic graph.
+  UpdateShapeForArgOp(sub_graph);
 
+  // step-3 Create Input&Output Desc for each node
+  // this assemble process is referenced from TF2.X in npu_parse.cpp file
+  AssembleParserAddons(flib_def, sub_graph);
+
+  // step-4 convert graph to graphdef
   GraphDef sub_graph_def;
   sub_graph.ToGraphDef(&sub_graph_def);
 
@@ -263,6 +533,7 @@ Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &
     return this->BuildSubGraph(flib_def, graph);
   };
   auto graph_def = build_sub_graph(funcName_);
+
   ge::Status status = model_parser->ParseProtoWithSubgraph(graph_def, build_sub_graph, compute_graph);
   DATASET_REQUIRES(status == ge::SUCCESS, GeError("Parse proto with graph failed.", status));
 
@@ -321,14 +592,6 @@ std::vector<ge::InputTensorInfo> DatasetFunction::BuildInputTensorInfos(
   return inputTensorInfos;
 }
 
-Status DatasetFunction::BuildGeGraph(const Instance &instance,
-    const std::shared_ptr<domi::ModelParser> &model_parser) {
-  std::vector<ge::InputTensorInfo> inputs = BuildInputTensorInfos(model_parser);
-  ge::Status status = ge_session_->BuildGraph(instance, inputs);
-  DATASET_REQUIRES(status == ge::SUCCESS, GeError("Build graph failed.", status));
-  return Status::OK();
-}
-
 Status DatasetFunction::InitGeGraph(FunctionLibraryDefinition &flib_def) {
   std::shared_ptr<domi::ModelParser> model_parser =
         domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
@@ -337,7 +600,13 @@ Status DatasetFunction::InitGeGraph(FunctionLibraryDefinition &flib_def) {
   return CreateGeGraph(model_parser, flib_def);
 }
 
-Status DatasetFunction::Instantialte(Instance &instance) {
+Status DatasetFunction::LoadGeModelFromMem(ModelId &model_id) {
+  aclError acl_error = aclmdlLoadFromMem(ge_model_.data.get(), ge_model_.length, &model_id);
+  DATASET_REQUIRES(acl_error == ACL_ERROR_NONE, errors::Unavailable("ACL load model from mem failed.", acl_error));
+  return Status::OK();
+}
+
+Status DatasetFunction::Instantialte() {
   std::shared_ptr<domi::ModelParser> model_parser =
       domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
   DATASET_REQUIRES(model_parser != nullptr, errors::Unavailable("create model parser ret failed."));
@@ -345,11 +614,11 @@ Status DatasetFunction::Instantialte(Instance &instance) {
   std::map<ge::AscendString, ge::AscendString> graph_options;
   // add graph level tag to exclude aicore engine
   graph_options[ge::AscendString("ge.exec.exclude_engines")] = ge::AscendString("aicore");
-  instance = NewGraphId();
-  ge::Status status = ge_session_->AddGraphWithCopy(instance, ge_graph_, graph_options);
-  DATASET_REQUIRES(status == ge::SUCCESS, GeError("Add graph failed.", status));
 
-  return BuildGeGraph(instance, model_parser);
+  auto ret_build = aclgrphBuildModel(ge_graph_, graph_options, ge_model_);
+  DATASET_REQUIRES(ret_build == ge::GRAPH_SUCCESS, errors::Unavailable("Build ge model failed.", ret_build));
+
+  return Status::OK();
 }
 
 void DatasetFunction::LogOptions(const std::map<std::string, std::string> &options) {
@@ -378,39 +647,22 @@ Status DatasetFunction::Initialize(const std::map<std::string, std::string> &ses
   LogOptions(session_options);
   ge_session_.reset(new (std::nothrow)ge::Session(session_options));
 
-  return InitGeGraph(flib_def);
-}
-
-Status DatasetFunction::Run(Instance instance, std::vector<ge::Tensor> &in_tensors,
-    std::vector<ge::Tensor> &out_tensors) {
-  ge::Status status = ge_session_->RunGraph(instance, in_tensors, out_tensors);
-  return (status == ge::SUCCESS) ? Status::OK() : GeError("Run graph failed.", status);
-}
-
-Status DatasetFunction::Run(Instance instance, std::vector<Tensor> &in_tensors,
-    std::vector<ge::Tensor> &out_tensors) {
-  std::vector<ge::Tensor> inputs;
-  TfTensorTransToHostAllocator trans_alloc;
-  Status status = TransTfTensorsToGeTensors(in_tensors, inputs, trans_alloc);
+  Status status = InitGeGraph(flib_def);
   DATASET_REQUIRES(status.ok(), status);
-
-  return Run(instance, inputs, out_tensors);
+  return Instantialte();
 }
 
-Status DatasetFunction::RunWithStreamAsyn(Instance instance, void *stream, std::vector<ge::Tensor> &in_tensors,
-    std::vector<ge::Tensor> &out_tensors) {
-  ge::Status status = ge_session_->RunGraphWithStreamAsync(instance, stream, in_tensors, out_tensors);
-  return (status == ge::SUCCESS) ? Status::OK() : GeError("Run graph with stream failed.", status);
+Status DatasetFunction::Run(ModelId model_id, aclmdlDataset *in_dataset, aclmdlDataset *out_dataset) {
+  aclError ret = aclmdlExecute(model_id, in_dataset, out_dataset);
+  return (ret == ACL_SUCCESS) ? Status::OK() : errors::Internal("Run graph failed with model_id=", model_id,
+      " ret=", ret);
 }
 
-Status DatasetFunction::RunWithStreamAsyn(Instance instance, void *stream, std::vector<Tensor> &in_tensors,
-    std::vector<ge::Tensor> &out_tensors) {
-  std::vector<ge::Tensor> inputs;
-  TfTensorTransToDeviceAllocator trans_alloc;
-  Status status = TransTfTensorsToGeTensors(in_tensors, inputs, trans_alloc);
-  DATASET_REQUIRES(status.ok(), status);
-
-  return RunWithStreamAsyn(instance, stream, inputs, out_tensors);
+Status DatasetFunction::RunWithStreamAsyn(ModelId model_id, aclmdlDataset *in_dataset,
+    aclmdlDataset *out_dataset, aclrtStream stream) {
+  aclError ret = aclmdlExecuteAsync(model_id, in_dataset, out_dataset, stream);
+  return (ret == ACL_SUCCESS) ? Status::OK() : errors::Internal("Run graph with stream failed with model_id=",
+      model_id, " ret=", ret);
 }
 
 bool DatasetFunction::IsUnknowShape(const PartialTensorShape &tf_shape) {
@@ -437,6 +689,66 @@ bool DatasetFunction::HaveUnknowShape(const std::vector<PartialTensorShape> tf_s
 
 Status DatasetFunction::RegisterNpuCancellation(std::function<void()> callback, std::function<void()>* deregister_fn) {
   return RegisterNpuCancellationCallback(callback, deregister_fn);
+}
+
+TimeStatistic::TimeStatistic(int64_t total_threads) {
+  stop_record = false;
+  statis_threads.resize(total_threads);
+  statis_threads_ge.resize(total_threads);
+  max_threads = total_threads;
+}
+
+void TimeStatistic::RecordStartTime(Items &it) {
+  it.start_time = InferShapeUtil::GetCurrentTimestap();
+}
+
+void TimeStatistic::RecordEndTime(Items &it) {
+  it.end_time = InferShapeUtil::GetCurrentTimestap();
+  it.Update();
+}
+
+void TimeStatistic::UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag) {
+  // update it with tag
+  RecordEndTime(*tag);
+  int64_t interval_time = tag->min_time;
+  // if data overflow, stop record
+  if (it.total_time + interval_time > INT64_MAX) {
+    return;
+  }
+  it.total_time += interval_time;
+  it.total_records++;
+  it.min_time = std::min(it.min_time, interval_time);
+  it.max_time = std::max(it.max_time, interval_time);
+}
+
+void TimeStatistic::ShowTimeStatistic() {
+  if (stop_record || statis.total_records <= 0LL) {
+    return;
+  }
+
+  int64_t kMicrosToMillis = 1LL;
+  statis.avg_time = statis.total_time / statis.total_records;
+  ADP_LOG(INFO) << "[TimeStatistic] Time statistics for GetNext (avg min max(unit:us)) : "
+                << statis.avg_time / kMicrosToMillis
+                << " " << statis.min_time / kMicrosToMillis
+                << " " << statis.max_time / kMicrosToMillis;
+
+  auto print_thread_info = [this, kMicrosToMillis](std::vector<Items> &stat, const std::string name) {
+    for (int64_t i = 0; i < this->max_threads; i++) {
+      if (stat[i].total_records <= 0LL) {
+        stat[i].avg_time = 0LL;
+        continue;
+      }
+      stat[i].avg_time = stat[i].total_time / stat[i].total_records;
+      ADP_LOG(INFO) << "[TimeStatistic] Time statistics for " << name << " with Thread-" << i
+                    << " (avg min max(unit:us)) : "
+                    << stat[i].avg_time / kMicrosToMillis
+                    << " " << stat[i].min_time / kMicrosToMillis
+                    << " " << stat[i].max_time / kMicrosToMillis;
+    }
+  };
+  print_thread_info(statis_threads, "MapFunc");
+  print_thread_info(statis_threads_ge, "GE_Func");
 }
 }  // namespace data
 }  // namespace tensorflow

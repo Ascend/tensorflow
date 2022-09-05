@@ -52,6 +52,9 @@ limitations under the License.
 #include "tensorflow/core/platform/stringprintf.h"
 #include "tensorflow/core/platform/tracing.h"
 #include "tensorflow/core/common_runtime/dma_helper.h"
+#include "tensorflow/core/framework/collective.h"
+
+#include "acl/acl_mdl.h"
 
 namespace tensorflow {
 namespace data {
@@ -121,6 +124,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   Dataset(OpKernelContext* ctx, const DatasetBase* input, uint64_t batch_size,
           int64 num_parallel_calls, bool drop_remainder,
           const DataTypeVector& output_types,
+          const std::vector<PartialTensorShape>& batch_output_shapes,
           const std::vector<PartialTensorShape>& output_shapes,
           std::unique_ptr<CapturedFunction> captured_func,
           bool preserve_cardinality,
@@ -134,6 +138,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         num_parallel_calls_(static_cast<uint64_t>(num_parallel_calls)),
         drop_remainder_(drop_remainder),
         output_types_(output_types),
+        batch_output_shapes_(batch_output_shapes),
         output_shapes_(output_shapes),
         captured_func_(std::move(captured_func)),
         preserve_cardinality_(preserve_cardinality),
@@ -160,12 +165,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   }
 
   bool IsStaticShape() const {
-    // DT_STRING is dyn len type;
-    if (std::any_of(output_types_.cbegin(), output_types_.cend(),
-        [](DataType type) { return type == DT_STRING; })) {
-      return true;
-    }
-
     return !DatasetFunction::HaveUnknowShape(output_shapes_);
   }
 
@@ -202,7 +201,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   const DataTypeVector& output_dtypes() const override { return output_types_; }
 
   const std::vector<PartialTensorShape>& output_shapes() const override {
-    return output_shapes_;
+    return batch_output_shapes_;
   }
 
   string DebugString() const override {
@@ -282,10 +281,14 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           ADP_LOG(ERROR) << "GetEnvDeviceID failed: rt = " << status.ToString()
                          << "device_id_ = " << device_id_;
         }
+        timestat = std::make_shared<TimeStatistic>(static_cast<int64_t>(GetParallelCallsNum()));
         ADP_LOG(EVENT) << "IteratorMeBase finish.";
       }
 
-      virtual ~IteratorMeBase() = default;
+      virtual ~IteratorMeBase() {
+        timestat->ShowTimeStatistic();
+        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase";
+      }
 
       uint64_t GetParallelCallsNum() const {
         uint64_t threads = static_cast<uint64_t>((num_parallel_calls_->value <= 0) && (ctx_ != nullptr) ?
@@ -321,6 +324,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       Status GetNextInternal(IteratorContext* ctx,
                            std::vector<Tensor>* out_tensors,
                            bool* end_of_sequence) override {
+      timestat->RecordStartTime(timestat->statis);
       {
         {
           mutex_lock l(*mu_);
@@ -355,7 +359,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         read_index_ = 0;
       }
 
-      return ProcessBatch(batch_results_[result_index], *out_tensors, *end_of_sequence);
+      Status status = ProcessBatch(batch_results_[result_index], *out_tensors, *end_of_sequence);
+      timestat->RecordEndTime(timestat->statis);
+      return status;
     }
 
     protected:
@@ -492,8 +498,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       };
 
       virtual int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
-          DatasetFunction::Instance instance, uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) = 0;
+          DatasetFunction::ModelId model_id, uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) = 0;
       virtual Status InitBatchResult() = 0;
+      virtual void DestroyOutputDataset(BatchResultBase &batch_result) = 0;
       virtual uint8_t* GetStartAddr(BatchResultBase &batch_result) = 0;
       virtual NpuAllocator* CreateAllocator(BatchResultBase &batch_result,
           uint64_t step, std::function<void(void *)> del) = 0;
@@ -532,9 +539,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       Status InitBatchResultNpuMem(BatchResultBase &batch_result) {
-        rtError_t rt = rtMalloc(reinterpret_cast<void **>(&batch_result.output), batch_mem_size_, RT_MEMORY_HBM);
-        DATASET_REQUIRES(rt == RT_ERROR_NONE, errors::InvalidArgument(
-            "Alloc mem failed: ", batch_mem_size_, "rtError_t: ", rt));
+        // use ACL_MEM_MALLOC_HUGE_FIRST policy for higher performance
+        aclError rt = aclrtMalloc(reinterpret_cast<void **>(&batch_result.output),
+            batch_mem_size_, ACL_MEM_MALLOC_HUGE_FIRST);
+        DATASET_REQUIRES(rt == ACL_SUCCESS, errors::InvalidArgument(
+            "Alloc mem failed: ", batch_mem_size_, " aclError: ", rt));
         batch_result.InitOutputs(batch_result.output, func_tensor_align_size_, batch_result.outputs);
         return Status::OK();
       }
@@ -548,7 +557,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         }
       }
 
-      Status ProcessBatch(std::shared_ptr<BatchResultBase> &batch_result,
+      Status ProcessBatch(const std::shared_ptr<BatchResultBase> &batch_result,
           std::vector<Tensor> &out_tensors, bool &end_of_sequence) LOCKS_EXCLUDED(mu) {
         mutex_lock l(batch_result->mu);
         batch_result->UpdateState(DataStatus::READING);
@@ -598,11 +607,17 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           cond_var_->notify_all();
           (void)usleep(kSleepUs);
         }
-        ADP_LOG(INFO)<<"CancelThreads end.";
+        ADP_LOG(INFO) << "CancelThreads end.";
       }
 
       void CallCompleted() LOCKS_EXCLUDED(*mu_) {
         mutex_lock l(*mu_);
+        cond_var_->notify_all();
+      }
+
+      void CallCompleted(int thread_id, std::shared_ptr<Items> &it) LOCKS_EXCLUDED(*mu_) {
+        mutex_lock l(*mu_);
+        timestat->UpdateWithTimeTag(timestat->statis_threads_ge[thread_id], it);
         cond_var_->notify_all();
       }
 
@@ -634,8 +649,14 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, int thread_id) LOCKS_EXCLUDED(*mu_) {
-        DatasetFunction::Instance instance;
-        Status status = func_.Instantialte(instance);
+        rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
+        if (rt != ACL_RT_SUCCESS) {
+          ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
+            << "thread_num = " << this->thread_num_ << "device_id_ = " << device_id_;
+        }
+
+        DatasetFunction::ModelId model_id;
+        Status status = func_.LoadGeModelFromMem(model_id);
         if (!status.ok()) {
           ADP_LOG(ERROR) << "DatasetFunction Instantialte failed, status = " << status.ToString();
           return;
@@ -653,13 +674,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           this->thread_num_--;
           ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id << "thread_num = " << this->thread_num_;
         });
-
-        rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
-        if (rt != ACL_RT_SUCCESS) {
-          ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
-            << "thread_num = " << this->thread_num_
-            << "device_id_ = " << device_id_;
-        }
 
         int run_res = 1;
         while (!cancelled_) {
@@ -701,7 +715,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             }
           }
           if (map_func) {
-            run_res = MapFunc(ctx, thread_id, instance, batch_id, batch_offset, in_tensors);
+            timestat->RecordStartTime(timestat->statis_threads[thread_id]);
+            run_res = MapFunc(ctx, thread_id, model_id, batch_id, batch_offset, in_tensors);
+            timestat->RecordEndTime(timestat->statis_threads[thread_id]);
           } else {
             run_res = WaitRunRes(ctx, thread_id);
           }
@@ -742,6 +758,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         for (uint64_t i = 0; i < output_tensor_num_; i++) {
           out_tensors.push_back(BuildTensorByMem(i, npu_addr, *batch_result.get()));
         }
+        DestroyOutputDataset(*batch_result);
         return Status::OK();
       }
 
@@ -836,6 +853,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       DatasetFunction func_;
       uint32_t device_id_ = 0;
       int64_t thread_num_ GUARDED_BY(*mu_) = 0;
+      std::shared_ptr<TimeStatistic> timestat = nullptr;
   };
 
   class IteratorStatic : public IteratorMeBase {
@@ -872,7 +890,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       batch_mem_size_ = 0;
       for (uint64_t i = 0; i < dim_num; i++) {
         std::vector<int64_t> output_shape = DatasetFunction::GetTfShapeDims(dataset()->output_shapes_[i]);
-        (void)output_shape.erase(output_shape.cbegin());
         func_output_shape_.push_back(output_shape);
         int64_t tensor_size = DatasetFunction::GetShapeDims(output_shape);
         DATASET_REQUIRES(tensor_size > 0,
@@ -905,33 +922,43 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return stream_pool_->GetIdleEventCount(static_cast<int>(thread_id)) > 0;
     }
 
-    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::Instance instance,
+    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::ModelId model_id,
         uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) override {
       (void)ctx;
-      std::shared_ptr<std::vector<ge::Tensor>> out_tensors = std::make_shared<std::vector<ge::Tensor>>();
-      auto done =
-        [this, batch_result = batch_results_[batch_id], batch_offset, out_tensors](const Status &status) mutable {
+      aclmdlDataset *input_dataset = nullptr;
+      aclmdlDataset *output_dataset = nullptr;
+
+      input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
+      output_dataset = InitOutTensorsMem(*static_cast<BatchStaticResult*>(batch_results_[batch_id].get()), batch_offset);
+
+      std::shared_ptr<Items> time_tag = std::make_shared<Items>();
+      BatchResultBase *batch_result = batch_results_[batch_id].get();
+      auto done = [this, batch_result, batch_offset, input_dataset, output_dataset,
+          thread_id, time_tag](const Status &status) mutable {
         batch_result->UpdateStatus(status, batch_offset);
-        this->CallCompleted();
-        if (out_tensors != nullptr) {
-          out_tensors.reset();
-        }
+        this->CallCompleted(thread_id, time_tag);
+        // free input_dataset by current dataset op
+        DatasetFunction::DestroyAclOutputDataset(output_dataset);
+        DatasetFunction::DestroyAclInputDataset(input_dataset);
       };
 
-      if (out_tensors == nullptr) {
-        done(errors::Unavailable("create out_tensors failed."));
+      if (input_dataset == nullptr) {
+        done(errors::Unavailable("Create input dataset failed."));
         return stream_pool_->GetWaitingEventCount(thread_id);
       }
 
-      out_tensors->resize(func_output_shape_.size());
-      InitOutTensorsMem(*out_tensors, *static_cast<BatchStaticResult*>(batch_results_[batch_id].get()), batch_offset);
+      if (output_dataset == nullptr) {
+        done(errors::Unavailable("Create output dataset failed."));
+        return stream_pool_->GetWaitingEventCount(thread_id);
+      }
 
       std::shared_ptr<Stream> stream = stream_pool_->GetStream(thread_id);
       if (stream == nullptr) {
         done(errors::Unavailable("Get Stream failed"));
+        return stream_pool_->GetWaitingEventCount(thread_id);
       }
-
-      Status status = func_.RunWithStreamAsyn(instance, stream->GetStream(), input, *out_tensors);
+      timestat->RecordStartTime(*time_tag);
+      Status status = func_.RunWithStreamAsyn(model_id, input_dataset, output_dataset, stream->GetStream());
       if (status.ok()) {
         status = stream_pool_->RecordEvent(stream, done);
       }
@@ -948,25 +975,35 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
+    void DestroyOutputDataset(BatchResultBase &batch_result) override {
+      (void)batch_result;
+    }
+
     ge::Format GetFormat() const {
       return ge::Format::FORMAT_ND;
     }
 
     std::unique_ptr<StreamPool> stream_pool_ = nullptr;
    private:
-    void InitOutTensorsMem(std::vector<ge::Tensor> &tensors, BatchStaticResult &batch_result, uint64_t step) {
-      uint64_t tensor_num = static_cast<uint64_t>(tensors.size());
-      const std::vector<ge::DataType> &ge_output_type = func_.GetGeDataTypes();
-      for (uint64_t i = 0; i < tensor_num; i++) {
-        ge::TensorDesc tensor_desc = tensors[i].GetTensorDesc();
-        tensor_desc.Update(ge::Shape(func_output_shape_[i]), GetFormat(), ge_output_type[i]);
-        (void)tensors[i].SetTensorDesc(tensor_desc);
-        (void)tensors[i].SetData(batch_result.outputs[i] + step * func_tensor_size_[i],
-            func_tensor_size_[i], [](const uint8_t *p) {
-          (void)p;
-          return;
-        });
+    aclmdlDataset* InitOutTensorsMem(BatchStaticResult &batch_result, uint64_t step) {
+      aclmdlDataset* output_dataset = aclmdlCreateDataset();
+      if (output_dataset == nullptr) {
+        return nullptr;
       }
+
+      uint64_t tensor_num = func_output_shape_.size();
+      for (uint64_t i = 0; i < tensor_num; i++) {
+        aclDataBuffer *data_buff = aclCreateDataBuffer(batch_result.outputs[i] + step * func_tensor_size_[i],
+                                                       func_tensor_size_[i]);
+        aclError ret = aclmdlAddDatasetBuffer(output_dataset, data_buff);
+        if (ret != ACL_SUCCESS) {
+          // tensor的description不需要添加进去吗？
+          (void)aclDestroyDataBuffer(data_buff);
+          ADP_LOG(ERROR) << "Add data buffer to output dataset failed.";
+          return nullptr;
+        }
+      }
+      return output_dataset;
     }
 
     Status InitBatchResultMem() {
@@ -1027,10 +1064,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       if (batch_result.output_cpu != nullptr) {
-        rtError_t rt = rtMemcpy(batch_result.output_cpu, batch_mem_size_,
-            batch_result.output, batch_mem_size_, RT_MEMCPY_DEVICE_TO_HOST);
-        if (rt != RT_ERROR_NONE) {
-          ADP_LOG(ERROR) << "rtMemcpy failed, return " << rt;
+        aclError ret = aclrtMemcpy(batch_result.output_cpu, batch_mem_size_,
+            batch_result.output, batch_mem_size_, ACL_MEMCPY_DEVICE_TO_HOST);
+        if (ret != ACL_ERROR_NONE) {
+          ADP_LOG(ERROR) << "aclrtMemcpy failed, return " << ret;
           return nullptr;
         }
       }
@@ -1061,35 +1098,33 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
      public:
       explicit BatchDynResult(uint64_t batch_id_, uint64_t batch_size_)
           : BatchResultBase(batch_id_, batch_size_) {
-        output_tensors.resize(static_cast<size_t>(batch_size_));
+        output_datasets.resize(static_cast<size_t>(batch_size_));
       }
-      void InitTensors(uint64_t tensor_num) {
-        for (auto it : output_tensors) {
-          it.resize(tensor_num);
-        }
-      }
-      std::vector<std::vector<ge::Tensor>> output_tensors;
+      std::vector<aclmdlDataset*> output_datasets;
     };
 
     Status InitTensorSize(BatchDynResult &batch_result) {
-      std::vector<ge::Tensor> &tensors = batch_result.output_tensors[0];
+      aclmdlDataset *out_dataset = batch_result.output_datasets[0];
       uint64_t i = 0;
-      for (auto it : tensors) {
-        ge::Shape shape = it.GetTensorDesc().GetShape();
-        int64_t shape_size = shape.GetShapeSize();
-        shape_size = ((shape_size == 0) ? 1 : shape_size); // note the scale
-        int64_t type_size = DataTypeSize(dataset()->output_types_[i]);
-        DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(shape_size, type_size),
-            errors::Unavailable("tensor is too big, shape_size = ", shape_size,
-                ", type = ", static_cast<int>(dataset()->output_types_[i])));
-        uint64_t tensor_size = static_cast<uint64_t>(shape_size * type_size);
+      for (size_t idx = 0; idx < aclmdlGetDatasetNumBuffers(out_dataset); idx++) {
+        // get output desc and size
+        aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, idx);
+        DATASET_REQUIRES(out_desc != nullptr, errors::Internal("Get aclTensorDesc failed."));
+
+        uint64_t tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
+        DATASET_REQUIRES(tensor_size != 0U, errors::Internal("Get tensor_size == 0."));
+
         func_tensor_size_.push_back(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
         DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, tensor_size),
             errors::Unavailable("batch_mem_size_ is too big, batch_mem_size_ = ",
                 batch_mem_size_, ", tensor_size = ", tensor_size));
         batch_mem_size_ += tensor_size;
-        func_output_shape_.emplace_back(std::move(shape.GetDims()));
+
+        std::vector<int64_t> dims;
+        Status status = DatasetFunction::GetAclTenorDescDims(out_desc, dims);
+        DATASET_REQUIRES(status.ok(), status);
+        func_output_shape_.emplace_back(std::move(dims));
         i++;
       }
       DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(batch_mem_size_, dataset()->batch_size_),
@@ -1099,18 +1134,33 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return Status::OK();
     }
 
-    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::Instance instance,
+    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::ModelId model_id,
         uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) override {
       (void)ctx;
       (void)thread_id;
+      aclmdlDataset *input_dataset = nullptr;
+      input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
+      if (input_dataset == nullptr) {
+        return 0;
+      }
+
+      aclmdlDataset *output_dataset = nullptr;
+      output_dataset = DatasetFunction::CreateAclOutputDataset(model_id);
+      if (output_dataset == nullptr) {
+        return 0;
+      }
+
       BatchDynResult *batch_dyn_result = static_cast<BatchDynResult*>(batch_results_[batch_id].get());
-      std::vector<ge::Tensor> output;
-      Status status = func_.Run(instance, input, output);
+
+      timestat->RecordStartTime(timestat->statis_threads_ge[thread_id]);
+      Status status = func_.Run(model_id, input_dataset, output_dataset);
+      timestat->RecordEndTime(timestat->statis_threads_ge[thread_id]);
       if (status.ok()) {
-        batch_dyn_result->output_tensors[batch_offset] = std::move(output);
+        batch_dyn_result->output_datasets[batch_offset] = std::move(output_dataset);
       }
       batch_dyn_result->UpdateStatus(status, batch_offset);
       CallCompleted();
+      DatasetFunction::DestroyAclInputDataset(input_dataset);
       return 0;
     }
 
@@ -1123,10 +1173,17 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         DATASET_REQUIRES(batch_results_[i] != nullptr,
             errors::InvalidArgument("Make batch result faild: i = ", i));
         InitBatchResultAction(*batch_results_[i]);
-        BatchDynResult *dyn_result = static_cast<BatchDynResult*>(batch_results_[i].get());
-        dyn_result->InitTensors(dataset()->output_types_.size());
       }
       return Status::OK();
+    }
+
+    void DestroyOutputDataset(BatchResultBase &batch_result) override {
+      BatchDynResult& results = static_cast<BatchDynResult&>(batch_result);
+      uint64_t batch_size = results.GetNumElements();
+      for (uint64_t j = 0; j < batch_size; j++) {
+        aclmdlDataset *out_dataset = results.output_datasets[j];
+        DatasetFunction::DestroyAclOutputDataset(out_dataset);
+      }
     }
 
   private:
@@ -1148,7 +1205,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
    protected:
     uint8_t* GetStartAddr(BatchResultBase &batch_result) override {
-      if (batch_mem_size_ == 0) {
+      if (batch_mem_size_ == 0ULL) {
         Status status = InitTensorSize(static_cast<BatchDynResult&>(batch_result));
         if (!status.ok()) {
           return nullptr;
@@ -1178,14 +1235,20 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         uint8_t *npu_addr = batch_result.outputs[i];
         uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
         for (uint64_t j = 0; j < batch_size; j++) {
-          rtError_t rt = rtMemcpy(npu_addr, tensor_size, batch_result.output_tensors[j][i].GetData(),
-              batch_result.output_tensors[j][i].GetSize(), RT_MEMCPY_HOST_TO_DEVICE);
-          if (rt != RT_ERROR_NONE) {
-            ADP_LOG(ERROR) << "Mem copy from host to device failed: hostsize: " << tensor_size <<
-                "device size: " << batch_result.output_tensors[j][i].GetSize() << "rt: " << rt;
+          aclmdlDataset *out_dataset = batch_result.output_datasets[j];
+          aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);
+          uint64_t out_tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
+          aclDataBuffer *data_buff = aclmdlGetDatasetBuffer(out_dataset, i);
+          void* data_addr = aclGetDataBufferAddr(data_buff);
+          DATASET_REQUIRES_RETURN_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
+
+          aclError ret = aclrtMemcpy(npu_addr, tensor_size, data_addr, out_tensor_size,
+              ACL_MEMCPY_DEVICE_TO_DEVICE);
+          if (ret != RT_ERROR_NONE) {
+            ADP_LOG(ERROR) << "Mem copy from device to device failed, from "
+                << out_tensor_size << " to " << tensor_size << " ret: " << ret;
             return nullptr;
           }
-
           npu_addr += tensor_size;
         }
       }
@@ -1211,6 +1274,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           return nullptr;
         }
       }
+
       if (batch_result.output_cpu == nullptr) {
         InitBatchResultCpuMem(batch_result);
       }
@@ -1234,13 +1298,20 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         uint8_t *npu_addr = batch_result.outputs_cpu[i];
         uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
         for (uint64_t j = 0; j < batch_size; j++) {
-          auto rt = memcpy_s(npu_addr, tensor_size, batch_result.output_tensors[j][i].GetData(), tensor_size);
-          if (rt != EOK) {
-            ADP_LOG(ERROR) << "Mem copy from host to host failed: hostsize: " << tensor_size <<
-                "host size: " << tensor_size << "rt: " << rt;
+          aclmdlDataset *out_dataset = batch_result.output_datasets[j];
+          aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);
+          uint64_t out_tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
+          aclDataBuffer *data_buff = aclmdlGetDatasetBuffer(out_dataset, i);
+          void* data_addr = aclGetDataBufferAddr(data_buff);
+          DATASET_REQUIRES_RETURN_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
+
+          aclError ret = aclrtMemcpy(npu_addr, tensor_size, data_addr, out_tensor_size,
+              ACL_MEMCPY_DEVICE_TO_HOST);
+          if (ret != ACL_ERROR_NONE) {
+            ADP_LOG(ERROR) << "Mem copy from device to host failed: device size: " << out_tensor_size <<
+                " host size: " << tensor_size << "ret: " << ret;
             return nullptr;
           }
-
           npu_addr += tensor_size;
         }
       }
@@ -1253,6 +1324,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   const uint64_t num_parallel_calls_;
   const bool drop_remainder_;
   const DataTypeVector output_types_;
+  const std::vector<PartialTensorShape> batch_output_shapes_;
   const std::vector<PartialTensorShape> output_shapes_;
   const std::unique_ptr<CapturedFunction> captured_func_;
   const bool preserve_cardinality_;
@@ -1284,6 +1356,7 @@ NpuMapAndBatchDatasetOp::NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx)
                                                &func_metadata_));
   OP_REQUIRES_OK(ctx, ctx->GetAttr(kOutputTypes, &output_types_));
   OP_REQUIRES_OK(ctx, ctx->GetAttr(kOutputShapes, &output_shapes_));
+  OP_REQUIRES_OK(ctx, ctx->GetAttr(kOutputShapes, &batch_output_shapes_));
   OP_REQUIRES_OK(ctx,
                  ctx->GetAttr(kPreserveCardinality, &preserve_cardinality_));
   OP_REQUIRES_OK(ctx,
@@ -1294,9 +1367,25 @@ NpuMapAndBatchDatasetOp::NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx)
   }
 }
 
+void RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes) {
+  // remove the first dim for output_shapes
+  for (auto& sp : output_shapes) {
+    if (sp.dims() == -1) {
+      continue;
+    }
+    sp.RemoveDim(0);
+  }
+}
+
 void NpuMapAndBatchDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* input,
     DatasetBase** output) {
   ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp:: MakeDataset";
+  if (std::any_of(output_types_.cbegin(), output_types_.cend(),
+      [](DataType type) { return type == DT_STRING; })) {
+    ADP_LOG(ERROR) << "NpuMapAndBatchDatasetOp does not support output type DT_STRING.";
+    return;
+  }
+
   int64 batch_size = 0;
   OP_REQUIRES_OK(ctx, ParseScalarArgument(ctx, kBatchSize, &batch_size));
   OP_REQUIRES(ctx, batch_size > 0,
@@ -1309,7 +1398,7 @@ void NpuMapAndBatchDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* inp
       ctx, num_parallel_calls > 0 || num_parallel_calls == model::kAutotune,
       errors::InvalidArgument("num_parallel_calls must be greater than zero."));
 
-  bool drop_remainder;
+  bool drop_remainder = false;
   OP_REQUIRES_OK(ctx,
                  ParseScalarArgument(ctx, kDropRemainder, &drop_remainder));
 
@@ -1322,8 +1411,10 @@ void NpuMapAndBatchDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* inp
     metrics::RecordTFDataAutotune(kDatasetType);
   }
 
+  RemoveBatchForOutputShapes(output_shapes_);
+
   *output = new Dataset(ctx, input, static_cast<uint64_t>(batch_size), num_parallel_calls,
-                        drop_remainder, output_types_, output_shapes_,
+                        drop_remainder, output_types_, batch_output_shapes_, output_shapes_,
                         std::move(captured_func), preserve_cardinality_, output_device_,
                         sess_options_, init_options_, attrs_);
 }

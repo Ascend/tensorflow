@@ -17,6 +17,7 @@
 #include "acl/acl_tdt.h"
 #include "ascendcl_stub.h"
 #include "acl/acl_rt.h"
+#include "acl/acl_mdl.h"
 #include "securec.h"
 #include <map>
 #include <mutex>
@@ -328,6 +329,8 @@ aclError aclrtDestroyEvent(aclrtEvent event) {
   return ACL_ERROR_NONE;
 }
 
+// for GE RunGraph api
+#if 0
 aclError aclrtSynchronizeStream(aclrtStream stream) {
   ADP_LOG(INFO) << "aclrtSynchronizeStream stub enter, stream = " << stream;
   AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
@@ -378,4 +381,210 @@ aclError aclrtRecordEvent(aclrtEvent event, aclrtStream stream) {
   ADP_LOG(INFO) << "aclrtRecordEvent stub out, event = " << event << ", process hook = "
         << stubEvent->hook.target<ge::Status(*)(const std::vector<ge::Tensor> &input_data, std::vector<ge::Tensor> &output_data)>();
   return ACL_ERROR_NONE;
+}
+#endif
+
+size_t aclDataTypeSize(aclDataType dataType) {
+  switch (dataType) {
+    case ACL_STRING:
+    case ACL_DT_UNDEFINED:
+      return 0U;
+    case ACL_FLOAT:
+    case ACL_INT32:
+    case ACL_UINT32:
+      return sizeof(int32_t);
+    case ACL_INT64:
+    case ACL_UINT64:
+    case ACL_DOUBLE:
+    default:
+      return sizeof(int64_t);
+  }
+}
+
+aclError aclrtSynchronizeStream(aclrtStream stream) {
+  ADP_LOG(INFO) << "aclrtSynchronizeStream stub enter, stream = " << stream;
+  AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
+  if (stub->hook != nullptr) {
+      ADP_LOG(INFO) << "aclrtSynchronizeStream:: stream = " << stream << ", process hook = "
+            << stub->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
+      return stub->hook(stub->input_data, stub->output_data);
+  }
+  ADP_LOG(INFO) << "aclrtSynchronizeStream stub out, stream = " << stream;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtSynchronizeEvent(aclrtEvent event) {
+  ADP_LOG(INFO) << "aclrtSynchronizeEvent stub enter, event = " << event;
+  AclEventStub *stub = static_cast<AclEventStub*>(event);
+  if (stub->hook != nullptr) {
+    ADP_LOG(INFO) << "aclrtSynchronizeEvent:: event = " << event << ", process hook = "
+        << stub->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
+    (void)stub->hook(stub->input_data, stub->output_data);
+  }
+  ADP_LOG(INFO) << "aclrtSynchronizeEvent stub out, event = " << event;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtQueryEvent(aclrtEvent event, aclrtEventStatus *status) {
+  ADP_LOG(INFO) << "aclrtQueryEvent stub enter, event = " << event;
+  AclEventStub *stub = static_cast<AclEventStub*>(event);
+  *status = stub->status;
+  if (stub->status == ACL_EVENT_STATUS_COMPLETE) {
+    ADP_LOG(INFO) << "aclrtQueryEvent:: event = " << event << ", process hook = "
+        << stub->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
+    (void)stub->hook(stub->input_data, stub->output_data);
+  }
+  ADP_LOG(INFO) << "aclrtQueryEvent stub out, event = " << event;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtRecordEvent(aclrtEvent event, aclrtStream stream) {
+  AclStreamStub *stubStream = static_cast<AclStreamStub*>(stream);
+  AclEventStub *stubEvent = static_cast<AclEventStub*>(event);
+  ADP_LOG(INFO) << "aclrtRecordEvent stub enter, stream = " << stream
+      << ", event = " << event << ", process hook = "
+      << stubStream->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
+  stubEvent->input_data = stubStream->input_data;
+  stubEvent->output_data = stubStream->output_data;
+  stubEvent->hook = stubStream->hook;
+  stubEvent->status = stubStream->status;
+  ADP_LOG(INFO) << "aclrtRecordEvent stub out, event = " << event << ", process hook = "
+        << stubEvent->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtMalloc(void **devPtr, size_t size, aclrtMemMallocPolicy policy) {
+  *devPtr = malloc(size);
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtFree(void *devPtr) {
+  free(devPtr);
+  return ACL_ERROR_NONE;
+}
+
+aclError aclmdlLoadFromMem(const void *model, size_t modelSize, uint32_t *modelId) {
+  return ACL_SUCCESS;
+}
+
+aclmdlDataset *aclmdlCreateDataset() {
+  return new(std::nothrow) aclmdlDataset();
+}
+
+aclError aclmdlDestroyDataset(const aclmdlDataset *dataset) {
+  delete dataset;
+  return ACL_SUCCESS;
+}
+
+size_t aclGetTensorDescElementCount(const aclTensorDesc *desc) {
+  return 1;
+}
+
+size_t aclmdlGetDatasetNumBuffers(const aclmdlDataset *dataset) {
+  return dataset->blobs.size();
+}
+
+aclDataBuffer *aclmdlGetDatasetBuffer(const aclmdlDataset *dataset, size_t index) {
+  return dataset->blobs[index].dataBuf;
+}
+
+aclDataBuffer *aclCreateDataBuffer(void *data, size_t size) {
+  return new(std::nothrow) aclDataBuffer(data, size);
+}
+
+aclError aclmdlAddDatasetBuffer(aclmdlDataset *dataset, aclDataBuffer *dataBuffer) {
+  const acl::AclModelTensor tensor = acl::AclModelTensor(dataBuffer, nullptr);
+  dataset->blobs.push_back(tensor);
+  return ACL_SUCCESS;
+}
+
+aclError aclDestroyDataBuffer(const aclDataBuffer *dataBuffer) {
+  delete dataBuffer;
+  return ACL_ERROR_NONE;
+}
+
+void *aclGetDataBufferAddr(const aclDataBuffer *dataBuffer) {
+  return dataBuffer->data;
+}
+
+aclTensorDesc *aclCreateTensorDesc(aclDataType dataType, int numDims, const int64_t *dims, aclFormat format) {
+  return new(std::nothrow) aclTensorDesc;
+}
+
+size_t aclmdlGetNumOutputs(aclmdlDesc *modelDesc) {
+  return 1L;
+}
+
+void aclDestroyTensorDesc(const aclTensorDesc *desc) {
+  delete desc;
+}
+
+aclmdlDesc *aclmdlCreateDesc() {
+  return new(std::nothrow) aclmdlDesc();
+}
+
+aclError aclmdlDestroyDesc(aclmdlDesc *modelDesc) {
+  delete modelDesc;
+  modelDesc = nullptr;
+  return ACL_SUCCESS;
+}
+
+aclError aclmdlGetDesc(aclmdlDesc *modelDesc, uint32_t modelId) {
+  return ACL_SUCCESS;
+}
+
+aclTensorDesc *aclmdlGetDatasetTensorDesc(const aclmdlDataset *dataset, size_t index) {
+  return dataset->blobs[index].tensorDesc;
+}
+
+size_t aclGetTensorDescSize(const aclTensorDesc *desc) {
+  size_t size = 0U;
+  const size_t descCount = aclGetTensorDescElementCount(desc);
+  const size_t typeSize = aclDataTypeSize(desc->dataType);
+  size = descCount * typeSize;
+  return size;
+}
+
+size_t aclGetTensorDescNumDims(const aclTensorDesc *desc) {
+  return 0;
+}
+
+int64_t aclGetTensorDescDim(const aclTensorDesc *desc, size_t index) {
+  size_t elementCount = 1U;
+  return elementCount;
+}
+
+aclError aclmdlSetDatasetTensorDesc(aclmdlDataset *dataset, aclTensorDesc *tensorDesc, size_t index) {
+  return ACL_SUCCESS;
+}
+
+AclRunGraphStub g_RunGraphStub = nullptr;
+void RegAclRunGraphStub(AclRunGraphStub stub) {
+  g_RunGraphStub = stub;
+}
+
+aclError aclmdlExecute(uint32_t modelId, const aclmdlDataset *inputs, aclmdlDataset *outputs) {
+  if (g_RunGraphStub != nullptr) {
+    return g_RunGraphStub(modelId, inputs, outputs);
+  }
+  return ACL_SUCCESS;
+}
+
+AclRunGraphWithStreamAsyncStub g_RunGraphWithStreamAsyncStub = nullptr;
+void RegAclRunGraphWithStreamAsyncStub(AclRunGraphWithStreamAsyncStub stub) {
+  g_RunGraphWithStreamAsyncStub = stub;
+}
+
+aclError aclmdlExecuteAsync(uint32_t modelId, const aclmdlDataset *inputs, aclmdlDataset *outputs, aclrtStream stream) {
+  ADP_LOG(INFO) << "RunGraphWithStreamAsync enter, stream = " << stream;
+  AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
+  stub->input_data = const_cast<aclmdlDataset*>(inputs);
+  stub->output_data = outputs;
+  stub->hook = nullptr;
+  if (g_RunGraphWithStreamAsyncStub != nullptr) {
+    aclError status = g_RunGraphWithStreamAsyncStub(modelId, inputs, outputs, stream);
+    ADP_LOG(INFO) << "AclRunGraphWithStreamAsync proc hook, stream = " << stub << "hook = "
+        << stub->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
+  }
+  return ACL_SUCCESS;
 }

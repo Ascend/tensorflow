@@ -55,6 +55,7 @@ private:
   class Dataset;
   std::shared_ptr<FunctionMetadata> func_metadata_ = nullptr;
   DataTypeVector output_types_;
+  std::vector<PartialTensorShape> batch_output_shapes_;
   std::vector<PartialTensorShape> output_shapes_;
   bool preserve_cardinality_;
   std::string output_device_;

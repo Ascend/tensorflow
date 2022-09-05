@@ -176,49 +176,49 @@ class NpuMapDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapDatasetParams> {
   }
 
   void SetUp() {
-    ge::RegRunGraphWithStreamAsyncStub([](uint32_t graph_id, void *stream, const std::vector<ge::Tensor> &inputs,
-        std::vector<ge::Tensor> &outputs) -> ge::Status {
-      ADP_LOG(INFO) << "Map test RunGraphWithStreamAsyncStub, stream = " << stream;
+    RegAclRunGraphWithStreamAsyncStub([](uint32_t graph_id, const aclmdlDataset *inputs,
+        aclmdlDataset *outputs, void *stream) -> aclError {
+      ADP_LOG(INFO) << "Map and batch test RunGraphWithStreamAsyncStub, stream = " << stream;
       AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
-      stub->hook = std::bind([](const std::vector<ge::Tensor> &inputs, std::vector<ge::Tensor> &outputs) -> ge::Status {
-        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.num = "
-            << inputs.size() << ", output.num = " << outputs.size();
-        const uint8_t *input = inputs[0].GetData();
-        uint8_t *output = outputs[0].GetData();
+      stub->hook = std::bind([](const aclmdlDataset *inputs, aclmdlDataset *outputs) -> aclError {
+        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input= "
+            << inputs << ", output= " << outputs;
+        const uint8_t *input = static_cast<uint8_t*>(inputs->blobs[0].dataBuf->data);
+        uint8_t *output = static_cast<uint8_t*>(outputs->blobs[0].dataBuf->data);
         ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.addr = "
-            << (void*)input << ", size = " << inputs[0].GetSize()
-            << ", output.addr = " << (void*)output << ", size = " << outputs[0].GetSize();
+            << (void*)input << ", output.addr = " << (void*)output;
         *reinterpret_cast<int64_t*>(output) = (*reinterpret_cast<const int64_t*>(input)) + 1;
-        return ge::SUCCESS;
+        return ACL_SUCCESS;
       }, std::placeholders::_1, std::placeholders::_2);
 
-      return ge::SUCCESS;
+      return ACL_SUCCESS;
     });
 
-    ge::RegRunGraphStub([](uint32_t graph_id, const std::vector<ge::Tensor> &inputs,
-        std::vector<ge::Tensor> &outputs) -> ge::Status {
-      ADP_LOG(INFO) << "Map test RegRunGraphStub";
-      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: input.num = "
-            << inputs.size() << ", output.num = " << outputs.size();
-      const uint8_t *input = inputs[0].GetData();
+    RegAclRunGraphStub([](uint32_t graph_id, const aclmdlDataset *inputs,
+        aclmdlDataset *outputs) -> aclError {
+      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: input= "
+            << inputs << ", output= " << outputs;
+      const uint8_t *input = static_cast<uint8_t*>(inputs->blobs[0].dataBuf->data);
       ADP_LOG(INFO) << "RegRunGraphStub-graph process:: inputs[0].GetData()="
-            << (void*)inputs[0].GetData();
+            << input;
 
       uint8_t *output = nullptr;
       int64_t tensor_mem_size = DataTypeSize(DT_INT64); // size=8
-      output = (uint8_t*)malloc(tensor_mem_size);
-      outputs.resize(1);
-      std::vector<int64_t> output_shape;
-      ge::TensorDesc tensor_desc = outputs[0].GetTensorDesc();
-      tensor_desc.Update(ge::Shape(output_shape), ge::Format::FORMAT_ND, ge::DT_INT64);
-      outputs[0].SetTensorDesc(tensor_desc);
-      outputs[0].SetData(output, tensor_mem_size,
-        [](uint8_t *p){ if (p != nullptr) { delete p;}});
-
+      rtError_t rt = aclrtMalloc(reinterpret_cast<void **>(&output), tensor_mem_size, ACL_MEM_MALLOC_HUGE_FIRST);
+      if (rt != RT_ERROR_NONE) {
+        ADP_LOG(ERROR) << errors::InvalidArgument("Alloc mem failed: ", tensor_mem_size, "rtError_t: ", rt);
+        return ACL_ERROR_BAD_ALLOC;
+      }
+      aclDataBuffer *dataBuf = new(std::nothrow) aclDataBuffer(output, tensor_mem_size);
       ADP_LOG(INFO) << "RegRunGraphStub-graph process:: input.addr = "
-            << (void*)input << ", size = " << inputs[0].GetSize()
-            << ", output.addr = " << (void*)output << ", size = " << outputs[0].GetSize();
+            << (void*)input << ", size = " << inputs
+            << ", output.addr = " << (void*)output;
       *reinterpret_cast<int64_t*>(output) = (*reinterpret_cast<const int64_t*>(input)) + 1;
+      dataBuf->data = std::move(output);
+      acl::AclModelTensor tensor = acl::AclModelTensor(dataBuf, nullptr);
+      tensor.tensorDesc = new(std::nothrow) aclTensorDesc(ACL_INT64);
+      outputs->blobs.clear();
+      outputs->blobs.emplace_back(tensor);
 
       return ge::SUCCESS;
     });
@@ -227,7 +227,7 @@ class NpuMapDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapDatasetParams> {
   }
 
   void TearDown() {
-    ge::RegRunGraphWithStreamAsyncStub(nullptr);
+    RegAclRunGraphWithStreamAsyncStub(nullptr);
     ClearLogLevelForC();
   }
 };

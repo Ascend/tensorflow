@@ -110,7 +110,7 @@ public:
     }
   }
 
-  const aclrtStream GetStream() {
+  aclrtStream GetStream() const {
     return stream_;
   }
 

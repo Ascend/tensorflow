@@ -17,6 +17,8 @@
 #ifndef COMMON_GRAPH_DEBUG_GE_UTIL_H_
 #define COMMON_GRAPH_DEBUG_GE_UTIL_H_
 
+#include <iostream>
+
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/common/types.h"
 #include "framework/memory/memory_api.h"
@@ -27,6 +29,7 @@
 #include "framework/omg/parser/parser_inner_ctx.h"
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
+#include "ge/ge_ir_build.h"
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
 #include "graph/utils/node_adapter.h"
@@ -35,7 +38,6 @@
 #include "graph/buffer.h"
 #include "graph/model.h"
 
-#include <iostream>
 namespace ge {
 
 using RunGraphWithStreamAsyncStub = std::function<Status(uint32_t, void *, const std::vector<Tensor>&, std::vector<Tensor>&)>;

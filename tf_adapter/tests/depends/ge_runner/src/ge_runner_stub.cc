@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <iostream>
+
 #include "framework/common/ge_inner_error_codes.h"
 #include "framework/common/types.h"
 #include "framework/memory/memory_api.h"
@@ -35,8 +37,6 @@
 #include "ascendcl_stub.h"
 #include "ge_stub.h"
 #include "tf_adapter/common/adp_logger.h"
-
-#include <iostream>
 
 namespace ge {
 namespace {
@@ -276,6 +276,8 @@ Status Session::BuildGraph(uint32_t graphId, const std::vector<InputTensorInfo> 
   return ge::SUCCESS;
 }
 
+// for ge Rungraph api
+#if 0
 RunGraphStub g_RunGraphStub = nullptr;
 void RegRunGraphStub(RunGraphStub stub) {
   g_RunGraphStub = stub;
@@ -306,6 +308,7 @@ Status Session::RunGraphWithStreamAsync(uint32_t graphId, void *stream, const st
   }
   return ge::SUCCESS;
 }
+#endif
 
 class ComputeGraphImpl {
 public:
@@ -459,6 +462,14 @@ ProtoAttrMap &OpDesc::MutableAttrMap() {
 ConstProtoAttrMap &OpDesc::GetAttrMap() const{
   // Stub
 }
+
+constexpr int kDefaultMaxInputNum = 6;
+graphStatus aclgrphBuildModel(const ge::Graph &graph, const std::map<AscendString, AscendString> &build_options,
+    ModelBufferData &model) {
+  // std::map<std::string, std::string> tmp_build_options;
+  return GRAPH_SUCCESS;
+}
+
 } // end ge
 
 namespace domi {

@@ -205,7 +205,7 @@ class NpuMapAndBatchDatasetOpTestBase : public DatasetOpsTestBaseV2<NpuMapAndBat
   }
 
   void TearDown() {
-    ge::RegRunGraphWithStreamAsyncStub(nullptr);
+    RegAclRunGraphWithStreamAsyncStub(nullptr);
     ClearLogLevelForC();
   }
 };
@@ -223,6 +223,55 @@ class NpuMapAndBatchDatasetOpTest : public NpuMapAndBatchDatasetOpTestBase {
   }
 
   void SetUp() {
+    RegAclRunGraphWithStreamAsyncStub([](uint32_t graph_id, const aclmdlDataset *inputs,
+        aclmdlDataset *outputs, void *stream) -> aclError {
+      ADP_LOG(INFO) << "Map and batch test RunGraphWithStreamAsyncStub, stream = " << stream;
+      AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
+      stub->hook = std::bind([](const aclmdlDataset *inputs, aclmdlDataset *outputs) -> aclError {
+        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input= "
+            << inputs << ", output= " << outputs;
+        const uint8_t *input = static_cast<uint8_t*>(inputs->blobs[0].dataBuf->data);
+        uint8_t *output = static_cast<uint8_t*>(outputs->blobs[0].dataBuf->data);
+        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.addr = "
+            << (void*)input << ", output.addr = " << (void*)output;
+        *reinterpret_cast<int64_t*>(output) = (*reinterpret_cast<const int64_t*>(input)) + 1;
+        return ACL_SUCCESS;
+      }, std::placeholders::_1, std::placeholders::_2);
+
+      return ACL_SUCCESS;
+    });
+
+    RegAclRunGraphStub([](uint32_t graph_id, const aclmdlDataset *inputs,
+        aclmdlDataset *outputs) -> aclError {
+      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: input= "
+            << inputs << ", output= " << outputs;
+      const uint8_t *input = static_cast<uint8_t*>(inputs->blobs[0].dataBuf->data);
+      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: inputs[0].GetData()="
+            << input;
+
+      uint8_t *output = nullptr;
+      int64_t tensor_mem_size = DataTypeSize(DT_INT64); // size=8
+      rtError_t rt = aclrtMalloc(reinterpret_cast<void **>(&output), tensor_mem_size, ACL_MEM_MALLOC_HUGE_FIRST);
+      if (rt != RT_ERROR_NONE) {
+        ADP_LOG(ERROR) << errors::InvalidArgument("Alloc mem failed: ", tensor_mem_size, "rtError_t: ", rt);
+        return ACL_ERROR_BAD_ALLOC;
+      }
+      aclDataBuffer *dataBuf = new aclDataBuffer(output, tensor_mem_size);
+      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: input.addr = "
+            << (void*)input << ", size = " << inputs
+            << ", output.addr = " << (void*)output;
+      *reinterpret_cast<int64_t*>(output) = (*reinterpret_cast<const int64_t*>(input)) + 1;
+      dataBuf->data = std::move(output);
+      acl::AclModelTensor tensor = acl::AclModelTensor(dataBuf, nullptr);
+      tensor.tensorDesc = new(std::nothrow) aclTensorDesc(ACL_INT64);
+      outputs->blobs.clear();
+      outputs->blobs.emplace_back(tensor);
+
+      return ge::SUCCESS;
+    });
+
+    // Register funciton for ge RunGraph
+    #if 0
     ge::RegRunGraphWithStreamAsyncStub([](uint32_t graph_id, void *stream, const std::vector<ge::Tensor> &inputs,
         std::vector<ge::Tensor> &outputs) -> ge::Status {
       ADP_LOG(INFO) << "Map and batch test RunGraphWithStreamAsyncStub, stream = " << stream;
@@ -273,6 +322,7 @@ class NpuMapAndBatchDatasetOpTest : public NpuMapAndBatchDatasetOpTestBase {
 
       return ge::SUCCESS;
     });
+    #endif
 
     SetLogLevelForC(0);
   }
@@ -287,8 +337,7 @@ class NpuMapAndBatchDatasetOpDTStringTest : public NpuMapAndBatchDatasetOpTestBa
   }
 
  protected:
-  // Creates `TensorSliceDataset` variant tensor from the input vector of
-  // tensors.
+  // Creates `TensorSliceDataset` variant tensor from the input vector of tensors.
   Status CreateTensorSliceDatasetTensor(
       std::vector<Tensor> *const tensor_vector, Tensor *dataset_tensor) {
     DatasetBase *tensor_slice_dataset;
@@ -300,24 +349,24 @@ class NpuMapAndBatchDatasetOpDTStringTest : public NpuMapAndBatchDatasetOpTestBa
   }
 
   void SetUp() {
-    ge::RegRunGraphWithStreamAsyncStub([](uint32_t graph_id, void *stream, const std::vector<ge::Tensor> &inputs,
-        std::vector<ge::Tensor> &outputs) -> ge::Status {
+    RegAclRunGraphWithStreamAsyncStub([](uint32_t graph_id, const aclmdlDataset *inputs,
+        aclmdlDataset *outputs, void *stream) -> aclError {
       ADP_LOG(INFO) << "Map and batch test RunGraphWithStreamAsyncStub, stream = " << stream;
       AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
-      stub->hook = std::bind([](const std::vector<ge::Tensor> &inputs, std::vector<ge::Tensor> &outputs) -> ge::Status {
-        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.num = "
-            << inputs.size() << ", output.num = " << outputs.size();
+      stub->hook = std::bind([](const aclmdlDataset *inputs, aclmdlDataset *outputs) -> aclError {
+        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input= "
+            << inputs << ", output= " << outputs;
+
         uint64_t addr_offset = sizeof(ge::StringHead);
-        const uint8_t *input = inputs[0].GetData() + addr_offset;
-        uint8_t *output = outputs[0].GetData();
+        const uint8_t *input = static_cast<uint8_t*>(inputs->blobs[0].dataBuf->data + addr_offset);
+        uint8_t *output = static_cast<uint8_t*>(outputs->blobs[0].dataBuf->data);
         ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.addr = "
-            << (void*)input << ", size = " << inputs[0].GetSize()
-            << ", output.addr = " << (void*)output << ", size = " << outputs[0].GetSize();
+            << (void*)input << ", output.addr = " << (void*)output;
         *reinterpret_cast<float*>(output) = (*reinterpret_cast<const char*>(input));
-        return ge::SUCCESS;
+        return ACL_SUCCESS;
       }, std::placeholders::_1, std::placeholders::_2);
 
-      return ge::SUCCESS;
+      return ACL_SUCCESS;
     });
 
     SetLogLevelForC(0);
@@ -544,7 +593,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams7() {
                                   /*type_arguments*/ {},
                                   /*preserve_cardinality=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({-1})},
+                                  /*output_shapes=*/{PartialTensorShape({-1, -1})},
                                   /*output_device=*/"cpu",
                                   /*node_name=*/kNodeName);
 }
@@ -573,7 +622,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams8() {
                                   /*type_arguments*/ {},
                                   /*preserve_cardinality=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({-1})},
+                                  /*output_shapes=*/{PartialTensorShape({-1, -1})},
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }
@@ -603,7 +652,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams9() {
                                   /*type_arguments*/ {},
                                   /*preserve_cardinality=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({-1})},
+                                  /*output_shapes=*/{PartialTensorShape({-1, -1})},
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }
@@ -636,7 +685,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams10() {
                                   /*type_arguments*/ {},
                                   /*preserve_cardinality=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({-1})},
+                                  /*output_shapes=*/{PartialTensorShape({-1, -1})},
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }
@@ -668,7 +717,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams11() {
                                   /*type_arguments*/ {},
                                   /*preserve_cardinality=*/false,
                                   /*output_dtypes=*/{DT_INT64},
-                                  /*output_shapes=*/{PartialTensorShape({-1})},
+                                  /*output_shapes=*/{PartialTensorShape({-1, -1})},
                                   /*output_device=*/"npu",
                                   /*node_name=*/kNodeName);
 }
@@ -681,7 +730,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam11) {
                                      CreateTensor<int64>(TensorShape({1}), {5})}, /*compare_order=*/ true));
   ADP_LOG(INFO) << "====== UT case-11 end ======";
 }
-#endif
+
 
 TEST_F(NpuMapAndBatchDatasetOpTest, DebugString) {
   ADP_LOG(INFO) << "====== UT case-12 begin ======";
@@ -690,6 +739,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DebugString) {
   EXPECT_EQ(dataset_->DebugString(), "NpuMapAndBatchDatasetOp::DataSet");
   ADP_LOG(INFO) << "====== UT case-12 end ======";
 }
+#endif
 
 NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams12() {
   return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 4, 1),
@@ -706,6 +756,7 @@ NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams12() {
                                   /*output_device=*/"cpu",
                                   /*node_name=*/kNodeName);
 }
+#if 1
 TEST_F(NpuMapAndBatchDatasetOpTest, Cardinality) {
   ADP_LOG(INFO) << "====== UT case-13 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams12();
@@ -714,6 +765,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, Cardinality) {
   EXPECT_EQ(dataset_->Cardinality(), ret_val);
   ADP_LOG(INFO) << "====== UT case-13 end ======";
 }
+#endif
 
 // test case 14: test for DT_String input datatype
 NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetDTStringParams1() {

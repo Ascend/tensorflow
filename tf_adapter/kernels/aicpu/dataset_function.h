@@ -29,6 +29,8 @@
 #include "tensorflow/core/kernels/data/captured_function.h"
 #include "tensorflow/core/lib/core/error_codes.pb.h"
 #include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/common_runtime/dma_helper.h"
+#include "tensorflow/core/graph/algorithm.h"
 
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
@@ -36,7 +38,14 @@
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
 #include "framework/omg/parser/model_parser.h"
+#include "framework/omg/parser/parser_factory.h"
 #include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/util/infershape_util.h"
+#include "tf_adapter/common/common.h"
+
+#include "acl/acl_base.h"
+#include "acl/acl_mdl.h"
+#include "ge/ge_ir_build.h"
 
 #define DATASET_REQUIRES(EXP, STATUS)    \
   do {                                   \
@@ -46,12 +55,21 @@
     }                                    \
   } while (0)
 
+#define DATASET_REQUIRES_RETURN_NULL(EXP, STATUS)    \
+  do {                                               \
+    if (!(EXP)) {                                    \
+      ADP_LOG(ERROR) << (STATUS);                    \
+      return nullptr;                                \
+    }                                                \
+  } while (0)
+
 namespace tensorflow {
 namespace data {
-
 class DatasetFunction {
   public:
-    using Instance = uint32_t;
+    using ModelId = uint32_t;
+    using TensorPartialShapes = tensorflow::gtl::InlinedVector<tensorflow::PartialTensorShape, 4>;
+    using TensorDataTypes = tensorflow::gtl::InlinedVector<tensorflow::DataType, 4>;
     DatasetFunction(const std::map<std::string, std::string> &init_options, const std::string &funcName,
         const DataTypeVector &input_types, const DataTypeVector &output_types,
         const std::vector<PartialTensorShape> &input_shape, const std::vector<PartialTensorShape> &output_shape)
@@ -65,22 +83,31 @@ class DatasetFunction {
     };
     ~DatasetFunction();
 
+    Status Instantialte();
     Status Initialize(const std::map<std::string, std::string> &session_options, FunctionLibraryDefinition &flib_def);
-    Status Instantialte(Instance &instance);
-    Status Run(Instance instance, std::vector<ge::Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
-    Status Run(Instance instance, std::vector<Tensor> &in_tensors, std::vector<ge::Tensor> &out_tensors);
+    Status Run(ModelId model_id, aclmdlDataset* in_dataset, aclmdlDataset* out_dataset);
+    Status RunWithStreamAsyn(ModelId model_id, aclmdlDataset* in_dataset, aclmdlDataset* out_dataset,
+        aclrtStream stream);
+    Status LoadGeModelFromMem(ModelId &model_id);
 
-    Status RunWithStreamAsyn(Instance instance, void *stream, std::vector<ge::Tensor> &in_tensors,
-        std::vector<ge::Tensor> &out_tensors);
-    Status RunWithStreamAsyn(Instance instance, void *stream, std::vector<Tensor> &in_tensors,
-        std::vector<ge::Tensor> &out_tensors);
     static Status RegisterNpuCancellation(std::function<void()> callback, std::function<void()>* deregister_fn);
     inline const std::vector<ge::DataType>& GetGeDataTypes() const { return ge_output_types_; }
     static bool HaveUnknowShape(const std::vector<PartialTensorShape> tf_shapes);
     static bool IsUnknowShape(const PartialTensorShape &tf_shape);
     static std::vector<int64_t> GetTfShapeDims(const PartialTensorShape &tf_shape);
     static std::vector<int64_t> GetTfShapeDims(const TensorShape &tf_shape);
-    static Status ConvertDTStringTensor(ge::Tensor &input, uint64_t count, std::string &str_vec);
+
+    static aclmdlDataset *CreateAclInputDatasetWithTFTensors(std::vector<Tensor> &tf_tensors);
+    static Status TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, Tensor &tf_tensor);
+    static void *ConvertDTStringTensor(uint64_t count, std::string &str_vec, uint64_t &tensor_size);
+    static void DestroyAclInputDataset(aclmdlDataset *input);
+    static aclmdlDataset *CreateAclOutputDataset(ModelId model_id);
+    static void DestroyAclOutputDataset(aclmdlDataset *output);
+    static aclmdlDesc *CreateAclModelDesc(ModelId model_id);
+    static void DestoryAclModelDesc(aclmdlDesc *model_desc);
+    static Status GetAclTenorDescDims(aclTensorDesc *desc, std::vector<int64_t> &ret_dims);
+    static void *ReAllocDeviceMem(void *addr, size_t len);
+
     static inline bool CheckMultiplyOverflow(int64_t a, int64_t b) {
       const static int64_t max_int64 = INT64_MAX;
       return (a != 0) && (b != 0) && (a > (max_int64 / b));
@@ -135,19 +162,24 @@ class DatasetFunction {
     }
 
   private:
+    void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition &lib_def, tensorflow::Graph &graph) const;
+    void AssembleOpDef(tensorflow::Node *n) const;
+    void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const;
+    void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const;
+    PartialTensorShape MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const;
+    void UpdateShapeForArgOp(Graph &graph) const;
+
     void DumpTfGraph(const std::string &procPrifex, const std::string &func_name, const GraphDef &graph) const;
     void DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name,
         const ge::ComputeGraphPtr &graph) const;
     Status GeError(std::string errorDesc, ge::Status status) const;
-    Status AddOpDef(Node &node) const;
-    Status RefreshNodeDesc(Node &node) const;
     std::string BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) const;
     Status CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser, FunctionLibraryDefinition &flib_def);
     ge::InputTensorInfo BuildTensorInfo(const std::shared_ptr<domi::ModelParser> &model_parser,
         DataType type, const PartialTensorShape &shape) const;
     std::vector<ge::InputTensorInfo> BuildInputTensorInfos(
         const std::shared_ptr<domi::ModelParser> &model_parser) const;
-    Status BuildGeGraph(const Instance &instance, const std::shared_ptr<domi::ModelParser> &model_parser);
+    Status BuildGeGraph(const ModelId &model_id, const std::shared_ptr<domi::ModelParser> &model_parser);
     Status InitGeGraph(FunctionLibraryDefinition &flib_def);
     static void LogOptions(const std::map<std::string, std::string> &options);
 
@@ -157,8 +189,10 @@ class DatasetFunction {
     }
 
     const std::string& GetPrefix() const { return prefix_; }
-
     const std::string prefix_ = "DatasetFunc";
+
+    template <typename T>
+    tensorflow::AttrValue BuildDescAttr(T shapes, TensorDataTypes types) const;
 
     std::map<std::string, std::string> init_options_;
     const std::string funcName_;
@@ -168,11 +202,59 @@ class DatasetFunction {
     const std::vector<PartialTensorShape> &input_shape_;
     const std::vector<PartialTensorShape> &output_shape_;
 
-    // std::string tf_session_;
     std::map<std::string, std::string> session_options_;
 
     std::shared_ptr<ge::Session> ge_session_ = nullptr;
     ge::Graph ge_graph_;
+    ge::ModelBufferData ge_model_;
+
+}; // class DatasetFunction
+
+struct Items {
+public:
+  void Update() {
+    int64_t interval_time = end_time - start_time;
+    if ((start_time <= 0LL) || (end_time <= 0LL) || (interval_time <= 0LL)) {
+      start_time = INT64_MIN;
+      return;
+    }
+    // if data overflow, stop record
+    if (total_time + interval_time > INT64_MAX) {
+      return;
+    }
+    total_time += interval_time;
+    total_records++;
+    min_time = std::min(min_time, interval_time);
+    max_time = std::max(max_time, interval_time);
+    start_time = INT64_MIN;
+  };
+
+  int64_t thread_id = INT64_MIN;
+  int64_t start_time = INT64_MIN;
+  int64_t end_time = INT64_MIN;
+  int64_t min_time = INT64_MAX;
+  int64_t max_time = INT64_MIN;
+  int64_t avg_time = 0LL;
+  int64_t total_time = 0LL;
+  int64_t total_records = 0LL;
+};
+
+class TimeStatistic {
+public:
+  explicit TimeStatistic(int64_t total_threads);
+  ~TimeStatistic() {};
+
+  void RecordStartTime(Items &it);
+  void RecordEndTime(Items &it);
+  void UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag);
+  void ShowTimeStatistic();
+
+  // record time statistics for GetNextInter API
+  Items statis;
+  std::vector<Items> statis_threads;
+  std::vector<Items> statis_threads_ge;
+  int64_t max_threads = 0LL;
+  bool stop_record = true;
 };
 }  // namespace data
 }  // namespace tensorflow
