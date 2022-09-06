@@ -21,6 +21,7 @@
 #include "tf_adapter/common/adp_logger.h"
 
 namespace tensorflow {
+  constexpr uint64_t kMemAlignSize = 128;
   MemoryPool::MemoryPool() {}
 
   MemoryPool::~MemoryPool() {}
@@ -48,8 +49,8 @@ namespace tensorflow {
     }
 
     if (temp_block.ptr == nullptr) {
-      temp_block.ptr = malloc(args_size);
-      if (temp_block.ptr == nullptr) {
+      int ret = posix_memalign(&temp_block.ptr, kMemAlignSize, args_size);
+      if ((ret != 0) || (temp_block.ptr == nullptr)) {
         ADP_LOG(ERROR) << "rtMalloc host memory failed";
         return errors::InvalidArgument("rtMalloc host memory failed");
       }
