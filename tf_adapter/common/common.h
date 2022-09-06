@@ -52,31 +52,4 @@ constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;
       LOG(INFO) << status.ToString();                                                                                  \
   } while (0)
 
-namespace npu {
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a) {
-  return StrCat(a);
-}
-
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b) {
-  return StrCat(a, b);
-}
-
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
-                          const tensorflow::strings::AlphaNum &c) {
-  return StrCat(a, b, c);
-}
-
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
-                          const tensorflow::strings::AlphaNum &c, const tensorflow::strings::AlphaNum &d) {
-  return StrCat(a, b, c, d);
-}
-
-template<typename... AV>
-inline std::string CatStr(const tensorflow::strings::AlphaNum &a, const tensorflow::strings::AlphaNum &b,
-                          const tensorflow::strings::AlphaNum &c, const tensorflow::strings::AlphaNum &d,
-                          const tensorflow::strings::AlphaNum &e, const AV &... args) {
-  return StrCat(a, b, c, d, e, args...);
-}
-}  // namespace npu
-
 #endif  // TENSORFLOW_COMMON_COMMON_H_

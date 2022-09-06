@@ -105,33 +105,33 @@ struct ResourceCompare {
   }
 };
 
-void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g,
+void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph &g,
                                    bool keep_signature = false);
 
 void FixGraphArgRetvalIndex(const tensorflow::Graph &graph);
 
-bool IsSubstituteNode(const tensorflow::Node *node);
+bool IsSubstituteNode(const tensorflow::Node &node);
 
 bool IsSubstituteNode(const tensorflow::NodeDef &def);
 
-bool IsNodeHasSubgraph(const tensorflow::Node *node);
+bool IsNodeHasSubgraph(const tensorflow::Node &node);
 
-bool IsNodeHasSubstituteInput(const tensorflow::Node *node);
+bool IsNodeHasSubstituteInput(const tensorflow::Node &node);
 
 tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge);
 
 std::set<std::string> GetNodeSubgraph(const tensorflow::Node &node);
 tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice &device, const tensorflow::Node &node,
-                                             const tensorflow::FunctionLibraryDefinition *lib_def,
+                                             const tensorflow::FunctionLibraryDefinition &lib_def,
                                              std::set<std::string> &unsupported_ops);
 tensorflow::Status GetGraphUnsupportedOps(const NpuDevice &device, const tensorflow::Graph &graph,
-                                          const tensorflow::FunctionLibraryDefinition *lib_def,
+                                          const tensorflow::FunctionLibraryDefinition &lib_def,
                                           std::set<std::string> &unsupported_ops);
 
-bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph,
-                                   const tensorflow::FunctionLibraryDefinition *lib_def);
+bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph &graph,
+                                   const tensorflow::FunctionLibraryDefinition &lib_def);
 
-bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key);
+bool IsGraphNeedLoop(const tensorflow::Graph &graph, tensorflow::Node *&key);
 
 uint64_t NextUUID();
 
@@ -142,15 +142,15 @@ class OptimizeStageGraphDumper {
   void Dump(const std::string &stage, const tensorflow::GraphDef &graph_def);
 
   void DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
-                         const tensorflow::FunctionLibraryDefinition *lib_def);
+                         const tensorflow::FunctionLibraryDefinition &lib_def);
 
  private:
-  bool enabled_;
+  bool enabled_{false};
   std::string graph_;
-  int counter_;
+  int counter_{0};
 };
 
-void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::unique_ptr<tensorflow::Graph> *g);
+void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::unique_ptr<tensorflow::Graph> *g);
 
 tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size);
 

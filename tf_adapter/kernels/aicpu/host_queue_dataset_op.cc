@@ -248,7 +248,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     }
 
     unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return unique_ptr<IteratorBase>(new (nothrow) Iterator({this, npu::CatStr(prefix, "::HostQueue")}));
+      return unique_ptr<IteratorBase>(new (nothrow) Iterator({this, strings::StrCat(prefix, "::HostQueue")}));
     }
 
     const DataTypeVector &output_dtypes() const override { return output_types_; }
@@ -889,9 +889,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         for (size_t i = 0; i < input_impls_.size(); ++i) {
           TF_RETURN_IF_ERROR(
 #ifdef TF_VERSION_TF2
-              dataset()->inputs_[i]->MakeIterator(ctx, this, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
+              dataset()->inputs_[i]->MakeIterator(ctx, this, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i])
 #else
-              dataset()->inputs_[i]->MakeIterator(ctx, npu::CatStr(prefix(), "[", i, "]"), &input_impls_[i])
+              dataset()->inputs_[i]->MakeIterator(ctx, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i])
 #endif
           );
         }

@@ -457,25 +457,27 @@ tensorflow::Status NpuDevice::InferShape(const TFE_Context *const context,
   bool input_requested = false;
   for (int i = 0; i < num_inputs; i++) {
     auto input = inputs[i];
-    if (ic.requested_input_tensor(i)) {  // If requested, this must be a normal tensor
-      if (npu::IsNpuTensorHandle(input)) {
-        auto s = TF_NewStatus();
-        if (s == nullptr) {
-          continue;
-        }
-        input = CopyTensorD2H(context, input, s);
-        if (TF_GetCode(s) != TF_OK) {
-          TF_DeleteStatus(s);
-          continue;
-        }
-        DLOG() << "Copying " << ndef.op() << " input:" << i << " from NPU to CPU for infer shape";
-        scope_handle_deleter.Guard(input);
-      }
-      const tensorflow::Tensor *tensor;
-      NPU_REQUIRES_OK(npu::GetTensorHandleTensor(input, &tensor));
-      input_tensors[i] = tensor;
-      input_requested = true;
+    if (!ic.requested_input_tensor(i)) {
+      continue;
     }
+    // If requested, this must be a normal tensor
+    if (npu::IsNpuTensorHandle(input)) {
+      auto s = TF_NewStatus();
+      if (s == nullptr) {
+        continue;
+      }
+      input = CopyTensorD2H(context, input, s);
+      if (TF_GetCode(s) != TF_OK) {
+        TF_DeleteStatus(s);
+        continue;
+      }
+      DLOG() << "Copying " << ndef.op() << " input:" << i << " from NPU to CPU for infer shape";
+      scope_handle_deleter.Guard(input);
+    }
+    const tensorflow::Tensor *tensor;
+    NPU_REQUIRES_OK(npu::GetTensorHandleTensor(input, &tensor));
+    input_tensors[i] = tensor;
+    input_requested = true;
   }
   if (input_requested) {
     ic.set_input_tensors(input_tensors);
@@ -963,9 +965,9 @@ tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const s
 
     std::unique_ptr<tensorflow::Graph> graph = std::make_unique<tensorflow::Graph>(lib_def);
     CopyGraph(*fbody->graph, graph.get());
-    NpuCustomizedOptimizeGraph(flr, &graph);
+    NpuCustomizedOptimizeGraph(*flr, &graph);
 
-    PruneGraphByFunctionSignature(*fdef, graph.get(), true);
+    PruneGraphByFunctionSignature(*fdef, *graph.get(), true);
 
     AssembleParserAddons(context, graph.get());
 
@@ -1348,7 +1350,7 @@ tensorflow::Status NpuDevice::GetMirroredIteratorShapesAndTypes(const tensorflow
                                                                 TensorPartialShapes &shapes, TensorDataTypes &types) {
   tensorflow::tf_shared_lock lk(mutex_);
   const decltype(iterator_mirrors_)::const_iterator iter = iterator_mirrors_.find(src);
-  if (iter == iterator_mirrors_.end()) {
+  if (iter == iterator_mirrors_.cend()) {
     return tensorflow::errors::Internal("Resource ", src.DebugString(), " has not been mirrored");
   }
   shapes.assign(iter->second.first.cbegin(), iter->second.first.cend());

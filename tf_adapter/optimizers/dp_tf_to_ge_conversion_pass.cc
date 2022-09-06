@@ -226,12 +226,12 @@ inline std::string DpTfToGEConversionPassImpl::GetEdgeName(const Edge *e) const 
   if (e == nullptr || e->src() == nullptr || e->dst() == nullptr) {
     return "invalid_edge";
   }
-  return npu::CatStr("Edge_from_", e->src()->name(), "_out", e->src_output(), "_To_", e->dst()->name(), "_in",
-                     e->dst_input());
+  return strings::StrCat("Edge_from_", e->src()->name(), "_out", e->src_output(), "_To_", e->dst()->name(), "_in",
+                         e->dst_input());
 }
 
 inline std::string DpTfToGEConversionPassImpl::GetRandomName(const std::string &prefix) const {
-  return npu::CatStr(prefix, "_", GetRandomName());
+  return strings::StrCat(prefix, "_", GetRandomName());
 }
 
 std::string DpTfToGEConversionPassImpl::GetRandomName() const {
@@ -339,7 +339,7 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vect
       REQUIRES_NOT_NULL(e);
       if (!IsIteratorNode(e->src())) {
         last_edge = e;
-        ADP_LOG(INFO) << npu::CatStr("last edge", GetEdgeName(last_edge));
+        ADP_LOG(INFO) << strings::StrCat("last edge", GetEdgeName(last_edge));
       }
     }
   }
@@ -364,7 +364,7 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node *n, std::vect
           return s;
         }
       } else {  // GE unsupported node, this is a split edge
-        ADP_LOG(INFO) << npu::CatStr("Split_", GetEdgeName(e));
+        ADP_LOG(INFO) << strings::StrCat("Split_", GetEdgeName(e));
         ADP_LOG(INFO) << "Begin check split edge.";
         if (IsSkipDataset(e->dst())) {
           ADP_LOG(INFO) << "ADD last edge " << GetEdgeName(last_edge);
@@ -413,7 +413,7 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
         channel_name = "Queue_" + GetEdgeName(e) + "_" + GetRandomName();
       }
     } else {
-      channel_name = npu::CatStr(e->src()->name(), "_index_", std::to_string(g_channel_index));
+      channel_name = strings::StrCat(e->src()->name(), "_index_", std::to_string(g_channel_index));
       g_channel_index += 1;
     }
     host_queue_name = "HostQueue_" + channel_name;

@@ -198,15 +198,13 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, bool &loade
     const std::map<std::string, std::string> kOptions{
       {"ge.recompute", npu::GetRunContextOptions().memory_optimize_options.recompute},
       {"ge.graphParallelOptionPath", npu::GetRunContextOptions().graph_parallel_configs.config_path},
-      {"ge.enableGraphParallel", npu::GetRunContextOptions().graph_parallel_configs.enable_graph_parallel}
-    };
+      {"ge.enableGraphParallel", npu::GetRunContextOptions().graph_parallel_configs.enable_graph_parallel}};
     const static std::map<std::string, std::string> kFuzzCompileOptions{
       {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
       {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
       {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
     const auto need_fuzz_compile = NeedFuzzCompile();
-    if (device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(),
-                                (loop_type_ == LoopType::NPU_LOOP), status,
+    if (device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(), (loop_type_ == LoopType::NPU_LOOP), status,
                                 (need_fuzz_compile ? kFuzzCompileOptions : kOptions)) == kEmptyGeGraphId) {
       empty_ge_graph_ = true;
     }
@@ -251,7 +249,7 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   CopyGraph(*Graph(), graph.get());
 
   tensorflow::Node *key;
-  if (!IsGraphNeedLoop(graph.get(), &key)) {
+  if (!IsGraphNeedLoop(*graph.get(), key)) {
     if (key != nullptr) {
       SetLoopType(LoopType::BUILTIN_LOOP);
     }
@@ -281,7 +279,7 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
   tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
 
-  NpuCustomizedOptimizeGraph(flr, &graph);
+  NpuCustomizedOptimizeGraph(*flr, &graph);
 
   // Inline body function will change name of variable, which used as id for npu variable
   for (auto node : graph->op_nodes()) {
@@ -296,9 +294,9 @@ tensorflow::Status NpuMutableConcreteGraph::TryTransToNpuLoopGraph(TFE_Context *
   }
 
   OptimizeStageGraphDumper graph_dumper(Op());
-  graph_dumper.DumpWithSubGraphs("LOOP", graph->ToGraphDefDebug(), lib_def);
+  graph_dumper.DumpWithSubGraphs("LOOP", graph->ToGraphDefDebug(), *lib_def);
 
-  if (IsGraphHasAnyUnknownShapeNode(graph.get(), lib_def)) {
+  if (IsGraphHasAnyUnknownShapeNode(*graph.get(), *lib_def)) {
     DLOG() << "Host loop " << Op() << " as body graph has unknown shape node";
     SetLoopType(LoopType::HOST_LOOP);
   } else {

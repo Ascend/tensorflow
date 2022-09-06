@@ -72,9 +72,8 @@ class NpuCallOp : public OpKernel {
     }
 
     std::vector<TFE_TensorHandle *> outputs(ctx->num_outputs());
-    device->RunGeGraphPin2Cpu(context, graph_id_, static_cast<int32_t>(inputs.size()),
-                              inputs.data(), output_types(), static_cast<int32_t>(outputs.size()),
-                              outputs.data(), status.get());
+    device->RunGeGraphPin2Cpu(context, graph_id_, static_cast<int32_t>(inputs.size()), inputs.data(), output_types(),
+                              static_cast<int32_t>(outputs.size()), outputs.data(), status.get());
     OP_REQUIRES_OK(ctx, status->status);
 
     for (auto &handle : outputs) {
@@ -102,8 +101,8 @@ class NpuCallOp : public OpKernel {
     graph_def_ = std::make_unique<tensorflow::GraphDef>();
     dumper_ = std::make_unique<OptimizeStageGraphDumper>(name() + "." + attr_.name());
     CopyGraph(*fbody->graph, graph_.get());
-    NpuCustomizedOptimizeGraph(ctx->function_library(), &graph_);
-    PruneGraphByFunctionSignature(*fdef, graph_.get(), true);
+    NpuCustomizedOptimizeGraph(*(ctx->function_library()), &graph_);
+    PruneGraphByFunctionSignature(*fdef, *graph_.get(), true);
 
     for (auto node : graph_->op_nodes()) {
       if (!node->IsArg()) {
@@ -160,7 +159,7 @@ class NpuCallOp : public OpKernel {
       CopyGraph(*graph_, graph.get());
       AssembleParserAddons(lib_def, graph.get());
       graph->ToGraphDef(graph_def_.get());
-      dumper_->DumpWithSubGraphs("NPU_FUNCTION.shape_refreshed", *graph_def_, lib_def);
+      dumper_->DumpWithSubGraphs("NPU_FUNCTION.shape_refreshed", *graph_def_, *lib_def);
     }
 
     TFE_Context *context;
@@ -187,8 +186,7 @@ class NpuCallOp : public OpKernel {
         DLOG() << "Remove and re-add ge graph " << attr_.name() << " with id " << graph_id_ << " as "
                << (shape_changed ? "shape changed" : "need rebuild");
         [this, &status, &device]() {
-          NPU_CTX_REQUIRES_GE_OK(status,
-                                 "Graph engine remove graph",
+          NPU_CTX_REQUIRES_GE_OK(status, "Graph engine remove graph",
                                  device->GeSession()->RemoveGraph(static_cast<uint32_t>(graph_id_)));
         }();
         NPU_REQUIRES_OK(status->status);
@@ -198,7 +196,7 @@ class NpuCallOp : public OpKernel {
           {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
           {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
         (void)device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(),
-            (fuzz_compile_ ? kFuzzCompileOptions : kOptions));
+                                 (fuzz_compile_ ? kFuzzCompileOptions : kOptions));
         NPU_REQUIRES_OK(status->status);
         loaded = true;
       }

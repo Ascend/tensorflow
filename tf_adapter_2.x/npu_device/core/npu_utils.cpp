@@ -144,8 +144,8 @@ std::string WrapResourceName(const std::string &name) {
   return name;
 }
 
-bool IsSubstituteNode(const tensorflow::Node *node) {
-  auto attr = node->attrs().Find("_is_substitute");
+bool IsSubstituteNode(const tensorflow::Node &node) {
+  auto attr = node.attrs().Find("_is_substitute");
   return (attr != nullptr) && attr->b();
 }
 
@@ -154,8 +154,8 @@ bool IsSubstituteNode(const tensorflow::NodeDef &def) {
   return attr != def.attr().end() && attr->second.b();
 }
 
-bool IsNodeHasSubgraph(const tensorflow::Node *node) {
-  for (auto &attr : node->attrs()) {
+bool IsNodeHasSubgraph(const tensorflow::Node &node) {
+  for (auto &attr : node.attrs()) {
     if (attr.second.has_func()) {
       return true;
     }
@@ -163,9 +163,9 @@ bool IsNodeHasSubgraph(const tensorflow::Node *node) {
   return false;
 }
 
-std::vector<std::string> GetNodeSubgraphNames(const tensorflow::Node *node) {
+std::vector<std::string> GetNodeSubgraphNames(const tensorflow::Node &node) {
   std::vector<std::string> subgraphs;
-  for (auto &attr : node->attrs()) {
+  for (auto &attr : node.attrs()) {
     if (attr.second.has_func()) {
       subgraphs.push_back(attr.second.func().name());
     }
@@ -173,9 +173,9 @@ std::vector<std::string> GetNodeSubgraphNames(const tensorflow::Node *node) {
   return subgraphs;
 }
 
-bool IsNodeHasSubstituteInput(const tensorflow::Node *node) {
-  for (auto in_node : node->in_nodes()) {
-    if (IsSubstituteNode(in_node)) {
+bool IsNodeHasSubstituteInput(const tensorflow::Node &node) {
+  for (auto in_node : node.in_nodes()) {
+    if (IsSubstituteNode(*in_node)) {
       return true;
     }
   }
@@ -185,7 +185,7 @@ bool IsNodeHasSubstituteInput(const tensorflow::Node *node) {
 tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge) { return edge.src()->output_type(edge.src_output()); }
 
 tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef &gdef,
-                                                     const tensorflow::FunctionLibraryDefinition *lib_def) {
+                                                     const tensorflow::FunctionLibraryDefinition &lib_def) {
   tensorflow::FunctionDefLibrary fdef_lib;
 
   std::unordered_set<std::string> related_function_names;
@@ -193,7 +193,7 @@ tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef 
   for (const auto &n : gdef.node()) {
     for (const auto &attr : n.attr()) {
       if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
-        const auto *f = lib_def->Find(attr.second.func().name());
+        const auto *f = lib_def.Find(attr.second.func().name());
         if (f != nullptr) {
           *fdef_lib.add_function() = *f;
           related_functions.push(f);
@@ -210,7 +210,7 @@ tensorflow::FunctionDefLibrary CollectGraphSubGraphs(const tensorflow::GraphDef 
     for (const auto &n : f->node_def()) {
       for (const auto &attr : n.attr()) {
         if (attr.second.has_func() && related_function_names.insert(attr.second.func().name()).second) {
-          const auto *f_inner = lib_def->Find(attr.second.func().name());
+          const auto *f_inner = lib_def.Find(attr.second.func().name());
           if (f_inner != nullptr) {
             *fdef_lib.add_function() = *f_inner;
             related_functions.push(f_inner);
@@ -242,7 +242,7 @@ void OptimizeStageGraphDumper::Dump(const std::string &stage, const tensorflow::
 }
 
 void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const tensorflow::GraphDef &graph_def,
-                                                 const tensorflow::FunctionLibraryDefinition *lib_def) {
+                                                 const tensorflow::FunctionLibraryDefinition &lib_def) {
   if (!enabled_) {
     return;
   }
@@ -257,14 +257,14 @@ void OptimizeStageGraphDumper::DumpWithSubGraphs(const std::string &stage, const
  * @param g: graph
  * @param keep_signature: if keep signature or not
  */
-void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph *g, bool keep_signature) {
+void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorflow::Graph &g, bool keep_signature) {
   std::unordered_set<tensorflow::StringPiece, tensorflow::StringPieceHasher> control_ret_nodes;
   for (const auto &control_ret : fdef.control_ret()) {
     (void)control_ret_nodes.insert(control_ret.second);
   }
 
   std::unordered_set<const tensorflow::Node *> nodes;
-  for (auto n : g->nodes()) {
+  for (auto n : g.nodes()) {
     if (n->IsControlFlow() || n->op_def().is_stateful() ||
         (control_ret_nodes.find(n->name()) != control_ret_nodes.end())) {
       if (n->type_string() == "VarHandleOp" || n->type_string() == "IteratorV2") {
@@ -276,9 +276,9 @@ void PruneGraphByFunctionSignature(const tensorflow::FunctionDef &fdef, tensorfl
       (void)nodes.insert(n);
     }
   }
-  bool changed = tensorflow::PruneForReverseReachability(g, std::move(nodes));
+  bool changed = tensorflow::PruneForReverseReachability(&g, std::move(nodes));
   if (changed) {
-    (void)tensorflow::FixupSourceAndSinkEdges(g);
+    (void)tensorflow::FixupSourceAndSinkEdges(&g);
   }
 }
 
@@ -293,7 +293,7 @@ std::set<std::string> GetNodeSubgraph(const tensorflow::Node &node) {
 }
 
 tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice &device, const tensorflow::Node &node,
-                                             const tensorflow::FunctionLibraryDefinition *lib_def,
+                                             const tensorflow::FunctionLibraryDefinition &lib_def,
                                              std::set<std::string> &unsupported_ops) {
   // For subgraphs of node A, if subgraph has node must place on cpu, A must place on cpu
   // If A placed on cpu, any subraph has node that must place on npu, will be mix partitioned
@@ -301,7 +301,7 @@ tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice &device, const tens
   std::queue<const tensorflow::FunctionDef *> related_functions;
 
   for (auto &fn : related_function_names) {
-    const auto *f = lib_def->Find(fn);
+    const auto *f = lib_def.Find(fn);
     NPU_REQUIRES(f != nullptr, tensorflow::errors::Internal("Function ", fn, " not found"));
     related_functions.push(f);
   }
@@ -316,7 +316,7 @@ tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice &device, const tens
       for (const auto &attr : n.attr()) {
         auto &fn = attr.second.func().name();
         if (attr.second.has_func() && related_function_names.insert(fn).second) {
-          const auto *f = lib_def->Find(attr.second.func().name());
+          const auto *f = lib_def.Find(attr.second.func().name());
           NPU_REQUIRES(f != nullptr, tensorflow::errors::Internal("Function ", fn, " not found"));
           related_functions.push(f);
         }
@@ -327,7 +327,7 @@ tensorflow::Status GetSubgraphUnsupportedOps(const NpuDevice &device, const tens
 }
 
 tensorflow::Status GetGraphUnsupportedOps(const NpuDevice &device, const tensorflow::Graph &graph,
-                                          const tensorflow::FunctionLibraryDefinition *lib_def,
+                                          const tensorflow::FunctionLibraryDefinition &lib_def,
                                           std::set<std::string> &unsupported_ops) {
   for (auto node : graph.op_nodes()) {
     if (!device.Supported(node->type_string())) {
@@ -339,15 +339,15 @@ tensorflow::Status GetGraphUnsupportedOps(const NpuDevice &device, const tensorf
 }
 
 namespace {
-bool IsNegligibleUnknownShapeOutput(const tensorflow::Node *node, int index) {
+bool IsNegligibleUnknownShapeOutput(const tensorflow::Node &node, int index) {
   const static std::map<std::string, std::set<int>> kNegligibleUnknownShapeOutput = {{"FusedBatchNormV3", {5}}};
-  auto iter = kNegligibleUnknownShapeOutput.find(node->type_string());
+  auto iter = kNegligibleUnknownShapeOutput.find(node.type_string());
   return (iter != kNegligibleUnknownShapeOutput.end()) && (iter->second.count(index) > 0U);
 }
 
-bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorflow::FunctionLibraryDefinition *lib_def,
+bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph &graph, const tensorflow::FunctionLibraryDefinition &lib_def,
                                    std::queue<std::unique_ptr<tensorflow::Graph>> &q) {
-  tensorflow::ShapeRefiner shape_refiner(graph->versions(), lib_def);
+  tensorflow::ShapeRefiner shape_refiner(graph.versions(), &lib_def);
   std::atomic<bool> has_unknown_shape_node{false};
   auto node_shape_inference_lambda = [&q, &lib_def, &has_unknown_shape_node,
                                       &shape_refiner](const tensorflow::Node *node) {
@@ -365,14 +365,14 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
       tensorflow::TensorShapeProto proto;
       node_ctx->ShapeHandleToProto(node_ctx->output(i), &proto);
       tensorflow::PartialTensorShape shape(proto);
-      if ((!shape.IsFullyDefined()) && (!IsNegligibleUnknownShapeOutput(node, i))) {
+      if ((!shape.IsFullyDefined()) && (!IsNegligibleUnknownShapeOutput(*node, i))) {
         DLOG() << node->name() << "[" << node->type_string() << "] unknown shape output " << i << shape.DebugString();
         has_unknown_shape_node = true;
         return;
       }
     }
     if (node->IsWhileNode() || node->IsCaseNode() || node->IsIfNode()) {
-      auto fns = GetNodeSubgraphNames(node);
+      auto fns = GetNodeSubgraphNames(*node);
       std::vector<tensorflow::PartialTensorShape> shapes;
       for (int i = (node->IsWhileNode() ? 0 : 1); i < node_ctx->num_inputs(); i++) {
         tensorflow::TensorShapeProto proto;
@@ -381,8 +381,8 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
       }
       for (auto &fn : fns) {
         std::unique_ptr<tensorflow::FunctionBody> fbody;
-        auto &fdef = *lib_def->Find(fn);
-        status = FunctionDefToBodyHelper(fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
+        auto fdef = lib_def.Find(fn);
+        status = FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, &lib_def, &fbody);
         if (!status.ok()) {
           has_unknown_shape_node = true;
           LOG(ERROR) << node->name() << "[" << node->type_string()
@@ -401,13 +401,13 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph, const tensorf
       }
     }
   };
-  tensorflow::ReverseDFS(*graph, {}, node_shape_inference_lambda);
+  tensorflow::ReverseDFS(graph, {}, node_shape_inference_lambda);
   return has_unknown_shape_node;
 }
 }  // namespace
 
-bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph,
-                                   const tensorflow::FunctionLibraryDefinition *lib_def) {
+bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph &graph,
+                                   const tensorflow::FunctionLibraryDefinition &lib_def) {
   std::queue<std::unique_ptr<tensorflow::Graph>> q;
   if (IsGraphHasAnyUnknownShapeNode(graph, lib_def, q)) {
     return true;
@@ -415,28 +415,28 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph *graph,
   while (!q.empty()) {
     auto g = std::move(q.front());
     q.pop();
-    if (IsGraphHasAnyUnknownShapeNode(g.get(), lib_def, q)) {
+    if (IsGraphHasAnyUnknownShapeNode(*g.get(), lib_def, q)) {
       return true;
     }
   }
   return false;
 }
 
-bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
-  *key = nullptr;
+bool IsGraphNeedLoop(const tensorflow::Graph &graph, tensorflow::Node *&key) {
+  key = nullptr;
   std::vector<tensorflow::Node *> while_nodes;
-  for (auto node : graph->op_nodes()) {
+  for (auto node : graph.op_nodes()) {
     if (!node->IsWhileNode()) {
       continue;
     }
     while_nodes.push_back(node);
     if (node->attrs().Find("_consumed_iterators") != nullptr) {
       DLOG() << "Found while node " << node->name() << " consumed iterator";
-      *key = node;
+      key = node;
     }
   }
-  if (*key == nullptr || while_nodes.size() > 1) {
-    DLOG() << "Skip check as " << ((*key) ? "multi" : "no") << " while nodes in graph";
+  if (key == nullptr || while_nodes.size() > 1) {
+    DLOG() << "Skip check as " << ((key) ? "multi" : "no") << " while nodes in graph";
     return false;
   }
   size_t reserved_nums = 0;
@@ -445,9 +445,9 @@ bool IsGraphNeedLoop(const tensorflow::Graph *graph, tensorflow::Node **key) {
       reserved_nums++;
     }
   };
-  tensorflow::ReverseDFSFrom(*graph, {*key}, enter, {}, {}, {});
-  DLOG() << "Reserved nodes " << reserved_nums << " vs. totally " << graph->num_op_nodes();
-  return static_cast<int>(reserved_nums) == graph->num_op_nodes();
+  tensorflow::ReverseDFSFrom(graph, {key}, enter, {}, {}, {});
+  DLOG() << "Reserved nodes " << reserved_nums << " vs. totally " << graph.num_op_nodes();
+  return static_cast<int>(reserved_nums) == graph.num_op_nodes();
 }
 
 uint64_t NextUUID() {
@@ -496,7 +496,7 @@ std::string SetToString(const std::set<std::string> &vec) {
   return s + "]";
 }
 
-void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::unique_ptr<tensorflow::Graph> *g) {
+void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::unique_ptr<tensorflow::Graph> *g) {
   tensorflow::GraphOptimizer::Options options;
   options.cf_consider_fn = [](const tensorflow::Node *n) {
     for (const auto &output_arg : n->op_def().output_arg()) {
@@ -506,7 +506,7 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime *lib, std::un
     }
     return true;
   };
-  tensorflow::OptimizeGraph(lib, g, options);
+  tensorflow::OptimizeGraph(&lib, g, options);
 }
 
 tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size) {

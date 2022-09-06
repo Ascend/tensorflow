@@ -68,7 +68,7 @@ void NpuCtx::SetDeviceCtx(int id, TFE_Context *ctx, NpuDevice *device) {
 }
 tensorflow::Status NpuCtx::GetDeviceCtx(int id, TFE_Context **ctx, NpuDevice **device) {
   const decltype(npu_ctx_)::const_iterator iter = npu_ctx_.find(id);
-  NPU_REQUIRES(iter != npu_ctx_.end(),
+  NPU_REQUIRES(iter != npu_ctx_.cend(),
                tensorflow::errors::Internal("Device instance on device ", id, " has not been created"));
   *ctx = iter->second.ctx;
   *device = iter->second.device;

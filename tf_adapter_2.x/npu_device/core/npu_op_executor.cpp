@@ -61,7 +61,7 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
   if (num_inputs < 0) {
     return nullptr;
   }
-  input_shapes.resize(static_cast<size_t>(num_inputs));
+  input_shapes.resize(num_inputs);
   for (int i = 0; i < num_inputs; i++) {
     NPU_CTX_REQUIRES_OK_RETURN(s, npu::GetTensorHandleShape(inputs[i], input_shapes[static_cast<size_t>(i)]), nullptr);
   }

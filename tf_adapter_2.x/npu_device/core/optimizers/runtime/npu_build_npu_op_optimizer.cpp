@@ -152,14 +152,14 @@ tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGr
   ss << device->ValidateInputTypes(graph->ConsumedTypes()).error_message();
   ss << device->ValidateOutputTypes(graph->ProducedTypes()).error_message();
   std::set<std::string> unsupported_ops;
-  NPU_REQUIRES_OK(
-    GetGraphUnsupportedOps(*device, *(graph->MutableGraph()), npu::UnwrapCtx(context)->FuncLibDef(), unsupported_ops));
+  NPU_REQUIRES_OK(GetGraphUnsupportedOps(*device, *(graph->MutableGraph()), *(npu::UnwrapCtx(context)->FuncLibDef()),
+                                         unsupported_ops));
   if (!unsupported_ops.empty()) {
     ss << "Unsupported ops " << SetToString(unsupported_ops);
   }
   if (!ss.str().empty()) {
     tensorflow::Node *key;
-    if (IsGraphNeedLoop(graph->MutableGraph(), &key) || key != nullptr) {
+    if (IsGraphNeedLoop(*(graph->MutableGraph()), key) || key != nullptr) {
       graph->SetLoopType(NpuConcreteGraph::LoopType::BUILTIN_LOOP);
     }
     graph->SetExecutionType(NpuConcreteGraph::ExecutionType::MIX);

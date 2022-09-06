@@ -74,7 +74,7 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   for (int i = 0; i < node->num_inputs(); i++) {
     const tensorflow::Edge *edge;
     NPU_REQUIRES_OK(node->input_edge(i, &edge));
-    if (npu::IsSubstituteNode(edge->src())) {
+    if (npu::IsSubstituteNode(*(edge->src()))) {
       DLOG() << "Node input " << i << " from substitute " << edge->src()->name();
       substitutes[i] = edge->src();
     } else {
@@ -120,7 +120,7 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (npu::IsSubstituteNode(edge->src())) {
+    if (npu::IsSubstituteNode(*(edge->src()))) {
       continue;
     }
     if (edge->IsControlEdge()) {
@@ -164,7 +164,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
   for (int i = 0; i < node->num_inputs(); i++) {
     const tensorflow::Edge *edge;
     NPU_REQUIRES_OK(node->input_edge(i, &edge));
-    if ((i < kFunctionArgIndex) || (!npu::IsSubstituteNode(edge->src()))) {
+    if ((i < kFunctionArgIndex) || (!npu::IsSubstituteNode(*(edge->src())))) {
       (void)pruned_index.emplace(edge->dst_input(), pruned_index.size());
       continue;
     }
@@ -207,7 +207,7 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
   NPU_REQUIRES_OK(status);
 
   for (auto edge : node->in_edges()) {
-    if (npu::IsSubstituteNode(edge->src())) {
+    if (npu::IsSubstituteNode(*(edge->src()))) {
       continue;
     }
     if (edge->IsControlEdge()) {
@@ -262,7 +262,7 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
 
   std::set<tensorflow::Node *> nodes_has_subgraph;
   const std::function<void(tensorflow::Node *)> &enter = [&nodes_has_subgraph](tensorflow::Node *node) {
-    if (npu::IsNodeHasSubgraph(node) && npu::IsNodeHasSubstituteInput(node)) {
+    if (npu::IsNodeHasSubgraph(*node) && npu::IsNodeHasSubstituteInput(*node)) {
       DLOG() << "Node " << node->name() << " with function will be pruned";
       (void)nodes_has_subgraph.insert(node);
     };
@@ -318,7 +318,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
       mutable_graph->RemoveNode(item.second);
     }
   }
-  PruneGraphByFunctionSignature(*fdef, mutable_graph);
+  PruneGraphByFunctionSignature(*fdef, *mutable_graph);
 
   for (auto node : mutable_graph->op_nodes()) {
     if (!node->IsArg()) {
@@ -384,7 +384,7 @@ tensorflow::Status TransResourceInput2NodeOptimize(TFE_Context *context, NpuMuta
 
   NPU_REQUIRES_OK(TransResourceInput2Node(context, mutable_graph, arg_substitutes));
 
-  PruneGraphByFunctionSignature(*fdef, mutable_graph);
+  PruneGraphByFunctionSignature(*fdef, *mutable_graph);
 
   std::set<int32_t> consumed_inputs;
   std::set<int32_t> produced_outputs;

@@ -59,38 +59,39 @@ class NpuOptimizerManager {
   }
 
   tensorflow::Status MetaOptimize(TFE_Context *context, std::unique_ptr<tensorflow::Graph> *graph,
-                                  const std::map<std::string, std::string> &options, OptimizeStageGraphDumper &graph_dumper) {
+                                  const std::map<std::string, std::string> &options,
+                                  OptimizeStageGraphDumper &graph_dumper) {
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-    graph_dumper.DumpWithSubGraphs("before_meta_optimize", (*graph)->ToGraphDefDebug(), lib_def);
+    graph_dumper.DumpWithSubGraphs("before_meta_optimize", (*graph)->ToGraphDefDebug(), *lib_def);
 
     tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
     tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR("/job:localhost/replica:0/task:0/device:CPU:0");
 
     DLOG() << "Run tensorflow meta optimize";
-    NpuCustomizedOptimizeGraph(flr, graph);
+    NpuCustomizedOptimizeGraph(*flr, graph);
 
-    graph_dumper.DumpWithSubGraphs("after_tf_meta_optimize", (*graph)->ToGraphDefDebug(), lib_def);
+    graph_dumper.DumpWithSubGraphs("after_tf_meta_optimize", (*graph)->ToGraphDefDebug(), *lib_def);
 
     for (const auto &item : meta_optimizers_) {
       for (const auto &name2optimizer : item.second) {
         DLOG() << "Run npu meta optimize " << name2optimizer.first;
         NPU_REQUIRES_OK(name2optimizer.second(context, graph->get(), options));
         graph_dumper.DumpWithSubGraphs("after_npu_meta_optimizer_" + name2optimizer.first, (*graph)->ToGraphDefDebug(),
-                                       lib_def);
+                                       *lib_def);
       }
     }
     return tensorflow::Status::OK();
   }
 
   tensorflow::Status RuntimeOptimize(TFE_Context *context, NpuMutableConcreteGraph *graph,
-                                     const std::map<std::string, std::string> &options, NpuDevice *device, int num_inputs,
-                                     TFE_TensorHandle **inputs, OptimizeStageGraphDumper &dumper) {
+                                     const std::map<std::string, std::string> &options, NpuDevice *device,
+                                     int num_inputs, TFE_TensorHandle **inputs, OptimizeStageGraphDumper &dumper) {
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
     for (const auto &item : runtime_optimizers_) {
       for (const auto &name2optimizer : item.second) {
         DLOG() << "Run npu runtime optimize " << name2optimizer.first;
         NPU_REQUIRES_OK(name2optimizer.second(context, graph, options, device, num_inputs, inputs));
-        dumper.DumpWithSubGraphs("after_runtime_optimizer_" + name2optimizer.first, graph->GraphDef(), lib_def);
+        dumper.DumpWithSubGraphs("after_runtime_optimizer_" + name2optimizer.first, graph->GraphDef(), *lib_def);
       }
     }
     return tensorflow::Status::OK();

@@ -91,7 +91,7 @@ void NodePlacer::InitNodeTopo() {
 tensorflow::Status NodePlacer::CopyShareableNode() {
   std::vector<tensorflow::Node *> shared_nodes;
   for (auto node : graph_->nodes()) {
-    if (node->IsConstant() || IsSubstituteNode(node)) {
+    if (node->IsConstant() || IsSubstituteNode(*node)) {
       shared_nodes.emplace_back(node);
     }
   }
@@ -258,7 +258,7 @@ tensorflow::Status NodePlacer::BuildNpuOp() {
     (void)tensorflow::FixupSourceAndSinkEdges(cluster_graph.get());
     tensorflow::FunctionDefLibrary flib;
     OptimizeStageGraphDumper dumper(cluster->name + "." + fn);
-    dumper.DumpWithSubGraphs("NPU_FUNCTION", cluster_graph->ToGraphDefDebug(), lib_def);
+    dumper.DumpWithSubGraphs("NPU_FUNCTION", cluster_graph->ToGraphDefDebug(), *lib_def);
     NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*cluster_graph, fn, flib.add_function()));
     NPU_REQUIRES_OK(lib_def->AddLibrary(flib));
   }
@@ -285,11 +285,11 @@ tensorflow::Status NodePlacer::PlaceCpuNodeSubgraphs(size_t depth) const {
       std::unique_ptr<tensorflow::FunctionBody> fbody;
       auto &fdef = *lib_def->Find(fn);
       NPU_REQUIRES_OK(FunctionDefToBodyHelper(fdef, tensorflow::AttrSlice{}, lib_def, &fbody));
-      PruneGraphByFunctionSignature(fdef, fbody->graph, true);
+      PruneGraphByFunctionSignature(fdef, *(fbody->graph), true);
       NPU_REQUIRES_OK(NodePlacer(context_, fbody->graph, device_).Apply(depth + 1));
       tensorflow::FunctionDefLibrary flib;
       OptimizeStageGraphDumper dumper(fn);
-      dumper.DumpWithSubGraphs("MIX_FUNCTION", fbody->graph->ToGraphDefDebug(), lib_def);
+      dumper.DumpWithSubGraphs("MIX_FUNCTION", fbody->graph->ToGraphDefDebug(), *lib_def);
       NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, fn, flib.add_function()));
       NPU_REQUIRES_OK(lib_def->RemoveFunction(fn));
       NPU_REQUIRES_OK(lib_def->AddLibrary(flib));
@@ -367,12 +367,12 @@ tensorflow::Status NodePlacer::DeterminedSurelyNodes() {
     } else if (device_->IsNpuSpecificOp(node->type_string())) {
       DLOG() << "Determined npu " << node->name() << " " << node->type_string() << " as npu specific op";
       node_placement_[node] = Placement::NPU;
-    } else if (IsSubstituteNode(node)) {
+    } else if (IsSubstituteNode(*node)) {
       DLOG() << "Determined npu " << node->name() << " " << node->type_string() << " as npu resource";
       node_placement_[node] = Placement::NPU;
     } else {
       std::set<std::string> unsupported_ops;
-      NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(*device_, *node, lib_def, unsupported_ops));
+      NPU_REQUIRES_OK(GetSubgraphUnsupportedOps(*device_, *node, *lib_def, unsupported_ops));
       if (!unsupported_ops.empty()) {
         DLOG() << "Determined cpu " << node->name() << " " << node->type_string()
                << " as npu unsupported subgraph node " << SetToString(unsupported_ops);
