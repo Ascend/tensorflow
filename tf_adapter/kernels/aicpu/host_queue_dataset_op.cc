@@ -67,7 +67,7 @@ const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
 
 enum class ChannelType {
   TDT = 0,
-  ACL_QUEUE = 1,
+  ACL_QUEUE = 1, /* mbuf */
   HOST_QUEUE = 2
 };
 
@@ -128,12 +128,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
     } else if (NpuAttrs::GetNewDataTransferFlag()) {
-      ADP_LOG(INFO) << "Transfer mode is MBuf.";
       channel_type_ = ChannelType::ACL_QUEUE;
     } else {
       channel_type_ = ChannelType::TDT;
     }
-    ADP_LOG(INFO) << "Host queue channel type is: " << static_cast<int>(channel_type_);
+    ADP_LOG(INFO) << "Host queue channel type [TDT(0) MBuf(1) HostQueue(2)] is: "
+                  << static_cast<int>(channel_type_);
   }
 
   void MakeDataset(OpKernelContext *ctx, DatasetBase **output) override {
@@ -248,7 +248,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     }
 
     unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return unique_ptr<IteratorBase>(new (nothrow) Iterator({this, strings::StrCat(prefix, "::HostQueue")}));
+      return unique_ptr<IteratorBase>(new (nothrow) Iterator({this, prefix + "::HostQueue"}));
     }
 
     const DataTypeVector &output_dtypes() const override { return output_types_; }
@@ -428,6 +428,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         return true;
       }
+
       void FinishMemory() {
         if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
           ADP_LOG(INFO) << "FinishMemory ...";
@@ -641,7 +642,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
-        ADP_LOG(INFO) << "Begin to send data";
+        ADP_LOG(INFO) << "Begin to send data to the NPU.";
         {
           mutex_lock lck(mu_);
           active_thread_num++;
@@ -858,19 +859,17 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                                                   dataset()->channel_name_ +
                                                   "_device_" +
                                                   std::to_string(dataset()->device_id_)));
-        ADP_LOG(INFO) << "Channel name is :" << channel_name;
-        acl_handle_ =
-            acltdtCreateChannelWithCapacity(dataset()->device_id_, channel_name.c_str(), dataset()->channel_depth_);
+        acl_handle_ = acltdtCreateChannelWithCapacity(
+          dataset()->device_id_, channel_name.c_str(), dataset()->channel_depth_);
         if (acl_handle_ == nullptr) {
           ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
           return errors::InvalidArgument("Call acltdtCreateChannelWithCapacity failed.");
         }
-        ADP_LOG(INFO) << "Create Channel success";
+        ADP_LOG(INFO) << "Create Channel success. channel_name :" << channel_name;
         return Status::OK();
       }
 
       Status Initialize(IteratorContext *ctx) override {
-        ADP_LOG(INFO) << "Start to check channel name. channel name: " << dataset()->channel_name_;
         if (dataset()->channel_name_.empty()) {
           return errors::InvalidArgument("HostQueueDataset channel_name is null.");
         }
@@ -879,7 +878,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           return errors::InvalidArgument("Data deliver is nullptr");
         }
 
-        ADP_LOG(INFO) << "Start to check receive and send thread";
+        ADP_LOG(INFO) << "Start to enable receive and send threads.";
         try {
           input_impls_.resize(dataset()->inputs_.size());
         } catch (...) { return errors::InvalidArgument("HostQueueDataset resize failed."); }
@@ -889,9 +888,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         for (size_t i = 0; i < input_impls_.size(); ++i) {
           TF_RETURN_IF_ERROR(
 #ifdef TF_VERSION_TF2
-              dataset()->inputs_[i]->MakeIterator(ctx, this, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i])
+              dataset()->inputs_[i]->MakeIterator(ctx, this, prefix() + "[" + std::to_string(i) + "]", &input_impls_[i])
 #else
-              dataset()->inputs_[i]->MakeIterator(ctx, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i])
+              dataset()->inputs_[i]->MakeIterator(ctx, prefix() + "[" + std::to_string(i) + "]", &input_impls_[i])
 #endif
           );
         }
@@ -911,7 +910,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           TF_RETURN_IF_ERROR(EnsureReceiveThreadStarted(ctx));
           TF_RETURN_IF_ERROR(EnsureSendThreadStarted(ctx));
         }
-        ADP_LOG(INFO) << "HostQueue success to Initialize. channelName: " << dataset()->channel_name_;
+        ADP_LOG(INFO) << "HostQueue success to Initialize. channel_name_: " << dataset()->channel_name_;
         return Status::OK();
       }
 

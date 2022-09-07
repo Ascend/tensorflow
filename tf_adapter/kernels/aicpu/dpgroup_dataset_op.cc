@@ -60,7 +60,7 @@ private:
     }
 
     std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return std::unique_ptr<IteratorBase>(new (std::nothrow) Iterator({this, strings::StrCat(prefix, "::GEOP")}));
+      return std::unique_ptr<IteratorBase>(new (std::nothrow) Iterator({this, prefix + "::GEOP"}));
     }
 
     const DataTypeVector &output_dtypes() const override { return output_types_; }
@@ -102,11 +102,11 @@ private:
         for (size_t i = 0; i < input_impls_.size(); ++i) {
 #ifdef TF_VERSION_TF2
           TF_RETURN_IF_ERROR(
-              dataset()->inputs_[i]->MakeIterator(ctx, this, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i])
+              dataset()->inputs_[i]->MakeIterator(ctx, this, prefix() + "[" + std::to_string(i) + "]", &input_impls_[i])
           );
 #else
           TF_RETURN_IF_ERROR(
-              dataset()->inputs_[i]->MakeIterator(ctx, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i])
+              dataset()->inputs_[i]->MakeIterator(ctx, prefix() + "[" + std::to_string(i) + "]", &input_impls_[i])
           );
 #endif
         }
