@@ -21,6 +21,17 @@
 
 #define FMK_MODULE_NAME static_cast<int>(FMK)
 
+#define LOG_DEPRECATED_WITH_REPLACEMENT(old, replacement)                                                              \
+  do {                                                                                                                 \
+    ADP_LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version. Please "           \
+                        "use " #replacement " instead";                                                                \
+  } while (false)
+
+#define LOG_DEPRECATED(old)                                                                                            \
+  do {                                                                                                                 \
+    ADP_LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version.";                  \
+  } while (false)
+
 namespace npu {
 constexpr const char *ADP_MODULE_NAME = "TF_ADAPTER";
 const int ADP_DEBUG = 0;

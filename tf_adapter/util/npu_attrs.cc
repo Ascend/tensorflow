@@ -850,6 +850,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &att
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
     if (enable_data_pre_proc_value != nullptr) {
+      LOG_DEPRECATED(enable_data_pre_proc);
       enable_dp = enable_data_pre_proc_value->s();
     }
     if (use_off_line_value != nullptr) {
@@ -1061,6 +1062,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
     if (enable_data_pre_proc_value != nullptr) {
+      LOG_DEPRECATED(enable_data_pre_proc);
       enable_dp = enable_data_pre_proc_value->s();
     }
     if (use_off_line_value != nullptr) {
@@ -1190,9 +1192,11 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
       enable_exception_dump = enable_exception_dump_value->s();
     }
     if (op_select_implmode_value != nullptr) {
+      LOG_DEPRECATED_WITH_REPLACEMENT(op_select_implmode, op_precision_mode);
       op_select_implmode = op_select_implmode_value->s();
     }
     if (optypelist_for_implmode_value != nullptr) {
+      LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
       optypelist_for_implmode = optypelist_for_implmode_value->s();
     }
     if (input_shape_value != nullptr) {
@@ -1464,7 +1468,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string logical_device_id;
   bool jit_compile = true;
 
-  const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
+  const RewriterConfig &rewrite_options =
+    options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
       const auto &params = custom_optimizer.parameter_map();
