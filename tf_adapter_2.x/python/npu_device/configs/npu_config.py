@@ -42,7 +42,7 @@ class NpuConfig(NpuBaseConfig):
         self.op_compiler_cache_mode = OptionValue('disable', ['enable', 'disable', 'force'])
         self.op_compiler_cache_dir = OptionValue(None, None)
         self.stream_max_parallel_num = OptionValue(None, None)
-        self.hcom_parallel = OptionValue(True, [True, False])
+        self.hcom_parallel = OptionValue(False, [True, False])
         self.hcom_multi_mode = OptionValue(None, None)
         self.is_tailing_optimization = OptionValue(False, [True, False])
         self.op_debug_level = OptionValue(0, [0, 1, 2, 3, 4])

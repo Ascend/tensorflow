@@ -1395,7 +1395,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
 Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node) {
   std::map<std::string, std::string> sess_options;
   bool variable_format_optimize = true;
-  bool hcom_parallel = true;
+  bool hcom_parallel = false;
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
   bool enable_dump = false;
