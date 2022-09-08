@@ -1468,8 +1468,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string logical_device_id;
   bool jit_compile = true;
 
-  const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
-
+  const RewriterConfig &rewrite_options =
+    options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
       const auto &params = custom_optimizer.parameter_map();
