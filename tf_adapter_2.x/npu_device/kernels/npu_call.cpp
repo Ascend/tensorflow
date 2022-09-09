@@ -152,8 +152,14 @@ class NpuCallOp : public OpKernel {
       DLOG() << "Skip check re-build for empty ge graph " << attr_.name() << " of " << name();
       return tensorflow::Status::OK();
     }
+
+    TFE_Context *context;
+    NpuDevice *device;
+    auto status = std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)>(TF_NewStatus(), TF_DeleteStatus);
+    NPU_REQUIRES_OK(global::NpuCtx::GetDeviceCtx(device_id_, &context, &device));
+    bool jit_compile = device->device_options["ge.jit_compile"] == "1";
     bool shape_changed = MaybeUpdateShape(ctx);
-    if (!built_ || shape_changed) {
+    if (!built_ || (shape_changed && jit_compile)) {
       auto lib_def = ctx->function_library()->GetFunctionLibraryDefinition();
       auto graph = std::make_unique<tensorflow::Graph>(lib_def);
       CopyGraph(*graph_, graph.get());
@@ -162,10 +168,6 @@ class NpuCallOp : public OpKernel {
       dumper_->DumpWithSubGraphs("NPU_FUNCTION.shape_refreshed", *graph_def_, *lib_def);
     }
 
-    TFE_Context *context;
-    NpuDevice *device;
-    auto status = std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)>(TF_NewStatus(), TF_DeleteStatus);
-    NPU_REQUIRES_OK(global::NpuCtx::GetDeviceCtx(device_id_, &context, &device));
     if (!built_) {
       graph_id_ = device->AddGeGraph(context, attr_.name(), *graph_def_, status.get());
       NPU_REQUIRES_OK(status->status);
@@ -178,11 +180,11 @@ class NpuCallOp : public OpKernel {
       built_ = true;
       loaded = true;
     } else {
-      if (!fuzz_compile_ && shape_changed) {  // Input shape changed since graph was built
+      if (!fuzz_compile_ && shape_changed && jit_compile) {  // Input shape changed since graph was built
         DLOG() << "Fuzz compile npu graph of " << name() << " as input shape changed since last built";
         fuzz_compile_ = true;
       }
-      if (shape_changed || device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(graph_id_))) {
+      if ((shape_changed && jit_compile) || device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(graph_id_))) {
         DLOG() << "Remove and re-add ge graph " << attr_.name() << " with id " << graph_id_ << " as "
                << (shape_changed ? "shape changed" : "need rebuild");
         [this, &status, &device]() {
