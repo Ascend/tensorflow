@@ -547,6 +547,10 @@ void GeOp::GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> inp
   } else {
     if (num >= kMaxCacheNum) {
       ADP_LOG(INFO) << "[GEOP] the cache vector size is : " << num << " , begin erase the least uesed";
+      ADP_LOG(WARNING) << "Graph " << graph_id_ << " has been re-compiled more than " << kMaxCacheNum
+                       << " times as input shape changed, you can set "
+                          "\"custom_op.parameter_map[\"jit_compile\"].b=False\" to reduce "
+                          "the compilations by use pre-compiled binary kernel.";
       std::sort(graph_counts_.begin(), graph_counts_.end(), CmpValue);
       uint32_t erased_graph_id = cache_graphs_[graph_counts_[0].first];
       cache_graphs_.erase(graph_counts_[0].first);
@@ -640,9 +644,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   uint32_t cache_graph_id = graph_id_;
   bool is_set_dynamic_config = IsDynamicConfig();
   bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
-  bool is_lazy_recompile_mode = (dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile");
+  bool is_lazy_recompile = IsLazyRecompile();
   ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config << " is_tuning: " << is_tuning
-                << " is_lazy_recompile_mode: " << is_lazy_recompile_mode;
+                << " is_lazy_recompile: " << is_lazy_recompile;
 
   if (is_tuning) {
     if (is_set_dynamic_config) {
@@ -670,7 +674,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
   } else {
     // in dynamic input mode, cache graphs.
-    if (is_lazy_recompile_mode) {
+    if (is_lazy_recompile) {
       GetExecGraphId(cache_graph_id, input_shapes);
     }
     if (InitRebuildFlag(cache_graph_id) != 0) {
@@ -802,7 +806,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                     << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id;
     }
     build_flag_ = true;
-    if (!is_set_dynamic_config && is_lazy_recompile_mode) {
+    if (!is_set_dynamic_config && is_lazy_recompile) {
       cache_graphs_.insert(std::make_pair(input_shapes, cache_graph_id));
       graph_counts_.push_back(std::make_pair(input_shapes, 1));
     }
@@ -1073,7 +1077,7 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
         remove_nodes.push_back(node);
         remove_nodes.push_back(iterator_node);
       }
-      if (dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile") {
+      if (IsLazyRecompile()) {
         graph_options_["ge.exec.enableCopyOutputAddr"] = "1";
       }
     }
@@ -1780,7 +1784,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<Tensor> &inp
   if (sess_options_["ge.inputShape"].empty()) {
     if (!cur_input_shapes.empty() && input_shapes_.empty()) {
       input_shapes_ = cur_input_shapes;
-    } else if (input_shapes_ != cur_input_shapes && dynamic_input_ != "1") {
+    } else if (input_shapes_ != cur_input_shapes && dynamic_input_ != "1" && init_options_["jit_compile"] != "1") {
       return errors::Internal("The input shape of ", ctx->op_kernel().name(),
                               " is dynamic, please ensure that npu option[dynamic_input] is set"
                               " correctly, for more details please refer to the migration guide.");

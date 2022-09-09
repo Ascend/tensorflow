@@ -132,6 +132,11 @@ class GeOp : public AsyncOpKernel {
                                      const std::string &pre_input_dims, const std::string &new_input_shape,
                                      const std::string &new_input_dims) const;
 
+  bool IsLazyRecompile() {
+    return ((init_options_["jit_compile"] == "1") && (dynamic_input_ == "0")) ||
+        ((dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile"));
+  }
+
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;
   static const std::string SERIALIZE_FORMAT;
