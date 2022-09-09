@@ -1254,7 +1254,12 @@ tensorflow::Status NpuDevice::LoadSupportedOps(std::unordered_set<std::string> &
   NPU_REQUIRES(!kOppInstallPath.empty(),
                tensorflow::errors::Internal("No specific opp install path, set it by ASCEND_OPP_PATH env and retry"));
   NPU_REQUIRES_OK(tensorflow::Env::Default()->IsDirectory(kOppInstallPath));
-  auto supported_ops_json = kOppInstallPath + "/framework/built-in/tensorflow/npu_supported_ops.json";
+  std::string supported_ops_json;
+  if (!tensorflow::Env::Default()->IsDirectory(kOppInstallPath + "/vendors").ok()) {
+    supported_ops_json = kOppInstallPath + "/framework/built-in/tensorflow/npu_supported_ops.json";
+  } else {
+    supported_ops_json = kOppInstallPath + "/built-in/framework/tensorflow/npu_supported_ops.json";
+  }
   NPU_REQUIRES_OK(tensorflow::Env::Default()->FileExists(supported_ops_json));
   std::ifstream fs(supported_ops_json, std::ifstream::in);
   NPU_REQUIRES(fs.is_open(), tensorflow::errors::Internal("Failed open config file ", supported_ops_json));

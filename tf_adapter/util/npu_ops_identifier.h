@@ -43,6 +43,10 @@ class NpuOpsIdentifier {
   ~NpuOpsIdentifier() = default;
   // Parse and store the ops configuration json file, return num of parsed ops
   int32_t ParseOps(const std::string &f, nlohmann::json &root) const;
+  static bool GetOppPluginVendors(const std::string &vendors_config, std::vector<std::string> &vendors);
+  static bool IsNewOppPathStruct(const std::string &opp_path);
+  static bool GetCustomOpPath(const std::string &ops_path, std::string &ops_json_path,
+                              std::vector<std::string> &custom_ops_json_path_vec);
   const bool is_mix_;
   nlohmann::json &ops_info_;
 };
