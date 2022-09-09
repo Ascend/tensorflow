@@ -99,7 +99,7 @@ public:
           bool preserve_cardinality,
           const std::map<std::string, std::string> &sess_options,
           const std::map<std::string, std::string> &init_options,
-          std::vector<std::pair<StringPiece, AttrValue>> &attrs)
+          std::vector<std::pair<std::string, AttrValue>> &attrs)
       : DatasetBase(DatasetContext(ctx)),
         input_(input),
         num_parallel_calls_(static_cast<uint64_t>(num_parallel_calls)),
@@ -123,8 +123,9 @@ public:
   }
 
   ~Dataset() override {
+    ADP_LOG(EVENT) << "~Dataset start.";
     (void)input_->Unref();
-    ADP_LOG(EVENT) << "~Dataset finish.";
+    ADP_LOG(EVENT) << "~Dataset end.";
   }
 
   bool IsStaticShape() const {
@@ -211,12 +212,16 @@ protected:
     TF_RETURN_IF_ERROR(
         b->AddScalar(static_cast<int64>(num_parallel_calls_), &num_parallel_calls_node));
 
+    std::vector<std::pair<StringPiece, AttrValue>> attrs;
+    for (auto attr : attrs_) {
+      attrs.emplace_back(attr.first, attr.second);
+    }
     TF_RETURN_IF_ERROR(b->AddDataset(
         this,
         {std::make_pair(0, input_graph_node),
           std::make_pair(2, num_parallel_calls_node)},  // Single tensor inputs.
         {std::make_pair(1, other_arguments)},      // Tensor list inputs.
-        attrs_,  // Attrs
+        attrs,  // Attrs
         output));
     return Status::OK();
   }
@@ -234,18 +239,20 @@ private:
           func_(dataset()->init_options_, dataset()->captured_func_->func().name(),
               dataset()->input_->output_dtypes(), dataset()->output_dtypes(),
               dataset()->input_->output_shapes(), dataset()->output_shapes()) {
+      ADP_LOG(EVENT) << "Dataset::IteratorMeBase construct start.";
       Status status = GetEnvDeviceID(device_id_);
       if (!status.ok()) {
         ADP_LOG(ERROR) << "GetEnvDeviceID failed: rt = " << status.ToString()
                        << "device_id_ = " << device_id_;
       }
       timestat = std::make_shared<TimeStatistic>(static_cast<int64_t>(GetParallelCallsNum()));
-      ADP_LOG(EVENT) << "Dataset::IteratorMeBase";
+      ADP_LOG(EVENT) << "Dataset::IteratorMeBase construct finish.";
     }
 
     virtual ~IteratorMeBase() {
+      ADP_LOG(EVENT) << "~Dataset::IteratorMeBase start.";
       timestat->ShowTimeStatistic();
-      ADP_LOG(EVENT) << "~Dataset::IteratorMeBase";
+      ADP_LOG(EVENT) << "~Dataset::IteratorMeBase finish.";
     }
 
     uint64_t GetParallelCallsNum() const {
@@ -326,6 +333,7 @@ private:
       explicit OutputResultBase()
           : status(Status::OK()) {};
       virtual ~OutputResultBase() {
+        ADP_LOG(EVENT) << "~OutputResultBase start.";
         if (output != nullptr) {
           aclError rt = aclrtFree(output);
           if (rt != ACL_SUCCESS) {
@@ -382,6 +390,7 @@ private:
     }
 
     void Finalize() noexcept {
+      ADP_LOG(INFO) << "~Finalize start.";
       CancelThreads(true);
       if (deregister_fn_) {
         deregister_fn_();
@@ -427,7 +436,7 @@ private:
     }
 
     void CancelThreads(bool wait) LOCKS_EXCLUDED(*mu_) {
-      ADP_LOG(INFO) << "CancelThreads wait=" << wait;
+      ADP_LOG(INFO) << "CancelThreads start. wait=" << wait;
 #if defined(TF_VERSION_TF2)
       cancellation_manager_->StartCancel();
 #endif
@@ -442,7 +451,7 @@ private:
         cond_var_->notify_all();
         (void)usleep(kSleepUs);
       }
-      ADP_LOG(INFO) << "CancelThreads finish";
+      ADP_LOG(INFO) << "CancelThreads finish.";
     }
 
     void CallCompleted() LOCKS_EXCLUDED(*mu_) {
@@ -881,6 +890,7 @@ private:
     }
 
     ~IteratorStaticNpu() override {
+      ADP_LOG(EVENT) << "~IteratorStaticNpu start.";
       Finalize();
       ADP_LOG(EVENT) << "~IteratorStaticNpu finish.";
     }
@@ -904,6 +914,7 @@ private:
     }
 
     ~IteratorStaticCpu() override {
+      ADP_LOG(EVENT) << "~IteratorStaticCpu start.";
       Finalize();
       ADP_LOG(EVENT) << "~IteratorStaticCpu finish.";
     }
@@ -1128,6 +1139,7 @@ private:
     };
 
     ~IteratorDynCpu() override {
+      ADP_LOG(EVENT) << "~IteratorDynCpu start.";
       Finalize();
       ADP_LOG(EVENT) << "~IteratorDynCpu finish.";
     }
@@ -1204,7 +1216,7 @@ private:
   const std::unique_ptr<CapturedFunction> captured_func_;
   const std::map<std::string, std::string> sess_options_;
   const std::map<std::string, std::string> init_options_;
-  std::vector<std::pair<StringPiece, AttrValue>>& attrs_;
+  const std::vector<std::pair<std::string, AttrValue>> attrs_;
 #if defined(TF_VERSION_TF2)
   const TraceMeMetadata traceme_metadata_;
 #endif

@@ -54,6 +54,8 @@ limitations under the License.
 #include "tensorflow/core/common_runtime/dma_helper.h"
 #include "tensorflow/core/framework/collective.h"
 
+#include "tensorflow/core/graph/node_builder.h"
+
 #include "acl/acl_mdl.h"
 
 namespace tensorflow {
@@ -131,7 +133,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           const std::string output_device,
           const std::map<std::string, std::string> &sess_options,
           const std::map<std::string, std::string> &init_options,
-          std::vector<std::pair<StringPiece, AttrValue>> &attrs)
+          std::vector<std::pair<std::string, AttrValue>> &attrs)
       : DatasetBase(DatasetContext(ctx)),
         input_(input),
         batch_size_(batch_size),
@@ -155,11 +157,13 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
              {"drop_remainder", drop_remainder ? "true" : "false"}})
 #endif
   {
+    ADP_LOG(EVENT) << "Dataset construct start.";
     input_->Ref();
-    ADP_LOG(EVENT) << "Dataset.";
+    ADP_LOG(EVENT) << "Dataset construct finish.";
   }
 
   ~Dataset() override {
+    ADP_LOG(EVENT) << "~Dataset start.";
     (void)input_->Unref();
     ADP_LOG(EVENT) << "~Dataset finish.";
   }
@@ -251,6 +255,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     DataTypeVector other_arguments_types;
     TF_RETURN_IF_ERROR(captured_func_->AddToGraph(ctx, b, &other_arguments,
                                                   &other_arguments_types));
+
+    std::vector<std::pair<StringPiece, AttrValue>> attrs;
+    for (auto attr : attrs_) {
+      attrs.emplace_back(attr.first, attr.second);
+    }
     TF_RETURN_IF_ERROR(b->AddDataset(
         this,
         {std::make_pair(0, input_graph_node),
@@ -258,7 +267,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
          std::make_pair(3, num_parallel_calls_node),
          std::make_pair(4, drop_remainder_node)},  // Single tensor inputs.
         {std::make_pair(1, other_arguments)},      // Tensor list inputs.
-        attrs_,  // Attrs
+        attrs,  // Attrs
         output));
     return Status::OK();
   }
@@ -276,18 +285,20 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           func_(dataset()->init_options_, dataset()->captured_func_->func().name(),
               dataset()->input_->output_dtypes(), dataset()->output_dtypes(),
               dataset()->input_->output_shapes(), dataset()->output_shapes()) {
+        ADP_LOG(EVENT) << "IteratorMeBase construct start.";
         Status status = GetEnvDeviceID(device_id_);
         if (!status.ok()) {
           ADP_LOG(ERROR) << "GetEnvDeviceID failed: rt = " << status.ToString()
                          << "device_id_ = " << device_id_;
         }
         timestat = std::make_shared<TimeStatistic>(static_cast<int64_t>(GetParallelCallsNum()));
-        ADP_LOG(EVENT) << "IteratorMeBase finish.";
+        ADP_LOG(EVENT) << "IteratorMeBase construct finish.";
       }
 
       virtual ~IteratorMeBase() {
+        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase start.";
         timestat->ShowTimeStatistic();
-        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase";
+        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase finish.";
       }
 
       uint64_t GetParallelCallsNum() const {
@@ -372,6 +383,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               status(Status::OK()),
               batch_size(batch_size_) {};
         virtual ~BatchResultBase() {
+          ADP_LOG(EVENT) << "~BatchResultBase start.";
           if (output != nullptr) {
             rtError_t rt = rtFree(output);
             if (rt != RT_ERROR_NONE) {
@@ -433,7 +445,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           } else {
             UpdateState(DataStatus::WAIT_RESULT);
             ADP_LOG(INFO) << "UpdateStatus::Batch result status change, batch_id = " << batch_id
-                << ", data status => " << data_status;
+                          << ", data status => " << data_status;
             if (status.ok() || offset < status_offset) {
               status = s;
               status_offset = offset;
@@ -443,8 +455,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           if ((data_status == DataStatus::WAIT_RESULT) && (num_recv >= num_run)) {
             UpdateState(DataStatus::WAIT_READ);
             ADP_LOG(INFO) << "UpdateStatus::Batch result status change, batch_id = " << batch_id
-                << ", data status => " << data_status << ", num_recv = " << num_recv
-                << "num_run = " << num_run;
+                          << ", data status => " << data_status
+                          << ", num_recv = " << num_recv
+                          << "num_run = " << num_run;
           }
         }
 
@@ -457,8 +470,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             UpdateState(DataStatus::WAIT_RESULT);
           }
           ADP_LOG(INFO) << "EndofInput::Batch result status change, batch_id = " << batch_id
-              << ", data status => " << data_status << ", num_recv = " << num_recv
-              << "num_run = " << num_run;
+                        << ", data status => " << data_status << ", num_recv = " << num_recv
+                        << "num_run = " << num_run;
         }
 
         void Clear() {
@@ -528,6 +541,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void Finalize() noexcept {
+        ADP_LOG(INFO) << "~Finalize start.";
         CancelThreads(true);
         if (deregister_fn_) {
           deregister_fn_();
@@ -591,7 +605,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void CancelThreads(bool wait) LOCKS_EXCLUDED(*mu_) {
-        ADP_LOG(INFO) << "CancelThreads: wait = " << wait;
+        ADP_LOG(INFO) << "CancelThreads start. wait = " << wait;
 #if defined(TF_VERSION_TF2)
         cancellation_manager_->StartCancel();
 #endif
@@ -607,7 +621,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           cond_var_->notify_all();
           (void)usleep(kSleepUs);
         }
-        ADP_LOG(INFO) << "CancelThreads end.";
+        ADP_LOG(INFO) << "CancelThreads finish.";
       }
 
       void CallCompleted() LOCKS_EXCLUDED(*mu_) {
@@ -672,7 +686,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           mutex_lock l(*this->mu_);
           RecordStop(ctx.get());
           this->thread_num_--;
-          ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id << "thread_num = " << this->thread_num_;
+          ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id
+                        << "thread_num = " << this->thread_num_;
         });
 
         int run_res = 1;
@@ -1332,7 +1347,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
   const std::map<std::string, std::string> sess_options_;
   const std::map<std::string, std::string> init_options_;
-  std::vector<std::pair<StringPiece, AttrValue>>& attrs_;
+  const std::vector<std::pair<std::string, AttrValue>> attrs_;
 #if defined(TF_VERSION_TF2)
   const TraceMeMetadata traceme_metadata_;
 #endif

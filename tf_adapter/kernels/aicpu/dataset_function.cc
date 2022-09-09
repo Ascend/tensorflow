@@ -187,8 +187,8 @@ void DatasetFunction::AssembleParserAddons(const tensorflow::FunctionLibraryDefi
   tensorflow::ReverseDFS(graph, {}, node_shape_inference_lambda);
 }
 
-void *DatasetFunction::ConvertDTStringTensor(uint64_t count, std::string &str_vec, uint64_t &tensor_size) {
-  std::string *string_vector = &str_vec;
+void *DatasetFunction::ConvertDTStringTensor(uint64_t count, void *tensor_ptr, uint64_t &tensor_size) {
+  std::string *string_vector = static_cast<std::string *>(tensor_ptr);
   uint64_t total_size = 0U;
   uint64_t string_head_size = sizeof(ge::StringHead);
   for (uint64_t i = 0U; i < count; i++) {
@@ -214,30 +214,22 @@ void *DatasetFunction::ConvertDTStringTensor(uint64_t count, std::string &str_ve
     size_t str_size = str.size();
     const char *string_addr = str.c_str();
     while (str_size >= SECUREC_MEM_MAX_LEN) {
-      const auto ret = memcpy_s(data_addr, SECUREC_MEM_MAX_LEN, string_addr, SECUREC_MEM_MAX_LEN);
+      const auto ret = memcpy_s(data_addr, total_size - offset, string_addr, SECUREC_MEM_MAX_LEN);
       DATASET_REQUIRES_RETURN_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
       str_size -= SECUREC_MEM_MAX_LEN;
       offset += SECUREC_MEM_MAX_LEN;
       data_addr += SECUREC_MEM_MAX_LEN;
       string_addr += SECUREC_MEM_MAX_LEN;
     }
-    auto remain_size = ((total_size - offset) > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : (total_size - offset);
+    auto remain_size = total_size - offset;
     const auto ret = memcpy_s(data_addr, remain_size, string_addr, str_size + 1U);
     DATASET_REQUIRES_RETURN_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
     data_addr += (str_size + 1U);
     offset += (static_cast<int64_t>(str_size) + 1);
   }
 
-  char *addr_device = nullptr;
-  aclError ret = aclrtMalloc(reinterpret_cast<void **>(&addr_device), total_size, ACL_MEM_MALLOC_NORMAL_ONLY);
-  DATASET_REQUIRES_RETURN_NULL(addr_device != nullptr,
-      errors::Internal("Malloc device memory failed."));
-
-  ret = aclrtMemcpy(addr_device, total_size, addr.get(), total_size, ACL_MEMCPY_HOST_TO_DEVICE);
-  DATASET_REQUIRES_RETURN_NULL(ret == ACL_SUCCESS, errors::Internal("Copy host memory to device failed, ret:", ret));
-
   tensor_size = total_size;
-  return reinterpret_cast<void *>(addr_device);
+  return reinterpret_cast<void *>(addr.release());
 }
 
 Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, Tensor &tf_tensor) {
@@ -259,8 +251,7 @@ Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, 
   uint64_t tensor_size = 0ULL;
   if (type == ge::DT_STRING) {
     const uint64_t count = static_cast<uint64_t>(tf_tensor.NumElements());
-    std::string *string_vector = static_cast<std::string *>(tensor_ptr);
-    tensor_addr = DatasetFunction::ConvertDTStringTensor(count, *string_vector, tensor_size);
+    tensor_addr = DatasetFunction::ConvertDTStringTensor(count, tensor_ptr, tensor_size);
   } else {
     tensor_addr = tensor_ptr;
     tensor_size = tf_tensor.TotalBytes();
@@ -271,6 +262,7 @@ Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, 
       errors::Internal("Convert input string data failed. tensor size is 0."));
 
   void *device_addr = ReAllocDeviceMem(tensor_addr, tensor_size);
+  DATASET_REQUIRES(device_addr != nullptr, errors::Internal("Create device memory for input tensor failed."));
   aclDataBuffer* inputData = aclCreateDataBuffer(device_addr, tensor_size);
   DATASET_REQUIRES(inputData != nullptr, errors::Internal("Create data buffer for input tensor failed."));
 

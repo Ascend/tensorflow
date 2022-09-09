@@ -60,7 +60,7 @@ private:
   const std::map<std::string, std::string> sess_options_;
   std::map<std::string, std::string> init_options_;
   std::string output_device_;
-  std::vector<std::pair<StringPiece, AttrValue>> attrs_;
+  std::vector<std::pair<std::string, AttrValue>> attrs_;
 }; // class NpuMapDatasetOp
 }  // namespace data
 }  // namespace tensorflow
