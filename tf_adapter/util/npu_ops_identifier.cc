@@ -16,16 +16,24 @@
 
 #include "tf_adapter/util/npu_ops_identifier.h"
 #include <fstream>
+#include <regex>
 
 #include "nlohmann/json.hpp"
+#include "framework/common/string_util.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/generate_report.h"
+#include "tf_adapter/util/npu_attrs.h"
+#include "mmpa/mmpa_api.h"
+
 using json = nlohmann::json;
 
-const static std::string kOpsInfoJson = "/framework/built-in/tensorflow/npu_supported_ops.json";
-const static std::string kCustomOpsInfoJson = "/framework/custom/tensorflow/npu_supported_ops.json";
+const static std::string kOpsInfoJsonV01 = "/framework/built-in/tensorflow/npu_supported_ops.json";
+const static std::string kOpsInfoJsonV02 = "/built-in/framework/tensorflow/npu_supported_ops.json";
+const static std::string kCustomOpsInfoJsonV01 = "/framework/custom/tensorflow/npu_supported_ops.json";
+const static std::string kCustomOpsInfoJsonV02 = "/vendors/%s/framework/tensorflow/npu_supported_ops.json";
+const size_t kVendorConfigPartsCount = 2U;
 const static std::string kGray = "isGray";
 const static std::string kHeavy = "isHeavy";
 
@@ -40,29 +48,88 @@ NpuOpsIdentifier *NpuOpsIdentifier::GetInstance(bool is_mix) {
     return &instance;
   }
 }
+
+bool NpuOpsIdentifier::GetOppPluginVendors(const std::string &vendors_config, std::vector<std::string> &vendors) {
+  ADP_LOG(INFO) << "Enter get opp plugin config file schedule";
+  std::ifstream config(vendors_config);
+  if (!config.good()) {
+    ADP_LOG(ERROR) << "File '" << vendors_config << "' open failed!";
+    return false;
+  }
+  std::string content;
+  std::getline(config, content);
+  config.close();
+  if (content.empty()) {
+    ADP_LOG(ERROR) << "Content of file '" << vendors_config << "' is empty!";
+    return false;
+  }
+  std::vector<std::string> v_parts = ge::StringUtils::Split(content, '=');
+  if (v_parts.size() != kVendorConfigPartsCount) {
+    ADP_LOG(ERROR) << "Format of file content is invalid!";
+    return false;
+  }
+  vendors = ge::StringUtils::Split(v_parts[1], ',');
+  if (vendors.empty()) {
+    ADP_LOG(ERROR) << "Format of file content is invalid!";
+    return false;
+  }
+  return true;
+}
+
+bool NpuOpsIdentifier::IsNewOppPathStruct(const std::string &opp_path) {
+  return mmIsDir((opp_path + "/vendors").c_str()) == EN_OK;
+}
+
+bool NpuOpsIdentifier::GetCustomOpPath(const std::string &ops_path, std::string &ops_json_path,
+                                       std::vector<std::string> &custom_ops_json_path_vec) {
+  if (!IsNewOppPathStruct(ops_path)) {
+    ops_json_path = ops_path + kOpsInfoJsonV01;
+    custom_ops_json_path_vec.push_back(ops_path + kCustomOpsInfoJsonV01);
+    return true;
+  }
+  ops_json_path = ops_path + kOpsInfoJsonV02;
+  std::vector<std::string> vendors;
+  if (!GetOppPluginVendors(ops_path + "/vendors/config.ini", vendors)) {
+    ADP_LOG(ERROR) << "Failed to get opp plugin vendors!";
+    return false;
+  }
+  for (const auto &vendor : vendors) {
+    custom_ops_json_path_vec.push_back(ops_path + std::regex_replace(kCustomOpsInfoJsonV02, std::regex("%s"), vendor));
+  }
+  return true;
+}
+
 // Constructor
 NpuOpsIdentifier::NpuOpsIdentifier(bool is_mix, json &ops_info) : is_mix_(is_mix), ops_info_(ops_info) {
   const std::string mode = is_mix ? "MIX" : "ALL";
   const char *path_env = std::getenv("ASCEND_OPP_PATH");
-  std::string opsPath;
+  std::string ops_path;
   if (path_env != nullptr && strlen(path_env) < npu::ADAPTER_ENV_MAX_LENTH) {
-    opsPath = path_env;
+    ops_path = path_env;
   } else {
-    opsPath = "/usr/local/Ascend/opp";
-    ADP_LOG(INFO) << "environment variable ASCEND_OPP_PATH is not set, use default value[" << opsPath << "]";
+    ops_path = "/usr/local/Ascend/opp";
+    ADP_LOG(INFO) << "environment variable ASCEND_OPP_PATH is not set, use default value[" << ops_path << "]";
   }
-  std::string opsJsonPath = opsPath + kOpsInfoJson;
-  ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << opsJsonPath;
-  int32_t opsCnt = NpuOpsIdentifier::ParseOps(opsJsonPath, ops_info_);
-  std::string customOpsJsonPath = opsPath + kCustomOpsInfoJson;
-  json custom_ops_info;
-  ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << customOpsJsonPath;
-  int32_t customOpsCnt = NpuOpsIdentifier::ParseOps(customOpsJsonPath, custom_ops_info);
-  for (const auto elem : custom_ops_info.items()) {
-    ops_info_[elem.key()] = elem.value();
+  std::string ops_json_path;
+  std::vector<std::string> custom_ops_json_path_vec;
+  if (!GetCustomOpPath(ops_path, ops_json_path, custom_ops_json_path_vec)) {
+    ADP_LOG(WARNING) << "Failed to get custom ops path!";
+    return;
   }
-  ADP_LOG(INFO) << opsCnt << " ops parsed";
-  ADP_LOG(INFO) << customOpsCnt << " custom ops parsed";
+  int32_t ops_cnt = 0;
+  int32_t custom_ops_cnt = 0;
+  ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << ops_json_path;
+  ops_cnt = NpuOpsIdentifier::ParseOps(ops_json_path, ops_info_);
+  for (const auto &custom_ops_json_path : custom_ops_json_path_vec) {
+    ADP_LOG(INFO) << "[" << mode << "] Parsing json from " << custom_ops_json_path;
+    json custom_ops_info;
+    custom_ops_cnt += NpuOpsIdentifier::ParseOps(custom_ops_json_path, custom_ops_info);
+    for (const auto elem : custom_ops_info.items()) {
+      ops_info_[elem.key()] = elem.value();
+    }
+  }
+  ADP_LOG(INFO) << ops_cnt << " ops parsed";
+  ADP_LOG(INFO) << custom_ops_cnt << " custom ops parsed";
   ADP_LOG(INFO) << ops_info_.dump(2);  // 1 is vlog level, 2 is ops info index
 }
 /**
