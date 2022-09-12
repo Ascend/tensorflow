@@ -159,33 +159,6 @@ TEST_F(GeOpTest, GeOpDynamicInputGetNextTest) {
   gtl::InlinedVector<TensorValue, 4> inputs;
   EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp11_0").ok());
 }
-TEST_F(GeOpTest, GeOpJitCompileTest) {
-  NodeDef node_def;
-  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_jit_compile_lazy_recompile.pbtxt";
-  std::vector<int64_t> ge_output1_dims{2, 2};
-  auto getnext_output1_info =
-    std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output1_dims, 8, nullptr));
-  Allocator* allocator1 = NpuHostGetNextAllocator::Create(std::move(getnext_output1_info));
-  Tensor a(allocator1, DT_INT64, TensorShape({2, 2}));
-  std::vector<int64_t> ge_output2_dims{2, 2};
-  auto getnext_output2_info =
-    std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output2_dims, 8, nullptr));
-  Allocator* allocator2 = NpuHostGetNextAllocator::Create(std::move(getnext_output2_info));
-  Tensor b(allocator2, DT_INT64, TensorShape({2, 2}));
-  Tensor c(DT_INT32, TensorShape({1,}));
-  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a), TensorValue(&b), TensorValue(&c)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp11_1", false).ok());
-  auto attrs = node_def.attr();
-  EXPECT_TRUE(attrs.find("_dynamic_input") != attrs.end());
-  EXPECT_TRUE(!attrs["_dynamic_input"].s().empty());
-}
-TEST_F(GeOpTest, GeOpJitCompileGetNextTest) {
-  NodeDef node_def;
-  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_jit_compile_lazy_recompile.pbtxt";
-  gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp11_0").ok());
-}
-
 TEST_F(GeOpTest, GeOpDynamicInput1Test) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_execute.pbtxt";
