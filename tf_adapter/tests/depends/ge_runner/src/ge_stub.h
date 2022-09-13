@@ -45,5 +45,8 @@ void RegRunGraphWithStreamAsyncStub(RunGraphWithStreamAsyncStub stub);
 
 using RunGraphStub = std::function<Status(uint32_t, const std::vector<Tensor>&, std::vector<Tensor>&)>;
 void RegRunGraphStub(RunGraphStub stub);
+
+using RunGraphAsyncStub = std::function<Status(uint32_t, const std::vector<Tensor>&, RunAsyncCallback)>;
+void RegRunGraphAsyncStub(RunGraphAsyncStub stub);
 }  // namespace ge
 #endif  // COMMON_GRAPH_DEBUG_GE_UTIL_H_
