@@ -40,6 +40,10 @@ rtError_t rtSetDevice(int32_t device) {
   return RT_ERROR_NONE;
 }
 
+rtError_t rtDeviceReset(int32_t device) {
+  return RT_ERROR_NONE;
+}
+
 rtError_t rtMemQueueCreate(int32_t devId, const rtMemQueueAttr_t *queAttr, uint32_t *qid) {
   *qid = 0;
   return RT_ERROR_NONE;

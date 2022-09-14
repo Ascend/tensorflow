@@ -22,6 +22,7 @@
 #include "acl/acl.h"
 #include "tdt/tdt_host_interface.h"
 #include "runtime/config.h"
+#include "runtime/dev.h"
 #include "tensorflow/core/framework/partial_tensor_shape.h"
 #include "tensorflow/core/framework/stats_aggregator.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -642,7 +643,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
-        ADP_LOG(INFO) << "Begin to send data to the NPU.";
+        ADP_LOG(INFO) << "Begin to send data to the NPU. ";
+        rtError_t rt = rtSetDevice(dataset()->device_id_);
+        if (rt != ACL_RT_SUCCESS) {
+          ADP_LOG(ERROR) << "Thread rtSetDevice failed: device_id_ = " << dataset()->device_id_ << " rt=" << rt;
+        }
+
         {
           mutex_lock lck(mu_);
           active_thread_num++;
@@ -652,6 +658,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           {
             mutex_lock lck(mu_);
             active_thread_num--;
+          }
+          rtError_t rt = rtDeviceReset(this->dataset()->device_id_);
+          if (rt != RT_ERROR_NONE) {
+            ADP_LOG(ERROR) << "Call reset device failed. device id=" << dataset()->device_id_ << " rt=" << rt;
           }
         });
 
@@ -681,8 +691,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 total_bytes_ -= tensor.TotalBytes();
               }
             }
-            ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_
-                          << " buffer_size:" << buffer_.size() << ", data_type:" << data_type;
+            ADP_LOG(INFO) << "Host queue  " << dataset()->channel_name_
+                          << " buffer_size: " << buffer_.size() << ", data_type:" << data_type;
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
@@ -698,7 +708,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if ((data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) || (data_type == ACL_TENSOR_DATA_ABNORMAL)) {
             std::string data_type_str = data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE ? "end of sequence" : "abnormal";
             StopNotify();
-            ADP_LOG(INFO) << "Send " << data_type_str << " data success.";
+            ADP_LOG(INFO) << "Send  " << data_type_str << " data success.";
             return;
           }
           mem_pool_.ReleaseMemory();

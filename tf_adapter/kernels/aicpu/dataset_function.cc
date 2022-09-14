@@ -605,7 +605,7 @@ Status DatasetFunction::Instantialte() {
 
   std::map<ge::AscendString, ge::AscendString> graph_options;
   // add graph level tag to exclude aicore engine
-  graph_options[ge::AscendString("ge.exec.exclude_engines")] = ge::AscendString("aicore");
+  graph_options[ge::AscendString("ge.exec.exclude_engines")] = ge::AscendString("AiCore");
 
   auto ret_build = aclgrphBuildModel(ge_graph_, graph_options, ge_model_);
   DATASET_REQUIRES(ret_build == ge::GRAPH_SUCCESS, errors::Unavailable("Build ge model failed.", ret_build));

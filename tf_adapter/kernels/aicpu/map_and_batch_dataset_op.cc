@@ -180,22 +180,20 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     std::string prefix_para = prefix + "::" + kDatasetType;
 #endif
     if (IsStaticShape()) {
+      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorStatic" << output_device_;
       if (output_device_ == kCpu) {
-        ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorStaticCpu";
         return absl::make_unique<IteratorStaticCpu>(IteratorStaticCpu::Params{
             this, prefix_para});
       } else {
-        ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorStaticNpu";
         return absl::make_unique<IteratorStaticNpu>(IteratorStaticNpu::Params{
             this, prefix_para});
       }
     } else {
+      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorDyn" << output_device_;
       if (output_device_ == kCpu) {
-        ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorDynCpu";
         return absl::make_unique<IteratorDynCpu>(IteratorDynCpu::Params{
             this, prefix_para});
       } else {
-        ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorDynNpu";
         return absl::make_unique<IteratorDynNpu>(IteratorDynNpu::Params{
             this, prefix_para});
       }
@@ -558,6 +556,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             batch_mem_size_, ACL_MEM_MALLOC_HUGE_FIRST);
         DATASET_REQUIRES(rt == ACL_SUCCESS, errors::InvalidArgument(
             "Alloc mem failed: ", batch_mem_size_, " aclError: ", rt));
+        ADP_LOG(INFO) << "Total reused device memory is " << batch_mem_size_ << " Bytes.";
         batch_result.InitOutputs(batch_result.output, func_tensor_align_size_, batch_result.outputs);
         return Status::OK();
       }
@@ -666,7 +665,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
         if (rt != ACL_RT_SUCCESS) {
           ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
-            << "thread_num = " << this->thread_num_ << "device_id_ = " << device_id_;
+            << "thread_num = " << this->thread_num_ << "device_id_ = " << device_id_ << " rt=" << rt;
         }
 
         DatasetFunction::ModelId model_id;
@@ -686,11 +685,15 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           mutex_lock l(*this->mu_);
           RecordStop(ctx.get());
           this->thread_num_--;
+          rtError_t rt = rtDeviceReset(static_cast<int32_t>(device_id_));
+          if (rt != RT_ERROR_NONE) {
+            ADP_LOG(ERROR) << "Call reset device failed. device id=" << device_id_ << " rt=" << rt;
+          }
           ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id
                         << "thread_num = " << this->thread_num_;
         });
 
-        int run_res = 1;
+        int run_res = 0;
         while (!cancelled_) {
           // Implementation class to implement
           // if no run res, need to wait run res
@@ -1362,6 +1365,16 @@ Status NpuMapAndBatchDatasetOp::CheckOutputType() {
   return Status::OK();
 }
 
+void NpuMapAndBatchDatasetOp::RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes) {
+  // remove the first dim for output_shapes
+  for (auto& sp : output_shapes) {
+    if (sp.dims() == -1) {
+      continue;
+    }
+    sp.RemoveDim(0);
+  }
+}
+
 NpuMapAndBatchDatasetOp::NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx)
     : UnaryDatasetOpKernel(ctx),
       sess_options_(NpuAttrs::GetSessOptions(ctx)),
@@ -1370,7 +1383,11 @@ NpuMapAndBatchDatasetOp::NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx)
   OP_REQUIRES_OK(ctx, FunctionMetadata::Create(ctx, kFunc, /*params=*/{},
                                                &func_metadata_));
   OP_REQUIRES_OK(ctx, ctx->GetAttr(kOutputTypes, &output_types_));
+
+  // when drop_remainder=False, we still run this graph as static graph.
   OP_REQUIRES_OK(ctx, ctx->GetAttr(kOutputShapes, &output_shapes_));
+  RemoveBatchForOutputShapes(output_shapes_);
+
   OP_REQUIRES_OK(ctx, ctx->GetAttr(kOutputShapes, &batch_output_shapes_));
   OP_REQUIRES_OK(ctx,
                  ctx->GetAttr(kPreserveCardinality, &preserve_cardinality_));
@@ -1379,16 +1396,6 @@ NpuMapAndBatchDatasetOp::NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx)
   OP_REQUIRES_OK(ctx, CheckOutputType());
   for (auto attr : ctx->def().attr()) {
     attrs_.emplace_back(attr.first, attr.second);
-  }
-}
-
-void RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes) {
-  // remove the first dim for output_shapes
-  for (auto& sp : output_shapes) {
-    if (sp.dims() == -1) {
-      continue;
-    }
-    sp.RemoveDim(0);
   }
 }
 
@@ -1426,9 +1433,7 @@ void NpuMapAndBatchDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* inp
     metrics::RecordTFDataAutotune(kDatasetType);
   }
 
-  RemoveBatchForOutputShapes(output_shapes_);
-
-  *output = new Dataset(ctx, input, static_cast<uint64_t>(batch_size), num_parallel_calls,
+  *output = new(std::nothrow) Dataset(ctx, input, static_cast<uint64_t>(batch_size), num_parallel_calls,
                         drop_remainder, output_types_, batch_output_shapes_, output_shapes_,
                         std::move(captured_func), preserve_cardinality_, output_device_,
                         sess_options_, init_options_, attrs_);
