@@ -6,6 +6,7 @@
 #include "tensorflow/core/public/version.h"
 #include <stdlib.h>
 #include "gtest/gtest.h"
+#include "ge_stub.h"
 #define private public
 #include "tf_adapter/kernels/geop_npu.h"
 #undef private
@@ -392,6 +393,56 @@ TEST_F(GeOpTest, BuildSubgraphMuliDimsInput) {
   std::vector<std::string> subgraph_multi_dims_input_dim;
   Status ret = BuildSubgraphMuliDimsInput(user_shape_map, dynamic_dims_vec, subgraph_multi_dims_input_shape, subgraph_multi_dims_input_dim);
   EXPECT_TRUE(ret.ok());
+}
+TEST_F(GeOpTest, BuildOutputTensorInfo) {
+  ge::RegRunGraphAsyncStub(
+      [](uint32_t graphId, const std::vector<ge::Tensor> &inputs, ge::RunAsyncCallback callback) -> ge::Status {
+      const string str = "abc";
+      // extra 16 bytes store head of string
+      // extra 1 byte store '\0'
+      size_t total_size = str.size() + sizeof(ge::StringHead) + 1U;
+      size_t alloc_size = total_size + 63U;
+      auto base = std::unique_ptr<uint8_t[], ge::Tensor::DeleteFunc>(new (std::nothrow) uint8_t[alloc_size],
+                                                                     [](const uint8_t *ptr) {
+                                                                         delete[] ptr;
+                                                                         ptr = nullptr;
+                                                                     });
+      const size_t offset = 63U;
+      uint8_t *aligned_addr = ge::PtrToPtr<void, uint8_t>(
+              ge::ValueToPtr((ge::PtrToValue(ge::PtrToPtr<uint8_t, void>(base.get())) + offset) & ~offset));
+
+      // front 16 bytes store head of each string
+      ge::StringHead *const string_head = ge::PtrToPtr<uint8_t, ge::StringHead>(aligned_addr);
+      auto raw_data = ge::PtrAdd<uint8_t>(aligned_addr, total_size + 1U, sizeof(ge::StringHead));
+      string_head->addr = static_cast<int64_t>(sizeof(ge::StringHead));
+      string_head->len = static_cast<int64_t>(str.size());
+      const bool b = memcpy_s(raw_data, str.size() + 1U, str.c_str(), str.size()) == EOK;
+      if (!b) {
+        LOG(WARNING) << "memcpy failed";
+      }
+
+      ge::TensorDesc tensor_desc(ge::Shape({1}), ge::Format::FORMAT_ND, ge::DT_STRING);
+      tensor_desc.SetPlacement(ge::kPlacementHost);
+      ge::Tensor tensor(tensor_desc);
+      const auto base_addr = base.release();
+      const auto deleter_func = base.get_deleter();
+      tensor.SetData(aligned_addr, total_size, [deleter_func, base_addr](uint8_t *ptr) {
+      deleter_func(base_addr);
+      ptr = nullptr;
+      });
+      std::vector<ge::Tensor> outputs;
+      outputs.emplace_back(tensor);
+
+      callback(ge::SUCCESS, outputs);
+      return ge::SUCCESS;
+      });
+
+  NodeDef node_def;
+  std::string graph_pbtxt_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_string_op.pbtxt";
+  Tensor in(DT_STRING, TensorShape({1}));
+  in.scalar<tstring>()() = "ABC";
+  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_pbtxt_path, inputs, node_def, "GeOp1_0").ok());
 }
 }
 } //end tensorflow

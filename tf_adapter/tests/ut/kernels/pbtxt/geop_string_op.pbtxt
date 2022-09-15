@@ -1,0 +1,148 @@
+node {
+  name: "_arg_input_0_0"
+  op: "_Arg"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0 
+    }
+  }
+}
+node {
+  name: "_retval_StringLower_0_0"
+  op: "_RetVal"
+  input: "GeOp1_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "GeOp1_0"
+  op: "GeOp"
+  input: "_arg_input_0_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "Tin"
+    value {
+      list {
+        type: DT_STRING
+      }
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      list {
+        type: DT_STRING
+      }
+    }
+  }
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_do_npu_optimizer"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_variable_format_optimize"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "data_format"
+    value {
+      s: "NHWC"
+    }
+  }
+  attr {
+    key: "function"
+    value {
+      func {
+        name: "GeOp1_0"
+      }
+    }
+  }
+}
+
+library {
+  function {
+    signature {
+      name: "GeOp1_0"
+      input_arg {
+        name: "_arg_input_0_0_0_arg"
+        type: DT_STRING
+      }
+      output_arg {
+        name: "StringLower_0_retval"
+        type: DT_STRING
+      }
+    }
+    node_def {
+      name: "StringLower"
+      op: "StringLower"
+      input: "_arg_input_0_0_0_arg"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "_NpuOptimizer"
+        value {
+          s: "NpuOptimizer"
+        }
+      }
+      attr {
+        key: "_do_npu_optimizer"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_use_off_line"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_variable_format_optimize"
+        value {
+          s: "1"
+        }
+      }
+    }
+    ret {
+      key: "StringLower_0_retval"
+      value: "StringLower:output:0"
+    }
+  }
+}
+versions {
+  producer: 134
+}

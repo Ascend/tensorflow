@@ -258,7 +258,15 @@ Status Session::BuildGraph(uint32_t graphId, const std::vector<ge::Tensor> &inpu
   return ge::SUCCESS;
 }
 
+RunGraphAsyncStub g_RunGraphAsyncStub = nullptr;
+void RegRunGraphAsyncStub(RunGraphAsyncStub stub) {
+  g_RunGraphAsyncStub = stub;
+}
+
 Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &inputs, RunAsyncCallback callback) {
+  if (g_RunGraphAsyncStub != nullptr) {
+    return g_RunGraphAsyncStub(graphId, inputs, callback);
+  }
   ge::Status ret;
   std::vector<ge::Tensor> outputs;
   outputs.push_back(ge::Tensor());

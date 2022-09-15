@@ -167,6 +167,26 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator, public tensorflow:
 inline string ToString(ge::Status status) {
   return ::ge::StatusFactory::Instance()->GetErrDesc(status);
 }
+
+Status BuildStringOutput(geDataUniquePtr data_ptr, size_t output_size, Tensor &cpu_tensor) {
+  TensorShape out_shape = cpu_tensor.shape();
+  if ((out_shape.num_elements() * sizeof(ge::StringHead)) >= output_size) {
+    LOG(ERROR) << "[GEOP] Graph engine process success but output string format is not right";
+    return errors::Internal("Graph engine process graph success but output string format is not right.");
+  }
+  auto tensor_flat = cpu_tensor.flat<tstring>();
+  tstring* tensor_data = tensor_flat.data();
+  ge::StringHead *string_head = reinterpret_cast<ge::StringHead *>(reinterpret_cast<char *>(data_ptr.get()));
+  for (int64_t j = 0; j < out_shape.num_elements(); j++) {
+    int64_t offset = string_head[j].addr;
+    int64_t string_len = string_head[j].len;
+    const char* temp_string = reinterpret_cast<const char*>(data_ptr.get()) + offset;
+    tensor_data[j] = tstring(temp_string, string_len);
+    ADP_LOG(INFO) << "[GEOP] output string data " << tensor_data[j];
+  }
+  return Status::OK();
+}
+
 Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outputs) {
   // ctx is not nullptr
   int num_outputs = ctx->num_outputs();
@@ -198,14 +218,23 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outp
       if (reinterpret_cast<uintptr_t>(data_ptr.get()) % kTensorAlignBytes == 0) {
         ADP_LOG(INFO) << "[GEOP] Zero copy ge tensor " << reinterpret_cast<uintptr_t>(data_ptr.get())
                       << " as aligned with " << kTensorAlignBytes << " bytes";
-        Allocator *allocator = NpuHostFixedAllocator::Create(std::move(data_ptr));
-        Tensor cpu_tensor(allocator, out_type, out_shape);
-        if (output_size != cpu_tensor.TotalBytes()) {
-          LOG(ERROR) << "[GEOP] Graph engine process graph success but output " << i << " total bytes "
-                     << output_size << " mismatched with expected " << cpu_tensor.TotalBytes();
-          return errors::Internal("Graph engine process graph success but output length mismatched with expected.");
+
+        if (out_type == DT_STRING) {  // string type op is not sink now
+          Tensor cpu_tensor = Tensor(out_type, out_shape);
+          if (BuildStringOutput(std::move(data_ptr), output_size, cpu_tensor) != Status::OK()) {
+            return errors::Internal("The output string data analyze failed.");
+          }
+          ctx->set_output(i, cpu_tensor);
+        } else {
+          Allocator *allocator = NpuHostFixedAllocator::Create(std::move(data_ptr));
+          Tensor cpu_tensor(allocator, out_type, out_shape);
+          if (output_size != cpu_tensor.TotalBytes()) {
+            LOG(ERROR) << "[GEOP] Graph engine process graph success but output " << i << " total bytes "
+                       << output_size << " mismatched with expected " << cpu_tensor.TotalBytes();
+            return errors::Internal("Graph engine process graph success but output length mismatched with expected.");
+          }
+          ctx->set_output(i, cpu_tensor);
         }
-        ctx->set_output(i, cpu_tensor);
       } else {
         ADP_LOG(ERROR) << "[GEOP] Skip zero copy as ge tensor, " << reinterpret_cast<uintptr_t>(data_ptr.get())
                        << " not aligned with " << kTensorAlignBytes << " bytes";
