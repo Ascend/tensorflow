@@ -337,7 +337,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
       }
 
-      bool ParallelCopy(void *dst_ptr, uint64_t dst_size,
+      bool ParallelCopy(void* const dst_ptr, uint64_t dst_size,
                         const char *src_ptr, uint64_t src_size) {
         event_num_.store(0U);
         {
@@ -399,7 +399,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         return true;
       }
 
-      bool CopyTensor(void *memory_ptr, uint64_t memory_size,
+      bool CopyTensor(void* const memory_ptr, uint64_t memory_size,
                       std::vector<Tensor> &args, std::vector<Tensor> &result_args) {
         uint64_t offset = 0ULL;
         for (size_t i = 0UL; i < args.size(); i++) {
