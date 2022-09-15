@@ -19,6 +19,7 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <atomic>
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/lib/core/status.h"
 
@@ -48,6 +49,7 @@ class GePlugin {
   bool isGlobal_;
   std::map<std::string, std::string> init_options_;
   std::mutex mutex_;
+  static std::atomic_int graph_counter_;
 };
 
 tensorflow::Status RegisterNpuCancellationCallback(std::function<void()> callback,
