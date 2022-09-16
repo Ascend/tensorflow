@@ -444,3 +444,5 @@ int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, u
   ADP_LOG(INFO) << "[GePlugin] malloc shared memory success.";
   return 0;
 }
+
+std::atomic_int GePlugin::graph_counter_ = {0};
