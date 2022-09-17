@@ -47,7 +47,7 @@ class AdapterLogger : public std::basic_ostringstream<char> {
     *this << " [" << fname << ":" << line << "]"
           << " ";
   }
-  ~AdapterLogger() noexcept override;
+  ~AdapterLogger() override;
 
  private:
   int severity_;

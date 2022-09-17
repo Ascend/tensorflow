@@ -19,7 +19,7 @@
 #include "toolchain/plog.h"
 
 namespace npu {
-AdapterLogger::~AdapterLogger() noexcept {
+AdapterLogger::~AdapterLogger() {
   if (severity_ == ADP_FATAL) {
     DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, ADP_ERROR, "%s", str().c_str());
     (void) DlogReportFinalize();
