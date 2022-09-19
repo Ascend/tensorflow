@@ -188,7 +188,7 @@ private:
       waiting_event_queue_.pop_front();
     }
 
-    Status status = event->Wait();
+    (void)event->Wait();
     return Status::OK();
   }
 

@@ -328,7 +328,8 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
   for (size_t i = 0; i < output_num; ++i) {
     // create aclDataBuffer with nullptr, aclmdlExecute() will set device memory for it
     aclDataBuffer *outputData = aclCreateDataBuffer(nullptr, 0U);
-    DATASET_REQUIRES_RETURN_NULL(outputData != nullptr, errors::Internal("Can't create data buffer, create output failed."));
+    DATASET_REQUIRES_RETURN_NULL(outputData != nullptr,
+                                 errors::Internal("Can't create data buffer, create output failed."));
 
     aclError ret = aclmdlAddDatasetBuffer(output, outputData);
     if (ret != ACL_SUCCESS) {
@@ -644,14 +645,14 @@ Status DatasetFunction::Initialize(const std::map<std::string, std::string> &ses
   return Instantialte();
 }
 
-Status DatasetFunction::Run(ModelId model_id, aclmdlDataset *in_dataset, aclmdlDataset *out_dataset) {
+Status DatasetFunction::Run(ModelId model_id, aclmdlDataset *in_dataset, aclmdlDataset *out_dataset) const {
   aclError ret = aclmdlExecute(model_id, in_dataset, out_dataset);
   return (ret == ACL_SUCCESS) ? Status::OK() : errors::Internal("Run graph failed with model_id=", model_id,
       " ret=", ret);
 }
 
 Status DatasetFunction::RunWithStreamAsyn(ModelId model_id, aclmdlDataset *in_dataset,
-    aclmdlDataset *out_dataset, aclrtStream stream) {
+    aclmdlDataset *out_dataset, aclrtStream stream) const {
   aclError ret = aclmdlExecuteAsync(model_id, in_dataset, out_dataset, stream);
   return (ret == ACL_SUCCESS) ? Status::OK() : errors::Internal("Run graph with stream failed with model_id=",
       model_id, " ret=", ret);
@@ -690,11 +691,11 @@ TimeStatistic::TimeStatistic(int64_t total_threads) {
   max_threads = total_threads;
 }
 
-void TimeStatistic::RecordStartTime(Items &it) {
+void TimeStatistic::RecordStartTime(Items &it) const {
   it.start_time = InferShapeUtil::GetCurrentTimestap();
 }
 
-void TimeStatistic::RecordEndTime(Items &it) {
+void TimeStatistic::RecordEndTime(Items &it) const {
   it.end_time = InferShapeUtil::GetCurrentTimestap();
   it.Update();
 }

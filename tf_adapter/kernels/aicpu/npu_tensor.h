@@ -57,9 +57,9 @@ public:
     return false;
   }
 
-  static int64_t GetAlignment() { return static_cast<int64_t>(kAllocatorAlignment); }
-  static int64_t AlignSize(int64_t size) {
-    int64_t alignment = static_cast<int64_t>(kAllocatorAlignment);
+  static uint64_t GetAlignment() { return static_cast<uint64_t>(kAllocatorAlignment); }
+  static uint64_t AlignSize(uint64_t size) {
+    uint64_t alignment = static_cast<uint64_t>(kAllocatorAlignment);
     return ((size + alignment - 1) / alignment) * alignment;
   }
 

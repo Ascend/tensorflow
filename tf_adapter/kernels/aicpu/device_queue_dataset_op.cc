@@ -64,7 +64,7 @@ class DeviceQueueDatasetOp : public DatasetOpKernel {
 
    protected:
     std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return std::unique_ptr<IteratorBase>(new Iterator({this, prefix + "::DeviceQueue"}));
+      return absl::make_unique<Iterator>(Iterator::Params({this, prefix + "::DeviceQueue"}));
     }
 
     Status AsGraphDefInternal(SerializationContext *ctx, DatasetGraphDefBuilder *b, Node **output) const override {

@@ -133,7 +133,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           const std::string output_device,
           const std::map<std::string, std::string> &sess_options,
           const std::map<std::string, std::string> &init_options,
-          std::vector<std::pair<std::string, AttrValue>> &attrs)
+          const std::vector<std::pair<std::string, AttrValue>> &attrs)
       : DatasetBase(DatasetContext(ctx)),
         input_(input),
         batch_size_(batch_size),
@@ -399,14 +399,14 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           ADP_LOG(EVENT) << "~BatchResultBase finish.";
         }
 
-        void InitOutputs(uint8_t *start_addr, std::vector<int64_t> &tensor_align_size,
+        void InitOutputs(uint8_t *start_addr, std::vector<uint64_t> &tensor_align_size,
             std::vector<uint8_t*> &outputs_) const {
           uint64_t dim_num = tensor_align_size.size();
           uint64_t offset = 0;
           uint8_t *align_addr = start_addr;
           for (uint64_t i = 0; i < dim_num; i++) {
             outputs_.push_back(align_addr + offset);
-            offset += static_cast<uint64_t>(tensor_align_size[i]) * batch_size;
+            offset += tensor_align_size[i] * batch_size;
           }
         }
 
@@ -862,8 +862,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       std::shared_ptr<BatchResultBase> *batch_results_ GUARDED_BY(*mu_) = nullptr;
 
       uint64_t output_tensor_num_;
-      std::vector<int64_t> func_tensor_size_;
-      std::vector<int64_t> func_tensor_align_size_;
+      std::vector<uint64_t> func_tensor_size_;
+      std::vector<uint64_t> func_tensor_align_size_;
       uint64_t batch_mem_size_ = 0;
       DatasetFunction func_;
       uint32_t device_id_ = 0;
@@ -906,20 +906,20 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       for (uint64_t i = 0; i < dim_num; i++) {
         std::vector<int64_t> output_shape = DatasetFunction::GetTfShapeDims(dataset()->output_shapes_[i]);
         func_output_shape_.push_back(output_shape);
-        int64_t tensor_size = DatasetFunction::GetShapeDims(output_shape);
-        DATASET_REQUIRES(tensor_size > 0,
+        int64_t shape_size = DatasetFunction::GetShapeDims(output_shape);
+        DATASET_REQUIRES(shape_size > 0,
             errors::Unavailable("tensor is too small"));
         int64_t type_size = DataTypeSize(dataset()->output_types_[i]);
-        DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(tensor_size, type_size),
-            errors::Unavailable("tensor is too big, tensor_size = ", tensor_size,
+        DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(shape_size, type_size),
+            errors::Unavailable("tensor is too big, shape_size = ", shape_size,
                                 ", type = ", dataset()->output_types_[i]));
-        tensor_size *= type_size;
+        uint64_t tensor_size = static_cast<uint64_t>(shape_size * type_size);
         func_tensor_size_.push_back(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
-        DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, static_cast<uint64_t>(tensor_size)),
+        DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, tensor_size),
             errors::Unavailable("batch_mem_size_ is too big, batch_mem_size_ = ",
                 batch_mem_size_, ", tensor_size = ", tensor_size));
-        batch_mem_size_ += static_cast<uint64_t>(tensor_size);
+        batch_mem_size_ += tensor_size;
       }
       DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(batch_mem_size_, dataset()->batch_size_),
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
@@ -944,7 +944,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       aclmdlDataset *output_dataset = nullptr;
 
       input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
-      output_dataset = InitOutTensorsMem(*static_cast<BatchStaticResult*>(batch_results_[batch_id].get()), batch_offset);
+      output_dataset = InitOutTensorsMem(*static_cast<BatchStaticResult*>(batch_results_[batch_id].get()),
+                                         batch_offset);
 
       std::shared_ptr<Items> time_tag = std::make_shared<Items>();
       BatchResultBase *batch_result = batch_results_[batch_id].get();
@@ -986,7 +987,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) override {
       (void)ctx;
-      Status status = stream_pool_->WaitOneEvent(thread_id);
+      (void)stream_pool_->WaitOneEvent(thread_id);
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
@@ -1009,7 +1010,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       uint64_t tensor_num = func_output_shape_.size();
       for (uint64_t i = 0; i < tensor_num; i++) {
         aclDataBuffer *data_buff = aclCreateDataBuffer(batch_result.outputs[i] + step * func_tensor_size_[i],
-                                                       func_tensor_size_[i]);
+                                                       static_cast<size_t>(func_tensor_size_[i]));
         aclError ret = aclmdlAddDatasetBuffer(output_dataset, data_buff);
         if (ret != ACL_SUCCESS) {
           // tensor的description不需要添加进去吗？
@@ -1120,7 +1121,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     Status InitTensorSize(BatchDynResult &batch_result) {
       aclmdlDataset *out_dataset = batch_result.output_datasets[0];
-      uint64_t i = 0;
       for (size_t idx = 0; idx < aclmdlGetDatasetNumBuffers(out_dataset); idx++) {
         // get output desc and size
         aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, idx);
@@ -1140,7 +1140,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         Status status = DatasetFunction::GetAclTenorDescDims(out_desc, dims);
         DATASET_REQUIRES(status.ok(), status);
         func_output_shape_.emplace_back(std::move(dims));
-        i++;
       }
       DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(batch_mem_size_, dataset()->batch_size_),
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
@@ -1248,7 +1247,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       uint64_t batch_size = batch_result.GetNumElements();
       for (uint64_t i = 0; i < tensor_num; i++) {
         uint8_t *npu_addr = batch_result.outputs[i];
-        uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
+        uint64_t tensor_size = func_tensor_size_[i];
         for (uint64_t j = 0; j < batch_size; j++) {
           aclmdlDataset *out_dataset = batch_result.output_datasets[j];
           aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);
@@ -1311,7 +1310,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       uint64_t batch_size = batch_result.GetNumElements();
       for (uint64_t i = 0; i < tensor_num; i++) {
         uint8_t *npu_addr = batch_result.outputs_cpu[i];
-        uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
+        uint64_t tensor_size = func_tensor_size_[i];
         for (uint64_t j = 0; j < batch_size; j++) {
           aclmdlDataset *out_dataset = batch_result.output_datasets[j];
           aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);

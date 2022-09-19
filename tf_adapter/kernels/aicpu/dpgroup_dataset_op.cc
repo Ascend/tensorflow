@@ -60,7 +60,7 @@ private:
     }
 
     std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return std::unique_ptr<IteratorBase>(new (std::nothrow) Iterator({this, prefix + "::GEOP"}));
+      return absl::make_unique<Iterator>(Iterator::Params({this, prefix + "::GEOP"}));
     }
 
     const DataTypeVector &output_dtypes() const override { return output_types_; }

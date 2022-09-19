@@ -99,7 +99,7 @@ public:
           bool preserve_cardinality,
           const std::map<std::string, std::string> &sess_options,
           const std::map<std::string, std::string> &init_options,
-          std::vector<std::pair<std::string, AttrValue>> &attrs)
+          const std::vector<std::pair<std::string, AttrValue>> &attrs)
       : DatasetBase(DatasetContext(ctx)),
         input_(input),
         num_parallel_calls_(static_cast<uint64_t>(num_parallel_calls)),
@@ -349,10 +349,10 @@ private:
         ADP_LOG(EVENT) << "~OutputResultBase finish.";
       }
 
-      void InitOutputs(uint8_t *start_addr, std::vector<int64> &tensor_align_size,
+      void InitOutputs(uint8_t *start_addr, std::vector<uint64_t> &tensor_align_size,
           std::vector<uint8_t*> &out) const {
         uint64_t dim_num = tensor_align_size.size();
-        int64_t offset = 0;
+        uint64_t offset = 0;
         uint8_t *align_addr = start_addr;
         for (uint64_t i = 0; i < dim_num; i++) {
           out.push_back(align_addr + offset);
@@ -708,8 +708,8 @@ private:
 
     const bool deterministic_;
     DatasetFunction func_;
-    std::vector<int64> func_tensor_size_;
-    std::vector<int64> func_tensor_align_size_;
+    std::vector<uint64_t> func_tensor_size_;
+    std::vector<uint64_t> func_tensor_align_size_;
     uint64_t output_mem_size_ = 0;
     uint64_t max_output_mem_size_ = 0;
     uint64_t thread_num_ = 0;
@@ -744,27 +744,27 @@ private:
       for (uint64_t i = 0; i < dim_num; i++) {
         std::vector<int64_t> output_shape = DatasetFunction::GetTfShapeDims(dataset()->output_shapes_[i]);
         func_output_shape_.push_back(output_shape);
-        int64_t tensor_size = DatasetFunction::GetShapeDims(output_shape);
-        DATASET_REQUIRES(tensor_size > 0,
+        int64_t shape_size = DatasetFunction::GetShapeDims(output_shape);
+        DATASET_REQUIRES(shape_size > 0,
             errors::Unavailable("tensor is too small."));
         int64_t type_size = DataTypeSize(dataset()->output_types_[i]);
-        DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(tensor_size, type_size),
-            errors::Unavailable("tensor is too big, tensor_size = ", tensor_size,
+        DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(shape_size, type_size),
+            errors::Unavailable("tensor is too big, shape_size = ", shape_size,
                                 ", type = ", static_cast<int>(dataset()->output_types_[i])));
-        tensor_size *= type_size;
+        uint64_t tensor_size = static_cast<uint64_t>(shape_size * type_size);
         func_tensor_size_.push_back(tensor_size);
 
         // support address align
         tensor_size = NpuAllocator::AlignSize(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
-        DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(output_mem_size_, static_cast<uint64_t>(tensor_size)),
+        DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(output_mem_size_, tensor_size),
             errors::Unavailable("output_mem_size_ is too big, output_mem_size_ = ",
                 output_mem_size_, ", tensor_size = ", tensor_size));
-        output_mem_size_ += static_cast<uint64_t>(tensor_size);
+        output_mem_size_ += tensor_size;
       }
 
       // support address align
-      output_mem_size_ += static_cast<uint64_t>(NpuAllocator::GetAlignment());
+      output_mem_size_ += NpuAllocator::GetAlignment();
 
       stream_pool_.reset(new (std::nothrow)StreamPool(static_cast<int>(GetParallelCallsNum()), kMaxTask));
       DATASET_REQUIRES(stream_pool_ != nullptr, errors::Unavailable("create stream pool failed."));
@@ -830,7 +830,7 @@ private:
 
     int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) override {
       (void)ctx;
-      Status status = stream_pool_->WaitOneEvent(thread_id);
+      (void)stream_pool_->WaitOneEvent(thread_id);
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
@@ -957,7 +957,7 @@ private:
   protected:
     class OutputDynResult : public OutputResultBase {
     public:
-      explicit OutputDynResult() {};
+      explicit OutputDynResult() : output_data(nullptr) {};
       aclmdlDataset *output_data;
     };
 
@@ -972,7 +972,6 @@ private:
       output_result.outputs.clear();
       output_result.outputs_cpu.clear();
 
-      uint64_t i = 0;
       for (size_t idx = 0; idx < aclmdlGetDatasetNumBuffers(output); idx++) {
         // get output desc and size
         aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(output, idx);
@@ -984,15 +983,14 @@ private:
         func_tensor_size_.push_back(tensor_size);
         tensor_size = NpuAllocator::AlignSize(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
-        output_mem_size_ += static_cast<uint64_t>(tensor_size);
+        output_mem_size_ += tensor_size;
 
         std::vector<int64_t> dims;
         Status status = DatasetFunction::GetAclTenorDescDims(out_desc, dims);
         DATASET_REQUIRES(status.ok(), status);
         func_output_shape_.emplace_back(std::move(dims));
-        i++;
       }
-      output_mem_size_ += static_cast<uint64_t>(NpuAllocator::GetAlignment());
+      output_mem_size_ += NpuAllocator::GetAlignment();
       return Status::OK();
     }
 
@@ -1067,7 +1065,7 @@ private:
     }
 
   protected:
-    void CheckAndFreeNpuMem(OutputResultBase &output_result) {
+    void CheckAndFreeNpuMem(OutputResultBase &output_result) const {
       if (output_result.output != nullptr) {
         aclError ret = aclrtFree(output_result.output);
         if (ret != ACL_SUCCESS) {
@@ -1110,7 +1108,7 @@ private:
       uint64_t tensor_num = output_result.outputs.size();
       for (uint64_t i = 0; i < tensor_num; i++) {
         uint8_t *npu_addr = output_result.outputs[i];
-        uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
+        uint64_t tensor_size = func_tensor_size_[i];
 
         aclmdlDataset *out_dataset = output_result.output_data;
         aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);
@@ -1145,7 +1143,7 @@ private:
     }
 
   protected:
-    void CheckAndFreeCpuMem(OutputResultBase &output_result) {
+    void CheckAndFreeCpuMem(OutputResultBase &output_result) const {
       if (output_result.output_cpu != nullptr) {
         delete[] output_result.output_cpu;
         output_result.output_cpu = nullptr;
@@ -1164,7 +1162,7 @@ private:
       } else {
         // free old memory and then malloc new memory when we need bigger memory currently
         CheckAndFreeCpuMem(output_result);
-        (void)InitOutputResultCpuMem(output_result);
+        InitOutputResultCpuMem(output_result);
         max_output_mem_size_ = output_mem_size_;
       }
 
@@ -1184,7 +1182,7 @@ private:
       uint64_t tensor_num = output_result.outputs_cpu.size();
       for (uint64_t i = 0; i < tensor_num; i++) {
         uint8_t *npu_addr = output_result.outputs_cpu[i];
-        uint64_t tensor_size = static_cast<uint64_t>(func_tensor_size_[i]);
+        uint64_t tensor_size = func_tensor_size_[i];
 
         aclmdlDataset *out_dataset = output_result.output_data;
         aclTensorDesc *out_desc = aclmdlGetDatasetTensorDesc(out_dataset, i);
