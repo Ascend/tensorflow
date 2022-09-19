@@ -155,7 +155,7 @@ def setup_ascend(env_path):
         f.write(os.path.join(ascend_path, "compiler", "lib64", "libdatatransfer.so\n"))
         f.write(os.path.join(ascend_path, "compiler", "lib64", "libindextransform.so\n"))
         f.write(os.path.join(ascend_path, "runtime", "lib64", "libascendcl.so\n"))
-        f.write(os.path.join(ascend_path, "compiler", "lib64", "libalog.so\n"))
+        f.write(os.path.join(ascend_path, "compiler", "lib64", "libascendalog.so\n"))
         f.write(os.path.join(ascend_path, "compiler", "lib64", "libacl_tdt_channel.so\n"))
 
 

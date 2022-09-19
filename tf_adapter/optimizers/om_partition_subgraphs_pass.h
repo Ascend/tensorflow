@@ -41,6 +41,7 @@ bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode,
                          const FunctionLibraryDefinition *func_lib, bool support_const = false);
 bool IsNpuSupportingNode(const Node *node, bool mix_compile_mode, const FunctionLibraryDefinition *func_lib,
                          bool support_const = false);
+bool IsLazyRecompile(std::map<std::string, std::string> &graph_options);
 }  // namespace OMSplitter
 
 class OMPartitionSubgraphsPass : public GraphOptimizationPass {
