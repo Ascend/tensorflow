@@ -101,7 +101,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                  memory_config=None,
                  experimental_config=None,
                  jit_compile=True,
-                 topo_sorting_mode=None
+                 topo_sorting_mode=None,
+                 dump_data="tensor",
+                 dump_layer=None
                  ):
         """
         Constructs a NPUConfig.
@@ -242,6 +244,9 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._experimental_config = self._get_experimental_config(experimental_config)
         self._jit_compile = jit_compile
         self.topo_sorting_mode = topo_sorting_mode
+        self._dump_data = dump_data
+        self._dump_layer = dump_layer
+
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

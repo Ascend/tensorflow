@@ -104,6 +104,8 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"jit_compile", "ge.jit_compile"},
   {"topo_sorting_mode", "ge.topoSortingMode"},
   {"customize_dtypes", "ge.customizeDtypes"},
+  {"dump_data", "ge.exec.dumpData"},
+  {"dump_layer", "ge.exec.dumpLayer"},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},
