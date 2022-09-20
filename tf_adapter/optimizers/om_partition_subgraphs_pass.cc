@@ -866,17 +866,13 @@ std::vector<string> string_split(const string &str, const string &pattern) {
   return resultVec;
 }
 
-bool IsLazyRecompile(std::map<std::string, std::string> &graph_options) {
-  return ((graph_options["dynamic_input"] == "1") &&
-          (graph_options["dynamic_graph_execute_mode"] == "lazy_recompile")) ||
-      ((graph_options["jit_compile"] == "1") && (graph_options["dynamic_input"] == "0"));
-}
-
 Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum, bool mix_compile_mode, int graph_num,
                         const FunctionLibraryDefinition *func_lib, std::map<std::string, std::string> pass_options,
                         std::map<std::string, std::string> &graph_options) {
   Graph *graph = graph_in->get();
   bool enable_dp = pass_options["enable_dp"] == "1";
+  bool is_set_lazy_recompile = graph_options["dynamic_input"] == "1" &&
+                               graph_options["dynamic_graph_execute_mode"] == "lazy_recompile";
   OrderedNodeSet npuSupportCandidates;
   if (!pass_options["in_out_pair"].empty()) {
     if (!mix_compile_mode) {
@@ -948,7 +944,7 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
           || !NodeIsCandidateForClustering(dst, &npuSupportCandidates)) {
         continue;
       }
-      if (IsLazyRecompile(graph_options) && src->type_string() == "IteratorGetNext" && enable_dp) {
+      if (is_set_lazy_recompile && src->type_string() == "IteratorGetNext" && enable_dp) {
         graph_options["is_dynamic_getnext"] = "1";
         continue;
       }
@@ -1136,7 +1132,7 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
       }
     }
     if (clusterNum > 1) {
-      if (mix_compile_mode || IsLazyRecompile(graph_options)) {
+      if (mix_compile_mode || is_set_lazy_recompile) {
         TF_RETURN_IF_ERROR(MergeSubgraphsInNewWay(sortedCluster, npuSupportCandidates, clusterToMerge));
       } else {
         TF_RETURN_IF_ERROR(MergeSubgraphs(sortedCluster, npuSupportCandidates, clusterToMerge));
@@ -2232,7 +2228,11 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     }
   }
 
-  graph_options["jit_compile"] = all_options["jit_compile"];
+  if ((graph_options["dynamic_input"] == "1") && (graph_options["dynamic_graph_execute_mode"] == "lazy_recompile") &&
+      (iterations_per_loop > 1)) {
+    return errors::InvalidArgument("iterations_per_loop only support 1 in lazy_recompile mode. Current is:",
+                                   iterations_per_loop);
+  }
 
   if (graph_format_value.empty()) {
     graph_format_value = "NHWC";  // default value

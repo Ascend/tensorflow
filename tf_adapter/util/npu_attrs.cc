@@ -498,8 +498,6 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.exec.atomicCleanPolicy"] = atomic_clean_policy;
   sess_options["jit_compile"] = jit_compile;
   sess_options["ge.jit_compile"] = jit_compile;
-  std::string shape_generalized = (jit_compile == "1") ? "0" : "1";
-  sess_options["ge.shape_generalized"] = shape_generalized;
   sess_options["topo_sorting_mode"] = topo_sorting_mode;
   sess_options["ge.topoSortingMode"] = topo_sorting_mode;
   sess_options["ge.resourceConfigPath"] = resource_config_path;
@@ -1396,8 +1394,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["logical_device_id"] = logical_device_id;
   all_options["jit_compile"] = jit_compile;
   all_options["ge.jit_compile"] = jit_compile;
-  std::string shape_generalized = (jit_compile == "1") ? "0" : "1";
-  all_options["ge.shape_generalized"] = shape_generalized;
   all_options["topo_sorting_mode"] = topo_sorting_mode;
   all_options["ge.topoSortingMode"] = topo_sorting_mode;
   all_options["resource_config_path"] = resource_config_path;
@@ -1965,8 +1961,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
   init_options_["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
   init_options_["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
-  std::string shape_generalized = jit_compile ? "0" : "1";
-  init_options_["ge.shape_generalized"] = shape_generalized;
 
   init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
   init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
