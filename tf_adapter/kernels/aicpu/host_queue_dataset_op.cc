@@ -248,7 +248,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     }
 
     unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
-      return unique_ptr<IteratorBase>(new (nothrow) Iterator({this, prefix + "::HostQueue"}));
+      return absl::make_unique<Iterator>(Iterator::Params({this, prefix + "::HostQueue"}));
     }
 
     const DataTypeVector &output_dtypes() const override { return output_types_; }
@@ -860,7 +860,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                                                   "_device_" +
                                                   std::to_string(dataset()->device_id_)));
         acl_handle_ = acltdtCreateChannelWithCapacity(
-          dataset()->device_id_, channel_name.c_str(), dataset()->channel_depth_);
+          dataset()->device_id_, channel_name.c_str(), static_cast<size_t>(dataset()->channel_depth_));
         if (acl_handle_ == nullptr) {
           ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
           return errors::InvalidArgument("Call acltdtCreateChannelWithCapacity failed.");
