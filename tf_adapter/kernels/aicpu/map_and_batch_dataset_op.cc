@@ -510,7 +510,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         std::function<void(uint64_t, DataStatus, DataStatus)> act;
       };
 
-      virtual int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
+      virtual uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id,
           DatasetFunction::ModelId model_id, uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) = 0;
       virtual Status InitBatchResult() = 0;
       virtual void DestroyOutputDataset(BatchResultBase &batch_result) = 0;
@@ -518,12 +518,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       virtual NpuAllocator* CreateAllocator(BatchResultBase &batch_result,
           uint64_t step, std::function<void(void *)> del) = 0;
 
-      virtual bool HasRunRes(int thread_id) const {
+      virtual bool HasRunRes(uint64_t thread_id) const {
         (void)thread_id;
         return true;
       }
 
-      virtual int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) {
+      virtual uint64_t WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) {
         (void)ctx;
         (void)thread_id;
         return 0;
@@ -629,7 +629,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         cond_var_->notify_all();
       }
 
-      void CallCompleted(int thread_id, std::shared_ptr<Items> &it) LOCKS_EXCLUDED(*mu_) {
+      void CallCompleted(uint64_t thread_id, std::shared_ptr<Items> &it) LOCKS_EXCLUDED(*mu_) {
         mutex_lock l(*mu_);
         timestat->UpdateWithTimeTag(timestat->statis_threads_ge[thread_id], it);
         cond_var_->notify_all();
@@ -662,7 +662,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         return true;
       }
 
-      void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, int thread_id) LOCKS_EXCLUDED(*mu_) {
+      void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) LOCKS_EXCLUDED(*mu_) {
         rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
         if (rt != ACL_RT_SUCCESS) {
           ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
@@ -690,7 +690,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
                         << "thread_num = " << this->thread_num_;
         });
 
-        int run_res = 1;
+        uint64_t run_res = 1;
         while (!cancelled_) {
           // Implementation class to implement
           // if no run res, need to wait run res
@@ -755,7 +755,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           for (uint64_t i = 0; i < GetParallelCallsNum(); i++) {
             runner_threads_.emplace_back(std::move(ctx.StartThread(
                 kNpuDataMapAndBatch + std::to_string(i),
-                std::bind(&IteratorMeBase::RunnerThread, this, ctx_, static_cast<int>(i)))));
+                std::bind(&IteratorMeBase::RunnerThread, this, ctx_, i))));
           }
         }
         return Status::OK();
@@ -933,11 +933,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return InitBatchResultMem();
     }
 
-    bool HasRunRes(int thread_id) const override {
-      return stream_pool_->GetIdleEventCount(static_cast<int>(thread_id)) > 0;
+    bool HasRunRes(uint64_t thread_id) const override {
+      return stream_pool_->GetIdleEventCount(thread_id) > 0;
     }
 
-    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::ModelId model_id,
+    uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id, DatasetFunction::ModelId model_id,
         uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) override {
       (void)ctx;
       aclmdlDataset *input_dataset = nullptr;
@@ -985,7 +985,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
-    int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) override {
+    uint64_t WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) override {
       (void)ctx;
       (void)stream_pool_->WaitOneEvent(thread_id);
       return stream_pool_->GetWaitingEventCount(thread_id);
@@ -1148,7 +1148,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return Status::OK();
     }
 
-    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::ModelId model_id,
+    uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id, DatasetFunction::ModelId model_id,
         uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) override {
       (void)ctx;
       (void)thread_id;

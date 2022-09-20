@@ -163,9 +163,9 @@ class DatasetFunction {
 
   private:
     void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition &lib_def, tensorflow::Graph &graph) const;
-    void AssembleOpDef(tensorflow::Node *n) const;
-    void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const;
-    void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const;
+    void AssembleOpDef(tensorflow::Node &n) const;
+    void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) const;
+    void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) const;
     PartialTensorShape MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const;
     void UpdateShapeForArgOp(Graph &graph) const;
 
@@ -245,7 +245,7 @@ public:
 
   void RecordStartTime(Items &it) const;
   void RecordEndTime(Items &it) const;
-  void UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag);
+  void UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag) const;
   void ShowTimeStatistic();
 
   // record time statistics for GetNextInter API

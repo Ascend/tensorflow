@@ -371,7 +371,7 @@ private:
       std::vector<uint8_t*> outputs_cpu;
     }; // class OutputResultBase
 
-    virtual bool HasRunRes(int thread_id) const {
+    virtual bool HasRunRes(uint64_t thread_id) const {
       (void)thread_id;
       return true;
     }
@@ -381,9 +381,9 @@ private:
     virtual void DestroyOutputDataset(OutputResultBase &output_result) = 0;
     virtual NpuAllocator* CreateAllocator(OutputResultBase &output_result, uint64_t step,
         std::function<void(void *)> del) = 0;
-    virtual int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
+    virtual uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id,
         DatasetFunction::ModelId model_id, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) = 0;
-    virtual int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) {
+    virtual uint64_t WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) {
       (void)ctx;
       (void)thread_id;
       return 0;
@@ -459,7 +459,7 @@ private:
       cond_var_->notify_all();
     }
 
-    void CallCompleted(int thread_id, std::shared_ptr<Items> &it) LOCKS_EXCLUDED(*mu_) {
+    void CallCompleted(uint64_t thread_id, std::shared_ptr<Items> &it) LOCKS_EXCLUDED(*mu_) {
       mutex_lock l(*mu_);
       timestat->UpdateWithTimeTag(timestat->statis_threads_ge[thread_id], it);
       cond_var_->notify_all();
@@ -499,7 +499,7 @@ private:
       return true;
     }
 
-    void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, int thread_id) LOCKS_EXCLUDED(*mu_) {
+    void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) LOCKS_EXCLUDED(*mu_) {
       rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
       if (rt != ACL_RT_SUCCESS) {
         ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
@@ -527,7 +527,7 @@ private:
         ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id << "thread_num = " << this->thread_num_;
       });
 
-      int run_res = 1;
+      uint64_t run_res = 1;
       while (!cancelled_) {
         // Implementation class to implement
         // if no run res, need to wait run res
@@ -596,7 +596,7 @@ private:
         for (uint64_t i = 0; i < GetParallelCallsNum(); i++) {
           runner_threads_.emplace_back(std::move(ctx.StartThread(
               kNpuMapDataset + std::to_string(i),
-              std::bind(&IteratorMeBase::RunnerThread, this, ctx_, static_cast<int>(i)))));
+              std::bind(&IteratorMeBase::RunnerThread, this, ctx_, i))));
         }
       }
       return Status::OK();
@@ -766,16 +766,16 @@ private:
       // support address align
       output_mem_size_ += NpuAllocator::GetAlignment();
 
-      stream_pool_.reset(new (std::nothrow)StreamPool(static_cast<int>(GetParallelCallsNum()), kMaxTask));
+      stream_pool_.reset(new (std::nothrow)StreamPool(GetParallelCallsNum(), kMaxTask));
       DATASET_REQUIRES(stream_pool_ != nullptr, errors::Unavailable("create stream pool failed."));
       return InitOutputResultsMem();
     }
 
-    bool HasRunRes(int thread_id) const override {
+    bool HasRunRes(uint64_t thread_id) const override {
       return stream_pool_->GetIdleEventCount(thread_id) > 0;
     }
 
-    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id, DatasetFunction::ModelId model_id,
+    uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id, DatasetFunction::ModelId model_id,
         uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;
       aclmdlDataset *input_dataset = nullptr;
@@ -828,7 +828,7 @@ private:
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
-    int WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, int thread_id) override {
+    uint64_t WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) override {
       (void)ctx;
       (void)stream_pool_->WaitOneEvent(thread_id);
       return stream_pool_->GetWaitingEventCount(thread_id);
@@ -994,7 +994,7 @@ private:
       return Status::OK();
     }
 
-    int MapFunc(const std::shared_ptr<IteratorContext>& ctx, int thread_id,
+    uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id,
         DatasetFunction::ModelId model_id, uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input)
         LOCKS_EXCLUDED(*mu_) override {
       (void)ctx;

@@ -115,9 +115,9 @@ public:
   }
 
 private:
-  inline int GetStreamId() const { return stream_id_; }
+  inline uint64_t GetStreamId() const { return stream_id_; }
 
-  static std::shared_ptr<Stream> CreateStream(StreamPool *owner, int stream_id) {
+  static std::shared_ptr<Stream> CreateStream(StreamPool *owner, uint64_t stream_id) {
     aclrtStream stream;
     aclError rt = aclrtCreateStream(&stream);
     if (rt != ACL_SUCCESS) {
@@ -157,8 +157,8 @@ private:
     }
   }
 
-  int ProcessAllReadyEvent() {
-    int count = 0;
+  uint64_t ProcessAllReadyEvent() {
+    uint64_t count = 0;
     for (auto it = waiting_event_queue_.begin(); it != waiting_event_queue_.end();) {
       if ((*it)->TryWait().ok()) {
         count++;
@@ -172,7 +172,7 @@ private:
   }
 
   Status WaitOneEvent() {
-    int count = 0;
+    uint64_t count = 0;
     std::shared_ptr<StreamEvent> event;
     {
       std::unique_lock<std::mutex> lck(mtx_);
@@ -192,7 +192,7 @@ private:
     return Status::OK();
   }
 
-  explicit Stream(StreamPool *owner, int stream_id, aclrtStream stream)
+  explicit Stream(StreamPool *owner, uint64_t stream_id, aclrtStream stream)
     : stream_(stream),
       stream_id_(stream_id),
       owner_(owner) {
@@ -201,7 +201,7 @@ private:
 
   std::mutex mtx_;
   aclrtStream stream_;
-  int stream_id_ = -1;
+  uint64_t stream_id_ = UINT64_MAX;
   std::deque<StreamEvent*> event_queue_;
   std::deque<std::shared_ptr<StreamEvent>> waiting_event_queue_;
   StreamPool *owner_;
@@ -245,13 +245,14 @@ Status StreamEvent::Wait() {
 
 class StreamPool {
 public:
-  explicit StreamPool(int stream_num, int max_task)
+  explicit StreamPool(uint64_t stream_num, uint64_t max_task)
     : max_stream_(stream_num),
       max_task_(max_task) {
     uint64_t pos_stream_num = StreamPool::CheckStreamNum(stream_num);
-    cur_event_num_ = new int[pos_stream_num];
-    if (memset_s(cur_event_num_, sizeof(int) * pos_stream_num, 0, sizeof(int) * pos_stream_num) != 0) {
-      ADP_LOG(ERROR) << "[StreamPool] Failed to reset cur_event_num_ memory.";
+    cur_event_num_ = new uint64_t[pos_stream_num];
+    uint64_t size_count = sizeof(uint64_t) * pos_stream_num;
+    if (memset_s(cur_event_num_, size_count, 0, size_count) != 0) {
+      ADP_LOG(ERROR) << "[StreamPool] Failed to reset cur_event_num_ memory. size_count=" << size_count;
     }
     streams_.resize(pos_stream_num, nullptr);
   }
@@ -261,21 +262,20 @@ public:
     streams_.clear();
   }
 
-  std::shared_ptr<Stream> GetStream(int streamid) {
+  std::shared_ptr<Stream> GetStream(uint64_t streamid) {
     if (streamid >= max_stream_) {
       return nullptr;
     }
     std::unique_lock<std::mutex> lck(mtx_);
-    uint64_t streamid_idx = static_cast<uint64_t>(streamid);
-    if (streams_[streamid_idx] == nullptr) {
-      streams_[streamid_idx] = Stream::CreateStream(this, streamid);
+    if (streams_[streamid] == nullptr) {
+      streams_[streamid] = Stream::CreateStream(this, streamid);
     }
 
-    return streams_[streamid_idx];
+    return streams_[streamid];
   }
 
   Status RecordEvent(const std::shared_ptr<Stream> stream, const std::function<void(Status status)> func_) {
-    int stream_id = stream->GetStreamId();
+    uint64_t stream_id = stream->GetStreamId();
     {
       std::unique_lock<std::mutex> lck(mtx_);
       if ((stream_id >= max_stream_) || (cur_event_num_[stream_id] >= max_task_)) {
@@ -290,33 +290,33 @@ public:
     });
   }
 
-  int GetIdleEventCount(const int stream_id) const {
+  uint64_t GetIdleEventCount(const uint64_t stream_id) const {
     if ((stream_id >= max_stream_) || (cur_event_num_[stream_id] >= max_task_)) {
       return 0;
     }
     return max_task_ - cur_event_num_[stream_id];
   }
 
-  int GetWaitingEventCount(const int stream_id) const {
+  uint64_t GetWaitingEventCount(const uint64_t stream_id) const {
     if (stream_id >= max_stream_) {
       return 0;
     }
     return cur_event_num_[stream_id];
   }
 
-  Status WaitOneEvent(int stream_id) {
+  Status WaitOneEvent(uint64_t stream_id) {
     if (stream_id >= max_stream_) {
       return errors::InvalidArgument("stream_id is invalid, ", stream_id);
     }
-    return streams_[static_cast<uint64_t>(stream_id)]->WaitOneEvent();
+    return streams_[stream_id]->WaitOneEvent();
   }
 
-  static uint64_t CheckStreamNum(int stream_num) {
-    uint64_t ret_streams = static_cast<uint64_t>(stream_num);
+  static uint64_t CheckStreamNum(uint64_t stream_num) {
+    uint64_t ret_streams = stream_num;
     if (stream_num <= 0) {
       ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
       ret_streams = static_cast<uint64_t>(StreamNum::DEFAULT_STREAM_NUM);
-    } else if (stream_num > static_cast<int>(StreamNum::MAX_STREAM_NUM)) {
+    } else if (stream_num > static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM)) {
       ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
       ret_streams = static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM);
     }
@@ -325,10 +325,10 @@ public:
 
 private:
   std::mutex mtx_;
-  const int max_stream_;
-  const int max_task_;
-  int cur_stream_num_ = 0;
-  int *cur_event_num_ = nullptr;
+  const uint64_t max_stream_;
+  const uint64_t max_task_;
+  uint64_t cur_stream_num_ = 0;
+  uint64_t *cur_event_num_ = nullptr;
   std::vector<std::shared_ptr<Stream>> streams_;
   friend class Stream;
   friend class StreamEvent;
