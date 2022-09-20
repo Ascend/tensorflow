@@ -30,7 +30,7 @@
 #include "tensorflow/core/platform/logging.h"
 
 class ThreadPool {
- public:
+public:
   template<class F, class... Args>
   auto Enqueue(F&& f, Args&&... args)
     -> std::future<typename std::result_of<F(Args...)>::type>;
@@ -40,7 +40,7 @@ class ThreadPool {
   ThreadPool() : stop_(false), init_flag_(false) {}
   // ThreadPool destruct
   ~ThreadPool();
- private:
+private:
   void AddWorkers(size_t threads);
   // need to keep track of threads so we can join them
   std::vector< std::thread > workers_;

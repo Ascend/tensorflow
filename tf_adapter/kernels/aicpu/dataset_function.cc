@@ -106,27 +106,27 @@ tensorflow::AttrValue DatasetFunction::BuildDescAttr(T shapes, TensorDataTypes t
   return desc_attr;
 }
 
-void DatasetFunction::AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const {
-  n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+void DatasetFunction::AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) const {
+  n.AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
-void DatasetFunction::AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const {
-  n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+void DatasetFunction::AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) const {
+  n.AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
-void DatasetFunction::AssembleOpDef(tensorflow::Node *n) const {
+void DatasetFunction::AssembleOpDef(tensorflow::Node &n) const {
   const tensorflow::OpRegistrationData *op_reg_data;
-  (void)tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
+  (void)tensorflow::OpRegistry::Global()->LookUp(n.type_string(), &op_reg_data);
   std::string serialized_op_def;
   (void)op_reg_data->op_def.SerializeToString(&serialized_op_def);
-  n->AddAttr("op_def", serialized_op_def);
+  n.AddAttr("op_def", serialized_op_def);
 }
 
 void DatasetFunction::AssembleParserAddons(const tensorflow::FunctionLibraryDefinition &lib_def,
     tensorflow::Graph &graph) const {
   tensorflow::ShapeRefiner shape_refiner(graph.versions(), &lib_def);
   auto node_shape_inference_lambda = [this, &shape_refiner](tensorflow::Node *node) {
-    this->AssembleOpDef(node);
+    this->AssembleOpDef(*node);
     auto status = shape_refiner.AddNode(node);
     if (!status.ok()) {
       ADP_LOG(INFO) << "  " << node->name() << "[" << node->type_string() << "] Skip infer " << status.error_message();
@@ -168,7 +168,7 @@ void DatasetFunction::AssembleParserAddons(const tensorflow::FunctionLibraryDefi
           node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
           (void)input_shapes.emplace_back(proto);
         }
-        this->AssembleInputDesc(input_shapes, input_types, node);
+        this->AssembleInputDesc(input_shapes, input_types, *node);
       }
     }
 
@@ -181,7 +181,7 @@ void DatasetFunction::AssembleParserAddons(const tensorflow::FunctionLibraryDefi
         ADP_LOG(INFO) << "    output " << i << ": " << tensorflow::DataTypeString(output_types[static_cast<size_t>(i)])
                << node_ctx->DebugString(node_ctx->output(i));
       }
-      this->AssembleOutputDesc(output_shapes, output_types, node);
+      this->AssembleOutputDesc(output_shapes, output_types, *node);
     }
   };
   tensorflow::ReverseDFS(graph, {}, node_shape_inference_lambda);
@@ -328,7 +328,8 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
   for (size_t i = 0; i < output_num; ++i) {
     // create aclDataBuffer with nullptr, aclmdlExecute() will set device memory for it
     aclDataBuffer *outputData = aclCreateDataBuffer(nullptr, 0U);
-    DATASET_REQUIRES_RETURN_NULL(outputData != nullptr, errors::Internal("Can't create data buffer, create output failed."));
+    DATASET_REQUIRES_RETURN_NULL(outputData != nullptr,
+                                 errors::Internal("Can't create data buffer, create output failed."));
 
     aclError ret = aclmdlAddDatasetBuffer(output, outputData);
     if (ret != ACL_SUCCESS) {
@@ -644,14 +645,14 @@ Status DatasetFunction::Initialize(const std::map<std::string, std::string> &ses
   return Instantialte();
 }
 
-Status DatasetFunction::Run(ModelId model_id, aclmdlDataset *in_dataset, aclmdlDataset *out_dataset) {
+Status DatasetFunction::Run(ModelId model_id, aclmdlDataset *in_dataset, aclmdlDataset *out_dataset) const {
   aclError ret = aclmdlExecute(model_id, in_dataset, out_dataset);
   return (ret == ACL_SUCCESS) ? Status::OK() : errors::Internal("Run graph failed with model_id=", model_id,
       " ret=", ret);
 }
 
 Status DatasetFunction::RunWithStreamAsyn(ModelId model_id, aclmdlDataset *in_dataset,
-    aclmdlDataset *out_dataset, aclrtStream stream) {
+    aclmdlDataset *out_dataset, aclrtStream stream) const {
   aclError ret = aclmdlExecuteAsync(model_id, in_dataset, out_dataset, stream);
   return (ret == ACL_SUCCESS) ? Status::OK() : errors::Internal("Run graph with stream failed with model_id=",
       model_id, " ret=", ret);
@@ -690,21 +691,21 @@ TimeStatistic::TimeStatistic(int64_t total_threads) {
   max_threads = total_threads;
 }
 
-void TimeStatistic::RecordStartTime(Items &it) {
+void TimeStatistic::RecordStartTime(Items &it) const {
   it.start_time = InferShapeUtil::GetCurrentTimestap();
 }
 
-void TimeStatistic::RecordEndTime(Items &it) {
+void TimeStatistic::RecordEndTime(Items &it) const {
   it.end_time = InferShapeUtil::GetCurrentTimestap();
   it.Update();
 }
 
-void TimeStatistic::UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag) {
+void TimeStatistic::UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag) const {
   // update it with tag
   RecordEndTime(*tag);
   int64_t interval_time = tag->min_time;
   // if data overflow, stop record
-  if (it.total_time + interval_time > INT64_MAX) {
+  if (DatasetFunction::CheckAddOverflow(it.total_time, interval_time)) {
     return;
   }
   it.total_time += interval_time;

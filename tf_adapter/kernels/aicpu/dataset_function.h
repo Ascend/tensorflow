@@ -85,9 +85,9 @@ class DatasetFunction {
 
     Status Instantialte();
     Status Initialize(const std::map<std::string, std::string> &session_options, FunctionLibraryDefinition &flib_def);
-    Status Run(ModelId model_id, aclmdlDataset* in_dataset, aclmdlDataset* out_dataset);
+    Status Run(ModelId model_id, aclmdlDataset* in_dataset, aclmdlDataset* out_dataset) const;
     Status RunWithStreamAsyn(ModelId model_id, aclmdlDataset* in_dataset, aclmdlDataset* out_dataset,
-        aclrtStream stream);
+        aclrtStream stream) const;
     Status LoadGeModelFromMem(ModelId &model_id);
 
     static Status RegisterNpuCancellation(std::function<void()> callback, std::function<void()>* deregister_fn);
@@ -163,9 +163,9 @@ class DatasetFunction {
 
   private:
     void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition &lib_def, tensorflow::Graph &graph) const;
-    void AssembleOpDef(tensorflow::Node *n) const;
-    void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const;
-    void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) const;
+    void AssembleOpDef(tensorflow::Node &n) const;
+    void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) const;
+    void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) const;
     PartialTensorShape MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const;
     void UpdateShapeForArgOp(Graph &graph) const;
 
@@ -207,7 +207,6 @@ class DatasetFunction {
     std::shared_ptr<ge::Session> ge_session_ = nullptr;
     ge::Graph ge_graph_;
     ge::ModelBufferData ge_model_;
-
 }; // class DatasetFunction
 
 struct Items {
@@ -219,7 +218,7 @@ public:
       return;
     }
     // if data overflow, stop record
-    if (total_time + interval_time > INT64_MAX) {
+    if (DatasetFunction::CheckAddOverflow(total_time, interval_time)) {
       return;
     }
     total_time += interval_time;
@@ -244,9 +243,9 @@ public:
   explicit TimeStatistic(int64_t total_threads);
   ~TimeStatistic() {};
 
-  void RecordStartTime(Items &it);
-  void RecordEndTime(Items &it);
-  void UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag);
+  void RecordStartTime(Items &it) const;
+  void RecordEndTime(Items &it) const;
+  void UpdateWithTimeTag(Items &it, std::shared_ptr<Items> &tag) const;
   void ShowTimeStatistic();
 
   // record time statistics for GetNextInter API
