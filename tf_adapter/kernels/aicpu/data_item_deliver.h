@@ -45,6 +45,15 @@ constexpr size_t UINT64_SIZE = sizeof(uint64_t);
 constexpr size_t CHAR_SIZE = sizeof(char);
 constexpr size_t DATA_TYPE_SIZE = sizeof(tdt::TdtDataType);
 
+constexpr size_t kIndex2 = 2;
+constexpr size_t kIndex3 = 3;
+constexpr size_t kIndex4 = 4;
+constexpr size_t kIndex5 = 5;
+constexpr size_t kIndex6 = 6;
+constexpr size_t kIndex7 = 7;
+constexpr size_t kIndex8 = 8;
+constexpr int32_t k50000us = 50000;
+
 class DataItemDeliver {
  public:
   DataItemDeliver(int local_rank_id, int device_id,
@@ -146,7 +155,7 @@ Status DataItemDeliver::InitSocketClient(int device_id) {
     if (ret >= 0) {
       break;
     }
-    usleep(50000);
+    usleep(k50000us);
     try_times++;
     if (try_times >= MAX_TRY_TIMES) {
       ADP_LOG(ERROR) << "Failed to connect server.";
@@ -170,7 +179,7 @@ Status DataItemDeliver::InitSocketServer() {
     LOG(ERROR) << "Failed to open unix domain socket.";
     return errors::Internal("Failed to open unix domain socket.");
   }
-  if (CreateSockAddr(local_addr_, SOCKET_SERVER_PATH, device_id_) !=
+  if (CreateSockAddr(local_addr_, SOCKET_SERVER_PATH, static_cast<int>(device_id_)) !=
       Status::OK()) {
     ADP_LOG(ERROR) << "Failed to create socket.";
     LOG(ERROR) << "Failed to create socket.";
@@ -203,7 +212,7 @@ Status DataItemDeliver::InitSocketServer() {
     if (server_fd_ != -1) {
       break;
     }
-    usleep(50000);
+    usleep(k50000us);
     try_times++;
     if (try_times >= MAX_TRY_TIMES) {
       ADP_LOG(ERROR) << "Failed to accept server.";
@@ -305,8 +314,8 @@ uint64_t DataItemDeliver::Recv(uint8_t *buffer, size_t data_len) const {
                  << ", (errno:" << errno << "), server_fd:" << server_fd_;
       return 0;
     }
-    buf_pos += ret;
-    data_len -= ret;
+    buf_pos += static_cast<uint64_t>(ret);
+    data_len -= static_cast<size_t>(ret);
   }
   return buf_pos;
 }
@@ -416,8 +425,8 @@ Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
   head_info[0].iov_len = UINT32_SIZE;
   head_info[1].iov_base = const_cast<char *>(MESSAGE_HEAD);
   head_info[1].iov_len = head_size;
-  head_info[2].iov_base = &vector_size;
-  head_info[2].iov_len = UINT32_SIZE;
+  head_info[kIndex2].iov_base = &vector_size;
+  head_info[kIndex2].iov_len = UINT32_SIZE;
   SocketSend(head_info, HEAD_INFO_SIZE, fd);
   for (tdt::DataItem data_item : data_items) {
     // send dataType
@@ -430,30 +439,30 @@ Status DataItemDeliver::SendDataVec(std::vector<tdt::DataItem> &data_items,
     uint32_t name_size = (strlen(tensor_name) + 1) * CHAR_SIZE;
     item_info[1].iov_base = &name_size;
     item_info[1].iov_len = UINT32_SIZE;
-    item_info[2].iov_base = tensor_name;
-    item_info[2].iov_len = name_size;
+    item_info[kIndex2].iov_base = tensor_name;
+    item_info[kIndex2].iov_len = name_size;
 
     // send tensor shape
     char *tensor_shape = &data_item.tensorShape_[0];
     uint32_t shape_size = (strlen(tensor_shape) + 1) * CHAR_SIZE;
-    item_info[3].iov_base = &shape_size;
-    item_info[3].iov_len = UINT32_SIZE;
-    item_info[4].iov_base = tensor_shape;
-    item_info[4].iov_len = shape_size;
+    item_info[kIndex3].iov_base = &shape_size;
+    item_info[kIndex3].iov_len = UINT32_SIZE;
+    item_info[kIndex4].iov_base = tensor_shape;
+    item_info[kIndex4].iov_len = shape_size;
 
     // send tensor type
     char *tensor_type = &data_item.tensorType_[0];
     uint32_t type_size = (strlen(tensor_type) + 1) * CHAR_SIZE;
-    item_info[5].iov_base = &type_size;
-    item_info[5].iov_len = UINT32_SIZE;
-    item_info[6].iov_base = tensor_type;
-    item_info[6].iov_len = type_size;
+    item_info[kIndex5].iov_base = &type_size;
+    item_info[kIndex5].iov_len = UINT32_SIZE;
+    item_info[kIndex6].iov_base = tensor_type;
+    item_info[kIndex6].iov_len = type_size;
 
     // send tensor data
-    item_info[7].iov_base = &data_item.dataLen_;
-    item_info[7].iov_len = UINT64_SIZE;
-    item_info[8].iov_base = static_cast<void *>(data_item.dataPtr_.get());
-    item_info[8].iov_len = data_item.dataLen_;
+    item_info[kIndex7].iov_base = &data_item.dataLen_;
+    item_info[kIndex7].iov_len = UINT64_SIZE;
+    item_info[kIndex8].iov_base = static_cast<void *>(data_item.dataPtr_.get());
+    item_info[kIndex8].iov_len = data_item.dataLen_;
     SocketSend(item_info, ITEM_INFO_SIZE, fd);
   }
   return Status::OK();
