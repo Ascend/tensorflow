@@ -370,6 +370,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string dump_step;
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
+  std::string dump_layer;
   std::string stream_max_parallel_num;
   std::string npuOptimizer;
   std::string is_tailing_optimization = "0";
@@ -453,6 +454,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_jit_compile", &jit_compile);
     (void) ctx->GetAttr("_topo_sorting_mode", &topo_sorting_mode);
     (void) ctx->GetAttr("_resource_config_path", &resource_config_path);
+    (void) ctx->GetAttr("_dump_layer", &dump_layer);
   }
 
   // session options
@@ -469,6 +471,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options[ge::OPTION_EXEC_DUMP_PATH] = dump_path;
   sess_options[ge::OPTION_EXEC_DUMP_STEP] = dump_step;
   sess_options[ge::OPTION_EXEC_DUMP_MODE] = dump_mode;
+  sess_options["dump_layer"] = dump_layer;
+  sess_options["ge.exec.dumpLayer"] = dump_layer;
   sess_options[ge::OPTION_EXEC_ENABLE_DUMP_DEBUG] = enable_dump_debug;
   sess_options[ge::OPTION_EXEC_DUMP_DEBUG_MODE] = dump_debug_mode;
   sess_options["ge.exec.isTailingOptimization"] = is_tailing_optimization;
@@ -553,6 +557,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string graph_exec_timeout;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
+  std::string dump_data = "tensor";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_precision_mode", &precision_mode);
@@ -585,6 +590,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
     (void) ctx->GetAttr("_logical_device_cluster_deploy_mode", &logical_device_cluster_deploy_mode);
     (void) ctx->GetAttr("_logical_device_id", &logical_device_id);
+    (void) ctx->GetAttr("_dump_data", &dump_data);
   }
 
   if (precision_mode.empty()) {
@@ -627,6 +633,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.exec.graphExecTimeout"] = graph_exec_timeout;
   init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
   init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
+  init_options_["dump_data"] = dump_data;
+  init_options_["ge.exec.dumpData"] = dump_data;
 
   return init_options_;
 }
@@ -942,6 +950,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string dump_step;
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
+  std::string dump_data = "tensor";
+  std::string dump_layer;
   std::string stream_max_parallel_num;
   std::string soc_config;
 
@@ -1012,6 +1022,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto dump_path_value = attrs.Find("_dump_path");
   auto dump_step_value = attrs.Find("_dump_step");
   auto dump_mode_value = attrs.Find("_dump_mode");
+  auto dump_data_value = attrs.Find("_dump_data");
+  auto dump_layer_value = attrs.Find("_dump_layer");
   auto dump_debug_mode_value = attrs.Find("_dump_debug_mode");
   auto stream_max_parallel_num_value = attrs.Find("_stream_max_parallel_num");
   auto soc_config_value = attrs.Find("_soc_config");
@@ -1297,6 +1309,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (topo_sorting_mode_value != nullptr) {
       topo_sorting_mode = topo_sorting_mode_value->s();
     }
+    if (dump_data_value != nullptr) {
+      dump_data = dump_data_value->s();
+    }
+    if (dump_layer_value != nullptr) {
+      dump_layer = dump_layer_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1315,6 +1333,10 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["dump_mode"] = dump_mode;
   all_options["enable_dump_debug"] = enable_dump_debug;
   all_options["dump_debug_mode"] = dump_debug_mode;
+  all_options["dump_data"] = dump_data;
+  all_options["ge.exec.dumpData"] = dump_data;
+  all_options["dump_layer"] = dump_layer;
+  all_options["ge.exec.dumpLayer"] = dump_layer;
   all_options["soc_config"] = soc_config;
 
   all_options["is_tailing_optimization"] = is_tailing_optimization;
@@ -1408,6 +1430,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string dump_step;
   std::string dump_mode = "output";
   std::string dump_debug_mode = "all";
+  std::string dump_data = "tensor";
+  std::string dump_layer;
   std::string stream_max_parallel_num;
   std::string soc_config;
   std::string hccl_timeout;
@@ -1841,6 +1865,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("resource_config_path") > 0) {
         resource_config_path = params.at("resource_config_path").s();
       }
+      if (params.count("dump_data") > 0) {
+        dump_data = params.at("dump_data").s();
+      }
+      if (params.count("dump_layer") > 0) {
+        dump_layer = params.at("dump_layer").s();
+      }
     }
   }
 
@@ -1859,6 +1889,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["dump_path"] = dump_path;
   sess_options["dump_step"] = dump_step;
   sess_options["dump_mode"] = dump_mode;
+  sess_options["dump_layer"] = dump_layer;
+  sess_options["ge.exec.dumpLayer"] = dump_layer;
   sess_options["enable_dump_debug"] = std::to_string(static_cast<int32_t>(enable_dump_debug));
   sess_options["dump_debug_mode"] = dump_debug_mode;
   sess_options["is_tailing_optimization"] = std::to_string(static_cast<int32_t>(is_tailing_optimization));
@@ -1950,6 +1982,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
   init_options_["logical_device_id"] = logical_device_id;
   init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
+  init_options_["dump_data"] = dump_data;
+  init_options_["ge.exec.dumpData"] = dump_data;
 
   pass_options["do_npu_optimizer"] = std::to_string(static_cast<int32_t>(do_npu_optimizer));
   pass_options["enable_data_pre_proc"] = std::to_string(static_cast<int32_t>(enable_dp));

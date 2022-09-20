@@ -754,6 +754,10 @@ class NPUEstimator(estimator_lib.Estimator):
         if config.topo_sorting_mode is not None:
             custom_op.parameter_map["topo_sorting_mode"].i = config.topo_sorting_mode
         custom_op.parameter_map["jit_compile"].b = config._jit_compile
+        if config.dump_data is not None:
+            custom_op.parameter_map["dump_data"].s = tf.compat.as_bytes(config.dump_data)
+        if config.dump_layer is not None:
+            custom_op.parameter_map["dump_layer"].s = tf.compat.as_bytes(config.dump_layer)
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)
