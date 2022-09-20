@@ -244,8 +244,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._experimental_config = self._get_experimental_config(experimental_config)
         self._jit_compile = jit_compile
         self.topo_sorting_mode = topo_sorting_mode
-        self._dump_data = dump_data
-        self._dump_layer = dump_layer
+        self.dump_data = dump_data
+        self.dump_layer = dump_layer
 
 
         super(NPURunConfig, self).__init__(
