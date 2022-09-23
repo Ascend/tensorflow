@@ -339,7 +339,9 @@ class DumpConfig():
                  dump_step=None,
                  dump_mode="output",
                  enable_dump_debug=False,
-                 dump_debug_mode="all"):
+                 dump_debug_mode="all",
+                 dump_data="tensor",
+                 dump_layer=None):
         """
         Constructs a DumpConfig.
 
@@ -357,6 +359,8 @@ class DumpConfig():
         self._dump_mode = dump_mode
         self._enable_dump_debug = enable_dump_debug
         self._dump_debug_mode = dump_debug_mode
+        self.dump_data = dump_data
+        self.dump_layer = dump_layer
 
 
 class GraphMemoryOptimizeConfig():

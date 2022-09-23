@@ -29,5 +29,7 @@ class NpuDumpConfig(NpuBaseConfig):
         self.dump_mode = OptionValue('output', ['input', 'output', 'all'])
         self.enable_dump_debug = OptionValue(False, [True, False])
         self.dump_debug_mode = OptionValue('all', ['aicore_overflow', 'atomic_overflow', 'all'])
+        self.dump_data = OptionValue('tensor', ['tensor', 'stats'])
+        self.dump_layer = OptionValue(None, None)
 
         super(NpuDumpConfig, self).__init__()

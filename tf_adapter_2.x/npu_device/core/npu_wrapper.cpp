@@ -81,6 +81,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"hcom_multi_mode", ge::HCOM_MULTI_MODE},
   {"is_tailing_optimization", ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION},
   {"op_debug_level", ge::OP_DEBUG_LEVEL},
+  {"op_debug_config", "ge.exec.opDebugConfig"},
   {"debug_dir", ge::DEBUG_DIR},
   {"modify_mixlist", ge::MODIFY_MIXLIST},
   {"enable_exception_dump", ge::OPTION_EXEC_ENABLE_EXCEPTION_DUMP},
@@ -104,6 +105,8 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"jit_compile", "ge.jit_compile"},
   {"topo_sorting_mode", "ge.topoSortingMode"},
   {"customize_dtypes", "ge.customizeDtypes"},
+  {"dump_data", "ge.exec.dumpData"},
+  {"dump_layer", "ge.exec.dumpLayer"},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},

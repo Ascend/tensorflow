@@ -579,6 +579,10 @@ class NPUEstimator(estimator_lib.Estimator):
                 custom_op.parameter_map["dump_mode"].s = tf.compat.as_bytes(config._dump_config._dump_mode)
             if config._dump_config._dump_mode is not None:
                 custom_op.parameter_map["dump_debug_mode"].s = tf.compat.as_bytes(config._dump_config._dump_debug_mode)
+            if config._dump_config.dump_data is not None:
+                custom_op.parameter_map["dump_data"].s = tf.compat.as_bytes(config._dump_config.dump_data)
+            if config._dump_config.dump_layer is not None:
+                custom_op.parameter_map["dump_layer"].s = tf.compat.as_bytes(config._dump_config.dump_layer)
 
     def __load_experimental_config(self, config, custom_op):
         """Load experimental config ,and add to custom_optimizers
