@@ -29,6 +29,8 @@
 #include <stdexcept>
 #include "tensorflow/core/platform/logging.h"
 
+namespace tensorflow {
+namespace data {
 class ThreadPool {
  public:
   template<class F, class... Args>
@@ -117,5 +119,6 @@ ThreadPool::~ThreadPool()
   condition_.notify_all();
   for (std::thread &worker : workers_) { worker.join(); }
 }
-
+} // namespace data
+} // namespace tensorflow
 #endif
