@@ -53,7 +53,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  enable_reduce_precision=False,
                  variable_format_optimize=True,
                  mix_compile_mode=False,
-                 hcom_parallel=False,
+                 hcom_parallel=True,
                  graph_memory_max_size=None,
                  variable_memory_max_size=None,
                  auto_tune_mode=None,

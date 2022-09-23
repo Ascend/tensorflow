@@ -361,7 +361,7 @@ void NpuAttrs::SetDatasetExecuteInDeviceStatus(const std::string &iterator_name,
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
   std::string variable_format_optimize = "1";
-  std::string hcom_parallel = "0";
+  std::string hcom_parallel = "1";
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
   std::string enable_dump = "0";
@@ -1417,7 +1417,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
 Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node) {
   std::map<std::string, std::string> sess_options;
   bool variable_format_optimize = true;
-  bool hcom_parallel = false;
+  bool hcom_parallel = true;
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
   bool enable_dump = false;
