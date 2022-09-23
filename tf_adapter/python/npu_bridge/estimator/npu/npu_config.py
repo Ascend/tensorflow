@@ -53,7 +53,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  enable_reduce_precision=False,
                  variable_format_optimize=True,
                  mix_compile_mode=False,
-                 hcom_parallel=False,
+                 hcom_parallel=True,
                  graph_memory_max_size=None,
                  variable_memory_max_size=None,
                  auto_tune_mode=None,
@@ -101,9 +101,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  memory_config=None,
                  experimental_config=None,
                  jit_compile=True,
-                 topo_sorting_mode=None,
-                 dump_data="tensor",
-                 dump_layer=None
+                 topo_sorting_mode=None
                  ):
         """
         Constructs a NPUConfig.
@@ -244,8 +242,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._experimental_config = self._get_experimental_config(experimental_config)
         self._jit_compile = jit_compile
         self.topo_sorting_mode = topo_sorting_mode
-        self.dump_data = dump_data
-        self.dump_layer = dump_layer
 
 
         super(NPURunConfig, self).__init__(
@@ -344,7 +340,9 @@ class DumpConfig():
                  dump_step=None,
                  dump_mode="output",
                  enable_dump_debug=False,
-                 dump_debug_mode="all"):
+                 dump_debug_mode="all",
+                 dump_data="tensor",
+                 dump_layer=None):
         """
         Constructs a DumpConfig.
 
@@ -362,6 +360,8 @@ class DumpConfig():
         self._dump_mode = dump_mode
         self._enable_dump_debug = enable_dump_debug
         self._dump_debug_mode = dump_debug_mode
+        self.dump_data = dump_data
+        self.dump_layer = dump_layer
 
 
 class GraphMemoryOptimizeConfig():

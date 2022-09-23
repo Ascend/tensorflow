@@ -5,7 +5,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                 save_summary_steps=0, save_checkpoints_steps=None, save_checkpoints_secs=None, session_config=None,
                 keep_checkpoint_max=5, keep_checkpoint_every_n_hours=10000, log_step_count_steps=100, distribute=None,
                 enable_data_pre_proc=True, precision_mode=None, enable_reduce_precision=False,
-                variable_format_optimize=True, mix_compile_mode=False, hcom_parallel=False,
+                variable_format_optimize=True, mix_compile_mode=False, hcom_parallel=True,
                 graph_memory_max_size=None, variable_memory_max_size=None, auto_tune_mode=None,
                 dump_config=None, stream_max_parallel_num=None, is_tailing_optimization=False,
                 horovod_mode=False, graph_run_mode=1, op_debug_level=0, enable_scope_fusion_passes=None,
@@ -18,14 +18,14 @@ class NPURunConfig(run_config_lib.RunConfig):
                 distribute_config=None, modify_mixlist=None, op_precision_mode=None, device_type="default_device_type",
                 soc_config=None, hccl_timeout=None, op_wait_timeout=None, op_execute_timeout=None, HCCL_algorithm=None,
                 customize_dtypes=None, op_debug_config=None, memory_config=None, experimental_config=None,
-                jit_compile=True, topo_sorting_mode=None, dump_data="tensor", dump_layer=None):
+                jit_compile=True, topo_sorting_mode=None):
 
 class ProfilingConfig():
     def __init__(self, enable_profiling=False, profiling_options=None):
 
 class DumpConfig():
     def __init__(self, enable_dump=False, dump_path=None, dump_step=None,
-                dump_mode="output", enable_dump_debug=False, dump_debug_mode="all"):
+                dump_mode="output", enable_dump_debug=False, dump_debug_mode="all", dump_data="tensor", dump_layer=None):
 
 class DynamicInputConfig():
     def __init__(self, input_shape, dynamic_dims, dynamic_node_type):
