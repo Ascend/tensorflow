@@ -305,22 +305,19 @@ public:
   }
 
   Status WaitOneEvent(uint64_t stream_id) {
-    if (stream_id >= max_stream_) {
-      return errors::InvalidArgument("stream_id is invalid, ", stream_id);
-    }
-    return streams_[stream_id]->WaitOneEvent();
+    std::shared_ptr<Stream> pstream = GetStream(stream_id);
+    return pstream == nullptr ? errors::InvalidArgument("Stream is invalid, id=", stream_id) : pstream->WaitOneEvent();
   }
 
   static uint64_t CheckStreamNum(uint64_t stream_num) {
-    uint64_t ret_streams = stream_num;
-    if (stream_num <= 0) {
+    if (stream_num == 0) {
       ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
-      ret_streams = static_cast<uint64_t>(StreamNum::DEFAULT_STREAM_NUM);
+      return static_cast<uint64_t>(StreamNum::DEFAULT_STREAM_NUM);
     } else if (stream_num > static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM)) {
       ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
-      ret_streams = static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM);
+      return static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM);
     }
-    return ret_streams;
+    return stream_num;
   }
 
 private:
