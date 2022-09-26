@@ -259,7 +259,7 @@ private:
       uint64_t threads = static_cast<uint64_t>((num_parallel_calls_->value <= 0) && (ctx_ != nullptr) ?
           ctx_->runner_threadpool_size() :
           num_parallel_calls_->value);
-      return StreamPool::CheckStreamNum(static_cast<int>(threads));
+      return StreamPool::CheckStreamNum(threads);
     }
 
     Status Initialize(IteratorContext* ctx) override {
