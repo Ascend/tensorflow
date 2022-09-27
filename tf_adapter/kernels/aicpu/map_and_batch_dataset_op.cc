@@ -947,7 +947,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       aclmdlDataset *output_dataset = nullptr;
 
       input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
-      output_dataset = InitOutTensorsMem(*static_cast<BatchStaticResult*>(batch_results_[batch_id].get()), batch_offset);
+      output_dataset = InitOutTensorsMem(*static_cast<BatchStaticResult*>(batch_results_[batch_id].get()),
+                                         batch_offset);
 
       std::shared_ptr<Items> time_tag = std::make_shared<Items>();
       BatchResultBase *batch_result = batch_results_[batch_id].get();

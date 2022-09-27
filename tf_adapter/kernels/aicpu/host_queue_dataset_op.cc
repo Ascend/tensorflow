@@ -133,7 +133,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     } else {
       channel_type_ = ChannelType::TDT;
     }
-    ADP_LOG(INFO) << "Host queue channel type [TDT(0) MBuf(1) HostQueue(2)] is: "
+    ADP_LOG(INFO) << "Host queue channel type [0:TDT 1:MBuf 2:HostQueue] is: "
                   << static_cast<int>(channel_type_);
   }
 
@@ -156,9 +156,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         CreateHostQueue(ctx, channel_depth);
       }
     }
-    *output =
-        new (nothrow) Dataset(ctx, inputs, channel_name_, output_types_, output_shapes_, local_rank_id_,
-                              local_device_list_, device_id_, tf_session_, channel_type_, channel_depth, queue_id_);
+    *output = new (nothrow) Dataset(ctx, inputs, channel_name_,
+                                    output_types_, output_shapes_, local_rank_id_,
+                                    local_device_list_, device_id_, tf_session_,
+                                    channel_type_, channel_depth, queue_id_);
     OP_REQUIRES(ctx, *output != nullptr,
                 errors::InvalidArgument("Data process host queue dataset op: new dataset failed."));
   }
@@ -215,8 +216,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
   void CreateHostQueue(OpKernelContext *ctx, size_t channel_depth) {
     std::hash<std::string> channel_name_dict;
-    std::string queue_name =
-        std::to_string(channel_name_dict(tf_session_ + channel_name_ + "_device_" + std::to_string(device_id_)));
+    std::string queue_name = std::to_string(
+      channel_name_dict(tf_session_ + channel_name_ + "_device_" + std::to_string(device_id_)));
     if (queue_name_ == queue_name) {
       ADP_LOG(INFO) << "The channel is already create.";
       return;
@@ -232,13 +233,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   class Dataset : public DatasetBase {
    public:
     Dataset(OpKernelContext *ctx, const std::vector<DatasetBase *> &inputs, const string &channelName,
-            const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes, const int &local_rank_id,
-            const std::vector<uint32_t> &local_device_list, const uint32_t &device_id, const string &tf_session,
-            const ChannelType &channel_type, size_t channel_depth, uint32_t queue_id)
-        : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName), output_types_(outputTypes),
-          output_shapes_(outputShapes), tf_session_(tf_session), local_rank_id_(local_rank_id),
-          local_device_list_(local_device_list), device_id_(device_id), channel_type_(channel_type),
-          channel_depth_(channel_depth), queue_id_(queue_id) {
+            const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes,
+            const int &local_rank_id, const std::vector<uint32_t> &local_device_list, const uint32_t &device_id,
+            const string &tf_session, const ChannelType &channel_type, size_t channel_depth, uint32_t queue_id)
+        : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName),
+          output_types_(outputTypes), output_shapes_(outputShapes), tf_session_(tf_session),
+          local_rank_id_(local_rank_id), local_device_list_(local_device_list), device_id_(device_id),
+          channel_type_(channel_type), channel_depth_(channel_depth), queue_id_(queue_id) {
       for (const auto &input : inputs_) { input->Ref(); }
     }
 
