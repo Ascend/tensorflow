@@ -287,7 +287,7 @@ Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &q
 
   ADP_LOG(INFO) << "call rtMemQueueCreate with device[0] queue[" << queue_id << "] success";
 
-  rtMemBuffCfg_t buff_cfg = {0};
+  rtMemBuffCfg_t buff_cfg = {};
   rt_error = rtMbufInit(&buff_cfg);
   NPU_REQUIRES(((rt_error == ACL_RT_SUCCESS) || (rt_error == ACL_ERROR_RT_REPEATED_INIT)),
                errors::Internal("call rtMbufInit failed, ret=", ret));

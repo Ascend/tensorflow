@@ -582,7 +582,7 @@ aclError aclmdlExecuteAsync(uint32_t modelId, const aclmdlDataset *inputs, aclmd
   stub->output_data = outputs;
   stub->hook = nullptr;
   if (g_RunGraphWithStreamAsyncStub != nullptr) {
-    aclError status = g_RunGraphWithStreamAsyncStub(modelId, inputs, outputs, stream);
+    (void)g_RunGraphWithStreamAsyncStub(modelId, inputs, outputs, stream);
     ADP_LOG(INFO) << "AclRunGraphWithStreamAsync proc hook, stream = " << stub << "hook = "
         << stub->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
   }

@@ -129,16 +129,16 @@ typedef struct tagBindHostpidInfo {
 #define RT_MEM_BUFF_MAX_CFG_NUM 64
 
 typedef struct {
-    uint32_t cfgId;
-    uint32_t totalSize;
-    uint32_t blkSize;
-    uint32_t maxBufSize;
-    uint32_t pageType;
-    int32_t elasticEnable;
-    int32_t elasticRate;
-    int32_t elasticRateMax;
-    int32_t elasticHighLevel;
-    int32_t elasticLowLevel;
+    uint32_t cfgId = 0;
+    uint32_t totalSize = 0;
+    uint32_t blkSize = 0;
+    uint32_t maxBufSize = 0;
+    uint32_t pageType = 0;
+    int32_t elasticEnable = 0;
+    int32_t elasticRate = 0;
+    int32_t elasticRateMax = 0;
+    int32_t elasticHighLevel = 0;
+    int32_t elasticLowLevel = 0;
 } rtMemZoneCfg_t;
 
 typedef struct {

@@ -357,7 +357,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             end_pos += remain_size;
           }
           closure = [start_pos, end_pos, &dst_ptr, &dst_size, &src_ptr, &src_size, &closure_ret, this] () {
-            void *dst = dst_ptr + start_pos;
+            char *dst = reinterpret_cast<char *>(reinterpret_cast<uintptr_t>(dst_ptr) + start_pos);
             const char *src = src_ptr + start_pos;
             uint64_t dst_len = dst_size - start_pos;
             // end pos must bigger than start_pos
@@ -372,7 +372,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             do {
               uint64_t temp_copy_size = len - temp_len;
               uint64_t copy_size = (temp_copy_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : temp_copy_size;
-              if (memcpy_s(dst, static_cast<size_t>(dst_len), src, static_cast<size_t>(copy_size)) != EOK) {
+              if (memcpy_s(reinterpret_cast<void *>(dst), static_cast<size_t>(dst_len),
+                           src, static_cast<size_t>(copy_size)) != EOK) {
                 ADP_LOG(ERROR) << "Memcpy failed, start:" << start_pos << ", len: " << copy_size;
                 closure_ret = false;
                 NotifyEventFinish();
@@ -405,7 +406,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         for (size_t i = 0UL; i < args.size(); i++) {
           const char *src_ptr = args[i].tensor_data().data();
           uint64_t src_size = args[i].tensor_data().size();
-          void *dst_ptr = memory_ptr + offset;
+          void *dst_ptr = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(memory_ptr) + offset);
           uint64_t dst_size = memory_size - offset;
           if (src_size > PARALLEL_MEMORY_TRHESHOLD) {
             if (!ParallelCopy(dst_ptr, dst_size, src_ptr, src_size)) {
