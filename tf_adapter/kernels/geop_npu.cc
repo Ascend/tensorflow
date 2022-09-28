@@ -291,13 +291,14 @@ const std::string kAllReduce = "HcomAllReduce";
 
 GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false), sess_init_flag_(false),
-      compute_graph_empty_(false), data_format_(""), graph_id_(0), is_initialized_graph_(false), need_iteration_(false),
+      compute_graph_empty_(false), is_input_convert_(false), data_format_(""), graph_id_(0),
+      is_initialized_graph_(false), need_iteration_(false),
       tf_session_(""), ge_session_(nullptr), job_type_(""), is_host_graph_(false), handle_(nullptr),
-      need_compile_graph_first_(false), session_id_(0), aoe_initialize_(nullptr), aoe_finalize_(nullptr),
+      need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT), session_id_(0),
+      aoe_initialize_(nullptr), aoe_finalize_(nullptr),
       aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
-      aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr), tuned_flag_(ATOMIC_FLAG_INIT),
-      is_input_convert_(false) {
+      aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr) {
   Initialize(ctx);
 }
 
@@ -431,7 +432,7 @@ void GeOp::Finalize() {
       uint32_t graph_id = -1;
       if (sess_init_flag_ || !tf_session_.empty()) {
         bool ret = DecrementGraphIdCount(tf_session_, graph_id);
-        if (!ret || graph_id < kInvalidGraphId) {
+        if (!ret) {
           ADP_LOG(ERROR) << "tf session " << tf_session_ << " sub graph id failed.";
           LOG(ERROR) << "tf session " << tf_session_ << " sub graph id failed.";
           return;
@@ -612,7 +613,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       }
 
       bool res = IncrementGraphIdCount(graph_id_);
-      if (!res || graph_id_ < kInvalidGraphId) {
+      if (!res) {
         OP_REQUIRES_ASYNC(ctx, false, errors::Unavailable("Get ge session failed."), done);
         return;
       }

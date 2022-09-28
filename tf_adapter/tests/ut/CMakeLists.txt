@@ -54,6 +54,14 @@ target_include_directories(tfadapter_utest PRIVATE
 target_compile_options(tfadapter_utest PRIVATE
     -g --coverage -fprofile-arcs -ftest-coverage
     -Werror=format
+    -Wno-missing-field-initializers
+    -Wno-sign-compare
+    -Wno-pointer-arith
+    -Wno-unused-but-set-parameter
+    -Wno-unused-function
+    -Wno-unused-result
+    -Wno-unused-variable
+    -Wno-maybe-uninitialized
 )
 
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)

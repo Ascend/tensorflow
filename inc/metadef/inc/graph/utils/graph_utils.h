@@ -504,7 +504,7 @@ class ComputeGraphBuilder {
   ComputeGraphBuilder &operator=(const ComputeGraphBuilder &) = delete;
   ComputeGraphBuilder(const ComputeGraphBuilder &&) = delete;
   ComputeGraphBuilder &operator=(const ComputeGraphBuilder &&) = delete;
-  ~ComputeGraphBuilder() = default;
+  virtual ~ComputeGraphBuilder() = default;
 
   ///
   /// @brief Add node to graph

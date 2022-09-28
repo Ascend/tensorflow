@@ -83,7 +83,7 @@ class DataItemDeliver {
   std::vector<int> client_fd_list_;
   int server_fd_ = -1;
   std::shared_ptr<ThreadPool> pools_;
-  struct sockaddr_un local_addr_ = {0};
+  struct sockaddr_un local_addr_ = {};
   int local_rank_id_;
   uint32_t device_id_;
   std::vector<uint32_t> local_device_list_;
@@ -139,7 +139,7 @@ Status DataItemDeliver::InitSocketClient(int device_id) {
     LOG(ERROR) << "Failed to open unix domain socket.";
     return errors::Internal("Failed to open unix domain socket.");
   }
-  struct sockaddr_un peer_addr = {0};
+  struct sockaddr_un peer_addr = {};
   if (CreateSockAddr(peer_addr, SOCKET_SERVER_PATH, device_id) !=
       Status::OK()) {
     ADP_LOG(ERROR) << "Failed to create socket.";

@@ -52,11 +52,11 @@ def parse_star_ver(ver=str):
             low = low + c
             high = high + c
         else:
-            low = low + '0'
-            high = high + '999'
+            low = '{}0'.format(low)
+            high = '{}999'.format(high)
     for i in range(low.count('.'), _DOT_NUM):
-        low = low + '.0'
-        high = high + '.999'
+        low = '{}.0'.format(low)
+        high = '{}.999'.format(high)
     _version_range.append([[int(x) for x in low.split('.')], [int(x) for x in high.split('.')]])
     return True
 

@@ -47,7 +47,7 @@ TFE_TensorHandle *CopyTensorFromNpuDevice(TFE_Context *context, TFE_TensorHandle
   DLOG() << "[CopyTensorFromNpuDevice] Copy tensor from " << dev->device_name << " to " << target_device_name;
   // 输入的TensorHandle是NPU的，应当先进行NPU->CPU的传输，再调用TFE_TensorHandleCopyToDevice防止可能的NPU->GPU传输
   // 一旦Copy动作发生，需要进行stream同步。如果是NPU->NPU的拷贝（理论上不应该发生），可以不同步。
-  TFE_TensorHandle *local_tensor = dev->CopyTensorD2H(context, tensor, status);
+  TFE_TensorHandle *local_tensor = dev->CopyTensorD2H(context, tensor, *status);
   if (TF_GetCode(status) != TF_OK) {
     return nullptr;
   }

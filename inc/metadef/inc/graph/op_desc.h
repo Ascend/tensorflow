@@ -307,6 +307,7 @@ class OpDesc : public std::enable_shared_from_this<OpDesc>, public AttrHolder {
   bool OpDescAttrsAreEqual(const OpDesc &r_op_desc) const;
   bool OpDescGenTensorDescsAreEqual(const OpDesc &r_op_desc) const;
 
+  AttrStore attrs_;
   OpDescImplPtr impl_;
   friend class OpDescUtils;
   friend class ModelSerializeImp;
