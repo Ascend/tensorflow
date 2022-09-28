@@ -51,23 +51,23 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
   for (const auto &node : graph->op_nodes()) {
     if (node->IsRetval()) {
       int index = 0;
-      const tensorflow::AttrValue *attr = node->attrs().Find(kInputDesc);
+      const tensorflow::AttrValue *attr = node->attrs().Find(npu::kInputDesc);
       if (attr == nullptr) {
         const tensorflow::Edge *edge = nullptr;
         node->input_edge(0, &edge);
-        if (edge == nullptr || edge->src()->attrs().Find(kOutputDesc) == nullptr) {
+        if (edge == nullptr || edge->src()->attrs().Find(npu::kOutputDesc) == nullptr) {
           LOG(ERROR) << "Can not mock tensor for " << node->name();
           continue;
         }
-        attr = edge->src()->attrs().Find(kOutputDesc);
+        attr = edge->src()->attrs().Find(npu::kOutputDesc);
         index = edge->src_output();
       }
 
       auto &desc_attr = attr->list().func(index).attr();
 
       std::vector<int64_t> dims;
-      if (desc_attr.find(kShape) != desc_attr.end()) {
-        tensorflow::AttrValue shape_value = desc_attr.at(kShape);
+      if (desc_attr.find(npu::kShape) != desc_attr.end()) {
+        tensorflow::AttrValue shape_value = desc_attr.at(npu::kShape);
         for (int i = 0; i < shape_value.list().i_size(); i++) {
           auto dim_size = shape_value.list().i(i);
           if (dim_size < 0) {
@@ -77,8 +77,8 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
         }
       }
       ge::DataType dtype = ge::DT_FLOAT;
-      if (desc_attr.find(kType) != desc_attr.end()) {
-        tensorflow::AttrValue shape_value = desc_attr.at(kType);
+      if (desc_attr.find(npu::kType) != desc_attr.end()) {
+        tensorflow::AttrValue shape_value = desc_attr.at(npu::kType);
         dtype = static_cast<ge::DataType>(shape_value.i());
       }
 

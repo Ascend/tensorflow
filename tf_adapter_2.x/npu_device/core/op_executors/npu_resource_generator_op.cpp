@@ -23,7 +23,7 @@ using Format = ge::Format;
 NpuResourceGeneratorOp::NpuResourceGeneratorOp(const tensorflow::OpRegistrationData *op_spec,
                                                const tensorflow::NodeDef &ndef, TensorShapes input_shapes)
     : OpExecutor(op_spec, ndef, input_shapes) {
-  AssembleInputDesc(input_shapes_, input_dtypes_, &attached_attrs_);
+  AssembleInputDesc(input_shapes_, input_dtypes_, attached_attrs_);
 }
 
 std::string NpuResourceGeneratorOp::AttachedDebugString() const {

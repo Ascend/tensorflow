@@ -84,8 +84,8 @@ tensorflow::Status BuildGetNextShape(tensorflow::Graph *graph, tensorflow::Node 
                       .Input(shape_node, 0)
                       .Device(shape_node->def().device())
                       .Finalize(graph, &identity_node));
-    npu::AssembleOpDef(shape_node);
-    npu::AssembleOpDef(identity_node);
+    npu::AssembleOpDef(*shape_node);
+    npu::AssembleOpDef(*identity_node);
   }
   return tensorflow::Status::OK();
 }
@@ -95,12 +95,12 @@ tensorflow::Status UpdateTensorDescForDynDims(const std::vector<std::string> &al
                                               const tensorflow::Node *dynamic_dims_node) {
   DLOG() << "Change " << dynamic_dims_node->name() << " shape desc.";
   tensorflow::NodeDef &node_def = const_cast<tensorflow::NodeDef &>(dynamic_dims_node->def());
-  tensorflow::AttrValue &out_tensor_desc = (*node_def.mutable_attr())[kOutputDesc];
+  tensorflow::AttrValue &out_tensor_desc = (*node_def.mutable_attr())[npu::kOutputDesc];
   for (size_t i = 0; i < ordered_indexes.size(); ++i) {
     tensorflow::AttrValue attr_shape_value;
     attr_shape_value.set_type(tensorflow::DT_INT32);
     NPU_REQUIRES_OK(SetShapeToOutputDesc(all_input_shapes, i, attr_shape_value));
-    (*out_tensor_desc.mutable_list()->mutable_func(ordered_indexes[i])->mutable_attr())[kShape] = attr_shape_value;
+    (*out_tensor_desc.mutable_list()->mutable_func(ordered_indexes[i])->mutable_attr())[npu::kShape] = attr_shape_value;
   }
   DLOG() << "Change input shapes desc successfully for node:" << dynamic_dims_node->name();
   return tensorflow::Status::OK();
