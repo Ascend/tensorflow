@@ -61,7 +61,7 @@ void GetOutputDataIndex(const tensorflow::Node *const node, std::vector<int32_t>
   std::set<int32_t> out_index;
   for (const auto &out_edge : node->out_edges()) {
     if (!out_edge->IsControlEdge()) {
-      DLOG() << "Node out edge info:" << out_edge->DebugString();
+      DLOG() << "Node out edge info: " << out_edge->DebugString();
       (void)out_index.insert(out_edge->src_output());
     }
   }
@@ -93,7 +93,7 @@ tensorflow::Status BuildGetNextShape(tensorflow::Graph *graph, tensorflow::Node 
 tensorflow::Status UpdateTensorDescForDynDims(const std::vector<std::string> &all_input_shapes,
                                               const std::vector<int32_t> &ordered_indexes,
                                               const tensorflow::Node *dynamic_dims_node) {
-  DLOG() << "Change " << dynamic_dims_node->name() << " shape desc.";
+  DLOG() << "Change " << dynamic_dims_node->name() << " shape desc";
   tensorflow::NodeDef &node_def = const_cast<tensorflow::NodeDef &>(dynamic_dims_node->def());
   tensorflow::AttrValue &out_tensor_desc = (*node_def.mutable_attr())[npu::kOutputDesc];
   for (size_t i = 0; i < ordered_indexes.size(); ++i) {
@@ -102,7 +102,7 @@ tensorflow::Status UpdateTensorDescForDynDims(const std::vector<std::string> &al
     NPU_REQUIRES_OK(SetShapeToOutputDesc(all_input_shapes, i, attr_shape_value));
     (*out_tensor_desc.mutable_list()->mutable_func(ordered_indexes[i])->mutable_attr())[npu::kShape] = attr_shape_value;
   }
-  DLOG() << "Change input shapes desc successfully for node:" << dynamic_dims_node->name();
+  DLOG() << "Change input shapes desc successfully for node: " << dynamic_dims_node->name();
   return tensorflow::Status::OK();
 }
 
@@ -119,7 +119,7 @@ tensorflow::Status TryToBuildShapeForDynDims(const std::map<std::string, std::st
     return tensorflow::Status::OK();
   }
 
-  DLOG() << "Enable dynamic dims for graph.";
+  DLOG() << "Enable dynamic dims for graph";
   // e.g. all_input_shapes:["data:2,3;data1:3,4"] -> ["data:2,3", "data1:3,4"]
   std::vector<std::string> all_input_shapes = tensorflow::str_util::Split(input_shapes, ";");
 

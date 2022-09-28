@@ -142,7 +142,8 @@ void NpuResourceOp::RunImpl(TFE_Context *context, NpuDevice *device, int num_inp
                                       .Attr("_output_shapes", {shapes[i]})
                                       .Finalize(graph.get(), &node));
         NPU_CTX_REQUIRES(status, graph->AddEdge(node, 0, target_node, static_cast<int32_t>(i)),
-                         tensorflow::errors::Internal("Failed add edge from ", node->name(), " to ", target_node->name()));
+                         tensorflow::errors::Internal("Failed add edge from ", node->name(),
+                                                      " to ", target_node->name()));
       }
     }
 
