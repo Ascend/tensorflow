@@ -51,7 +51,8 @@ Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf
   return Status::OK();
 }
 
-Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> &tensors, bool call_by_channel_receive) {
+Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> &tensors,
+                                bool call_by_channel_receive) {
   acltdtTensorType acl_type = acltdtGetTensorTypeFromItem(item);
   if (acl_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) {
     LOG(INFO) << "Acl channel received end-of-sequence for out-feed op.";
