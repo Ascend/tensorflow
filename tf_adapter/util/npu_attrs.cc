@@ -36,7 +36,7 @@ namespace {
   bool kHasSetDataTransferMode = false;
   std::mutex mu;
 }
-const string profiling_default_options = "{\"output\":\".\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
+const string profiling_default_options = "{\"output\":\".\\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
 \"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metrics\":\"PipeUtilization\",\"msproftx\":\"off\"}";
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;

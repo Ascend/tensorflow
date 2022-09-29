@@ -55,8 +55,8 @@ tensorflow::Status Copy2ContinuousMem(void *dst_ptr, void *src_ptr, const size_t
     };
     NPU_REQUIRES_OK(npu::NpuThreadPool::GetInstance().EnqueueTask(closure));
     enqueue_count++;
-    dst_ptr += block_size;
-    src_ptr += block_size;
+    dst_ptr = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(dst_ptr) + block_size);
+    src_ptr = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(src_ptr) + block_size);
   }
   while (parallel_cpy_count < enqueue_count) {
   }

@@ -457,10 +457,12 @@ OpDesc::OpDesc(std::string const&, std::string const&) {
 
 ProtoAttrMap &OpDesc::MutableAttrMap() {
   // Stub
+  return attrs_; 
 }
 
 ConstProtoAttrMap &OpDesc::GetAttrMap() const{
   // Stub
+  return attrs_;
 }
 
 constexpr int kDefaultMaxInputNum = 6;
