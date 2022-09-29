@@ -57,7 +57,7 @@ void NpuConcreteGraph::RunImpl(TFE_Context *context, NpuDevice *device, int tf_n
              << tensorflow::DataTypeString(InputTypes()[static_cast<size_t>(input_index)])
              << " from NPU to CPU for graph engine executing";
       // 这里需要根据算子选择输入格式了
-      input = device->CopyTensorD2H(context, input, status);
+      input = device->CopyTensorD2H(context, input, *status);
       scope_handle_deleter.Guard(input);
       NPU_REQUIRES_TFE_OK(status);
     }
@@ -139,7 +139,7 @@ void NpuConcreteGraph::RunAoeTuning(TFE_Context *context, NpuDevice *device, std
     // run aoe tuning if need
     if (!device->device_options["ge.jobType"].empty()) {
       auto &aoe = NpuAoe::GetInstance();
-      NPU_CTX_REQUIRES_OK(status, aoe.RunAoeTuning(device, context, loaded, GeGraphId(), Op(), GraphDef(), inputs));
+      NPU_CTX_REQUIRES_OK(status, aoe.RunAoeTuning(*device, context, loaded, GeGraphId(), Op(), GraphDef(), inputs));
     }
   }
 }
@@ -188,7 +188,7 @@ bool NpuConcreteGraph::NeedFuzzCompile() const {
 void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, bool &loaded, TF_Status *status) const {
   if (Built() && device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(GeGraphId()))) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
-    device->RemoveGeGraph(context, GeGraphId(), status);
+    device->RemoveGeGraph(context, GeGraphId(), *status);
     NPU_REQUIRES_TFE_OK(status);
     built_ = false;
   }
@@ -220,7 +220,7 @@ void NpuConcreteGraph::UnLoad(TFE_Context *context, NpuDevice *device, TF_Status
     return;
   }
   DLOG() << "Unload ge graph " << GeGraphId() << " of op " << Op();
-  device->RemoveGeGraph(context, GeGraphId(), status);
+  device->RemoveGeGraph(context, GeGraphId(), *status);
   NPU_REQUIRES_TFE_OK(status);
   built_ = false;
 }

@@ -84,7 +84,7 @@ class MakeIteratorGraphBuilder {
                                  .Attr("function", function_attr)
                                  .Finalize(&dpop_graph, &dpop_node),
                                gdef);
-    AssembleOpDef(dpop_node);
+    AssembleOpDef(*dpop_node);
     dpop_node->AddAttr("func_def", fdef_lib.SerializeAsString());
     (void)tensorflow::FixupSourceAndSinkEdges(&dpop_graph);
     dpop_graph.ToGraphDef(&gdef);

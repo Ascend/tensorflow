@@ -29,8 +29,8 @@ namespace npu {
  * @param ndef: tensorflow node def
  */
 void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes types, const std::string &name,
-                  tensorflow::NodeDef *ndef) {
-  tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), ndef);
+                  tensorflow::NodeDef &ndef) {
+  tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), &ndef);
 }
 
 /**
@@ -40,8 +40,8 @@ void AssembleDesc(TensorPartialShapes shapes, TensorDataTypes types, const std::
  * @param name: node name
  * @param ndef: tensorflow node def
  */
-void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::string &name, tensorflow::NodeDef *ndef) {
-  tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), ndef);
+void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::string &name, tensorflow::NodeDef &ndef) {
+  tensorflow::AddNodeAttr(name, BuildDescAttr(std::move(shapes), std::move(types)), &ndef);
 }
 
 /**
@@ -50,7 +50,7 @@ void AssembleDesc(TensorShapes shapes, TensorDataTypes types, const std::string 
  * @param types: tensor data types
  * @param ndef: tensorflow node ndef
  */
-void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef &ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
 }
 
@@ -60,7 +60,7 @@ void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensor
  * @param types: tensor data types
  * @param ndef: tensorflow node ndef
  */
-void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::NodeDef &ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
 }
 
@@ -70,7 +70,7 @@ void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tenso
  * @param types: tensor data types
  * @param ndef: tensorflow node def
  */
-void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef &ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kInputDesc, ndef);
 }
 
@@ -80,7 +80,7 @@ void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::N
  * @param types: tensor data types
  * @param ndef: tensorflow node def
  */
-void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef *ndef) {
+void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::NodeDef &ndef) {
   AssembleDesc(std::move(shapes), std::move(types), kOutputDesc, ndef);
 }
 
@@ -90,8 +90,8 @@ void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
-  n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node &n) {
+  n.AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
 /**
@@ -100,8 +100,8 @@ void AssembleInputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::N
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
-  n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::Node &n) {
+  n.AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
 /**
@@ -110,8 +110,8 @@ void AssembleOutputDesc(TensorShapes shapes, TensorDataTypes types, tensorflow::
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
-  n->AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) {
+  n.AddAttr(kInputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
 /**
@@ -120,8 +120,8 @@ void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensor
  * @param types: tensor data types
  * @param n: tensorflow node
  */
-void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node *n) {
-  n->AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
+void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) {
+  n.AddAttr(kOutputDesc, BuildDescAttr(std::move(shapes), std::move(types)));
 }
 
 /**
@@ -129,28 +129,28 @@ void AssembleOutputDesc(TensorPartialShapes shapes, TensorDataTypes types, tenso
  * @param op_data: tensorflow op registration data
  * @param n: tensorflow node
  */
-void AssembleOpDef(const tensorflow::OpRegistrationData *op_data, tensorflow::Node *n) {
+void AssembleOpDef(const tensorflow::OpRegistrationData &op_data, tensorflow::Node &n) {
   std::string serialized_op_def;
-  (void)op_data->op_def.SerializeToString(&serialized_op_def);
-  n->AddAttr("op_def", serialized_op_def);
+  (void)op_data.op_def.SerializeToString(&serialized_op_def);
+  n.AddAttr("op_def", serialized_op_def);
 }
 
 /**
  * @breif: assemble op def
  * @param n: tensorflow node
  */
-void AssembleOpDef(tensorflow::Node *n) {
+void AssembleOpDef(tensorflow::Node &n) {
   const tensorflow::OpRegistrationData *op_reg_data;
-  (void)tensorflow::OpRegistry::Global()->LookUp(n->type_string(), &op_reg_data);
+  (void)tensorflow::OpRegistry::Global()->LookUp(n.type_string(), &op_reg_data);
   std::string serialized_op_def;
   (void)op_reg_data->op_def.SerializeToString(&serialized_op_def);
-  n->AddAttr("op_def", serialized_op_def);
+  n.AddAttr("op_def", serialized_op_def);
 }
 
 void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, tensorflow::Graph *graph) {
   tensorflow::ShapeRefiner shape_refiner(graph->versions(), lib_def);
   auto node_shape_inference_lambda = [&shape_refiner](tensorflow::Node *node) {
-    AssembleOpDef(node);
+    AssembleOpDef(*node);
     auto status = shape_refiner.AddNode(node);
     if (!status.ok()) {
       LOG(INFO) << "  " << node->name() << "[" << node->type_string() << "] Skip infer " << status.error_message();
@@ -200,7 +200,7 @@ void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, 
           node_ctx->ShapeHandleToProto(node_ctx->input(i), &proto);
           (void)input_shapes.emplace_back(proto);
         }
-        AssembleInputDesc(input_shapes, input_types, node);
+        AssembleInputDesc(input_shapes, input_types, *node);
       }
     }
 
@@ -213,7 +213,7 @@ void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition *lib_def, 
         DLOG() << "    output " << i << ": " << tensorflow::DataTypeString(output_types[static_cast<size_t>(i)])
                << node_ctx->DebugString(node_ctx->output(i));
       }
-      AssembleOutputDesc(output_shapes, output_types, node);
+      AssembleOutputDesc(output_shapes, output_types, *node);
     }
   };
   tensorflow::ReverseDFS(*graph, {}, node_shape_inference_lambda);

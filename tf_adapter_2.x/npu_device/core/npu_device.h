@@ -53,7 +53,7 @@ class NpuDevice {
 
   void ReleaseResource();
 
-  tensorflow::Status InferShape(const TFE_Context *const context, const tensorflow::OpRegistrationData *op_reg_data,
+  tensorflow::Status InferShape(const TFE_Context *const context, const tensorflow::OpRegistrationData &op_reg_data,
                                 const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
                                 TensorPartialShapes &shapes) const;
 
@@ -73,7 +73,7 @@ class NpuDevice {
   TFE_TensorHandle *NewDeviceResourceHandle(TFE_Context *context, const tensorflow::TensorShape &shape,
                                             TF_Status *status);
 
-  TFE_TensorHandle *CopyTensorD2H(const TFE_Context *const context, TFE_TensorHandle *tensor, TF_Status *status) const;
+  TFE_TensorHandle *CopyTensorD2H(const TFE_Context *const context, TFE_TensorHandle *tensor, TF_Status &status) const;
 
   TFE_TensorHandle *CopyTensorH2D(TFE_Context *context, TFE_TensorHandle *tensor, TF_Status *status);
 
@@ -118,7 +118,7 @@ class NpuDevice {
   tensorflow::Status TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
                                           const tensorflow::GraphDef &def, ge::Graph &ge_graph) const;
 
-  void RemoveGeGraph(const TFE_Context *const context, uint64_t graph_id, TF_Status *status);
+  void RemoveGeGraph(const TFE_Context *const context, uint64_t graph_id, TF_Status &status);
 
   void RunGeGraph(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs, bool pin_to_npu,
                   const TensorDataTypes &output_types, int num_outputs, TFE_TensorHandle **outputs, TF_Status *status);
@@ -143,7 +143,7 @@ class NpuDevice {
                               const TensorDataTypes &output_types, int num_outputs, TFE_TensorHandle **outputs,
                               DoneCallback done, TF_Status *status);
 
-  void TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs, TF_Status *status,
+  void TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs, TF_Status &status,
                               std::vector<ge::Tensor> &ge_inputs) const;
 
   void GetOpExecutor(const tensorflow::NodeDef &ndef, std::shared_ptr<const OpExecutor> *spec, bool &request_shape);

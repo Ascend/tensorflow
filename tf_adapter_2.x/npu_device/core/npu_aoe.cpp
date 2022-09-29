@@ -24,7 +24,7 @@ NpuAoe &NpuAoe::GetInstance() {
   return instance;
 }
 
-tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context, bool need_build, uint64_t graph_id,
+tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice &device, TFE_Context *context, bool need_build, uint64_t graph_id,
                                         const std::string &name, const tensorflow::GraphDef &graph_def,
                                         std::vector<TFE_TensorHandle *> &inputs) {
   DLOG() << "Start to tune graph id: " << graph_id << ", name: " << name;
@@ -32,19 +32,19 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
 
   std::map<Aoe::AscendString, Aoe::AscendString> session_options;
   (void)session_options.emplace(Aoe::AscendString("job_type"),
-                                Aoe::AscendString(device->device_options["ge.jobType"].c_str()));
+                                Aoe::AscendString(device.device_options["ge.jobType"].c_str()));
   SessionId aoe_session_id = 0;
   auto ret = aoe_func_.aoe_create_session(session_options, aoe_session_id);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe create session func failed"));
 
-  ret = aoe_func_.aoe_set_gesession(aoe_session_id, device->GeSession());
+  ret = aoe_func_.aoe_set_gesession(aoe_session_id, device.GeSession());
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe set session func failed"));
 
   ge::Graph ge_graph;
   const auto iter = ge_graph_.find(graph_id);
   if (need_build || (iter == ge_graph_.cend())) {
     DLOG() << "Convert tf graph to ge graph of graph id: " << graph_id;
-    NPU_REQUIRES_OK(device->TransTfGraph2GeGraph(context, name, graph_def, ge_graph));
+    NPU_REQUIRES_OK(device.TransTfGraph2GeGraph(context, name, graph_def, ge_graph));
     ge_graph.SetNeedIteration(false);
     ge_graph_[graph_id] = ge_graph;
   } else {
@@ -58,7 +58,7 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice *device, TFE_Context *context,
 
   std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)> status(TF_NewStatus(), TF_DeleteStatus);
   std::vector<ge::Tensor> ge_inputs;
-  device->TransTfInputs2GeInputs(static_cast<int32_t>(inputs.size()), inputs.data(), status.get(), ge_inputs);
+  device.TransTfInputs2GeInputs(static_cast<int32_t>(inputs.size()), inputs.data(), *status.get(), ge_inputs);
   if (TF_GetCode(status.get()) != TF_OK) {
     return tensorflow::errors::Internal("get ge tensor inputs failed");
   }

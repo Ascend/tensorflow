@@ -320,14 +320,14 @@ TFE_TensorHandle *NpuDevice::NewDeviceResourceHandle(TFE_Context *context, const
  * @param status: tf status
  */
 TFE_TensorHandle *NpuDevice::CopyTensorD2H(const TFE_Context *const context, TFE_TensorHandle *tensor,
-                                           TF_Status *status) const {
+                                           TF_Status &status) const {
   (void)context;
   const tensorflow::Tensor *npu_tensor;
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(tensor, &npu_tensor), nullptr);
+  NPU_CTX_REQUIRES_OK_RETURN(&status, npu::GetTensorHandleTensor(tensor, &npu_tensor), nullptr);
 
   if (npu_tensor->dtype() == tensorflow::DT_RESOURCE) {
     tensorflow::ResourceHandle handle = npu_tensor->scalar<tensorflow::ResourceHandle>()();
-    status->status =
+    status.status =
       tensorflow::errors::Internal("Resources ", handle.DebugString(), " cannot be copied across devices[NPU->CPU]");
     return nullptr;
   }
@@ -335,11 +335,11 @@ TFE_TensorHandle *NpuDevice::CopyTensorD2H(const TFE_Context *const context, TFE
   const tensorflow::Tensor *local_tensor;
   TFE_TensorHandle *local_handle = tensorflow::wrap(
     tensorflow::TensorHandle::CreateLocalHandle(tensorflow::Tensor(npu_tensor->dtype(), npu_tensor->shape())));
-  NPU_CTX_REQUIRES_RETURN(status, local_handle != nullptr, tensorflow::errors::Internal("Failed create local handle"),
+  NPU_CTX_REQUIRES_RETURN(&status, local_handle != nullptr, tensorflow::errors::Internal("Failed create local handle"),
                           nullptr);
-  NPU_CTX_REQUIRES_OK_RETURN(status, npu::GetTensorHandleTensor(local_handle, &local_tensor), nullptr);
+  NPU_CTX_REQUIRES_OK_RETURN(&status, npu::GetTensorHandleTensor(local_handle, &local_tensor), nullptr);
   NPU_CTX_REQUIRES_OK_RETURN(
-    status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleTo(const_cast<tensorflow::Tensor *>(local_tensor)),
+    &status, npu::Unwrap<npu::NpuManagedBuffer>(npu_tensor)->AssembleTo(const_cast<tensorflow::Tensor *>(local_tensor)),
     local_handle);
   return local_handle;
 }
@@ -405,13 +405,13 @@ TFE_TensorHandle *NpuDevice::CopyTensorH2D(TFE_Context *context, TFE_TensorHandl
  * @param shapes: tensor partial shapes
  */
 tensorflow::Status NpuDevice::InferShape(const TFE_Context *const context,
-                                         const tensorflow::OpRegistrationData *op_reg_data,
+                                         const tensorflow::OpRegistrationData &op_reg_data,
                                          const tensorflow::NodeDef &ndef, int num_inputs, TFE_TensorHandle **inputs,
                                          TensorPartialShapes &shapes) const {
-  NPU_REQUIRES(op_reg_data->shape_inference_fn,
+  NPU_REQUIRES(op_reg_data.shape_inference_fn,
                tensorflow::errors::Unimplemented("No infer shape function registered for op ", ndef.op()));
 
-  tensorflow::shape_inference::InferenceContext ic(TF_GRAPH_DEF_VERSION, ndef, op_reg_data->op_def,
+  tensorflow::shape_inference::InferenceContext ic(TF_GRAPH_DEF_VERSION, ndef, op_reg_data.op_def,
                                                    std::vector<tensorflow::shape_inference::ShapeHandle>(num_inputs),
                                                    {}, {}, {});
   NPU_REQUIRES_OK(ic.construction_status());
@@ -449,7 +449,7 @@ tensorflow::Status NpuDevice::InferShape(const TFE_Context *const context,
   // We need to feed the input tensors. TensorFlow performs inference based on the input shape for the first time.
   // If the shape function of an operator depends on the value of the input tensor, the shape function is marked for the
   // first time and the actual tensor value is used for inference for the second time.
-  NPU_REQUIRES_OK(ic.Run(op_reg_data->shape_inference_fn));
+  NPU_REQUIRES_OK(ic.Run(op_reg_data.shape_inference_fn));
 
   std::vector<const tensorflow::Tensor *> input_tensors;
   input_tensors.resize(num_inputs);
@@ -466,7 +466,7 @@ tensorflow::Status NpuDevice::InferShape(const TFE_Context *const context,
       if (s == nullptr) {
         continue;
       }
-      input = CopyTensorD2H(context, input, s);
+      input = CopyTensorD2H(context, input, *s);
       if (TF_GetCode(s) != TF_OK) {
         TF_DeleteStatus(s);
         continue;
@@ -481,7 +481,7 @@ tensorflow::Status NpuDevice::InferShape(const TFE_Context *const context,
   }
   if (input_requested) {
     ic.set_input_tensors(input_tensors);
-    NPU_REQUIRES_OK(ic.Run(op_reg_data->shape_inference_fn));
+    NPU_REQUIRES_OK(ic.Run(op_reg_data.shape_inference_fn));
   }
 
   for (int i = 0; i < ic.num_outputs(); i++) {
@@ -580,7 +580,7 @@ void NpuDevice::FallbackCPU(TFE_Context *context, const char *op_name, const TFE
   for (int j = 0; j < num_inputs; ++j) {
     TFE_TensorHandle *input = inputs[j];
     if (npu::IsNpuTensorHandle(input)) {
-      input = CopyTensorD2H(context, input, status);  // 创建完成计数为1
+      input = CopyTensorD2H(context, input, *status);  // 创建完成计数为1
       scope_handle_deleter.Guard(input);
       NPU_REQUIRES_TFE_OK(status);
     }
@@ -679,14 +679,14 @@ tensorflow::Status AddVarInitToGraph(const TFE_Context *const context, std::stri
                     .Attr("dtype", tensor.dtype())
                     .Finalize(graph, &assign_variable));
 
-  AssembleOpDef(variable);
-  AssembleOpDef(value);
-  AssembleOpDef(assign_variable);
+  AssembleOpDef(*variable);
+  AssembleOpDef(*value);
+  AssembleOpDef(*assign_variable);
 
-  AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_RESOURCE}, variable);
-  AssembleOutputDesc(TensorShapes({tensor.shape()}), {tensor.dtype()}, value);
+  AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_RESOURCE}, *variable);
+  AssembleOutputDesc(TensorShapes({tensor.shape()}), {tensor.dtype()}, *value);
   AssembleInputDesc(TensorShapes({kScalarShape, tensor.shape()}), {tensorflow::DT_RESOURCE, tensor.dtype()},
-                    assign_variable);
+                    *assign_variable);
   return tensorflow::Status::OK();
 }
 }  // namespace
@@ -743,14 +743,14 @@ void NpuDevice::SetNpuLoopSize(TFE_Context *context, int64_t loop, TF_Status *st
                                   .Attr("dtype", tensorflow::DT_INT64)
                                   .Finalize(&graph2, &assign_variable));
 
-    AssembleOpDef(variable);
-    AssembleOpDef(arg);
-    AssembleOpDef(assign_variable);
+    AssembleOpDef(*variable);
+    AssembleOpDef(*arg);
+    AssembleOpDef(*assign_variable);
 
-    AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_RESOURCE}, variable);
-    AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_INT64}, arg);
+    AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_RESOURCE}, *variable);
+    AssembleOutputDesc(TensorShapes({kScalarShape}), {tensorflow::DT_INT64}, *arg);
     AssembleInputDesc(TensorShapes({kScalarShape, kScalarShape}), {tensorflow::DT_RESOURCE, tensorflow::DT_INT64},
-                      assign_variable);
+                      *assign_variable);
 
     loop_var_graph_id = AddGeGraph(context, "set_loop_var", graph2.ToGraphDefDebug(), status);
     init_status = status->status;
@@ -791,7 +791,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                                 bool pin_to_npu, const TensorDataTypes &output_types, int num_outputs,
                                 TFE_TensorHandle **outputs, DoneCallback done, TF_Status *status) {
   std::vector<ge::Tensor> ge_inputs;
-  TransTfInputs2GeInputs(num_inputs, inputs, status, ge_inputs);
+  TransTfInputs2GeInputs(num_inputs, inputs, *status, ge_inputs);
   NPU_REQUIRES_TFE_OK(status);
 
   DLOG() << "Ge graph " << graph_id << " input info";
@@ -879,7 +879,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
                          ge_session_->RunGraphAsync(graph_id, ge_inputs, ge_callback));
 }
 
-void NpuDevice::TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs, TF_Status *status,
+void NpuDevice::TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs, TF_Status &status,
                                        std::vector<ge::Tensor> &ge_inputs) const {
   for (int i = 0; i < num_inputs; i++) {
     const tensorflow::Tensor *tensor = nullptr;
@@ -888,12 +888,12 @@ void NpuDevice::TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs
     const static std::shared_ptr<domi::ModelParser> parser =
       domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
     if (parser == nullptr) {
-      status->status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
+      status.status = tensorflow::errors::Internal("NPU Create new tensorflow model parser failed");
       return;
     }
     ge::DataType ge_type = parser->ConvertToGeDataType(static_cast<uint32_t>(tensor->dtype()));
     NPU_CTX_REQUIRES(
-      status, ge_type != ge::DT_UNDEFINED,
+      &status, ge_type != ge::DT_UNDEFINED,
       tensorflow::errors::InvalidArgument("Failed map tensorflow data type ",
                                           tensorflow::DataTypeString(tensor->dtype()), " to ge data type"));
     ge::Tensor input;
@@ -1021,9 +1021,9 @@ uint64_t NpuDevice::AddGeGraph(TFE_Context *context, const std::string &name, co
  * @param graph_id: graph id
  * @param status: tf status
  */
-void NpuDevice::RemoveGeGraph(const TFE_Context *const context, uint64_t graph_id, TF_Status *status) {
+void NpuDevice::RemoveGeGraph(const TFE_Context *const context, uint64_t graph_id, TF_Status &status) {
   (void)context;
-  NPU_CTX_REQUIRES_GE_OK(status, "Graph engine remove graph", GeSession()->RemoveGraph(graph_id));
+  NPU_CTX_REQUIRES_GE_OK((&status), "Graph engine remove graph", GeSession()->RemoveGraph(graph_id));
 }
 
 /**
@@ -1160,7 +1160,7 @@ void NpuDevice::RunGeGraphAnonymous(TFE_Context *context, const std::string &nam
   RunGeGraph(context, graph_id, num_inputs, inputs, pin_to_npu, types, num_outputs, outputs, status);
   NPU_REQUIRES_TFE_OK(status);
 
-  RemoveGeGraph(context, graph_id, status);
+  RemoveGeGraph(context, graph_id, *status);
   NPU_REQUIRES_TFE_OK(status);
 }
 

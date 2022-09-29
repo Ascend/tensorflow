@@ -68,7 +68,7 @@ class NpuCallOp : public OpKernel {
     if (!device->device_options["ge.jobType"].empty()) {
       auto &aoe = NpuAoe::GetInstance();
       NPU_CTX_REQUIRES_OK(status,
-                          aoe.RunAoeTuning(device, context, loaded, graph_id_, attr_.name(), *graph_def_, inputs));
+                          aoe.RunAoeTuning(*device, context, loaded, graph_id_, attr_.name(), *graph_def_, inputs));
     }
 
     std::vector<TFE_TensorHandle *> outputs(ctx->num_outputs());

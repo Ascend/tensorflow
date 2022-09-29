@@ -26,8 +26,8 @@ using Format = ge::Format;
 NpuStaticShapeOp::NpuStaticShapeOp(const tensorflow::OpRegistrationData *op_spec, const tensorflow::NodeDef &ndef,
                                    TensorShapes input_shapes, TensorShapes output_shapes)
     : OpExecutor(op_spec, ndef, input_shapes), output_shapes_(std::move(output_shapes)) {
-  AssembleInputDesc(input_shapes_, input_dtypes_, &attached_attrs_);
-  AssembleOutputDesc(output_shapes_, output_dtypes_, &attached_attrs_);
+  AssembleInputDesc(input_shapes_, input_dtypes_, attached_attrs_);
+  AssembleOutputDesc(output_shapes_, output_dtypes_, attached_attrs_);
 }
 
 std::string NpuStaticShapeOp::AttachedDebugString() const {
