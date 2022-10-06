@@ -24,6 +24,8 @@ class NpuProfilingConfig(NpuBaseConfig):
     """"NPU profiling configurations"""
     def __init__(self):
         self.enable_profiling = OptionValue(False, [True, False])
-        self.profiling_options = OptionValue(None, None)
+        self.profiling_options = OptionValue("{\"output\":\".\\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
+                                             \"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metrics\":\"PipeUtilization\",\
+                                             \"msproftx\":\"off\"}", None)
 
         super(NpuProfilingConfig, self).__init__()
