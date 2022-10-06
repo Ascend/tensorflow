@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "tf_adapter/optimizers/gradient_fusion_optimizer.h"
+#include "tf_adapter/optimizers/grad_fusion_optimizer.h"
 #include "tensorflow/core/grappler/grappler_item.h"
 
 namespace tensorflow {

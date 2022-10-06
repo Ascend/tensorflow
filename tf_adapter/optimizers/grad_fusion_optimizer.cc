@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tf_adapter/optimizers/gradient_fusion_optimizer.h"
+#include "tf_adapter/optimizers/grad_fusion_optimizer.h"
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 
