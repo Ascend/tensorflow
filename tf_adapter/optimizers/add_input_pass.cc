@@ -102,7 +102,7 @@ Status AddInputPass::Run(const GraphOptimizationPassOptions &options) {
     GraphDef graph_def;
     partition.second->ToGraphDef(&graph_def);
 
-    std::unique_ptr<Graph> device_graph(new Graph(OpRegistry::Global()));
+    auto device_graph = absl::make_unique<Graph>(OpRegistry::Global());
     GraphConstructorOptions device_opts;
     // There are internal operations (e.g., send/recv) that we now allow.
     device_opts.allow_internal_ops = true;
