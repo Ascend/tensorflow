@@ -486,7 +486,7 @@ def set_graph_exec_config(fetch, dynamic_input=False,
             if graph_parallel_option_path is not None:
                 fetch._set_attr("_graph_parallel_option", graph_parallel_option_path)
             if enable_graph_parallel is not None:
-                fetch.op._set_attr("_enable_graph_parallel", enable_graph_parallel)
+                fetch._set_attr("_enable_graph_parallel", enable_graph_parallel)
         else:
             fetch.op._set_attr("_graph_dynamic_input", dynamic_input_attr)
             fetch.op._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
