@@ -67,7 +67,7 @@ class GeOp : public AsyncOpKernel {
   Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::string *string_vector) const;
 
   // prepare input tensor
-  Status BuildInputTensorInfo(OpKernelContext *ctx,
+  Status BuildInputTensorInfo(OpKernelContext *const ctx,
                               std::vector<Tensor> &input_vec,
                               std::vector<std::string> &input_shapes,
                               std::vector<ge::Tensor> &inputs);

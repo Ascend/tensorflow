@@ -1294,7 +1294,7 @@ Status GeOp::UpdateDynamicConfigAttrs() {
   TF_RETURN_IF_ERROR(ParseDynamicShapesAndDims(sess_options_["ge.inputShape"], sess_options_["ge.dynamicDims"],
                                                user_shape_map, dynamic_dims_vec, max_shape_map));
 
-  size_t input_count = 0U;
+  size_t input_count = 0UL;
   for (const auto node : dynamic_shape_nodes_) {
     input_count += static_cast<size_t>(node->num_outputs());
   }
@@ -1307,8 +1307,8 @@ Status GeOp::UpdateDynamicConfigAttrs() {
   std::vector<std::string> subgraph_multi_dims_input_dims;
   TF_RETURN_IF_ERROR(BuildSubgraphMuliDimsInput(user_shape_map, dynamic_dims_vec,
                                                 subgraph_multi_dims_input_shape, subgraph_multi_dims_input_dims));
-  size_t input_index_begin = 0U;
-  for (size_t i = 0U; i < dynamic_shape_nodes_.size(); ++i) {
+  size_t input_index_begin = 0UL;
+  for (size_t i = 0UL; i < dynamic_shape_nodes_.size(); ++i) {
     Node *src_node = dynamic_shape_nodes_[i];
     for (auto out : src_node->out_edges()) {
       const size_t input_index = input_index_begin + static_cast<size_t>(out->src_output());
@@ -1328,7 +1328,8 @@ Status GeOp::UpdateDynamicConfigAttrs() {
                    (input_index < subgraph_multi_dims_input_dims.size()),
                    errors::Internal("input_index[%d] is greater than input_shape[%d] or input_dims[%d]", input_index,
                                     subgraph_multi_dims_input_shape.size(), subgraph_multi_dims_input_dims.size()));
-      if ((subgraph_multi_dims_input_shape[input_index].empty()) || (subgraph_multi_dims_input_dims[input_index].empty())) {
+      if ((subgraph_multi_dims_input_shape[input_index].empty()) ||
+          (subgraph_multi_dims_input_dims[input_index].empty())) {
         continue;
       }
       std::string subgraph_input_shape = std::to_string(idx) + ":" + subgraph_multi_dims_input_shape[input_index];
@@ -1336,8 +1337,9 @@ Status GeOp::UpdateDynamicConfigAttrs() {
         dst_node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE, subgraph_input_shape);
         dst_node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, subgraph_multi_dims_input_dims[input_index]);
       } else {
-        TF_RETURN_IF_ERROR(UpdateSubgraphMultiDimsAttr(dst_node, pre_subgraph_input_shape, pre_subgraph_input_dims,
-                                                       subgraph_input_shape, subgraph_multi_dims_input_dims[input_index]));
+        TF_RETURN_IF_ERROR(UpdateSubgraphMultiDimsAttr(
+            dst_node, pre_subgraph_input_shape, pre_subgraph_input_dims,
+            subgraph_input_shape, subgraph_multi_dims_input_dims[input_index]));
       }
     }
     input_index_begin += static_cast<size_t>(src_node->num_outputs());
@@ -1747,7 +1749,7 @@ Status GeOp::GraphCheckInputEqualConstOp(Tensor &tensor, int32_t index, bool &is
   return Status::OK();
 }
 
-Status GeOp::BuildInputTensorInfo(OpKernelContext *ctx, std::vector<Tensor> &input_vec,
+Status GeOp::BuildInputTensorInfo(OpKernelContext *const ctx, std::vector<Tensor> &input_vec,
                                   std::vector<std::string> &input_shapes, std::vector<ge::Tensor> &inputs) {
   // ctx is not nullptr
   int num_inputs = ctx->num_inputs();

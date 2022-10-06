@@ -28,30 +28,30 @@
 
 namespace tensorflow {
 static const int g_iInputNum = 1;  // the second input
-const std::string KEY_NEW_ATTR_NAME = "_var_format";
-const std::string KEY_FZ_ATTR_VALUE = "FZ";
-const std::string KEY_4D_ATTR_VALUE = "4D";
+const char *const KEY_NEW_ATTR_NAME = "_var_format";
+const char *const KEY_FZ_ATTR_VALUE = "FZ";
+const char *const KEY_4D_ATTR_VALUE = "4D";
 
-const std::string KEY_CONV2D_OP_VALUE = "Conv2D";
-const std::string KEY_MATMUL_OP_VALUE = "MatMul";
-const std::string KEY_CONV2D_BACKPROP_INPUT_VALUE = "Conv2DBackpropInput";
-const std::string KEY_VARIABLE_V2_VALUE = "VariableV2";
-const std::string KEY_VAR_HANDLE_OP_VALUE = "VarHandleOp";
-const std::string KEY_IDENTITY_OP_VALUE = "Identity";
-const std::string KEY_READ_VARIABLE_OP_VALUE = "ReadVariableOp";
-const std::string KEY_RESOURCE_APPLY_MOMENTUM_OP_VALUE = "ResourceApplyMomentum";
-const std::string KEY_APPLY_MOMENTUM_OP_VALUE = "ApplyMomentum";
+const char *const KEY_CONV2D_OP_VALUE = "Conv2D";
+const char *const KEY_MATMUL_OP_VALUE = "MatMul";
+const char *const KEY_CONV2D_BACKPROP_INPUT_VALUE = "Conv2DBackpropInput";
+const char *const KEY_VARIABLE_V2_VALUE = "VariableV2";
+const char *const KEY_VAR_HANDLE_OP_VALUE = "VarHandleOp";
+const char *const KEY_IDENTITY_OP_VALUE = "Identity";
+const char *const KEY_READ_VARIABLE_OP_VALUE = "ReadVariableOp";
+const char *const KEY_RESOURCE_APPLY_MOMENTUM_OP_VALUE = "ResourceApplyMomentum";
+const char *const KEY_APPLY_MOMENTUM_OP_VALUE = "ApplyMomentum";
 
-static void AddNodeVarFormat(Node *node, const string &var_format) {
+static void AddNodeVarFormat(Node &node, const string &var_format) {
   if (var_format == KEY_4D_ATTR_VALUE) {
-    const AttrValue *attr_value = node->attrs().Find(KEY_NEW_ATTR_NAME);
+    const AttrValue *attr_value = node.attrs().Find(KEY_NEW_ATTR_NAME);
     if (attr_value == nullptr) {
-      node->AddAttr(KEY_NEW_ATTR_NAME, var_format);
+      node.AddAttr(KEY_NEW_ATTR_NAME, var_format);
     }
     return;
   }
 
-  node->AddAttr(KEY_NEW_ATTR_NAME, var_format);
+  node.AddAttr(KEY_NEW_ATTR_NAME, var_format);
 }
 
 Status SetVarFormatPass::AssignApplyMomentumInNodesFormat(const Node *node, const string &var_format) const {
@@ -65,13 +65,13 @@ Status SetVarFormatPass::AssignApplyMomentumInNodesFormat(const Node *node, cons
     bool is_momentum_op = (in_edge->dst_input() == 1) &&
         ((src_node->type_string() == KEY_VAR_HANDLE_OP_VALUE) || (src_node->type_string() == KEY_VARIABLE_V2_VALUE));
     if (is_momentum_op) {
-      AddNodeVarFormat(src_node, var_format);
+      AddNodeVarFormat(*src_node, var_format);
 
       for (const Edge *var_out : src_node->out_edges()) {
         REQUIRES_NOT_NULL(var_out);
         Node *var_out_node = var_out->dst();
         REQUIRES_NOT_NULL(var_out_node);
-        AddNodeVarFormat(var_out_node, var_format);
+        AddNodeVarFormat(*var_out_node, var_format);
       }
       break;
     }
@@ -113,12 +113,12 @@ Status SetVarFormatPass::AssignFormatToVarOutNodes(Node *node) const {
   }
 
   Node *apply_momentum = nullptr;
-  AddNodeVarFormat(node, var_format);
+  AddNodeVarFormat(*node, var_format);
   for (const Edge *out : node->out_edges()) {
     REQUIRES_NOT_NULL(out);
     Node *dst_node = out->dst();
     REQUIRES_NOT_NULL(dst_node);
-    AddNodeVarFormat(dst_node, var_format);
+    AddNodeVarFormat(*dst_node, var_format);
     bool is_apply_momentum_node = dst_node->type_string() == KEY_APPLY_MOMENTUM_OP_VALUE ||
         dst_node->type_string() == KEY_RESOURCE_APPLY_MOMENTUM_OP_VALUE;
     if (is_apply_momentum_node) {
