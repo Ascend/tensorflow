@@ -32,7 +32,6 @@
 namespace tensorflow {
 static const int64 kMicrosToMillis = 1000;
 static std::atomic<int> graph_run_num(1);
-static mutex graph_num_mutex(LINKER_INITIALIZED);
 
 std::set<string> StringSplit(const string &str, const string &pattern) {
   std::set<string> resultSet;
