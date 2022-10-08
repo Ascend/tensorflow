@@ -351,7 +351,7 @@ bool IsGraphHasAnyUnknownShapeNode(const tensorflow::Graph &graph, const tensorf
   std::atomic<bool> has_unknown_shape_node{false};
   auto node_shape_inference_lambda = [&q, &lib_def, &has_unknown_shape_node,
                                       &shape_refiner](const tensorflow::Node *node) {
-    if (has_unknown_shape_node) {
+    if (has_unknown_shape_node || node->num_outputs() == 0) {
       return;
     }
     auto status = shape_refiner.AddNode(node);
