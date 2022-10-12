@@ -117,7 +117,13 @@ ThreadPool::~ThreadPool()
   }
   init_flag_ = false;
   condition_.notify_all();
-  for (std::thread &worker : workers_) { worker.join(); }
+  for (std::thread &worker : workers_) {
+    try {
+      worker.join();
+    } catch (...) {
+      LOG(ERROR) << "ThreadPool join operation failed.";
+    }
+  }
 }
 } // namespace data
 } // namespace tensorflow
