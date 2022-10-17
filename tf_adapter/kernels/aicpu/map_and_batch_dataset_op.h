@@ -52,7 +52,7 @@ protected:
 
 private:
   Status CheckOutputType();
-  void RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes);
+  void RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes) const;
   class Dataset;
   std::shared_ptr<FunctionMetadata> func_metadata_ = nullptr;
   DataTypeVector output_types_;

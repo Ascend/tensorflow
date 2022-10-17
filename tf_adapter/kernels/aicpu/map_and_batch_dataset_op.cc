@@ -1364,7 +1364,7 @@ Status NpuMapAndBatchDatasetOp::CheckOutputType() {
   return Status::OK();
 }
 
-void NpuMapAndBatchDatasetOp::RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes) {
+void NpuMapAndBatchDatasetOp::RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes) const {
   // remove the first dim for output_shapes
   for (auto& sp : output_shapes) {
     if (sp.dims() == -1) {
