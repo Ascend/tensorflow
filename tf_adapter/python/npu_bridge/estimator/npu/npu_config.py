@@ -101,7 +101,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  memory_config=None,
                  experimental_config=None,
                  jit_compile=True,
-                 topo_sorting_mode=None
+                 topo_sorting_mode=None,
+                 aoe_config_file=None
                  ):
         """
         Constructs a NPUConfig.
@@ -242,6 +243,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._experimental_config = self._get_experimental_config(experimental_config)
         self._jit_compile = jit_compile
         self.topo_sorting_mode = topo_sorting_mode
+        self.aoe_config_file = aoe_config_file
 
 
         super(NPURunConfig, self).__init__(

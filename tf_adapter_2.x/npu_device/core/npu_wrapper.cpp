@@ -107,6 +107,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"customize_dtypes", "ge.customizeDtypes"},
   {"dump_data", "ge.exec.dumpData"},
   {"dump_layer", "ge.exec.dumpLayer"},
+  {"aoe_config_file", "ge.aoe_config_file"},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},

@@ -72,7 +72,8 @@ def npu_resource_init(graph_run_mode=1,
                       op_compiler_cache_dir=None,
                       debug_dir=None,
                       hcom_multi_mode=False,
-                      distribute_config=None):
+                      distribute_config=None,
+                      aoe_config_file=None):
     """Initialize NPU resource"""
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
     check_graph_run_mode(graph_run_mode)
@@ -123,6 +124,7 @@ def npu_resource_init(graph_run_mode=1,
     util.check_bool_type(hcom_multi_mode, "hcom_multi_mode")
     hcom_multi_mode = util.convert_bool_to_int(hcom_multi_mode)
     init["ge.hcomMultiMode"] = str(hcom_multi_mode)
+    init["ge.aoe_config_file"] = str(aoe_config_file)
 
     init_options = tf_adapter.map_string_string(init)
     tf_adapter.PluginInit(init_options)

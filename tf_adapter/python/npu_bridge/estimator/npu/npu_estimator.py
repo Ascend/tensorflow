@@ -676,6 +676,8 @@ class NPUEstimator(estimator_lib.Estimator):
                 custom_op.parameter_map["work_path"].s = tf.compat.as_bytes("./")
             if config._distribute_config is not None:
                 custom_op.parameter_map["distribute_config"].s = tf.compat.as_bytes(config._distribute_config)
+        if config.aoe_config_file is not None:
+            custom_op.parameter_map["aoe_config_file"].s = tf.compat.as_bytes(config.aoe_config_file)
 
     def __load_graph_optimizers(self, config):
         """

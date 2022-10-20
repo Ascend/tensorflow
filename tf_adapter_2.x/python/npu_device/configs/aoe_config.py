@@ -23,5 +23,6 @@ class NpuAoeConfig(NpuBaseConfig):
     def __init__(self):
         self.aoe_mode = OptionValue(None, ["1", "2", "4"])
         self.work_path = OptionValue("./", None)
+        self.aoe_config_file = OptionValue(None, None)
 
         super(NpuAoeConfig, self).__init__()
