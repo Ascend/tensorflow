@@ -120,8 +120,10 @@ ThreadPool::~ThreadPool()
   for (std::thread &worker : workers_) {
     try {
       worker.join();
+    } catch (const std::system_error &) {
+      LOG(FATAL) << "ThreadPool join failed because of system_error.";
     } catch (...) {
-      LOG(ERROR) << "ThreadPool join operation failed.";
+      LOG(FATAL) << "ThreadPool join failed because of unkown error.";
     }
   }
 }
