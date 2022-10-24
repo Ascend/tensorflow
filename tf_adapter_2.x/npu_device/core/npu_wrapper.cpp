@@ -104,6 +104,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"logical_device_id", ge::OPTION_EXEC_LOGICAL_DEVICE_ID},
   {"jit_compile", "ge.jit_compile"},
   {"topo_sorting_mode", "ge.topoSortingMode"},
+  {"overflow_flag", "ge.exec.overflow"},
   {"customize_dtypes", "ge.customizeDtypes"},
   {"dump_data", "ge.exec.dumpData"},
   {"dump_layer", "ge.exec.dumpLayer"},
