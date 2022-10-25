@@ -1508,6 +1508,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
       // aoe tuning
       std::map<Aoe::AscendString, Aoe::AscendString> tuingOptions;
       tuingOptions.insert({Aoe::AscendString("ge.recompute"), Aoe::AscendString(recompute_mode_.c_str())});
+      tuingOptions.insert(
+          {Aoe::AscendString("ge.aoe_config_file"), Aoe::AscendString(init_options_["ge.aoe_config_file"].c_str())});
       Aoe::AoeStatus aoe_tune_ret = (*aoe_tuning_graph_)(session_id_, tuingOptions);
       if ((aoe_tune_ret != Aoe::AOE_SUCCESS) && (aoe_tune_ret != Aoe::AOE_ERROR_NO_AICORE_GRAPH)) {
         ADP_LOG(ERROR) << "exec aoe tuning func failed[" << aoe_tune_ret << "].";

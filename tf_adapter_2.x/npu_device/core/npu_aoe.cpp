@@ -69,6 +69,8 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice &device, TFE_Context *context,
 
   // aoe tuning
   std::map<Aoe::AscendString, Aoe::AscendString> tuning_options;
+  (void)tuning_options.emplace(Aoe::AscendString("ge.aoe_config_file"),
+                               Aoe::AscendString(device.device_options["ge.aoe_config_file"].c_str()));
   ret = aoe_func_.aoe_tuning_graph(aoe_session_id, tuning_options);
   NPU_REQUIRES((ret == Aoe::AOE_SUCCESS) || (ret == Aoe::AOE_ERROR_NO_AICORE_GRAPH),
                tensorflow::errors::Internal("exec aoe tuning graph func failed"));

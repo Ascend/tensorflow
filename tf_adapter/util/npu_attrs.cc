@@ -556,6 +556,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
   std::string dump_data = "tensor";
+  std::string aoe_config_file;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_precision_mode", &precision_mode);
@@ -589,6 +590,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_logical_device_cluster_deploy_mode", &logical_device_cluster_deploy_mode);
     (void) ctx->GetAttr("_logical_device_id", &logical_device_id);
     (void) ctx->GetAttr("_dump_data", &dump_data);
+    (void) ctx->GetAttr("_aoe_config_file", &aoe_config_file);
   }
 
   if (precision_mode.empty()) {
@@ -633,6 +635,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
   init_options_["dump_data"] = dump_data;
   init_options_["ge.exec.dumpData"] = dump_data;
+  init_options_["aoe_config_file"] = aoe_config_file;
+  init_options_["ge.aoe_config_file"] = aoe_config_file;
 
   return init_options_;
 }
@@ -997,6 +1001,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string jit_compile = "1";
   std::string topo_sorting_mode;
   std::string resource_config_path;
+  std::string aoe_config_file;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1070,6 +1075,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto jit_compile_value = attrs.Find("_jit_compile");
   auto topo_sorting_mode_value = attrs.Find("_topo_sorting_mode");
   auto resource_config_path_value = attrs.Find("_resource_config_path");
+  auto aoe_config_file_value = attrs.Find("_aoe_config_file");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1313,6 +1319,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (dump_layer_value != nullptr) {
       dump_layer = dump_layer_value->s();
     }
+    if (aoe_config_file_value != nullptr) {
+      aoe_config_file = aoe_config_file_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1397,6 +1406,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["topo_sorting_mode"] = topo_sorting_mode;
   all_options["ge.topoSortingMode"] = topo_sorting_mode;
   all_options["resource_config_path"] = resource_config_path;
+  all_options["ge.aoe_config_file"] = aoe_config_file;
+  all_options["aoe_config_file"] = aoe_config_file;
 
   return all_options;
 }
@@ -1491,6 +1502,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
   bool jit_compile = true;
+  std::string aoe_config_file;
 
   const RewriterConfig &rewrite_options =
     options.session_options->config.graph_options().rewrite_options();
@@ -1867,6 +1879,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("dump_layer") > 0) {
         dump_layer = params.at("dump_layer").s();
       }
+      if (params.count("aoe_config_file") > 0) {
+        aoe_config_file = params.at("aoe_config_file").s();
+      }
     }
   }
 
@@ -1978,6 +1993,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
   init_options_["dump_data"] = dump_data;
   init_options_["ge.exec.dumpData"] = dump_data;
+  init_options_["aoe_config_file"] = aoe_config_file;
+  init_options_["ge.aoe_config_file"] = aoe_config_file;
 
   pass_options["do_npu_optimizer"] = std::to_string(static_cast<int32_t>(do_npu_optimizer));
   pass_options["enable_data_pre_proc"] = std::to_string(static_cast<int32_t>(enable_dp));
