@@ -81,6 +81,14 @@ TEST_F(GePluginTest, MallocSharedMemOKTest) {
   int32_t ret = MallocSharedMem(tensor_info, dev_addr, memory_size);
   EXPECT_EQ(ret, 0);
 }
+TEST_F(GePluginTest, SetDeviceSatModeTest) {
+  uint64_t mode = 1U;
+  int32_t ret = SetDeviceSatMode(mode);
+  EXPECT_EQ(ret, 0);
+  mode = 2U;
+  ret = SetDeviceSatMode(mode);
+  EXPECT_EQ(ret, 100000);
+}
 TEST_F(GePluginTest, NpuCloseTest) {
   std::map<std::string, std::string> init_options;
   init_options["ge.jobType"] = "1";

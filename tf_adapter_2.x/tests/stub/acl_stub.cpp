@@ -197,6 +197,10 @@ aclError acltdtReceiveTensor(const acltdtChannelHandle *handle, acltdtDataset *d
   return ACL_ERROR_NONE;
 }
 
+aclError aclrtSetDeviceSatMode(aclrtFloatOverflowMode mode) {
+  return ACL_ERROR_NONE;
+}
+
 #ifdef __cplusplus
 }
 #endif
