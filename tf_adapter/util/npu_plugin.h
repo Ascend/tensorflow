@@ -51,5 +51,4 @@ int32_t GetVarAddrAndSize(const std::string &var_name, uint64_t &base_addr, uint
 
 int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, uint64_t &memory_size);
 
-int32_t SetDeviceSatMode(uint64_t mode);
 #endif  // TENSORFLOW_NPU_PLUGIN_H_

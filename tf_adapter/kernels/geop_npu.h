@@ -164,7 +164,6 @@ class GeOp : public AsyncOpKernel {
   std::map<std::string, std::string> init_options_;
   static std::unordered_map<std::string, uint32_t> session_and_graph_id_map_;
   uint32_t iteration_per_loop_;
-  bool enable_overflow_detection_graph_;
   bool is_host_graph_;
   std::map<std::string, std::string> graph_options_;
   std::map<int, TensorShape> outputs_shape_;
