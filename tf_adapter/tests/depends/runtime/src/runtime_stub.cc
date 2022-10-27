@@ -102,11 +102,6 @@ rtError_t rtMbufGetPrivInfo(rtMbufPtr_t mbuf, void **priv, uint64_t *size) {
   return RT_ERROR_NONE;
 }
 
-rtError_t rtMalloc(void **devPtr, uint64_t size, rtMemType_t type) {
-  *devPtr = malloc(size);
-  return RT_ERROR_NONE;
-}
-
 rtError_t rtFree(void *devPtr) {
   free(devPtr);
   return RT_ERROR_NONE;

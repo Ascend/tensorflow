@@ -270,60 +270,6 @@ class NpuMapAndBatchDatasetOpTest : public NpuMapAndBatchDatasetOpTestBase {
       return ge::SUCCESS;
     });
 
-    // Register funciton for ge RunGraph
-    #if 0
-    ge::RegRunGraphWithStreamAsyncStub([](uint32_t graph_id, void *stream, const std::vector<ge::Tensor> &inputs,
-        std::vector<ge::Tensor> &outputs) -> ge::Status {
-      ADP_LOG(INFO) << "Map and batch test RunGraphWithStreamAsyncStub, stream = " << stream;
-      AclStreamStub *stub = static_cast<AclStreamStub*>(stream);
-      stub->hook = std::bind([](const std::vector<ge::Tensor> &inputs, std::vector<ge::Tensor> &outputs) -> ge::Status {
-        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.num = "
-            << inputs.size() << ", output.num = " << outputs.size();
-        const uint8_t *input = inputs[0].GetData();
-        uint8_t *output = outputs[0].GetData();
-        ADP_LOG(INFO) << "RunGraphWithStreamAsyncStub-graph process:: input.addr = "
-            << (void*)input << ", size = " << inputs[0].GetSize()
-            << ", output.addr = " << (void*)output << ", size = " << outputs[0].GetSize();
-        *reinterpret_cast<int64_t*>(output) = (*reinterpret_cast<const int64_t*>(input)) + 1;
-        return ge::SUCCESS;
-      }, std::placeholders::_1, std::placeholders::_2);
-
-      return ge::SUCCESS;
-    });
-
-    ge::RegRunGraphStub([](uint32_t graph_id, const std::vector<ge::Tensor> &inputs,
-        std::vector<ge::Tensor> &outputs) -> ge::Status {
-      ADP_LOG(INFO) << "Map and batch test RegRunGraphStub";
-      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: input.num = "
-            << inputs.size() << ", output.num = " << outputs.size();
-      const uint8_t *input = inputs[0].GetData();
-      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: inputs[0].GetData()="
-            << (void*)inputs[0].GetData();
-
-      uint8_t *output = nullptr;
-      int64_t tensor_mem_size = DataTypeSize(DT_INT64); // size=8
-      rtError_t rt = rtMalloc(reinterpret_cast<void **>(&output), tensor_mem_size, RT_MEMORY_HBM);
-      if (rt != RT_ERROR_NONE) {
-        ADP_LOG(ERROR) << errors::InvalidArgument("Alloc mem failed: ", tensor_mem_size, "rtError_t: ", rt);
-        return ge::FAILED;
-      }
-      outputs.resize(1);
-      // Empty shape for scalar
-      std::vector<int64_t> output_shape;
-      ge::TensorDesc tensor_desc = outputs[0].GetTensorDesc();
-      tensor_desc.Update(ge::Shape(output_shape), ge::Format::FORMAT_ND, ge::DT_INT64);
-      outputs[0].SetTensorDesc(tensor_desc);
-      outputs[0].SetData(output, tensor_mem_size, [](uint8_t *p){ delete p;});
-
-      ADP_LOG(INFO) << "RegRunGraphStub-graph process:: input.addr = "
-            << (void*)input << ", size = " << inputs[0].GetSize()
-            << ", output.addr = " << (void*)output << ", size = " << outputs[0].GetSize();
-      *reinterpret_cast<int64_t*>(output) = (*reinterpret_cast<const int64_t*>(input)) + 1;
-
-      return ge::SUCCESS;
-    });
-    #endif
-
     SetLogLevelForC(0);
   }
 };
