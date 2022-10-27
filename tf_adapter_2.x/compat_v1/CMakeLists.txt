@@ -5,8 +5,6 @@ set(ADAPTER_ROOT ${CMAKE_CURRENT_LIST_DIR}/../..)
 
 if (DEFINED ASCEND_CI_BUILD_DIR)
     include_directories(${ASCEND_CI_BUILD_DIR}/abl/libc_sec/include)
-    include_directories(${ASCEND_CI_BUILD_DIR}/third_party/json/include)
-    include_directories(${ASCEND_CI_BUILD_DIR}/open_source/json/include)
     include_directories(${ADAPTER_ROOT}/inc/parser/inc)
     include_directories(${ADAPTER_ROOT}/inc/parser/inc/external)
 else ()

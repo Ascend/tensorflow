@@ -154,8 +154,6 @@ else()
         ${TOP_DIR}/metadef/inc/external/
         ${TOP_DIR}/libc_sec/include/
         ${TOP_DIR}/abl/libc_sec/include/
-        ${TOP_DIR}/third_party/json/include/
-        ${TOP_DIR}/open_source/json/include/
         ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow_core/include
         ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow-1.15.5.data/purelib/tensorflow_core/include/
         ${CMAKE_CURRENT_LIST_DIR}/inc/tensorflow/
@@ -207,6 +205,7 @@ else()
         indextransform
         tensorflow_framework
         pywrap_tensorflow_internal
+        json
         -Wl,--as-needed
         -s
     )
