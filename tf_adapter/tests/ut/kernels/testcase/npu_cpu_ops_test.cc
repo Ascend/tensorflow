@@ -46,4 +46,124 @@ TEST_F(NpuCpuOpTest, TestDecodeImageV3) {
     delete op_def;
     delete context;
 }
+
+TEST(EmbeddingOpsTest, TestInitPartitionMap) {
+    DataTypeSlice input_types({DT_UINT32});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_UINT32});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    InitPartitionMapOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestInitEmbeddingHashmap) {
+    DataTypeSlice input_types({DT_UINT32});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_UINT32});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    InitEmbeddingHashmapOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestEmbeddingTableFind) {
+    DataTypeSlice input_types({DT_UINT32});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_FLOAT});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    EmbeddingTableFindOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestEmbeddingTableImport) {
+    DataTypeSlice input_types({DT_UINT32});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_UINT32});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    EmbeddingTableImportOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestUninitPartitionMap) {
+    DataTypeSlice input_types({DT_UINT32});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_UINT32});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    UninitPartitionMapOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestUninitEmbeddingHashmap) {
+    DataTypeSlice input_types({DT_UINT32});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_UINT32});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    UninitEmbeddingHashmapOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
 }

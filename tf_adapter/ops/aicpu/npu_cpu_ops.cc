@@ -219,6 +219,43 @@ REGISTER_OP("RandomChoiceWithMask")
     }
     return Status::OK();
   });
+
+REGISTER_OP("InitPartitionMap")
+  .Input("ps_num: uint32")
+  .Input("ps_ids: uint32")
+  .Attr("partition_num: int = 65537")
+  .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("InitEmbeddingHashmap")
+  .Input("table_id: uint32")
+  .Attr("bucket_size: int = 0")
+  .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("EmbeddingTableImport")
+  .Input("file_path: string")
+  .Input("file_name: string")
+  .Input("ps_id: uint32")
+  .Input("table_id: uint32")
+  .Input("embedding_dim: uint32")
+  .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("EmbeddingTableFind")
+  .Input("table_id: uint32")
+  .Input("keys: uint32")
+  .Output("values: float32")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
+REGISTER_OP("UninitPartitionMap")
+  .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("UninitEmbeddingHashmap")
+  .Input("table_id: uint32")
+  .SetShapeFn(shape_inference::NoOutputs);
+
 // regist dense image warp op
 REGISTER_OP("DenseImageWarp")
   .Input("image: T")

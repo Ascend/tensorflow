@@ -148,14 +148,14 @@ class BatchDilatePolysOp : public OpKernel {
   public:
   explicit BatchDilatePolysOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~BatchDilatePolysOp() override {}
-  void Compute(OpKernelContext *context) override { ADP_LOG(INFO)<<"BatchDilatePolysOp Compute"; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "BatchDilatePolysOp Compute"; }
 };
 
 class OCRFindContoursOp : public OpKernel {
   public:
   explicit OCRFindContoursOp(OpKernelConstruction *context) : OpKernel(context) {}
   ~OCRFindContoursOp() override {}
-  void Compute(OpKernelContext *context) override { ADP_LOG(INFO)<<"OCRFindContoursOp Compute"; }
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "OCRFindContoursOp Compute"; }
 };
 
 class OCRDetectionPostHandleOp : public OpKernel {
@@ -200,6 +200,48 @@ class ScatterElementsV2Op : public OpKernel {
   }
 };
 
+class InitPartitionMapOp : public OpKernel {
+public:
+  explicit InitPartitionMapOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~InitPartitionMapOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "InitPartitionMapOp Compute"; }
+};
+
+class InitEmbeddingHashmapOp : public OpKernel {
+public:
+  explicit InitEmbeddingHashmapOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~InitEmbeddingHashmapOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "InitEmbeddingHashmapOp Compute"; }
+};
+
+class EmbeddingTableFindOp : public OpKernel {
+public:
+  explicit EmbeddingTableFindOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingTableFindOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingTableFindOp Compute"; }
+};
+
+class EmbeddingTableImportOp : public OpKernel {
+public:
+  explicit EmbeddingTableImportOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingTableImportOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingTableImportOp Compute"; }
+};
+
+class UninitPartitionMapOp : public OpKernel {
+public:
+  explicit UninitPartitionMapOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~UninitPartitionMapOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "UninitPartitionMapOp Compute"; }
+};
+
+class UninitEmbeddingHashmapOp : public OpKernel {
+public:
+  explicit UninitEmbeddingHashmapOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~UninitEmbeddingHashmapOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "UninitEmbeddingHashmapOp Compute"; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("ScatterElementsV2").Device(DEVICE_CPU), ScatterElementsV2Op);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
@@ -218,6 +260,12 @@ REGISTER_KERNEL_BUILDER(Name("OCRDetectionPostHandle").Device(DEVICE_CPU), OCRDe
 REGISTER_KERNEL_BUILDER(Name("ResizeAndClipPolys").Device(DEVICE_CPU), ResizeAndClipPolysOp);
 REGISTER_KERNEL_BUILDER(Name("Dequeue").Device(DEVICE_CPU), DequeueOp);
 REGISTER_KERNEL_BUILDER(Name("NonZeroWithValueShape").Device(DEVICE_CPU), NonZeroWithValueShapeOp);
+REGISTER_KERNEL_BUILDER(Name("InitPartitionMap").Device(DEVICE_CPU), InitPartitionMapOp);
+REGISTER_KERNEL_BUILDER(Name("InitEmbeddingHashmap").Device(DEVICE_CPU), InitEmbeddingHashmapOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingTableFind").Device(DEVICE_CPU), EmbeddingTableFindOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingTableImport").Device(DEVICE_CPU), EmbeddingTableImportOp);
+REGISTER_KERNEL_BUILDER(Name("UninitPartitionMap").Device(DEVICE_CPU), UninitPartitionMapOp);
+REGISTER_KERNEL_BUILDER(Name("UninitEmbeddingHashmap").Device(DEVICE_CPU), UninitEmbeddingHashmapOp);
 
 class DecodeImageV3Op : public OpKernel {
 public:
