@@ -2280,6 +2280,7 @@ Status OMPartitionSubgraphsPass::CopyVarsBetweenGeOp(Graph *graph) const {
       (void) std::copy(node->out_edges().begin(), node->out_edges().end(), std::back_inserter(varEdges));
     }
   }
+  std::map<std::string, std::map<std::string, Node *>> copied_nodes;
   for (auto varEdge : varEdges) {
     REQUIRES_NOT_NULL(varEdge);
     REQUIRES_NOT_NULL(varEdge->src());
@@ -2305,11 +2306,21 @@ Status OMPartitionSubgraphsPass::CopyVarsBetweenGeOp(Graph *graph) const {
       return s;
     }
     if ((IsRefType(dtypeDst) || dtypeDst == DT_RESOURCE) && srcSubgraphId != dstSubgraphId) {
-      Node *nodeCopy = graph->AddNode(varEdge->src()->def(), &s);
-      if (!s.ok()) { return s; }
-      nodeCopy->ClearAttr(partitionAttr);
-      nodeCopy->AddAttr(partitionAttr, dstSubgraphId);
-      (void) graph->AddEdge(nodeCopy, varEdge->src_output(), varEdge->dst(), varEdge->dst_input());
+      const auto it = copied_nodes.find(dstSubgraphId);
+      Node *node_tmp = nullptr;
+      if ((it != copied_nodes.end()) && (it->second.find(varEdge->src()->name()) != it->second.end())) {
+        ADP_LOG(INFO) << "find added node in " << dstSubgraphId << ", name is " << varEdge->src()->name();
+        node_tmp = it->second[varEdge->src()->name()];
+      } else {
+        ADP_LOG(INFO) << "need add new node in " << dstSubgraphId << ", name is " << varEdge->src()->name();
+        node_tmp = graph->AddNode(varEdge->src()->def(), &s);
+        if (!s.ok()) { return s; }
+        node_tmp->ClearAttr(partitionAttr);
+        node_tmp->AddAttr(partitionAttr, dstSubgraphId);
+        copied_nodes[dstSubgraphId][varEdge->src()->name()] = node_tmp;
+      }
+      REQUIRES_NOT_NULL(node_tmp);
+      (void) graph->AddEdge(node_tmp, varEdge->src_output(), varEdge->dst(), varEdge->dst_input());
       graph->RemoveEdge(varEdge);
     }
   }
@@ -2319,7 +2330,7 @@ Status OMPartitionSubgraphsPass::CopyVarsBetweenGeOp(Graph *graph) const {
 Status OMPartitionSubgraphsPass::CopyConstBetweenGeOp(Graph *graph) const {
   for (Node *node : graph->op_nodes()) {
     if (node->IsConstant()) {
-      std::map<string, Node *> copiedConsts;
+      std::map<std::string, std::map<std::string, Node *>> copiedConsts;
       string srcSubgraphId;
       const string partitionAttr = OMSplitter::PARTITION_SUB_GRAPH_ATTR;
       Status s = GetNodeAttr(node->attrs(), partitionAttr, &srcSubgraphId);
@@ -2340,16 +2351,21 @@ Status OMPartitionSubgraphsPass::CopyConstBetweenGeOp(Graph *graph) const {
           return s;
         }
         if (srcSubgraphId != dstSubgraphId) {
-          if (copiedConsts.find(dstSubgraphId) == copiedConsts.end()) {
-            Node *nodeCopy = graph->AddNode(edge->src()->def(), &s);
+          const auto it = copiedConsts.find(dstSubgraphId);
+          Node *nodeCopy = nullptr;
+          if ((it != copiedConsts.end()) && (it->second.find(node->name()) != it->second.end())) {
+            ADP_LOG(INFO) << "find node:" << node->name() << " from " << srcSubgraphId << " to "<< dstSubgraphId;
+            nodeCopy = it->second[node->name()];
+          } else {
+            nodeCopy = graph->AddNode(edge->src()->def(), &s);
             if (!s.ok()) { return s; }
             nodeCopy->set_name(node->name() + "_copied");
             nodeCopy->ClearAttr(partitionAttr);
             nodeCopy->AddAttr(partitionAttr, dstSubgraphId);
-            copiedConsts[dstSubgraphId] = nodeCopy;
-            ADP_LOG(INFO) << "Copy const node:" << node->name();
+            copiedConsts[dstSubgraphId][node->name()] = nodeCopy;
+            ADP_LOG(INFO) << "Copy node:" << node->name() << " from " << srcSubgraphId << " to "<< dstSubgraphId;
           }
-          Node *nodeCopy = copiedConsts[dstSubgraphId];
+          REQUIRES_NOT_NULL(nodeCopy);
           (void) graph->AddEdge(nodeCopy, edge->src_output(), edge->dst(), edge->dst_input());
           graph->RemoveEdge(edge);
           (void) graph->AddControlEdge(edge->src(), nodeCopy, false);

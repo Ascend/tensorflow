@@ -23,6 +23,114 @@ node {
   }
 }
 node {
+  name: "const1"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 10
+        }
+        dim {
+          size: 10
+        }
+      }
+    }
+  }
+}
+node {
+  name: "const2"
+  op: "Const"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 10
+        }
+        dim {
+          size: 10
+        }
+      }
+    }
+  }
+}
+node {
   name: "Variable"
   op: "VariableV2"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
@@ -345,6 +453,7 @@ node {
   name: "Variable/read"
   op: "Identity"
   input: "Variable"
+  input: "^const1"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "T"
@@ -365,6 +474,7 @@ node {
   name: "Variable_1/read"
   op: "Identity"
   input: "Variable_1"
+  input: "^const2"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "T"
@@ -534,6 +644,7 @@ node {
   input: "Momentum/learning_rate"
   input: "gradients/add_grad/Sum"
   input: "Momentum/momentum"
+  input: "^const2"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "T"
@@ -588,6 +699,7 @@ node {
   input: "Momentum/learning_rate"
   input: "gradients/MatMul_grad/MatMul_1"
   input: "Momentum/momentum"
+  input: "^const1"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "T"
