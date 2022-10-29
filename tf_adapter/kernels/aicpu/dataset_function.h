@@ -99,7 +99,7 @@ class DatasetFunction {
 
     static aclmdlDataset *CreateAclInputDatasetWithTFTensors(std::vector<Tensor> &tf_tensors);
     static Status TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, Tensor &tf_tensor);
-    static void *ConvertDTStringTensor(uint64_t count, void *tensor_ptr, uint64_t &tensor_size);
+    static void *ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &tensor_size);
     static void DestroyAclInputDataset(aclmdlDataset *input);
     static aclmdlDataset *CreateAclOutputDataset(ModelId model_id);
     static void DestroyAclOutputDataset(aclmdlDataset *output);

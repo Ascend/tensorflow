@@ -187,8 +187,15 @@ void DatasetFunction::AssembleParserAddons(const tensorflow::FunctionLibraryDefi
   tensorflow::ReverseDFS(graph, {}, node_shape_inference_lambda);
 }
 
-void *DatasetFunction::ConvertDTStringTensor(uint64_t count, void *tensor_ptr, uint64_t &tensor_size) {
-  std::string *string_vector = static_cast<std::string *>(tensor_ptr);
+void *DatasetFunction::ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &tensor_size) {
+  const uint64_t count = static_cast<uint64_t>(tf_tensor.NumElements());
+
+#if defined(TF_VERSION_TF2)
+  const tstring *string_vector = tf_tensor.flat<tstring>().data();
+#else
+  const std::string *string_vector = static_cast<const std::string *>(DMAHelper::base(&tf_tensor));
+#endif
+
   uint64_t total_size = 0U;
   uint64_t string_head_size = sizeof(ge::StringHead);
   for (uint64_t i = 0U; i < count; i++) {
@@ -250,8 +257,7 @@ Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, 
   void *tensor_addr = nullptr;
   uint64_t tensor_size = 0ULL;
   if (type == ge::DT_STRING) {
-    const uint64_t count = static_cast<uint64_t>(tf_tensor.NumElements());
-    tensor_addr = DatasetFunction::ConvertDTStringTensor(count, tensor_ptr, tensor_size);
+    tensor_addr = DatasetFunction::ConvertDTStringTensor(tf_tensor, tensor_size);
   } else {
     tensor_addr = tensor_ptr;
     tensor_size = tf_tensor.TotalBytes();
