@@ -588,3 +588,10 @@ aclError aclmdlExecuteAsync(uint32_t modelId, const aclmdlDataset *inputs, aclmd
   }
   return ACL_SUCCESS;
 }
+
+aclError aclrtSetDeviceSatMode(aclrtFloatOverflowMode mode) {
+  if (mode != ACL_RT_OVERFLOW_MODE_SATURATION && mode != ACL_RT_OVERFLOW_MODE_INFNAN) {
+    return ACL_ERROR_INVALID_PARAM;
+  }
+  return ACL_SUCCESS;
+}

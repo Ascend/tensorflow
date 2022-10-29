@@ -46,6 +46,8 @@
 #include "framework/omg/parser/parser_api.h"
 #include "ge/ge_api.h"
 
+#include "acl/acl_base.h"
+#include "acl/acl_rt.h"
 #include "npu_aoe.h"
 #include "npu_device_register.h"
 #include "npu_global.h"
@@ -285,6 +287,10 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     npu::global::g_npu_loop_size = loop_size;
     LOG(INFO) << "Npu loop size is set to " << npu::global::g_npu_loop_size
               << ", it will take effect in the next training loop";
+  });
+
+  (void)m.def("SetDeviceSatMode", [](uint64_t mode) {
+    aclrtSetDeviceSatMode(aclrtFloatOverflowMode(mode));
   });
 
   (void)m.def("RunContextOptionsSetMemoryOptimizeOptions", &RunContextOptionsSetMemoryOptimizeOptions);

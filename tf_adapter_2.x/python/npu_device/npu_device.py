@@ -174,6 +174,10 @@ def open(device_id=None):
         return _npu_device_instances[device_id]
 
 
+def set_device_sat_mode(mode):
+    _npu_device_backends.SetDeviceSatMode(mode)
+
+
 def close():
     """Close NPU device"""
     _npu_device_backends.Close()

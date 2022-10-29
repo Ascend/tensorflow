@@ -27,6 +27,8 @@
 #include "tf_adapter/common/adp_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "acl/acl_base.h"
+#include "acl/acl_rt.h"
 #include "tf_adapter/util/npu_plugin.h"
 #include "aoe_tuning_api.h"
 using AoeFinalizeFunc = Aoe::AoeStatus (*)();
@@ -443,6 +445,17 @@ int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, u
   }
   ADP_LOG(INFO) << "[GePlugin] malloc shared memory success.";
   return 0;
+}
+
+int32_t SetDeviceSatMode(uint64_t mode) {
+  aclError ret = aclrtSetDeviceSatMode(aclrtFloatOverflowMode(mode));
+  if (ret != ACL_SUCCESS) {
+    ADP_LOG(ERROR) << "[GePlugin] set device sat mode failed, ret : " << ToString(ret);
+    LOG(ERROR) << "[GePlugin] set device sat mode failed, ret : " << ToString(ret);
+    return ret;
+  }
+  ADP_LOG(INFO) << "[GePlugin] set device sat mode success.";
+  return ACL_SUCCESS;
 }
 
 std::atomic_int GePlugin::graph_counter_ = {0};

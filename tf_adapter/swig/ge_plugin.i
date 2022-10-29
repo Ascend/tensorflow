@@ -51,6 +51,8 @@ extern int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info,
 extern int32_t GetVarAddrAndSize(const std::string &var_name, uint64_t &base_addr, uint64_t &var_size);
 
 extern int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, uint64_t &memory_size);
+
+extern int32_t SetDeviceSatMode(uint64_t mode);
 %}
 
 %template(var_info_vec) std::vector<ge::HostVarInfo>;
@@ -121,3 +123,5 @@ extern int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info,
 extern int32_t GetVarAddrAndSize(const std::string &var_name, uint64_t &base_addr, uint64_t &var_size);
 
 extern int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, uint64_t &memory_size);
+
+extern int32_t SetDeviceSatMode(uint64_t mode);
