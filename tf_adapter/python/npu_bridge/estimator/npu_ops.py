@@ -373,5 +373,3 @@ def npu_onnx_graph_op(inputs, tout, model_path, name=None):
     return output
 
 
-def set_device_sat_mode(mode):
-    tf_adapter.SetDeviceSatMode(mode)
