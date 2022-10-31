@@ -540,7 +540,7 @@ Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &
   for (const auto &node : compute_graph->GetDirectNode()) {
     ge::OpDescPtr op_desc = node->GetOpDesc();
     DATASET_REQUIRES(op_desc != nullptr, errors::Internal("Param op_desc is nullptr, check invalid."));
-    (void)ge::AttrUtils::SetBool(op_desc, "performance_prior", true);
+    (void)ge::AttrUtils::SetBool(op_desc, "_performance_prior", true);
   }
 
   DumpGeComputeGraph(std::string("Build"), funcName_, compute_graph);
