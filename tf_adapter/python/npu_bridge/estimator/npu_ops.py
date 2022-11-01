@@ -371,3 +371,5 @@ def npu_onnx_graph_op(inputs, tout, model_path, name=None):
     """NPU implemented onnx graph operator"""
     output = gen_npu_ops.npu_onnx_graph_op(inputs, tout, model_path, name)
     return output
+
+
