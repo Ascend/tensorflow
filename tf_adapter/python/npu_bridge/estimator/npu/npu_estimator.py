@@ -759,6 +759,8 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["op_debug_config"].s = tf.compat.as_bytes(config._op_debug_config)
         if config.topo_sorting_mode is not None:
             custom_op.parameter_map["topo_sorting_mode"].i = config.topo_sorting_mode
+        if config.insert_op_file is not None:
+            custom_op.parameter_map["insert_op_file"].s = config.insert_op_file
         custom_op.parameter_map["jit_compile"].b = config._jit_compile
 
         self.__load_session_device_id(config, custom_op)

@@ -786,6 +786,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
 
     // convert to ge::graph
+    if (graph_options_.count("input_format") != 0) {
+      ADP_LOG(INFO) << "graph_options_[\"input_format\"] = " << graph_options_["input_format"] << std::endl;
+    } else {
+      graph_options_["input_format"] = "NHWC";
+      ADP_LOG(INFO) << "tensorflow_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"] << std::endl;
+    }
     ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
       ge_graph.SetNeedIteration(this->need_iteration_);
@@ -1150,6 +1156,8 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
 
     if (node->type_string() == "NpuOnnxGraphOp") {
       ret = this->ParseOnnxGraphOpAttr(node);
+      graph_options_["input_format"] = "NCHW";
+      ADP_LOG(INFO) << "onnx_graph_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"] << std::endl;
       if (!ret.ok()) {
         LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, " << ret.error_message();
         return ret;

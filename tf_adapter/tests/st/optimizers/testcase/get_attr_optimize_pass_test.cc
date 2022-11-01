@@ -207,6 +207,9 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue topo_sorting_mode = AttrValue();
   topo_sorting_mode.set_i(1);
   (*custom_config->mutable_parameter_map())["topo_sorting_mode"] = topo_sorting_mode;
+  AttrValue insert_op_file = AttrValue();
+  insert_op_file.set_s("aipp.cfg");
+  (*custom_config->mutable_parameter_map())["insert_op_file"] = insert_op_file;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {
