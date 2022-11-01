@@ -46,12 +46,12 @@ using AoeSetTuningGraphFunc = Aoe::AoeStatus (*)(SessionId, ge::Graph &);
 using AoeTuningGraphFunc = Aoe::AoeStatus (*)(SessionId, const std::map<Aoe::AscendString, Aoe::AscendString> &);
 
 class GeOp : public AsyncOpKernel {
- public:
+public:
   explicit GeOp(OpKernelConstruction *ctx);
   ~GeOp() override;
   void ComputeAsync(OpKernelContext *ctx, DoneCallback done) override;
 
- private:
+private:
   void Initialize(OpKernelConstruction *ctx);
   void Finalize();
 

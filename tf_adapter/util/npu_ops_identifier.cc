@@ -21,7 +21,7 @@
 #include "nlohmann/json.hpp"
 #include "framework/common/string_util.h"
 #include "tensorflow/core/platform/logging.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/generate_report.h"
 #include "tf_adapter/util/npu_attrs.h"

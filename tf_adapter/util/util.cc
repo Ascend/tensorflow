@@ -19,7 +19,7 @@
 #include <numeric>
 #include <vector>
 #include <string>
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/common/compat_tf1_tf2.h"
 #include "inc/metadef/inc/graph/def_types.h"

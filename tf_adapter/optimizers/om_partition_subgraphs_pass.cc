@@ -36,7 +36,7 @@
 #include "tensorflow/core/graph/graph_def_builder.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 #include "tensorflow/core/public/session_options.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/npu_attrs.h"

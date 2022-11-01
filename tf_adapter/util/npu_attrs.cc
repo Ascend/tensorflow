@@ -24,7 +24,7 @@
 #include "acl/acl.h"
 #include "tdt/index_transform.h"
 #include "runtime/config.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
 #include "mmpa/mmpa_api.h"

@@ -15,13 +15,13 @@
  */
 
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace tensorflow {
 class DropOutDoMaskOp : public OpKernel {
  public:
   explicit DropOutDoMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
-  ~DropOutDoMaskOp() {}
+  ~DropOutDoMaskOp() override {}
   void Compute(OpKernelContext *context) override {
     (void) context;
     ADP_LOG(INFO) << "DropOutDoMaskOp Compute ";
@@ -34,7 +34,7 @@ class DropOutDoMaskOp : public OpKernel {
 class DropOutGenMaskOp : public OpKernel {
  public:
   explicit DropOutGenMaskOp(OpKernelConstruction *context) : OpKernel(context) {}
-  ~DropOutGenMaskOp() {}
+  ~DropOutGenMaskOp() override {}
   void Compute(OpKernelContext *context) override {
     (void) context;
     ADP_LOG(INFO) << "DropOutGenMaskOp Compute";

@@ -27,7 +27,7 @@
 #include "ge/ge_api_types.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/platform/mutex.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/kernels/geop_npu.h"
 #include "tf_adapter/util/ge_plugin.h"

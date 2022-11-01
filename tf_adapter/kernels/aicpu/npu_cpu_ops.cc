@@ -17,7 +17,7 @@
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/resource_op_kernel.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/util/cache_interface.h"
 
 namespace tensorflow {

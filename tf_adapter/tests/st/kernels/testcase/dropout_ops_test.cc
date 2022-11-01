@@ -41,6 +41,7 @@ TEST(DropOutGenOrDoMaskOpTest, TestDropOutDoCompute) {
   delete node_def;
   delete op_def;
   delete context;
+  delete dropOutDomaskOp;
 }
 
 TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenCompute) {
@@ -62,6 +63,7 @@ TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenCompute) {
   delete node_def;
   delete op_def;
   delete context;
+  delete dropOutGenmaskOp;
 }
 
 TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenMaskInference) {

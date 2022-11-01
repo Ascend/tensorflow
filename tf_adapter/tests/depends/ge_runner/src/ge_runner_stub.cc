@@ -36,7 +36,7 @@
 #include "graph/op_desc.h"
 #include "ascendcl_stub.h"
 #include "ge_stub.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace ge {
 namespace {

@@ -32,7 +32,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/ge_plugin.h"
 #include "tf_adapter/util/infershape_util.h"

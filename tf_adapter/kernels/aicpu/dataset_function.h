@@ -39,7 +39,7 @@
 #include "ge/ge_api_types.h"
 #include "framework/omg/parser/model_parser.h"
 #include "framework/omg/parser/parser_factory.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/common/common.h"
 

@@ -16,7 +16,7 @@
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/kernels/data/captured_function.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/common/compat_tf1_tf2.h"
 

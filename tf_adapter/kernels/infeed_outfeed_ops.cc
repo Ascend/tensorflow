@@ -17,7 +17,7 @@
 #include <string>
 #include "tensorflow/core/framework/op_kernel.h"
 #include "acl/acl.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"

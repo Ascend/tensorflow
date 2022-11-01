@@ -16,7 +16,7 @@
 
 #include "host_thread_pool.h"
 #include "acl/acl_rt.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace {
   const uint32_t MAX_THREAD_NUM = 4U;

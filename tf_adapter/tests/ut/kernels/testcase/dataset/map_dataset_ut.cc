@@ -14,7 +14,7 @@
 #include "ascendcl_stub.h"
 #include "ge_stub.h"
 #include "alog_stub.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace tensorflow {
 namespace data {

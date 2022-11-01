@@ -24,7 +24,7 @@
 #include "framework/omg/omg_inner_types.h"
 #include "ge/ge_api.h"
 #include "tdt/tdt_host_interface.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/npu_plugin.h"

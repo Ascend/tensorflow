@@ -16,7 +16,7 @@
 
 #include "tf_adapter/util/session_manager.h"
 #include "tf_adapter/util/npu_attrs.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 using namespace tensorflow;
 /**
