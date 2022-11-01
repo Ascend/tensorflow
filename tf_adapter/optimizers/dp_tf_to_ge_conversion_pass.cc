@@ -97,8 +97,8 @@ class DpTfToGEConversionPassImpl {
   Status AddGeopDatasetFunctionDef(FunctionDefLibrary &fdeflib, const std::string &fn_geop,
                                    const std::string &fn_geop_dataset, const string &default_device,
                                    const std::map<std::string, std::string> &all_options) const;
-  Status BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, Graph &device_graph, const std::string &fn_geop_dataset,
-                                  const string &default_device,
+  Status BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, const Graph &device_graph,
+                                   const std::string &fn_geop_dataset, const string &default_device,
                                   const std::map<std::string, std::string> &all_options) const;
   Status AddGeOpDatasetFunctionLibrary(FunctionLibraryDefinition *flib, const Node &topo_end,
                                        const std::string &device_channel_name, const std::string &fn_geop_dataset,
@@ -107,7 +107,8 @@ class DpTfToGEConversionPassImpl {
                                          const std::string &host_channel_name,
                                          const std::string &device_channel_name) const;
   void AddOptionAttr(std::vector<Node *> nodes, const std::map<std::string, std::string> &all_options) const;
-
+  bool GetSkipOptimizeFlag(const std::map<std::string, std::string> &pass_options,
+                             const OptimizationPassRegistry::Grouping pass_group_value) const;
   // graph num
   int graph_run_num_;
   // All split edges, split edges means edges that combine A and B in this case
@@ -700,7 +701,7 @@ Status DpTfToGEConversionPassImpl::AddGeopDatasetFunctionDef(FunctionDefLibrary 
 }
 
 Status DpTfToGEConversionPassImpl::BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib,
-    Graph &device_graph,
+    const Graph &device_graph,
     const std::string &fn_geop_dataset,
     const string &default_device,
     const std::map<std::string, std::string> &all_options) const {
@@ -1011,6 +1012,58 @@ Status DpTfToGEConversionPass::Run(const GraphOptimizationPassOptions &options) 
   return DpTfToGEConversionPassImpl().Run(options);
 }
 
+bool DpTfToGEConversionPassImpl::GetSkipOptimizeFlag(const std::map<std::string, std::string> &pass_options,
+  const OptimizationPassRegistry::Grouping pass_group_value) const {
+  std::string job;
+  std::string enable_dp_cfg;
+  std::string use_off_line_cfg;
+  std::string do_npu_optimizer_cfg;
+
+  for (auto pass_option : pass_options) {
+    if (pass_option.first == "job") {
+      job = pass_option.second;
+    }
+    if (pass_option.first == "enable_dp") {
+      enable_dp_cfg = pass_option.second;
+    }
+    if (pass_option.first == "use_off_line") {
+      use_off_line_cfg = pass_option.second;
+    }
+    if (pass_option.first == "do_npu_optimizer") {
+      do_npu_optimizer_cfg = pass_option.second;
+    }
+  }
+
+  if (job == "ps" || job == "default") {
+    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : DpTfToGEConversionPass.";
+    return true;
+  }
+  if (job == "localhost" && pass_group_value != OptimizationPassRegistry::POST_REWRITE_FOR_EXEC) {
+    return true;
+  }
+  if (job != "localhost" && pass_group_value != OptimizationPassRegistry::POST_PARTITIONING) {
+    return true;
+  }
+
+  bool use_off_line = (use_off_line_cfg == "1");
+  bool do_npu_optimizer = (do_npu_optimizer_cfg == "1");
+  if (do_npu_optimizer) {
+    if (!use_off_line) {
+      ADP_LOG(INFO) << "Run online process and skip the optimizer";
+      return true;
+    }
+  } else {
+    return true;
+  }
+
+  bool enable_dp = (enable_dp_cfg == "1");
+  if (!enable_dp) {
+    ADP_LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is false";
+    return true;
+  }
+  return false;
+}
+
 Status DpTfToGEConversionPassImpl::ProcessGraph(const std::unique_ptr<Graph> *graph,
                                                 FunctionLibraryDefinition *func_lib,
                                                 const OptimizationPassRegistry::Grouping pass_group_value) {
@@ -1062,33 +1115,7 @@ Status DpTfToGEConversionPassImpl::ProcessGraph(const std::unique_ptr<Graph> *gr
   }
 
   AddOptionAttr(add_options_nodes, all_options);
-
-  std::string job = pass_options["job"];
-  if (job == "ps" || job == "default") {
-    ADP_LOG(INFO) << "job is " << job << " Skip the optimizer : DpTfToGEConversionPass.";
-    return Status::OK();
-  }
-  if (job == "localhost" && pass_group_value != OptimizationPassRegistry::POST_REWRITE_FOR_EXEC) {
-    return Status::OK();
-  }
-  if (job != "localhost" && pass_group_value != OptimizationPassRegistry::POST_PARTITIONING) {
-    return Status::OK();
-  }
-
-  bool enableDP = (pass_options["enable_dp"] == "1");
-  bool use_off_line = (pass_options["use_off_line"] == "1");
-  bool do_npu_optimizer = (pass_options["do_npu_optimizer"] == "1");
-  if (do_npu_optimizer) {
-    if (!use_off_line) {
-      ADP_LOG(INFO) << "Run online process and skip the optimizer";
-      return Status::OK();
-    }
-  } else {
-    return Status::OK();
-  }
-
-  if (!enableDP) {
-    ADP_LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is false";
+  if (GetSkipOptimizeFlag(pass_options, pass_group_value)) {
     return Status::OK();
   }
   auto process_graph = [this](const std::unique_ptr<Graph> *g, FunctionLibraryDefinition *flib,

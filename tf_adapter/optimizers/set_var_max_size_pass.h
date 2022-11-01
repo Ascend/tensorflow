@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
-#define TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
+#ifndef TENSORFLOW_SET_VAR_MAX_SIZE_PASS_H_
+#define TENSORFLOW_SET_VAR_MAX_SIZE_PASS_H_
 
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/framework/function.h"
@@ -34,4 +34,4 @@ class SetVarMaxSizePass : public GraphOptimizationPass {
   Status SetConstListNodes(Node *node, std::vector<std::string> &input_names) const;
 };
 }  // namespace tensorflow
-#endif  // TENSORFLOW_OM_SET_VAR_MAX_SIZE_PASS_H_
+#endif  // TENSORFLOW_SET_VAR_MAX_SIZE_PASS_H_

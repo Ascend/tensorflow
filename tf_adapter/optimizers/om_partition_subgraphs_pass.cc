@@ -1389,7 +1389,7 @@ class OMSplitter {
 
   // Copies a single edge to the output graph. The edge is either entirely
   // within the output graph, or crosses into or out of a subgraph.
-  Status CopyEdgeToOutputGraph(const Edge &edge, const std::string &srcSubgraphId, const std::string &dstSubgraphId,
+  Status CopyEdgeToOutputGraph(const Edge &edge,
                                const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut,
                                std::unordered_set<std::pair<NodeSlot, NodeSlot>, NodeSlot::PairHasher> *edges_added);
 
@@ -1825,9 +1825,18 @@ int OMSplitter::FindOutputSlotOfEdgeDst(const std::string &dstSubgraphId, const 
 }
 
 Status OMSplitter::CopyEdgeToOutputGraph(
-    const Edge &edge, const std::string &srcSubgraphId, const std::string &dstSubgraphId,
-    const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut,
+    const Edge &edge, const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut,
     std::unordered_set<std::pair<NodeSlot, NodeSlot>, NodeSlot::PairHasher> *edges_added) {
+  std::string srcSubgraphId;
+  TF_RETURN_IF_ERROR(GetSubgraphIdAttr(*(edge.src()), srcSubgraphId));
+  std::string dstSubgraphId;
+  TF_RETURN_IF_ERROR(GetSubgraphIdAttr(*(edge.dst()), dstSubgraphId));
+
+    // Ignore edges that are strictly contained within one subgraph.
+  if (IsInSubgraph(srcSubgraphId) && IsInSubgraph(dstSubgraphId) && srcSubgraphId == dstSubgraphId) {
+    return Status::OK();
+  }
+
   Node *srcImage = nullptr;
   TF_RETURN_IF_ERROR(FindOutputImageOfEdgeSrc(srcSubgraphId, dstSubgraphId, nodeImages, edge.src(), &srcImage));
   Node *dstImage = nullptr;
@@ -1870,15 +1879,7 @@ Status OMSplitter::AddEdgesToOutputGraph(const std::unordered_map<const Node *, 
 
   for (const Edge *edge : graph_in_->edges()) {
     REQUIRES_NOT_NULL(edge);
-    std::string srcSubgraphId;
-    TF_RETURN_IF_ERROR(GetSubgraphIdAttr(*(edge->src()), srcSubgraphId));
-    std::string dstSubgraphId;
-    TF_RETURN_IF_ERROR(GetSubgraphIdAttr(*(edge->dst()), dstSubgraphId));
-
-    // Ignore edges that are strictly contained within one subgraph.
-    if (IsInSubgraph(srcSubgraphId) && IsInSubgraph(dstSubgraphId) && srcSubgraphId == dstSubgraphId) { continue; }
-
-    TF_RETURN_IF_ERROR(CopyEdgeToOutputGraph(*edge, srcSubgraphId, dstSubgraphId, nodeImages, graphOut, &edges_added));
+    TF_RETURN_IF_ERROR(CopyEdgeToOutputGraph(*edge, nodeImages, graphOut, &edges_added));
   }
 
   return Status::OK();
@@ -1895,16 +1896,13 @@ Status OMSplitter::BuildOutputGraph(Graph *graphOut) {
   return Status::OK();
 }
 
-Status OMPartitionSubgraphsInFunctions(std::string groupAttribute, std::unique_ptr<Graph> *graph,
-                                       const std::string &graph_format, FunctionLibraryDefinition *flib_def,
-                                       std::map<std::string, std::string> npu_optimizer_options,
-                                       std::map<std::string, std::string> pass_options,
-                                       std::map<std::string, std::string> graph_options) {
+Status OMPartitionSubgraphsInFunctions(std::unique_ptr<Graph> *graph,
+                                       const std::string &graph_format,
+                                       FunctionLibraryDefinition *flib_def,
+                                       OMSplitter &omsplitter) {
   Graph *graph_in = graph->get();
   FunctionLibraryDefinition *const library = flib_def;
 
-  OMSplitter omsplitter(std::move(groupAttribute), graph_in, std::move(npu_optimizer_options),
-                        std::move(pass_options), std::move(graph_options));
   uint32_t subgraphNum = 0;
   TF_RETURN_IF_ERROR(omsplitter.SplitIntoSubgraphs(subgraphNum));
 
@@ -2254,9 +2252,9 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     TF_RETURN_IF_ERROR(CopyConstBetweenGeOp(graph_in));
   }
 
-  TF_RETURN_IF_ERROR(OMSplitter::OMPartitionSubgraphsInFunctions(OMSplitter::PARTITION_SUB_GRAPH_ATTR, graph,
-                                                                 graph_format_value, func_lib, all_options,
-                                                                 pass_options, graph_options));
+  OMSplitter::OMSplitter omsplitter(std::move(OMSplitter::PARTITION_SUB_GRAPH_ATTR), graph_in, std::move(all_options),
+                                    std::move(pass_options), std::move(graph_options));
+  TF_RETURN_IF_ERROR(OMSplitter::OMPartitionSubgraphsInFunctions(graph, graph_format_value, func_lib, omsplitter));
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions succeed.";
   (void) FixupSourceAndSinkEdges(graph->get());
 

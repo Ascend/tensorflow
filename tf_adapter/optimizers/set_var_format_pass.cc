@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tf_adapter/optimizers/om_set_var_format_pass.h"
+#include "tf_adapter/optimizers/set_var_format_pass.h"
 
 #include <memory>
 #include <string>
