@@ -104,7 +104,9 @@ private:
   void SetShapesToOutputDesc(const std::vector<std::string> &input_shapes,
                              const int &index, AttrValue &attr_shape_value) const;
 
-  void CollectDynamicNodes(Graph &graph);
+  void BuildShapeNodeAndCacheArgNodes(Graph &graph);
+
+  Status ChangeInputsShapeDesc();
 
   void AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                         std::vector<std::string> &input_shapes) const;
@@ -125,12 +127,6 @@ private:
   void ChangeChannelNameAttr(NodeDef &node_def) const;
 
   bool IsDynamicConfig();
-
-  Status UpdateDynamicConfigAttrs();
-
-  Status UpdateSubgraphMultiDimsAttr(Node *node, const std::string &pre_input_shape,
-                                     const std::string &pre_input_dims, const std::string &new_input_shape,
-                                     const std::string &new_input_dims) const;
 
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;
