@@ -19,26 +19,14 @@
 #include <numeric>
 #include <vector>
 #include <string>
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/common/compat_tf1_tf2.h"
 #include "inc/metadef/inc/graph/def_types.h"
 #include "securec.h"
-#include "framework/common/string_util.h"
 namespace tensorflow {
 namespace {
 const std::string ATTR_VALUE_SCOPE_NAME = "_without_npu_compile";
-const size_t kMaxDynamicDimNum = 100;
-
-std::vector<std::string> SplitInputShape(const std::string &input_shape) {
-  std::vector<std::string> shape_pair_vec;
-  size_t pos = input_shape.rfind(":");
-  if (pos != std::string::npos) {
-    shape_pair_vec.emplace_back(input_shape.substr(0, pos));
-    shape_pair_vec.emplace_back(input_shape.substr(pos + 1, input_shape.size() - pos));
-  }
-  return shape_pair_vec;
-}
 }
 
 Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t &data_size,
@@ -116,155 +104,5 @@ bool IsWithoutNpuScope(const NodeDef &node_def) {
 
 bool IsWithoutNpuScope(const Node *node) {
   return IsWithoutNpuScope(node->def());
-}
-
-Status BuildSubgraphMuliDimsInput(const std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map,
-                                  const DimsVector &dynamic_dims_vec,
-                                  std::vector<std::string> &subgraph_multi_dims_input_shape,
-                                  std::vector<std::string> &subgraph_multi_dims_input_dims) {
-  const size_t nodes_num = user_shape_map.size();  // e.g. inputshape:  [{"data0", [-1,3]}, {"data1", [-1,4]}]
-  size_t count = 0U;
-  const size_t dynamic_count = dynamic_dims_vec.size();  // e.g. dims： [["3","3"],["4","4"]]
-  for (size_t i = 0U; i < nodes_num; ++i) {
-    std::vector<std::string> tmp(dynamic_count);
-    auto &nodes_shape = user_shape_map[i].second;
-    for (auto &dim : nodes_shape) {
-      if (dim != -1) {
-        continue;
-      }
-      for (size_t j = 0U; j < dynamic_count; ++j) {
-        (void) tmp[j].append(dynamic_dims_vec[j][count]).append(",");
-      }
-      ++count;
-    }
-    std::string tmp_dims;
-    for (size_t j = 0U; j < dynamic_count; ++j) {
-      if (tmp[j].empty()) {
-        ADP_LOG(WARNING) << "input shape ["<< i <<"] matched dims is empty";
-        tmp_dims.clear();
-        break;
-      }
-      (void) tmp_dims.append(tmp[j].substr(0, tmp[j].size() - 1)).append(";");
-    }
-    std::string tmp_shape;
-    for (size_t j = 0U; (j < nodes_shape.size()) && (!tmp_dims.empty()); ++j) {
-      (void) tmp_shape.append(std::to_string(nodes_shape[j])).append(",");
-    }
-    subgraph_multi_dims_input_dims.push_back(tmp_dims.substr(0, tmp_dims.size() - 1));
-    subgraph_multi_dims_input_shape.push_back(tmp_shape.substr(0, tmp_shape.size() - 1));
-    ADP_LOG(INFO) << "index: " << i << " subgraph_multi_dims_input_dims is: " << subgraph_multi_dims_input_dims[i];
-    ADP_LOG(INFO) << "index: " << i << " subgraph_multi_dims_input_shape is: " << subgraph_multi_dims_input_shape[i];
-  }
-  return Status::OK();
-}
-
-Status ParseDynamicShapesAndDims(const std::string &input_shapes, const std::string &dynamic_dims,
-                                 std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map,
-                                 DimsVector &dynamic_dims_vec,
-                                 std::vector<std::pair<std::string, std::vector<int64_t>>> &max_shape_range_map) {
-  ADP_LOG(INFO) << "input_shapes: " << input_shapes << " dynamic_dims: " << dynamic_dims;
-  TF_RETURN_IF_ERROR(ParseDynamicShapes(input_shapes, user_shape_map));
-  std::vector<std::vector<int64_t>> dynamic_dims_digit_vec;
-  TF_RETURN_IF_ERROR(ParseDynamicDims(dynamic_dims, dynamic_dims_vec, dynamic_dims_digit_vec, user_shape_map));
-  TF_RETURN_IF_ERROR(ParseMaxShapeRange(user_shape_map, dynamic_dims_digit_vec, max_shape_range_map));
-  return Status::OK();
-}
-
-Status ParseMaxShapeRange(const std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map,
-                          const std::vector<std::vector<int64_t>> &dynamic_dims_digit_vec,
-                          std::vector<std::pair<std::string, std::vector<int64_t>>> &max_shape_range_map) {
-  size_t num = dynamic_dims_digit_vec[0].size();
-  std::vector<int64_t> tmp(num, 0);
-  for (auto &digit_vec : dynamic_dims_digit_vec) {
-    for (size_t i = 0U; i < num; ++i) {
-      tmp[i] = std::max(tmp[i], digit_vec[i]);
-    }
-  }
-
-  size_t count = 0U;
-  max_shape_range_map = user_shape_map;
-  for (auto &shape_range : max_shape_range_map) {
-    std::vector<int64_t> &shapes = shape_range.second;
-    for (size_t i = 0U; i < shapes.size(); ++i) {
-      if (shapes[i] == -1) {
-        shapes[i] = tmp[count++];
-      }
-    }
-  }
-  return Status::OK();
-}
-
-Status ParseDynamicDims(const std::string &dynamic_dims, DimsVector &dynamic_dims_vec,
-                        std::vector<std::vector<int64_t>> &dynamic_dims_digit_vec,
-                        const std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map) {
-  int64_t dynamic_dim_num = 0;
-  for (auto &info_shapes : user_shape_map) {
-    auto &shapes = info_shapes.second;
-    dynamic_dim_num += std::count(shapes.begin(), shapes.end(), -1);
-  }
-  ADP_LOG(INFO) << "dynamic dim num: " << dynamic_dim_num;
-  if (dynamic_dims.empty()) {
-    return errors::Internal("dynamic_dims can not be empty.");
-  }
-  // Different parameter sets are split by ';'
-  std::vector<std::string> split_set = ge::StringUtils::Split(dynamic_dims, ';');
-  if (split_set.size() > kMaxDynamicDimNum) {
-    return errors::Internal("dynamic_dims's num of parameter set can not exceed:", kMaxDynamicDimNum);
-  }
-  for (auto split_dim : split_set) {
-    std::vector<std::string> one_dim_set = ge::StringUtils::Split(split_dim, ',');
-    if (one_dim_set.size() != static_cast<size_t>(dynamic_dim_num)) {
-      return errors::Internal(
-          "dynamic_dims: ", dynamic_dims.c_str(),
-          " invalid. reason: Each gear setting needs to be consistent with the number of -1 in the inputshape.");
-    }
-    std::vector<int64_t> digit_vec;
-    for (auto dim : one_dim_set) {
-      for (auto c : dim) {
-        if (!isdigit(c)) {
-          return errors::Internal("dynamic_dims: ", dynamic_dims.c_str(), " parameter must be positive integer.");
-        }
-        constexpr int32_t decimal = 10;
-        digit_vec.push_back(std::strtol(dim.c_str(), nullptr, decimal));
-      }
-    }
-    dynamic_dims_vec.push_back(one_dim_set);
-    dynamic_dims_digit_vec.push_back(digit_vec);
-  }
-  return Status::OK();
-}
-
-Status ParseDynamicShapes(const std::string &input_shapes,
-                          std::vector<std::pair<std::string, std::vector<int64_t>>> &user_shape_map) {
-  std::vector<std::string> shape_vec = ge::StringUtils::Split(input_shapes, ';');
-  const int32_t kDefaultShapePairSize = 2;
-  for (const auto &shape : shape_vec) {
-    std::vector<std::string> shape_pair_vec = SplitInputShape(shape);
-    if (shape_pair_vec.size() != kDefaultShapePairSize) {
-      return errors::Internal("parse input_shape failed.");
-    }
-
-    if (shape_pair_vec[1].empty()) {
-      return errors::Internal("parse input_shape failed.");
-    }
-
-    std::vector<std::string> shape_value_strs = ge::StringUtils::Split(shape_pair_vec[1], ',');
-    std::vector<int64_t> shape_values;
-    for (auto &shape_value_str : shape_value_strs) {
-      // stoul: The method may throw an exception: invalid_argument/out_of_range
-      if (shape_value_str.find('.') != std::string::npos) {
-        return errors::Internal("unsupport float config value.");
-      }
-      int64 result = 0;
-      if (!strings::safe_strto64(shape_value_str, &result)) {
-        return errors::InvalidArgument("value ", shape_value_str.c_str(),
-                                       "is invalid, should be int, such as 0, 1, 2.");
-      }
-      shape_values.push_back(static_cast<int64_t>(result));
-    }
-
-    user_shape_map.push_back(make_pair(ge::StringUtils::Trim(shape_pair_vec[0]), shape_values));
-  }
-  return Status::OK();
 }
 } // namespace tensorflow

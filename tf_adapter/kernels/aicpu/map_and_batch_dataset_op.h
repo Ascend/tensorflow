@@ -17,7 +17,7 @@ limitations under the License.
 
 #include "tensorflow/core/kernels/data/captured_function.h"
 #include "tensorflow/core/framework/dataset.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace tensorflow {
 namespace data {

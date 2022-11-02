@@ -29,7 +29,7 @@
 #include "securec.h"
 #include "tdt/data_common.h"
 #include "tensorflow/core/framework/stats_aggregator.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/kernels/aicpu/thread_pool.h"
 
 namespace tensorflow {

@@ -3,7 +3,7 @@
 
 #include "securec.h"
 #include "gtest/gtest.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #define private public
 #include "tf_adapter/kernels/aicpu/dataset_function.h"
 

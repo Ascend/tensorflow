@@ -15,7 +15,7 @@
  */
 
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace tensorflow {
 class BasicLSTMCellOp : public OpKernel {

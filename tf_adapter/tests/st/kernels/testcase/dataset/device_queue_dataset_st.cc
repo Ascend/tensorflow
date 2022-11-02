@@ -10,7 +10,7 @@
 #include "tensor_testutil.h"
 
 #include "gtest/gtest.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace tensorflow {
 namespace data {

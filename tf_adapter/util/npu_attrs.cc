@@ -24,7 +24,7 @@
 #include "acl/acl.h"
 #include "tdt/index_transform.h"
 #include "runtime/config.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
 #include "mmpa/mmpa_api.h"
@@ -394,6 +394,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string static_memory_policy;
   std::string jit_compile = "1";
   std::string topo_sorting_mode;
+  std::string insert_op_file;
   std::string resource_config_path;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
@@ -453,6 +454,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
     (void) ctx->GetAttr("_jit_compile", &jit_compile);
     (void) ctx->GetAttr("_topo_sorting_mode", &topo_sorting_mode);
+    (void) ctx->GetAttr("_insert_op_file", &insert_op_file);
     (void) ctx->GetAttr("_resource_config_path", &resource_config_path);
     (void) ctx->GetAttr("_dump_layer", &dump_layer);
   }
@@ -500,6 +502,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.jit_compile"] = jit_compile;
   sess_options["topo_sorting_mode"] = topo_sorting_mode;
   sess_options["ge.topoSortingMode"] = topo_sorting_mode;
+  sess_options["insert_op_file"] = insert_op_file;
+  sess_options["ge.insertOpFile"] = insert_op_file;
   sess_options["ge.resourceConfigPath"] = resource_config_path;
 
   return sess_options;
@@ -1000,6 +1004,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string logical_device_id;
   std::string jit_compile = "1";
   std::string topo_sorting_mode;
+  std::string insert_op_file;
   std::string resource_config_path;
   std::string aoe_config_file;
 
@@ -1074,6 +1079,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto logical_device_id_value = attrs.Find("_logical_device_id");
   auto jit_compile_value = attrs.Find("_jit_compile");
   auto topo_sorting_mode_value = attrs.Find("_topo_sorting_mode");
+  auto insert_op_file_value = attrs.Find("_insert_op_file");
   auto resource_config_path_value = attrs.Find("_resource_config_path");
   auto aoe_config_file_value = attrs.Find("_aoe_config_file");
 
@@ -1322,6 +1328,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (aoe_config_file_value != nullptr) {
       aoe_config_file = aoe_config_file_value->s();
     }
+    if (insert_op_file_value != nullptr) {
+      insert_op_file = insert_op_file_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1405,6 +1414,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["ge.jit_compile"] = jit_compile;
   all_options["topo_sorting_mode"] = topo_sorting_mode;
   all_options["ge.topoSortingMode"] = topo_sorting_mode;
+  all_options["insert_op_file"] = insert_op_file;
+  all_options["ge.insertOpFile"] = insert_op_file;
   all_options["resource_config_path"] = resource_config_path;
   all_options["ge.aoe_config_file"] = aoe_config_file;
   all_options["aoe_config_file"] = aoe_config_file;
@@ -1869,6 +1880,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         int64_t topo_sorting_mode = params.at("topo_sorting_mode").i();
         sess_options["topo_sorting_mode"] = std::to_string(topo_sorting_mode);
         sess_options["ge.topoSortingMode"] = std::to_string(topo_sorting_mode);
+      }
+      if (params.count("insert_op_file") > 0) {
+        std::string insert_op_file = params.at("insert_op_file").s();
+        sess_options["insert_op_file"] = insert_op_file;
+        sess_options["ge.insertOpFile"] = insert_op_file;
       }
       if (params.count("resource_config_path") > 0) {
         resource_config_path = params.at("resource_config_path").s();

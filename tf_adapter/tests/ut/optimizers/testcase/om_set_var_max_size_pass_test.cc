@@ -1,4 +1,4 @@
-#include "tf_adapter/optimizers/om_set_var_max_size_pass.h"
+#include "tf_adapter/optimizers/set_var_max_size_pass.h"
 #include "gtest/gtest.h"
 #include "mmpa/mmpa_api.h"
 #include "tensorflow/core/graph/graph.h"

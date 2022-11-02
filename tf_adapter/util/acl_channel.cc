@@ -17,7 +17,7 @@
 #include "tf_adapter/util/acl_channel.h"
 #include "securec.h"
 #include "acl/error_codes/rt_error_codes.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/common/compat_tf1_tf2.h"
 #include "tf_adapter/util/npu_attrs.h"

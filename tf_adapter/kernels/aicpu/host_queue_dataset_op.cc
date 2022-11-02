@@ -34,7 +34,7 @@
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/util/env_var.h"
 #include "tf_adapter/common/common.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/compat_tf1_tf2.h"
 #include "tf_adapter/util/util.h"
 #include "tf_adapter/util/npu_attrs.h"

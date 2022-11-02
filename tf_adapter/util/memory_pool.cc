@@ -18,7 +18,7 @@
 #include <vector>
 #include <string>
 #include "securec.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace tensorflow {
   constexpr uint64_t kMemAlignSize = 128;

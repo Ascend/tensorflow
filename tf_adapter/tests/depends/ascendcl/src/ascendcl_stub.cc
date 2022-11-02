@@ -21,7 +21,7 @@
 #include "securec.h"
 #include <map>
 #include <mutex>
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace {
     std::mutex aclChannleMutex;

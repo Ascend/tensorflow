@@ -32,7 +32,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/ge_plugin.h"
 #include "tf_adapter/util/infershape_util.h"
@@ -40,7 +40,6 @@
 #include "tf_adapter/util/generate_report.h"
 #include "tf_adapter/util/npu_ops_identifier.h"
 #include "tf_adapter/util/session_manager.h"
-#include "tf_adapter/util/util.h"
 
 #ifdef TF_VERSION_TF2
 #include "tensorflow/compiler/tf2xla/functionalize_control_flow_util.h"
@@ -88,9 +87,6 @@ Status FunctionalizeControlFlow(Graph *graph, FunctionLibraryDefinition *library
 #endif
 namespace {
 const std::string ATTR_NAME_CONST_INPUT_NAME = "_const_input";
-const std::string ATTR_NAME_SUBGRAPH_MULTI_DIMS_INDEX = "_subgraph_multi_dims_index";
-const std::string ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE = "_subgraph_multi_dims_input_shape";
-const std::string ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS = "_subgraph_multi_dims_input_dims";
 const std::string kMdatTuning = "mdat";
 const std::string kAutoRecompute = "auto";
 using geDataUniquePtr = std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>>;
@@ -786,6 +782,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
 
     // convert to ge::graph
+    if (graph_options_.count("input_format") != 0) {
+      ADP_LOG(INFO) << "graph_options_[\"input_format\"] = " << graph_options_["input_format"] << std::endl;
+    } else {
+      graph_options_["input_format"] = "NHWC";
+      ADP_LOG(INFO) << "tensorflow_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"] << std::endl;
+    }
     ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
       ge_graph.SetNeedIteration(this->need_iteration_);
@@ -1130,7 +1132,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
 
   bool is_set_dynamic_config = IsDynamicConfig();
   if (is_set_dynamic_config) {
-    CollectDynamicNodes(graph);
+    BuildShapeNodeAndCacheArgNodes(graph);
   }
 
   for (Node *node : graph.nodes()) {
@@ -1150,6 +1152,8 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
 
     if (node->type_string() == "NpuOnnxGraphOp") {
       ret = this->ParseOnnxGraphOpAttr(node);
+      graph_options_["input_format"] = "NCHW";
+      ADP_LOG(INFO) << "onnx_graph_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"] << std::endl;
       if (!ret.ok()) {
         LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, " << ret.error_message();
         return ret;
@@ -1158,10 +1162,10 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   }
   // set input_shape to dynamic nodes shape desc
   if (is_set_dynamic_config) {
-    ret = UpdateDynamicConfigAttrs();
+    ret = ChangeInputsShapeDesc();
     if (!ret.ok()) {
-      ADP_LOG(ERROR) << "[GEOP] UpdateDynamicConfigAttrs failed, " << ret.error_message();
-      LOG(ERROR) << "[GEOP] UpdateDynamicConfigAttrs failed, " << ret.error_message();
+      ADP_LOG(ERROR) << "[GEOP] ChangeInputsShapeDesc failed, " << ret.error_message();
+      LOG(ERROR) << "[GEOP] ChangeInputsShapeDesc failed, " << ret.error_message();
       return ret;
     }
   }
@@ -1222,13 +1226,40 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   return Status::OK();
 }
 
-void GeOp::CollectDynamicNodes(Graph &graph) {
+void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
+  if (kIsHeterogeneous) {
+    ADP_LOG(INFO) << "Is heterogeneous, no need to build shape node and cache arg nodes.";
+    return;
+  }
   std::string dynamic_node_type = sess_options_["ge.dynamicNodeType"];
   for (Node *node : graph.nodes()) {
     // add shape node to get getnext node real shape
     if (dynamic_node_type == "0" && node->type_string() == "IteratorGetNext") {
       dynamic_shape_nodes_.emplace_back(node);
       ADP_LOG(INFO) << "push in dynamic shape nodes, node: " << node->name() << ", type:" << node->type_string();
+      std::set<int32_t> out_index;
+      for (auto out_edge : node->out_edges()) {
+        if (!out_edge->IsControlEdge()) {
+          std::string msg = "Src:" + out_edge->src()->name() + ":" + std::to_string(out_edge->src_output()) +
+              ", Dst:" + out_edge->dst()->name() + ":" + std::to_string(out_edge->dst_input());
+          ADP_LOG(INFO) << "[GEOP] GetNext node in out info:" << msg;
+          out_index.insert(out_edge->src_output());
+        }
+      }
+      for (int32_t idx : out_index) {
+        std::string shape_name = "getnext_shape_" + std::to_string(idx);
+        Node *shape_node = nullptr;
+        TF_CHECK_OK(NodeBuilder(shape_name, "Shape")
+                        .Input(node, idx)
+                        .Device(node->def().device())
+                        .Finalize(&graph, &shape_node));
+        std::string identity_name = "shape_identity_" + std::to_string(idx);
+        Node *identity_node = nullptr;
+        TF_CHECK_OK(NodeBuilder(identity_name, "Identity")
+                        .Input(shape_node, 0)
+                        .Device(shape_node->def().device())
+                        .Finalize(&graph, &identity_node));
+      }
     }
     // count data args and getnext args for dynamic dims
     if (node->type_string() == "_Arg") {
@@ -1247,6 +1278,48 @@ void GeOp::CollectDynamicNodes(Graph &graph) {
   }
   // sort dynamic nodes to match input_shapes
   std::sort(dynamic_shape_nodes_.begin(), dynamic_shape_nodes_.end(), CmpVecValue);
+}
+
+Status GeOp::ChangeInputsShapeDesc() {
+  if (kIsHeterogeneous) {
+    ADP_LOG(INFO) << "Is heterogeneous, no need to change inputs shape desc.";
+    return Status::OK();
+  }
+  std::vector<std::string> result;
+  std::string input_shapes = sess_options_["ge.inputShape"];
+  Split(input_shapes, result, ";");  // e.g. result:["data:2,3", "data1:3,4"]
+
+  if (dynamic_shape_nodes_.size() == 1U && dynamic_shape_nodes_[0]->type_string() == "IteratorGetNext") {
+    ADP_LOG(INFO) << "[GEOP] change " << dynamic_shape_nodes_[0]->name() << " shape desc.";
+    if (dynamic_shape_nodes_[0]->num_outputs() != static_cast<int32>(result.size())) {
+      return errors::InvalidArgument("input_shape is not match inputs num in graph");
+    }
+    NodeDef &node_def = const_cast<NodeDef &>(dynamic_shape_nodes_[0]->def());
+    AttrValue &output_tensor_descs = (*node_def.mutable_attr())[OUTPUT_DESC];
+    for (int32 i = 0; i < dynamic_shape_nodes_[0]->num_outputs(); ++i) {
+      AttrValue attr_shape_value;
+      attr_shape_value.set_type(DT_INT32);
+      SetShapesToOutputDesc(result, i, attr_shape_value);
+      (*output_tensor_descs.mutable_list()->mutable_func(i)->mutable_attr())[SERIALIZE_SHAPE] = attr_shape_value;
+    }
+  } else {
+    if (!dynamic_shape_nodes_.empty()) {
+      if (dynamic_shape_nodes_.size() != result.size()) {
+        return errors::InvalidArgument("input_shape is not match inputs num in graph");
+      }
+    }
+    for (size_t i = 0U; i < dynamic_shape_nodes_.size(); ++i) {
+      ADP_LOG(INFO) << "[GEOP] change " << dynamic_shape_nodes_[i]->name() << " shape desc.";
+      NodeDef &node_def = const_cast<NodeDef &>(dynamic_shape_nodes_[i]->def());
+      AttrValue &output_tensor_descs = (*node_def.mutable_attr())[OUTPUT_DESC];
+      AttrValue attr_shape_value;
+      attr_shape_value.set_type(DT_INT32);
+      SetShapesToOutputDesc(result, i, attr_shape_value);
+      (*output_tensor_descs.mutable_list()->mutable_func(0)->mutable_attr())[SERIALIZE_SHAPE] = attr_shape_value;
+    }
+  }
+  ADP_LOG(INFO) << "[GEOP] change input shapes desc success.";
+  return Status::OK();
 }
 
 void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes, const int &index,
@@ -1278,102 +1351,6 @@ void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes, c
   for (auto dim : dims) {
     attr_shape_value.mutable_list()->add_i(std::atoi(dim.c_str()));
   }
-}
-
-Status GeOp::UpdateDynamicConfigAttrs() {
-  if (dynamic_shape_nodes_.empty()) {
-    ADP_LOG(INFO) << "dynamic_shape_nodes_ empty, skip parse dynamic config";
-    return Status::OK();
-  }
-
-  std::vector<std::pair<std::string, std::vector<int64_t>>>
-      user_shape_map;  // e.g. "data0:-1,3;data1:-1,4"-> [{"data0", [-1,3]}, {"data1", [-1,4]}]
-  std::vector<std::pair<std::string, std::vector<int64_t>>>
-      max_shape_map;  // e.g. "3,3;4,4" -> [["3","3"],["4","4"]] , digitvec [[3,3], [4,4]]
-  std::vector<std::vector<std::string>> dynamic_dims_vec;
-  TF_RETURN_IF_ERROR(ParseDynamicShapesAndDims(sess_options_["ge.inputShape"], sess_options_["ge.dynamicDims"],
-                                               user_shape_map, dynamic_dims_vec, max_shape_map));
-
-  size_t input_count = 0UL;
-  for (const auto node : dynamic_shape_nodes_) {
-    input_count += static_cast<size_t>(node->num_outputs());
-  }
-  if (user_shape_map.size() != input_count) {
-    const std::string dynamic_node_type = (sess_options_["ge.dynamicNodeType"] == "0" ? "dataset" : "placeholder");
-    return errors::Internal("user_shape_map size[", user_shape_map.size(), "] and input count [", input_count,
-                            "] not match, node type is [", dynamic_node_type, "].");
-  }
-  std::vector<std::string> subgraph_multi_dims_input_shape;
-  std::vector<std::string> subgraph_multi_dims_input_dims;
-  TF_RETURN_IF_ERROR(BuildSubgraphMuliDimsInput(user_shape_map, dynamic_dims_vec,
-                                                subgraph_multi_dims_input_shape, subgraph_multi_dims_input_dims));
-  size_t input_index_begin = 0UL;
-  for (size_t i = 0UL; i < dynamic_shape_nodes_.size(); ++i) {
-    Node *src_node = dynamic_shape_nodes_[i];
-    for (auto out : src_node->out_edges()) {
-      const size_t input_index = input_index_begin + static_cast<size_t>(out->src_output());
-      int idx = out->dst_input();
-      Node *dst_node = out->dst();
-      std::string pre_subgraph_input_shape;
-      std::string pre_subgraph_input_dims;
-      bool input_shape_exist = TryGetNodeAttr(dst_node->attrs(),
-                                              ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE, &pre_subgraph_input_shape);
-      bool input_dims_exist = TryGetNodeAttr(dst_node->attrs(),
-                                             ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, &pre_subgraph_input_dims);
-      if (input_shape_exist != input_dims_exist) {
-        return errors::Internal("input_shape_exist[%d] and input_dims_exist[%d] not match",
-                                input_shape_exist, input_dims_exist);
-      }
-      NPU_REQUIRES((input_index < subgraph_multi_dims_input_shape.size()) &&
-                   (input_index < subgraph_multi_dims_input_dims.size()),
-                   errors::Internal("input_index[%d] is greater than input_shape[%d] or input_dims[%d]", input_index,
-                                    subgraph_multi_dims_input_shape.size(), subgraph_multi_dims_input_dims.size()));
-      if ((subgraph_multi_dims_input_shape[input_index].empty()) ||
-          (subgraph_multi_dims_input_dims[input_index].empty())) {
-        continue;
-      }
-      std::string subgraph_input_shape = std::to_string(idx) + ":" + subgraph_multi_dims_input_shape[input_index];
-      if (!input_shape_exist && !input_dims_exist) {
-        dst_node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE, subgraph_input_shape);
-        dst_node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, subgraph_multi_dims_input_dims[input_index]);
-      } else {
-        TF_RETURN_IF_ERROR(UpdateSubgraphMultiDimsAttr(
-            dst_node, pre_subgraph_input_shape, pre_subgraph_input_dims,
-            subgraph_input_shape, subgraph_multi_dims_input_dims[input_index]));
-      }
-    }
-    input_index_begin += static_cast<size_t>(src_node->num_outputs());
-  }
-  return Status::OK();
-}
-
-Status GeOp::UpdateSubgraphMultiDimsAttr(Node *node, const std::string &pre_input_shape,
-                                         const std::string &pre_input_dims, const std::string &new_input_shape,
-                                         const std::string &new_input_dims) const {
-  std::vector<std::string> pre_input_dims_vec = ge::StringUtils::Split(pre_input_dims, ';');
-  std::vector<std::string> new_input_dims_vec = ge::StringUtils::Split(new_input_dims, ';');
-  if (pre_input_dims_vec.size() != new_input_dims_vec.size()) {
-    return errors::Internal("pre_input_dims size[%zu] and new_input_dims size[%zu] not match",
-                            pre_input_dims_vec.size(), new_input_dims_vec.size());
-  }
-  std::string update_input_dims;
-  for (size_t i = 0U; i < new_input_dims_vec.size(); ++i) {
-    update_input_dims.append(pre_input_dims_vec[i]).append(",").append(new_input_dims_vec[i]).append(";");
-  }
-  update_input_dims = update_input_dims.substr(0, update_input_dims.size() - 1);
-  std::string update_input_shape = pre_input_shape + ";" + new_input_shape;
-  if (node == nullptr) {
-    return errors::Internal("Parameter node is null");
-  }
-  node->ClearAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE);
-  node->ClearAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS);
-  node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE, update_input_shape);
-  node->AddAttr(ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS, update_input_dims);
-  ADP_LOG(INFO) << "update node " << node->name() << " ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_SHAPE [%s]"
-                << update_input_shape;
-  ADP_LOG(INFO) << "update node " << node->name() << " ATTR_NAME_SUBGRAPH_MULTI_DIMS_INPUT_DIMS [%s]"
-                << update_input_dims;
-  return Status::OK();
 }
 
 int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inputs, const OpKernelContext *const ctx) {

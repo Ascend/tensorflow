@@ -20,14 +20,16 @@
 #include <string>
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/env.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 #define CHECK_NOT_NULL(v)                                                                                              \
-  if ((v) == nullptr) {                                                                                                \
-    ADP_LOG(ERROR) << #v " is nullptr.";                                                                               \
-    LOG(ERROR) << #v " is nullptr.";                                                                                   \
-    return;                                                                                                            \
-  }
+  do { \
+    if ((v) == nullptr) {                                                                                              \
+      ADP_LOG(ERROR) << #v " is nullptr.";                                                                             \
+      LOG(ERROR) << #v " is nullptr.";                                                                                 \
+      return;                                                                                                          \
+    }                                                                                                                  \
+  } while (false)
 
 #define REQUIRES_NOT_NULL(v)                                                                                           \
   if ((v) == nullptr) {                                                                                                \
@@ -37,9 +39,11 @@
   }
 
 #define REQUIRES_STATUS_OK(s)                                                                                          \
-  if (!(s).ok()) {                                                                                                     \
-    return (s);                                                                                                        \
-  }
+  do { \
+    if (!(s).ok()) {                                                                                                   \
+      return (s);                                                                                                      \
+    }                                                                                                                  \
+  } while (false)
 
 namespace npu {
 constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;

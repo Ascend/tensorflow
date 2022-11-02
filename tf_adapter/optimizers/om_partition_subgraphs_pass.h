@@ -29,14 +29,6 @@ Status MarkForPartition(const GraphOptimizationPassOptions &options, int &cluste
                         std::map<std::string, std::string> pass_options,
                         std::map<std::string, std::string> &graph_options);
 
-// Transformation that finds subgraphs whose nodes are marked with
-// 'groupAttribute', splits those subgraphs into functions, and replaces
-// the originals with GEOps.
-// 'groupAttribute' must be a string valued-attribute that names the new
-// functions to introduce.
-Status OMPartitionSubgraphsInFunctions(string groupAttribute, const GraphOptimizationPassOptions &options,
-                                       string graph_format);
-
 bool IsNpuSupportingNode(const NodeDef &node_def, bool mix_compile_mode,
                          const FunctionLibraryDefinition *func_lib, bool support_const = false);
 bool IsNpuSupportingNode(const Node *node, bool mix_compile_mode, const FunctionLibraryDefinition *func_lib,

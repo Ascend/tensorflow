@@ -15,7 +15,7 @@
  */
 
 #include "tensorflow/core/common_runtime/optimization_registry.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 

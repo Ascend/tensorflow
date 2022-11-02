@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tf_adapter/optimizers/om_set_var_format_pass.h"
+#include "tf_adapter/optimizers/set_var_format_pass.h"
 
 #include <memory>
 #include <string>
@@ -22,7 +22,7 @@
 
 #include "tensorflow/core/common_runtime/function.h"
 #include "tensorflow/core/public/session_options.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
 

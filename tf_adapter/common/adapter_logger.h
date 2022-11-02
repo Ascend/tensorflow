@@ -42,14 +42,14 @@ const int ADP_EVENT = 16;
 const int ADP_FATAL = 32;
 
 class AdapterLogger : public std::basic_ostringstream<char> {
- public:
+public:
   AdapterLogger(const char *fname, int line, int severity) : severity_(severity) {
     *this << " [" << fname << ":" << line << "]"
           << " ";
   }
   ~AdapterLogger() override;
 
- private:
+private:
   int severity_;
 };
 }  // namespace npu

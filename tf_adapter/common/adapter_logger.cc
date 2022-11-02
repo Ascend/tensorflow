@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "toolchain/slog.h"
 #include "toolchain/plog.h"
 

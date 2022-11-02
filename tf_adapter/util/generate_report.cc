@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include "nlohmann/json.hpp"
 #include "tensorflow/core/platform/env.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 
 namespace tensorflow {
 using Json = nlohmann::json;

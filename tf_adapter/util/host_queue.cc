@@ -21,7 +21,7 @@
 #include "runtime/dev.h"
 #include "runtime/rt_mem_queue.h"
 #include "graph/def_types.h"
-#include "tf_adapter/common/adp_logger.h"
+#include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/ge_plugin.h"
