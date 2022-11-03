@@ -28,16 +28,14 @@ static std::map<Placement, std::string> kPlacementString = {
 
 class NodePlacer;
 struct Cluster {
-  explicit Cluster(const NodePlacer *placer, tensorflow::Node *node, uint64_t topo, Placement place);
+  explicit Cluster(const NodePlacer *placer, tensorflow::Node *node, Placement place);
   bool Merge(tensorflow::Node *node);
   void Merge(const std::shared_ptr<Cluster> other);
-  void UpdateTopo(uint64_t topo);
   std::set<tensorflow::Node *> nodes;
   std::unordered_set<tensorflow::Node *> in_nodes;
   std::unordered_set<tensorflow::Node *> out_nodes;
   std::string name;
-  uint64_t min_topo;
-  uint64_t max_topo;
+  int32_t id;
   Placement placement;
 
  private:
@@ -51,6 +49,7 @@ struct NodeOrCluster {
   void VisitOutNodes(const std::function<void(tensorflow::Node *)> &visitor) const;
   bool VisitNodes(const std::function<bool(tensorflow::Node *)> &visitor) const;
   size_t Hash() const { return (is_cluster_ ? reinterpret_cast<size_t>(cluster_) : reinterpret_cast<size_t>(node_)); }
+  int32_t Id() const { return (is_cluster_ ? cluster_->id : node_->id()); }
   bool operator==(const NodeOrCluster &other) const {
     return (is_cluster_ ? cluster_ == other.cluster_ : node_ == other.node_);
   }
@@ -73,6 +72,9 @@ class NodePlacer {
       : context_(context), graph_(graph), device_(device) {}
   tensorflow::Status Apply(size_t depth = 0);
   void InitNodeTopo();
+  void ResetNodeMask();
+  bool FetchSetMask(const NodeOrCluster &node_or_cluster);
+  bool FetchClearMask(const NodeOrCluster &node_or_cluster);
   tensorflow::Status PlaceCpuNodeSubgraphs(size_t depth) const;
   tensorflow::Status BuildNpuOp();
   tensorflow::Status CopyShareableNode();
@@ -96,7 +98,6 @@ class NodePlacer {
   std::set<std::shared_ptr<Cluster>> GetNpuClusters();
   void Concrete(tensorflow::Node *src, tensorflow::Node *dst);
   bool ColocateNpu(tensorflow::Node *src, tensorflow::Node *dst);
-  uint64_t Topo(tensorflow::Node *node) const { return node_topo_.at(node); }
 
  private:
   static bool IsNpuMeaningLessNode(const tensorflow::Node *node);
@@ -114,6 +115,7 @@ class NodePlacer {
   TFE_Context *context_;      // not owned
   tensorflow::Graph *graph_;  // not owned
   NpuDevice *device_;         // not owned
+  std::vector<uint8_t> node_mask_;
   std::map<const tensorflow::Node *, uint64_t> node_topo_;
   std::map<tensorflow::Node *, Placement, StableNodeCompartor>
     node_placement_;  // Just npu or cpu, never store wherever here

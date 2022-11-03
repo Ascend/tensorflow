@@ -24,8 +24,8 @@
 namespace npu {
 const std::string kSharedGroup = "_shared_group_id";
 
-Cluster::Cluster(const NodePlacer *placer, tensorflow::Node *node, uint64_t topo, Placement place)
-    : min_topo(topo), max_topo(topo), placement(place), placer_(placer) {
+Cluster::Cluster(const NodePlacer *placer, tensorflow::Node *node, Placement place)
+    : id(node->id()), placement(place), placer_(placer) {
   static std::atomic_int64_t index{0};
   name = kPlacementString[placement] + "_cluster_" + std::to_string(index.fetch_add(1));
   DLOG() << "Create cluster " << name << " for " << node->name();
@@ -49,21 +49,12 @@ bool Cluster::Merge(tensorflow::Node *node) {
       (void)out_nodes.insert(n);
     }
   }
-  UpdateTopo(placer_->Topo(node));
   return true;
 }
 
 void Cluster::Merge(const std::shared_ptr<Cluster> other) {
   for (auto node : other->nodes) {
     (void)Merge(node);
-  }
-}
-
-void Cluster::UpdateTopo(uint64_t topo) {
-  if (topo > max_topo) {
-    max_topo = topo;
-  } else if (topo < min_topo) {
-    min_topo = topo;
   }
 }
 
@@ -82,10 +73,34 @@ tensorflow::Status NodePlacer::Apply(size_t depth) {
   NPU_REQUIRES_OK(PlaceCpuNodeSubgraphs(depth));
   return tensorflow::Status::OK();
 }
+
 void NodePlacer::InitNodeTopo() {
   uint64_t topo = 0U;
   auto leave = [this, &topo](const tensorflow::Node *node) { node_topo_[node] = topo++; };
   tensorflow::ReverseDFS(*graph_, {}, leave);
+}
+
+void NodePlacer::ResetNodeMask() {
+  node_mask_.resize(graph_->num_node_ids());
+  (void)memset(node_mask_.data(), 0, node_mask_.size() * sizeof(uint8_t));
+}
+
+bool NodePlacer::FetchSetMask(const NodeOrCluster &node_or_cluster) {
+  auto &mask = node_mask_[node_or_cluster.Id()];
+  if (mask == 0U) {
+    mask = 1U;
+    return false;
+  }
+  return true;
+}
+
+bool NodePlacer::FetchClearMask(const NodeOrCluster &node_or_cluster) {
+  auto &mask = node_mask_[node_or_cluster.Id()];
+  if (mask != 0U) {
+    mask = 0U;
+    return true;
+  }
+  return false;
 }
 
 tensorflow::Status NodePlacer::CopyShareableNode() {
@@ -670,46 +685,32 @@ bool NodePlacer::VisitPathNodes(tensorflow::Node *start, tensorflow::Node *end,
     std::swap(start, end);
   }
 
-  NodeOrCluster s = GetNodeOrCluster(start);
-  NodeOrCluster e = GetNodeOrCluster(end);
-  auto min_topo = s.IsCluster() ? s.GetCluster()->min_topo : node_topo_[start];
-  auto max_topo = e.IsCluster() ? e.GetCluster()->max_topo : node_topo_[end];
+  ResetNodeMask();  // Clear all masks
 
-  std::unordered_set<NodeOrCluster> f_vst;
-  std::unordered_set<NodeOrCluster> b_vst;
   std::queue<NodeOrCluster> q;
-  q.push(s);
+  auto collect_seen_nodes = [this, &q](tensorflow::Node *n) {  // Visitor for collect nodes
+    q.push(GetNodeOrCluster(n));
+  };
+
+  GetNodeOrCluster(start).VisitOutNodes(collect_seen_nodes);  // Collect start nodes
   while (!q.empty()) {
     auto node = q.front();
     q.pop();
-    if (!f_vst.insert(node).second) {
-      continue;
+    if (!FetchSetMask(node)) {  // Visit node at first masking
+      node.VisitOutNodes(collect_seen_nodes);
     }
-    node.VisitOutNodes([this, &max_topo, &q](tensorflow::Node *n) {
-      if (node_topo_[n] <= max_topo) {
-        q.push(GetNodeOrCluster(n));
-      }
-    });
   }
-  (void)f_vst.erase(s);
-  (void)f_vst.erase(e);
-  q.push(e);
+
+  GetNodeOrCluster(end).VisitInNodes(collect_seen_nodes);
   while (!q.empty()) {
     auto node = q.front();
     q.pop();
-    if (!b_vst.insert(node).second) {
-      continue;
-    }
-    if (f_vst.count(node) > 0) {
+    if (FetchClearMask(node)) {  // Access masked node only once
       if (!node.VisitNodes(visitor)) {
         return false;
       }
+      node.VisitInNodes(collect_seen_nodes);
     }
-    node.VisitInNodes([this, &min_topo, &q](tensorflow::Node *n) {
-      if (node_topo_[n] >= min_topo) {
-        q.push(GetNodeOrCluster(n));
-      }
-    });
   }
   return true;
 }
@@ -719,7 +720,7 @@ std::shared_ptr<Cluster> NodePlacer::GetOrCreateConcreteCluster(tensorflow::Node
   if (iter != concrete_clusters_.end()) {
     return iter->second;
   }
-  auto cluster = std::make_shared<Cluster>(this, node, node_topo_[node], Placement::WHEREVER);
+  auto cluster = std::make_shared<Cluster>(this, node, Placement::WHEREVER);
   concrete_clusters_[node] = cluster;
   return cluster;
 }
@@ -729,7 +730,7 @@ std::shared_ptr<Cluster> NodePlacer::GetOrCreateNpuCluster(tensorflow::Node *nod
   if (iter != npu_clusters_.end()) {
     return iter->second;
   }
-  auto cluster = std::make_shared<Cluster>(this, node, node_topo_[node], Placement::NPU);
+  auto cluster = std::make_shared<Cluster>(this, node, Placement::NPU);
   npu_clusters_[node] = cluster;
   auto concrete_nodes = GetConcreteNodes(node);
   for (auto &n : concrete_nodes) {
