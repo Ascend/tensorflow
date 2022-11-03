@@ -289,6 +289,22 @@ REGISTER_OP("HcomAllToAllV")
 
 )doc");
 
+REGISTER_OP("HcomAllToAllVC")
+    .Input("send_data: T")
+    .Input("send_count_matrix: int64")
+    .Output("recv_data: T")
+    .Attr("T: {int8, int16, int32, float16, float32, int64, uint64, uint8, uint16, uint32, float64, bfloat16}")
+    .Attr("rank: int")
+    .Attr("group: string")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext* c) {
+        c->set_output(0, c->UnknownShape());
+        return Status::OK();
+    })
+    .Doc(R"doc(
+
+)doc");
+
 REGISTER_OP("HcomGatherAllToAllV")
     .Input("addrinfo: uint64")
     .Input("addrinfo_count_per_rank: int64")

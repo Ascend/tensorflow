@@ -6,6 +6,7 @@
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/platform/test.h"
+#include "tf_adapter/kernels/hccl/hccl_ops.cc"
 
 namespace tensorflow {
 namespace {
@@ -102,5 +103,39 @@ TEST(HcclOpTest, TestHcomReduceScatterShapeInferenceInvaildRankSize) {
   EXPECT_TRUE(!status.ok());
 }
 
+TEST(HcclOpTest, TestHcomAllToAllVCShapeInference) {
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("HcomAllToAllVC", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("T", DT_INT64)
+                  .Attr("rank", 0)
+                  .Attr("group", "hccl_world_group")
+                  .Input(FakeInputStub(DT_INT64))
+                  .Input(FakeInputStub(DT_INT64))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def, {S({3, 4}),S({4, 4})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
+
+TEST(HcclOpTest, TestHcomAllToAllVCOpKernel) {
+  DataTypeSlice input_types({DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT, DT_FLOAT,DT_FLOAT,DT_FLOAT});
+  MemoryTypeSlice input_memory_types;
+  DataTypeSlice output_types({DT_FLOAT, DT_FLOAT});
+  MemoryTypeSlice output_memory_types;
+  DeviceBase *device = new DeviceBase(Env::Default());
+  NodeDef *node_def = new NodeDef();
+  OpDef *op_def = new OpDef();
+  OpKernelConstruction *context = new OpKernelConstruction(
+      DEVICE_CPU, device, nullptr, node_def, op_def, nullptr, input_types,
+      input_memory_types, output_types, output_memory_types, 1, nullptr);
+  OpKernelContext *context2;
+
+  HcomAllToAllVCOpKernel* hcomAllToAllVCOpKernel = new HcomAllToAllVCOpKernel(context);
+  hcomAllToAllVCOpKernel->Compute(context2);
+  delete context;
+  delete hcomAllToAllVCOpKernel;
+}
 }  // namespace
 }  // namespace tensorflow

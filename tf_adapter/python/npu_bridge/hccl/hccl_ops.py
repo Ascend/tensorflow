@@ -218,3 +218,18 @@ def all_to_all_v(send_data, send_counts, send_displacements, recv_counts, recv_d
         recv_displacements=recv_displacements,
         group=group)
     return recv_data
+
+
+##提供alltoallvc功能
+#  @param send_data 需要发送的数据;
+#  @param send_count_matrix 各rank向每个rank发送的数据count，shape(rank_size, rank_size);
+#  @param rank 自身的rankID;
+#  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group", 预留参数后续版本支持;
+#  @attention 组网约束:使用该集合通信操作时,所有参与的设备需实现RDMA网络fullmesh全连接组网;
+def all_to_all_v_c(send_data, send_count_matrix, rank, group="hccl_world_group"):
+    recv_data = gen_hccl_ops.hcom_all_to_all_vc(
+        send_data=send_data,
+        send_count_matrix=send_count_matrix,
+        rank=rank,
+        group=group)
+    return recv_data

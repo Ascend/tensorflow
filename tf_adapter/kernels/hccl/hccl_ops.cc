@@ -153,4 +153,14 @@ public:
 
 REGISTER_KERNEL_BUILDER(Name("HcomAllToAllV").Device(DEVICE_CPU), HcomAllToAllVOpKernel);
 
+class HcomAllToAllVCOpKernel : public OpKernel {
+public:
+    explicit HcomAllToAllVCOpKernel(OpKernelConstruction* context) : OpKernel(context) {}
+    ~HcomAllToAllVCOpKernel() {}
+    void Compute(OpKernelContext* context) override
+    {
+        ADP_LOG(INFO) << "HcomAllToAllVC Compute.";
+    }
+};
+REGISTER_KERNEL_BUILDER(Name("HcomAllToAllVC").Device(DEVICE_CPU), HcomAllToAllVCOpKernel);
 } // namespace tensorflow
