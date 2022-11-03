@@ -31,7 +31,7 @@ REGISTER_OP("GeOp")
     .Output("outputs: Tout")
     .Attr("Tout: list(type) >= 0")
     .Attr("function: func")
-    .Attr("data_format: { 'NHWC', 'NCHW', 'NDHWC', 'NCDHW', 'DHWCN', 'DHWNC'} = 'NHWC'")
+    .Attr("data_format: { 'NHWC', 'NCHW', 'NDHWC', 'NCDHW', 'DHWCN', 'DHWNC', 'ND'} = 'NHWC'")
     .SetIsStateful();
 
 REGISTER_OP("DPOP")
@@ -40,7 +40,7 @@ REGISTER_OP("DPOP")
     .Output("outputs: Tout")
     .Attr("Tout: list(type) >= 0")
     .Attr("function: func")
-    .Attr("data_format: { 'NHWC', 'NCHW'} = 'NHWC'")
+    .Attr("data_format: { 'NHWC', 'NCHW', 'ND'} = 'NHWC'")
     .SetIsStateful();
 
 REGISTER_OP("NPUInit").SetShapeFn(shape_inference::NoOutputs);
