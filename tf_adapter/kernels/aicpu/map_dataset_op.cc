@@ -140,7 +140,8 @@ public:
     string prefix_para = prefix + "::" + kDatasetType;
 #endif
     if (IsStaticShape()) {
-      ADP_LOG(INFO) << "NpuMapDatasetOp::MakeIteratorInternal, IteratorStatic" << output_device_;
+      ADP_LOG(INFO) << "NpuMapDatasetOp::MakeIteratorInternal, IteratorStatic "
+        << output_device_;
       if (output_device_ == kCpu) {
         return absl::make_unique<IteratorStaticCpu>(IteratorStaticCpu::Params {
             this, prefix_para});
@@ -149,7 +150,8 @@ public:
             this, prefix_para});
       }
     } else {
-      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorDyn" << output_device_;
+      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorDyn "
+        << output_device_;
       if (output_device_ == kCpu) {
         return absl::make_unique<IteratorDynCpu>(IteratorDynCpu::Params {
             this, prefix_para});
@@ -320,7 +322,7 @@ private:
       }
 
       output_results_[result_id]->result_id = result_id;
-      Status status = ProcessOutputResults(output_results_[result_id], *out_tensors);
+      Status status = ProcessOutputResults(output_results_[result_id], *out_tensors, *end_of_sequence);
       timestat->RecordEndTime(timestat->statis);
       return status;
     }
@@ -356,6 +358,11 @@ private:
           out.push_back(align_addr + offset);
           offset += tensor_align_size[i];
         }
+      }
+
+      void UpdateStatus(const Status& s) LOCKS_EXCLUDED(mu) {
+          mutex_lock l(mu);
+          status = s;
       }
 
       mutex mu;
@@ -423,11 +430,16 @@ private:
     }
 
     Status ProcessOutputResults(std::shared_ptr<OutputResultBase> &output_result,
-        std::vector<Tensor> &out_tensors) LOCKS_EXCLUDED(mu) {
+        std::vector<Tensor> &out_tensors, bool &end_of_sequence) LOCKS_EXCLUDED(mu) {
       mutex_lock l(output_result->mu);
 
-      if (!output_result->status.ok() && !errors::IsOutOfRange(output_result->status)) {
-        return output_result->status;
+      if (!output_result->status.ok()) {
+        if (errors::IsOutOfRange(output_result->status)) {
+          end_of_sequence = true;
+          return Status::OK();
+        } else {
+          return output_result->status;
+        }
       }
 
       return TransOutputResultToTensor(output_result, out_tensors);
@@ -503,6 +515,7 @@ private:
         ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
           << "thread_num = " << this->thread_num_
           << "device_id_ = " << device_id_ << " rt=" << rt;
+        return;
       }
 
       DatasetFunction::ModelId model_id;
@@ -510,6 +523,7 @@ private:
       if (!status.ok()) {
         ADP_LOG(ERROR) << "DatasetFunction Instantialte failed, status = " << status.ToString()
           << " , thread_id=" << thread_id;
+        return;
       }
 
       {
@@ -556,9 +570,10 @@ private:
               if (!status.ok()) {
                 ADP_LOG(INFO) << "input_impl_->GetNext return failed, status = " << status.ToString()
                   << " thread_id = " << thread_id << " result_id = " << result_id;
-                results_empty_que_.emplace_back(result_id);
+                output_results_[result_id]->UpdateStatus(status);
               } else {
-                results_empty_que_.emplace_back(result_id);
+                output_results_[result_id]->UpdateStatus(errors::OutOfRange("End of sequence."));
+                ADP_LOG(INFO) << "MapDataset get end of sequence.";
               }
               cond_var_->notify_all();
             }
@@ -609,6 +624,7 @@ private:
       out_tensors.clear();
       std::shared_ptr<uint8_t> npu_addr(GetStartAddr(*output_result), [this, output_result](uint8_t *) {
         this->results_empty_que_.emplace_back(output_result->result_id);
+        output_result->UpdateStatus(Status::OK());
         this->cond_var_->notify_all();
       });
       DATASET_REQUIRES((npu_addr != nullptr),
@@ -792,11 +808,8 @@ private:
           thread_id, time_tag](const Status &status) EXCLUSIVE_LOCKS_REQUIRED(*mu_) mutable {
         {
           mutex_lock l(*this->mu_);
-          if (status.ok()) {
-            (void)this->results_ready_que_.emplace(std::pair<uint64_t, uint64_t>(write_idx, result_idx));
-          } else {
-            this->results_empty_que_.emplace_back(result_idx);
-          }
+          (void)this->results_ready_que_.emplace(std::pair<uint64_t, uint64_t>(write_idx, result_idx));
+          this->output_results_[result_idx]->UpdateStatus(status);
         }
         this->CallCompleted(thread_id, time_tag);
         // free input_dataset by current dataset op
@@ -1019,12 +1032,9 @@ private:
       timestat->RecordEndTime(timestat->statis_threads_ge[thread_id]);
       {
         mutex_lock l(*mu_);
-        if (status.ok()) {
-          (void)results_ready_que_.emplace(std::pair<uint64_t, uint64_t>(write_idx, result_id));
-          output_dyn_result->output_data = std::move(output_dataset);
-        } else {
-          results_empty_que_.emplace_back(result_id);
-        }
+        (void)results_ready_que_.emplace(std::pair<uint64_t, uint64_t>(write_idx, result_id));
+        output_dyn_result->output_data = std::move(output_dataset);
+        output_results_[result_id]->UpdateStatus(status);
       }
       CallCompleted();
       DatasetFunction::DestroyAclInputDataset(input_dataset);

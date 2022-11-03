@@ -180,7 +180,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     std::string prefix_para = prefix + "::" + kDatasetType;
 #endif
     if (IsStaticShape()) {
-      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorStatic" << output_device_;
+      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorStatic "
+        << output_device_;
       if (output_device_ == kCpu) {
         return absl::make_unique<IteratorStaticCpu>(IteratorStaticCpu::Params{
             this, prefix_para});
@@ -189,7 +190,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             this, prefix_para});
       }
     } else {
-      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorDyn" << output_device_;
+      ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp::MakeIteratorInternal, IteratorDyn "
+        << output_device_;
       if (output_device_ == kCpu) {
         return absl::make_unique<IteratorDynCpu>(IteratorDynCpu::Params{
             this, prefix_para});
@@ -666,6 +668,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         if (rt != ACL_RT_SUCCESS) {
           ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
             << "thread_num = " << this->thread_num_ << "device_id_ = " << device_id_ << " rt=" << rt;
+          return;
         }
 
         DatasetFunction::ModelId model_id;
@@ -690,7 +693,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             ADP_LOG(ERROR) << "Call reset device failed. device id=" << device_id_ << " rt=" << rt;
           }
           ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id
-                        << "thread_num = " << this->thread_num_;
+                        << " thread_num = " << this->thread_num_;
         });
 
         uint64_t run_res = 0;
@@ -718,6 +721,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
                   batch_results_[batch_id]->UpdateStatus(status, batch_offset);
                 } else {
                   batch_results_[batch_id]->EndofInputUpdateStatus();
+                  ADP_LOG(INFO) << "End of sequence in thread " << thread_id;
                 }
                 cond_var_->notify_all();
               }
