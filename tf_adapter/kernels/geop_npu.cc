@@ -317,6 +317,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   function_ = *func;
   std::string data_format;
   OP_REQUIRES_OK(ctx, ctx->GetAttr("data_format", &data_format));
+  ADP_LOG(INFO) << "Attr 'data_format' of " << ctx->def().name() << " is " << data_format;
   this->data_format_ = data_format;
 
   Status s = ctx->GetAttr("_session", &tf_session_);
@@ -1816,7 +1817,7 @@ Status GeOp::GenerateDesc(Node *&node) {
   NodeDef &node_def = const_cast<NodeDef &>(node->def());
   const OpDef &op_def = node->op_def();
 
-  std::string format = this->data_format_;  // format
+  std::string format = this->data_format_;
   int32_t domi_format = domi::domiTensorFormat_t::DOMI_TENSOR_RESERVED;
   TF_RETURN_IF_ERROR(this->DomiFormatFromString(format, domi_format));
 
@@ -1969,6 +1970,10 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
     return Status::OK();
   } else if (format == "FRACTALZ") {
     domi_format = domi::domiTensorFormat_t::DOMI_TENSOR_FRACTAL_Z;
+    return Status::OK();
+  } else if (format == "ND") {
+    domi_format = domi::domiTensorFormat_t::DOMI_TENSOR_ND;
+    return Status::OK();
   }
   return errors::Unavailable("DomiFormatFromString, not supported format, format = ", format);
 }

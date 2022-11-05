@@ -2236,7 +2236,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   }
 
   if (graph_format_value.empty()) {
-    graph_format_value = "NHWC";  // default value
+    graph_format_value = "ND";  // default value
   }
 
   int subgraphNum = 0;

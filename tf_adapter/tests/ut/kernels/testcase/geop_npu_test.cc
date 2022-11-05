@@ -397,6 +397,8 @@ TEST_F(GeOpTest, DomiFormatFromStringTest) {
   EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_DHWNC);
   ret = geop_node->DomiFormatFromString("FRACTALZ", domi_format);
   EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_FRACTAL_Z);
+  ret = geop_node->DomiFormatFromString("ND", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_ND);
   ret = geop_node->DomiFormatFromString("aa", domi_format);
   EXPECT_TRUE(!ret.ok());
 
