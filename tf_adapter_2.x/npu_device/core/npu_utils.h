@@ -22,6 +22,7 @@
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/graph/graph.h"
+#include "tensorflow/core/framework/tensor_description.pb.h"
 
 #include "acl/acl_base.h"
 #include "graph/types.h"
@@ -155,6 +156,32 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::un
 tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size);
 
 int64_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types);
+
+class NpuAllocatorUtils {
+public:
+  NpuAllocatorUtils() = default;
+  ~NpuAllocatorUtils();
+
+  static bool IsNpuAllocator(const std::string name) {
+    // 这里判断Npu Cpu内存的原因和作用是:
+    // map和mapandbatch算子内部组织的输出数据是连续的, 不需要外部再对输出数据做连续内存的重新组织
+    return (name.compare(kNpuAllocatorName) == 0) ||
+        (name.compare(kCpuAllocatorName) == 0);
+  }
+
+  static bool IsNpuAllocator(const tensorflow::Tensor &tensor) {
+    tensorflow::TensorDescription tensorDesc;
+    tensor.FillDescription(&tensorDesc);
+    if (tensorDesc.has_allocation_description()) {
+      return IsNpuAllocator(tensorDesc.allocation_description().allocator_name());
+    }
+    return false;
+  }
+
+private:
+  static constexpr const char* const kNpuAllocatorName = "NpuAllocator";
+  static constexpr const char* const kCpuAllocatorName = "CpuAllocator";
+};
 }  // namespace npu
 
 #endif  // NPU_DEVICE_CORE_NPU_UTILS_H

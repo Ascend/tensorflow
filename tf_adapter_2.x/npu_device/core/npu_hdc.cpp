@@ -262,6 +262,8 @@ tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_t
   }
   tensors_buffer_.resize(std::max(tensors_buffer_.size(), total_size));
 
+  bool npu_alloc = NpuAllocatorUtils::IsNpuAllocator(tensors[0]);
+
   size_t offset = 0UL;
   for (auto &tensor : tensors) {
     aclDataType acl_data_type;
@@ -270,7 +272,7 @@ tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_t
     if (DataTypeCanUseMemcpy(tensor.dtype())) {
       auto dims = tensor.shape().dim_sizes();
       void *tensor_data = tensor.data();
-      if (IsNeedContinuousMem()) {
+      if (IsNeedContinuousMem() && !npu_alloc) {
         size_t src_size = tensor.TotalBytes();
         tensor_data = tensors_buffer_.data() + offset;
         NPU_REQUIRES_OK(Copy2ContinuousMem(tensor_data, tensor.data(), src_size));
