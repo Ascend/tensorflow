@@ -183,9 +183,6 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
   // mix precision configuration
   ADP_LOG(INFO) << "[GePlugin] precision_mode : " << init_options[ge::PRECISION_MODE];
 
-  // auto tune configuration
-  ADP_LOG(INFO) << "[GePlugin] auto_tune_mode : " << init_options[ge::AUTO_TUNE_MODE];
-
   // debug configuration
   ADP_LOG(INFO) << "[GePlugin] op_debug_level : " << init_options[ge::OP_DEBUG_LEVEL];
 
@@ -211,7 +208,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
 
   // aoe mode and work path
   if (!init_options["ge.jobType"].empty()) {
-    if (init_options["ge.jobType"] == "2" && !init_options[ge::AUTO_TUNE_MODE].empty()) {
+    if (init_options["ge.jobType"] == "2") {
       init_options["ge.jobType"] = "";
       init_options["ge.tuningPath"] = "";
       init_options["distribute_config"] = "";
