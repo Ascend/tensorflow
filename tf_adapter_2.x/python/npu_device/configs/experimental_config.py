@@ -22,6 +22,7 @@ from npu_device.configs.option_base import NpuBaseConfig
 from npu_device.configs.option_base import OptionValue
 from npu_device.configs.multi_branches_config import NpuMultiBranchesConfig
 from npu_device.configs.logical_device_deploy_config import LogicalDeviceDeployConfig
+from npu_device.configs.model_deploy_config import ModelDeployConfig
 from npu_device.configs.memory_optimize_config import GraphMemoryOptimizeConfig
 from npu_device.configs.graph_parallel_config import GraphParallelConfig
 
@@ -31,6 +32,7 @@ class NpuExperimentalConfig(NpuBaseConfig):
     def __init__(self):
         self.multi_branches_config = NpuMultiBranchesConfig()
         self.logical_device_deploy_config = LogicalDeviceDeployConfig()
+        self.model_deploy_config = ModelDeployConfig()
 
         # run context options
         self.graph_memory_optimize_config = GraphMemoryOptimizeConfig()

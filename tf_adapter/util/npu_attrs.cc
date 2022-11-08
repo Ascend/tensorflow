@@ -557,6 +557,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string graph_exec_timeout;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
+  std::string model_deploy_mode;
+  std::string model_deploy_devicelist;
   std::string dump_data = "tensor";
   std::string aoe_config_file;
 
@@ -590,6 +592,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
     (void) ctx->GetAttr("_logical_device_cluster_deploy_mode", &logical_device_cluster_deploy_mode);
     (void) ctx->GetAttr("_logical_device_id", &logical_device_id);
+    (void) ctx->GetAttr("_model_deploy_mode", &model_deploy_mode);
+    (void) ctx->GetAttr("_model_deploy_devicelist", &model_deploy_devicelist);
     (void) ctx->GetAttr("_dump_data", &dump_data);
     (void) ctx->GetAttr("_aoe_config_file", &aoe_config_file);
   }
@@ -633,6 +637,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.exec.graphExecTimeout"] = graph_exec_timeout;
   init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
   init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
+  init_options_["ge.exec.modelDeployMode"] = model_deploy_mode;
+  init_options_["ge.exec.modelDeployDevicelist"] = model_deploy_devicelist;
   init_options_["dump_data"] = dump_data;
   init_options_["ge.exec.dumpData"] = dump_data;
   init_options_["aoe_config_file"] = aoe_config_file;
@@ -997,6 +1003,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string graph_exec_timeout;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
+  std::string model_deploy_mode;
+  std::string model_deploy_devicelist;
   std::string jit_compile = "1";
   std::string topo_sorting_mode;
   std::string insert_op_file;
@@ -1071,6 +1079,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto graph_exec_timeout_value = attrs.Find("_graph_exec_timeout");
   auto logical_device_cluster_deploy_mode_value = attrs.Find("_logical_device_cluster_deploy_mode");
   auto logical_device_id_value = attrs.Find("_logical_device_id");
+  auto model_deploy_mode_value = attrs.Find("_model_deploy_mode");
+  auto model_deploy_devicelist_value = attrs.Find("_model_deploy_devicelist");
   auto jit_compile_value = attrs.Find("_jit_compile");
   auto topo_sorting_mode_value = attrs.Find("_topo_sorting_mode");
   auto insert_op_file_value = attrs.Find("_insert_op_file");
@@ -1301,6 +1311,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (logical_device_id_value != nullptr) {
       logical_device_id = logical_device_id_value->s();
     }
+    if (model_deploy_mode_value != nullptr) {
+      model_deploy_mode = model_deploy_mode_value->s();
+    }
+    if (model_deploy_devicelist_value != nullptr) {
+      model_deploy_devicelist = model_deploy_devicelist_value->s();
+    }
     if (jit_compile_value != nullptr) {
       jit_compile = jit_compile_value->s();
     }
@@ -1400,6 +1416,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["graph_exec_timeout"] = graph_exec_timeout;
   all_options["logical_device_cluster_deploy_mode"] = logical_device_cluster_deploy_mode;
   all_options["logical_device_id"] = logical_device_id;
+  all_options["model_deploy_mode"] = model_deploy_mode;
+  all_options["model_deploy_devicelist"] = model_deploy_devicelist;
   all_options["jit_compile"] = jit_compile;
   all_options["ge.jit_compile"] = jit_compile;
   all_options["topo_sorting_mode"] = topo_sorting_mode;
@@ -1501,6 +1519,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   int64_t graph_exec_timeout = 600000L;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
+  std::string model_deploy_mode;
+  std::string model_deploy_devicelist;
   bool jit_compile = true;
   std::string aoe_config_file;
 
@@ -1859,6 +1879,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("experimental_logical_device_id") > 0) {
         logical_device_id = params.at("experimental_logical_device_id").s();
       }
+      if (params.count("experimental_model_deploy_mode") > 0) {
+        model_deploy_mode = params.at("experimental_model_deploy_mode").s();
+      }
+      if (params.count("experimental_model_deploy_devicelist") > 0) {
+        model_deploy_devicelist = params.at("experimental_model_deploy_devicelist").s();
+      }
       if (params.count("jit_compile") > 0) {
         jit_compile = params.at("jit_compile").b();
       }
@@ -1991,6 +2017,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
   init_options_["logical_device_id"] = logical_device_id;
   init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
+  init_options_["model_deploy_mode"] = model_deploy_mode;
+  init_options_["ge.exec.modelDeployMode"] = model_deploy_mode;
+  init_options_["model_deploy_devicelist"] = model_deploy_devicelist;
+  init_options_["ge.exec.modelDeployDevicelist"] = model_deploy_devicelist;
   init_options_["dump_data"] = dump_data;
   init_options_["ge.exec.dumpData"] = dump_data;
   init_options_["aoe_config_file"] = aoe_config_file;

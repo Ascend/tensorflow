@@ -101,6 +101,8 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"graph_exec_timeout", "ge.exec.graphExecTimeout"},
   {"logical_device_cluster_deploy_mode", ge::OPTION_EXEC_LOGICAL_DEVICE_CLUSTER_DEPLOY_MODE},
   {"logical_device_id", ge::OPTION_EXEC_LOGICAL_DEVICE_ID},
+  {"model_deploy_mode", "ge.exec.modelDeployMode"},
+  {"model_deploy_devicelist", "ge.exec.modelDeployDevicelist"},
   {"jit_compile", "ge.jit_compile"},
   {"topo_sorting_mode", "ge.topoSortingMode"},
   {"overflow_flag", "ge.exec.overflow"},

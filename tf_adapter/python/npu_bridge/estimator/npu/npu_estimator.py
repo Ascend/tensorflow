@@ -594,6 +594,12 @@ class NPUEstimator(estimator_lib.Estimator):
             if config._experimental_config._logical_device_id is not None:
                 custom_op.parameter_map["experimental_logical_device_id"].s = tf.compat.as_bytes(
                     config._experimental_config._logical_device_id)
+            if config._experimental_config._model_deploy_mode is not None:
+                custom_op.parameter_map["experimental_model_deploy_mode"].s = tf.compat.as_bytes(
+                    config._experimental_config._model_deploy_mode)
+            if config._experimental_config._model_deploy_devicelist is not None:
+                custom_op.parameter_map["experimental_model_deploy_devicelist"].s = tf.compat.as_bytes(
+                    config._experimental_config._model_deploy_devicelist)
             if config._experimental_config._resource_config_path is not None:
                 custom_op.parameter_map["resource_config_path"].s = tf.compat.as_bytes(
                     config._experimental_config._resource_config_path)

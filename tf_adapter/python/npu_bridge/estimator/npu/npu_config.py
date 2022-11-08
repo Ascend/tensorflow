@@ -389,6 +389,8 @@ class ExperimentalConfig():
     def __init__(self,
                  logical_device_cluster_deploy_mode="LB",
                  logical_device_id=None,
+                 model_deploy_mode=None,
+                 model_deploy_devicelist=None,
                  graph_memory_optimize_config=None,
                  graph_parallel_config=None,
                  resource_config_path=None):
@@ -403,6 +405,8 @@ class ExperimentalConfig():
         """
         self._logical_device_cluster_deploy_mode = logical_device_cluster_deploy_mode
         self._logical_device_id = logical_device_id
+        self._model_deploy_mode = model_deploy_mode
+        self._model_deploy_devicelist = model_deploy_devicelist
         if graph_memory_optimize_config is not None and not isinstance(graph_memory_optimize_config,
                                                                        GraphMemoryOptimizeConfig):
             raise ValueError("graph_memory_optimize_config type must be GraphMemoryOptimizeConfig")

@@ -72,6 +72,8 @@ const char *const OPTION_EXEC_DATA_INPUTS_SHAPE_RANGE = "ge.exec.dataInputsShape
 const char *const OPTION_EXEC_GRAPH_EXEC_TIMEOUT = "ge.exec.graphExecTimeout";
 const char *const OPTION_EXEC_LOGICAL_DEVICE_CLUSTER_DEPLOY_MODE = "ge.exec.logicalDeviceClusterDeployMode";
 const char *const OPTION_EXEC_LOGICAL_DEVICE_ID = "ge.exec.logicalDeviceId";
+const char *const OPTION_EXEC_MODEL_DEPLOY_MODE = "ge.exec.modelDeployMode";
+const char *const OPTION_EXEC_MODEL_DEPLOY_DEVICELIST = "ge.exec.modelDeployDevicelist";
 
 // Option key: memory init
 const char *const GRAPH_MEMORY_MAX_SIZE = "ge.graphMemoryMaxSize";
