@@ -36,7 +36,6 @@ class NpuConfig(NpuBaseConfig):
         self.precision_mode = OptionValue('allow_fp32_to_fp16',
                                           ['force_fp32', 'allow_fp32_to_fp16', 'force_fp16', 'must_keep_origin_dtype',
                                            'allow_mix_precision'])
-        self.auto_tune_mode = OptionValue(None, None)
         self.op_select_implmode = OptionValue('high_performance', ['high_performance', 'high_precision'])
         self.optypelist_for_implmode = OptionValue(None, None)
         self.op_compiler_cache_mode = OptionValue('disable', ['enable', 'disable', 'force'])

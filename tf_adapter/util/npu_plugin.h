@@ -23,7 +23,6 @@
 #include "ge_plugin.h"
 #include "framework/memory/memory_api.h"
 
-const char *const AUTO_TUNE_MODE = "ge.autoTuneMode";
 const char *const OP_DEBUG_LEVEL = "ge.opDebugLevel";
 const char *const OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES = ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES;
 const char *const OPTION_EXEC_PROFILING_MODE = ge::OPTION_EXEC_PROFILING_MODE;
