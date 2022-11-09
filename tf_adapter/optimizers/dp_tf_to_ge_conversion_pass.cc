@@ -72,7 +72,6 @@ class DpTfToGEConversionPassImpl {
   inline bool IsIteratorNode(const Node &n) const;
   inline bool IsSkipDataset(const Node &n) const;
   inline bool IsGeSupportDataset(const Node &n) const;
-  inline bool NeedDeviceDataset(const Node &n) const;
   inline std::string GetEdgeName(const Edge *e) const;
   inline std::string GetRandomName(const std::string &prefix) const;
   std::string GetRandomName() const;
@@ -325,7 +324,7 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node &n, std::vect
       REQUIRES_NOT_NULL(e);
       if (!IsIteratorNode(*(e->src()))) {
         last_edge = e;
-        ADP_LOG(INFO) << "Last edge is " << GetEdgeName(last_edge);
+        ADP_LOG(INFO) << "last edge" << GetEdgeName(last_edge);
       }
     }
   }
@@ -365,18 +364,6 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node &n, std::vect
   return Status::OK();
 }
 
-inline bool DpTfToGEConversionPassImpl::NeedDeviceDataset(const Node &n) const {
-  if (kIsHeterogeneous) {
-    return false;
-  }
-  std::string socVersion(aclrtGetSocName());
-  ADP_LOG(INFO) << "SOC Version " << socVersion;
-  if (socVersion.rfind("Ascend910B") == 0) {
-    return false;
-  }
-  return (!NpuAttrs::GetNewDataTransferFlag() || IsGeSupportDataset(n));
-}
-
 Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
                                                       std::string &device_queue_name,
                                                       const std::map<std::string, std::string> &all_options) const {
@@ -391,10 +378,18 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
     REQUIRES_NOT_NULL(e);
     REQUIRES_NOT_NULL(e->src());
     REQUIRES_NOT_NULL(e->dst());
+    bool need_add_device_dataset = false;
+    if (kIsHeterogeneous) {
+      need_add_device_dataset = false;
+    } else if ((!NpuAttrs::GetNewDataTransferFlag()) || (IsGeSupportDataset(*(e->dst())))) {
+      need_add_device_dataset = true;
+    } else {
+      need_add_device_dataset = false;
+    }
+
     std::string local_rank_id = all_options.at("local_rank_id");
     std::string local_device_list = all_options.at("local_device_list");
     std::string channel_name;
-    bool need_add_device_dataset = NeedDeviceDataset(*(e->dst()));
     if (local_rank_id == "-1") {
       REQUIRES_NOT_NULL(iterator_node);
       if (!need_add_device_dataset) {

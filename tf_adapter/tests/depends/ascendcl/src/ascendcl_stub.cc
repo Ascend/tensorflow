@@ -329,10 +329,6 @@ aclError aclrtDestroyEvent(aclrtEvent event) {
   return ACL_ERROR_NONE;
 }
 
-const char *aclrtGetSocName() {
-  return "AAscend910LH";
-}
-
 // for GE RunGraph api
 #if 0
 aclError aclrtSynchronizeStream(aclrtStream stream) {
