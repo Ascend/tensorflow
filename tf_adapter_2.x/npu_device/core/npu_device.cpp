@@ -25,6 +25,7 @@
 #include "tensorflow/core/platform/blocking_counter.h"
 #include "tensorflow/core/graph/algorithm.h"
 
+#include "npu_python.h"
 #include "npu_global.h"
 #include "npu_managed_buffer.h"
 #include "npu_tensor.h"
@@ -1041,6 +1042,8 @@ void NpuDevice::RemoveGeGraph(const TFE_Context *const context, uint64_t graph_i
 void NpuDevice::RunGeGraph(TFE_Context *context, uint64_t graph_id, int num_inputs, TFE_TensorHandle **inputs,
                            bool pin_to_npu, const TensorDataTypes &output_types, int num_outputs,
                            TFE_TensorHandle **outputs, TF_Status *status) {
+  // TF may call this under gil unexpectedly, remove this after tf bug issue fixed
+  auto gil_scoped_guarder = (PyGILState_Check() != 0) ? std::make_unique<pybind11::gil_scoped_release>() : nullptr;
   tensorflow::Notification notification;
   auto done = [status, &notification](tensorflow::Status s) {
     status->status = std::move(s);
