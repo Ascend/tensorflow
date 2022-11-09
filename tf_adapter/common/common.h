@@ -17,7 +17,6 @@
 #ifndef TENSORFLOW_COMMON_COMMON_H_
 #define TENSORFLOW_COMMON_COMMON_H_
 
-#include <string>
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/env.h"
 #include "tf_adapter/common/adapter_logger.h"
