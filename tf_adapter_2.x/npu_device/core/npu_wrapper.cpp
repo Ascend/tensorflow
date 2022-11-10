@@ -16,16 +16,10 @@
 
 #include <memory>
 
-#include "Python.h"
-
-#ifdef ASCEND_CI_LIMITED_PY37
-#undef PyCFunction_NewEx
-#endif
-
+#include "npu_python.h"
 #include "pybind11/chrono.h"
 #include "pybind11/complex.h"
 #include "pybind11/functional.h"
-#include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/c_api_experimental.h"
