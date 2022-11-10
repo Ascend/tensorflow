@@ -130,6 +130,7 @@ def npu_broadcast_scope_wrapper(strategy):
         return strategy
 
     org_scope = strategy.scope
+
     def _npu_broadcast_scope():
         org_scope_ctx = org_scope()
         return NpuBroadcastScopeContext(org_scope_ctx)

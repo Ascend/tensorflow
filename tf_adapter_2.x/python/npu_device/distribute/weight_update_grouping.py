@@ -52,6 +52,14 @@ class GroupingVars():
                 self._vars.append(item)
         self._fair_division(rank_size)
 
+    def get_gid_by_var(self, var):
+        """Get gradient id by variable"""
+        gid = -1
+        for item in self._vars:
+            if item.var is var:
+                gid = item.root_rank_id
+        return gid
+
     def _fair_division(self, number):
         if number > len(self._vars) or number < 0:
             raise ValueError("'number' is greater than the number of vars or 'number' is less than 0. ")
@@ -106,14 +114,6 @@ class GroupingVars():
                         left_vars[i].root_rank_id = j
                     break
         return
-
-    def get_gid_by_var(self, var):
-        """Get gradient id by variable"""
-        gid = -1
-        for item in self._vars:
-            if item.var is var:
-                gid = item.root_rank_id
-        return gid
 
 
 @npu_compat_function
