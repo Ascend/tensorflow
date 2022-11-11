@@ -32,8 +32,8 @@ using VecTensorDataTypes = tensorflow::gtl::InlinedVector<TensorDataTypes, kDefa
 
 const static tensorflow::TensorShape kScalarShape;
 
-constexpr uint64_t kInvalidGeGraphId = -1;
-constexpr uint64_t kEmptyGeGraphId = -2;
+constexpr uint64_t kInvalidGeGraphId = static_cast<uint64_t>(-1);
+constexpr uint64_t kEmptyGeGraphId = static_cast<uint64_t>(-2);
 
 class ResourceGenerator {
  public:

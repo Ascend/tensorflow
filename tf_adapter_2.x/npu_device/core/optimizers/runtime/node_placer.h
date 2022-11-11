@@ -77,7 +77,7 @@ class NodePlacer {
   bool FetchClearMask(const NodeOrCluster &node_or_cluster);
   tensorflow::Status PlaceCpuNodeSubgraphs(size_t depth) const;
   tensorflow::Status BuildNpuOp();
-  tensorflow::Status CopyShareableNode();
+  tensorflow::Status CopyShareableNode() const;
   tensorflow::Status MergeCopiedSharedNodes();
   std::vector<tensorflow::Node *> MergeCopiedSharedNodes(std::vector<tensorflow::Node *> all_nodes) const;
   tensorflow::Status DeterminedSurelyNodes();
