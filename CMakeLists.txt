@@ -228,7 +228,7 @@ else()
     ###################################################################################################
     add_custom_target(
         hw_npu_bridge_1.15.0 ALL
-        DEPENDS tensorflow_framework pywrap_tensorflow_internal tf_adapter ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl
+        DEPENDS tensorflow_framework pywrap_tensorflow_internal tf_adapter ${CMAKE_CURRENT_BINARY_DIR}/npu_bridge-1.15.0-py3-none-any.whl npu_device_whl
     )
 
     # package _tf_adapter.so in npu_bridge-xxx.whl
@@ -244,23 +244,28 @@ else()
         && ${HI_PYTHON} setup.py bdist_wheel >/dev/null
         && cp -f dist/npu_bridge-1.15.0-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
         && echo "package whl end"
+        DEPENDS tf_adapter
     )
     ###################################### Tensorflow 2.x ###########################################
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/npu_device-0.1-py3-none-any.whl
-        COMMAND echo "package ascend adapter for tensorflow 2.x start"
-        && cd ${CMAKE_CURRENT_LIST_DIR}/tf_adapter_2.x/
-        && rm -rf build && mkdir build && cd build
-        && cmake .. -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DPYTHON_BIN_PATH=${HI_PYTHON_PATH} -DPYTHON_INCLUDE_DIR=${HI_PYTHON_INC} -DASCEND_CI_BUILD_DIR=${TOP_DIR} -DTF2X_PATH=${TF2X_PATH}
-        && $(MAKE)
-        && cp -f dist/python/dist/npu_device-0.1-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}/
-        && echo "package ascend adapter for tensorflow 2.x end"
-    )
+    include(ExternalProject)
+    ExternalProject_Add(npu_device_whl
+                        SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/tf_adapter_2.x
+                        CONFIGURE_COMMAND ${CMAKE_COMMAND}
+                            -G ${CMAKE_GENERATOR}
+                            -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+                            -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+                            -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                            -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+                            -DPYTHON_BIN_PATH=${HI_PYTHON_PATH}
+                            -DPYTHON_INCLUDE_DIR=${HI_PYTHON_INC}
+                            -DASCEND_CI_BUILD_DIR=${TOP_DIR}
+                            -DTF2X_PATH=${TF2X_PATH}
+                            <SOURCE_DIR>
+                            BUILD_COMMAND $(MAKE)
+                            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <BINARY_DIR>/dist/python/dist/npu_device-0.1-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}
+                            EXCLUDE_FROM_ALL TRUE
+                       )
     ###################################################################################################
-    set(INSTALL_BASE_DIR "")
-    set(INSTALL_LIBRARY_DIR lib)
-
-    include(CMakePackageConfigHelpers)
 
     install(TARGETS tf_adapter OPTIONAL
         EXPORT tfplugin-targets
