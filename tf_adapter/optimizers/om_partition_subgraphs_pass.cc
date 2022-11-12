@@ -228,7 +228,7 @@ bool IsWhiteListSupport(const string &op_name, bool mix_compile_mode, const stri
     mutex_lock lock(support_node_mu);
     auto ret = not_support_nodes.insert(op_name);
     if (ret.second) {
-      ADP_LOG(INFO) << "node: " << op_name << " is not in white list, so currently not support";
+      ADP_LOG(INFO) << "node: " << op_name << " is not in white list, so currently not support.";
     }
   }
 
@@ -273,7 +273,7 @@ bool IsNpuSupportingFunc(const string &func_name, const FunctionLibraryDefinitio
   }
   for (NodeDef node_def : func_def->node_def()) {
     if (node_def.op() == "Const") {
-      ADP_LOG(INFO) << "Const node in function can dump";
+      ADP_LOG(INFO) << "Const node in function can dump.";
     } else if (!IsNpuSupportingNode(node_def, compile_mode, func_lib)) {
       return false;
     }
@@ -1227,7 +1227,7 @@ class OMSplitter {
 
   // Build a FunctionDef for each subgraph, and add it 'library'. The values of
   // the 'groupAttribute' annotations become the function names.
-  Status BuildFunctionDefs(FunctionLibraryDefinition *library, const std::string &graph_format);
+  Status BuildFunctionDefs(FunctionLibraryDefinition &library, const std::string &graph_format);
 
   // Write a copy of the input graph to 'graphOut', where the subgraphs are
   // replaced with GEOPs to the new functions.
@@ -1390,7 +1390,7 @@ class OMSplitter {
   // Copies a single edge to the output graph. The edge is either entirely
   // within the output graph, or crosses into or out of a subgraph.
   Status CopyEdgeToOutputGraph(const Edge &edge,
-                               const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut,
+                               const std::unordered_map<const Node *, Node *> &nodeImages, Graph &graphOut,
                                std::unordered_set<std::pair<NodeSlot, NodeSlot>, NodeSlot::PairHasher> *edges_added);
 
   // Adds all edges to the output graph.
@@ -1738,11 +1738,11 @@ Status OMSplitter::SplitIntoSubgraphs(uint32_t &subgraphNum) {
   return Status::OK();
 }
 
-Status OMSplitter::BuildFunctionDefs(FunctionLibraryDefinition *library, const std::string &graph_format) {
+Status OMSplitter::BuildFunctionDefs(FunctionLibraryDefinition &library, const std::string &graph_format) {
   for (auto &subgraphEntry : subgraphs_) {
     std::string name = subgraphEntry.first;
     Subgraph &subgraph = subgraphEntry.second;
-    TF_RETURN_IF_ERROR(subgraph.BuildFunctionDef(name, *library, graph_format));
+    TF_RETURN_IF_ERROR(subgraph.BuildFunctionDef(name, library, graph_format));
   }
   return Status::OK();
 }
@@ -1825,7 +1825,7 @@ int OMSplitter::FindOutputSlotOfEdgeDst(const std::string &dstSubgraphId, const 
 }
 
 Status OMSplitter::CopyEdgeToOutputGraph(
-    const Edge &edge, const std::unordered_map<const Node *, Node *> &nodeImages, Graph *graphOut,
+    const Edge &edge, const std::unordered_map<const Node *, Node *> &nodeImages, Graph &graphOut,
     std::unordered_set<std::pair<NodeSlot, NodeSlot>, NodeSlot::PairHasher> *edges_added) {
   std::string srcSubgraphId;
   TF_RETURN_IF_ERROR(GetSubgraphIdAttr(*(edge.src()), srcSubgraphId));
@@ -1848,7 +1848,7 @@ Status OMSplitter::CopyEdgeToOutputGraph(
     // Add the control edge, if we have not already added it, using the images
     // determined above.
     if (edges_added->emplace(NodeSlot(srcImage, -1), NodeSlot(dstImage, -1)).second) {
-      (void) graphOut->AddControlEdge(srcImage, dstImage);
+      (void) graphOut.AddControlEdge(srcImage, dstImage);
     }
     return Status::OK();
   }
@@ -1860,12 +1860,12 @@ Status OMSplitter::CopyEdgeToOutputGraph(
     if (std::find(refIn_.begin(), refIn_.end(), &edge) != refIn_.end()) {
       Status status;
       Node *identityNode =
-          AddIdentityNode(*graphOut, edge, srcImage->name(), srcOutput, srcImage->assigned_device_name(), status);
+          AddIdentityNode(graphOut, edge, srcImage->name(), srcOutput, srcImage->assigned_device_name(), status);
       if (!status.ok()) { return status; }
-      (void) graphOut->AddEdge(srcImage, srcOutput, identityNode, 0);
-      (void) graphOut->AddEdge(identityNode, 0, dstImage, dstInput);
+      (void) graphOut.AddEdge(srcImage, srcOutput, identityNode, 0);
+      (void) graphOut.AddEdge(identityNode, 0, dstImage, dstInput);
     } else {
-      (void) graphOut->AddEdge(srcImage, srcOutput, dstImage, dstInput);
+      (void) graphOut.AddEdge(srcImage, srcOutput, dstImage, dstInput);
     }
   }
   return Status::OK();
@@ -1879,7 +1879,7 @@ Status OMSplitter::AddEdgesToOutputGraph(const std::unordered_map<const Node *, 
 
   for (const Edge *edge : graph_in_->edges()) {
     REQUIRES_NOT_NULL(edge);
-    TF_RETURN_IF_ERROR(CopyEdgeToOutputGraph(*edge, nodeImages, graphOut, &edges_added));
+    TF_RETURN_IF_ERROR(CopyEdgeToOutputGraph(*edge, nodeImages, *graphOut, &edges_added));
   }
 
   return Status::OK();
@@ -1910,8 +1910,8 @@ Status OMPartitionSubgraphsInFunctions(std::unique_ptr<Graph> *graph,
     ADP_LOG(INFO) << "No Subgraph has been built.";
     return Status::OK();
   }
-
-  TF_RETURN_IF_ERROR(omsplitter.BuildFunctionDefs(library, graph_format));
+  REQUIRES_NOT_NULL(library);
+  TF_RETURN_IF_ERROR(omsplitter.BuildFunctionDefs(*library, graph_format));
 
   FunctionLibraryDefinition libraryOut(*library);
   std::unique_ptr<Graph> out(new (std::nothrow) Graph(libraryOut));
@@ -2096,7 +2096,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
       break;
     }
   }
-  ADP_LOG(INFO) << "all options:";
+  ADP_LOG(INFO) << "All options:";
   NpuAttrs::LogOptions(all_options);
 
   std::string job = pass_options["job"];
@@ -2252,7 +2252,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     TF_RETURN_IF_ERROR(CopyConstBetweenGeOp(graph_in));
   }
 
-  OMSplitter::OMSplitter omsplitter(std::move(OMSplitter::PARTITION_SUB_GRAPH_ATTR), graph_in, std::move(all_options),
+  OMSplitter::OMSplitter omsplitter(OMSplitter::PARTITION_SUB_GRAPH_ATTR, graph_in, std::move(all_options),
                                     std::move(pass_options), std::move(graph_options));
   TF_RETURN_IF_ERROR(OMSplitter::OMPartitionSubgraphsInFunctions(graph, graph_format_value, func_lib, omsplitter));
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " SubgraphsInFunctions succeed.";
@@ -2310,7 +2310,7 @@ Status OMPartitionSubgraphsPass::CopyVarsBetweenGeOp(Graph *graph) const {
         ADP_LOG(INFO) << "find added node in " << dstSubgraphId << ", name is " << varEdge->src()->name();
         node_tmp = it->second[varEdge->src()->name()];
       } else {
-        ADP_LOG(INFO) << "need add new node in " << dstSubgraphId << ", name is " << varEdge->src()->name();
+        ADP_LOG(INFO) << "Need add new node in " << dstSubgraphId << ", name is " << varEdge->src()->name();
         node_tmp = graph->AddNode(varEdge->src()->def(), &s);
         if (!s.ok()) { return s; }
         node_tmp->ClearAttr(partitionAttr);
@@ -2375,7 +2375,7 @@ Status OMPartitionSubgraphsPass::CopyConstBetweenGeOp(Graph *graph) const {
 }
 
 Status OMPartitionSubgraphsPass::SplitUnaryOpsComposition(Graph *graph, Node *node) const {
-  ADP_LOG(INFO) << "begin split _UnaryOpsComposition.";
+  ADP_LOG(INFO) << "Begin to split _UnaryOpsComposition.";
   Node *pre_node = (*node->in_edges().begin())->src();
   auto node_list = node->def().attr().at("op_names").list();
   Node *unary_node = nullptr;
