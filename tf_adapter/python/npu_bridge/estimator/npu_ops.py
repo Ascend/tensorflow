@@ -373,3 +373,7 @@ def npu_onnx_graph_op(inputs, tout, model_path, name=None):
     return output
 
 
+def channel_get_next(channel_name, output_types, output_shapes):
+    """Operator for get next"""
+    return gen_npu_ops.get_next(channel_name = channel_name, output_types = output_types,
+                                output_shapes = output_shapes)
