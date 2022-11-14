@@ -85,6 +85,16 @@ class _ContextWithDefaultDevice(context.Context):
         super().__init__()
 
     @property
+    def default_device(self):
+        """Return default device"""
+        return self.__default_device
+
+    @default_device.setter
+    def default_device(self, value):
+        self.__default_device = value
+        self.__default_device_spec = pydev.DeviceSpec.from_string(value)
+
+    @property
     def _thread_local_data(self):
         if not self.__thread_local_data.device_name:
             self.__thread_local_data.device_name = self.__default_device
@@ -94,16 +104,6 @@ class _ContextWithDefaultDevice(context.Context):
     @_thread_local_data.setter
     def _thread_local_data(self, value):
         self.__thread_local_data = value
-
-    @property
-    def default_device(self):
-        """Return default device"""
-        return self.__default_device
-
-    @default_device.setter
-    def default_device(self, value):
-        self.__default_device = value
-        self.__default_device_spec = pydev.DeviceSpec.from_string(value)
 
 
 @tf.function

@@ -103,7 +103,7 @@ bool NodePlacer::FetchClearMask(const NodeOrCluster &node_or_cluster) {
   return false;
 }
 
-tensorflow::Status NodePlacer::CopyShareableNode() {
+tensorflow::Status NodePlacer::CopyShareableNode() const {
   std::vector<tensorflow::Node *> shared_nodes;
   for (auto node : graph_->nodes()) {
     if (node->IsConstant() || IsSubstituteNode(*node)) {
@@ -448,7 +448,7 @@ tensorflow::Status NodePlacer::BuildConcreteCluster() {
   }
   for (auto &start : starts) {
     DLOG() << "Concrete from start " << start->name();
-    const auto enter = [](tensorflow::Node *node) { DLOG() << "Concrete reach " << node->name(); };
+    const auto enter = [](tensorflow::Node *const node) { DLOG() << "Concrete reach " << node->name(); };
     tensorflow::DFSFrom(*graph_, {start}, enter, {}, {}, [this](const tensorflow::Edge &edge) {
       if (IsSupportedNpuBound(edge)) {
         return false;
@@ -591,7 +591,7 @@ tensorflow::Status NodePlacer::SpreadNpuNodeFromPlacement(Placement placement) {
   DLOG() << "Start spread npu from " << GetNodesPlacedOn(placement).size() << " nodes placed on "
          << kPlacementString[placement] << ", npu node size " << GetNodesPlacedOn(Placement::NPU).size();
 
-  const auto enter = [](tensorflow::Node *node) { (void)node; };
+  const auto enter = [](tensorflow::Node *const node) { (void)node; };
   tensorflow::DFSFrom(*graph_, starts, enter, {}, {},
                       [this](const tensorflow::Edge &edge) { return SpreadNpuEdge(edge, true); });
   tensorflow::ReverseDFSFrom(*graph_, starts, enter, {}, {},
