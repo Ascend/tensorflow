@@ -470,5 +470,29 @@ TEST_F(GeOpTest, BuildOutputTensorInfo) {
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
   EXPECT_TRUE(GeOpRunGraphAsync(graph_pbtxt_path, inputs, node_def, "GeOp1_0").ok());
 }
+TEST_F(GeOpTest, test_MakeCompatShape) {
+  GeOp *geop_node;
+  PartialTensorShape shape_a;
+  std::vector<int64> dims_a{1, 2};
+  PartialTensorShape::MakePartialShape(dims_a.data(), static_cast<int32_t>(dims_a.size()), &shape_a);
+  PartialTensorShape shape_b;
+  std::vector<int64> dims_b{1, 3};
+  PartialTensorShape::MakePartialShape(dims_b.data(), static_cast<int32_t>(dims_b.size()), &shape_b);
+  auto shape1 = geop_node->MakeCompatShape(shape_a, shape_b);
+  PartialTensorShape shape;
+  std::vector<int64> dims{-1, -1};
+  PartialTensorShape::MakePartialShape(dims.data(), static_cast<int32_t>(dims.size()), &shape);
+  EXPECT_EQ(shape1.IsCompatibleWith(shape), true);
+
+  PartialTensorShape shape_c;
+  std::vector<int64> dims_c{1, 2};
+  PartialTensorShape::MakePartialShape(dims_c.data(), static_cast<int32_t>(dims_c.size()), &shape_c);
+  PartialTensorShape shape_d;
+  std::vector<int64> dims_d{1, 2, 3};
+  PartialTensorShape::MakePartialShape(dims_d.data(), static_cast<int32_t>(dims_d.size()), &shape_d);
+  auto shape2 = geop_node->MakeCompatShape(shape_c, shape_d);
+  PartialTensorShape kUnknownRankShape = PartialTensorShape();
+  EXPECT_EQ(shape2.IsCompatibleWith(kUnknownRankShape), true);
+}
 }  // namespace
 }  // namespace tensorflow

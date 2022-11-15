@@ -392,7 +392,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string HCCL_algorithm;
   std::string atomic_clean_policy = "0";
   std::string static_memory_policy;
-  std::string jit_compile = "1";
+  std::string jit_compile = "0";
   std::string topo_sorting_mode;
   std::string insert_op_file;
   std::string resource_config_path;
@@ -1001,7 +1001,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string graph_exec_timeout;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
-  std::string jit_compile = "1";
+  std::string jit_compile = "0";
   std::string topo_sorting_mode;
   std::string insert_op_file;
   std::string resource_config_path;
@@ -1512,7 +1512,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   int64_t graph_exec_timeout = 600000L;
   std::string logical_device_cluster_deploy_mode = "LB";
   std::string logical_device_id;
-  bool jit_compile = true;
+  bool jit_compile = false;
   std::string aoe_config_file;
   bool external_weight = false;
 
@@ -1943,6 +1943,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
   sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
   sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
+  sess_options["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
+  sess_options["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
 
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {
@@ -1991,8 +1993,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   // Commercial version has been released, temporarily used
   init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
   init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
-  init_options_["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
-  init_options_["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
 
   init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
   init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;

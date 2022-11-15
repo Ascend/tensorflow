@@ -99,7 +99,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  op_debug_config=None,
                  memory_config=None,
                  experimental_config=None,
-                 jit_compile=True,
+                 jit_compile=False,
                  topo_sorting_mode=None,
                  aoe_config_file=None,
                  insert_op_file=None,
@@ -246,7 +246,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         self.aoe_config_file = aoe_config_file
         self.insert_op_file = insert_op_file
         self._external_weight = external_weight
-
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
