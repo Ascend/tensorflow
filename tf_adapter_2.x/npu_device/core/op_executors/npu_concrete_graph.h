@@ -72,8 +72,6 @@ class NpuConcreteGraph : public OpExecutor {
 
   const std::string &GraphLoopTypeString() const;
 
-  bool NeedFuzzCompile() const;
-
   void RunAoeTuning(TFE_Context *context, NpuDevice *device, std::vector<TFE_TensorHandle *> inputs, bool loaded,
                     TF_Status *status) const;
 
@@ -89,7 +87,6 @@ class NpuConcreteGraph : public OpExecutor {
   uint64_t ge_graph_id_;
   std::unique_ptr<tensorflow::Graph> graph_;
   mutable tensorflow::GraphDef graph_def_;
-  mutable absl::optional<bool> fuzz_compile_;
   tensorflow::NodeDef mixed_ndef_;
   bool mutable built_{false};
   LoopType loop_type_{LoopType::NO_LOOP};

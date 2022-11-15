@@ -157,34 +157,6 @@ const std::string &NpuConcreteGraph::GraphLoopTypeString() const {
   return kInvalidLoopTypeString;
 }
 
-bool NpuConcreteGraph::NeedFuzzCompile() const {
-  if (fuzz_compile_.has_value()) {
-    return fuzz_compile_.value();
-  }
-  for (auto node : graph_->op_nodes()) {
-    if (!node->IsArg()) {
-      continue;
-    }
-    const tensorflow::AttrValue *shape_attr = node->attrs().Find("_output_shapes");
-    if (!shape_attr || !shape_attr->has_list() || shape_attr->list().shape().empty()) {
-      LOG(ERROR) << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " "
-                 << node->name() << " has no shape info";
-      fuzz_compile_ = true;
-      return fuzz_compile_.value();
-    }
-    tensorflow::PartialTensorShape shape(shape_attr->list().shape(0));
-    if (!shape.IsFullyDefined()) {
-      LOG(INFO) << Op() << " will be fuzz compiled as input " << node->attrs().Find("index")->i() << " " << node->name()
-                << " shape unknown " << shape.DebugString();
-      fuzz_compile_ = true;
-      return fuzz_compile_.value();
-    }
-  }
-  DLOG() << Op() << " will be compiled in static shape mode";
-  fuzz_compile_ = false;
-  return fuzz_compile_.value();
-}
-
 void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, bool &loaded, TF_Status *status) const {
   if (Built() && device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(GeGraphId()))) {
     LOG(INFO) << "Unload ge graph " << GeGraphId() << " for rebuild of op " << Op();
@@ -195,17 +167,8 @@ void NpuConcreteGraph::Load(TFE_Context *context, NpuDevice *device, bool &loade
 
   if (!built_) {
     DLOG() << "Load ge graph " << GeGraphId() << " of op " << Op();
-    const std::map<std::string, std::string> kOptions{
-      {"ge.recompute", npu::GetRunContextOptions().memory_optimize_options.recompute},
-      {"ge.graphParallelOptionPath", npu::GetRunContextOptions().graph_parallel_configs.config_path},
-      {"ge.enableGraphParallel", npu::GetRunContextOptions().graph_parallel_configs.enable_graph_parallel}};
-    const static std::map<std::string, std::string> kFuzzCompileOptions{
-      {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
-      {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
-      {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
-    const auto need_fuzz_compile = NeedFuzzCompile();
     if (device->AddGeGraphInner(context, GeGraphId(), Op(), GraphDef(), (loop_type_ == LoopType::NPU_LOOP), status,
-                                (need_fuzz_compile ? kFuzzCompileOptions : kOptions)) == kEmptyGeGraphId) {
+                                npu::GetRunContextOptions().GetGraphOptions()) == kEmptyGeGraphId) {
       empty_ge_graph_ = true;
     }
     NPU_REQUIRES_TFE_OK(status);

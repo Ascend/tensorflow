@@ -17,6 +17,7 @@
 #define NPU_DEVICE_CORE_NPU_RUN_CONTEXT_H
 
 #include <string>
+#include <map>
 
 namespace npu {
 struct MemoryOptimizeOptions {
@@ -40,6 +41,13 @@ struct RunContextOptions {
   void Clean() {
     memory_optimize_options.Clean();
     graph_parallel_configs.Clean();
+  }
+  std::map<std::string, std::string> GetGraphOptions() {
+    std::map<std::string, std::string> kOptions = {
+      {"ge.recompute", memory_optimize_options.recompute},
+      {"ge.graphParallelOptionPath", graph_parallel_configs.config_path},
+      {"ge.enableGraphParallel", graph_parallel_configs.enable_graph_parallel}};
+    return kOptions;
   }
 };
 
