@@ -561,6 +561,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string model_deploy_devicelist;
   std::string dump_data = "tensor";
   std::string aoe_config_file;
+  std::string stream_sync_timeout = "-1";
+  std::string event_sync_timeout = "-1";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_precision_mode", &precision_mode);
@@ -596,6 +598,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_model_deploy_devicelist", &model_deploy_devicelist);
     (void) ctx->GetAttr("_dump_data", &dump_data);
     (void) ctx->GetAttr("_aoe_config_file", &aoe_config_file);
+    (void) ctx->GetAttr("_stream_sync_timeout", &stream_sync_timeout);
+    (void) ctx->GetAttr("_event_sync_timeout", &event_sync_timeout);
   }
 
   if (precision_mode.empty()) {
@@ -643,6 +647,8 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.exec.dumpData"] = dump_data;
   init_options_["aoe_config_file"] = aoe_config_file;
   init_options_["ge.aoe_config_file"] = aoe_config_file;
+  init_options_["stream_sync_timeout"] = stream_sync_timeout;
+  init_options_["event_sync_timeout"] = event_sync_timeout;
 
   return init_options_;
 }
@@ -1010,6 +1016,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string insert_op_file;
   std::string resource_config_path;
   std::string aoe_config_file;
+  std::string stream_sync_timeout = "-1";
+  std::string event_sync_timeout = "-1";
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1086,6 +1094,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto insert_op_file_value = attrs.Find("_insert_op_file");
   auto resource_config_path_value = attrs.Find("_resource_config_path");
   auto aoe_config_file_value = attrs.Find("_aoe_config_file");
+  auto stream_sync_timeout_value = attrs.Find("_stream_sync_timeout");
+  auto event_sync_timeout_value = attrs.Find("_event_sync_timeout");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1338,6 +1348,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (insert_op_file_value != nullptr) {
       insert_op_file = insert_op_file_value->s();
     }
+    if (stream_sync_timeout_value != nullptr) {
+      stream_sync_timeout = stream_sync_timeout_value->s();
+    }
+    if (event_sync_timeout_value != nullptr) {
+      event_sync_timeout = event_sync_timeout_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1427,6 +1443,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["resource_config_path"] = resource_config_path;
   all_options["ge.aoe_config_file"] = aoe_config_file;
   all_options["aoe_config_file"] = aoe_config_file;
+  all_options["stream_sync_timeout"] = stream_sync_timeout;
+  all_options["event_sync_timeout"] = event_sync_timeout;
 
   return all_options;
 }
@@ -1523,6 +1541,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string model_deploy_devicelist;
   bool jit_compile = true;
   std::string aoe_config_file;
+  int32_t stream_sync_timeout = -1;
+  int32_t event_sync_timeout = -1;
 
   const RewriterConfig &rewrite_options =
     options.session_options->config.graph_options().rewrite_options();
@@ -1910,6 +1930,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("aoe_config_file") > 0) {
         aoe_config_file = params.at("aoe_config_file").s();
       }
+      if (params.count("stream_sync_timeout") > 0) {
+        stream_sync_timeout = params.at("stream_sync_timeout").i();
+      }
+      if (params.count("event_sync_timeout") > 0) {
+        event_sync_timeout = params.at("event_sync_timeout").i();
+      }
     }
   }
 
@@ -2025,6 +2051,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.dumpData"] = dump_data;
   init_options_["aoe_config_file"] = aoe_config_file;
   init_options_["ge.aoe_config_file"] = aoe_config_file;
+  init_options_["stream_sync_timeout"] = std::to_string(stream_sync_timeout);
+  init_options_["event_sync_timeout"] = std::to_string(event_sync_timeout);
 
   pass_options["do_npu_optimizer"] = std::to_string(static_cast<int32_t>(do_npu_optimizer));
   pass_options["enable_data_pre_proc"] = std::to_string(static_cast<int32_t>(enable_dp));

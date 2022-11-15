@@ -102,7 +102,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                  jit_compile=True,
                  topo_sorting_mode=None,
                  aoe_config_file=None,
-                 insert_op_file=None
+                 insert_op_file=None,
+                 stream_sync_timeout=-1,
+                 event_sync_timeout=-1
                  ):
         """
         Constructs a NPUConfig.
@@ -243,6 +245,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         self.topo_sorting_mode = topo_sorting_mode
         self.aoe_config_file = aoe_config_file
         self.insert_op_file = insert_op_file
+        self.stream_sync_timeout = stream_sync_timeout
+        self.event_sync_timeout = event_sync_timeout
 
 
         super(NPURunConfig, self).__init__(

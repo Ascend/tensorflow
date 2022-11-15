@@ -11,6 +11,24 @@ class GePluginTest : public testing::Test {
   virtual void TearDown() {}
 };
 
+TEST_F(GePluginTest, PluginInitTest_1) {
+  std::map<std::string, std::string> init_options;
+  setenv("JOB_ID", "1000", true);
+  setenv("RANK_SIZE", "1", true);
+  setenv("RANK_ID", "0", true);
+  setenv("RANK_TABLE_FILE", "rank_table", true);
+  setenv("FUSION_TENSOR_SIZE", "524288000", true);
+  std::string tf_config = "{'task':{'type':'a'}, 'cluster':{'chief':['1']}}";
+  setenv("TF_CONFIG", tf_config.c_str(), true);
+  init_options["ge.exec.profilingMode"] = "1";
+  init_options["ge.exec.profilingOptions"] = "trace";
+  init_options["ge.exec.precision_mode"] = "allow_fp32_to_fp16";
+  init_options["ge.autoTuneMode"] = "GA";
+  init_options["ge.opDebugLevel"] = "1";
+  init_options["ge.jobType"] = "2";
+  PluginInit(init_options);
+}
+
 TEST_F(GePluginTest, PluginInitTest) {
   std::map<std::string, std::string> init_options;
   setenv("JOB_ID", "1000", true);
@@ -18,6 +36,29 @@ TEST_F(GePluginTest, PluginInitTest) {
   setenv("RANK_ID", "0", true);
   setenv("POD_NAME", "0", true);
   setenv("RANK_TABLE_FILE", "rank_table", true);
+  setenv("FUSION_TENSOR_SIZE", "524288000", true);
+  std::string tf_config = "{'task':{'type':'a'}, 'cluster':{'chief':['1']}}";
+  setenv("TF_CONFIG", tf_config.c_str(), true);
+  init_options["ge.exec.profilingMode"] = "1";
+  init_options["ge.exec.profilingOptions"] = "trace";
+  init_options["ge.exec.precision_mode"] = "allow_fp32_to_fp16";
+  init_options["ge.autoTuneMode"] = "GA";
+  init_options["ge.opDebugLevel"] = "1";
+  init_options["ge.jobType"] = "2";
+  PluginInit(init_options);
+}
+
+TEST_F(GePluginTest, PluginInitTest_hccl) {
+  std::map<std::string, std::string> init_options;
+  unsetenv("RANK_SIZE");
+  unsetenv("RANK_TABLE_FILE");
+  setenv("JOB_ID", "1000", true);
+  setenv("CM_WORKER_SIZE", "1", true);
+  setenv("RANK_ID", "0", true);
+  setenv("CM_CHIEF_IP", "11", true);
+  setenv("CM_CHIEF_PORT", "22", true);
+  setenv("CM_CHIEF_DEVICE", "8", true);
+  setenv("CM_WORKER_IP", "127.0.0.1", true);
   setenv("FUSION_TENSOR_SIZE", "524288000", true);
   std::string tf_config = "{'task':{'type':'a'}, 'cluster':{'chief':['1']}}";
   setenv("TF_CONFIG", tf_config.c_str(), true);
