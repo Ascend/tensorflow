@@ -314,5 +314,30 @@ TEST(NpuOpsTest, TestDecodeImageV3ShapeInference) {
     {S({})}, {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
+
+TEST(NpuOpsTest, TestGetNextShapeInference) {
+  std::initializer_list<int64> dims = {};
+  TensorShapeProto shape_proto;
+  TensorShape(dims).AsProto(&shape_proto);
+  std::string channel_name = "channel";
+  tensorflow::AttrValue output_shapes;
+  tensorflow::AttrValue output_types;
+  *(output_shapes.mutable_list()->add_shape()) = shape_proto;
+  *(output_shapes.mutable_list()->add_shape()) = shape_proto;
+  output_types.mutable_list()->add_type(DT_STRING);
+  output_types.mutable_list()->add_type(DT_INT32);
+  const OpRegistrationData* reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("GetNext", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("GetNext", &op_def)
+                   .Attr("channel_name", channel_name)
+                   .Attr("output_types", output_types)
+                   .Attr("output_shapes", output_shapes)
+                   .Finalize(&def));
+  shape_inference::InferenceContext c(0, &def, op_def,
+    {S({})}, {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
 }  // namespace
 }  // namespace tensorflow
