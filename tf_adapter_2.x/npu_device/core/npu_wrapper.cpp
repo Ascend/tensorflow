@@ -152,8 +152,6 @@ void ParseGlobalOptions(int device_index, const std::map<std::string, std::strin
   if (global_options[ge::OPTION_GRAPH_RUN_MODE] == "0") {
     global_options[ge::ENABLE_SMALL_CHANNEL] = "1";
   }
-
-  global_options["ge.shape_generalized"] = "0";
 }
 
 PYBIND11_MODULE(_npu_device_backends, m) {

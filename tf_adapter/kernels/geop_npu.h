@@ -128,6 +128,12 @@ private:
 
   bool IsDynamicConfig();
 
+  PartialTensorShape MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b);
+
+  bool MaybeUpdateShape(OpKernelContext *const ctx);
+
+  void UpdateInputsShapeDesc(Graph &graph);
+
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;
   static const std::string SERIALIZE_FORMAT;
@@ -180,7 +186,8 @@ private:
   std::string recompute_mode_;
   std::string enable_graph_parallel_;
   std::string graph_parallel_option_path_;
-
+  std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;
+  bool jit_compile_;
   SessionId session_id_;
   AoeInitializeFunc aoe_initialize_;
   AoeFinalizeFunc aoe_finalize_;
