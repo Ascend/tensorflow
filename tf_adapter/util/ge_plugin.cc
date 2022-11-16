@@ -299,7 +299,7 @@ void GePlugin::SetCmChiefWorkSizeEnv(std::map<std::string, std::string> &init_op
   if (!cmChiefIp.empty() && !cm_chief_port.empty() && !cm_chief_device.empty() && (work_size_num > 0) &&
       (rank_size_num == kInvalidRankSize)) {
     is_use_hcom = true;
-    init_options_["ge.cmChiefIp"] = cmChiefIp;
+    init_options["ge.cmChiefIp"] = cmChiefIp;
     init_options["ge.cmChiefPort"] = cm_chief_port;
     init_options["ge.cmChiefWorkerDevice"] = cm_chief_device;
     if (!cm_worker_ip.empty()) {

@@ -381,7 +381,7 @@ class NPUEstimator(estimator_lib.Estimator):
                     raise RuntimeError('estimator_spec used by NPU train must have type '
                                        '`NPUEstimatorSpec` or `EstimatorSpec`. Got {}'.format(type(estimator_spec)))
                 # 1. NPUBroadcastGlobalVariablesHook
-                rank_size = util_lib.get_rank_size()
+                rank_size = util_lib.get_ranksize()
                 if rank_size is not None and rank_size.isdigit() and int(rank_size) > 1 and not config.horovod_mode:
                     npu_hooks.append(
                         NPUBroadcastGlobalVariablesHook(self.__device_info._root_rank, self.__device_info._index))
