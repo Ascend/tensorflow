@@ -107,6 +107,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"aoe_config_file", "ge.aoe_config_file"},
   {"stream_sync_timeout", "stream_sync_timeout"},
   {"event_sync_timeout", "event_sync_timeout"},
+  {"external_weight", "ge.externalWeight"},
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},
