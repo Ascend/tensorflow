@@ -90,7 +90,7 @@ class NPUBroadcastGlobalVariablesHook(session_run_hook.SessionRunHook):
         self._root_rank = root_rank
         self._index = index
         self._bcast_op = None
-        rank_size = util_lib.get_rank_size()
+        rank_size = util_lib.get_ranksize()
         if rank_size.isdigit():
             self._rank_size = int(rank_size)
         else:

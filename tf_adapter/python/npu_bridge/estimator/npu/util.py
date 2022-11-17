@@ -232,7 +232,7 @@ def set_iteration_per_loop(sess, train_op, iterations_per_loop=1):
     return group_train_op
 
 
-def get_rank_size():
+def get_ranksize():
     if os.getenv("CM_WORK_SIZE") is not None and os.getenv("RANK_SIZE") is not None:
         raise ValueError("RANK_SIZE and CM_WORK_SIZE cannot be configured at the same time")
     rank_size = os.getenv('RANK_SIZE') if os.getenv(
