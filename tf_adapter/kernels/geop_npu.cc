@@ -290,8 +290,8 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       compute_graph_empty_(false), is_input_convert_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr), job_type_(""),
       is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT),
-      jit_compile_(false), session_id_(0), aoe_initialize_(nullptr), aoe_finalize_(nullptr),
-      aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
+      jit_compile_(false), is_getnext_dynamic_shape_(false), session_id_(0), aoe_initialize_(nullptr),
+      aoe_finalize_(nullptr), aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
       aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr) {
   Initialize(ctx);
@@ -330,6 +330,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
     jit_compile_ = true;
+    is_getnext_dynamic_shape_ = true;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
     ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
     ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
@@ -341,6 +342,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
                 << ", jit_compile: " << jit_compile_
+                << ", is_getnext_dynamic_shape_: " << is_getnext_dynamic_shape_
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
@@ -1132,14 +1134,14 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
         remove_nodes.push_back(node);
         remove_nodes.push_back(iterator_node);
       } else if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
-        if (dynamic_input_ == "1") {
+        if (is_getnext_dynamic_shape_) {
           node_def.set_op("DynamicGetNext");
         }
       } else {
         Node *aicpu_getnext = nullptr;
         std::string aicpu_getnext_name = "aicpu_getnext_" + node->name();
         auto getnext_attrs = node->def().attr();
-        std::string aicpu_getnext_type = dynamic_input_ == "1" ? "DynamicGetNextV2" : "GetNext";
+        std::string aicpu_getnext_type = is_getnext_dynamic_shape_ ? "DynamicGetNextV2" : "GetNext";
         TF_CHECK_OK(NodeBuilder(aicpu_getnext_name, aicpu_getnext_type)
                         .Device(node->def().device())
                         .Attr("channel_name", channel_name)
@@ -1171,6 +1173,49 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
   }
 }
 
+Status GeOp::ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is_allreduce) {
+  for (Node *node : graph.nodes()) {
+    if (node->type_string() == kAllReduce) {
+      is_allreduce = true;
+    }
+    AddNodeAttrs(node, is_initialize);
+    // Add Input&Output Desc into NodeDef
+    Status ret = this->GenerateDesc(node);
+    if (!ret.ok()) {
+      ADP_LOG(ERROR) << "[GEOP] node: " << node->name() << " GenerateDesc failed, "
+                     << ret.error_message();
+      LOG(ERROR) << "[GEOP] node: " << node->name() << " GenerateDesc failed, "
+                 << ret.error_message();
+      return ret;
+    }
+
+    if (node->type_string() == "NpuOnnxGraphOp") {
+      ret = this->ParseOnnxGraphOpAttr(node);
+      graph_options_["input_format"] = "NCHW";
+      ADP_LOG(INFO) << "onnx_graph_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"];
+      if (!ret.ok()) {
+        LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, " << ret.error_message();
+        return ret;
+      }
+    }
+
+    if (node->type_string() == "IteratorGetNext") {
+      std::vector<const TensorShapeProto*> shape_attrs;
+      const char* kAttrName = "output_shapes";
+      if (tensorflow::TryGetNodeAttr(node->attrs(), kAttrName, &shape_attrs)) {
+        for (auto i = 0; i < node->num_outputs(); i++) {
+          const TensorShapeProto& shape_proto = *shape_attrs[i];
+          tensorflow::PartialTensorShape shape(shape_proto);
+          if (!shape.IsFullyDefined()) {
+            is_getnext_dynamic_shape_ = true;
+          }
+        }
+      }
+    }
+  }
+  return Status::OK();
+}
+
 void GeOp::UpdateInputsShapeDesc(Graph &graph) {
   for (auto node : graph.op_nodes()) {
     if (!node->IsArg()) {
@@ -1185,8 +1230,13 @@ void GeOp::UpdateInputsShapeDesc(Graph &graph) {
     auto &shape = input_shapes_vec_[index].value();
     AttrValue attr_shape_value;
     attr_shape_value.set_type(DT_INT32);
-    for (auto i = 0; i < shape.dims(); ++i) {
-      attr_shape_value.mutable_list()->add_i(shape.dim_size(i));
+    if (shape.unknown_rank()) {
+      const int kUnknownRankDimSize = -2;
+      attr_shape_value.mutable_list()->add_i(kUnknownRankDimSize);
+    } else {
+      for (auto i = 0; i < shape.dims(); ++i) {
+        attr_shape_value.mutable_list()->add_i(shape.dim_size(i));
+      }
     }
     (*output_tensor_descs.mutable_list()->mutable_func(0)->mutable_attr())[SERIALIZE_SHAPE] = attr_shape_value;
   }
@@ -1212,31 +1262,8 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
     BuildShapeNodeAndCacheArgNodes(graph);
   }
 
-  for (Node *node : graph.nodes()) {
-    if (node->type_string() == kAllReduce) {
-      is_allreduce = true;
-    }
-    AddNodeAttrs(node, is_initialize);
-    // Add Input&Output Desc into NodeDef
-    ret = this->GenerateDesc(node);
-    if (!ret.ok()) {
-      ADP_LOG(ERROR) << "[GEOP] node: " << node->name() << " GenerateDesc failed, "
-                     << ret.error_message();
-      LOG(ERROR) << "[GEOP] node: " << node->name() << " GenerateDesc failed, "
-                 << ret.error_message();
-      return ret;
-    }
+  NPU_REQUIRES_OK(ProcessForDiffNodeTypes(graph, is_initialize, is_allreduce));
 
-    if (node->type_string() == "NpuOnnxGraphOp") {
-      ret = this->ParseOnnxGraphOpAttr(node);
-      graph_options_["input_format"] = "NCHW";
-      ADP_LOG(INFO) << "onnx_graph_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"];
-      if (!ret.ok()) {
-        LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, " << ret.error_message();
-        return ret;
-      }
-    }
-  }
   // set input_shape to dynamic nodes shape desc
   if (is_set_dynamic_config) {
     ret = ChangeInputsShapeDesc();

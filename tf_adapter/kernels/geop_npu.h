@@ -132,6 +132,8 @@ private:
 
   bool MaybeUpdateShape(OpKernelContext *const ctx);
 
+  Status ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is_allreduce);
+
   void UpdateInputsShapeDesc(Graph &graph);
 
   static const std::string INPUT_DESC;
@@ -188,6 +190,7 @@ private:
   std::string graph_parallel_option_path_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;
   bool jit_compile_;
+  bool is_getnext_dynamic_shape_;
   SessionId session_id_;
   AoeInitializeFunc aoe_initialize_;
   AoeFinalizeFunc aoe_finalize_;
