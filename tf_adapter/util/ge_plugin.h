@@ -37,6 +37,10 @@ class GePlugin {
 
   std::map<std::string, std::string> GetInitOptions();
 
+  void SetRankTableFileEnv(std::map<std::string, std::string> &init_options, std::string &rankTableFile);
+
+  void SetCmChiefWorkSizeEnv(std::map<std::string, std::string> &init_options, std::string &cmChiefIp);
+
  private:
   GePlugin();
 
@@ -47,6 +51,10 @@ class GePlugin {
   uint32_t device_id_;
   bool isInit_;
   bool isGlobal_;
+  bool is_use_hcom = false;
+  bool deploy_mode = false;
+  tensorflow::int64 work_size_num;
+  tensorflow::int64 rank_size_num;
   std::map<std::string, std::string> init_options_;
   std::mutex mutex_;
   static std::atomic_int graph_counter_;

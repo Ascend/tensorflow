@@ -22,6 +22,7 @@ from tensorflow.python.keras import backend
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import control_flow_ops
 from npu_bridge.hccl import hccl_ops
+from npu_bridge.estimator.npu import util as util_lib
 
 
 def broadcast_global_variables(root_rank):
@@ -54,7 +55,7 @@ class BroadcastGlobalVariablesCallbackImpl:
         if self.broadcast_done:
             return
 
-        rank_size = os.getenv("RANK_SIZE", "1")
+        rank_size = util_lib.get_ranksize()
         if int(rank_size) > 1:
             bcast_op = broadcast_global_variables(self.root_rank)
             backend.get_session().run(bcast_op)

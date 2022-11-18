@@ -36,6 +36,8 @@ using namespace tdt;
 using namespace tensorflow;
 namespace {
 const int kFatalSleepTime = 3000;
+const int64 kInvalidRankSize = -1;
+const int64 kDefaultRankSize = 1;
 inline string ToString(ge::Status status) {
   return ::ge::StatusFactory::Instance()->GetErrDesc(status);
 }
@@ -128,39 +130,21 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
     LOG(WARNING) << "[GePlugin] can not find Environment variable : JOB_ID";
   }
 
-  int64 rankSizeNum = 1;
-  (void) ReadInt64FromEnvVar("RANK_SIZE", 1, &rankSizeNum);
-  if (rankSizeNum > UINT32_MAX) {
-    rankSizeNum = UINT32_MAX;
-    ADP_LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
-    LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
-  }
-
-  bool is_use_hcom = false;
-  bool deploy_mode = false;
+  std::string cm_chief_ip;
+  (void) ReadStringFromEnvVar("CM_CHIEF_IP", "", &cm_chief_ip);
+  (void) ReadInt64FromEnvVar("CM_WORKER_SIZE", kInvalidRankSize, &work_size_num);
   std::string env_rank_table_file;
   (void) ReadStringFromEnvVar("RANK_TABLE_FILE", "", &env_rank_table_file);
-  if (!env_rank_table_file.empty() && (rankSizeNum > 0)) {
-    ADP_LOG(INFO) << "[GePlugin] env RANK_TABLE_FILE:" << env_rank_table_file;
-    is_use_hcom = true;
-    init_options[ge::OPTION_EXEC_RANK_TABLE_FILE] = env_rank_table_file;
-    std::string env_pod_name;
-    (void) ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
-    if (!env_pod_name.empty()) {
-      deploy_mode = true;
-      init_options[ge::OPTION_EXEC_POD_NAME] = env_pod_name;
-    } else {
-      std::string env_rank_id;
-      (void) ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
-      if (!env_rank_id.empty()) {
-        ADP_LOG(INFO) << "[GePlugin] env RANK_ID:" << env_rank_id;
-        deploy_mode = false;
-        init_options[ge::OPTION_EXEC_RANK_ID] = env_rank_id;
-      } else {
-        ADP_LOG(ERROR) << "[GePlugin] Can't find rank_id or pod_name in env.";
-        LOG(ERROR) << "[GePlugin] Can't find rank_id or pod_name in env.";
-      }
-    }
+  (void) ReadInt64FromEnvVar("RANK_SIZE", kInvalidRankSize, &rank_size_num);
+  if (!cm_chief_ip.empty() && !env_rank_table_file.empty()) {
+    ADP_LOG(ERROR) << "[GePlugin] CM_CHIEF_IP and RANK_TABLE_FILE cannot be configured at the same time.";
+    LOG(ERROR) << "[GePlugin] CM_CHIEF_IP and RANK_TABLE_FILE cannot be configured at the same time.";
+  } else if (!cm_chief_ip.empty()) {
+    SetCmChiefWorkSizeEnv(init_options, cm_chief_ip);
+  } else if (!env_rank_table_file.empty()) {
+    SetRankTableFileEnv(init_options, env_rank_table_file);
+  } else {
+    ADP_LOG(INFO) << "[GePlugin] CM_CHIEF_IP and RANK_TABLE_FILE are all not be configured.";
   }
 
   std::string cluster_info;
@@ -269,6 +253,67 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
   isGlobal_ = is_global;
 }
 
+void GePlugin::SetRankTableFileEnv(std::map<std::string, std::string> &init_options, std::string &rankTableFile) {
+  rank_size_num = (rank_size_num == kInvalidRankSize) ? kDefaultRankSize : rank_size_num;
+  if (rank_size_num > UINT32_MAX) {
+    rank_size_num = UINT32_MAX;
+    ADP_LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
+    LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
+  }
+  if (!rankTableFile.empty() && (rank_size_num > 0) && (work_size_num == kInvalidRankSize)) {
+    ADP_LOG(INFO) << "[GePlugin] env RANK_TABLE_FILE:" << rankTableFile;
+    is_use_hcom = true;
+    init_options[ge::OPTION_EXEC_RANK_TABLE_FILE] = rankTableFile;
+    std::string env_pod_name;
+    (void) ReadStringFromEnvVar("POD_NAME", "", &env_pod_name);
+    if (!env_pod_name.empty()) {
+      deploy_mode = true;
+      init_options[ge::OPTION_EXEC_POD_NAME] = env_pod_name;
+    } else {
+      std::string env_rank_id;
+      (void) ReadStringFromEnvVar("RANK_ID", "", &env_rank_id);
+      if (!env_rank_id.empty()) {
+        ADP_LOG(INFO) << "[GePlugin] env RANK_ID:" << env_rank_id;
+        deploy_mode = false;
+        init_options[ge::OPTION_EXEC_RANK_ID] = env_rank_id;
+      } else {
+        ADP_LOG(ERROR) << "[GePlugin] Can't find rank_id or pod_name in env.";
+        LOG(ERROR) << "[GePlugin] Can't find rank_id or pod_name in env.";
+      }
+    }
+  }
+}
+
+void GePlugin::SetCmChiefWorkSizeEnv(std::map<std::string, std::string> &init_options, std::string &cmChiefIp) {
+  std::string cm_chief_port;
+  (void) ReadStringFromEnvVar("CM_CHIEF_PORT", "", &cm_chief_port);
+  std::string cm_chief_device;
+  (void) ReadStringFromEnvVar("CM_CHIEF_DEVICE", "", &cm_chief_device);
+  std::string cm_worker_ip;
+  (void) ReadStringFromEnvVar("CM_WORKER_IP", "", &cm_worker_ip);
+  std::string cm_worker_size;
+  (void) ReadStringFromEnvVar("CM_WORKER_SIZE", "", &cm_worker_size);
+  work_size_num = (work_size_num == kInvalidRankSize) ? kDefaultRankSize : work_size_num;
+  if (work_size_num > UINT32_MAX) {
+    work_size_num = UINT32_MAX;
+    ADP_LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
+    LOG(WARNING) << "[GePlugin] RANK_SIZE is larger than UINT32_MAX, set to UINT32_MAX.";
+  }
+  if (!cmChiefIp.empty() && !cm_chief_port.empty() && !cm_chief_device.empty() && (work_size_num > 0) &&
+      (rank_size_num == kInvalidRankSize)) {
+    is_use_hcom = true;
+    init_options["ge.cmChiefIp"] = cmChiefIp;
+    init_options["ge.cmChiefPort"] = cm_chief_port;
+    init_options["ge.cmChiefWorkerDevice"] = cm_chief_device;
+    if (!cm_worker_ip.empty()) {
+      init_options["ge.cmWorkerIp"] = cm_worker_ip;
+    }
+    if (!cm_worker_size.empty()) {
+      init_options["ge.cmWorkerSize"] = cm_worker_size;
+    }
+  }
+}
+
 std::map<std::string, std::string> GePlugin::GetInitOptions() {
   return init_options_;
 }
@@ -315,15 +360,12 @@ bool GePlugin::IsGlobal() {
 }
 
 static CancellationManager g_cancellationManager;
-Status RegisterNpuCancellationCallback(std::function<void()> callback,
-    std::function<void()>* deregister_fn) {
+Status RegisterNpuCancellationCallback(std::function<void()> callback, std::function<void()> *deregister_fn) {
   CancellationToken token = g_cancellationManager.get_cancellation_token();
   if (!g_cancellationManager.RegisterCallback(token, std::move(callback))) {
     return errors::Cancelled("Operation was cancelled");
   }
-  *deregister_fn = [token]() {
-    g_cancellationManager.DeregisterCallback(token);
-  };
+  *deregister_fn = [token]() { g_cancellationManager.DeregisterCallback(token); };
   return Status::OK();
 }
 
@@ -356,8 +398,8 @@ void AoeFinalizeIfNeed() {
     return;
   }
 
-  (void)aoe_finalize();
-  (void)mmDlclose(handle);
+  (void) aoe_finalize();
+  (void) mmDlclose(handle);
 
   ADP_LOG(INFO) << "Finish to call aoe finalize when npu close.";
 }

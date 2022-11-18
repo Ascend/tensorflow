@@ -51,6 +51,14 @@ def broadcast_keras_model(model, root_rank=0):
     return model
 
 
+def get_ranksize():
+    if os.getenv("CM_WORK_SIZE") is not None and os.getenv("RANK_SIZE") is not None:
+        raise ValueError("RANK_SIZE and CM_WORK_SIZE cannot be configured at the same time")
+    rank_size = os.getenv('RANK_SIZE') if os.getenv(
+        "RANK_SIZE") is not None else os.getenv('CM_WORK_SIZE', '1')
+    return rank_size
+
+
 class NPUBroadcastGlobalVariablesCallback(keras.callbacks.Callback):
     """
     Keras Callback that will broadcast all global variables from root rank
@@ -75,7 +83,7 @@ class NPUBroadcastGlobalVariablesCallback(keras.callbacks.Callback):
             if self.broadcast_done:
                 return
 
-            rank_size = os.getenv("RANK_SIZE", "1")
+            rank_size = get_ranksize()
             if int(rank_size) > 1:
                 broadcast_helper(self.model.trainable_variables, self.root_rank)
 

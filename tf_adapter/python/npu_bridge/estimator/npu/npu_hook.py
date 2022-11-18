@@ -28,6 +28,7 @@ from tensorflow.python.ops import summary_ops_v2 as contrib_summary
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import basic_session_run_hooks
+from npu_bridge.estimator.npu import util as util_lib
 
 from npu_bridge.estimator import npu_ops
 from npu_bridge.hccl import hccl_ops
@@ -89,7 +90,7 @@ class NPUBroadcastGlobalVariablesHook(session_run_hook.SessionRunHook):
         self._root_rank = root_rank
         self._index = index
         self._bcast_op = None
-        rank_size = os.getenv('RANK_SIZE', "1")
+        rank_size = util_lib.get_ranksize()
         if rank_size.isdigit():
             self._rank_size = int(rank_size)
         else:

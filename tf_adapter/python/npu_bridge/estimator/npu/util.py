@@ -232,6 +232,14 @@ def set_iteration_per_loop(sess, train_op, iterations_per_loop=1):
     return group_train_op
 
 
+def get_ranksize():
+    if os.getenv("CM_WORK_SIZE") is not None and os.getenv("RANK_SIZE") is not None:
+        raise ValueError("RANK_SIZE and CM_WORK_SIZE cannot be configured at the same time")
+    rank_size = os.getenv('RANK_SIZE') if os.getenv(
+        "RANK_SIZE") is not None else os.getenv('CM_WORK_SIZE', '1')
+    return rank_size
+
+
 class IterationPerLoop():
     """
     An object provide two API to create and set iterations_per_loop
