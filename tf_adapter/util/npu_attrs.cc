@@ -396,6 +396,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string topo_sorting_mode;
   std::string insert_op_file;
   std::string resource_config_path;
+  std::string external_weight = "0";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -457,6 +458,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_insert_op_file", &insert_op_file);
     (void) ctx->GetAttr("_resource_config_path", &resource_config_path);
     (void) ctx->GetAttr("_dump_layer", &dump_layer);
+    (void) ctx->GetAttr("_external_weight", &external_weight);
   }
 
   // session options
@@ -505,6 +507,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["insert_op_file"] = insert_op_file;
   sess_options["ge.insertOpFile"] = insert_op_file;
   sess_options["ge.resourceConfigPath"] = resource_config_path;
+  sess_options["ge.externalWeight"] = external_weight;
+  sess_options["external_weight"] = external_weight;
 
   return sess_options;
 }
@@ -1018,6 +1022,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string aoe_config_file;
   std::string stream_sync_timeout = "-1";
   std::string event_sync_timeout = "-1";
+  std::string external_weight = "0";
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1096,6 +1101,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto aoe_config_file_value = attrs.Find("_aoe_config_file");
   auto stream_sync_timeout_value = attrs.Find("_stream_sync_timeout");
   auto event_sync_timeout_value = attrs.Find("_event_sync_timeout");
+  auto external_weight_value = attrs.Find("_external_weight");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1354,6 +1360,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (event_sync_timeout_value != nullptr) {
       event_sync_timeout = event_sync_timeout_value->s();
     }
+    if (external_weight_value != nullptr) {
+      external_weight = external_weight_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1445,6 +1454,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["aoe_config_file"] = aoe_config_file;
   all_options["stream_sync_timeout"] = stream_sync_timeout;
   all_options["event_sync_timeout"] = event_sync_timeout;
+  all_options["external_weight"] = external_weight;
+  all_options["ge.externalWeight"] = external_weight;
 
   return all_options;
 }
@@ -1543,6 +1554,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string aoe_config_file;
   int32_t stream_sync_timeout = -1;
   int32_t event_sync_timeout = -1;
+  bool external_weight = false;
 
   const RewriterConfig &rewrite_options =
     options.session_options->config.graph_options().rewrite_options();
@@ -1936,6 +1948,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("event_sync_timeout") > 0) {
         event_sync_timeout = params.at("event_sync_timeout").i();
       }
+      if (params.count("external_weight") > 0) {
+        external_weight = params.at("external_weight").b();
+      }
     }
   }
 
@@ -1980,6 +1995,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
   sess_options["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
   sess_options["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
+  sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
+  sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
 
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {

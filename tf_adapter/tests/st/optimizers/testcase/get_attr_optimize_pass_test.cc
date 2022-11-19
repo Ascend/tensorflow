@@ -210,6 +210,9 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue insert_op_file = AttrValue();
   insert_op_file.set_s("aipp.cfg");
   (*custom_config->mutable_parameter_map())["insert_op_file"] = insert_op_file;
+  AttrValue external_weight = AttrValue();
+  external_weight.set_b(true);
+  (*custom_config->mutable_parameter_map())["external_weight"] = external_weight;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {

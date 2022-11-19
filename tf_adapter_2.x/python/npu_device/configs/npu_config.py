@@ -60,6 +60,7 @@ class NpuConfig(NpuBaseConfig):
         self.overflow_flag = OptionValue(1, [0, 1])
         self.stream_sync_timeout = OptionValue(-1, None)
         self.event_sync_timeout = OptionValue(-1, None)
+        self.external_weight = OptionValue(False, [True, False])
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()

@@ -761,6 +761,7 @@ class NPUEstimator(estimator_lib.Estimator):
         custom_op.parameter_map["jit_compile"].b = config._jit_compile
         custom_op.parameter_map["stream_sync_timeout"].i = config.stream_sync_timeout
         custom_op.parameter_map["event_sync_timeout"].i = config.event_sync_timeout
+        custom_op.parameter_map["external_weight"].b = config._external_weight
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)
