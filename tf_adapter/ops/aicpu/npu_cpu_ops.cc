@@ -241,8 +241,9 @@ REGISTER_OP("EmbeddingTableImport")
 
 REGISTER_OP("EmbeddingTableFind")
   .Input("table_id: uint32")
-  .Input("keys: uint32")
+  .Input("keys: uint64")
   .Output("values: float32")
+  .Attr("embedding_dim: int = 0")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     auto data_shape = c->input(0);
     c->set_output(0, data_shape);
