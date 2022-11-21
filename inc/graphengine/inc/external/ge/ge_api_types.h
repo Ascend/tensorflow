@@ -105,7 +105,6 @@ const char *const OUTPUT_DATATYPE = "ge.outputDatatype";
 const char *const OP_SELECT_IMPL_MODE = "ge.opSelectImplmode";
 const char *const OPTYPELIST_FOR_IMPLMODE = "ge.optypelistForImplmode";
 const char *const HCOM_PARALLEL = "ge.hcomParallel";
-const char *const AUTO_TUNE_MODE = "ge.autoTuneMode";
 const char *const SOC_VERSION = "ge.socVersion";
 const char *const CORE_TYPE = "ge.engineType";
 const char *const AICORE_NUM = "ge.aicoreNum";
@@ -248,10 +247,6 @@ const char *const kDynamicImageSize = "ge.dynamicImageSize";
 
 // Configure whether to use dynamic dims
 const char *const kDynamicDims = "ge.dynamicDims";
-
-// Configure auto tune mode, this option only take effect while AUTO_TUNE_FLAG is Y,
-// example: GA|RL, support configure multiple, split by |
-const std::string AUTO_TUNE_MODE = "ge.autoTuneMode";
 
 // Configure soc version , example: "Ascend310"
 const std::string SOC_VERSION = "ge.socVersion";
@@ -409,7 +404,6 @@ static const char *const INSERT_OP_FILE = ge::INSERT_OP_FILE.c_str();
 static const char *const PRECISION_MODE = ge::PRECISION_MODE.c_str();
 static const char *const TUNE_DEVICE_IDS = ge::TUNE_DEVICE_IDS.c_str();
 static const char *const EXEC_DISABLE_REUSED_MEMORY = ge::OPTION_EXEC_DISABLE_REUSED_MEMORY;
-static const char *const AUTO_TUNE_MODE = ge::AUTO_TUNE_MODE.c_str();
 static const char *const CORE_TYPE = ge::CORE_TYPE.c_str();
 static const char *const SOC_VERSION = ge::SOC_VERSION.c_str();
 static const char *const ENABLE_SINGLE_STREAM = ge::ENABLE_SINGLE_STREAM;
@@ -455,7 +449,6 @@ const std::set<std::string> ir_builder_suppported_options = {INPUT_FORMAT,
                                                              PRECISION_MODE,
                                                              TUNE_DEVICE_IDS,
                                                              EXEC_DISABLE_REUSED_MEMORY,
-                                                             AUTO_TUNE_MODE,
                                                              OUTPUT_TYPE,
                                                              OUT_NODES,
                                                              INPUT_FP16_NODES,
@@ -485,7 +478,6 @@ const std::set<std::string> global_options = {CORE_TYPE,
                                               PRECISION_MODE,
                                               TUNE_DEVICE_IDS,
                                               EXEC_DISABLE_REUSED_MEMORY,
-                                              AUTO_TUNE_MODE,
                                               ENABLE_SINGLE_STREAM,
                                               AICORE_NUM,
                                               FUSION_SWITCH_FILE,
