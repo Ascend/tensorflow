@@ -72,6 +72,7 @@ class DpTfToGEConversionPassImpl {
   inline bool IsIteratorNode(const Node &n) const;
   inline bool IsSkipDataset(const Node &n) const;
   inline bool IsGeSupportDataset(const Node &n) const;
+  inline bool NeedDeviceDataset(const Node &n, const std::string &socVersion) const;
   inline std::string GetEdgeName(const Edge *e) const;
   inline std::string GetRandomName(const std::string &prefix) const;
   std::string GetRandomName() const;
@@ -79,9 +80,12 @@ class DpTfToGEConversionPassImpl {
   inline bool CheckNode(const std::string &op) const;
   inline bool IsDeviceSupportedOp(const NodeDef &n) const;
   inline bool IsDeviceSupportedFunc(const std::string &fn) const;
-  inline Status GetSplitEdges(const Node &n, std::vector<const Edge *> &split_edges, const Edge *last_edge);
+  inline Status GetSplitEdges(const Node &n, std::vector<const Edge *> &split_edges,
+                              const Edge *last_edge, const std::string &socVersion);
   inline void RemoveSplitEdges(Node *topo_end);
-  Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name, std::string &device_queue_name,
+  Status InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
+                            std::string &device_queue_name,
+                            const std::string &socVersion,
                             const std::map<std::string, std::string> &all_options) const;
   bool GetNodeFuncs(const FunctionLibraryDefinition &flib_def, const Node &node, std::vector<string> &node_funcs) const;
   bool RemoveIsolatedNode(Graph &g, std::unordered_set<Node *> visited) const;
@@ -318,13 +322,13 @@ inline bool DpTfToGEConversionPassImpl::IsDeviceSupportedFunc(const std::string 
 }
 
 inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node &n, std::vector<const Edge *> &split_edges,
-                                                        const Edge *last_edge) {
+                                                        const Edge *last_edge, const std::string &socVersion) {
   if (IsMakeIteratorNode(n)) {
     for (const Edge *e : n.in_edges()) {
       REQUIRES_NOT_NULL(e);
       if (!IsIteratorNode(*(e->src()))) {
         last_edge = e;
-        ADP_LOG(INFO) << "last edge" << GetEdgeName(last_edge);
+        ADP_LOG(INFO) << "Last edge is " << GetEdgeName(last_edge);
       }
     }
   }
@@ -339,18 +343,18 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node &n, std::vect
                                        "optimize");
       }
       // GE supported node, continue find
-      if (kIsHeterogeneous) {
+      if ((kIsHeterogeneous) ||
+          (socVersion.compare("Ascend910") != 0 && socVersion.compare("Ascend910B") != 0)) {
         if (!IsIteratorNode(*(e->src()))) {
           split_edges.push_back(last_edge);
         }
       } else if (IsDeviceSupportedOp(e->src()->def())) {
-        Status s = GetSplitEdges(*(e->src()), split_edges, last_edge);
+        Status s = GetSplitEdges(*(e->src()), split_edges, last_edge, socVersion);
         if (!s.ok()) {
           return s;
         }
       } else {  // GE unsupported node, this is a split edge
-        ADP_LOG(INFO) << "Split_" << GetEdgeName(e);
-        ADP_LOG(INFO) << "Begin check split edge.";
+        ADP_LOG(INFO) << "Begin check split edge [Split_" + GetEdgeName(e) + "].";
         if (IsSkipDataset(*(e->dst()))) {
           ADP_LOG(INFO) << "ADD last edge " << GetEdgeName(last_edge);
           split_edges.push_back(last_edge);
@@ -364,8 +368,24 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node &n, std::vect
   return Status::OK();
 }
 
+inline bool DpTfToGEConversionPassImpl::NeedDeviceDataset(const Node &n,
+                                                          const std::string &socVersion) const {
+  if (kIsHeterogeneous) {
+    return false;
+  }
+  if (!NpuAttrs::GetNewDataTransferFlag()) {
+    return true;
+  }
+  if (socVersion.compare("Ascend910") == 0 || socVersion.compare("Ascend910B") == 0) {
+    return IsGeSupportDataset(n);
+  } else {
+    return false;
+  }
+}
+
 Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
                                                       std::string &device_queue_name,
+                                                      const std::string &socVersion,
                                                       const std::map<std::string, std::string> &all_options) const {
   ADP_LOG(INFO) << "Start to insert HostQueueDataset and DeviceQueueDataset.";
   REQUIRES_NOT_NULL(topo_end);
@@ -378,18 +398,10 @@ Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::strin
     REQUIRES_NOT_NULL(e);
     REQUIRES_NOT_NULL(e->src());
     REQUIRES_NOT_NULL(e->dst());
-    bool need_add_device_dataset = false;
-    if (kIsHeterogeneous) {
-      need_add_device_dataset = false;
-    } else if ((!NpuAttrs::GetNewDataTransferFlag()) || (IsGeSupportDataset(*(e->dst())))) {
-      need_add_device_dataset = true;
-    } else {
-      need_add_device_dataset = false;
-    }
-
     std::string local_rank_id = all_options.at("local_rank_id");
     std::string local_device_list = all_options.at("local_device_list");
     std::string channel_name;
+    bool need_add_device_dataset = NeedDeviceDataset(*(e->dst()), socVersion);
     if (local_rank_id == "-1") {
       REQUIRES_NOT_NULL(iterator_node);
       if (!need_add_device_dataset) {
@@ -554,15 +566,15 @@ Status DpTfToGEConversionPassImpl::AddDataTransDatasets(Node *topo_end, std::str
                                                         std::string &device_channel_name,
                                                         const std::map<std::string, std::string> &all_options) {
   const Edge *tmp_edge = nullptr;
-  Status ret = GetSplitEdges(*topo_end, split_edges_[topo_end], tmp_edge);
+  const std::string socVersion(aclrtGetSocName());
+  Status ret = GetSplitEdges(*topo_end, split_edges_[topo_end], tmp_edge, socVersion);
   if (!ret.ok()) {
     return ret;
   }
-
   // Start optimize graph
   // Insert Host and Device queue
-  ADP_LOG(INFO) << "Start to add host and device queue on split edges";
-  ret = InsertChannelQueue(topo_end, host_channel_name, device_channel_name, all_options);
+  ADP_LOG(INFO) << "Start to add host and device queue on split edges, SOC_VERSION [" + socVersion +"].";
+  ret = InsertChannelQueue(topo_end, host_channel_name, device_channel_name, socVersion, all_options);
   if (!ret.ok()) {
     return ret;
   }
