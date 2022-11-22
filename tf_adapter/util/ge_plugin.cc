@@ -192,13 +192,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
 
   // aoe mode and work path
   if (!init_options["ge.jobType"].empty()) {
-    if (init_options["ge.jobType"] == "2") {
-      init_options["ge.jobType"] = "";
-      init_options["ge.tuningPath"] = "";
-      init_options["distribute_config"] = "";
-    } else {
-      init_options["ge.buildMode"] = "tuning";
-    }
+    init_options["ge.buildMode"] = "tuning";
   }
   ADP_LOG(INFO) << "[GePlugin] aoe mode : " << init_options["ge.jobType"]
                 << ", work path : " << init_options["ge.tuningPath"]
