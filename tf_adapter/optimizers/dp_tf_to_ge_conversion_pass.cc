@@ -566,7 +566,8 @@ Status DpTfToGEConversionPassImpl::AddDataTransDatasets(Node *topo_end, std::str
                                                         std::string &device_channel_name,
                                                         const std::map<std::string, std::string> &all_options) {
   const Edge *tmp_edge = nullptr;
-  const std::string socVersion(aclrtGetSocName());
+  const char *soc_name = aclrtGetSocName();
+  const std::string socVersion = (soc_name == nullptr) ? "" : soc_name;
   Status ret = GetSplitEdges(*topo_end, split_edges_[topo_end], tmp_edge, socVersion);
   if (!ret.ok()) {
     return ret;
