@@ -514,7 +514,6 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   init_options["ge.exec.precision_mode"] = "allow_fp32_to_fp16";
   init_options[ge::OPTION_EXEC_PROFILING_MODE] = "0";
   init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = "";
-  init_options[ge::AUTO_TUNE_MODE] = "";
   init_options[ge::OPTION_GRAPH_RUN_MODE] = "1";
   init_options[ge::OP_DEBUG_LEVEL] = "0";
   init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = "";
@@ -530,7 +529,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = "0";
   std::string static_memory_policy;
-  std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
   std::string enable_scope_fusion_passes;
@@ -564,7 +562,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_precision_mode", &precision_mode);
-    (void) ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
     (void) ctx->GetAttr("_graph_run_mode", &graph_run_mode);
     (void) ctx->GetAttr("_op_debug_level", &op_debug_level);
     (void) ctx->GetAttr("_enable_scope_fusion_passes", &enable_scope_fusion_passes);
@@ -602,7 +599,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   } else {
     init_options_[ge::PRECISION_MODE] = precision_mode;
   }
-  init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
   init_options_[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
@@ -967,7 +963,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string profiling_options;
   std::string atomic_clean_policy = "0";
   std::string static_memory_policy;
-  std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
   std::string enable_scope_fusion_passes;
@@ -1042,7 +1037,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto profiling_options_value = attrs.Find("_profiling_options");
   auto atomic_clean_policy_value = attrs.Find("_atomic_clean_policy");
   auto static_memory_policy_value = attrs.Find("_static_memory_policy");
-  auto auto_tune_mode_value = attrs.Find("_auto_tune_mode");
   auto graph_run_mode_value = attrs.Find("_graph_run_mode");
   auto op_debug_level_value = attrs.Find("_op_debug_level");
   auto enable_scope_fusion_passes_value = attrs.Find("_enable_scope_fusion_passes");
@@ -1199,9 +1193,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
     if (profiling_mode == "1" && profiling_options.empty()) {
       profiling_options = profiling_default_options;
-    }
-    if (auto_tune_mode_value != nullptr) {
-      auto_tune_mode = auto_tune_mode_value->s();
     }
     if (graph_run_mode_value != nullptr) {
       graph_run_mode = graph_run_mode_value->s();
@@ -1363,7 +1354,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["static_memory_policy"] = static_memory_policy;
   // Commercial version has been released, temporarily used
   all_options["GE_USE_STATIC_MEMORY"] = static_memory_policy;
-  all_options["auto_tune_mode"] = auto_tune_mode;
   all_options["graph_run_mode"] = graph_run_mode;
   all_options["op_debug_level"] = op_debug_level;
   all_options["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
@@ -1462,7 +1452,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string profiling_options;
   int64_t atomic_clean_policy = 0L;
   std::string static_memory_policy;
-  std::string auto_tune_mode;
   int64_t graph_run_mode = 1L;
   int64_t op_debug_level = 0;
   std::string enable_scope_fusion_passes;
@@ -1597,9 +1586,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         } else {
           profiling_options = profiling_default_options;
         }
-      }
-      if (params.count("auto_tune_mode") > 0) {
-        auto_tune_mode = params.at("auto_tune_mode").s();
       }
       if (params.count("graph_run_mode") > 0) {
         graph_run_mode = params.at("graph_run_mode").i();
@@ -1951,8 +1937,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_["profiling_options"] = profiling_options;
   init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
-  init_options_["auto_tune_mode"] = auto_tune_mode;
-  init_options_[ge::AUTO_TUNE_MODE] = auto_tune_mode;
   init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = std::to_string(graph_run_mode);
   init_options_["op_debug_level"] = std::to_string(op_debug_level);

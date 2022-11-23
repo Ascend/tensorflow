@@ -56,7 +56,6 @@ extern int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_
 %template(var_info_vec) std::vector<ge::HostVarInfo>;
 %template(int64_vec) std::vector<int64_t>;
 
-extern const char* const AUTO_TUNE_MODE;
 extern const char* const OP_DEBUG_LEVEL;
 extern const char* const OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES;
 extern const char* const OPTION_EXEC_PROFILING_MODE;

@@ -56,7 +56,6 @@ class NPURunConfig(run_config_lib.RunConfig):
                  hcom_parallel=True,
                  graph_memory_max_size=None,
                  variable_memory_max_size=None,
-                 auto_tune_mode=None,
                  dump_config=None,
                  stream_max_parallel_num=None,
                  is_tailing_optimization=False,
@@ -134,7 +133,6 @@ class NPURunConfig(run_config_lib.RunConfig):
             serialize mode.
         graph_memory_max_size: The max size of ge graph memory size.
         variable_memory_max_size: The max size of ge variable memory size.
-        auto_tune_mode: None, or `GA` ,or `RL` or `GA|RL`
         dump_config: The dump configuration.
         stream_max_parallel_num: Specify the degree of parallelism of the AICPU / AICORE engine
                                  to achieve parallel execution between AICPU / AICORE operators.
@@ -196,7 +194,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._graph_memory_max_size = graph_memory_max_size
         self._variable_memory_max_size = variable_memory_max_size
 
-        self._auto_tune_mode = auto_tune_mode
         self._dump_config = self._get_dump_config(dump_config)
         self._stream_max_parallel_num = stream_max_parallel_num
 

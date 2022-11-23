@@ -25,7 +25,6 @@ from npu_bridge.estimator.npu import npu_scope
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import init_ops
 
-__auto_tune_mode = str(tf_adapter.AUTO_TUNE_MODE)
 __op_debug_level = str(tf_adapter.OP_DEBUG_LEVEL)
 __option_exec_enable_scope_fusion_passes = str(tf_adapter.OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES)
 __option_exec_profiling_mode = str(tf_adapter.OPTION_EXEC_PROFILING_MODE)
@@ -62,7 +61,6 @@ def npu_resource_init(graph_run_mode=1,
                       op_debug_level=0,
                       enable_profiling=False,
                       profiling_options=None,
-                      auto_tune_mode=None,
                       precision_mode=None,
                       enable_scope_fusion_passes=None,
                       enable_exception_dump=0,
@@ -91,9 +89,6 @@ def npu_resource_init(graph_run_mode=1,
         if profiling_options is None:
             raise ValueError('profiling_options must be set when use profiling')
         init[__option_exec_profiling_options] = str(profiling_options)
-
-    if auto_tune_mode is not None:
-        init[__auto_tune_mode] = str(auto_tune_mode)
 
     if precision_mode is not None:
         init["ge.exec.precision_mode"] = str(precision_mode)

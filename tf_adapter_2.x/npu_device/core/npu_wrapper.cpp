@@ -71,7 +71,6 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"enable_scope_fusion_passes", ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES},
   {"fusion_switch_file", ge::FUSION_SWITCH_FILE},
   {"precision_mode", ge::PRECISION_MODE},
-  {"auto_tune_mode", ge::AUTO_TUNE_MODE},
   {"op_select_implmode", ge::OP_SELECT_IMPL_MODE},
   {"optypelist_for_implmode", ge::OPTYPELIST_FOR_IMPLMODE},
   {"op_compiler_cache_mode", ge::OP_COMPILER_CACHE_MODE},

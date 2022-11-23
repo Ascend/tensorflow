@@ -545,16 +545,6 @@ class NPUEstimator(estimator_lib.Estimator):
 
         custom_op.parameter_map["variable_format_optimize"].b = config._variable_format_optimize
 
-    def __load_auto_tune_config(self, config, custom_op):
-        """Load auto tune config ,and add to custom_optimizers
-        Args:
-            config: NPURunConfig.
-            custom_op: Custom optimizers.
-        """
-
-        if config._auto_tune_mode is not None:
-            custom_op.parameter_map["auto_tune_mode"].s = tf.compat.as_bytes(config._auto_tune_mode)
-
     def __load_dump_config(self, config, custom_op):
         """Load dump config ,and add to custom_optimizers
         Args:
@@ -778,9 +768,6 @@ class NPUEstimator(estimator_lib.Estimator):
 
         # add variable acceleration to custom_op
         self.__load__variable_format_optimize(config, custom_op)
-
-        # add auto une config to custom_op
-        self.__load_auto_tune_config(config, custom_op)
 
         # add dump config to custom_op
         self.__load_dump_config(config, custom_op)
