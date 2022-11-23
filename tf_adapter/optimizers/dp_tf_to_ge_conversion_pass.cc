@@ -45,7 +45,10 @@ static std::atomic<int64> g_channel_index(1);
 const static std::vector<std::string> GE_OPS_WHITELIST = {
     "MapDataset",     "ParallelMapDataset",   "BatchDataset", "MapAndBatchDataset", "DeviceQueueDataset",
     "BatchDatasetV2", "MapAndBatchDatasetV2", "ModelDataset", "OptimizeDataset"};
-
+// Indicates the chips that allows datesets to be executed on the npu
+const static std::set<std::string> kToNpuDatasetChips = {
+    "Ascend910", "Ascend910A", "Ascend910B", "Ascend910ProA", "Ascend910ProB", "Ascend910PremiumA"
+};
 // Used for 0-input NodeDefBuilder
 const static std::vector<NodeDefBuilder::NodeOut> EMPTY_DEF_INPUT;
 // Used for 0-input NodeBuilder
@@ -73,6 +76,7 @@ class DpTfToGEConversionPassImpl {
   inline bool IsSkipDataset(const Node &n) const;
   inline bool IsGeSupportDataset(const Node &n) const;
   inline bool NeedDeviceDataset(const Node &n, const std::string &socVersion) const;
+  inline bool IsSupportNpuDatasetChip(const string &socVersion) const;
   inline std::string GetEdgeName(const Edge *e) const;
   inline std::string GetRandomName(const std::string &prefix) const;
   std::string GetRandomName() const;
@@ -102,7 +106,7 @@ class DpTfToGEConversionPassImpl {
                                    const std::string &fn_geop_dataset, const string &default_device,
                                    const std::map<std::string, std::string> &all_options) const;
   Status BuildGeOpDatasetFunction(FunctionDefLibrary &fdeflib, const Graph &device_graph,
-                                   const std::string &fn_geop_dataset, const string &default_device,
+                                  const std::string &fn_geop_dataset, const string &default_device,
                                   const std::map<std::string, std::string> &all_options) const;
   Status AddGeOpDatasetFunctionLibrary(FunctionLibraryDefinition *flib, const Node &topo_end,
                                        const std::string &device_channel_name, const std::string &fn_geop_dataset,
@@ -112,7 +116,7 @@ class DpTfToGEConversionPassImpl {
                                          const std::string &device_channel_name) const;
   void AddOptionAttr(std::vector<Node *> nodes, const std::map<std::string, std::string> &all_options) const;
   bool GetSkipOptimizeFlag(const std::map<std::string, std::string> &pass_options,
-                             const OptimizationPassRegistry::Grouping pass_group_value) const;
+                           const OptimizationPassRegistry::Grouping pass_group_value) const;
   // graph num
   int graph_run_num_;
   // All split edges, split edges means edges that combine A and B in this case
@@ -153,6 +157,10 @@ inline bool DpTfToGEConversionPassImpl::IsSkipDataset(const Node &n) const {
 
 inline bool DpTfToGEConversionPassImpl::IsGeSupportDataset(const Node &n) const {
   return std::find(GE_OPS_WHITELIST.begin(), GE_OPS_WHITELIST.end(), n.type_string()) != GE_OPS_WHITELIST.end();
+}
+
+inline bool DpTfToGEConversionPassImpl::IsSupportNpuDatasetChip(const string &socVersion) const {
+  return (kToNpuDatasetChips.find(socVersion) != kToNpuDatasetChips.end());
 }
 
 inline std::string DpTfToGEConversionPassImpl::GetEdgeName(const Edge *e) const {
@@ -343,8 +351,7 @@ inline Status DpTfToGEConversionPassImpl::GetSplitEdges(const Node &n, std::vect
                                        "optimize");
       }
       // GE supported node, continue find
-      if ((kIsHeterogeneous) ||
-          (socVersion.compare("Ascend910") != 0 && socVersion.compare("Ascend910B") != 0)) {
+      if ((kIsHeterogeneous) || (!IsSupportNpuDatasetChip(socVersion))) {
         if (!IsIteratorNode(*(e->src()))) {
           split_edges.push_back(last_edge);
         }
@@ -376,11 +383,7 @@ inline bool DpTfToGEConversionPassImpl::NeedDeviceDataset(const Node &n,
   if (!NpuAttrs::GetNewDataTransferFlag()) {
     return true;
   }
-  if (socVersion.compare("Ascend910") == 0 || socVersion.compare("Ascend910B") == 0) {
-    return IsGeSupportDataset(n);
-  } else {
-    return false;
-  }
+  return (IsSupportNpuDatasetChip(socVersion) ? IsGeSupportDataset(n) : false);
 }
 
 Status DpTfToGEConversionPassImpl::InsertChannelQueue(Node *topo_end, std::string &host_queue_name,
