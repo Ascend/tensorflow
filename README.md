@@ -7,7 +7,7 @@ Tensorflow Adapter For Ascend（简称TF_Adapter）致力于将昇腾AI处理器
 
 ![tfadapter](https://images.gitee.com/uploads/images/2020/1027/094640_8f305b88_8175427.jpeg "framework.jpg")
 
-您可以通过阅读 [TF_Adapter接口文档](https://support.huaweicloud.com/mprtg-A800_9000_9010/atlasprtg_13_0048.html) 获取更多使用细节。
+您可以通过阅读 [TF_Adapter接口文档](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/600alpha002/tfmoddevg/tfmigr1/atlasmprtg_13_0009.html) 获取更多使用细节。
 ## 安装
 ### 从源码安装
 
@@ -28,6 +28,21 @@ tfadapter也支持由源码编译，进行源码编译前，首先确保你有�
 git clone https://gitee.com/ascend/tensorflow.git
 cd tensorflow
 ```
+#### 适配定制tensorflow
+在部分场景下，您可能会把自己定制或者修改过的tensorflow与我们的TF_Adapter软件包配合使用，由于TF_Adapter默认链接的是tensorflow官方网站的源码，因此您在使用TF_Adapter软件包的时候，可能会因为符号不匹配而出现coredump问题。为了使TF_Adapter能适配您的tensorflow源码，我们提供了一种修改建议。
+您只需要将TF_Adapter源码下的tensorflow/cmake/tensorflow.cmake文件稍作修改，便可实现这一目的。
+
+![修改前TF_Adapter链接的是tensorflow官网源码](https://gitee.com/guopeian/tensorflow/raw/fix_readme/tf_adapter/docs/tensorflow_cmake.png "tensorflow_cmake.png")
+
+修改图中FetchContent_Declare下的URL和URL_HASH MD5，将其替换成您自己环境上的tensorflow软件包的地址和MD5值。
+例如，您的tensorflow软件包如果放在/opt/hw路径下，则您此处tensorflow.cmake的源码可以修改为
+
+![修改后TF_Adapter链接您环境上的tensorflow定制源码](https://gitee.com/guopeian/tensorflow/raw/fix_readme/tf_adapter/docs/revise_tensorflow.png "revise_tensorflow.png")
+
+#### 修改源码
+如果您想对TF_Adapter的源码进行修改，比如添加链接路径，或链接其他so等操作，您可以修改TF_Adapter源码下的tensorflow/CMakeLists.txt文件，只需要将ENABLE_OPEN_SRC分支下的编译配置做修改，便可以生效
+
+![CMakeList.txt文件](https://gitee.com/guopeian/tensorflow/raw/fix_readme/tf_adapter/docs/cmake.png "cmake.png")
 
 #### 执行脚本生成安装包
 ```
