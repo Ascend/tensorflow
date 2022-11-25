@@ -568,6 +568,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string aoe_config_file;
   std::string stream_sync_timeout = "-1";
   std::string event_sync_timeout = "-1";
+  std::string es_cluster_config;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_precision_mode", &precision_mode);
@@ -606,6 +607,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_aoe_config_file", &aoe_config_file);
     (void) ctx->GetAttr("_stream_sync_timeout", &stream_sync_timeout);
     (void) ctx->GetAttr("_event_sync_timeout", &event_sync_timeout);
+    (void) ctx->GetAttr("_es_cluster_config", &es_cluster_config);
   }
 
   if (precision_mode.empty()) {
@@ -656,6 +658,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.aoe_config_file"] = aoe_config_file;
   init_options_["stream_sync_timeout"] = stream_sync_timeout;
   init_options_["event_sync_timeout"] = event_sync_timeout;
+  init_options_["ge.esClusterConfig"] = es_cluster_config;
 
   return init_options_;
 }
@@ -1027,6 +1030,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string stream_sync_timeout = "-1";
   std::string event_sync_timeout = "-1";
   std::string external_weight = "0";
+  std::string es_cluster_config;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1102,6 +1106,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto jit_compile_value = attrs.Find("_jit_compile");
   auto topo_sorting_mode_value = attrs.Find("_topo_sorting_mode");
   auto insert_op_file_value = attrs.Find("_insert_op_file");
+  auto es_cluster_config_value = attrs.Find("_es_cluster_config");
   auto resource_config_path_value = attrs.Find("_resource_config_path");
   auto aoe_config_file_value = attrs.Find("_aoe_config_file");
   auto stream_sync_timeout_value = attrs.Find("_stream_sync_timeout");
@@ -1371,6 +1376,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (external_weight_value != nullptr) {
       external_weight = external_weight_value->s();
     }
+    if (es_cluster_config_value != nullptr) {
+      es_cluster_config = es_cluster_config_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1458,6 +1466,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["ge.topoSortingMode"] = topo_sorting_mode;
   all_options["insert_op_file"] = insert_op_file;
   all_options["ge.insertOpFile"] = insert_op_file;
+  all_options["es_cluster_config"] = es_cluster_config;
+  all_options["ge.esClusterConfig"] = es_cluster_config;
   all_options["resource_config_path"] = resource_config_path;
   all_options["ge.aoe_config_file"] = aoe_config_file;
   all_options["aoe_config_file"] = aoe_config_file;
@@ -1963,6 +1973,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("external_weight") > 0) {
         external_weight = params.at("external_weight").b();
+      }
+      if (params.count("es_cluster_config") > 0) {
+        std::string es_cluster_config = params.at("es_cluster_config").s();
+        init_options_["es_cluster_config"] = es_cluster_config;
+        init_options_["ge.esClusterConfig"] = es_cluster_config;
       }
     }
   }
