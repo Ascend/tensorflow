@@ -869,7 +869,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options_["ge.enableGraphParallel"] = enable_graph_parallel_;
     }
     if (!deploy_inject_config_.empty()) {
-      graph_options_["ge.deploy_inject_config"] = deploy_inject_config_;
+      graph_options_["ge.exec.clusterSpec"] = deploy_inject_config_;
     }
     if (!execute_times_.empty()) {
       graph_options_["ge.execute_times"] = execute_times_;

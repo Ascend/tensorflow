@@ -288,7 +288,7 @@ def non_zero_with_value_shape(value, index, count):
 class ESWorker:
     """ Embedding service class. """
     def __init__(self, es_cluster_config):
-        with open(self, es_cluster_config, encoding='utf-8') as a:
+        with open(es_cluster_config, encoding='utf-8') as a:
             es_cluster_config_json = json.load(a)
             self._es_cluster_conf = json.dumps(es_cluster_config_json)
             self._ps_num = int(es_cluster_config_json["psNum"])
