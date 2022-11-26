@@ -15,7 +15,11 @@
 # limitations under the License.
 # ==============================================================================
 
+import json
 from tensorflow.python.framework import ops
+from tensorflow.core.framework import attr_value_pb2
+from tensorflow.python.util import compat
+import tensorflow.compat.v1 as tf
 from npu_bridge.helper import helper
 
 gen_npu_cpu_ops = helper.get_gen_ops()
@@ -279,3 +283,102 @@ def non_zero_with_value_shape(value, index, count):
         index=index,
         count=count)
     return result
+
+
+class ESWorker:
+    """ Embedding service class. """
+    def __init__(self, es_cluster_config):
+        with open(self, es_cluster_config, encoding='utf-8') as a:
+            es_cluster_config_json = json.load(a)
+            self._es_cluster_conf = json.dumps(es_cluster_config_json)
+            self._ps_num = int(es_cluster_config_json["psNum"])
+            self._embedding_dim = -1
+            self._max_num = -1
+            self._ps_ids = []
+            self._ps_ids_list = es_cluster_config_json["psCluster"]
+            for each_ps in self._ps_ids_list:
+                self._ps_ids.append(each_ps["id"])
+
+        config = tf.ConfigProto()
+        custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
+        custom_op.name = "NpuOptimizer"
+        custom_op.parameter_map["es_cluster_config"].s = tf.compat.as_bytes(self._es_cluster_conf)
+        self.es_all_config = config
+
+    ## 提供embedding init功能
+    # @param bucket_size int 类型
+    # @param file_path string 类型
+    # @param file_name string 类型
+    # @param table_id uint32 类型
+    # @param embedding_dim uint32 类型
+    # @param max_batch_size uint32 类型
+    def embedding_init(self, bucket_size, file_path, file_name, table_id, embedding_dim, max_batch_size):
+        """ Operator for init embedding table. """
+        self._embedding_dim = embedding_dim
+        self._max_num = max_batch_size
+        ps_num = tf.constant(self._ps_num, dtype=tf.uint32, name='ps_num')
+        ps_ids = tf.constant(self._ps_ids, dtype=tf.uint32, name='ps_ids')
+        ps_engine_values = "PS"
+        ps_engine = attr_value_pb2.AttrValue(s=compat.as_bytes(ps_engine_values))
+        ps_num.op._set_attr("_process_node_engine_id", ps_engine)
+        ps_ids.op._set_attr("_process_node_engine_id", ps_engine)
+        init_partition_map = gen_npu_cpu_ops.init_partition_map(ps_num=ps_num,
+                                                                ps_ids=ps_ids)
+        table_id = tf.constant(table_id, dtype=tf.uint32, name='table_id')
+        table_id.op._set_attr("_process_node_engine_id", ps_engine)
+        with tf.control_dependencies([init_partition_map]):
+            init_embedding_hash_map = gen_npu_cpu_ops.init_embedding_hashmap(table_id=table_id, bucket_size=bucket_size)
+        file_name = tf.constant(file_name, dtype=tf.string, name='file_name')
+        file_path = tf.constant(file_path, dtype=tf.string, name='file_path')
+        embedding_dim = tf.constant(embedding_dim, dtype=tf.uint32, name="embedding_dim")
+        ps_id = -1
+        ps_id = tf.constant(ps_id, dtype=tf.uint32, name='ps_id')
+        ps_id.op._set_attr("_process_node_engine_id", ps_engine)
+        file_name.op._set_attr("_process_node_engine_id", ps_engine)
+        file_path.op._set_attr("_process_node_engine_id", ps_engine)
+        embedding_dim.op._set_attr("_process_node_engine_id", ps_engine)
+        with tf.control_dependencies([init_embedding_hash_map]):
+            embedding_table_import = gen_npu_cpu_ops.embedding_table_import(file_path=file_path,
+                                                                            file_name=file_name,
+                                                                            ps_id=ps_id,
+                                                                            table_id=table_id,
+                                                                            embedding_dim=embedding_dim)
+        init_partition_map._set_attr("_process_node_engine_id", ps_engine)
+        init_embedding_hash_map._set_attr("_process_node_engine_id", ps_engine)
+        embedding_table_import._set_attr("_process_node_engine_id", ps_engine)
+        execute_times_value = 1
+        execute_times = attr_value_pb2.AttrValue(i=execute_times_value)
+        embedding_table_import._set_attr("_execute_times", execute_times)
+        embedding_dim_value = 1
+        embedding_dim = attr_value_pb2.AttrValue(i=embedding_dim_value)
+        embedding_table_import._set_attr("_embedding_dim", embedding_dim)
+        max_num_value = self._max_num
+        max_num = attr_value_pb2.AttrValue(i=max_num_value)
+        embedding_table_import._set_attr("_max_num", max_num)
+        deploy_inject_config_value = self._es_cluster_conf
+        deploy_inject_config = attr_value_pb2.AttrValue(s=compat.as_bytes(deploy_inject_config_value))
+        embedding_table_import._set_attr("_deploy_inject_config", deploy_inject_config)
+        result = embedding_table_import
+        return result
+
+    # 提供embedding lookup功能
+    # @param table_id uint32 类型
+    # @param input_ids uint64 类型
+    # @return values float32 类型
+    def embedding_look_up(self, table_id, input_ids):
+        """ Operator for look up in embedding table. """
+        table_id = tf.constant(table_id, dtype=tf.uint32, name="table_id")
+        result = gen_npu_cpu_ops.embedding_table_find(table_id=table_id,
+                                                      keys=input_ids,
+                                                      embedding_dim=self._embedding_dim)
+        max_num_value = self._max_num
+        max_num = attr_value_pb2.AttrValue(i=max_num_value)
+        result.op._set_attr("_max_num", max_num)
+        if self._embedding_dim == -1:
+            self._embedding_dim = 4
+        embedding_dim_value = attr_value_pb2.AttrValue(i=self._embedding_dim)
+        result.op._set_attr("_embedding_dim", embedding_dim_value)
+        deploy_inject_config_value = self._es_cluster_conf
+        deploy_inject_config = attr_value_pb2.AttrValue(s=compat.as_bytes(deploy_inject_config_value))
+        result.op._set_attr("_deploy_inject_config", deploy_inject_config)
+        return result

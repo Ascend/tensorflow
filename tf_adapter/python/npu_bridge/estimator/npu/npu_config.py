@@ -105,7 +105,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  insert_op_file=None,
                  stream_sync_timeout=-1,
                  event_sync_timeout=-1,
-                 external_weight=False
+                 external_weight=False,
+                 es_cluster_config=None
                  ):
         """
         Constructs a NPUConfig.
@@ -162,6 +163,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         experimental_config: The experimental configuration.
         topo_sorting_mode: Provides an interface for users to customize topology sorting.
         external_weight: Whether convert const to fileconstant and save weight to file.
+        es_cluster_config: esClusterConfig from user input in embedding service.
         """
 
         # Check iterations_per_loop.
@@ -250,6 +252,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self.stream_sync_timeout = stream_sync_timeout
         self.event_sync_timeout = event_sync_timeout
         self._external_weight = external_weight
+        self.es_cluster_config = es_cluster_config
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

@@ -1997,6 +1997,10 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   const std::string kRecomputeMode = "_recompute_mode";
   const std::string kGraphParallelOptionPath = "_graph_parallel_option_path";
   const std::string kEnableGraphParallel = "_enable_graph_parallel";
+  const std::string kDeployInjectConfig = "_deploy_inject_config";
+  const std::string kExecuteTimes = "_execute_times";
+  const std::string kMaxNum = "_max_num";
+  const std::string kEmbeddingDim = "_embedding_dim";
   if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
     bool dynamic_input = node_attrs.at(kDynamicInput).b();
     graph_options["dynamic_input"] = std::to_string(static_cast<int32_t>(dynamic_input));
@@ -2025,6 +2029,21 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   if (node_attrs.find(kEnableGraphParallel) != node_attrs.end()) {
     const auto enable_graph_parallel = node_attrs.at(kEnableGraphParallel).b();
     graph_options["enable_graph_parallel"] = std::to_string(static_cast<const int32_t>(enable_graph_parallel));
+  }
+  if (node_attrs.find(kDeployInjectConfig) != node_attrs.end()) {
+    graph_options["deploy_inject_config"] = node_attrs.at(kDeployInjectConfig).s();
+  }
+  if (node_attrs.find(kExecuteTimes) != node_attrs.end()) {
+    const auto execute_times = node_attrs.at(kExecuteTimes).i();
+    graph_options["execute_times"] = std::to_string(static_cast<const int32_t>(execute_times));
+  }
+  if (node_attrs.find(kMaxNum) != node_attrs.end()) {
+    const auto max_num = node_attrs.at(kMaxNum).i();
+    graph_options["max_num"] = std::to_string(static_cast<const int32_t>(max_num));
+  }
+  if (node_attrs.find(kEmbeddingDim) != node_attrs.end()) {
+    const auto embedding_dim = node_attrs.at(kEmbeddingDim).i();
+    graph_options["embedding_dim"] = std::to_string(static_cast<const int32_t>(embedding_dim));
   }
 }
 
