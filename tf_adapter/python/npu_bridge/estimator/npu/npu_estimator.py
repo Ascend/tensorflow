@@ -718,6 +718,7 @@ class NPUEstimator(estimator_lib.Estimator):
         if config._buffer_optimize is not None:
             custom_op.parameter_map["buffer_optimize"].s = tf.compat.as_bytes(config._buffer_optimize)
         custom_op.parameter_map["enable_small_channel"].i = config._enable_small_channel
+        custom_op.parameter_map["deterministic"].i = config._deterministic
         if config._fusion_switch_file is not None:
             custom_op.parameter_map["fusion_switch_file"].s = tf.compat.as_bytes(config._fusion_switch_file)
         custom_op.parameter_map["enable_compress_weight"].b = config._enable_compress_weight
