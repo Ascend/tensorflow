@@ -1226,6 +1226,7 @@ Status GeOp::ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is
           tensorflow::PartialTensorShape shape(shape_proto);
           if (!shape.IsFullyDefined()) {
             is_getnext_dynamic_shape_ = true;
+            ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_getnext_dynamic_shape_ come true.";
           }
         }
       }
