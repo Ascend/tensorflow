@@ -396,6 +396,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string topo_sorting_mode;
   std::string insert_op_file;
   std::string resource_config_path;
+  std::string external_weight = "0";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -457,6 +458,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_insert_op_file", &insert_op_file);
     (void) ctx->GetAttr("_resource_config_path", &resource_config_path);
     (void) ctx->GetAttr("_dump_layer", &dump_layer);
+    (void) ctx->GetAttr("_external_weight", &external_weight);
   }
 
   // session options
@@ -505,6 +507,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["insert_op_file"] = insert_op_file;
   sess_options["ge.insertOpFile"] = insert_op_file;
   sess_options["ge.resourceConfigPath"] = resource_config_path;
+  sess_options["ge.externalWeight"] = external_weight;
+  sess_options["external_weight"] = external_weight;
 
   return sess_options;
 }
@@ -1002,6 +1006,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string insert_op_file;
   std::string resource_config_path;
   std::string aoe_config_file;
+  std::string external_weight = "0";
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1076,6 +1081,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto insert_op_file_value = attrs.Find("_insert_op_file");
   auto resource_config_path_value = attrs.Find("_resource_config_path");
   auto aoe_config_file_value = attrs.Find("_aoe_config_file");
+  auto external_weight_value = attrs.Find("_external_weight");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1322,6 +1328,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (insert_op_file_value != nullptr) {
       insert_op_file = insert_op_file_value->s();
     }
+    if (external_weight_value != nullptr) {
+      external_weight = external_weight_value->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1409,6 +1418,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["resource_config_path"] = resource_config_path;
   all_options["ge.aoe_config_file"] = aoe_config_file;
   all_options["aoe_config_file"] = aoe_config_file;
+  all_options["external_weight"] = external_weight;
+  all_options["ge.externalWeight"] = external_weight;
 
   return all_options;
 }
@@ -1503,6 +1514,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string logical_device_id;
   bool jit_compile = true;
   std::string aoe_config_file;
+  bool external_weight = false;
 
   const RewriterConfig &rewrite_options =
     options.session_options->config.graph_options().rewrite_options();
@@ -1884,6 +1896,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("aoe_config_file") > 0) {
         aoe_config_file = params.at("aoe_config_file").s();
       }
+      if (params.count("external_weight") > 0) {
+        external_weight = params.at("external_weight").b();
+      }
     }
   }
 
@@ -1926,6 +1941,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["resource_config_path"] = resource_config_path;
   sess_options["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
+  sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
+  sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
 
   init_options_["precision_mode"] = precision_mode;
   if (precision_mode.empty()) {

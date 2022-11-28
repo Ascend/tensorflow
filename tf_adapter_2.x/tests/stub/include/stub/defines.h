@@ -207,6 +207,9 @@ const std::string ENABLE_SMALL_CHANNEL = "ge.enableSmallChannel";
 // Configure Jit Compile
 const std::string JIT_COMPILE = "ge.jit_compile";
 
+// Configure External Weight
+const std::string EXTERNAL_WEIGHT = "ge.externalWeight";
+
 // Configure Compress Weight flag
 const std::string ENABLE_COMPRESS_WEIGHT = "ge.enableCompressWeight";
 

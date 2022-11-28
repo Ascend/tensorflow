@@ -753,6 +753,7 @@ class NPUEstimator(estimator_lib.Estimator):
         if config.insert_op_file is not None:
             custom_op.parameter_map["insert_op_file"].s = config.insert_op_file
         custom_op.parameter_map["jit_compile"].b = config._jit_compile
+        custom_op.parameter_map["external_weight"].b = config._external_weight
 
         self.__load_session_device_id(config, custom_op)
         self.__load_modify_mixlist(config, custom_op)

@@ -58,6 +58,7 @@ class NpuConfig(NpuBaseConfig):
         self.topo_sorting_mode = OptionValue(None, [0, 1, None])
         self.customize_dtypes = OptionValue(None, None)
         self.overflow_flag = OptionValue(1, [0, 1])
+        self.external_weight = OptionValue(False, [True, False])
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()
