@@ -392,6 +392,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string hccl_timeout;
   std::string HCCL_algorithm;
   std::string atomic_clean_policy = "0";
+  std::string memory_optimization_policy;
   std::string static_memory_policy;
   std::string jit_compile = "0";
   std::string topo_sorting_mode;
@@ -454,6 +455,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_hccl_timeout", &hccl_timeout);
     (void) ctx->GetAttr("_HCCL_algorithm", &HCCL_algorithm);
     (void) ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
+    (void) ctx->GetAttr("_memory_optimization_policy", &memory_optimization_policy);
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
     (void) ctx->GetAttr("_jit_compile", &jit_compile);
     (void) ctx->GetAttr("_topo_sorting_mode", &topo_sorting_mode);
@@ -503,6 +505,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["HCCL_algorithm"] = HCCL_algorithm;
   sess_options["atomic_clean_policy"] = atomic_clean_policy;
   sess_options["ge.exec.atomicCleanPolicy"] = atomic_clean_policy;
+  sess_options["memory_optimization_policy"] = memory_optimization_policy;
+  sess_options["ge.exec.memoryOptimizationPolicy"] = memory_optimization_policy;
   sess_options["jit_compile"] = jit_compile;
   sess_options["ge.jit_compile"] = jit_compile;
   sess_options["topo_sorting_mode"] = topo_sorting_mode;
@@ -987,6 +991,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string profiling_mode = "0";
   std::string profiling_options;
   std::string atomic_clean_policy = "0";
+  std::string memory_optimization_policy;
   std::string static_memory_policy;
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
@@ -1069,6 +1074,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto profiling_mode_value = attrs.Find("_profiling_mode");
   auto profiling_options_value = attrs.Find("_profiling_options");
   auto atomic_clean_policy_value = attrs.Find("_atomic_clean_policy");
+  auto memory_optimization_policy_value = attrs.Find("_memory_optimization_policy");
   auto static_memory_policy_value = attrs.Find("_static_memory_policy");
   auto auto_tune_mode_value = attrs.Find("_auto_tune_mode");
   auto graph_run_mode_value = attrs.Find("_graph_run_mode");
@@ -1228,6 +1234,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
     if (atomic_clean_policy_value != nullptr) {
       atomic_clean_policy = atomic_clean_policy_value->s();
+    }
+    if (memory_optimization_policy_value != nullptr) {
+      memory_optimization_policy = memory_optimization_policy_value->s();
     }
     if (static_memory_policy_value != nullptr) {
       static_memory_policy = static_memory_policy_value->s();
@@ -1416,6 +1425,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["profiling_mode"] = profiling_mode;
   all_options["profiling_options"] = profiling_options;
   all_options["atomic_clean_policy"] = atomic_clean_policy;
+  all_options["memory_optimization_policy"] = memory_optimization_policy;
   all_options["static_memory_policy"] = static_memory_policy;
   // Commercial version has been released, temporarily used
   all_options["GE_USE_STATIC_MEMORY"] = static_memory_policy;
@@ -1526,6 +1536,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool profiling_mode = false;
   std::string profiling_options;
   int64_t atomic_clean_policy = 0L;
+  std::string memory_optimization_policy;
   std::string static_memory_policy;
   std::string auto_tune_mode;
   int64_t graph_run_mode = 1L;
@@ -1941,6 +1952,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("atomic_clean_policy") > 0) {
         atomic_clean_policy = params.at("atomic_clean_policy").i();
       }
+      if (params.count("memory_optimization_policy") > 0) {
+        memory_optimization_policy = params.at("memory_optimization_policy").s();
+      }
       if (params.count("experimental_logical_device_cluster_deploy_mode") > 0) {
         logical_device_cluster_deploy_mode = params.at("experimental_logical_device_cluster_deploy_mode").s();
       }
@@ -2035,6 +2049,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["resource_config_path"] = resource_config_path;
   sess_options["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
+  sess_options["memory_optimization_policy"] = memory_optimization_policy;
+  sess_options["ge.exec.memoryOptimizationPolicy"] = memory_optimization_policy;
   sess_options["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
   sess_options["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
   sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
