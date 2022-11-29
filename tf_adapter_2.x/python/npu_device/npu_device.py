@@ -64,6 +64,14 @@ def set_npu_loop_size(loop_size):
     _npu_device_backends.SetNpuLoopSize(loop_size)
 
 
+def set_device_sat_mode(mode):
+    _npu_device_backends.SetDeviceSatMode(mode)
+
+
+def get_device_sat_mode():
+    return _npu_device_backends.GetDeviceSatMode()
+
+
 _global_options = None
 _global_options_lock = threading.Lock()
 

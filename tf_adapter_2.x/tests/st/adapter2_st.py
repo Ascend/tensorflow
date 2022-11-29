@@ -23,7 +23,8 @@ os.environ['ASCEND_OPP_PATH'] = 'non-existed-path'
 
 import npu_device
 from npu_device.npu_device import stupid_repeat
-
+from npu_device.npu_device import set_device_sat_mode
+from npu_device.npu_device import get_device_sat_mode
 import unittest
 import tensorflow as tf
 from tensorflow.python.eager import context
@@ -70,6 +71,12 @@ def foo_cpu_add_(v):
 
 
 class Adapter2St(unittest.TestCase):
+    def test_set_device_sat_mode(self):
+        set_device_sat_mode(2)
+        self.assertTrue(get_device_sat_mode(), -1);
+        set_device_sat_mode(1)
+        self.assertTrue(get_device_sat_mode(), 1);
+
     def test_mix_resource(self):
         with context.device("/job:localhost/replica:0/task:0/device:CPU:0"):
             x = tf.Variable(1)

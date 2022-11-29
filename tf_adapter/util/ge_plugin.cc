@@ -27,6 +27,7 @@
 #include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "acl/acl_rt.h"
 #include "tf_adapter/util/npu_plugin.h"
 #include "aoe_tuning_api.h"
 using AoeFinalizeFunc = Aoe::AoeStatus (*)();
@@ -478,4 +479,26 @@ int32_t MallocSharedMem(const ge::TensorInfo &tensor_info, uint64_t &dev_addr, u
   return 0;
 }
 
+int32_t SetDeviceSatMode(uint32_t mode) {
+  aclError ret = aclrtSetDeviceSatMode(aclrtFloatOverflowMode(mode));
+  if (ret != ACL_SUCCESS) {
+    ADP_LOG(ERROR) << "[GePlugin] set device sat mode failed, ret : " << ToString(ret);
+    LOG(ERROR) << "[GePlugin] set device sat mode failed, ret : " << ToString(ret);
+    return -1;
+  }
+  ADP_LOG(INFO) << "[GePlugin] set device sat mode success.";
+  return 0;
+}
+
+int32_t GetDeviceSatMode() {
+  aclrtFloatOverflowMode floatOverflowMode = ACL_RT_OVERFLOW_MODE_UNDEF;
+  aclError ret = aclrtGetDeviceSatMode(&floatOverflowMode);
+  if (ret != ACL_SUCCESS) {
+    ADP_LOG(ERROR) << "[GePlugin] get device sat mode failed, ret : " << ToString(ret);
+    LOG(ERROR) << "[GePlugin] get device sat mode failed, ret : " << ToString(ret);
+    return -1;
+  }
+  ADP_LOG(INFO) << "[GePlugin] get device sat mode success.";
+  return static_cast<int32_t>(floatOverflowMode);
+}
 std::atomic_int GePlugin::graph_counter_ = {0};

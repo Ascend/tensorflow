@@ -226,3 +226,7 @@ def get_rdma_cache(data_type, shape, name="rdma_w"):
     with npu_scope.npu_mem_type_scope():
         return variable_scope.get_variable(name=name, shape=shape, dtype=data_type,
                                            initializer=init_ops.zeros_initializer())
+
+
+def set_device_sat_mode(mode):
+    tf_adapter.SetDeviceSatMode(mode)
