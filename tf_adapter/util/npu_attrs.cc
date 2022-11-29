@@ -378,6 +378,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string optypelist_for_implmode;
   std::string buffer_optimize = "l2_optimize";
   std::string enable_small_channel = "0";
+  std::string deterministic = "0";
   std::string fusion_switch_file;
   std::string enable_compress_weight = "0";
   std::string compress_weight_conf;
@@ -441,6 +442,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_dynamic_dims", &dynamic_dims);
     (void) ctx->GetAttr("_buffer_optimize", &buffer_optimize);
     (void) ctx->GetAttr("_enable_small_channel", &enable_small_channel);
+    (void) ctx->GetAttr("_deterministic", &deterministic);
     (void) ctx->GetAttr("_fusion_switch_file", &fusion_switch_file);
     (void) ctx->GetAttr("_enable_compress_weight", &enable_compress_weight);
     (void) ctx->GetAttr("_compress_weight_conf", &compress_weight_conf);
@@ -486,6 +488,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.dynamicDims"] = dynamic_dims;
   sess_options["ge.bufferOptimize"] = buffer_optimize;
   sess_options["ge.enableSmallChannel"] = enable_small_channel;
+  sess_options["ge.deterministic"] = deterministic;
   sess_options["ge.fusionSwitchFile"] = fusion_switch_file;
   sess_options["ge.enableCompressWeight"] = enable_compress_weight;
   sess_options["compress_weight_conf"] = compress_weight_conf;
@@ -1000,6 +1003,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string distribute_config;
   std::string buffer_optimize = "l2_optimize";
   std::string enable_small_channel = "0";
+  std::string deterministic = "0";
   std::string fusion_switch_file;
   std::string enable_compress_weight = "0";
   std::string compress_weight_conf;
@@ -1081,6 +1085,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto distribute_config_value = attrs.Find("_distribute_config");
   auto buffer_optimize_value = attrs.Find("_buffer_optimize");
   auto enable_small_channel_value = attrs.Find("_enable_small_channel");
+  auto deterministic_value = attrs.Find("_deterministic");
   auto fusion_switch_file_value = attrs.Find("_fusion_switch_file");
   auto enable_compress_weight_value = attrs.Find("_enable_compress_weight");
   auto compress_weight_conf_value = attrs.Find("_compress_weight_conf");
@@ -1277,6 +1282,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (enable_small_channel_value != nullptr) {
       enable_small_channel = enable_small_channel_value->s();
     }
+    if (deterministic_value != nullptr) {
+      deterministic = deterministic_value->s();
+    }
     if (fusion_switch_file_value != nullptr) {
       fusion_switch_file = fusion_switch_file_value->s();
     }
@@ -1439,6 +1447,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["distribute_config"] = distribute_config;
   all_options["buffer_optimize"] = buffer_optimize;
   all_options["enable_small_channel"] = enable_small_channel;
+  all_options["deterministic"] = deterministic;
   all_options["fusion_switch_file"] = fusion_switch_file;
   all_options["enable_compress_weight"] = enable_compress_weight;
   all_options["compress_weight_conf"] = compress_weight_conf;
@@ -1551,6 +1560,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string distribute_config;
   std::string buffer_optimize = "l2_optimize";
   int64_t enable_small_channel = 0L;
+  int64_t deterministic = 0L;
   std::string fusion_switch_file;
   bool enable_compress_weight = false;
   std::string compress_weight_conf;
@@ -1850,6 +1860,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (graph_run_mode == 0L) {
         enable_small_channel = 1L;
       }
+      if (params.count("deterministic") > 0) {
+        deterministic = params.at("deterministic").i();
+      }
       if (params.count("fusion_switch_file") > 0) {
         fusion_switch_file = params.at("fusion_switch_file").s();
       }
@@ -2009,6 +2022,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["dynamic_node_type"] = std::to_string(dynamic_node_type);
   sess_options["buffer_optimize"] = buffer_optimize;
   sess_options["enable_small_channel"] = std::to_string(enable_small_channel);
+  sess_options["deterministic"] = std::to_string(deterministic);
   sess_options["fusion_switch_file"] = fusion_switch_file;
   sess_options["enable_compress_weight"] = std::to_string(static_cast<int32_t>(enable_compress_weight));
   sess_options["compress_weight_conf"] = compress_weight_conf;

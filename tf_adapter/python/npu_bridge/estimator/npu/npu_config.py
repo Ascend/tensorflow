@@ -106,7 +106,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  stream_sync_timeout=-1,
                  event_sync_timeout=-1,
                  external_weight=False,
-                 es_cluster_config=None
+                 es_cluster_config=None,
+                 deterministic=0
                  ):
         """
         Constructs a NPUConfig.
@@ -149,6 +150,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         work_path: Stores temporary files generated during optimization, default is current path.
         buffer_optimize: Whether to enable buffer optimization.
         enable_small_channel: Whether to enable small channel optimization.
+        deterministic: Whether to enable deterministic calculation.
         fusion_switch_file: Fusion switch configuration file path.
         enable_compress_weight: Whether to enable global weight compression.
         compress_weight_conf:Path and file name of the node list configuration file to be compressed.
@@ -219,6 +221,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._work_path = work_path
         self._buffer_optimize = buffer_optimize
         self._enable_small_channel = enable_small_channel
+        self._deterministic = deterministic
         self._fusion_switch_file = fusion_switch_file
         self._enable_compress_weight = enable_compress_weight
         self._compress_weight_conf = compress_weight_conf
