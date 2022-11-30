@@ -24,6 +24,8 @@
 #include "tf_adapter/common/adapter_logger.h"
 
 namespace {
+    constexpr uint32_t kDeviceSatModeLimit = 2U;
+    std::uint32_t deviceSatMode = 2U;
     std::mutex aclChannleMutex;
     std::map<std::string, acltdtChannelHandle *> aclChannleMap;
     std::map<std::string, aclDataType> aclDataTypeStrMap =
@@ -590,5 +592,22 @@ aclError aclmdlExecuteAsync(uint32_t modelId, const aclmdlDataset *inputs, aclmd
     ADP_LOG(INFO) << "AclRunGraphWithStreamAsync proc hook, stream = " << stub << "hook = "
         << stub->hook.target<aclError(*)(const aclmdlDataset *input_data, aclmdlDataset *output_data)>();
   }
+  return ACL_SUCCESS;
+}
+
+aclError aclrtSetDeviceSatMode(aclrtFloatOverflowMode mode) {
+  if (mode != ACL_RT_OVERFLOW_MODE_SATURATION && mode != ACL_RT_OVERFLOW_MODE_INFNAN) {
+    deviceSatMode = 2U;
+    return ACL_ERROR_INVALID_PARAM;
+  }
+  deviceSatMode = static_cast<uint32_t>(mode);
+  return ACL_SUCCESS;
+}
+
+aclError aclrtGetDeviceSatMode(aclrtFloatOverflowMode *mode) {
+  if (deviceSatMode >= kDeviceSatModeLimit) {
+    return ACL_ERROR_FAILURE;
+  }
+  *mode = static_cast<aclrtFloatOverflowMode>(deviceSatMode);
   return ACL_SUCCESS;
 }

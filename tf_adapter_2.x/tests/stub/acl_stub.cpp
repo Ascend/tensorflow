@@ -23,6 +23,11 @@ limitations under the License.
 #include "acl/acl_rt.h"
 #include "acl/acl_tdt.h"
 
+namespace {
+const uint32_t kDeviceSatModeLimit = 2U;
+std::uint32_t deviceSatMode = 2U;
+}
+
 struct aclopAttr {};
 struct aclDataBuffer {};
 struct aclTensorDesc {};
@@ -197,6 +202,22 @@ aclError acltdtReceiveTensor(const acltdtChannelHandle *handle, acltdtDataset *d
   return ACL_ERROR_NONE;
 }
 
+aclError aclrtSetDeviceSatMode(aclrtFloatOverflowMode mode) {
+  if (mode != ACL_RT_OVERFLOW_MODE_SATURATION && mode != ACL_RT_OVERFLOW_MODE_INFNAN) {
+    deviceSatMode = 2U;
+    return ACL_ERROR_INVALID_PARAM;
+  }
+  deviceSatMode = mode;
+  return ACL_ERROR_NONE;
+}
+
+aclError aclrtGetDeviceSatMode(aclrtFloatOverflowMode *mode) {
+  if (deviceSatMode >= kDeviceSatModeLimit) {
+    return ACL_ERROR_FAILURE;
+  }
+  *mode = aclrtFloatOverflowMode(deviceSatMode);
+  return ACL_ERROR_NONE;
+}
 #ifdef __cplusplus
 }
 #endif

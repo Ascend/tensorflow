@@ -40,6 +40,7 @@
 #include "framework/omg/parser/parser_api.h"
 #include "ge/ge_api.h"
 
+#include "acl/acl_rt.h"
 #include "npu_aoe.h"
 #include "npu_device_register.h"
 #include "npu_global.h"
@@ -120,6 +121,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
 
 namespace {
 std::unordered_set<std::string> npu_specify_ops_cache;
+constexpr uint32_t kDeviceSatModeLimit = 2U;
 }
 namespace npu {
 void ParseGlobalOptions(int device_index, const std::map<std::string, std::string> &user_options,
@@ -283,6 +285,25 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     npu::global::g_npu_loop_size = loop_size;
     LOG(INFO) << "Npu loop size is set to " << npu::global::g_npu_loop_size
               << ", it will take effect in the next training loop";
+  });
+
+  (void)m.def("SetDeviceSatMode", [](uint32_t mode) {
+    if (mode > kDeviceSatModeLimit) {
+      LOG(ERROR) << "overflow mode is unvalid" << mode;
+      return;
+    }
+    aclrtSetDeviceSatMode(aclrtFloatOverflowMode(mode));
+  });
+
+  (void)m.def("GetDeviceSatMode", []() -> std::int32_t {
+    aclrtFloatOverflowMode mode = ACL_RT_OVERFLOW_MODE_UNDEF;
+    aclError ret = aclrtGetDeviceSatMode(&mode);
+    if (ret != ACL_SUCCESS) {
+      LOG(ERROR) << "get device sat mode failed";
+      return -1;
+    }
+    LOG(INFO) << "get deviceSatMode success";
+    return static_cast<int32_t>(mode);
   });
 
   (void)m.def("RunContextOptionsSetMemoryOptimizeOptions", &RunContextOptionsSetMemoryOptimizeOptions);

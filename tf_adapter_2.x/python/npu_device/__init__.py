@@ -21,6 +21,8 @@ from npu_device.npu_device import gen_npu_ops
 from npu_device.npu_device import global_options
 from npu_device.npu_device import set_npu_loop_size
 from npu_device.npu_device import npu_run_context
+from npu_device.npu_device import set_device_sat_mode
+from npu_device.npu_device import get_device_sat_mode
 
 from npu_device.utils.scope import keep_dtype_scope
 from npu_device.utils.scope import npu_recompute_scope

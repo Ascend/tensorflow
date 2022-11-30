@@ -125,6 +125,7 @@ const char *const HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
 const char *const OP_WAIT_TIMEOUT = "ge.exec.opWaitTimeout";
 const char *const OP_EXECUTE_TIMEOUT = "ge.exec.opExecuteTimeout";
 const char *const ATOMIC_CLEAN_POLICY = "ge.exec.atomicCleanPolicy";
+const char *const MEMORY_OPTIMIZATION_POLICY = "ge.exec.memoryOptimizationPolicy";
 }  // namespace configure_option
 // Configure stream num by Session constructor options param,
 // its value should be int32_t type, default value is "1"
@@ -348,6 +349,8 @@ const std::string OP_EXECUTE_TIMEOUT = "ge.exec.opExecuteTimeout";
 const std::string HCCL_TIMEOUT = "ge.exec.hcclExecuteTimeOut";
 
 const std::string ATOMIC_CLEAN_POLICY = "ge.exec.atomicCleanPolicy";
+
+const std::string MEMORY_OPTIMIZATION_POLICY = "ge.exec.memoryOptimizationPolicy";
 
 // Graph run mode
 enum GraphRunMode { PREDICTION = 0, TRAIN };
