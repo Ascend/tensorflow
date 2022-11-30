@@ -399,6 +399,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string insert_op_file;
   std::string resource_config_path;
   std::string external_weight = "0";
+  std::string graph_parallel_option_path;
+  std::string enable_graph_parallel;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -463,6 +465,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_resource_config_path", &resource_config_path);
     (void) ctx->GetAttr("_dump_layer", &dump_layer);
     (void) ctx->GetAttr("_external_weight", &external_weight);
+    (void) ctx->GetAttr("_graph_parallel_option_path", &graph_parallel_option_path);
+    (void) ctx->GetAttr("_enable_graph_parallel", &enable_graph_parallel);
   }
 
   // session options
@@ -516,6 +520,8 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.resourceConfigPath"] = resource_config_path;
   sess_options["ge.externalWeight"] = external_weight;
   sess_options["external_weight"] = external_weight;
+  sess_options["ge.graphParallelOptionPath"] = graph_parallel_option_path;
+  sess_options["ge.enableGraphParallel"] = enable_graph_parallel;
 
   return sess_options;
 }
@@ -1040,6 +1046,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string event_sync_timeout = "-1";
   std::string external_weight = "0";
   std::string es_cluster_config;
+  std::string graph_parallel_option_path;
+  std::string enable_graph_parallel;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1123,6 +1131,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto stream_sync_timeout_value = attrs.Find("_stream_sync_timeout");
   auto event_sync_timeout_value = attrs.Find("_event_sync_timeout");
   auto external_weight_value = attrs.Find("_external_weight");
+  auto graph_parallel_option_path_val = attrs.Find("_graph_parallel_option_path");
+  auto enable_graph_parallel_val = attrs.Find("_enable_graph_parallel");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1369,6 +1379,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (resource_config_path_value != nullptr) {
       resource_config_path = resource_config_path_value->s();
     }
+    if (graph_parallel_option_path_val != nullptr) {
+      graph_parallel_option_path = graph_parallel_option_path_val->s();
+    }
+    if (enable_graph_parallel_val != nullptr) {
+      enable_graph_parallel = enable_graph_parallel_val->s();
+    }
     if (topo_sorting_mode_value != nullptr) {
       topo_sorting_mode = topo_sorting_mode_value->s();
     }
@@ -1494,6 +1510,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["event_sync_timeout"] = event_sync_timeout;
   all_options["external_weight"] = external_weight;
   all_options["ge.externalWeight"] = external_weight;
+  all_options["graph_parallel_option_path"] = graph_parallel_option_path;
+  all_options["enable_graph_parallel"] = enable_graph_parallel;
 
   return all_options;
 }
@@ -1543,6 +1561,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   int64_t op_debug_level = 0;
   std::string enable_scope_fusion_passes;
   std::string resource_config_path;
+  std::string graph_parallel_option_path;
+  bool enable_graph_parallel = false;
 
   std::map<std::string, std::string> pass_options;
   bool do_npu_optimizer = false;
@@ -1983,6 +2003,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("resource_config_path") > 0) {
         resource_config_path = params.at("resource_config_path").s();
       }
+      if (params.count("graph_parallel_option_path") > 0) {
+        graph_parallel_option_path = params.at("graph_parallel_option_path").s();
+      }
+      if (params.count("enable_graph_parallel") > 0) {
+        enable_graph_parallel = params.at("enable_graph_parallel").b();
+      }
       if (params.count("dump_data") > 0) {
         dump_data = params.at("dump_data").s();
       }
@@ -2047,6 +2073,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["hccl_timeout"] = hccl_timeout;
   sess_options["HCCL_algorithm"] = HCCL_algorithm;
   sess_options["resource_config_path"] = resource_config_path;
+  sess_options["graph_parallel_option_path"] = graph_parallel_option_path;
+  sess_options["enable_graph_parallel"] = std::to_string(static_cast<int32_t>(enable_graph_parallel));
   sess_options["atomic_clean_policy"] = std::to_string(atomic_clean_policy);
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
   sess_options["memory_optimization_policy"] = memory_optimization_policy;

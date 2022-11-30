@@ -36,7 +36,6 @@ from tensorflow.python.ops import resource_variable_ops
 
 from npu_bridge.estimator.npu.npu_config import GraphMemoryOptimizeConfig
 from npu_bridge.estimator.npu.npu_config import ExperimentalConfig
-from npu_bridge.estimator.npu.npu_config import GraphParallelConfig
 
 _NPU_RUNCONFIG = 'npu_runconfig'
 _ITERATIONS_PER_LOOP_VAR = 'iterations_per_loop'
@@ -450,20 +449,6 @@ def _get_experimental_config(experimental_config):
     return recompute_attr
 
 
-def _get_graph_parallel_config(experimental_config):
-    graph_parallel_option_path = None
-    enable_graph_parallel = None
-    if experimental_config is not None:
-        if not isinstance(experimental_config, ExperimentalConfig):
-            raise ValueError("experimental_config type must be ExperimentalConfig")
-        if experimental_config._graph_parallel_config is not None:
-            graph_parallel_option_path = attr_value_pb2.AttrValue(
-                s=compat.as_bytes(experimental_config._graph_parallel_config._graph_parallel_option_path))
-            enable_graph_parallel = attr_value_pb2.AttrValue(
-                b=experimental_config._graph_parallel_config._enable_graph_parallel)
-    return graph_parallel_option_path, enable_graph_parallel
-
-
 def set_graph_exec_config(fetch, dynamic_input=False,
                           dynamic_graph_execute_mode="dynamic_execute",
                           dynamic_inputs_shape_range=None,
@@ -482,8 +467,7 @@ def set_graph_exec_config(fetch, dynamic_input=False,
     """
 
     def _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
-                     dynamic_inputs_shape_range_attr, is_train_graph_attr, recompute_attr,
-                     graph_parallel_option_path, enable_graph_parallel):
+                     dynamic_inputs_shape_range_attr, is_train_graph_attr, recompute_attr):
         if isinstance(fetch, ops.Operation):
             fetch._set_attr("_graph_dynamic_input", dynamic_input_attr)
             fetch._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
@@ -491,10 +475,6 @@ def set_graph_exec_config(fetch, dynamic_input=False,
             fetch._set_attr("_is_train_graph", is_train_graph_attr)
             if recompute_attr is not None:
                 fetch._set_attr("_recompute_mode", recompute_attr)
-            if graph_parallel_option_path is not None:
-                fetch._set_attr("_graph_parallel_option", graph_parallel_option_path)
-            if enable_graph_parallel is not None:
-                fetch._set_attr("_enable_graph_parallel", enable_graph_parallel)
         else:
             fetch.op._set_attr("_graph_dynamic_input", dynamic_input_attr)
             fetch.op._set_attr("_graph_dynamic_graph_execute_mode", dynamic_graph_execute_mode_attr)
@@ -502,10 +482,6 @@ def set_graph_exec_config(fetch, dynamic_input=False,
             fetch.op._set_attr("_is_train_graph", is_train_graph_attr)
             if recompute_attr is not None:
                 fetch.op._set_attr("_recompute_mode", recompute_attr)
-            if graph_parallel_option_path is not None:
-                fetch.op._set_attr("_graph_parallel_option_path", graph_parallel_option_path)
-            if enable_graph_parallel is not None:
-                fetch.op._set_attr("_enable_graph_parallel", enable_graph_parallel)
 
     if dynamic_graph_execute_mode not in ("lazy_recompile", "dynamic_execute"):
         raise ValueError("dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute")
@@ -516,11 +492,9 @@ def set_graph_exec_config(fetch, dynamic_input=False,
     dynamic_inputs_shape_range_attr = attr_value_pb2.AttrValue(s=compat.as_bytes(dynamic_inputs_shape_range))
     is_train_graph_attr = attr_value_pb2.AttrValue(b=is_train_graph)
     recompute_attr = _get_experimental_config(experimental_config)
-    graph_parallel_option_path, enable_graph_parallel = _get_graph_parallel_config(experimental_config)
     if isinstance(fetch, (ops.Operation, ops.Tensor)):
         _set_op_attr(fetch, dynamic_input_attr, dynamic_graph_execute_mode_attr,
-                     dynamic_inputs_shape_range_attr, is_train_graph_attr, recompute_attr,
-                     graph_parallel_option_path, enable_graph_parallel)
+                     dynamic_inputs_shape_range_attr, is_train_graph_attr, recompute_attr)
     elif isinstance(fetch, (tuple, list)):
         for tensor in fetch:
             tensor = set_graph_exec_config(tensor, dynamic_input, dynamic_graph_execute_mode,

@@ -113,7 +113,9 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},
-  {"resource_config_path", "ge.resourceConfigPath"}};
+  {"resource_config_path", "ge.resourceConfigPath"},
+  {"graph_parallel_option_path", "ge.graphParallelOptionPath"},
+  {"enable_graph_parallel", "ge.enableGraphParallel"}};
 }  // namespace
 
 #undef PYBIND11_CHECK_PYTHON_VERSION
@@ -308,6 +310,5 @@ PYBIND11_MODULE(_npu_device_backends, m) {
 
   (void)m.def("RunContextOptionsSetMemoryOptimizeOptions", &RunContextOptionsSetMemoryOptimizeOptions);
   (void)m.def("CleanRunContextOptions", &CleanRunContextOptions);
-  (void)m.def("RunContextOptionsSetGraphParallelOptions", &RunContextOptionsSetGraphParallelOptions);
 };
 }  // namespace npu

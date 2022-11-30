@@ -324,8 +324,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     ADP_LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_;
   }
 
-  ctx->GetAttr("_enable_graph_parallel", &enable_graph_parallel_);
-  ctx->GetAttr("_graph_parallel_option_path", &graph_parallel_option_path_);
   ctx->GetAttr("_recompute_mode", &recompute_mode_);
   ctx->GetAttr("_deploy_inject_config", &deploy_inject_config_);
   ctx->GetAttr("_execute_times", &execute_times_);
@@ -861,12 +859,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
     if (!recompute_mode_.empty()) {
       graph_options_["ge.recompute"] = recompute_mode_;
-    }
-    if (!graph_parallel_option_path_.empty()) {
-      graph_options_["ge.graphParallelOptionPath"] = graph_parallel_option_path_;
-    }
-    if (!enable_graph_parallel_.empty()) {
-      graph_options_["ge.enableGraphParallel"] = enable_graph_parallel_;
     }
     if (!deploy_inject_config_.empty()) {
       graph_options_["ge.exec.clusterSpec"] = deploy_inject_config_;
@@ -1585,6 +1577,10 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     session_options.insert({Aoe::AscendString("job_type"), Aoe::AscendString(init_options_["ge.jobType"].c_str())});
     session_options.insert({Aoe::AscendString("ge.resourceConfigPath"),
                             Aoe::AscendString(sess_options_["ge.resourceConfigPath"].c_str())});
+    session_options.insert({Aoe::AscendString("ge.enableGraphParallel"),
+                            Aoe::AscendString(sess_options_["ge.enableGraphParallel"].c_str())});
+    session_options.insert({Aoe::AscendString("ge.graphParallelOptionPath"),
+                            Aoe::AscendString(sess_options_["ge.graphParallelOptionPath"].c_str())});
     Aoe::AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
     if (session_ret != Aoe::AOE_SUCCESS) {
       ADP_LOG(ERROR) << "exec aoe create session func failed[" << session_ret << "].";

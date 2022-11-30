@@ -27,10 +27,5 @@ extern "C" {
 void RunContextOptionsSetMemoryOptimizeOptions(const std::string &recompute) {
   npu::GetRunContextOptions().memory_optimize_options.recompute = recompute;
 }
-void RunContextOptionsSetGraphParallelOptions(const std::string &enable_graph_parallel,
-                                              const std::string &config_path) {
-  npu::GetRunContextOptions().graph_parallel_configs.config_path = config_path;
-  npu::GetRunContextOptions().graph_parallel_configs.enable_graph_parallel = enable_graph_parallel;
-}
 void CleanRunContextOptions() { npu::GetRunContextOptions().Clean(); }
 }

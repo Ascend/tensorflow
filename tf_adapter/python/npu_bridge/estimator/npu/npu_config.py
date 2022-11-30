@@ -392,13 +392,6 @@ class GraphMemoryOptimizeConfig():
         self._recompute = recompute
 
 
-class GraphParallelConfig():
-
-    def __init__(self, enable_graph_parallel=False, graph_parallel_option_path=None):
-        self._enable_graph_parallel = enable_graph_parallel
-        self._graph_parallel_option_path = graph_parallel_option_path
-
-
 class ExperimentalConfig():
     """Experimental Config with NPU support."""
 
@@ -408,7 +401,8 @@ class ExperimentalConfig():
                  model_deploy_mode=None,
                  model_deploy_devicelist=None,
                  graph_memory_optimize_config=None,
-                 graph_parallel_config=None,
+                 enable_graph_parallel=None,
+                 graph_parallel_option_path=None,
                  resource_config_path=None):
         """
         Constructs a ExperimentalConfig.
@@ -426,11 +420,10 @@ class ExperimentalConfig():
         if graph_memory_optimize_config is not None and not isinstance(graph_memory_optimize_config,
                                                                        GraphMemoryOptimizeConfig):
             raise ValueError("graph_memory_optimize_config type must be GraphMemoryOptimizeConfig")
-        if graph_parallel_config is not None and not isinstance(graph_parallel_config, GraphParallelConfig):
-            raise ValueError("graph_parallel_config type must be GraphParallelConfig")
         self._graph_memory_optimize_config = graph_memory_optimize_config
+        self._enable_graph_parallel = enable_graph_parallel
+        self._graph_parallel_option_path = graph_parallel_option_path
         self._resource_config_path = resource_config_path
-        self._graph_parallel_config = graph_parallel_config
 
 
 class NpuExecutePlacement(Enum):
