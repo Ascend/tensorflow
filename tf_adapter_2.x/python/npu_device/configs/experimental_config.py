@@ -37,6 +37,6 @@ class NpuExperimentalConfig(NpuBaseConfig):
         self.graph_memory_optimize_config = GraphMemoryOptimizeConfig()
         self.resource_config_path = OptionValue(None, None)
         self.graph_parallel_option_path = OptionValue(None, None)
-        self.enable_graph_parallel = OptionValue(True, [True, False])
+        self.enable_graph_parallel = OptionValue(False, [True, False])
 
         super(NpuExperimentalConfig, self).__init__()

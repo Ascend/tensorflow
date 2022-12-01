@@ -1577,10 +1577,6 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     session_options.insert({Aoe::AscendString("job_type"), Aoe::AscendString(init_options_["ge.jobType"].c_str())});
     session_options.insert({Aoe::AscendString("ge.resourceConfigPath"),
                             Aoe::AscendString(sess_options_["ge.resourceConfigPath"].c_str())});
-    session_options.insert({Aoe::AscendString("ge.enableGraphParallel"),
-                            Aoe::AscendString(sess_options_["ge.enableGraphParallel"].c_str())});
-    session_options.insert({Aoe::AscendString("ge.graphParallelOptionPath"),
-                            Aoe::AscendString(sess_options_["ge.graphParallelOptionPath"].c_str())});
     Aoe::AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
     if (session_ret != Aoe::AOE_SUCCESS) {
       ADP_LOG(ERROR) << "exec aoe create session func failed[" << session_ret << "].";
