@@ -84,7 +84,7 @@ class OpExecutor {
 
   virtual void RunImpl(TFE_Context *context, NpuDevice *device, int num_inputs, TFE_TensorHandle **inputs,
                        int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) const = 0;
-  virtual ~OpExecutor() = default;
+  virtual ~OpExecutor() { op_spec_ = nullptr; };
 
  protected:
   virtual std::string AttachedDebugString() const = 0;
