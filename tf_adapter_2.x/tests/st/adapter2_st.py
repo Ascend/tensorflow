@@ -519,20 +519,6 @@ class Adapter2St(unittest.TestCase):
         with npu_device.npu_run_context(options=options):
             f()
 
-    def test_npu_run_context_2(self):
-        v = tf.Variable(1.0)
-
-        @tf.function
-        def f():
-            v.assign_add(1.0)
-            return v
-
-        options = npu_device.configs.run_context_options()
-        options.experimental.graph_parallel_config.enable_graph_parallel = True
-        options.experimental.graph_parallel_config.config_path = "./"
-        with npu_device.npu_run_context(options=options):
-            f()
-
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):
     def test_dropout_v3(self):

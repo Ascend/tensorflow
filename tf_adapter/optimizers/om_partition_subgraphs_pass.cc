@@ -1995,8 +1995,6 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   const std::string kDynamicInputsShapeRange = "_graph_dynamic_inputs_shape_range";
   const std::string kIsTrainGraph = "_is_train_graph";
   const std::string kRecomputeMode = "_recompute_mode";
-  const std::string kGraphParallelOptionPath = "_graph_parallel_option_path";
-  const std::string kEnableGraphParallel = "_enable_graph_parallel";
   const std::string kDeployInjectConfig = "_deploy_inject_config";
   const std::string kExecuteTimes = "_execute_times";
   const std::string kMaxNum = "_max_num";
@@ -2020,15 +2018,6 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   if (node_attrs.find(kRecomputeMode) != node_attrs.end()) {
     std::string recompute_mode = node_attrs.at(kRecomputeMode).s();
     graph_options["recompute_mode"] = recompute_mode;
-  }
-  // define for graph parallel
-  if (node_attrs.find(kGraphParallelOptionPath) != node_attrs.end()) {
-    const auto graph_parallel_option_path = node_attrs.at(kGraphParallelOptionPath).s();
-    graph_options["graph_parallel_option_path"] = graph_parallel_option_path;
-  }
-  if (node_attrs.find(kEnableGraphParallel) != node_attrs.end()) {
-    const auto enable_graph_parallel = node_attrs.at(kEnableGraphParallel).b();
-    graph_options["enable_graph_parallel"] = std::to_string(static_cast<const int32_t>(enable_graph_parallel));
   }
   if (node_attrs.find(kDeployInjectConfig) != node_attrs.end()) {
     graph_options["deploy_inject_config"] = node_attrs.at(kDeployInjectConfig).s();

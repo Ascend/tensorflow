@@ -190,8 +190,6 @@ private:
   std::string max_num_;
   std::string embedding_dim_;
   std::string recompute_mode_;
-  std::string enable_graph_parallel_;
-  std::string graph_parallel_option_path_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;
   bool jit_compile_;
   bool is_getnext_dynamic_shape_;

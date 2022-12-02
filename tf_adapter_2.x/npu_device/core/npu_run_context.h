@@ -26,27 +26,12 @@ struct MemoryOptimizeOptions {
   std::string recompute;
 };
 
-struct GraphParallelConfigs {
-  void Clean() {
-    config_path.clear();
-    enable_graph_parallel.clear();
-  }
-  std::string config_path;
-  std::string enable_graph_parallel;
-};
-
 struct RunContextOptions {
   MemoryOptimizeOptions memory_optimize_options;
-  GraphParallelConfigs graph_parallel_configs;
-  void Clean() {
-    memory_optimize_options.Clean();
-    graph_parallel_configs.Clean();
-  }
+  void Clean() { memory_optimize_options.Clean(); }
   std::map<std::string, std::string> GetGraphOptions() {
     std::map<std::string, std::string> kOptions = {
-      {"ge.recompute", memory_optimize_options.recompute},
-      {"ge.graphParallelOptionPath", graph_parallel_configs.config_path},
-      {"ge.enableGraphParallel", graph_parallel_configs.enable_graph_parallel}};
+      {"ge.recompute", memory_optimize_options.recompute}};
     return kOptions;
   }
 };
@@ -57,8 +42,6 @@ RunContextOptions &GetRunContextOptions();
 extern "C" {
 extern void RunContextOptionsSetMemoryOptimizeOptions(const std::string &recompute);
 extern void CleanRunContextOptions();
-extern void RunContextOptionsSetGraphParallelOptions(const std::string &enable_graph_parallel,
-                                                     const std::string &config_path);
 }
 
 #endif  // NPU_DEVICE_CORE_NPU_RUN_CONTEXT_H
