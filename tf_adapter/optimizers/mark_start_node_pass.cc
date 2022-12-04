@@ -183,5 +183,5 @@ Status MarkStartNodePass::TraverseNode(const Node *start_node) {
   return Status::OK();
 }
 
-REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, 0, MarkStartNodePass);
+REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, -1, MarkStartNodePass);
 }  // namespace tensorflow

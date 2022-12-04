@@ -34,6 +34,16 @@ REGISTER_OP("GeOp")
     .Attr("data_format: { 'NHWC', 'NCHW', 'NDHWC', 'NCDHW', 'DHWCN', 'DHWNC', 'ND'} = 'NHWC'")
     .SetIsStateful();
 
+REGISTER_OP("LoadAndExecuteOm")
+    .Input("inputs: Tin")
+    .Attr("Tin: list(type) >= 0")
+    .Output("outputs: output_dtypes")
+    .Attr("output_dtypes: list(type) >= 0")
+    .Attr("om_path: string")
+    .Attr("executor_type: string = ''")
+    .SetIsStateful()
+    .SetShapeFn(shape_inference::UnknownShape);
+
 REGISTER_OP("DPOP")
     .Input("inputs: Tin")
     .Attr("Tin: list(type) >= 0")
