@@ -25,13 +25,14 @@
 namespace tensorflow {
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
-      {DT_FLOAT, ACL_FLOAT},  {DT_HALF, ACL_FLOAT16},  {DT_INT8, ACL_INT8},     {DT_INT32, ACL_INT32},
-      {DT_UINT8, ACL_UINT8},  {DT_INT16, ACL_INT16},   {DT_UINT16, ACL_UINT16}, {DT_UINT32, ACL_UINT32},
-      {DT_INT64, ACL_INT64},  {DT_UINT64, ACL_UINT64}, {DT_DOUBLE, ACL_DOUBLE}, {DT_BOOL, ACL_BOOL},
+      {DT_FLOAT, ACL_FLOAT}, {DT_HALF, ACL_FLOAT16}, {DT_INT8, ACL_INT8},
+      {DT_INT32, ACL_INT32}, {DT_UINT8, ACL_UINT8}, {DT_INT16, ACL_INT16},
+      {DT_UINT16, ACL_UINT16}, {DT_UINT32, ACL_UINT32}, {DT_INT64, ACL_INT64},
+      {DT_UINT64, ACL_UINT64}, {DT_DOUBLE, ACL_DOUBLE}, {DT_BOOL, ACL_BOOL},
       {DT_STRING, ACL_STRING}};
   auto found = type_mapping.find(tf_type);
   if (found == type_mapping.end()) {
-    return errors::Internal("Unsupported tf data type", DataTypeString(tf_type), " by acl.");
+    return errors::Internal("Unsupported tf data type[", DataTypeString(tf_type), "] by acl");
   }
   acl_type = found->second;
   return Status::OK();
@@ -39,13 +40,14 @@ Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_
 
 Status MappingAclDtypeToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) {
   const static std::map<aclDataType, tensorflow::DataType> type_mapping = {
-      {ACL_FLOAT, DT_FLOAT},  {ACL_FLOAT16, DT_HALF},  {ACL_INT8, DT_INT8},     {ACL_INT32, DT_INT32},
-      {ACL_UINT8, DT_UINT8},  {ACL_INT16, DT_INT16},   {ACL_UINT16, DT_UINT16}, {ACL_UINT32, DT_UINT32},
-      {ACL_INT64, DT_INT64},  {ACL_UINT64, DT_UINT64}, {ACL_DOUBLE, DT_DOUBLE}, {ACL_BOOL, DT_BOOL},
+      {ACL_FLOAT, DT_FLOAT}, {ACL_FLOAT16, DT_HALF}, {ACL_INT8, DT_INT8},
+      {ACL_INT32, DT_INT32}, {ACL_UINT8, DT_UINT8}, {ACL_INT16, DT_INT16},
+      {ACL_UINT16, DT_UINT16}, {ACL_UINT32, DT_UINT32}, {ACL_INT64, DT_INT64},
+      {ACL_UINT64, DT_UINT64}, {ACL_DOUBLE, DT_DOUBLE}, {ACL_BOOL, DT_BOOL},
       {ACL_STRING, DT_STRING}};
   auto found = type_mapping.find(acl_type);
   if (found == type_mapping.end()) {
-    return errors::Internal("Acl channel receive unsupported data type", acl_type);
+    return errors::Internal("Acl channel receive unsupported data type[", acl_type, "]");
   }
   tf_type = found->second;
   return Status::OK();
@@ -112,7 +114,7 @@ Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> 
     } while (tensor_size > 0);
     tensors.emplace_back(std::move(tensor));
   } else {
-    return errors::InvalidArgument("Acl channel receive uncopyable tf data type", DataTypeString(tf_type));
+    return errors::InvalidArgument("Acl channel receive uncopyable tf data type[", DataTypeString(tf_type), "]");
   }
   return Status::OK();
 }

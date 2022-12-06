@@ -222,8 +222,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       ADP_LOG(INFO) << "The channel is already create.";
       return;
     }
-    ADP_LOG(INFO) << "Channel name is: " << queue_name;
-    ADP_LOG(INFO) << "Channel depth is: " << channel_depth;
+    ADP_LOG(INFO) << "Channel name is: " << queue_name << ", Channel depth is: " << channel_depth;
     Status ret = HostQueueInit(queue_name, channel_depth, queue_id_);
     OP_REQUIRES(ctx, ret == Status::OK(), errors::InvalidArgument("Failed to create host queue."));
     queue_name_ = queue_name;
@@ -389,7 +388,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           };
           thread_pool_.PushTask(closure);
         }
-        ADP_LOG(INFO) << "Wait enter into parallel copy";
+        ADP_LOG(INFO) << "Wait enter into parallel copy.";
         mutex_lock lck(event_finish_mu_);
         while (!event_finish_flag_) {
           event_finish_var_.wait(lck);
@@ -397,7 +396,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         if (!closure_ret) {
           return false;
         }
-        ADP_LOG(INFO) << "End enter into parallel copy";
+        ADP_LOG(INFO) << "End enter into parallel copy.";
         return true;
       }
 
@@ -460,7 +459,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           NPU_ALLOCATOR_NPU,
         } from_npu_dataset = NPU_ALLOCATOR_UNKNOW;
 
-        ADP_LOG(INFO) << "Recv data thread starting ...";
+        ADP_LOG(INFO) << "The data receiving thread starts to work.";
         while (true) {
           {
             mutex_lock lck(mu_);
@@ -516,7 +515,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           {
             mutex_lock lck(mu_);
             for (auto &tensor : args) {
-              if ((from_npu_dataset != NPU_ALLOCATOR_NPU) && (tensor.dtype() == DT_STRING) && (!is_string)) {
+              if ((!is_string) && (from_npu_dataset != NPU_ALLOCATOR_NPU) && (tensor.dtype() == DT_STRING)) {
                 ADP_LOG(INFO) << "Data type is string, do not use memory pool";
                 is_string = true;
               }
@@ -533,8 +532,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               total_bytes_ += tensor.TotalBytes();
             }
           }
-          if ((from_npu_dataset != NPU_ALLOCATOR_NPU) &&
-              (dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!is_string)) {
+          if ((!is_string) && (from_npu_dataset != NPU_ALLOCATOR_NPU) &&
+              (dataset()->channel_type_ == ChannelType::ACL_QUEUE)) {
             if (!HandleMemory(args, buffer_element.value, args_tensor_size)) {
               get_thread_exception_.store(true);
               return;
@@ -694,7 +693,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               }
             }
             ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_
-                          << " buffer_size: " << buffer_.size() << ", data_type:" << data_type;
+                          << ", buffer_size: " << buffer_.size() << ", data_type:" << data_type;
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
@@ -708,9 +707,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             return;
           }
           if ((data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) || (data_type == ACL_TENSOR_DATA_ABNORMAL)) {
-            std::string data_type_str = data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE ? "end of sequence" : "abnormal";
+            std::string data_type_str =
+              (data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) ? "end of sequence" : "abnormal";
             StopNotify();
-            ADP_LOG(INFO) << "Send  " << data_type_str << " data success.";
+            ADP_LOG(INFO) << "Host queue send " << data_type_str << " data success.";
             return;
           }
           mem_pool_.ReleaseMemory();
@@ -774,7 +774,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             } else {
               args = buffer_.front().value;
               buffer_.pop_front();
-              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_ << " buffer size: " << buffer_.size();
+              ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_ << ", buffer_size: " << buffer_.size();
             }
           }
 
@@ -877,7 +877,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
           return errors::InvalidArgument("Call acltdtCreateChannelWithCapacity failed.");
         }
-        ADP_LOG(INFO) << "Create Channel success. channel_name :" << channel_name;
+        ADP_LOG(INFO) << "Create Channel success. channel_name:" << channel_name;
         return Status::OK();
       }
 
@@ -922,13 +922,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           TF_RETURN_IF_ERROR(EnsureReceiveThreadStarted(ctx));
           TF_RETURN_IF_ERROR(EnsureSendThreadStarted(ctx));
         }
-        ADP_LOG(INFO) << "HostQueue success to Initialize. channel_name_: " << dataset()->channel_name_;
+        ADP_LOG(INFO) << "HostQueue success to Initialize. channel_name_:" << dataset()->channel_name_;
         return Status::OK();
       }
 
       Status GetNextInternal(IteratorContext *ctx, vector<Tensor> *outTensors, bool *endOfSequence) override {
         *endOfSequence = false;
-        ADP_LOG(INFO) << "HostQueue Get Next data";
+        ADP_LOG(INFO) << "HostQueue GetNextInternal End.";
         return Status::OK();
       }
 
