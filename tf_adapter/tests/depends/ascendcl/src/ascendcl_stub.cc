@@ -16,8 +16,7 @@
 
 #include "acl/acl_tdt.h"
 #include "ascendcl_stub.h"
-#include "acl/acl_rt.h"
-#include "acl/acl_mdl.h"
+#include "acl/acl.h"
 #include "securec.h"
 #include <map>
 #include <mutex>
@@ -116,34 +115,33 @@ acltdtChannelHandle *acltdtCreateChannelWithCapacity(uint32_t deviceId,
 }
 
 acltdtDataItem *acltdtGetDataItem(const acltdtDataset *dataset, size_t index) {
-    if ((dataset == nullptr) || (index >= dataset->blobs.size())) {
-        return nullptr;
-    }
-
-    return dataset->blobs[index];
+  if ((dataset == nullptr) || (index >= dataset->blobs.size())) {
+      return nullptr;
+  }
+  return dataset->blobs[index];
 }
 
 aclError acltdtDestroyDataItem(acltdtDataItem *dataItem) {
-    if (dataItem == nullptr) {
-        return ACL_ERROR_INVALID_PARAM;
-    }
-    delete dataItem;
-    return ACL_SUCCESS;
+  if (dataItem == nullptr) {
+      return ACL_ERROR_INVALID_PARAM;
+  }
+  delete dataItem;
+  return ACL_SUCCESS;
 }
 
 size_t acltdtGetDatasetSize(const acltdtDataset *dataset) {
-    if (dataset == nullptr) {
-        return 0;
-    }
-    return dataset->blobs.size();
+  if (dataset == nullptr) {
+      return 0;
+  }
+  return dataset->blobs.size();
 }
 
 aclError acltdtDestroyDataset(acltdtDataset *dataset) {
-    if (dataset == nullptr) {
-        return ACL_ERROR_INVALID_PARAM;
-    }
-    delete dataset;
-    return ACL_SUCCESS;
+  if (dataset == nullptr) {
+      return ACL_ERROR_INVALID_PARAM;
+  }
+  delete dataset;
+  return ACL_SUCCESS;
 }
 
 acltdtDataset *acltdtCreateDataset() {
@@ -518,7 +516,10 @@ aclTensorDesc *aclCreateTensorDesc(aclDataType dataType, int numDims, const int6
 }
 
 size_t aclmdlGetNumOutputs(aclmdlDesc *modelDesc) {
-  return 1L;
+  if (modelDesc == nullptr) {
+      return 0U;
+  }
+  return modelDesc->outputDesc.size();
 }
 
 void aclDestroyTensorDesc(const aclTensorDesc *desc) {
@@ -535,7 +536,18 @@ aclError aclmdlDestroyDesc(aclmdlDesc *modelDesc) {
   return ACL_SUCCESS;
 }
 
+ACLMdlGetDescStub g_mdlGetDescStub = nullptr;
+void RegACLMdlGetDescStub(ACLMdlGetDescStub stub) {
+  g_mdlGetDescStub = stub;
+}
 aclError aclmdlGetDesc(aclmdlDesc *modelDesc, uint32_t modelId) {
+  if (g_mdlGetDescStub != nullptr) {
+    return g_mdlGetDescStub(modelDesc);
+  } else {
+    modelDesc->inputDesc.emplace_back(aclmdlTensorDesc());
+    modelDesc->inputDesc.emplace_back(aclmdlTensorDesc());
+    modelDesc->outputDesc.emplace_back(aclmdlTensorDesc());
+  }
   return ACL_SUCCESS;
 }
 
@@ -552,7 +564,7 @@ size_t aclGetTensorDescSize(const aclTensorDesc *desc) {
 }
 
 size_t aclGetTensorDescNumDims(const aclTensorDesc *desc) {
-  return 0;
+  return desc->dims.size();
 }
 
 int64_t aclGetTensorDescDim(const aclTensorDesc *desc, size_t index) {
@@ -609,5 +621,64 @@ aclError aclrtGetDeviceSatMode(aclrtFloatOverflowMode *mode) {
     return ACL_ERROR_FAILURE;
   }
   *mode = static_cast<aclrtFloatOverflowMode>(deviceSatMode);
+  return ACL_SUCCESS;
+}
+
+aclError aclmdlUnload(uint32_t modelId) {
+  return ACL_SUCCESS;
+}
+
+size_t aclGetDataBufferSizeV2(const aclDataBuffer *dataBuffer) {
+  if (dataBuffer == nullptr) {
+        return 0U;
+    }
+    return static_cast<size_t>(dataBuffer->length);
+}
+
+aclDataType aclmdlGetOutputDataType(const aclmdlDesc *modelDesc, size_t index) {
+  return ACL_FLOAT;
+}
+
+aclError aclmdlGetOutputDims(const aclmdlDesc *modelDesc, size_t index, aclmdlIODims *dims) {
+  dims->dimCount = 1;
+  dims->dims[0] = 2;
+  return ACL_SUCCESS;
+}
+
+aclError aclGetTensorDescDimV2(const aclTensorDesc *desc, size_t index, int64_t *dimSize) {
+  return ACL_SUCCESS;
+}
+
+size_t aclmdlGetNumInputs(aclmdlDesc *modelDesc) {
+  if (modelDesc == nullptr) {
+    return 0U;
+  }
+  return modelDesc->inputDesc.size();
+}
+
+aclError aclSetTensorShape(aclTensorDesc *desc, int numDims, const int64_t *dims) {
+  return ACL_SUCCESS;
+}
+
+size_t aclmdlGetOutputSizeByIndex(aclmdlDesc *modelDesc, size_t index) {
+  return 8;
+}
+
+size_t aclmdlGetInputSizeByIndex(aclmdlDesc *modelDesc, size_t index) {
+  return 8;
+}
+
+aclError aclInit(const char *configPath) {
+  return ACL_SUCCESS;
+}
+
+aclError aclmdlLoadFromFile(const char *modelPath, uint32_t *modelId) {
+  return ACL_SUCCESS;
+}
+
+aclError aclmdlGetInputDims(const aclmdlDesc *modelDesc, size_t index, aclmdlIODims *dims) {
+  dims->dimCount = 2;
+  dims->dims[0] = 2;
+  dims->dims[1] = -1;
   return ACL_SUCCESS;
 }
