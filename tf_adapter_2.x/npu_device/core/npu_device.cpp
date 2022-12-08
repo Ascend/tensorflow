@@ -983,7 +983,7 @@ tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const s
     tensorflow::errors::Internal("NPU Parse tensorflow model failed"));
 
   if (ge_compute_graph->GetAllNodesSize() != 0) {
-    ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(ge_compute_graph);
+    ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(ge_compute_graph);
   }
 
   return tensorflow::Status::OK();

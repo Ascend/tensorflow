@@ -48,6 +48,7 @@
 #include "tf_adapter/util/infershape_util.h"
 #include "tf_adapter/util/ge_plugin.h"
 #include "graph/utils/graph_utils.h"
+#include "graph/utils/graph_utils_ex.h"
 #include "graph/compute_graph.h"
 #include "graph/op_desc.h"
 #include "runtime/dev.h"
@@ -545,7 +546,7 @@ Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &
 
   DumpGeComputeGraph(std::string("Build"), funcName_, compute_graph);
 
-  ge_graph_ = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
+  ge_graph_ = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
   return Status::OK();
 }
 

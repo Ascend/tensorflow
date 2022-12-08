@@ -69,6 +69,7 @@
 
 #include "graph/ascend_string.h"
 #include "graph/utils/graph_utils.h"
+#include "graph/utils/graph_utils_ex.h"
 #include "graph/utils/node_adapter.h"
 #include "graph/compute_graph.h"
 #include "graph/ge_attr_value.h"
@@ -847,7 +848,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (graph_options_.count("input_format") != 0) {
       ADP_LOG(INFO) << "graph_options_[\"input_format\"] = " << graph_options_["input_format"];
     }
-    ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
+    ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
       ge_graph.SetNeedIteration(this->need_iteration_);
     }
@@ -1335,7 +1336,7 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   }
 
   ge::Model onnx_model("onnx_compute_model_" + node->name(), "");
-  onnx_model.SetGraph(sub_graph);
+  onnx_model.SetGraph(ge::GraphUtilsEx::GetComputeGraph(sub_graph));
   ge::Buffer model_buf;
   NPU_REQUIRES(onnx_model.Save(model_buf, false) == ge::SUCCESS,
                errors::Internal("[GEOP] node:", node->name(), " Onnx Model Serialized Failed."));
@@ -1548,7 +1549,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
   ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success.";
 
   // convert to ge::graph
-  ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
+  ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
   if (iteration_per_loop_ > 1) {
     ge_graph.SetNeedIteration(this->need_iteration_);
   }

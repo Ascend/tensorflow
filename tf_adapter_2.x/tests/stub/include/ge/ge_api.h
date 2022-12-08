@@ -138,9 +138,9 @@ class Session {
   std::map<uint32_t, bool> graph_need_rebuild_;
 };
 
-struct GraphUtils {
+struct GraphUtilsEx {
   static Graph CreateGraphFromComputeGraph(const ge::ComputeGraphPtr compute_graph);
-};  // namespace GraphUtils
+};  // namespace GraphUtilsEx
 
 }  // namespace ge
 

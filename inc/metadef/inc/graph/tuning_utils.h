@@ -18,6 +18,7 @@
 #include <graph/model.h>
 #include <graph/node.h>
 #include <graph/utils/graph_utils.h>
+#include <graph/utils/graph_utils_ex.h>
 #include <graph/utils/type_utils.h>
 
 #include "framework/common/debug/ge_log.h"

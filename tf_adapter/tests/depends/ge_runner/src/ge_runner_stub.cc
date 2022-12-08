@@ -28,6 +28,7 @@
 #include "ge/ge_api_types.h"
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
+#include "graph/utils/graph_utils_ex.h"
 #include "graph/utils/node_adapter.h"
 #include "tensorflow/core/framework/types.pb.h"
 #include "tensorflow/core/graph/graph_constructor.h"
@@ -360,7 +361,13 @@ size_t ComputeGraph::GetAllNodesSize() const {
 Graph::Graph(const std::string& grph) {}
 Graph::Graph(char const* name) {}
 
-Graph GraphUtils::CreateGraphFromComputeGraph(const ComputeGraphPtr compute_graph) { return Graph("ge"); }
+Graph GraphUtilsEx::CreateGraphFromComputeGraph(const ComputeGraphPtr compute_graph) { return Graph("ge"); }
+
+ComputeGraphPtr GraphUtilsEx::GetComputeGraph(const ge::Graph &graph) {
+  (void)graph;
+  auto compute_graph = std::make_shared<ge::ComputeGraph>("test");
+  return compute_graph;
+}
 
 void GraphUtils::DumpGEGraph(const ComputeGraphPtr &graph,
                  const std::string &suffix,
@@ -428,7 +435,7 @@ const std::uint8_t *Buffer::GetData() const {
 
 Model::Model() {}
 Model::Model(const string &name, const string &custom_version) {}
-void Model::SetGraph(const Graph& graph) {}
+void Model::SetGraph(const ComputeGraphPtr &graph) {}
 graphStatus Model::Save(Buffer &buffer, bool is_dump) const {
   return GRAPH_SUCCESS;
 }

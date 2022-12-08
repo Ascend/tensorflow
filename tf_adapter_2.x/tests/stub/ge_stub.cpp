@@ -16,7 +16,7 @@ limitations under the License.
 #include "ge/ge_api.h"
 
 namespace ge {
-Graph GraphUtils::CreateGraphFromComputeGraph(const ge::ComputeGraphPtr compute_graph) {
+Graph GraphUtilsEx::CreateGraphFromComputeGraph(const ge::ComputeGraphPtr compute_graph) {
   Graph graph;
   graph.graph = compute_graph->graph;
   return graph;

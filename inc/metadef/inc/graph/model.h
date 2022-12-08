@@ -49,9 +49,9 @@ class GE_FUNC_DEV_VISIBILITY GE_FUNC_HOST_VISIBILITY Model : public AttrHolder {
 
   void SetPlatformVersion(std::string version) { platform_version_ = version; }
 
-  Graph GetGraph() const;
+  const ComputeGraphPtr GetGraph() const;
 
-  void SetGraph(const Graph &graph);
+  void SetGraph(const ComputeGraphPtr &graph);
 
   void SetAttr(const ProtoAttrMap &attrs);
 

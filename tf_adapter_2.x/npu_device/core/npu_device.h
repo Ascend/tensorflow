@@ -26,6 +26,8 @@
 
 #include "ge/ge_api.h"
 
+#include "graph/utils/graph_utils_ex.h"
+
 #include "npu_dp.h"
 #include "npu_logger.h"
 #include "npu_op_executor.h"
