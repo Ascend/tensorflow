@@ -1782,7 +1782,7 @@ Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
       int32_t index = 0;
       TF_RETURN_IF_ERROR(GetNodeAttr(node->attrs(), "index", &index));
       Tensor tensor(ctx->input(index));
-      std::string const_input_name = "Const" + ToString(index);
+      std::string const_input_name = "Const" + std::to_string(index);
       Node *const_node = nullptr;
       TF_CHECK_OK(NodeBuilder(const_input_name, "Const")
                   .Device(node->def().device())
