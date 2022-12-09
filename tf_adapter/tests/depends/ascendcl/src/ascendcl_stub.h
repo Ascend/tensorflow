@@ -159,8 +159,12 @@ struct aclDataBuffer {
 struct aclTensorDesc {
   aclTensorDesc() = default;
   aclTensorDesc(aclDataType type) : dataType(type) {}
+  std::vector<int64_t> dims;
   aclDataType dataType;
 };
+
+using ACLMdlGetDescStub = std::function<aclError(aclmdlDesc *)>;
+void RegACLMdlGetDescStub(ACLMdlGetDescStub stub);
 
 using AclRunGraphWithStreamAsyncStub = std::function<aclError(uint32_t, const aclmdlDataset*, aclmdlDataset*, void*)>;
 void RegAclRunGraphWithStreamAsyncStub(AclRunGraphWithStreamAsyncStub stub);

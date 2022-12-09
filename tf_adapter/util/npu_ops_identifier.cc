@@ -50,10 +50,10 @@ NpuOpsIdentifier *NpuOpsIdentifier::GetInstance(bool is_mix) {
 }
 
 bool NpuOpsIdentifier::GetOppPluginVendors(const std::string &vendors_config, std::vector<std::string> &vendors) {
-  ADP_LOG(INFO) << "Enter get opp plugin config file schedule";
+  ADP_LOG(INFO) << "Enter get opp plugin config file schedule, config file is: " << vendors_config;
   std::ifstream config(vendors_config);
   if (!config.good()) {
-    ADP_LOG(ERROR) << "File '" << vendors_config << "' open failed!";
+    ADP_LOG(INFO) << "Can not open file: " << vendors_config;
     return false;
   }
   std::string content;
@@ -77,7 +77,7 @@ bool NpuOpsIdentifier::GetOppPluginVendors(const std::string &vendors_config, st
 }
 
 bool NpuOpsIdentifier::IsNewOppPathStruct(const std::string &opp_path) {
-  return mmIsDir((opp_path + "/vendors").c_str()) == EN_OK;
+  return mmIsDir((opp_path + "/built-in").c_str()) == EN_OK;
 }
 
 bool NpuOpsIdentifier::GetCustomOpPath(const std::string &ops_path, std::string &ops_json_path,
@@ -90,7 +90,7 @@ bool NpuOpsIdentifier::GetCustomOpPath(const std::string &ops_path, std::string 
   ops_json_path = ops_path + kOpsInfoJsonV02;
   std::vector<std::string> vendors;
   if (!GetOppPluginVendors(ops_path + "/vendors/config.ini", vendors)) {
-    ADP_LOG(ERROR) << "Failed to get opp plugin vendors!";
+    ADP_LOG(INFO) << "Can not get opp plugin vendors!";
     return false;
   }
   for (const auto &vendor : vendors) {
