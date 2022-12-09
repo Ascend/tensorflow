@@ -115,5 +115,5 @@ Status GetAttrOptimizePass::Run(const GraphOptimizationPassOptions &options) {
   return Status::OK();
 }
 
-REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, 0, GetAttrOptimizePass);
+REGISTER_OPTIMIZATION(OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, -1, GetAttrOptimizePass);
 }  // namespace tensorflow
