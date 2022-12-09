@@ -978,7 +978,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string in_out_pair;
 
   std::string variable_format_optimize = "1";
-  std::string hcom_parallel = "0";
+  std::string hcom_parallel = "1";
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
   std::string enable_dump = "0";
@@ -1174,6 +1174,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
 
     if (variable_format_optimize_value != nullptr) {
+      LOG_DEPRECATED(variable_format_optimize);
       variable_format_optimize = variable_format_optimize_value->s();
     }
     if (hcom_parallel_value != nullptr) {
@@ -1261,6 +1262,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
       graph_run_mode = graph_run_mode_value->s();
     }
     if (op_debug_level_value != nullptr) {
+      LOG_DEPRECATED(op_debug_level);
       op_debug_level = op_debug_level_value->s();
     }
     if (enable_scope_fusion_passes_value != nullptr) {
