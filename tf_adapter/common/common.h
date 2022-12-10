@@ -20,6 +20,7 @@
 #include "tensorflow/core/lib/strings/strcat.h"
 #include "tensorflow/core/platform/env.h"
 #include "tf_adapter/common/adapter_logger.h"
+#include "acl/acl_base.h"
 
 #define CHECK_NOT_NULL(v)                                                                                              \
   do { \
@@ -43,6 +44,16 @@
       return (s);                                                                                                      \
     }                                                                                                                  \
   } while (false)
+
+#define REQUIRES_ACL_STATUS_OK(expr, interface) \
+  do { \
+    const auto __ret = (expr); \
+    if (__ret != ACL_SUCCESS) { \
+      LOG(ERROR) << #interface " is failed, ret code is " <<  __ret; \
+      return errors::Internal(#interface " is failed."); \
+    } \
+  } \
+  while (false)
 
 namespace npu {
 constexpr int ADAPTER_ENV_MAX_LENTH = 1024 * 1024;

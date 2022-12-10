@@ -43,7 +43,7 @@ class LoadAndExecuteOmTest : public testing::Test {
       inputs.push_back(TensorValue(&tensor));
     }
     params.inputs = &inputs;
-    auto ctx = absl::make_unique<OpKernelContext>(&params);
+    auto ctx = absl::make_unique<OpKernelContext>(&params, 1);
     kernel->Compute(ctx.get());
     return ctx->status();
   }
@@ -80,7 +80,11 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteSuccess) {
   ASSERT_EQ(status.error_message(), "");
   ASSERT_EQ(CreateKernel(def), Status::OK());
   std::vector<Tensor> tensors;
-  ASSERT_EQ(Run(tensors), Status::OK());
+  TensorShape tf_shape;
+  tf_shape.AddDim(2);
+  Tensor tensor = Tensor(DT_FLOAT, tf_shape);
+  tensors.emplace_back(tensor);
+  tensors.emplace_back(tensor);
   ASSERT_EQ(Run(tensors), Status::OK());
 }
 }  // namespace
