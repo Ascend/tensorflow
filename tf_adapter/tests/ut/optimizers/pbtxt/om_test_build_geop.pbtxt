@@ -153,6 +153,12 @@ node {
     }
   }
   attr {
+    key: "_op_debug_level"
+    value {
+      s: "1"
+    }
+  }
+  attr {
     key: "_dynamic_node_type"
     value {
       s: "0"

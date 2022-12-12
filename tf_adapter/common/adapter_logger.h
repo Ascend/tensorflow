@@ -23,13 +23,13 @@
 
 #define LOG_DEPRECATED_WITH_REPLACEMENT(old, replacement)                                                              \
   do {                                                                                                                 \
-    LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version. Please "           \
-                        "use " #replacement " instead";                                                                \
+    LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version. Please "               \
+                    "use " #replacement " instead";                                                                    \
   } while (false)
 
 #define LOG_DEPRECATED(old)                                                                                            \
   do {                                                                                                                 \
-    LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version.";                  \
+    LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version.";                      \
   } while (false)
 
 namespace npu {
