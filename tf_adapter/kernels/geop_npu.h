@@ -162,6 +162,7 @@ private:
   std::string tf_session_;
   ge::Session *ge_session_;
   std::string job_type_;
+  std::string mix_compile_mode_;
   std::map<std::vector<std::string>, uint32_t> cache_graphs_;
   std::vector<std::pair<std::vector<std::string>, uint32_t>> graph_counts_;
   std::map<std::string, std::string> sess_options_;
