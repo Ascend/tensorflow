@@ -1124,7 +1124,7 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
     CHECK_NOT_NULL(node);
     if (node->type_string() == "DPOP") {
       ProcessDpOpFuncDef(*node);
-    } else if (node->type_string() == "IteratorGetNext") {
+    } else if (node->type_string() == "IteratorGetNext" || node->type_string() == "GetNext") {
       Node *iterator_node = nullptr;
       std::string iterator_name;
       NodeDef &node_def = const_cast<NodeDef &>(node->def());
@@ -1138,12 +1138,22 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
       }
       uint32_t device_id = 0;
       (void) GetEnvDeviceID(device_id);
-      std::string channel_name = std::to_string(
-          std::hash<std::string>{}(tf_session_ + iterator_name + "_device_" + std::to_string(device_id)));
+      std::string channel_name;
+      if (HasNodeAttr(node->def(), "channel_name")) {
+        channel_name = node->def().attr().at("channel_name").s();
+      } else {
+        channel_name = std::to_string(
+            std::hash<std::string>{}(tf_session_ + iterator_name +
+                                     "_device_" + std::to_string(device_id)));
+      }
+      ADP_LOG(DEBUG) << "[GEOP] channel_name:" << channel_name << ", device_id: " << device_id;
+
       if (kIsHeterogeneous) {
         BuildQueueDataAndGetNextFromQueue(graph, *node, channel_name);
         remove_nodes.push_back(node);
-        remove_nodes.push_back(iterator_node);
+        if (iterator_node != nullptr) {
+          remove_nodes.push_back(iterator_node);
+        }
       } else if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
         if (is_getnext_dynamic_shape_) {
           node_def.set_op("DynamicGetNext");
@@ -1171,7 +1181,9 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
         value.set_s(op_def_s);
         getnext_node_def.mutable_attr()->insert({"op_def", value});
         remove_nodes.push_back(node);
-        remove_nodes.push_back(iterator_node);
+        if (iterator_node != nullptr) {
+          remove_nodes.push_back(iterator_node);
+        }
       }
       if (dynamic_input_ == "1" && dynamic_graph_execute_mode_ == "lazy_recompile") {
         graph_options_["ge.exec.enableCopyOutputAddr"] = "1";
@@ -1205,12 +1217,13 @@ Status GeOp::ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is
       graph_options_["input_format"] = "NCHW";
       ADP_LOG(INFO) << "onnx_graph_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"];
       if (!ret.ok()) {
-        LOG(ERROR) << "[GEOP]node: " << node->name() << " Parse Node with Onnx Model failed, " << ret.error_message();
+        LOG(ERROR) << "[GEOP]node: " << node->name()
+                   << " Parse Node with Onnx Model failed, " << ret.error_message();
         return ret;
       }
     }
 
-    if (node->type_string() == "IteratorGetNext") {
+    if (node->type_string() == "IteratorGetNext" || node->type_string() == "GetNext") {
       std::vector<const TensorShapeProto*> shape_attrs;
       const char* kAttrName = "output_shapes";
       if (tensorflow::TryGetNodeAttr(node->attrs(), kAttrName, &shape_attrs)) {
