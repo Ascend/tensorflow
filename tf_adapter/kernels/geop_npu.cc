@@ -78,7 +78,6 @@
 #include "tf_adapter_2.x/npu_device/core/npu_micros.h"
 #include "tensorflow/core/graph/algorithm.h"
 #include "tensorflow/core/framework/graph_to_functiondef.h"
-#include "acl/acl_rt.h"
 
 namespace tensorflow {
 #ifdef TF_VERSION_TF2
@@ -360,7 +359,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(ctx);
   iteration_per_loop_ = std::atoi(pass_options["iterations_per_loop"].c_str());
   job_type_ = pass_options["job"];
-  mix_compile_mode_ = pass_options["mix_compile_mode"];
   if (GePlugin::GetInstance()->IsGlobal()) {
     ADP_LOG(INFO) << "[GEOP] GePlugin global, skip GePlugin init";
     init_options_ = GePlugin::GetInstance()->GetInitOptions();
@@ -859,7 +857,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       ADP_LOG(INFO) << "[GEOP] set graph option.";
       graph_options_["ge.exec.placement"] = "HOST";
     }
-    graph_options_["ge.exec.overflow"] = "1";
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
     if (!recompute_mode_.empty()) {
       graph_options_["ge.recompute"] = recompute_mode_;
@@ -879,7 +876,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
     graph_options_["ge.jit_compile"] = jit_compile_ ? "1" : "0";
-    graph_options_["ge.graphLevelSat"] = mix_compile_mode_;
 
     // call ge session addGraph api
     auto graph_options = graph_options_;
@@ -1573,7 +1569,6 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
   if (is_host_graph_) {
     graph_options_["ge.exec.placement"] = "HOST";
   }
-  graph_options_["ge.exec.overflow"] = "1";
   SetDynamicInput();
 
   // run aoe tuning
