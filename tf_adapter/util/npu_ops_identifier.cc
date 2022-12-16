@@ -91,7 +91,8 @@ bool NpuOpsIdentifier::GetCustomOpPath(const std::string &ops_path, std::string 
   std::vector<std::string> vendors;
   if (!GetOppPluginVendors(ops_path + "/vendors/config.ini", vendors)) {
     ADP_LOG(INFO) << "Can not get opp plugin vendors!";
-    return false;
+    custom_ops_json_path_vec.push_back(ops_path + kCustomOpsInfoJsonV01);
+    return true;
   }
   for (const auto &vendor : vendors) {
     custom_ops_json_path_vec.push_back(ops_path + std::regex_replace(kCustomOpsInfoJsonV02, std::regex("%s"), vendor));
