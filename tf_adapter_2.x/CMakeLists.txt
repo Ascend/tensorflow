@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_FLAGS "-D_FORTIFY_SOURCE=2 -O2 -DNDEBUG -Wno-class-memaccess -Werror -Wno-float-equal -Wextra -Wno-unused-parameter -Wno-ignored-qualifiers -Wno-comment -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -fno-common -pipe -fno-strict-aliasing -Wdate-time -Wformat=2 -Wno-shadow -Wno-undef -Wunused -Wstrict-prototypes ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-D_FORTIFY_SOURCE=2 -O2 -DNDEBUG -Werror -Wno-class-memaccess -Wno-float-equal -Wextra -Wno-unused-parameter -Wno-ignored-qualifiers -Wno-comment -Wno-deprecated-declarations -Wall -fPIC -fstack-protector-all -Wl,--no-as-needed -Wl,-z,relro,-z,now,-z,noexecstack -s -fno-common -pipe -fno-strict-aliasing -Wdate-time -Wformat=2 -Wno-shadow -Wno-undef -Wunused -Wdelete-non-virtual-dtor -Wnon-virtual-dtor -Wno-overloaded-virtual ${CMAKE_CXX_FLAGS}")
 set(CMAKE_SKIP_RPATH TRUE)
+set(TF2X_SOURCE_PATH ${CMAKE_CURRENT_LIST_DIR}/../inc/third_party/tensorflow-2.6.5)
 
 IF (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     add_definitions(-Wno-builtin-macro-redefined)

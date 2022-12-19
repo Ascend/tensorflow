@@ -259,7 +259,6 @@ else()
                             -DPYTHON_BIN_PATH=${HI_PYTHON_PATH}
                             -DPYTHON_INCLUDE_DIR=${HI_PYTHON_INC}
                             -DASCEND_CI_BUILD_DIR=${TOP_DIR}
-                            -DTF2X_PATH=${TF2X_PATH}
                             <SOURCE_DIR>
                             BUILD_COMMAND $(MAKE)
                             INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <BINARY_DIR>/dist/python/dist/npu_device-0.1-py3-none-any.whl ${CMAKE_CURRENT_BINARY_DIR}
