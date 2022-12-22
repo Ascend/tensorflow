@@ -785,9 +785,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     // convert to ge::graph
     if (graph_options_.count("input_format") != 0) {
       ADP_LOG(INFO) << "graph_options_[\"input_format\"] = " << graph_options_["input_format"];
-    } else {
-      graph_options_["input_format"] = "NHWC";
-      ADP_LOG(INFO) << "tensorflow_parser graph_options_[\"input_format\"] = " << graph_options_["input_format"];
     }
     ge::Graph ge_graph = ge::GraphUtils::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
