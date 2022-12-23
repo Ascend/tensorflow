@@ -157,9 +157,8 @@ class NpuCallOp : public OpKernel {
     NpuDevice *device;
     auto status = std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)>(TF_NewStatus(), TF_DeleteStatus);
     NPU_REQUIRES_OK(global::NpuCtx::GetDeviceCtx(device_id_, &context, &device));
-    bool jit_compile = device->device_options["ge.jit_compile"] == "1";
     bool shape_changed = MaybeUpdateShape(ctx);
-    if (!built_ || (shape_changed && jit_compile)) {
+    if (!built_ || shape_changed) {
       auto lib_def = ctx->function_library()->GetFunctionLibraryDefinition();
       auto graph = std::make_unique<tensorflow::Graph>(lib_def);
       CopyGraph(*graph_, graph.get());
@@ -180,11 +179,7 @@ class NpuCallOp : public OpKernel {
       built_ = true;
       loaded = true;
     } else {
-      if (!fuzz_compile_ && shape_changed && jit_compile) {  // Input shape changed since graph was built
-        DLOG() << "Fuzz compile npu graph of " << name() << " as input shape changed since last built";
-        fuzz_compile_ = true;
-      }
-      if ((shape_changed && jit_compile) || device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(graph_id_))) {
+      if (shape_changed || device->GeSession()->IsGraphNeedRebuild(static_cast<uint32_t>(graph_id_))) {
         DLOG() << "Remove and re-add ge graph " << attr_.name() << " with id " << graph_id_ << " as "
                << (shape_changed ? "shape changed" : "need rebuild");
         [this, &status, &device]() {
@@ -193,12 +188,7 @@ class NpuCallOp : public OpKernel {
         }();
         NPU_REQUIRES_OK(status->status);
         const static std::map<std::string, std::string> kOptions;
-        const static std::map<std::string, std::string> kFuzzCompileOptions{
-          {ge::OPTION_EXEC_DYNAMIC_INPUT, "1"},
-          {ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_execute"},
-          {ge::SHAPE_GENERALIZED_BUILD_MODE, "shape_generalized"}};
-        (void)device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(),
-                                 (fuzz_compile_ ? kFuzzCompileOptions : kOptions));
+        (void)device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(), kOptions);
         NPU_REQUIRES_OK(status->status);
         loaded = true;
       }
@@ -216,7 +206,7 @@ class NpuCallOp : public OpKernel {
     static constexpr int64 kUnknownDim = -1;
     std::vector<int64> dims;
     for (int i = 0; i < a.dims(); i++) {
-      dims.push_back((a.dim_size(i) != b.dim_size(i)) ? kUnknownDim : a.dim_size(i));
+      dims.push_back(kUnknownDim);
     }
     auto status = PartialTensorShape::MakePartialShape(dims.data(), static_cast<int32_t>(dims.size()), &shape);
     NPU_LOG_IF_ERROR(status);
@@ -225,7 +215,6 @@ class NpuCallOp : public OpKernel {
 
   bool initialized_{false};
   bool built_{false};
-  bool fuzz_compile_{false};
   bool empty_ge_graph_{false};
   int device_id_{0};
   uint64_t graph_id_{0U};

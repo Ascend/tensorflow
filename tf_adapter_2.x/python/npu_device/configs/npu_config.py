@@ -54,7 +54,7 @@ class NpuConfig(NpuBaseConfig):
         self.profiling_config = NpuProfilingConfig()
         self.enable_small_channel = OptionValue(False, [True, False])
         self.graph_exec_timeout = OptionValue(None, None)
-        self.jit_compile = OptionValue(True, [True, False])
+        self.jit_compile = OptionValue(False, [True, False])
         self.topo_sorting_mode = OptionValue(None, [0, 1, None])
         self.customize_dtypes = OptionValue(None, None)
         self.overflow_flag = OptionValue(1, [0, 1])

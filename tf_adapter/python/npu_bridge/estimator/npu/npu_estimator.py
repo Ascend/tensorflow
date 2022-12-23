@@ -762,7 +762,6 @@ class NPUEstimator(estimator_lib.Estimator):
         # add profiling options to custom_op
         self.__load_profiling_options(config, custom_op)
         self.__load_memory_config(config, custom_op)
-        
 
         # add mix precision to custom_op
         self.__load_mix_precision(config, custom_op)

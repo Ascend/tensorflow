@@ -288,11 +288,10 @@ const std::string kAllReduce = "HcomAllReduce";
 GeOp::GeOp(OpKernelConstruction *ctx)
     : AsyncOpKernel(ctx), init_flag_(false), build_flag_(false), add_graph_flag_(false), sess_init_flag_(false),
       compute_graph_empty_(false), is_input_convert_(false), data_format_(""), graph_id_(0),
-      is_initialized_graph_(false), need_iteration_(false),
-      tf_session_(""), ge_session_(nullptr), job_type_(""), is_host_graph_(false), handle_(nullptr),
-      need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT), session_id_(0),
-      aoe_initialize_(nullptr), aoe_finalize_(nullptr),
-      aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
+      is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr), job_type_(""),
+      is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT),
+      jit_compile_(false), is_getnext_dynamic_shape_(false), session_id_(0), aoe_initialize_(nullptr),
+      aoe_finalize_(nullptr), aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
       aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr) {
   Initialize(ctx);
@@ -330,6 +329,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ctx->GetAttr("_recompute_mode", &recompute_mode_);
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
+    jit_compile_ = true;
+    is_getnext_dynamic_shape_ = true;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
     ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
     ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
@@ -340,6 +341,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ctx->GetAttr("_is_var_init_graph", &is_var_init_graph_);
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
+                << ", jit_compile: " << jit_compile_
+                << ", is_getnext_dynamic_shape_: " << is_getnext_dynamic_shape_
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
@@ -412,6 +415,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   sess_options_ = NpuAttrs::GetSessOptions(ctx);
   ADP_LOG(INFO) << "session options: ";
   NpuAttrs::LogOptions(sess_options_);
+
+  input_shapes_vec_.resize(ctx->num_inputs() + 1, absl::nullopt);
 
   init_flag_ = true;
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
@@ -592,6 +597,45 @@ void GeOp::GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> inp
   }
 }
 
+PartialTensorShape GeOp::MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) {
+  const static auto kUnknownRankShape = PartialTensorShape();
+  if (a.dims() != b.dims()) {
+    return kUnknownRankShape;
+  }
+  PartialTensorShape shape;
+  static constexpr int64 kUnknownDim = -1;
+  std::vector<int64> dims;
+  for (int i = 0; i < a.dims(); i++) {
+    dims.push_back(kUnknownDim);
+  }
+  auto status = PartialTensorShape::MakePartialShape(dims.data(), static_cast<int32_t>(dims.size()), &shape);
+  return status.ok() ? shape : kUnknownRankShape;
+}
+
+bool GeOp::MaybeUpdateShape(OpKernelContext *const ctx) {
+  bool updated = false;
+  for (size_t i = 0UL; i < static_cast<size_t>(ctx->num_inputs()); i++) {
+    auto &shape = input_shapes_vec_[i];
+    auto &value_shape = ctx->input(static_cast<int32_t>(i)).shape();
+    if (!shape.has_value()) {
+      updated = true;
+      shape = value_shape;
+      ADP_LOG(INFO) << "Init input " << i << " shape " << shape.value().DebugString();
+    } else {
+      if (shape.value().IsCompatibleWith(value_shape)) {
+        continue;
+      } else {
+        updated = true;
+        ADP_LOG(INFO) << "Compat input " << i << " shape " << shape.value().DebugString() << " vs. "
+                << value_shape.DebugString();
+        shape = MakeCompatShape(shape.value(), value_shape);
+        ADP_LOG(INFO) << "Refresh input " << i << " shape to " << shape.value().DebugString();
+      }
+    }
+  }
+  return updated;
+}
+
 void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   // ctx is not nullptr
   OP_REQUIRES_ASYNC(ctx, init_flag_, errors::InvalidArgument("GeOp not Initialize success."), done);
@@ -658,6 +702,20 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                 << ", num_outputs:" << ctx->num_outputs();
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
   int64 endTime = 0;
+
+  // To be compatible with old versions, we should check dynamic_input_ and dynamic_config
+  bool is_set_dynamic_config = IsDynamicConfig();
+  if (dynamic_input_ != "1" && !is_set_dynamic_config) {
+    bool shape_changed = MaybeUpdateShape(ctx);
+    if (build_flag_ && shape_changed) {
+      ge::Status status = ge_session_->RemoveGraph(graph_id_);
+      if (status != ge::SUCCESS) {
+        ADP_LOG(WARNING) << "[GEOP] GE remove graph failed, ret : " << ToString(status) << ", graph_id: " << graph_id_;
+      }
+      build_flag_ = false;
+    }
+  }
+
   std::vector<Tensor> input_vec;
   std::vector<std::string> input_shapes;
   std::vector<ge::Tensor> inputs;
@@ -665,7 +723,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   // if input shapes changed, cache graphs
   uint32_t cache_graph_id = graph_id_;
-  bool is_set_dynamic_config = IsDynamicConfig();
   bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
   bool is_lazy_recompile_mode = (dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile");
   ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config << " is_tuning: " << is_tuning
@@ -807,12 +864,14 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
+    graph_options_["ge.jit_compile"] = jit_compile_ ? "1" : "0";
 
     // call ge session addGraph api
     auto graph_options = graph_options_;
     if (is_tuning) {
       graph_options["ge.buildMode"] = "normal";
     }
+    ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << graph_options["ge.jit_compile"];
     status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
@@ -1075,14 +1134,14 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
         remove_nodes.push_back(node);
         remove_nodes.push_back(iterator_node);
       } else if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
-        if (dynamic_input_ == "1") {
+        if (is_getnext_dynamic_shape_) {
           node_def.set_op("DynamicGetNext");
         }
       } else {
         Node *aicpu_getnext = nullptr;
         std::string aicpu_getnext_name = "aicpu_getnext_" + node->name();
         auto getnext_attrs = node->def().attr();
-        std::string aicpu_getnext_type = dynamic_input_ == "1" ? "DynamicGetNextV2" : "GetNext";
+        std::string aicpu_getnext_type = is_getnext_dynamic_shape_ ? "DynamicGetNextV2" : "GetNext";
         TF_CHECK_OK(NodeBuilder(aicpu_getnext_name, aicpu_getnext_type)
                         .Device(node->def().device())
                         .Attr("channel_name", channel_name)
@@ -1114,32 +1173,14 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
   }
 }
 
-// Build GraphDef from FunctionDef.
-Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
-                           GraphDef &graph_def, bool &is_initialize, bool &is_allreduce) {
-  const FunctionDef *function_def = flib_def.Find(function_.name());
-  NPU_REQUIRES(function_def != nullptr, errors::Internal("Function:", function_.name(), " fdef is nullptr"));
-  // get infershape
-  Graph graph(OpRegistry::Global());
-  Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, function_def, &graph);
-  if (!ret.ok()) {
-    ADP_LOG(ERROR) << "[GEOP] InferShape failed, " << ret.error_message();
-    LOG(ERROR) << "[GEOP] InferShape failed, " << ret.error_message();
-    return ret;
-  }
-
-  bool is_set_dynamic_config = IsDynamicConfig();
-  if (is_set_dynamic_config) {
-    BuildShapeNodeAndCacheArgNodes(graph);
-  }
-
+Status GeOp::ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is_allreduce) {
   for (Node *node : graph.nodes()) {
     if (node->type_string() == kAllReduce) {
       is_allreduce = true;
     }
     AddNodeAttrs(node, is_initialize);
     // Add Input&Output Desc into NodeDef
-    ret = this->GenerateDesc(node);
+    Status ret = this->GenerateDesc(node);
     if (!ret.ok()) {
       ADP_LOG(ERROR) << "[GEOP] node: " << node->name() << " GenerateDesc failed, "
                      << ret.error_message();
@@ -1157,7 +1198,72 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
         return ret;
       }
     }
+
+    if (node->type_string() == "IteratorGetNext") {
+      std::vector<const TensorShapeProto*> shape_attrs;
+      const char* kAttrName = "output_shapes";
+      if (tensorflow::TryGetNodeAttr(node->attrs(), kAttrName, &shape_attrs)) {
+        for (auto i = 0; i < node->num_outputs(); i++) {
+          const TensorShapeProto& shape_proto = *shape_attrs[i];
+          tensorflow::PartialTensorShape shape(shape_proto);
+          if (!shape.IsFullyDefined()) {
+            is_getnext_dynamic_shape_ = true;
+          }
+        }
+      }
+    }
   }
+  return Status::OK();
+}
+
+void GeOp::UpdateInputsShapeDesc(Graph &graph) {
+  for (auto node : graph.op_nodes()) {
+    if (!node->IsArg()) {
+      continue;
+    }
+    size_t index = static_cast<size_t>(node->attrs().Find("index")->i());
+    node->ClearAttr("_output_shapes");
+    node->AddAttr("_output_shapes", std::vector<PartialTensorShape>{input_shapes_vec_[index].value()});
+
+    NodeDef &node_def = const_cast<NodeDef &>(node->def());
+    AttrValue &output_tensor_descs = (*node_def.mutable_attr())[OUTPUT_DESC];
+    auto &shape = input_shapes_vec_[index].value();
+    AttrValue attr_shape_value;
+    attr_shape_value.set_type(DT_INT32);
+    if (shape.unknown_rank()) {
+      const int kUnknownRankDimSize = -2;
+      attr_shape_value.mutable_list()->add_i(kUnknownRankDimSize);
+    } else {
+      for (auto i = 0; i < shape.dims(); ++i) {
+        attr_shape_value.mutable_list()->add_i(shape.dim_size(i));
+      }
+    }
+    (*output_tensor_descs.mutable_list()->mutable_func(0)->mutable_attr())[SERIALIZE_SHAPE] = attr_shape_value;
+  }
+}
+
+// Build GraphDef from FunctionDef.
+Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
+                           GraphDef &graph_def, bool &is_initialize, bool &is_allreduce) {
+  const FunctionDef *function_def = flib_def.Find(function_.name());
+  NPU_REQUIRES(function_def != nullptr, errors::Internal("Function:", function_.name(), " fdef is nullptr"));
+  // get infershape
+  Graph graph(OpRegistry::Global());
+  Status ret = InferShapeUtil::InferShape(input_vec, &flib_def, function_def, &graph);
+  if (!ret.ok()) {
+    ADP_LOG(ERROR) << "[GEOP] InferShape failed, " << ret.error_message();
+    LOG(ERROR) << "[GEOP] InferShape failed, " << ret.error_message();
+    return ret;
+  }
+
+  bool is_set_dynamic_config = IsDynamicConfig();
+  if (is_set_dynamic_config) {
+    jit_compile_ = true;
+    BuildShapeNodeAndCacheArgNodes(graph);
+  }
+
+  NPU_REQUIRES_OK(ProcessForDiffNodeTypes(graph, is_initialize, is_allreduce));
+
   // set input_shape to dynamic nodes shape desc
   if (is_set_dynamic_config) {
     ret = ChangeInputsShapeDesc();
@@ -1168,6 +1274,12 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
     }
   }
   HandleDpOpAndGetNextNodes(graph);
+
+  // 二进制场景,更新输入shape
+  if (!jit_compile_) {
+    UpdateInputsShapeDesc(graph);
+  }
+
   graph.ToGraphDef(&graph_def);
   std::string enable_force_v2_control;
   (void) ReadStringFromEnvVar("ENABLE_FORCE_V2_CONTROL", "", &enable_force_v2_control);
@@ -1741,7 +1853,8 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *const ctx, std::vector<Tensor
     } else if (is_equal) {
       continue;
     }
-    ADP_LOG(INFO) << "[GEOP] Input tensor " << i << " shape: " << tensor.shape().DebugString();
+    ADP_LOG(INFO) << "[GEOP] Kernel name: " << ctx->op_kernel().name()
+                  << ", Input tensor " << i << " shape: " << tensor.shape().DebugString();
     DataType data_type = tensor.dtype();
     size_t total_bytes = tensor.TotalBytes();
     void *tensor_ptr = DMAHelper::base(&tensor);
@@ -1789,7 +1902,7 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *const ctx, std::vector<Tensor
   if (sess_options_["ge.inputShape"].empty()) {
     if (!cur_input_shapes.empty() && input_shapes_.empty()) {
       input_shapes_ = cur_input_shapes;
-    } else if (input_shapes_ != cur_input_shapes && dynamic_input_ != "1") {
+    } else if (jit_compile_ && input_shapes_ != cur_input_shapes && dynamic_input_ != "1") {
       return errors::Internal("The input shape of ", ctx->op_kernel().name(),
                               " is dynamic, please ensure that npu option[dynamic_input] is set"
                               " correctly, for more details please refer to the migration guide.");
