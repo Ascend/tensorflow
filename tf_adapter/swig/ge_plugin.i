@@ -15,7 +15,9 @@
 %}
 
 typedef int int32_t;
+typedef unsigned int uint32_t;
 %apply int { int32_t };
+%apply unsigned int { uint32_t };
 
 #if defined(SMALL_LONG)
 
