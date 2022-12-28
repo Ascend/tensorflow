@@ -42,7 +42,7 @@ private:
 
   Status PrepareProcess();
 
-  bool IsDynamic(const aclmdlIODims &dims);
+  bool IsDynamic(const aclmdlIODims &dims) const;
 
   Status LoadModelFromFile();
 
@@ -57,16 +57,16 @@ private:
   Status ProcessOutput(std::vector<Tensor> &outputs);
 
   Status ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs);
+    const size_t cur_size, std::vector<Tensor> &outputs) const;
 
   Status ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs);
+    const size_t cur_size, std::vector<Tensor> &outputs) const;
 
   void WorkThread();
 
-  Status MappingAclDtToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type);
+  Status MappingAclDtToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) const;
 
-  Status MappingTfDtToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type);
+  Status MappingTfDtToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) const;
 
   void UnloadModel();
 

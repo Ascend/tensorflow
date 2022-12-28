@@ -57,7 +57,7 @@ Status ModelProcess::PrepareProcess() {
   return Status::OK();
 }
 
-bool ModelProcess::IsDynamic(const aclmdlIODims &dims) {
+bool ModelProcess::IsDynamic(const aclmdlIODims &dims) const {
   for (size_t i = 0; i < dims.dimCount; ++i) {
     if ((dims.dims[i] == -1) || (dims.dims[i] == -2)) {
       return true;
@@ -194,7 +194,7 @@ Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) {
 }
 
 Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) {
+    const size_t cur_size, std::vector<Tensor> &outputs) const {
   ADP_LOG(INFO) << "this out " << index << " is static";
   aclmdlIODims acl_dims = {};
   REQUIRES_ACL_STATUS_OK(aclmdlGetOutputDims(model_desc_, index, &acl_dims), aclmdlGetOutputDims);
@@ -213,8 +213,9 @@ Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::D
 }
 
 Status ModelProcess::ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) {
+    const size_t cur_size, std::vector<Tensor> &outputs) const {
   ADP_LOG(INFO) << "this out " << index << " is dynamic";
+  (void)cur_size;
   auto *desc = aclmdlGetDatasetTensorDesc(output_, index);
   REQUIRES_NOT_NULL(desc);
   size_t real_size = aclGetTensorDescSize(desc);
@@ -303,7 +304,7 @@ void ModelProcess::StartWorkThread() {
   work_thread_ = std::thread(&ModelProcess::WorkThread, this);
 }
 
-Status ModelProcess::MappingTfDtToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
+Status ModelProcess::MappingTfDtToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) const {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
       {DT_FLOAT, ACL_FLOAT},  {DT_HALF, ACL_FLOAT16},  {DT_INT8, ACL_INT8},     {DT_INT32, ACL_INT32},
       {DT_UINT8, ACL_UINT8},  {DT_INT16, ACL_INT16},   {DT_UINT16, ACL_UINT16}, {DT_UINT32, ACL_UINT32},
@@ -317,7 +318,7 @@ Status ModelProcess::MappingTfDtToAcl(const tensorflow::DataType tf_type, aclDat
   return Status::OK();
 }
 
-Status ModelProcess::MappingAclDtToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) {
+Status ModelProcess::MappingAclDtToTf(const aclDataType &acl_type, tensorflow::DataType &tf_type) const {
   const static std::map<aclDataType, tensorflow::DataType> type_mapping = {
       {ACL_FLOAT, DT_FLOAT},  {ACL_FLOAT16, DT_HALF},  {ACL_INT8, DT_INT8},     {ACL_INT32, DT_INT32},
       {ACL_UINT8, DT_UINT8},  {ACL_INT16, DT_INT16},   {ACL_UINT16, DT_UINT16}, {ACL_UINT32, DT_UINT32},
