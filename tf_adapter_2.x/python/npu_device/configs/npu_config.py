@@ -20,6 +20,7 @@ from npu_device.configs.dump_config import NpuDumpConfig
 from npu_device.configs.profiling_config import NpuProfilingConfig
 from npu_device.configs.experimental_config import NpuExperimentalConfig
 from npu_device.configs.option_base import OptionValue
+from npu_device.configs.option_base import DeprecatedValue
 from npu_device.configs.option_base import NpuBaseConfig
 from npu_device.configs.aoe_config import NpuAoeConfig
 
@@ -30,21 +31,22 @@ class NpuConfig(NpuBaseConfig):
         self.graph_run_mode = OptionValue(1, [0, 1])
         self.graph_memory_max_size = OptionValue(None, None)
         self.variable_memory_max_size = OptionValue(None, None)
-        self.variable_format_optimize = OptionValue(True, [True, False])
+        self.variable_format_optimize = DeprecatedValue([True, False], replacement=None)
         self.enable_scope_fusion_passes = OptionValue(None, None)
         self.fusion_switch_file = OptionValue(None, None)
         self.precision_mode = OptionValue('allow_fp32_to_fp16',
                                           ['force_fp32', 'allow_fp32_to_fp16', 'force_fp16', 'must_keep_origin_dtype',
                                            'allow_mix_precision'])
-        self.op_select_implmode = OptionValue('high_performance', ['high_performance', 'high_precision'])
-        self.optypelist_for_implmode = OptionValue(None, None)
+        self.op_select_implmode = DeprecatedValue(['high_performance', 'high_precision'],
+                                                  replacement='op_precision_mode')
+        self.optypelist_for_implmode = DeprecatedValue(None, replacement='op_precision_mode')
         self.op_compiler_cache_mode = OptionValue('disable', ['enable', 'disable', 'force'])
         self.op_compiler_cache_dir = OptionValue(None, None)
         self.stream_max_parallel_num = OptionValue(None, None)
         self.hcom_parallel = OptionValue(True, [True, False])
         self.hcom_multi_mode = OptionValue(None, None)
         self.is_tailing_optimization = OptionValue(False, [True, False])
-        self.op_debug_level = OptionValue(0, [0, 1, 2, 3, 4])
+        self.op_debug_level = DeprecatedValue([0, 1, 2, 3, 4], replacement='op_debug_config')
         self.op_debug_config = OptionValue(None, None)
         self.debug_dir = OptionValue(None, None)
         self.modify_mixlist = OptionValue(None, None)
@@ -53,7 +55,8 @@ class NpuConfig(NpuBaseConfig):
         self.aoe_config = NpuAoeConfig()
         self.profiling_config = NpuProfilingConfig()
         self.enable_small_channel = OptionValue(False, [True, False])
-        self.deterministic = OptionValue(False, [True, False])
+        self.deterministic = OptionValue(0, [0, 1])
+        self.op_precision_mode = OptionValue(None, None)
         self.graph_exec_timeout = OptionValue(None, None)
         self.jit_compile = OptionValue(False, [True, False])
         self.topo_sorting_mode = OptionValue(None, [0, 1, None])

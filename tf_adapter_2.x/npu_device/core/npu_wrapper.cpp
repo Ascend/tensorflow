@@ -94,6 +94,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"dynamic_dims", ge::kDynamicDims},
   {"enable_small_channel", ge::ENABLE_SMALL_CHANNEL},
   {"deterministic", "ge.deterministic"},
+  {"op_precision_mode", "ge.exec.op_precision_mode"},
   {"graph_exec_timeout", "ge.exec.graphExecTimeout"},
   {"logical_device_cluster_deploy_mode", ge::OPTION_EXEC_LOGICAL_DEVICE_CLUSTER_DEPLOY_MODE},
   {"logical_device_id", ge::OPTION_EXEC_LOGICAL_DEVICE_ID},
