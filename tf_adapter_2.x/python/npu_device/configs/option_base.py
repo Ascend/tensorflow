@@ -52,6 +52,12 @@ class OptionValue:
         self.__value = v
 
 
+class DeprecatedValue(OptionValue):
+    def __init__(self, optional, *, replacement):
+        super().__init__(None, optional)
+        self.replacement = replacement
+
+
 class NpuBaseConfig:
     """NPU basic configurations"""
     def __init__(self):
@@ -77,7 +83,11 @@ class NpuBaseConfig:
         options = {}
         for k, v in self.__dict__.items():
             if k in self._fixed_attrs:
-                if isinstance(v, OptionValue) and v.value is not None:
+                if isinstance(v, DeprecatedValue) and v.value is not None:
+                    print(f"Option '{k}' is deprecated and will be removed in future version. "
+                          f"Please use '{v.replacement}' instead.")
+                    options.update({k: v.value})
+                elif isinstance(v, OptionValue) and v.value is not None:
                     options.update({k: v.value})
                 elif isinstance(v, NpuBaseConfig):
                     options.update(v.as_dict())
