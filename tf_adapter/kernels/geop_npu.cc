@@ -331,6 +331,9 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ctx->GetAttr("_max_num", &max_num_);
   ctx->GetAttr("_embedding_dim", &embedding_dim_);
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
+  string jit_compile;
+  ctx->GetAttr("_jit_compile", &jit_compile);
+  jit_compile_ = jit_compile == "1";
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
     jit_compile_ = true;
     is_getnext_dynamic_shape_ = true;
@@ -602,7 +605,7 @@ void GeOp::GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> inp
   }
 }
 
-PartialTensorShape GeOp::MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) {
+PartialTensorShape GeOp::MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const {
   const static auto kUnknownRankShape = PartialTensorShape();
   if (a.dims() != b.dims()) {
     return kUnknownRankShape;
@@ -710,7 +713,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   // To be compatible with old versions, we should check dynamic_input_ and dynamic_config
   bool is_set_dynamic_config = IsDynamicConfig();
-  if (dynamic_input_ != "1" && !is_set_dynamic_config) {
+  if (dynamic_input_ != "1" && !is_set_dynamic_config && !jit_compile_) {
     bool shape_changed = MaybeUpdateShape(ctx);
     if (build_flag_ && shape_changed) {
       ge::Status status = ge_session_->RemoveGraph(graph_id_);
@@ -729,7 +732,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   // if input shapes changed, cache graphs
   uint32_t cache_graph_id = graph_id_;
   bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
-  bool is_lazy_recompile_mode = (dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile");
+  bool is_lazy_recompile_mode = ((dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile"))
+          || ((dynamic_input_ == "0") && jit_compile_);
   ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config << " is_tuning: " << is_tuning
                 << " is_lazy_recompile_mode: " << is_lazy_recompile_mode;
 
@@ -1927,10 +1931,6 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *const ctx, std::vector<Tensor
   if (sess_options_["ge.inputShape"].empty()) {
     if (!cur_input_shapes.empty() && input_shapes_.empty()) {
       input_shapes_ = cur_input_shapes;
-    } else if (jit_compile_ && input_shapes_ != cur_input_shapes && dynamic_input_ != "1") {
-      return errors::Internal("The input shape of ", ctx->op_kernel().name(),
-                              " is dynamic, please ensure that npu option[dynamic_input] is set"
-                              " correctly, for more details please refer to the migration guide.");
     }
   }
   return Status::OK();

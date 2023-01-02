@@ -156,7 +156,7 @@ Status ModelProcess::Execute(const std::vector<Tensor> &inputs, std::vector<Tens
   return Status::OK();
 }
 
-Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) {
+Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) const {
   const size_t model_input_size = aclmdlGetNumInputs(model_desc_);
   if (inputs.size() < model_input_size) {
     ADP_LOG(ERROR) << "input num " << inputs.size() << " is smaller than model input num " << model_input_size;

@@ -50,7 +50,7 @@ private:
 
   Status CreateOutput();
 
-  Status ProcessInput(const std::vector<Tensor> &inputs);
+  Status ProcessInput(const std::vector<Tensor> &inputs) const;
 
   Status Execute(const std::vector<Tensor> &inputs, std::vector<Tensor> &outputs);
 
