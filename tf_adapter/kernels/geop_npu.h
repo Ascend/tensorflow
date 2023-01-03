@@ -128,7 +128,7 @@ private:
 
   bool IsDynamicConfig();
 
-  PartialTensorShape MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b);
+  PartialTensorShape MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const;
 
   bool MaybeUpdateShape(OpKernelContext *const ctx);
 

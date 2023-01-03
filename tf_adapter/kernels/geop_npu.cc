@@ -600,7 +600,7 @@ void GeOp::GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> inp
   }
 }
 
-PartialTensorShape GeOp::MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) {
+PartialTensorShape GeOp::MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const {
   const static auto kUnknownRankShape = PartialTensorShape();
   if (a.dims() != b.dims()) {
     return kUnknownRankShape;
