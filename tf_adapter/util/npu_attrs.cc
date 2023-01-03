@@ -393,7 +393,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string HCCL_algorithm;
   std::string atomic_clean_policy = "0";
   std::string memory_optimization_policy;
-  std::string static_memory_policy;
+  std::string static_memory_policy = "0";
   std::string jit_compile = "0";
   std::string topo_sorting_mode;
   std::string insert_op_file;
@@ -545,7 +545,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstruction *ctx) {
   std::string precision_mode = "allow_fp32_to_fp16";
   std::string profiling_mode = "0";
-  std::string static_memory_policy;
+  std::string static_memory_policy = "0";
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
@@ -997,7 +997,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string profiling_options;
   std::string atomic_clean_policy = "0";
   std::string memory_optimization_policy;
-  std::string static_memory_policy;
+  std::string static_memory_policy = "0";
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
   std::string op_debug_level = "0";
@@ -1551,7 +1551,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string profiling_options;
   int64_t atomic_clean_policy = 0L;
   std::string memory_optimization_policy;
-  std::string static_memory_policy;
+  std::string static_memory_policy = "0";
   std::string auto_tune_mode;
   int64_t graph_run_mode = 1L;
   int64_t op_debug_level = 0;

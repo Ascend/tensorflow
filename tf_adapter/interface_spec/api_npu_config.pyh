@@ -32,4 +32,4 @@ class DynamicInputConfig():
     def __init__(self, input_shape, dynamic_dims, dynamic_node_type):
 
 class MemoryConfig():
-    def __init__(self, atomic_clean_policy=0, static_memory_policy=None, memory_optimization_policy=None):
+    def __init__(self, atomic_clean_policy=0, static_memory_policy=0, memory_optimization_policy=None):
