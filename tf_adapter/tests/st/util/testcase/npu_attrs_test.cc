@@ -100,6 +100,21 @@ TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableOnlineInference) {
   AttrValue graph_run_mode = AttrValue();
   graph_run_mode.set_i(0);
   (*custom_config->mutable_parameter_map())["graph_run_mode"] = graph_run_mode;
+  AttrValue variable_format_optimize = AttrValue();
+  variable_format_optimize.set_b(true);
+  (*custom_config->mutable_parameter_map())["variable_format_optimize"] = variable_format_optimize;
+  AttrValue op_debug_level = AttrValue();
+  op_debug_level.set_i(2);
+  (*custom_config->mutable_parameter_map())["op_debug_level"] = op_debug_level;
+  AttrValue enable_data_pre_proc = AttrValue();
+  enable_data_pre_proc.set_b(false);
+  (*custom_config->mutable_parameter_map())["enable_data_pre_proc"] = enable_data_pre_proc;
+  AttrValue op_select_implmode = AttrValue();
+  op_select_implmode.set_s("high_precision");
+  (*custom_config->mutable_parameter_map())["op_select_implmode"] = op_select_implmode;
+  AttrValue optypelist_for_implmode = AttrValue();
+  optypelist_for_implmode.set_s("Pooling,SoftmaxV2");
+  (*custom_config->mutable_parameter_map())["optypelist_for_implmode"] = optypelist_for_implmode;
   s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
   EXPECT_EQ(s.ok(), false);
 }

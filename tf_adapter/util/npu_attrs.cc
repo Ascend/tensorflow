@@ -897,7 +897,6 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &att
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
     if (enable_data_pre_proc_value != nullptr) {
-      LOG_DEPRECATED(enable_data_pre_proc);
       enable_dp = enable_data_pre_proc_value->s();
     }
     if (use_off_line_value != nullptr) {
@@ -1137,7 +1136,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
     if (enable_data_pre_proc_value != nullptr) {
-      LOG_DEPRECATED(enable_data_pre_proc);
       enable_dp = enable_data_pre_proc_value->s();
     }
     if (use_off_line_value != nullptr) {
@@ -1174,7 +1172,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
 
     if (variable_format_optimize_value != nullptr) {
-      LOG_DEPRECATED(variable_format_optimize);
       variable_format_optimize = variable_format_optimize_value->s();
     }
     if (hcom_parallel_value != nullptr) {
@@ -1262,7 +1259,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
       graph_run_mode = graph_run_mode_value->s();
     }
     if (op_debug_level_value != nullptr) {
-      LOG_DEPRECATED(op_debug_level);
       op_debug_level = op_debug_level_value->s();
     }
     if (enable_scope_fusion_passes_value != nullptr) {
@@ -1272,11 +1268,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
       enable_exception_dump = enable_exception_dump_value->s();
     }
     if (op_select_implmode_value != nullptr) {
-      LOG_DEPRECATED_WITH_REPLACEMENT(op_select_implmode, op_precision_mode);
       op_select_implmode = op_select_implmode_value->s();
     }
     if (optypelist_for_implmode_value != nullptr) {
-      LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
       optypelist_for_implmode = optypelist_for_implmode_value->s();
     }
     if (input_shape_value != nullptr) {
@@ -1626,6 +1620,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       const auto &params = custom_optimizer.parameter_map();
       if (params.count("variable_format_optimize") > 0) {
         variable_format_optimize = params.at("variable_format_optimize").b();
+        LOG_DEPRECATED(variable_format_optimize);
       }
       if (params.count("hcom_parallel") > 0) {
         hcom_parallel = params.at("hcom_parallel").b();
@@ -1714,6 +1709,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("op_debug_level") > 0) {
         op_debug_level = params.at("op_debug_level").i();
+        LOG_DEPRECATED_WITH_REPLACEMENT(op_debug_level, op_debug_config);
       }
       if (params.count("enable_scope_fusion_passes") > 0) {
         enable_scope_fusion_passes = params.at("enable_scope_fusion_passes").s();
@@ -1768,6 +1764,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       do_npu_optimizer = true;
       if (params.count("enable_data_pre_proc") > 0) {
         enable_dp = params.at("enable_data_pre_proc").b();
+        LOG_DEPRECATED(enable_data_pre_proc);
       }
       if (params.count("use_off_line") > 0) {
         use_off_line = params.at("use_off_line").b();
@@ -1837,6 +1834,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         op_select_implmode = "high_performance";
       } else if (params.count("op_select_implmode") > 0 && params.count("optypelist_for_implmode") == 0) {
         op_select_implmode = params.at("op_select_implmode").s();
+        LOG_DEPRECATED_WITH_REPLACEMENT(op_select_implmode, op_precision_mode);
         Status s = CheckOpImplMode(op_select_implmode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
@@ -1845,8 +1843,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       } else if (params.count("optypelist_for_implmode") > 0 && params.count("op_select_implmode") == 0) {
         ADP_LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
         LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
+        LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
       } else {
         op_select_implmode = params.at("op_select_implmode").s();
+        LOG_DEPRECATED_WITH_REPLACEMENT(op_select_implmode, op_precision_mode);
+        LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
         Status s = CheckOpImplMode(op_select_implmode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
