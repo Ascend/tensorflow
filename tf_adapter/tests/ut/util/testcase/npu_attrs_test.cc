@@ -141,6 +141,36 @@ TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableDump) {
   (*custom_config->mutable_parameter_map())["dynamic_graph_execute_mode"] = dynamic_graph_execute_mode;
   s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
   EXPECT_EQ(s.ok(), false);
+
+  AttrValue variable_format_optimize = AttrValue();
+  variable_format_optimize.set_b(true);
+  (*custom_config->mutable_parameter_map())["variable_format_optimize"] = variable_format_optimize;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue op_debug_level = AttrValue();
+  op_debug_level.set_i(2);
+  (*custom_config->mutable_parameter_map())["op_debug_level"] = op_debug_level;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue enable_data_pre_proc = AttrValue();
+  enable_data_pre_proc.set_b(false);
+  (*custom_config->mutable_parameter_map())["enable_data_pre_proc"] = enable_data_pre_proc;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue op_select_implmode = AttrValue();
+  op_select_implmode.set_s("high_precision");
+  (*custom_config->mutable_parameter_map())["op_select_implmode"] = op_select_implmode;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+
+  AttrValue optypelist_for_implmode = AttrValue();
+  optypelist_for_implmode.set_s("Pooling,SoftmaxV2");
+  (*custom_config->mutable_parameter_map())["optypelist_for_implmode"] = optypelist_for_implmode;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
 }
 
 TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableOnlineInference) {

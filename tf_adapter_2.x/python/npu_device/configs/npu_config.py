@@ -23,6 +23,7 @@ from npu_device.configs.option_base import OptionValue
 from npu_device.configs.option_base import DeprecatedValue
 from npu_device.configs.option_base import NpuBaseConfig
 from npu_device.configs.aoe_config import NpuAoeConfig
+from npu_device.configs.memory_config import MemoryConfig
 
 
 class NpuConfig(NpuBaseConfig):
@@ -65,6 +66,7 @@ class NpuConfig(NpuBaseConfig):
         self.stream_sync_timeout = OptionValue(-1, None)
         self.event_sync_timeout = OptionValue(-1, None)
         self.external_weight = OptionValue(False, [True, False])
+        self.memory_config = MemoryConfig()
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()

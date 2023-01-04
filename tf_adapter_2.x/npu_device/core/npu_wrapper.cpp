@@ -116,7 +116,9 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},
   {"resource_config_path", "ge.resourceConfigPath"},
   {"graph_parallel_option_path", "ge.graphParallelOptionPath"},
-  {"enable_graph_parallel", "ge.enableGraphParallel"}};
+  {"enable_graph_parallel", "ge.enableGraphParallel"},
+  {"atomic_clean_policy", "ge.exec.atomicCleanPolicy"},
+  {"static_memory_policy", "ge.exec.staticMemoryPolicy"}};
 }  // namespace
 
 #undef PYBIND11_CHECK_PYTHON_VERSION
