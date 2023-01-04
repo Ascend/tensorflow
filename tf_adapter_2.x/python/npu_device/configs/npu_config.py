@@ -22,6 +22,7 @@ from npu_device.configs.experimental_config import NpuExperimentalConfig
 from npu_device.configs.option_base import OptionValue
 from npu_device.configs.option_base import NpuBaseConfig
 from npu_device.configs.aoe_config import NpuAoeConfig
+from npu_device.configs.memory_config import MemoryConfig
 
 
 class NpuConfig(NpuBaseConfig):
@@ -59,6 +60,7 @@ class NpuConfig(NpuBaseConfig):
         self.customize_dtypes = OptionValue(None, None)
         self.overflow_flag = OptionValue(1, [0, 1])
         self.external_weight = OptionValue(False, [True, False])
+        self.memory_config = MemoryConfig()
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()

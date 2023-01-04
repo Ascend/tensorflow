@@ -322,7 +322,7 @@ class MemoryConfig():
 
     def __init__(self,
                  atomic_clean_policy=0,
-                 static_memory_policy=None):
+                 static_memory_policy=0):
         """
         Constructs a MemoryConfig.
         Args:

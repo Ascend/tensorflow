@@ -113,7 +113,9 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   // private options
   {"_distribute.rank_id", ge::OPTION_EXEC_RANK_ID},
   {"_distribute.rank_table", ge::OPTION_EXEC_RANK_TABLE_FILE},
-  {"resource_config_path", "ge.resourceConfigPath"}};
+  {"resource_config_path", "ge.resourceConfigPath"},
+  {"atomic_clean_policy", "ge.exec.atomicCleanPolicy"},
+  {"static_memory_policy", "ge.exec.staticMemoryPolicy"}};
 }  // namespace
 
 #undef PYBIND11_CHECK_PYTHON_VERSION
