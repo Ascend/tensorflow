@@ -150,15 +150,15 @@ def check_aoe_mode(aoe_mode):
     """Check mstune mode .
     Args:
         aoe_mode: aoe_mode: Optimization Task Type."1": model tune; "2": optune;
-                                  "3": model tune & optune; "4": gradient split tune.
+                                  "4": gradient split tune.
     Return:
         aoe_mode
     Raise:
-        If aoe_mode is null or not in ['1', '2', '3', '4', 'mdat'].
+        If aoe_mode is null or not in ['1', '2', '4', 'mdat'].
     """
-    aoe_modes = ['1', '2', '3', '4', 'mdat']
+    aoe_modes = ['1', '2', '4', 'mdat']
     if aoe_mode not in aoe_modes:
-        raise ValueError("aoe_mode is valid, should be in ['1', '2', '3', '4', 'mdat']")
+        raise ValueError("aoe_mode:%s is invalid, should be in ['1', '2', '4', 'mdat']" % (aoe_mode))
 
 
 def register_func(var_name):
