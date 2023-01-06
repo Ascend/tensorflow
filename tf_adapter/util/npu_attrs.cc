@@ -256,12 +256,13 @@ inline Status CheckOpImplMode(const std::string &op_select_implmode) {
 }
 
 inline Status CheckAoeMode(const std::string &aoe_mode) {
-  std::set<string> aoe_mode_list = {"1", "2", "3", "4", "mdat"};
+  std::set<string> aoe_mode_list = {"1", "2", "4", "mdat"};
 
   if (aoe_mode_list.find(aoe_mode) != aoe_mode_list.end()) {
     return Status::OK();
   } else {
-    return errors::InvalidArgument("aoe mode should be one of the list:['1', '2', '3', '4', 'mdat']");
+    return errors::InvalidArgument("aoe mode:", aoe_mode.c_str(),
+                                   " is invalid, aoe mode should be one of the list:['1', '2', '4', 'mdat']");
   }
 }
 
@@ -1718,7 +1719,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("aoe_mode") > 0) {
         aoe_mode = params.at("aoe_mode").s();
         if (aoe_mode.empty()) {
-          ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','3','4']";
+          ADP_LOG(ERROR) << "aoe_mode should be one of the list:['1','2','4']";
         }
       } else {
         TF_RETURN_IF_ERROR(ReadStringFromEnvVar("AOE_MODE", "", &aoe_mode));
@@ -1726,8 +1727,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (!aoe_mode.empty()) {
         Status s = CheckAoeMode(aoe_mode);
         if (!s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(ERROR) << s.error_message();
+          return errors::Internal(s.error_message());
         }
         if (params.count("work_path") > 0) {
           std::string tmp_path = params.at("work_path").s();
