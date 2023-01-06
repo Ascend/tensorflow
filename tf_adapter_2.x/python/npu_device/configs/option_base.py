@@ -84,8 +84,12 @@ class NpuBaseConfig:
         for k, v in self.__dict__.items():
             if k in self._fixed_attrs:
                 if isinstance(v, DeprecatedValue) and v.value is not None:
-                    print(f"Option '{k}' is deprecated and will be removed in future version. "
-                          f"Please use '{v.replacement}' instead.")
+                    if v.replacement is None:
+                        print(f"[warning][tf_adapter] Option '{k}' is deprecated and will be removed "
+                              f"in future version. Please do not configure this option in the future.")
+                    else:
+                        print(f"[warning][tf_adapter] Option '{k}' is deprecated and will be removed "
+                              f"in future version. Please use '{v.replacement}' instead.")
                     options.update({k: v.value})
                 elif isinstance(v, OptionValue) and v.value is not None:
                     options.update({k: v.value})
