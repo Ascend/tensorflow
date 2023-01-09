@@ -65,8 +65,8 @@ class Adapter2Options(unittest.TestCase):
             config = NpuConfig()
             config.variable_format_optimize = False
             config.as_dict()
-            expect = f"Option 'variable_format_optimize' is deprecated and will be removed in future version. "\
-                     f"Please use 'None' instead."
+            expect = f"[warning][tf_adapter] Option 'variable_format_optimize' is deprecated "\
+                     f"and will be removed in future version. Please do not configure this option in the future."
             self.assertEqual(expect, result.getvalue().strip())
 
     def test_3_logging_when_config_with_deprecated(self):
@@ -74,8 +74,8 @@ class Adapter2Options(unittest.TestCase):
             config = NpuConfig()
             config.op_select_implmode = 'high_precision'
             config.as_dict()
-            expect = f"Option 'op_select_implmode' is deprecated and will be removed in future version. "\
-                     f"Please use 'op_precision_mode' instead."
+            expect = f"[warning][tf_adapter] Option 'op_select_implmode' is deprecated "\
+                     f"and will be removed in future version. Please use 'op_precision_mode' instead."
             self.assertEqual(expect, result.getvalue().strip())
 
     def test_4_logging_when_config_with_deprecated(self):
@@ -83,8 +83,8 @@ class Adapter2Options(unittest.TestCase):
             config = NpuConfig()
             config.optypelist_for_implmode = 'cf.ini'
             config.as_dict()
-            expect = f"Option 'optypelist_for_implmode' is deprecated and will be removed in future version. "\
-                     f"Please use 'op_precision_mode' instead."
+            expect = f"[warning][tf_adapter] Option 'optypelist_for_implmode' is deprecated "\
+                     f"and will be removed in future version. Please use 'op_precision_mode' instead."
             self.assertEqual(expect, result.getvalue().strip())
 
     def test_5_logging_when_config_with_deprecated(self):
@@ -92,9 +92,35 @@ class Adapter2Options(unittest.TestCase):
             config = NpuConfig()
             config.op_debug_level = 2
             config.as_dict()
-            expect = f"Option 'op_debug_level' is deprecated and will be removed in future version. "\
-                     f"Please use 'op_debug_config' instead."
+            expect = f"[warning][tf_adapter] Option 'op_debug_level' is deprecated "\
+                     f"and will be removed in future version. Please use 'op_debug_config' instead."
             self.assertEqual(expect, result.getvalue().strip())
+
+    def test_6_set_option_deterministic(self):
+        config = NpuConfig()
+        config.deterministic = 1
+        options = config.as_dict()
+        self.assertTrue(options['deterministic'], True)
+        try:
+            config.deterministic = 88
+        except ValueError as e:
+            err = "'88' not in optional list [0, 1]"
+            self.assertEqual(err, str(e))
+
+    def test_7_set_option_op_precision_mode(self):
+        config = NpuConfig()
+        config.op_precision_mode = "op_precision.ini"
+        options = config.as_dict()
+        print(f"op_precision_mode: '{options['op_precision_mode']}'")
+        self.assertTrue(options['op_precision_mode'] == "op_precision.ini", True)
+
+    def test_8_set_option_hcom_parallel(self):
+        config = NpuConfig()
+        options = config.as_dict()
+        self.assertTrue(options['hcom_parallel'], True)
+        config.hcom_parallel = False
+        options = config.as_dict()
+        self.assertTrue(options['hcom_parallel'], False)
 
 
 if __name__ == '__main__':

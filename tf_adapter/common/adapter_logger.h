@@ -21,15 +21,24 @@
 
 #define FMK_MODULE_NAME static_cast<int>(FMK)
 
-#define LOG_DEPRECATED_WITH_REPLACEMENT(old, replacement)                                                              \
-  do {                                                                                                                 \
-    LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version. Please "               \
-                    "use " #replacement " instead";                                                                    \
+#define LOG_DEPRECATED_WITH_REPLACEMENT(old, replacement)                                            \
+  do {                                                                                               \
+    static bool first_warning_##old = true;                                                          \
+    if (first_warning_##old) {                                                                       \
+      LOG(WARNING) << "[warning][tf_adapter] Option \'" #old "\' is deprecated and will be removed " \
+                      "in future version. Please use \'" #replacement "\' instead.";                 \
+      first_warning_##old = false;                                                                   \
+    }                                                                                                \
   } while (false)
 
-#define LOG_DEPRECATED(old)                                                                                            \
-  do {                                                                                                                 \
-    LOG(WARNING) << "The " #old " option IS DEPRECATED. It will be removed in a future version.";                      \
+#define LOG_DEPRECATED(old)                                                                          \
+  do {                                                                                               \
+    static bool first_warning_##old = true;                                                          \
+    if (first_warning_##old) {                                                                       \
+      LOG(WARNING) << "[warning][tf_adapter] Option \'" #old "\' is deprecated and will be removed " \
+                      "in future version. Please do not configure this option in the future.";       \
+      first_warning_##old = false;                                                                   \
+    }                                                                                                \
   } while (false)
 
 namespace npu {
