@@ -362,7 +362,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   std::map<std::string, std::string> pass_options = NpuAttrs::GetPassOptions(ctx);
   iteration_per_loop_ = std::atoi(pass_options["iterations_per_loop"].c_str());
   job_type_ = pass_options["job"];
-  mix_compile_mode_ = pass_options["mix_compile_mode"];
   if (GePlugin::GetInstance()->IsGlobal()) {
     ADP_LOG(INFO) << "[GEOP] GePlugin global, skip GePlugin init";
     init_options_ = GePlugin::GetInstance()->GetInitOptions();
@@ -881,8 +880,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
     graph_options_["ge.jit_compile"] = jit_compile_ ? "1" : "0";
-    graph_options_["ge.exec.overflow"] = "1";
-    graph_options_["ge.graphLevelSat"] = mix_compile_mode_;
 
     // call ge session addGraph api
     auto graph_options = graph_options_;
@@ -1577,8 +1574,6 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     graph_options_["ge.exec.placement"] = "HOST";
   }
   SetDynamicInput();
-  graph_options_["ge.exec.overflow"] = "1";
-  graph_options_["ge.graphLevelSat"] = mix_compile_mode_;
 
   // run aoe tuning
   bool is_mdat_tuning = (init_options_["ge.jobType"] == kMdatTuning) && (recompute_mode_ == kAutoRecompute);
