@@ -26,7 +26,6 @@ import npu_device
 from npu_device.npu_device import stupid_repeat
 from tensorflow.python.eager import context
 
-npu_device.global_options().jit_compile = False
 npu = npu_device.open().as_default()
 
 

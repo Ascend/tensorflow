@@ -59,7 +59,6 @@ class NpuConfig(NpuBaseConfig):
         self.deterministic = OptionValue(0, [0, 1])
         self.op_precision_mode = OptionValue(None, None)
         self.graph_exec_timeout = OptionValue(None, None)
-        self.jit_compile = OptionValue(False, [True, False])
         self.topo_sorting_mode = OptionValue(None, [0, 1, None])
         self.customize_dtypes = OptionValue(None, None)
         self.overflow_flag = OptionValue(1, [0, 1])

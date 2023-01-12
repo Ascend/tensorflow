@@ -229,9 +229,6 @@ def npu_compat_function(func=None, *args, **kwargs):
         if kwargs.get('experimental_compile'):
             logging.info("Skip xla compile tf function %s on npu", f.__name__)
             kwargs['experimental_compile'] = False
-        if kwargs.get('jit_compile'):
-            logging.info("Skip xla compile tf function %s on npu", f.__name__)
-            kwargs['jit_compile'] = False
 
         return _hacked_tensorflow_function(*args, **kwargs)(f)
 

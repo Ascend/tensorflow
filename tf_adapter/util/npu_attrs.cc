@@ -395,7 +395,6 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string atomic_clean_policy = "0";
   std::string memory_optimization_policy;
   std::string static_memory_policy = "0";
-  std::string jit_compile = "0";
   std::string topo_sorting_mode;
   std::string insert_op_file;
   std::string resource_config_path;
@@ -460,7 +459,6 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_atomic_clean_policy", &atomic_clean_policy);
     (void) ctx->GetAttr("_memory_optimization_policy", &memory_optimization_policy);
     (void) ctx->GetAttr("_static_memory_policy", &static_memory_policy);
-    (void) ctx->GetAttr("_jit_compile", &jit_compile);
     (void) ctx->GetAttr("_topo_sorting_mode", &topo_sorting_mode);
     (void) ctx->GetAttr("_insert_op_file", &insert_op_file);
     (void) ctx->GetAttr("_resource_config_path", &resource_config_path);
@@ -512,8 +510,6 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.exec.atomicCleanPolicy"] = atomic_clean_policy;
   sess_options["memory_optimization_policy"] = memory_optimization_policy;
   sess_options["ge.exec.memoryOptimizationPolicy"] = memory_optimization_policy;
-  sess_options["jit_compile"] = jit_compile;
-  sess_options["ge.jit_compile"] = jit_compile;
   sess_options["topo_sorting_mode"] = topo_sorting_mode;
   sess_options["ge.topoSortingMode"] = topo_sorting_mode;
   sess_options["insert_op_file"] = insert_op_file;
@@ -1037,7 +1033,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string logical_device_id;
   std::string model_deploy_mode;
   std::string model_deploy_devicelist;
-  std::string jit_compile = "0";
   std::string topo_sorting_mode;
   std::string insert_op_file;
   std::string resource_config_path;
@@ -1122,7 +1117,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto logical_device_id_value = attrs.Find("_logical_device_id");
   auto model_deploy_mode_value = attrs.Find("_model_deploy_mode");
   auto model_deploy_devicelist_value = attrs.Find("_model_deploy_devicelist");
-  auto jit_compile_value = attrs.Find("_jit_compile");
   auto topo_sorting_mode_value = attrs.Find("_topo_sorting_mode");
   auto insert_op_file_value = attrs.Find("_insert_op_file");
   auto es_cluster_config_value = attrs.Find("_es_cluster_config");
@@ -1370,9 +1364,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (model_deploy_devicelist_value != nullptr) {
       model_deploy_devicelist = model_deploy_devicelist_value->s();
     }
-    if (jit_compile_value != nullptr) {
-      jit_compile = jit_compile_value->s();
-    }
     if (resource_config_path_value != nullptr) {
       resource_config_path = resource_config_path_value->s();
     }
@@ -1492,8 +1483,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["logical_device_id"] = logical_device_id;
   all_options["model_deploy_mode"] = model_deploy_mode;
   all_options["model_deploy_devicelist"] = model_deploy_devicelist;
-  all_options["jit_compile"] = jit_compile;
-  all_options["ge.jit_compile"] = jit_compile;
   all_options["topo_sorting_mode"] = topo_sorting_mode;
   all_options["ge.topoSortingMode"] = topo_sorting_mode;
   all_options["insert_op_file"] = insert_op_file;
@@ -1608,7 +1597,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string logical_device_id;
   std::string model_deploy_mode;
   std::string model_deploy_devicelist;
-  bool jit_compile = false;
   std::string aoe_config_file;
   int32_t stream_sync_timeout = -1;
   int32_t event_sync_timeout = -1;
@@ -1789,9 +1777,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         task_index = params.at("task_index").i();
       }
       if (params.count("dynamic_input") > 0) {
+        LOG_DEPRECATED(dynamic_input);
         dynamic_input = params.at("dynamic_input").b();
         if (dynamic_input) {
           if (params.count("dynamic_graph_execute_mode") > 0) {
+            LOG_DEPRECATED(dynamic_graph_execute_mode);
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
             if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
               ADP_LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
@@ -1800,6 +1790,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
             }
           }
           if (params.count("dynamic_inputs_shape_range") > 0) {
+            LOG_DEPRECATED(dynamic_inputs_shape_range);
             dynamic_inputs_shape_range = params.at("dynamic_inputs_shape_range").s();
           }
         }
@@ -1992,9 +1983,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("experimental_model_deploy_devicelist") > 0) {
         model_deploy_devicelist = params.at("experimental_model_deploy_devicelist").s();
       }
-      if (params.count("jit_compile") > 0) {
-        jit_compile = params.at("jit_compile").b();
-      }
       if (params.count("topo_sorting_mode") > 0) {
         int64_t topo_sorting_mode = params.at("topo_sorting_mode").i();
         sess_options["topo_sorting_mode"] = std::to_string(topo_sorting_mode);
@@ -2084,8 +2072,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["ge.exec.atomicCleanPolicy"] = std::to_string(atomic_clean_policy);
   sess_options["memory_optimization_policy"] = memory_optimization_policy;
   sess_options["ge.exec.memoryOptimizationPolicy"] = memory_optimization_policy;
-  sess_options["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
-  sess_options["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
   sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
   sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
 

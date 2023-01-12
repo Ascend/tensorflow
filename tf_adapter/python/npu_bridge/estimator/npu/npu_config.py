@@ -99,7 +99,6 @@ class NPURunConfig(run_config_lib.RunConfig):
                  op_debug_config=None,
                  memory_config=None,
                  experimental_config=None,
-                 jit_compile=False,
                  topo_sorting_mode=None,
                  aoe_config_file=None,
                  insert_op_file=None,
@@ -248,7 +247,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._op_debug_config = op_debug_config
         self._memory_config = memory_config
         self._experimental_config = self._get_experimental_config(experimental_config)
-        self._jit_compile = jit_compile
         self.topo_sorting_mode = topo_sorting_mode
         self.aoe_config_file = aoe_config_file
         self.insert_op_file = insert_op_file
