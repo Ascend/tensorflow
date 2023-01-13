@@ -147,8 +147,6 @@ void SessionManager::PrintGeSessionOptions(std::map<std::string, std::string> &s
 
   ADP_LOG(INFO) << "[GEOP] enable_small_channel :" << sess_options["ge.enableSmallChannel"];
 
-  ADP_LOG(INFO) << "[GEOP] deterministic :" << sess_options["ge.deterministic"];
-
   ADP_LOG(INFO) << "[GEOP] fusion_switch_file :" << sess_options["ge.fusionSwitchFile"];
 
   ADP_LOG(INFO) << "[GEOP] enable_compress_weight :" << sess_options["ge.enableCompressWeight"];
