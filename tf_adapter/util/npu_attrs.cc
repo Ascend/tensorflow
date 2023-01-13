@@ -243,7 +243,7 @@ inline Status CheckPath(const std::string &input, std::string &output) {
   return Status::OK();
 }
 
-inline Status CheckOpImplMode(const std::string &op_select_implmode) {
+Status CheckOpImplMode(const std::string &op_select_implmode) {
   std::set<string> op_impl_mode_list = {"high_precision", "high_performance", "high_precision_for_all",
                                         "high_performance_for_all"};
 
@@ -361,7 +361,7 @@ void NpuAttrs::SetDatasetExecuteInDeviceStatus(const std::string &iterator_name,
 
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
-  std::string variable_format_optimize = "1";
+  std::string variable_format_optimize;
   std::string hcom_parallel = "1";
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
@@ -545,7 +545,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string static_memory_policy = "0";
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
-  std::string op_debug_level = "0";
+  std::string op_debug_level;
   std::string enable_scope_fusion_passes;
   std::string enable_exception_dump;
   std::string op_compiler_cache_mode;
@@ -973,7 +973,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string in_out_pair_flag = "1";
   std::string in_out_pair;
 
-  std::string variable_format_optimize = "1";
+  std::string variable_format_optimize;
   std::string hcom_parallel = "1";
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
@@ -997,7 +997,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string static_memory_policy = "0";
   std::string auto_tune_mode;
   std::string graph_run_mode = "1";
-  std::string op_debug_level = "0";
+  std::string op_debug_level;
   std::string enable_scope_fusion_passes;
   std::string enable_exception_dump;
   std::string op_select_implmode;
@@ -1517,7 +1517,6 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
 
 Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node) {
   std::map<std::string, std::string> sess_options;
-  bool variable_format_optimize = true;
   bool hcom_parallel = true;
   std::string graph_memory_max_size;
   std::string variable_memory_max_size;
@@ -1544,7 +1543,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string static_memory_policy = "0";
   std::string auto_tune_mode;
   int64_t graph_run_mode = 1L;
-  int64_t op_debug_level = 0;
   std::string enable_scope_fusion_passes;
   std::string resource_config_path;
   std::string graph_parallel_option_path;
@@ -1608,8 +1606,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
     if (custom_optimizer.name() == "NpuOptimizer") {
       const auto &params = custom_optimizer.parameter_map();
       if (params.count("variable_format_optimize") > 0) {
-        variable_format_optimize = params.at("variable_format_optimize").b();
         LOG_DEPRECATED(variable_format_optimize);
+        sess_options["variable_format_optimize"] =
+            std::to_string(static_cast<int32_t>(params.at("variable_format_optimize").b()));
       }
       if (params.count("hcom_parallel") > 0) {
         hcom_parallel = params.at("hcom_parallel").b();
@@ -1697,7 +1696,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
       }
       if (params.count("op_debug_level") > 0) {
-        op_debug_level = params.at("op_debug_level").i();
+        int64_t op_debug_level = params.at("op_debug_level").i();
+        init_options_["op_debug_level"] = std::to_string(op_debug_level);
+        init_options_[ge::OP_DEBUG_LEVEL] = std::to_string(op_debug_level);
         LOG_DEPRECATED_WITH_REPLACEMENT(op_debug_level, op_debug_config);
       }
       if (params.count("enable_scope_fusion_passes") > 0) {
@@ -1823,30 +1824,25 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("enable_exception_dump") > 0) {
         enable_exception_dump = params.at("enable_exception_dump").i();
       }
-      if (params.count("op_select_implmode") == 0 && params.count("optypelist_for_implmode") == 0) {
-        op_select_implmode = "high_performance";
-      } else if (params.count("op_select_implmode") > 0 && params.count("optypelist_for_implmode") == 0) {
-        op_select_implmode = params.at("op_select_implmode").s();
-        LOG_DEPRECATED_WITH_REPLACEMENT(op_select_implmode, op_precision_mode);
-        Status s = CheckOpImplMode(op_select_implmode);
-        if (!s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
+
+      if (params.count("op_select_implmode") == 0) {
+        if (params.count("optypelist_for_implmode") > 0) {
+          LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
+          ADP_LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
+          LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
         }
-      } else if (params.count("optypelist_for_implmode") > 0 && params.count("op_select_implmode") == 0) {
-        ADP_LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
-        LOG(FATAL) << "when use optypelist_for_implmode, op_select_implmode must be set.";
-        LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
       } else {
-        op_select_implmode = params.at("op_select_implmode").s();
         LOG_DEPRECATED_WITH_REPLACEMENT(op_select_implmode, op_precision_mode);
-        LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
+        op_select_implmode = params.at("op_select_implmode").s();
         Status s = CheckOpImplMode(op_select_implmode);
         if (!s.ok()) {
           ADP_LOG(FATAL) << s.error_message();
           LOG(FATAL) << s.error_message();
         }
-        optypelist_for_implmode = params.at("optypelist_for_implmode").s();
+        if (params.count("optypelist_for_implmode") > 0) {
+          LOG_DEPRECATED_WITH_REPLACEMENT(optypelist_for_implmode, op_precision_mode);
+          optypelist_for_implmode = params.at("optypelist_for_implmode").s();
+        }
       }
       if (params.count("input_shape") > 0 && params.count("dynamic_dims") > 0 &&
           params.count("dynamic_node_type") > 0) {
@@ -2029,7 +2025,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   }
 
   // session options
-  sess_options["variable_format_optimize"] = std::to_string(static_cast<int32_t>(variable_format_optimize));
   sess_options["hcom_parallel"] = std::to_string(static_cast<int32_t>(hcom_parallel));
   sess_options["stream_max_parallel_num"] = stream_max_parallel_num;
   if (!graph_memory_max_size.empty()) {
@@ -2088,8 +2083,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.autoTuneMode"] = auto_tune_mode;
   init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = std::to_string(graph_run_mode);
-  init_options_["op_debug_level"] = std::to_string(op_debug_level);
-  init_options_[ge::OP_DEBUG_LEVEL] = std::to_string(op_debug_level);
   init_options_["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
   init_options_[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
   init_options_["enable_exception_dump"] = std::to_string(enable_exception_dump);
