@@ -100,7 +100,6 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"logical_device_id", ge::OPTION_EXEC_LOGICAL_DEVICE_ID},
   {"model_deploy_mode", "ge.exec.modelDeployMode"},
   {"model_deploy_devicelist", "ge.exec.modelDeployDevicelist"},
-  {"jit_compile", "ge.jit_compile"},
   {"topo_sorting_mode", "ge.topoSortingMode"},
   {"overflow_flag", "ge.exec.overflow"},
   {"insert_op_file", "ge.insertOpFile"},
@@ -161,6 +160,7 @@ void ParseGlobalOptions(int device_index, const std::map<std::string, std::strin
   if (global_options[ge::OPTION_GRAPH_RUN_MODE] == "0") {
     global_options[ge::ENABLE_SMALL_CHANNEL] = "1";
   }
+  global_options["ge.jit_compile"] = "0";
 }
 
 PYBIND11_MODULE(_npu_device_backends, m) {
