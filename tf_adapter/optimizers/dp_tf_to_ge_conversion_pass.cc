@@ -1077,6 +1077,7 @@ bool DpTfToGEConversionPassImpl::GetSkipOptimizeFlag(const std::map<std::string,
     ADP_LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is false";
     return true;
   }
+  ADP_LOG(INFO) << "DpTfToGEConversionPassImpl::RunPass, enable data preproc is true";
   return false;
 }
 
