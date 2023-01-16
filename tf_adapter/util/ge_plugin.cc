@@ -171,6 +171,8 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
   // debug configuration
   ADP_LOG(INFO) << "[GePlugin] op_debug_level : " << init_options[ge::OP_DEBUG_LEVEL];
 
+  ADP_LOG(INFO) << "[GePlugin] ge.deterministic : " << init_options["ge.deterministic"];
+
   // scope fusion configuration
   ADP_LOG(INFO) << "[GePlugin] enable_scope_fusion_passes : "
                 << init_options[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES];
