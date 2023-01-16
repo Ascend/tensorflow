@@ -545,8 +545,8 @@ class NPUEstimator(estimator_lib.Estimator):
             config: NPURunConfig.
             custom_op: Customer optimizers.
         """
-        if config.variable_format_optimize is not None:
-            custom_op.parameter_map["variable_format_optimize"].b = config.variable_format_optimize
+
+        custom_op.parameter_map["variable_format_optimize"].b = config._variable_format_optimize
 
     def __load_dump_config(self, config, custom_op):
         """Load dump config ,and add to custom_optimizers
@@ -718,8 +718,7 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["variable_memory_max_size"].s = tf.compat.as_bytes(
                 str(config._variable_memory_max_size))
         custom_op.parameter_map["graph_run_mode"].i = config.graph_run_mode
-        if config.op_debug_level is not None:
-            custom_op.parameter_map["op_debug_level"].i = config.op_debug_level
+        custom_op.parameter_map["op_debug_level"].i = config.op_debug_level
         if config.enable_scope_fusion_passes is not None:
             custom_op.parameter_map["enable_scope_fusion_passes"].s = tf.compat.as_bytes(
                 config.enable_scope_fusion_passes)

@@ -51,7 +51,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  enable_data_pre_proc=True,
                  precision_mode=None,
                  enable_reduce_precision=False,
-                 variable_format_optimize=None,
+                 variable_format_optimize=True,
                  mix_compile_mode=False,
                  hcom_parallel=True,
                  graph_memory_max_size=None,
@@ -61,7 +61,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  is_tailing_optimization=False,
                  horovod_mode=False,
                  graph_run_mode=1,
-                 op_debug_level=None,
+                 op_debug_level=0,
                  enable_scope_fusion_passes=None,
                  enable_exception_dump=0,
                  op_select_implmode=None,
@@ -196,7 +196,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         # mix precision configuration
         self._precision_mode = precision_mode
         self._enable_reduce_precision = enable_reduce_precision
-        self.variable_format_optimize = variable_format_optimize
+        self._variable_format_optimize = variable_format_optimize
         self._hcom_parallel = hcom_parallel
         self._graph_memory_max_size = graph_memory_max_size
         self._variable_memory_max_size = variable_memory_max_size
