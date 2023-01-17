@@ -8,6 +8,7 @@
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/platform/logging.h"
 #include <stdlib.h>
+#include "ascendcl_stub.h"
 
 namespace tensorflow {
 namespace {
@@ -108,6 +109,30 @@ TEST_F(DpOptimizationPassTest, NewDatasetNotInDeviceTest) {
     "HostQueueDataset->DPGroupDataset;GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
   EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
   NpuAttrs::SetNewDataTransferFlag(false);
+}
+TEST_F(DpOptimizationPassTest, Device_1980) {
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/dp_test_build_geop.pbtxt";
+  NpuAttrs::SetNewDataTransferFlag(true);
+  InitGraph(org_graph_def_path);
+  std::string target_graph = "Const->TensorSliceDataset;IteratorV2->MakeIterator:1;" \
+    "TensorSliceDataset->HostQueueDataset:1;HostQueueDataset->DPGroupDataset;" \
+    "GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
+  EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
+  NpuAttrs::SetNewDataTransferFlag(false);
+}
+TEST_F(DpOptimizationPassTest, Host_Not1980) {
+  string org_graph_def_path = "tf_adapter/tests/ut/optimizers/pbtxt/dp_test_build_geop.pbtxt";
+  NpuAttrs::SetNewDataTransferFlag(true);
+  InitGraph(org_graph_def_path);
+  std::string target_graph = "Const->TensorSliceDataset;TensorSliceDataset->BatchDatasetV2;"\
+    "Const->BatchDatasetV2:1;Const->BatchDatasetV2:2;BatchDatasetV2->MapDataset;MapDataset->OptimizeDataset;"\
+    "Const->OptimizeDataset:1;OptimizeDataset->ModelDataset;IteratorV2->MakeIterator:1;"\
+    "ModelDataset->HostQueueDataset:1;HostQueueDataset->DPGroupDataset;"\
+    "GEOPDataset->HostQueueDataset;DPGroupDataset->MakeIterator";
+  aclrtSetSocNameStub("Ascend910B1");
+  EXPECT_EQ(DoRunDpOptimizationPassTest(), target_graph);
+  NpuAttrs::SetNewDataTransferFlag(false);
+  aclrtSetDefaultSocNameStub();
 }
 } // end namespace
 } // end tensorflow

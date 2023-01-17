@@ -25,6 +25,9 @@
 #include "graph/ge_error_codes.h"
 #include "graph/small_vector.h"
 
+void aclrtSetSocNameStub(std::string SocVersion);
+void aclrtSetDefaultSocNameStub();
+
 struct acltdtDataItem {
     acltdtDataItem(acltdtTensorType tdtType,
         const int64_t *dims, size_t dimNum, const std::string &dimsStr,

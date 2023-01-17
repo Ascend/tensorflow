@@ -329,10 +329,19 @@ aclError aclrtDestroyEvent(aclrtEvent event) {
   return ACL_ERROR_NONE;
 }
 
+std::string g_SocVersionStub = "Ascend910B";
+
 const char *aclrtGetSocName() {
-  return "Ascend910B";
+  return g_SocVersionStub.c_str();
 }
 
+void aclrtSetSocNameStub(std::string SocVersion) {
+  g_SocVersionStub = SocVersion;
+}
+
+void aclrtSetDefaultSocNameStub() {
+  g_SocVersionStub = "Ascend910B";
+}
 // for GE RunGraph api
 #if 0
 aclError aclrtSynchronizeStream(aclrtStream stream) {

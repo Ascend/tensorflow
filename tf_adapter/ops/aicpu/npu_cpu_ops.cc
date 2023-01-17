@@ -299,7 +299,6 @@ REGISTER_OP("DenseImageWarpGrad")
       c->set_output(0, data_shape);
       return Status::OK();
     });
-  
   REGISTER_OP("ScatterElementsV2")
     .Input("data: T")
     .Input("indices: indexT")

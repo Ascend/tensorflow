@@ -177,7 +177,7 @@ Status BuildStringOutput(geDataUniquePtr data_ptr, size_t output_size, Tensor &c
   for (int64_t j = 0; j < out_shape.num_elements(); j++) {
     int64_t offset = string_head[j].addr;
     int64_t string_len = string_head[j].len;
-    const char* temp_string = reinterpret_cast<const char*>(data_ptr.get()) + offset;
+    const char* temp_string = reinterpret_cast<const char *>(data_ptr.get()) + offset;
     tensor_data[j] = tstring(temp_string, string_len);
     ADP_LOG(INFO) << "[GEOP] output string data " << tensor_data[j];
   }
@@ -1224,21 +1224,25 @@ Status GeOp::ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is
     }
 
     if (node->type_string() == "IteratorGetNext" || node->type_string() == "GetNext") {
-      std::vector<const TensorShapeProto*> shape_attrs;
-      const char* kAttrName = "output_shapes";
-      if (tensorflow::TryGetNodeAttr(node->attrs(), kAttrName, &shape_attrs)) {
-        for (auto i = 0; i < node->num_outputs(); i++) {
-          const TensorShapeProto& shape_proto = *shape_attrs[i];
-          tensorflow::PartialTensorShape shape(shape_proto);
-          if (!shape.IsFullyDefined()) {
-            is_getnext_dynamic_shape_ = true;
-            ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_getnext_dynamic_shape_ come true.";
-          }
-        }
-      }
+      ProcessGetNextNode(node);
     }
   }
   return Status::OK();
+}
+
+void GeOp::ProcessGetNextNode(const Node *node) {
+  std::vector<const TensorShapeProto *> shape_attrs;
+  const char *kAttrName = "output_shapes";
+  if (tensorflow::TryGetNodeAttr(node->attrs(), kAttrName, &shape_attrs)) {
+    for (auto i = 0; i < node->num_outputs(); i++) {
+      const TensorShapeProto &shape_proto = *shape_attrs[i];
+      tensorflow::PartialTensorShape shape(shape_proto);
+      if (!shape.IsFullyDefined()) {
+        is_getnext_dynamic_shape_ = true;
+        ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_getnext_dynamic_shape_ come true.";
+      }
+    }
+  }
 }
 
 void GeOp::UpdateInputsShapeDesc(Graph &graph) {

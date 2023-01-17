@@ -134,6 +134,8 @@ private:
 
   Status ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is_allreduce);
 
+  void ProcessGetNextNode(const Node *node);
+
   void UpdateInputsShapeDesc(Graph &graph);
 
   static const std::string INPUT_DESC;
