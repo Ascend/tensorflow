@@ -26,7 +26,7 @@ tensorflow::Status TransResourceInput2Node(TFE_Context *context, tensorflow::Gra
                                            bool is_while_body_graph = false);
 
 tensorflow::Status TransFunctionDef(TFE_Context *context, const std::string &func_name,
-                                    const std::string &new_func_name,
+                                    std::string &new_func_name,
                                     std::map<int, tensorflow::Node *> &node_substitutes,
                                     bool is_while_body_graph = false) {
   npu::OptimizeStageGraphDumper dumper("Function." + func_name);
@@ -60,8 +60,9 @@ tensorflow::Status TransFunctionDef(TFE_Context *context, const std::string &fun
   };
 
   dumper.Dump("after_trans_resource", fbody->graph->ToGraphDefDebug());
+  static int64_t unique_name_index = 0;
+  new_func_name = func_name + "_npu_" + std::to_string(unique_name_index++);
   NPU_REQUIRES_OK(tensorflow::GraphToFunctionDef(*fbody->graph, new_func_name, lookup, &optimized_fdef));
-  NPU_REQUIRES_OK(lib_def->RemoveFunction(new_func_name));
   NPU_REQUIRES_OK(lib_def->AddFunctionDef(optimized_fdef));
   DLOG() << "Finish trans function " << func_name << " to " << new_func_name;
   return tensorflow::Status::OK();
@@ -83,13 +84,16 @@ tensorflow::Status TransWhileNode(TFE_Context *context, tensorflow::Graph *graph
     }
   }
 
-  std::string cond = node->attrs().Find("cond")->func().name();
-  std::string body = node->attrs().Find("body")->func().name();
+  tensorflow::NameAttrList* pcond = const_cast<tensorflow::AttrValue*>(node->attrs().Find("cond"))->mutable_func();
+  tensorflow::NameAttrList* pbody = const_cast<tensorflow::AttrValue*>(node->attrs().Find("body"))->mutable_func();
 
-  DLOG() << "Trans cond function " << cond << " of node " << node->name();
-  (void)TransFunctionDef(context, cond, cond, substitutes);
-  DLOG() << "Trans body function " << body << " of node " << node->name();
-  (void)TransFunctionDef(context, body, body, substitutes, true);
+  DLOG() << "Trans cond function " << pcond->name() << " of node " << node->name();
+  std::string new_func_name;
+  (void)TransFunctionDef(context, pcond->name(), new_func_name, substitutes);
+  pcond->set_name(new_func_name);
+  DLOG() << "Trans body function " << pbody->name() << " of node " << node->name();
+  (void)TransFunctionDef(context, pbody->name(), new_func_name, substitutes, true);
+  pbody->set_name(new_func_name);
 
   tensorflow::NodeDef ndef = node->def();
   auto copied_type_attr = ndef.attr().at("T");                           // Copy origin attr
@@ -171,21 +175,22 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
     substitutes[i - kFunctionArgIndex] = edge->src();
   }
 
-  std::vector<std::string> functions;
+  std::vector<tensorflow::NameAttrList*> functions;
   if (node->IsIfNode()) {
-    functions.emplace_back(node->attrs().Find("then_branch")->func().name());
-    functions.emplace_back(node->attrs().Find("else_branch")->func().name());
+    functions.emplace_back(const_cast<tensorflow::AttrValue*>(node->attrs().Find("then_branch"))->mutable_func());
+    functions.emplace_back(const_cast<tensorflow::AttrValue*>(node->attrs().Find("else_branch"))->mutable_func());
   } else if (node->IsCaseNode()) {
-    for (const auto &f : node->attrs().Find("branches")->list().func()) {
-      functions.emplace_back(f.name());
+    for (auto &f : *const_cast<tensorflow::AttrValue*>(node->attrs().Find("branches"))->mutable_list()->mutable_func()) {
+      functions.emplace_back(&f);
     }
   } else {
-    functions.emplace_back(node->attrs().Find("f")->func().name());
+    functions.emplace_back(const_cast<tensorflow::AttrValue*>(node->attrs().Find("f"))->mutable_func());
   }
 
   for (auto &fn : functions) {
-    DLOG() << "Trans function " << fn << " of node " << node->name();
-    (void)TransFunctionDef(context, fn, fn, substitutes);
+    std::string new_fn_name;
+    (void)TransFunctionDef(context, fn->name(), new_fn_name, substitutes);
+    fn->set_name(new_fn_name);
   }
 
   tensorflow::NodeDef ndef = node->def();
