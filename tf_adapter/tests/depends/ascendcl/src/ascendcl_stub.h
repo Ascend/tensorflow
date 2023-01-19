@@ -25,7 +25,7 @@
 #include "graph/ge_error_codes.h"
 #include "graph/small_vector.h"
 
-void aclrtSetSocNameStub(std::string SocVersion);
+void aclrtSetSocNameStub(std::string socVersion);
 void aclrtSetDefaultSocNameStub();
 
 struct acltdtDataItem {

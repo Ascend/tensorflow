@@ -48,7 +48,7 @@ TEST_F(NpuCpuOpTest, TestDecodeImageV3) {
 }
 
 TEST(EmbeddingOpsTest, TestInitPartitionMap) {
-    DataTypeSlice input_types({DT_UINT32});
+    DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_UINT32});
     MemoryTypeSlice output_memory_types;
@@ -68,7 +68,7 @@ TEST(EmbeddingOpsTest, TestInitPartitionMap) {
 }
 
 TEST(EmbeddingOpsTest, TestInitEmbeddingHashmap) {
-    DataTypeSlice input_types({DT_UINT32});
+    DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_UINT32});
     MemoryTypeSlice output_memory_types;
@@ -88,7 +88,7 @@ TEST(EmbeddingOpsTest, TestInitEmbeddingHashmap) {
 }
 
 TEST(EmbeddingOpsTest, TestEmbeddingTableFind) {
-    DataTypeSlice input_types({DT_UINT32});
+    DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_FLOAT});
     MemoryTypeSlice output_memory_types;
@@ -108,7 +108,7 @@ TEST(EmbeddingOpsTest, TestEmbeddingTableFind) {
 }
 
 TEST(EmbeddingOpsTest, TestEmbeddingTableImport) {
-    DataTypeSlice input_types({DT_UINT32});
+    DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_UINT32});
     MemoryTypeSlice output_memory_types;
@@ -128,7 +128,7 @@ TEST(EmbeddingOpsTest, TestEmbeddingTableImport) {
 }
 
 TEST(EmbeddingOpsTest, TestUninitPartitionMap) {
-    DataTypeSlice input_types({DT_UINT32});
+    DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_UINT32});
     MemoryTypeSlice output_memory_types;
@@ -148,7 +148,7 @@ TEST(EmbeddingOpsTest, TestUninitPartitionMap) {
 }
 
 TEST(EmbeddingOpsTest, TestUninitEmbeddingHashmap) {
-    DataTypeSlice input_types({DT_UINT32});
+    DataTypeSlice input_types({DT_INT32});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_UINT32});
     MemoryTypeSlice output_memory_types;

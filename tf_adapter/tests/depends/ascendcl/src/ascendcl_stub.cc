@@ -335,8 +335,8 @@ const char *aclrtGetSocName() {
   return g_SocVersionStub.c_str();
 }
 
-void aclrtSetSocNameStub(std::string SocVersion) {
-  g_SocVersionStub = SocVersion;
+void aclrtSetSocNameStub(std::string socVersion) {
+  g_SocVersionStub = socVersion;
 }
 
 void aclrtSetDefaultSocNameStub() {
