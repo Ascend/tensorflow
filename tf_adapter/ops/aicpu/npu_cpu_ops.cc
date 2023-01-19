@@ -221,27 +221,36 @@ REGISTER_OP("RandomChoiceWithMask")
   });
 
 REGISTER_OP("InitPartitionMap")
-  .Input("ps_num: uint32")
-  .Input("ps_ids: uint32")
+  .Input("ps_num: int32")
+  .Input("ps_ids: int32")
   .Attr("partition_num: int = 65537")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("InitEmbeddingHashmap")
-  .Input("table_id: uint32")
+  .Input("table_id: int32")
   .Attr("bucket_size: int = 0")
+  .Attr("value_total_len: int = 0")
+  .Attr("dtype: {uint8, uint16, float32} = DT_FLOAT")
+  .Attr("embedding_dim: int = 0")
+  .Attr("random_alg: string = '' ")
+  .Attr("seed: int = 0")
+  .Attr("seed2: int = 0")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("EmbeddingTableImport")
   .Input("file_path: string")
   .Input("file_name: string")
-  .Input("ps_id: uint32")
-  .Input("table_id: uint32")
-  .Input("embedding_dim: uint32")
+  .Input("ps_id: int32")
+  .Input("table_id: int32")
+  .Attr("embedding_dim: int = 0")
+  .Attr("value_total_len: int = 0")
+  .Attr("only_var_flag: bool = false")
+  .Attr("file_type: string = 'bin' ")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("EmbeddingTableFind")
-  .Input("table_id: uint32")
-  .Input("keys: uint64")
+  .Input("table_id: int32")
+  .Input("keys: int64")
   .Output("values: float32")
   .Attr("embedding_dim: int = 0")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
@@ -254,7 +263,7 @@ REGISTER_OP("UninitPartitionMap")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("UninitEmbeddingHashmap")
-  .Input("table_id: uint32")
+  .Input("table_id: int32")
   .SetShapeFn(shape_inference::NoOutputs);
 
 // regist dense image warp op
