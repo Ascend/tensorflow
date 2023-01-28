@@ -266,6 +266,83 @@ REGISTER_OP("UninitEmbeddingHashmap")
   .Input("table_id: int32")
   .SetShapeFn(shape_inference::NoOutputs);
 
+REGISTER_OP("TableToResource")
+  .Input("table_id: int32")
+  .Output("table_handle: resource")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
+REGISTER_OP("EmbeddingTableFindAndInit")
+  .Input("table_id: int32")
+  .Input("keys: int64")
+  .Output("values: float32")
+  .Attr("embedding_dim: int = 0")
+  .Attr("value_total_len: int = 0")
+  .Attr("random_alg: string = 'random_uniform'")
+  .Attr("seed: int = 0")
+  .Attr("seed2: int = 0")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    ShapeHandle keys_shape;
+    TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 1, &keys_shape));
+    int embedding_dim;
+    if (!c->GetAttr("embedding_dim", &embedding_dim).ok()) {
+        return errors::InvalidArgument("Invalid embedding_dim");
+    }
+    c->set_output(0, c->Matrix(c->Dim(keys_shape, 0), embedding_dim));
+    return Status::OK();
+  });
+
+REGISTER_OP("EmbeddingApplyAdam")
+  .Input("var_handle: resource")
+  .Input("beta1_power: T")
+  .Input("beta2_power: T")
+  .Input("lr: T")
+  .Input("beta1: T")
+  .Input("beta2: T")
+  .Input("epsilon: T")
+  .Input("grad: T")
+  .Input("keys: int64")
+  .Input("global_step: Tstep")
+  .Output("var_handle_output: resource")
+  .Attr("embedding_dim: int = 0")
+  .Attr("T: {float32, float16}")
+  .Attr("Tstep: {int32, int64}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
+REGISTER_OP("EmbeddingApplyAdaGrad")
+  .Input("var_handle: resource")
+  .Input("lr: T")
+  .Input("grad: T")
+  .Input("keys: int64")
+  .Input("global_step: Tstep")
+  .Output("var_handle_output: resource")
+  .Attr("embedding_dim: int = 0")
+  .Attr("T: {float32, float16}")
+  .Attr("Tstep: {int32, int64}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
+REGISTER_OP("EmbeddingTableExport")
+  .Input("file_path: string")
+  .Input("file_name: string")
+  .Input("ps_id: int32")
+  .Input("table_id: int32")
+  .Attr("embedding_dim: int = 0")
+  .Attr("value_total_len: int = 0")
+  .Attr("only_var_flag: bool = false")
+  .Attr("file_type: string = 'bin' ")
+  .SetShapeFn(shape_inference::NoOutputs);
+
 // regist dense image warp op
 REGISTER_OP("DenseImageWarp")
   .Input("image: T")

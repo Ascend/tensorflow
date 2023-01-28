@@ -242,6 +242,41 @@ public:
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "UninitEmbeddingHashmapOp Compute"; }
 };
 
+class TableToResourceOp : public OpKernel {
+public:
+  explicit TableToResourceOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~TableToResourceOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "TableToResourceOp Compute"; }
+};
+
+class EmbeddingTableFindAndInitOp : public OpKernel {
+public:
+  explicit EmbeddingTableFindAndInitOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingTableFindAndInitOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingTableFindAndInitOp Compute"; }
+};
+
+class EmbeddingApplyAdamOp : public OpKernel {
+public:
+  explicit EmbeddingApplyAdamOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingApplyAdamOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplyAdamOp Compute"; }
+};
+
+class EmbeddingApplyAdaGradOp : public OpKernel {
+public:
+  explicit EmbeddingApplyAdaGradOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingApplyAdaGradOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplyAdaGradOp Compute"; }
+};
+
+class EmbeddingTableExportOp : public OpKernel {
+public:
+  explicit EmbeddingTableExportOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingTableExportOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingTableExportOp Compute"; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("ScatterElementsV2").Device(DEVICE_CPU), ScatterElementsV2Op);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
@@ -266,6 +301,11 @@ REGISTER_KERNEL_BUILDER(Name("EmbeddingTableFind").Device(DEVICE_CPU), Embedding
 REGISTER_KERNEL_BUILDER(Name("EmbeddingTableImport").Device(DEVICE_CPU), EmbeddingTableImportOp);
 REGISTER_KERNEL_BUILDER(Name("UninitPartitionMap").Device(DEVICE_CPU), UninitPartitionMapOp);
 REGISTER_KERNEL_BUILDER(Name("UninitEmbeddingHashmap").Device(DEVICE_CPU), UninitEmbeddingHashmapOp);
+REGISTER_KERNEL_BUILDER(Name("TableToResource").Device(DEVICE_CPU), TableToResourceOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingTableFindAndInit").Device(DEVICE_CPU), EmbeddingTableFindAndInitOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdam").Device(DEVICE_CPU), EmbeddingApplyAdamOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdaGrad").Device(DEVICE_CPU), EmbeddingApplyAdaGradOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingTableExport").Device(DEVICE_CPU), EmbeddingTableExportOp);
 
 class DecodeImageV3Op : public OpKernel {
 public:
