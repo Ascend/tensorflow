@@ -342,7 +342,7 @@ tensorflow::Status HdcChannel::SendTensorsByAcl(acltdtTensorType acl_type,
   auto acl_status = ACL_ERROR_NONE;
   do {
     acl_status = acltdtSendTensor(handle_.acl_handle, acl_dataset, -1 /* no timeout */);
-  } while ((acl_status == ACL_ERROR_RT_QUEUE_EMPTY || acl_status == ACL_ERROR_RT_QUEUE_FULL));
+  } while (acl_status == ACL_ERROR_RT_QUEUE_FULL);
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status != ACL_ERROR_NONE) {
     return tensorflow::errors::Internal("Acl send data failed, acl status:", acl_status);
