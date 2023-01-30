@@ -97,6 +97,7 @@ class ESWorker:
         bucket_size = vocabulary_size / self._ps_num
         if optimizer is None:
             self._train_mode = False
+            self.slot_vars_num = 0
         else:
             if (not isinstance(optimizer, embedding_optimizer.AdamOptimizer) and
                     not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)):
@@ -104,8 +105,8 @@ class ESWorker:
                     "optimizer should be embedding_optimizer.AdamOptimizer or embedding_optimizer.AdagradOptimizer")
             self._optimizer = optimizer
             self._optimizer._embedding_dims = embedding_dim
-        # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
-        self.slot_vars_num = 2 if isinstance(self._optimizer, embedding_optimizer.AdamOptimizer) else 1
+            # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
+            self.slot_vars_num = 2 if isinstance(self._optimizer, embedding_optimizer.AdamOptimizer) else 1
         if file_path is None or file_name is None:
             self._train_level = True
         with specified_ps_engine_scope():
