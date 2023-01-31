@@ -296,6 +296,8 @@ REGISTER_OP("HcomAllToAllVC")
     .Attr("T: {int8, int16, int32, float16, float32, int64, uint64, uint8, uint16, uint32, float64, bfloat16}")
     .Attr("rank: int")
     .Attr("group: string")
+    .Attr("fusion: int")
+    .Attr("fusion_id: int")
     .SetIsStateful()
     .SetShapeFn([](shape_inference::InferenceContext* c) {
         c->set_output(0, c->UnknownShape());

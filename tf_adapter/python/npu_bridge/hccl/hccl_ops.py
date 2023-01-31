@@ -225,11 +225,15 @@ def all_to_all_v(send_data, send_counts, send_displacements, recv_counts, recv_d
 #  @param send_count_matrix 各rank向每个rank发送的数据count，shape(rank_size, rank_size);
 #  @param rank 自身的rankID;
 #  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group", 预留参数后续版本支持;
+#  @param fusion int类型，算子融合标识。0: 不融合； 2: 按照相同fusion_id融合；
+#  @param fusion_id int类型，算子融合索引标识，相同fusion_id的算子将会融合；
 #  @attention 组网约束:使用该集合通信操作时,所有参与的设备需实现RDMA网络fullmesh全连接组网;
-def all_to_all_v_c(send_data, send_count_matrix, rank, group="hccl_world_group"):
+def all_to_all_v_c(send_data, send_count_matrix, rank, fusion=0, fusion_id=-1, group="hccl_world_group"):
     recv_data = gen_hccl_ops.hcom_all_to_all_vc(
         send_data=send_data,
         send_count_matrix=send_count_matrix,
         rank=rank,
+        fusion=fusion,
+        fusion_id=fusion_id,
         group=group)
     return recv_data

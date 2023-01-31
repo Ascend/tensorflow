@@ -10,4 +10,4 @@ def remote_ref_read(tensorRemote, cache, offset):
 def remote_scatter_write(tensorRemote, tensorLocal, offset):
 def gather_all_to_all_v(addrinfo, addrinfo_count_per_rank, recv_counts, recv_displacements, dtype, addr_length, group="hccl_world_group"):
 def all_to_all_v(send_data, send_counts, send_displacements, recv_counts, recv_displacements, group="hccl_world_group"):
-def all_to_all_v_c(send_data, send_count_matrix, rank, group="hccl_world_group"):
+def all_to_all_v_c(send_data, send_count_matrix, rank, fusion=0, fusion_id=-1, group="hccl_world_group"):
