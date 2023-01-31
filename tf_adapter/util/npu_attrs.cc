@@ -1732,6 +1732,14 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("precision_mode") > 0) {
         precision_mode = params.at("precision_mode").s();
+        std::vector<std::string> precision_mode_list = {"force_fp32", "allow_fp32_to_fp16", "force_fp16",
+                                                        "must_keep_origin_dtype", "allow_mix_precision"};
+        Status s = CheckValueAllowed<std::string>(precision_mode, precision_mode_list);
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(ERROR) << s.error_message();
+          return errors::Internal(s.error_message());
+        }
       } else {
         if (static_cast<bool>(graph_run_mode)) {
           precision_mode = "allow_fp32_to_fp16";
