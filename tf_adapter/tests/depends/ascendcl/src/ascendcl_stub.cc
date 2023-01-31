@@ -165,8 +165,9 @@ aclError acltdtReceiveTensor(const acltdtChannelHandle *handle,
         std::string vaue_str = "print message!!";
         std::string *value = &vaue_str;
         // for scalar type, *dims is nullptr and dim_num is 0
-        acltdtDataItem *acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, nullptr, 0, ACL_STRING,
-                                      const_cast<char *>(value->c_str()), value->size());
+        acltdtDataItem *acl_data = acltdtCreateDataItem(
+            ACL_TENSOR_DATA_TENSOR, nullptr, 0, ACL_STRING,
+            const_cast<char *>(value->c_str()), value->size());
         if (acltdtAddDataItem(dataset, acl_data) != ACL_ERROR_NONE) {
             if (acltdtDestroyDataItem(acl_data) != ACL_ERROR_NONE) {
                 return ACL_ERROR_FAILURE;
@@ -178,6 +179,15 @@ aclError acltdtReceiveTensor(const acltdtChannelHandle *handle,
             0, ACL_INT32, &value_int, 4);
         if (acltdtAddDataItem(dataset, acl_int_data) != ACL_ERROR_NONE) {
             if (acltdtDestroyDataItem(acl_int_data) != ACL_ERROR_NONE) {
+                return ACL_ERROR_FAILURE;
+            }
+        }
+        const std::vector<int64_t> dims {1, 0, 3};
+        acltdtDataItem *acl_empty_tensor = acltdtCreateDataItem(
+            ACL_TENSOR_DATA_TENSOR, dims.data(),
+            dims.size(), ACL_INT32, nullptr, 0);
+        if (acltdtAddDataItem(dataset, acl_empty_tensor) != ACL_ERROR_NONE) {
+            if (acltdtDestroyDataItem(acl_empty_tensor) != ACL_ERROR_NONE) {
                 return ACL_ERROR_FAILURE;
             }
         }
@@ -203,11 +213,13 @@ acltdtDataItem *acltdtCreateDataItem(acltdtTensorType tdtType,
             break;
         }
     }
-    if (typeStr.empty()) {
-        return nullptr;
-    }
+    if (typeStr.empty()) { return nullptr; }
     std::shared_ptr<void> dataPtr;
-    dataPtr.reset(data, [](const void *p) {});
+    if (data == nullptr) {
+      dataPtr.reset();
+    } else {
+      dataPtr.reset(data, [](const void *p) {});
+    }
     return new(std::nothrow) acltdtDataItem(tdtType, dims, dimNum, dimsStr, dataType, typeStr, dataPtr, size);
 }
 

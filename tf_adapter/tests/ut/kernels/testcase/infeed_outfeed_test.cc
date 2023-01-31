@@ -45,7 +45,9 @@ TEST_F(InfeedOutfeedTest, LogSummaryTest)  {
   tensorflow::AttrValue output_types;
   *(output_shapes.mutable_list()->add_shape()) = shape_proto;
   *(output_shapes.mutable_list()->add_shape()) = shape_proto;
+  *(output_shapes.mutable_list()->add_shape()) = shape_proto;
   output_types.mutable_list()->add_type(DT_STRING);
+  output_types.mutable_list()->add_type(DT_INT32);
   output_types.mutable_list()->add_type(DT_INT32);
   TF_ASSERT_OK(NodeDefBuilder("out_feed", "OutfeedDequeueOp")
                    .Attr("channel_name", channel_name)
