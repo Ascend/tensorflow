@@ -808,7 +808,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       if (err_msg.empty()) {
         err_msg = "<unknown error> code:" + std::to_string(s);
       }
-      done(tensorflow::errors::Internal("Graph engine process graph failed:\n", err_msg));
+      done(tensorflow::errors::Internal("Graph engine process graph failed: ", err_msg));
       return;
     } else if (ge_outputs.size() != static_cast<std::size_t>(num_outputs)) {
       done(tensorflow::errors::Internal("Graph engine process graph succeed but output num ", ge_outputs.size(),
