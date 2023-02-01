@@ -66,23 +66,28 @@ Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> 
     LOG(INFO) << "Acl channel received undefined message type for out-feed op.";
     return errors::Internal("Acl channel received undefined message type for out-feed op.");
   }
+  size_t acl_data_len = acltdtGetDataSizeFromItem(item);
+  char *acl_data = reinterpret_cast<char *>(acltdtGetDataAddrFromItem(item));
+  if (acl_data_len > 0 && acl_data == nullptr) {
+    return errors::Internal("Acl get data addr from item failed when receive tensor data.");
+  }
+  if (!NpuAttrs::GetNewDataTransferFlag() && call_by_channel_receive && acl_data != nullptr) {
+    acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str());
+  }
   tensorflow::DataType tf_type;
   TF_RETURN_IF_ERROR(MappingAclDtypeToTf(acltdtGetDataTypeFromItem(item), tf_type));
   size_t dim_num = acltdtGetDimNumFromItem(item);
-  size_t acl_data_len = acltdtGetDataSizeFromItem(item);
-  char *acl_data = reinterpret_cast<char *>(acltdtGetDataAddrFromItem(item));
-  if (acl_data == nullptr) {
-    return errors::Internal("Acl get data addr from item failed when receive tensor data.");
-  }
-  if (!NpuAttrs::GetNewDataTransferFlag() && call_by_channel_receive) {
-    acl_data = const_cast<char *>(reinterpret_cast<std::string *>(acl_data)->c_str());
-  }
   if (tf_type == DT_STRING) {
     if (dim_num != 0) {
       return errors::Internal("Acl channel receive unsupported non-scalar string type");
     }
     Tensor tensor(tf_type, TensorShape({}));
-    tensor.scalar<npu::compat_tf1_tf2::string>()() = std::move(npu::compat_tf1_tf2::string(acl_data, acl_data_len));
+    if (acl_data != nullptr) {
+      tensor.scalar<npu::compat_tf1_tf2::string>()() =
+          std::move(npu::compat_tf1_tf2::string(acl_data, acl_data_len));
+    } else {
+      LOG(INFO) << "This is a empty DT_STRING tensor.";
+    }
     tensors.emplace_back(std::move(tensor));
   } else if (DataTypeCanUseMemcpy(tf_type)) {
     std::vector<int64_t> dims;
@@ -91,9 +96,7 @@ Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> 
       return errors::Internal("Failed get dim-size from acl channel data");
     }
     TensorShape tf_shape;
-    for (auto dim : dims) {
-      tf_shape.AddDim(dim);
-    }
+    for (auto dim : dims) { tf_shape.AddDim(dim); }
     Tensor tensor = Tensor(tf_type, tf_shape);
     auto tensor_data = const_cast<char *>(tensor.tensor_data().data());
     auto tensor_size = tensor.tensor_data().size();
@@ -102,6 +105,11 @@ Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> 
                               "vs. tf:", tensor_size);
     }
     do {
+      if (tensor_data == nullptr || tensor_size == 0) {
+        LOG(INFO) << "This is a empty tensor, shape:" << tf_shape.DebugString()
+            << ", tensor_size:" << tensor_size <<", tensor_type:" << tf_type;
+        break;
+      }
       auto copy_size = (tensor_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : tensor_size;
       LOG(INFO) << "tensor data:" << reinterpret_cast<uintptr_t>(tensor_data) << ", tensor_size:" << tensor_size
                 << ", acl_data:" << reinterpret_cast<uintptr_t>(acl_data) << ", copy_size:" << copy_size;
