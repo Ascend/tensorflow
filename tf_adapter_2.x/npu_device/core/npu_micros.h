@@ -79,7 +79,7 @@
       if (err_msg.empty()) {                                            \
         err_msg = "<unknown error> code:" + std::to_string(_status);    \
       }                                                                 \
-      CTX->status = tensorflow::errors::Internal(PREFIX, ":\n", err_msg); \
+      CTX->status = tensorflow::errors::Internal(PREFIX, ":", err_msg); \
       LOG(ERROR) << CTX->status.ToString();                             \
       return;                                                           \
     }                                                                   \
@@ -93,7 +93,7 @@
       if (err_msg.empty()) {                                              \
         err_msg = "<unknown error> code:" + std::to_string(_status);      \
       }                                                                   \
-      (CTX)->status = tensorflow::errors::Internal(PREFIX, ":\n", err_msg); \
+      (CTX)->status = tensorflow::errors::Internal(PREFIX, ":", err_msg); \
       LOG(ERROR) << (CTX)->status.ToString();                             \
       return RET;                                                         \
     }                                                                     \
