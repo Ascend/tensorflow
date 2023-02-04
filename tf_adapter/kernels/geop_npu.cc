@@ -812,11 +812,13 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
+    std::map<std::string, std::vector<std::string>> serialized_proto_map;
+    SeparateGraphDef(ori_graph_def, serialized_proto_map);
     auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
       return this->BuildSubGraph(flib_def, graph);
     };
     ge::Status status =
-        model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(), build_sub_graph, compute_graph);
+        model_parser->ParseProtoWithSubgraph(serialized_proto_map, build_sub_graph, compute_graph);
     if (status != ge::SUCCESS) {
       std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
@@ -1321,6 +1323,24 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
     graph.ToGraphDef(&graph_def);
   }
   return Status::OK();
+}
+
+void GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
+                            std::map<std::string, std::vector<std::string>> &serialized_proto_map) {
+  // 1. insert node def proto
+  std::vector<std::string> node_proto_vec;
+  for (NodeDef &node : *ori_graph_def.mutable_node()) {
+    node_proto_vec.push_back(node.SerializeAsString());
+  }
+  serialized_proto_map.insert({"node", node_proto_vec});
+  // 2. insert version def proto
+  std::vector<std::string> versions_proto_vec;
+  versions_proto_vec.push_back(ori_graph_def.mutable_versions()->SerializeAsString());
+  serialized_proto_map.insert({"versions", versions_proto_vec});
+  // 3. insert functiondef proto;
+  std::vector<std::string> library_proto_vec;
+  library_proto_vec.push_back(ori_graph_def.mutable_library()->SerializeAsString());
+  serialized_proto_map.insert({"library", library_proto_vec});
 }
 
 Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {

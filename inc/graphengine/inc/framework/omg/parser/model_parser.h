@@ -134,6 +134,21 @@ class GE_FUNC_VISIBILITY ModelParser {
 
   /**
    * @ingroup domi_omg
+   * @brief Analyze network model data
+   * @param [in] serialized_proto_map serialized network model map
+   * @param [in|out]  graph Save the network information after analysis
+   * @return SUCCESS
+   * @return Others failed
+   */
+  virtual Status ParseProtoMap(std::map<std::string, std::vector<std::string>> &serialized_proto_map,
+                               ge::ComputeGraphPtr &graph) {
+    (void)serialized_proto_map;
+    (void)graph;
+    return UNSUPPORTED;
+  }
+
+  /**
+   * @ingroup domi_omg
    * @brief Analyze callback model data in subgraph
    * @param [in] proto serialized network model
    * @param [in] callback callback of subgraph
@@ -143,6 +158,24 @@ class GE_FUNC_VISIBILITY ModelParser {
    */
   virtual Status ParseProtoWithSubgraph(const std::string &serialized_proto, GetGraphCallbackV2 callback,
                                         ge::ComputeGraphPtr &graph) {
+    return UNSUPPORTED;
+  }
+
+  /**
+   * @ingroup domi_omg
+   * @brief Analyze callback model data in subgraph
+   * @param [in] serialized_proto_map serialized network model map
+   * @param [in] callback callback of subgraph
+   * @param [in|out] graph Save the network information after analysis
+   * @return SUCCESS
+   * @return Others failed
+   */
+  virtual Status ParseProtoWithSubgraph(std::map<std::string, std::vector<std::string>> &serialized_proto_map,
+                                        GetGraphCallbackV2 callback,
+                                        ge::ComputeGraphPtr &graph) {
+    (void)serialized_proto_map;
+    (void)callback;
+    (void)graph;
     return UNSUPPORTED;
   }
 };
