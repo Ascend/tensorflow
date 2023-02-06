@@ -26,6 +26,13 @@
 
 namespace tensorflow {
 class ModelProcess {
+enum DynamicGearType {
+  DYNAMIC_UNDEFINED = -1,
+  DYNAMIC_BATCH,
+  DYNAMIC_HW,
+  DYNAMIC_DIMS
+};
+
 public:
   explicit ModelProcess(const std::string &om_path);
 
@@ -44,6 +51,8 @@ private:
 
   bool IsDynamic(const aclmdlIODims &dims) const;
 
+  Status GetDynamicGearInfo();
+
   Status LoadModelFromFile();
 
   Status CreateInput();
@@ -51,6 +60,8 @@ private:
   Status CreateOutput();
 
   Status ProcessInput(const std::vector<Tensor> &inputs) const;
+
+  Status ProcessDynamicGearInput(const std::vector<Tensor> &inputs) const;
 
   Status Execute(const std::vector<Tensor> &inputs, std::vector<Tensor> &outputs);
 
@@ -85,8 +96,8 @@ private:
   aclmdlDataset *output_ = nullptr;
   bool load_flag_ = false;
   bool is_set_device_ = false;
-  std::vector<bool> is_input_dynamic;
-  std::vector<bool> is_output_dynamic;
+  std::vector<bool> is_input_dynamic_;
+  std::vector<bool> is_output_dynamic_;
 
   std::atomic_bool run_flag_ {false};
   std::thread work_thread_;
@@ -100,6 +111,13 @@ private:
   Status thread_ret_;
   std::vector<Tensor> inputs_;
   std::vector<Tensor> outputs_;
+
+  DynamicGearType dymainc_gear_type_ = DYNAMIC_UNDEFINED;
+  std::vector<std::vector<uint64_t>> dynamic_gear_info_;
+  // which inut is dynamic gear
+  size_t dynamic_gear_input_index_ = SIZE_MAX;
+  // which dim is dynamic gear in shape
+  std::vector<size_t> dynamic_gear_shape_index_;
 };
 
 class OmExecutor {
