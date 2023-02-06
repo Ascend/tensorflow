@@ -812,13 +812,18 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
-    std::map<std::string, std::vector<std::string>> serialized_proto_map;
-    SeparateGraphDef(ori_graph_def, serialized_proto_map);
+    std::map<std::string, std::string> const_value_map;
+    std::string graph_def_str = ori_graph_def.SerializeAsString();  
+    if (graph_def_str.empty()) {
+      SeparateWeightFromConst(ori_graph_def, const_value_map);
+      graph_def_str = ori_graph_def.SerializeAsString();
+    }
+    std::vector<std::string> partition_graph{graph_def_str};
     auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
       return this->BuildSubGraph(flib_def, graph);
     };
     ge::Status status =
-        model_parser->ParseProtoWithSubgraph(serialized_proto_map, build_sub_graph, compute_graph);
+        model_parser->ParseProtoWithSubgraph(partition_graph, const_value_map, build_sub_graph, compute_graph);
     if (status != ge::SUCCESS) {
       std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
@@ -1325,22 +1330,23 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   return Status::OK();
 }
 
-void GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
-                            std::map<std::string, std::vector<std::string>> &serialized_proto_map) {
-  // 1. insert node def proto
-  std::vector<std::string> node_proto_vec;
+bool GeOp::SeparateWeightFromConst(GraphDef &ori_graph_def,
+                                   std::map<std::string, std::string> &const_value_map) {
   for (NodeDef &node : *ori_graph_def.mutable_node()) {
-    node_proto_vec.push_back(node.SerializeAsString());
+    if (node.op() == "Const") {
+      std::string node_name = node.name();
+      auto iter = node.mutable_attr()->find("value");
+      if (iter == node.mutable_attr()->end()) {
+        ADP_LOG(ERROR) << "Const node: " << node_name << " don't have value attribute";
+        return false;
+      }
+      TensorProto *tensor = iter->second.mutable_tensor();
+      std::string tensor_content = tensor->tensor_content();
+      const_value_map.insert({node_name, tensor_content});
+      tensor->set_tensor_content("");
+    }
   }
-  serialized_proto_map.insert({"node", node_proto_vec});
-  // 2. insert version def proto
-  std::vector<std::string> versions_proto_vec;
-  versions_proto_vec.push_back(ori_graph_def.mutable_versions()->SerializeAsString());
-  serialized_proto_map.insert({"versions", versions_proto_vec});
-  // 3. insert functiondef proto;
-  std::vector<std::string> library_proto_vec;
-  library_proto_vec.push_back(ori_graph_def.mutable_library()->SerializeAsString());
-  serialized_proto_map.insert({"library", library_proto_vec});
+  return true;
 }
 
 Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
