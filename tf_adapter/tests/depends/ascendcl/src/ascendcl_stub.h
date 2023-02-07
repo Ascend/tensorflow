@@ -28,6 +28,9 @@
 void aclrtSetSocNameStub(std::string socVersion);
 void aclrtSetDefaultSocNameStub();
 
+extern uint32_t g_tensor_desc_size;
+void SetTensorDescSize(uint32_t val);
+
 struct acltdtDataItem {
     acltdtDataItem(acltdtTensorType tdtType,
         const int64_t *dims, size_t dimNum, const std::string &dimsStr,

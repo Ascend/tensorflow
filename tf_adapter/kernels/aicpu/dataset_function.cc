@@ -359,18 +359,23 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
   return output;
 }
 
-void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output) {
+void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output, bool isFree) {
   if (output == nullptr) {
     return;
   }
   aclError ret = ACL_ERROR_NONE;
   for (size_t i = 0; i < aclmdlGetDatasetNumBuffers(output); i++) {
     aclDataBuffer* data_buffer = aclmdlGetDatasetBuffer(output, i);
-    // only destroy aclDataBuffer, ACL module will free this device memory
+    if (isFree) {
+      void* data_addr = aclGetDataBufferAddr(data_buffer);
+      aclError ret = aclrtFree(data_addr);
+      if (ret != ACL_ERROR_NONE) {
+        ADP_LOG(ERROR) << "Free acl device memory failed.";
+      }
+    }
     ret = aclDestroyDataBuffer(data_buffer);
     if (ret != ACL_ERROR_NONE) {
       ADP_LOG(ERROR) << "Destory acl output data buffer failed.";
-      return;
     }
   }
   ret = aclmdlDestroyDataset(output);

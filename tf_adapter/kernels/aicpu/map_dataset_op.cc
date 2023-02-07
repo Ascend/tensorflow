@@ -351,6 +351,7 @@ private:
 
       void InitOutputs(uint8_t *start_addr, std::vector<uint64_t> &tensor_align_size,
           std::vector<uint8_t*> &out) const {
+        out.clear();
         uint64_t dim_num = tensor_align_size.size();
         uint64_t offset = 0;
         uint8_t *align_addr = start_addr;
@@ -813,7 +814,7 @@ private:
         }
         this->CallCompleted(thread_id, time_tag);
         // free input_dataset by current dataset op
-        DatasetFunction::DestroyAclOutputDataset(output_dataset);
+        DatasetFunction::DestroyAclOutputDataset(output_dataset, false);
         DatasetFunction::DestroyAclInputDataset(input_dataset);
       };
 
@@ -974,6 +975,7 @@ private:
     public:
       explicit OutputDynResult() : output_data(nullptr) {};
       aclmdlDataset *output_data;
+      uint64_t max_output_mem_size = 0;
     };
 
     Status InitTensorSize(OutputDynResult &output_result) {
@@ -1056,7 +1058,7 @@ private:
 
     void DestroyOutputDataset(OutputResultBase &output_result) override {
       OutputDynResult& results = static_cast<OutputDynResult&>(output_result);
-      DatasetFunction::DestroyAclOutputDataset(results.output_data);
+      DatasetFunction::DestroyAclOutputDataset(results.output_data, true);
     }
 
   private:
@@ -1077,7 +1079,7 @@ private:
     }
 
   protected:
-    void CheckAndFreeNpuMem(OutputResultBase &output_result) const {
+    void CheckAndFreeNpuMem(OutputDynResult &output_result) const {
       if (output_result.output != nullptr) {
         aclError ret = aclrtFree(output_result.output);
         if (ret != ACL_SUCCESS) {
@@ -1088,23 +1090,29 @@ private:
     }
 
     uint8_t* GetStartAddr(OutputResultBase &output_result) override {
-      Status status = InitTensorSize(static_cast<OutputDynResult&>(output_result));
+      OutputDynResult& result = static_cast<OutputDynResult&>(output_result);
+      Status status = InitTensorSize(result);
       if (!status.ok()) {
         return nullptr;
       }
 
-      if (output_mem_size_ < max_output_mem_size_) {
+      if (output_result.output == nullptr) {
+        InitOutputResultNpuMem(output_result);
+        result.max_output_mem_size = output_mem_size_;
+      }
+
+      if (output_mem_size_ <= result.max_output_mem_size) {
         // reuse the device memory if needed
         output_result.InitOutputs(output_result.output, func_tensor_align_size_, output_result.outputs);
       } else {
         // free old memory and then malloc new memory when we need bigger memory currently
-        CheckAndFreeNpuMem(output_result);
+        CheckAndFreeNpuMem(result);
         (void)InitOutputResultNpuMem(output_result);
-        max_output_mem_size_ = output_mem_size_;
+        result.max_output_mem_size = output_mem_size_;
       }
 
       if (output_result.output != nullptr) {
-        return MemCpyData(static_cast<OutputDynResult&>(output_result));
+        return MemCpyData(result);
       }
 
       return nullptr;
@@ -1155,7 +1163,7 @@ private:
     }
 
   protected:
-    void CheckAndFreeCpuMem(OutputResultBase &output_result) const {
+    void CheckAndFreeCpuMem(OutputDynResult &output_result) const {
       if (output_result.output_cpu != nullptr) {
         delete[] output_result.output_cpu;
         output_result.output_cpu = nullptr;
@@ -1163,24 +1171,31 @@ private:
     }
 
     uint8_t* GetStartAddr(OutputResultBase &output_result) override {
-      Status status = InitTensorSize(static_cast<OutputDynResult&>(output_result));
+      OutputDynResult& result = static_cast<OutputDynResult&>(output_result);
+      Status status = InitTensorSize(result);
       if (!status.ok()) {
         return nullptr;
       }
 
-      if (output_mem_size_ < max_output_mem_size_) {
+      if (output_result.output_cpu == nullptr) {
+        InitOutputResultCpuMem(output_result);
+        result.max_output_mem_size = output_mem_size_;
+      }
+
+      if (output_mem_size_ <= result.max_output_mem_size) {
         // reuse the device memory if needed
         output_result.InitOutputs(output_result.output_cpu, func_tensor_align_size_, output_result.outputs_cpu);
       } else {
         // free old memory and then malloc new memory when we need bigger memory currently
-        CheckAndFreeCpuMem(output_result);
+        CheckAndFreeCpuMem(result);
         InitOutputResultCpuMem(output_result);
-        max_output_mem_size_ = output_mem_size_;
+        result.max_output_mem_size = output_mem_size_;
       }
 
       if (output_result.output_cpu != nullptr) {
-        return MemCpyData(static_cast<OutputDynResult&>(output_result));
+        return MemCpyData(result);
       }
+
       return nullptr;
     }
 

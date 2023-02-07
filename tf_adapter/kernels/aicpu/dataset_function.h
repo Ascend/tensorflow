@@ -102,7 +102,7 @@ class DatasetFunction {
     static void *ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &tensor_size);
     static void DestroyAclInputDataset(aclmdlDataset *input);
     static aclmdlDataset *CreateAclOutputDataset(ModelId model_id);
-    static void DestroyAclOutputDataset(aclmdlDataset *output);
+    static void DestroyAclOutputDataset(aclmdlDataset *output, bool isFree);
     static aclmdlDesc *CreateAclModelDesc(ModelId model_id);
     static void DestoryAclModelDesc(aclmdlDesc *model_desc);
     static Status GetAclTenorDescDims(aclTensorDesc *desc, std::vector<int64_t> &ret_dims);

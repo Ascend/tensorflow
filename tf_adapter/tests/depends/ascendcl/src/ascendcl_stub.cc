@@ -576,7 +576,23 @@ aclTensorDesc *aclmdlGetDatasetTensorDesc(const aclmdlDataset *dataset, size_t i
   return dataset->blobs[index].tensorDesc;
 }
 
+uint32_t g_tensor_desc_size = 0;
+constexpr uint32_t reAllocMem = 5;
+constexpr uint32_t reAllocMemSize = 512;
+
+void SetTensorDescSize(uint32_t val) {
+  g_tensor_desc_size = val;
+}
+
 size_t aclGetTensorDescSize(const aclTensorDesc *desc) {
+  // use g_tensor_desc_size for dynamic shape test in map/map_and_batch dataset
+  if (g_tensor_desc_size > 0) {
+    if (g_tensor_desc_size == reAllocMem) {
+      return reAllocMemSize;
+    }
+    g_tensor_desc_size++;
+  }
+
   size_t size = 0U;
   const size_t descCount = aclGetTensorDescElementCount(desc);
   const size_t typeSize = aclDataTypeSize(desc->dataType);

@@ -738,6 +738,62 @@ TEST_F(NpuMapAndBatchDatasetOpDTStringTest, DatasetDTStringParam1) {
   ADP_LOG(INFO) << "====== UT case-14 end ======";
 }
 #endif
+
+NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams13() {
+  return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 4, 1),
+                                  /*other_arguments=*/{},
+                                  /*batch_size=*/1,
+                                  /*num_parallel_calls=*/1,
+                                  /*drop_remainder=*/true,
+                                  /*func=*/MapFunc("AddOne", DT_INT64),
+                                  /*func_lib=*/{AddOne()},
+                                  /*type_arguments*/ {},
+                                  /*preserve_cardinality=*/false,
+                                  /*output_dtypes=*/{DT_INT64},
+                                  /*output_shapes=*/{PartialTensorShape({-1, -1})},
+                                  /*output_device=*/"cpu",
+                                  /*node_name=*/kNodeName);
+}
+// test for reuse dynamic cpu output memory
+TEST_F(NpuMapAndBatchDatasetOpTest, DynamicCpuOutputShapeTest) {
+  ADP_LOG(INFO) << "====== UT DynamicCpuOutputShapeTest begin ======";
+  SetTensorDescSize(1);
+  auto dataset_params = NpuMapAndBatchDatasetParams13();
+  TF_ASSERT_OK(Initialize(&dataset_params));
+  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({1}), {2}),
+                                     CreateTensor<int64>(TensorShape({1}), {3}),
+                                     CreateTensor<int64>(TensorShape({1}), {4})}, /*compare_order=*/ true));
+  SetTensorDescSize(0);
+  ADP_LOG(INFO) << "====== UT DynamicCpuOutputShapeTest end ======";
+}
+
+NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams14() {
+  return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 4, 1),
+                                  /*other_arguments=*/{},
+                                  /*batch_size=*/1,
+                                  /*num_parallel_calls=*/1,
+                                  /*drop_remainder=*/true,
+                                  /*func=*/MapFunc("AddOne", DT_INT64),
+                                  /*func_lib=*/{AddOne()},
+                                  /*type_arguments*/ {},
+                                  /*preserve_cardinality=*/false,
+                                  /*output_dtypes=*/{DT_INT64},
+                                  /*output_shapes=*/{PartialTensorShape({-1, -1})},
+                                  /*output_device=*/"npu",
+                                  /*node_name=*/kNodeName);
+}
+// test for reuse dynamic npu output memory
+TEST_F(NpuMapAndBatchDatasetOpTest, DynamicNpuOutputShapeTest) {
+  ADP_LOG(INFO) << "====== UT DynamicNpuOutputShapeTest begin ======";
+  SetTensorDescSize(1);
+  auto dataset_params = NpuMapAndBatchDatasetParams14();
+  TF_ASSERT_OK(Initialize(&dataset_params));
+  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({1}), {2}),
+                                     CreateTensor<int64>(TensorShape({1}), {3}),
+                                     CreateTensor<int64>(TensorShape({1}), {4})}, /*compare_order=*/ true));
+  SetTensorDescSize(0);
+  ADP_LOG(INFO) << "====== UT DynamicNpuOutputShapeTest end ======";
+}
 }  // namespace
 }  // namespace data
 }  // namespace tensorflow

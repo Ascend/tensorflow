@@ -401,6 +401,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
         void InitOutputs(uint8_t *start_addr, std::vector<uint64_t> &tensor_align_size,
             std::vector<uint8_t*> &outputs_) const {
+          outputs_.clear();
           uint64_t dim_num = tensor_align_size.size();
           uint64_t offset = 0;
           uint8_t *align_addr = start_addr;
@@ -961,7 +962,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         batch_result->UpdateStatus(status, batch_offset);
         this->CallCompleted(thread_id, time_tag);
         // free input_dataset by current dataset op
-        DatasetFunction::DestroyAclOutputDataset(output_dataset);
+        DatasetFunction::DestroyAclOutputDataset(output_dataset, false);
         DatasetFunction::DestroyAclInputDataset(input_dataset);
       };
 
@@ -1124,9 +1125,18 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         output_datasets.resize(static_cast<size_t>(batch_size_));
       }
       std::vector<aclmdlDataset*> output_datasets;
+      uint64_t max_output_mem_size = 0;
     };
 
     Status InitTensorSize(BatchDynResult &batch_result) {
+      // reset infos for current output
+      batch_mem_size_ = 0;
+      func_tensor_size_.clear();
+      func_output_shape_.clear();
+      func_tensor_align_size_.clear();
+      batch_result.outputs.clear();
+      batch_result.outputs_cpu.clear();
+
       aclmdlDataset *out_dataset = batch_result.output_datasets[0];
       for (size_t idx = 0; idx < aclmdlGetDatasetNumBuffers(out_dataset); idx++) {
         // get output desc and size
@@ -1203,7 +1213,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       uint64_t batch_size = results.GetNumElements();
       for (uint64_t j = 0; j < batch_size; j++) {
         aclmdlDataset *out_dataset = results.output_datasets[j];
-        DatasetFunction::DestroyAclOutputDataset(out_dataset);
+        DatasetFunction::DestroyAclOutputDataset(out_dataset, true);
       }
     }
 
@@ -1225,20 +1235,40 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     }
 
    protected:
-    uint8_t* GetStartAddr(BatchResultBase &batch_result) override {
-      if (batch_mem_size_ == 0ULL) {
-        Status status = InitTensorSize(static_cast<BatchDynResult&>(batch_result));
-        if (!status.ok()) {
-          return nullptr;
+    void CheckAndFreeNpuMem(BatchDynResult &batch_result) const {
+      if (batch_result.output != nullptr) {
+        aclError ret = aclrtFree(batch_result.output);
+        if (ret != ACL_SUCCESS) {
+          ADP_LOG(ERROR) << "Free old device memory failed.";
         }
+        batch_result.output = nullptr;
+      }
+    }
+
+    uint8_t* GetStartAddr(BatchResultBase &batch_result) override {
+      BatchDynResult& result = static_cast<BatchDynResult&>(batch_result);
+      Status status = InitTensorSize(result);
+      if (!status.ok()) {
+        return nullptr;
       }
 
       if (batch_result.output == nullptr) {
         (void)InitBatchResultNpuMem(batch_result);
+        result.max_output_mem_size = batch_mem_size_;
+      }
+
+      if (batch_mem_size_ <= result.max_output_mem_size) {
+        // reuse the device memory if needed
+        batch_result.InitOutputs(batch_result.output, func_tensor_align_size_, batch_result.outputs);
+      } else {
+        // free old memory and then malloc new memory when we need bigger memory currently
+        CheckAndFreeNpuMem(result);
+        (void)InitBatchResultNpuMem(batch_result);
+        result.max_output_mem_size = batch_mem_size_;
       }
 
       if (batch_result.output != nullptr) {
-        return MemCpyData(static_cast<BatchDynResult&>(batch_result));
+        return MemCpyData(result);
       }
 
       return nullptr;
@@ -1288,20 +1318,37 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       ADP_LOG(EVENT) << "~IteratorDynCpu finish.";
     }
    protected:
+    void CheckAndFreeCpuMem(BatchDynResult &batch_result) const {
+      if (batch_result.output_cpu != nullptr) {
+        delete[] batch_result.output_cpu;
+        batch_result.output_cpu = nullptr;
+      }
+    }
+
     uint8_t* GetStartAddr(BatchResultBase &batch_result) override {
-      if (batch_mem_size_ == 0) {
-        Status status = InitTensorSize(static_cast<BatchDynResult&>(batch_result));
-        if (!status.ok()) {
-          return nullptr;
-        }
+      BatchDynResult& result = static_cast<BatchDynResult&>(batch_result);
+      Status status = InitTensorSize(result);
+      if (!status.ok()) {
+        return nullptr;
       }
 
       if (batch_result.output_cpu == nullptr) {
         InitBatchResultCpuMem(batch_result);
+        result.max_output_mem_size = batch_mem_size_;
+      }
+
+      if (batch_mem_size_ <= result.max_output_mem_size) {
+        // reuse the device memory if needed
+        batch_result.InitOutputs(batch_result.output_cpu, func_tensor_align_size_, batch_result.outputs_cpu);
+      } else {
+        // free old memory and then malloc new memory when we need bigger memory currently
+        CheckAndFreeCpuMem(result);
+        InitBatchResultCpuMem(batch_result);
+        result.max_output_mem_size = batch_mem_size_;
       }
 
       if (batch_result.output_cpu != nullptr) {
-        return MemCpyData(static_cast<BatchDynResult&>(batch_result));
+        return MemCpyData(result);
       }
 
       return nullptr;
