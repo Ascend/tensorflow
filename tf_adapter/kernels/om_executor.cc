@@ -66,6 +66,43 @@ bool ModelProcess::IsDynamic(const aclmdlIODims &dims) const {
   return false;
 }
 
+Status ModelProcess::GetDynamicGearInfo() {
+  aclmdlBatch dynamic_batch = {};
+  REQUIRES_ACL_STATUS_OK(aclmdlGetDynamicBatch(model_desc_, &dynamic_batch), aclmdlGetDynamicBatch);
+  if (dynamic_batch.batchCount > 0U) {
+    dymainc_gear_type_ = DYNAMIC_BATCH;
+    for (size_t i = 0U; i < dynamic_batch.batchCount; ++i) {
+      std::vector<uint64_t> current_batch;
+      current_batch.emplace_back(dynamic_batch.batch[i]);
+      ADP_LOG(INFO) << "this "<< i << " batch is " << dynamic_batch.batch[i];
+      dynamic_gear_info_.emplace_back(current_batch);
+    }
+    for (size_t j = 0U; j < is_input_dynamic_.size(); ++j) {
+      if (is_input_dynamic_[j]) {
+        // the first dynamic inut is enough
+        dynamic_gear_input_index_ = j;
+        break;
+      }
+    }
+    ADP_LOG(INFO) << "dynamic gear input index is "<< dynamic_gear_input_index_;
+    aclmdlIODims dims = {};
+    REQUIRES_ACL_STATUS_OK(aclmdlGetInputDims(model_desc_, dynamic_gear_input_index_, &dims), aclmdlGetInputDims);
+    for (size_t k = 0U; k < dims.dimCount; ++k) {
+      if (dims.dims[k] == -1) {
+        ADP_LOG(INFO) << "dynamic gear shape index is "<< k;
+        dynamic_gear_shape_index_.emplace_back(k);
+        break;
+      }
+    }
+    if (dynamic_gear_shape_index_.size() != 1U) {
+      ADP_LOG(ERROR) << "dynamic_gear_shape_index_ size is invalid, its value is " << dynamic_gear_shape_index_.size();
+      return tensorflow::errors::Internal("get dynamic gear shape index fail");
+    }
+    return Status::OK();
+  }
+  return Status::OK();
+}
+
 Status ModelProcess::LoadModelFromFile() {
   const aclError acl_ret =  aclInit(nullptr);
   if ((acl_ret != ACL_SUCCESS) && (acl_ret != ACL_ERROR_REPEAT_INITIALIZE)) {
@@ -82,14 +119,15 @@ Status ModelProcess::LoadModelFromFile() {
   aclmdlIODims dims = {};
   for (size_t i = 0U; i < aclmdlGetNumInputs(model_desc_); ++i) {
     REQUIRES_ACL_STATUS_OK(aclmdlGetInputDims(model_desc_, i, &dims), aclmdlGetInputDims);
-    is_input_dynamic.emplace_back(IsDynamic(dims));
-    ADP_LOG(INFO) << "this "<< i << " input is " << is_input_dynamic[i];
+    is_input_dynamic_.emplace_back(IsDynamic(dims));
+    ADP_LOG(INFO) << "this "<< i << " input is " << is_input_dynamic_[i];
   }
   for (size_t j = 0U; j < aclmdlGetNumOutputs(model_desc_); ++j) {
     REQUIRES_ACL_STATUS_OK(aclmdlGetOutputDims(model_desc_, j, &dims), aclmdlGetOutputDims);
-    is_output_dynamic.emplace_back(IsDynamic(dims));
-    ADP_LOG(INFO) << "this "<< j << " output is " << is_output_dynamic[j];
+    is_output_dynamic_.emplace_back(IsDynamic(dims));
+    ADP_LOG(INFO) << "this "<< j << " output is " << is_output_dynamic_[j];
   }
+  TF_RETURN_IF_ERROR(GetDynamicGearInfo());
   return Status::OK();
 }
 
@@ -130,7 +168,7 @@ Status ModelProcess::CreateOutput() {
     ADP_LOG(INFO) << "this "<< i << " output size is " << output_size;
     if (output_size == 0U) {
       ADP_LOG(ERROR) << "current " << i << " output is 0, can not get its real size";
-      return tensorflow::errors::Internal("get input size is 0");
+      return tensorflow::errors::Internal("get output size is 0");
     }
     void *dev_ptr = nullptr;
     REQUIRES_ACL_STATUS_OK(aclrtMalloc(&dev_ptr, output_size, ACL_MEM_MALLOC_NORMAL_ONLY), aclrtMalloc);
@@ -156,13 +194,49 @@ Status ModelProcess::Execute(const std::vector<Tensor> &inputs, std::vector<Tens
   return Status::OK();
 }
 
+Status ModelProcess::ProcessDynamicGearInput(const std::vector<Tensor> &inputs) const {
+  if (dymainc_gear_type_ == DYNAMIC_UNDEFINED) {
+    return Status::OK();
+  }
+  if (dymainc_gear_type_ == DYNAMIC_BATCH) {
+    if (inputs.size() <= dynamic_gear_input_index_) {
+      ADP_LOG(ERROR) << "input size " << inputs.size() << " is invalid, need be larger than "
+          << dynamic_gear_input_index_;
+      return tensorflow::errors::Internal("input size %zu is invalid, need be larger than %zu",
+          inputs.size(), dynamic_gear_input_index_);
+    }
+    auto dims = inputs[dynamic_gear_input_index_].shape().dim_sizes();
+    if (dims.size() <= dynamic_gear_shape_index_[0]) {
+      ADP_LOG(ERROR) << "input dim size " << dims.size() << " is invalid, need be larger than "
+          << dynamic_gear_shape_index_[0];
+      return tensorflow::errors::Internal("input dim size %zu is invalid, need be larger than %zu",
+          dims.size(), dynamic_gear_shape_index_[0]);
+    }
+    const auto current_batch = dims[dynamic_gear_shape_index_[0]];
+    size_t dynamic_batch_index = 0U;
+    REQUIRES_ACL_STATUS_OK(aclmdlGetInputIndexByName(model_desc_, ACL_DYNAMIC_TENSOR_NAME, &dynamic_batch_index),
+        aclmdlGetInputIndexByName);
+    ADP_LOG(INFO) << "current batch is " << current_batch << ", shape index is " << dynamic_gear_shape_index_[0] <<
+        ", dynamic_batch_index is " << dynamic_batch_index;
+    REQUIRES_ACL_STATUS_OK(aclmdlSetDynamicBatchSize(model_id_, input_, dynamic_batch_index, current_batch),
+        aclmdlSetDynamicBatchSize);
+    return Status::OK();
+  }
+  return Status::OK();
+}
+
 Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) const {
   const size_t model_input_size = aclmdlGetNumInputs(model_desc_);
-  if (inputs.size() < model_input_size) {
-    ADP_LOG(ERROR) << "input num " << inputs.size() << " is smaller than model input num " << model_input_size;
-    return tensorflow::errors::Internal("input num is invalid");
+  if (dymainc_gear_type_ == DYNAMIC_UNDEFINED) {
+    if (inputs.size() < model_input_size) {
+      ADP_LOG(ERROR) << "input num " << inputs.size() << " is smaller than model input num " << model_input_size;
+      return tensorflow::errors::Internal("input num is invalid");
+    }
   }
-  for (size_t i = 0U; i < model_input_size; ++i) {
+  // dynamic gear data need to be feeded alone
+  size_t need_feed_input_cnts = ((dymainc_gear_type_ == DYNAMIC_UNDEFINED) && (model_input_size >= 1U))
+      ? model_input_size : (model_input_size - 1U);
+  for (size_t i = 0U; i < need_feed_input_cnts; ++i) {
     auto tensor_data = inputs[i].tensor_data().data();
     auto tensor_size = inputs[i].tensor_data().size();
     aclDataBuffer *data_buf = aclmdlGetDatasetBuffer(input_, i);
@@ -190,6 +264,7 @@ Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) const {
     tensor_desc = nullptr;
     REQUIRES_ACL_STATUS_OK(ret, aclmdlSetDatasetTensorDesc);
   }
+  TF_RETURN_IF_ERROR(ProcessDynamicGearInput(inputs));
   return Status::OK();
 }
 
@@ -197,7 +272,11 @@ Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::D
     const size_t cur_size, std::vector<Tensor> &outputs) const {
   ADP_LOG(INFO) << "this out " << index << " is static";
   aclmdlIODims acl_dims = {};
-  REQUIRES_ACL_STATUS_OK(aclmdlGetOutputDims(model_desc_, index, &acl_dims), aclmdlGetOutputDims);
+  if (dymainc_gear_type_ == DYNAMIC_UNDEFINED) {
+    REQUIRES_ACL_STATUS_OK(aclmdlGetOutputDims(model_desc_, index, &acl_dims), aclmdlGetOutputDims);
+  } else {
+    REQUIRES_ACL_STATUS_OK(aclmdlGetCurOutputDims(model_desc_, index, &acl_dims), aclmdlGetCurOutputDims);
+  }
   TensorShape tf_shape;
   for (size_t j = 0U; j < acl_dims.dimCount; ++j) {
     tf_shape.AddDim(acl_dims.dims[j]);
@@ -205,9 +284,9 @@ Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::D
   Tensor tensor = Tensor(tf_type, tf_shape);
   auto tensor_data = const_cast<char *>(tensor.tensor_data().data());
   auto tensor_size = tensor.tensor_data().size();
-  REQUIRES_ACL_STATUS_OK(
-      aclrtMemcpy(tensor_data, tensor_size, dev_ptr, cur_size, ACL_MEMCPY_DEVICE_TO_HOST), aclrtMemcpy);
   ADP_LOG(INFO) << "current output " << index << ", tensor is " << tensor.DebugString();
+  REQUIRES_ACL_STATUS_OK(
+      aclrtMemcpy(tensor_data, tensor_size, dev_ptr, tensor_size, ACL_MEMCPY_DEVICE_TO_HOST), aclrtMemcpy);
   outputs.emplace_back(std::move(tensor));
   return Status::OK();
 }
@@ -250,7 +329,7 @@ Status ModelProcess::ProcessOutput(std::vector<Tensor> &outputs) {
     tensorflow::DataType tf_type = DT_FLOAT;
     TF_RETURN_IF_ERROR(MappingAclDtToTf(acl_dt, tf_type));
     ADP_LOG(INFO) << "model output size is " << cur_size << ", dt is " << tf_type;
-    if (!is_output_dynamic[i]) {
+    if (!is_output_dynamic_[i]) {
       TF_RETURN_IF_ERROR(ProcessStaticOutput(i, tf_type, dev_ptr, cur_size, outputs));
     } else {
       TF_RETURN_IF_ERROR(ProcessDynamicOutput(i, tf_type, dev_ptr, cur_size, outputs));

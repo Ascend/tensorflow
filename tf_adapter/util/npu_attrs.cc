@@ -1466,6 +1466,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["device_type"] = device_type;
   all_options["hccl_timeout"] = hccl_timeout;
   all_options["op_wait_timeout"] = op_wait_timeout;
+  all_options["op_execute_timeout"] = op_execute_timeout;
   all_options["customize_dtypes"] = customize_dtypes;
   all_options["HCCL_algorithm"] = HCCL_algorithm;
   all_options["op_debug_config"] = op_debug_config;

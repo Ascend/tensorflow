@@ -39,10 +39,16 @@ std::string NpuStaticShapeOp::AttachedDebugString() const {
   return ss.str();
 }
 
+#ifdef TFA2_COMPILED_FOR_EAGER_MODE
+#define TFA2_EAGER_ENABLED true
+#else
+#define TFA2_EAGER_ENABLED false
+#endif
+
 void NpuStaticShapeOp::RunWithShape(TFE_Context *context, NpuDevice *device, const OpExecutor *spec,
                                     TensorShapes output_shapes, int num_inputs, TFE_TensorHandle **inputs,
                                     int num_outputs, TFE_TensorHandle **outputs, TF_Status *status) {
-  if (kGraphEngineGreedyMemory) {
+  if (kGraphEngineGreedyMemory || (!TFA2_EAGER_ENABLED)) {
     DLOG() << "NPU Executing op " << spec->Op() << " fallback cpu in graph engine greedy memory mode";
     device->FallbackCPU(context, spec->NodeDef(), num_inputs, inputs, num_outputs, outputs, status);
     return;

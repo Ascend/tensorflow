@@ -682,6 +682,12 @@ aclError aclmdlGetOutputDims(const aclmdlDesc *modelDesc, size_t index, aclmdlIO
   return ACL_SUCCESS;
 }
 
+aclError aclmdlGetCurOutputDims(const aclmdlDesc *modelDesc, size_t index, aclmdlIODims *dims) {
+  dims->dimCount = 1;
+  dims->dims[0] = 2;
+  return ACL_SUCCESS;
+}
+
 aclError aclGetTensorDescDimV2(const aclTensorDesc *desc, size_t index, int64_t *dimSize) {
   return ACL_SUCCESS;
 }
@@ -717,5 +723,28 @@ aclError aclmdlGetInputDims(const aclmdlDesc *modelDesc, size_t index, aclmdlIOD
   dims->dimCount = 2;
   dims->dims[0] = 2;
   dims->dims[1] = -1;
+  return ACL_SUCCESS;
+}
+
+int32_t g_dynamic_type = -1;
+void SetDynamicType(int32_t dynamic_type) {
+  g_dynamic_type = dynamic_type;
+}
+
+aclError aclmdlSetDynamicBatchSize(uint32_t modelId, aclmdlDataset *dataset, size_t index, uint64_t batchSize) {
+  return ACL_SUCCESS;
+}
+
+aclError aclmdlGetDynamicBatch(const aclmdlDesc *modelDesc, aclmdlBatch *batch) {
+  if (g_dynamic_type == 0) {
+    batch->batchCount = 2;
+    batch->batch[0] = 1;
+    batch->batch[0] = 2;
+  }
+  return ACL_SUCCESS;
+}
+
+aclError aclmdlGetInputIndexByName(const aclmdlDesc *modelDesc, const char *name, size_t *index) {
+  *index = 1;
   return ACL_SUCCESS;
 }

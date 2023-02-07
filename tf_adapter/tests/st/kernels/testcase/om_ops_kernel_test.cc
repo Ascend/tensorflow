@@ -4,6 +4,7 @@
 #include "tensorflow/core/common_runtime/process_function_library_runtime.h"
 #include "tensorflow/core/framework/node_def_builder.h"
 
+#include "ascendcl_stub.h"
 #include "gtest/gtest.h"
 
 namespace tensorflow {
@@ -82,9 +83,31 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteSuccess) {
   std::vector<Tensor> tensors;
   TensorShape tf_shape;
   tf_shape.AddDim(2);
+  tf_shape.AddDim(1);
   Tensor tensor = Tensor(DT_FLOAT, tf_shape);
   tensors.emplace_back(tensor);
   tensors.emplace_back(tensor);
+  ASSERT_EQ(Run(tensors), Status::OK());
+}
+
+TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicBatchSuccess) {
+  NodeDef def;
+  auto status = tensorflow::NodeDefBuilder("om", "LoadAndExecuteOm")
+                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{})
+                    .Attr("Tin", DataTypeVector{})
+                    .Attr("output_dtypes", DataTypeVector{})
+                    .Attr("om_path", "path_to_om")
+                    .Finalize(&def);
+  ASSERT_EQ(status.error_message(), "");
+  ASSERT_EQ(CreateKernel(def), Status::OK());
+  std::vector<Tensor> tensors;
+  TensorShape tf_shape;
+  tf_shape.AddDim(2);
+  tf_shape.AddDim(1);
+  Tensor tensor = Tensor(DT_FLOAT, tf_shape);
+  tensors.emplace_back(tensor);
+  tensors.emplace_back(tensor);
+  SetDynamicType(0); // set dynamic batch
   ASSERT_EQ(Run(tensors), Status::OK());
 }
 }  // namespace
