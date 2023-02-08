@@ -978,8 +978,15 @@ tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const s
     return graph->ToGraphDefDebug().SerializeAsString();
   };
 
+  std::map<std::string, std::string> const_value_map;
+  std::string def_str = def.SerializeAsString(); 
+  if (def_str.empty()) {
+    NPU_REQUIRES_OK(SeparateWeightFromConst(const_cast<tensorflow::GraphDef *>(&def), const_value_map));
+    def_str = def.SerializeAsString();
+  }
+  std::vector<std::string> partition_graph{def_str};
   NPU_REQUIRES(
-    parser->ParseProtoWithSubgraph(def.SerializeAsString(), request_subgraph, ge_compute_graph) == ge::SUCCESS,
+    parser->ParseProtoWithSubgraph(partition_graph, const_value_map, request_subgraph, ge_compute_graph) == ge::SUCCESS,
     tensorflow::errors::Internal("NPU Parse tensorflow model failed"));
 
   if (ge_compute_graph->GetAllNodesSize() != 0) {

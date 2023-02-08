@@ -509,6 +509,25 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::un
   tensorflow::OptimizeGraph(&lib, g, options);
 }
 
+tensorflow::Status SeparateWeightFromConst(tensorflow::GraphDef *def,
+                                           std::map<std::string, std::string> &const_value_map) {
+  for (tensorflow::NodeDef &node : *def->mutable_node()) {
+    if (node.op() == "Const") {
+      std::string node_name = node.name();
+      auto iter = node.mutable_attr()->find("value");
+      if (iter == node.mutable_attr()->end()) {
+        LOG(ERROR) << "Const node: " << node_name << " don't have value attribute";
+        return tensorflow::errors::Internal("Const node don't have value attribute");
+      }
+      tensorflow::TensorProto *tensor = iter->second.mutable_tensor();
+      std::string tensor_content = tensor->tensor_content();
+      const_value_map.insert({node_name, tensor_content});
+      tensor->set_tensor_content("");
+    }
+  }
+  return tensorflow::Status::OK();
+}
+
 tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size) {
   size_t copy_size = 0UL;
   size_t org_src_size = src_size;

@@ -48,6 +48,9 @@ class ScopeTensorHandleDeleter {
  */
 tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType &tf_type);
 
+tensorflow::Status SeparateWeightFromConst(tensorflow::GraphDef *def,
+                                           std::map<std::string, std::string> &const_value_map);
+
 /**
  * @brief: map tf type to ge
  * @param ge_type: tf type
