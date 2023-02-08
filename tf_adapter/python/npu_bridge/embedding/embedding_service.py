@@ -18,6 +18,7 @@
 import json
 import contextlib
 import os
+import math
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
@@ -94,7 +95,7 @@ class ESWorker:
         self._max_num = max_batch_size
         self._table_to_embedding_dim[table_id] = embedding_dim
         self._initializer = initializer
-        bucket_size = vocabulary_size / self._ps_num
+        bucket_size = math.ceil(vocabulary_size / self._ps_num)
         if optimizer is None:
             self._train_mode = False
         else:
