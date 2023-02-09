@@ -11,6 +11,11 @@ class GE_FUNC_VISIBILITY ModelParser {
   ge::DataType ConvertToGeDataType(const uint32_t type);
   Status ParseProtoWithSubgraph(const std::string &serialized_proto, GetGraphCallbackV2 callback,
                                 ge::ComputeGraphPtr &graph);
+
+  Status ParseProtoWithSubgraph(std::vector<std::string> &partitioned_serialized,
+                                std::map<std::string, std::string> &const_value_map,
+                                GetGraphCallbackV2 callback,
+                                ge::ComputeGraphPtr &graph);
 };
 }  // namespace domi
 

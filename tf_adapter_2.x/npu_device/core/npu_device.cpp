@@ -110,7 +110,6 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR(underlying_device);
   tensorflow::FunctionLibraryRuntime::Handle f_handle;
   NPU_CTX_REQUIRES_OK(status, flr->Instantiate(dp_provider.signature().name(), tensorflow::AttrSlice{}, &f_handle));
-
   auto consume_func = [flr, f_handle, cancel_manager](tensorflow::Tensor tensor, int64_t nums) -> tensorflow::Status {
     std::vector<tensorflow::Tensor> get_next_outputs;
     tensorflow::FunctionLibraryRuntime::Options options;
