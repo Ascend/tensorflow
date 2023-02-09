@@ -22,6 +22,7 @@ import time
 os.environ['ASCEND_OPP_PATH'] = 'non-existed-path'
 
 import npu_device
+import numpy as np
 from npu_device.npu_device import stupid_repeat
 from npu_device.npu_device import set_device_sat_mode
 from npu_device.npu_device import get_device_sat_mode
@@ -519,6 +520,24 @@ class Adapter2St(unittest.TestCase):
         with npu_device.npu_run_context(options=options):
             f()
 
+    def test_npu_large_model(self):
+        @tf.function
+        def run_large_model():
+            value = np.random.randint(low=1, high=1000, size=(256, 1024, 1024), dtype=np.int32)
+            c1 = tf.constant(value, tf.int32)
+            c2 = tf.constant(value, tf.int32)
+            c3 = tf.constant(value, tf.int32)
+            c4 = tf.constant(value, tf.int32)
+            c5 = tf.constant(value, tf.int32)
+            r = tf.random.uniform([256, 1024, 1024], 1, 40000, tf.int32, seed=100)
+            a1 = tf.add(c1, c2)
+            a2 = tf.add(c3, c4)
+            a3 = tf.add(c5, r)
+            a4 = tf.add(a1, a2)
+            a5 = tf.add(a3, a4)
+            return a5
+        run_large_model()
+        
 
 class Adapter2St_EnvGeStaticMemory(unittest.TestCase):
     def test_dropout_v3(self):

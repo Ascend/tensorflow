@@ -8,7 +8,7 @@
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/public/session_options.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
-
+#include <cstdlib>
 #include <memory>
 
 namespace tensorflow {
@@ -81,6 +81,25 @@ TEST_F(OmNodePreparePassTest, TestGraphWithOmNodeSuccess) {
   }
   ASSERT_NE(system_init, nullptr);
   ASSERT_EQ(system_init->type_string(), "GeOp");
+}
+
+TEST_F(OmNodePreparePassTest, TestBigConst) {
+  Tensor tensor(DT_INT32, TensorShape{1024, 1024, 1024});
+  std::vector<int32_t> rand_num;
+  for (int i = 0; i < 1024*1024*1024; i++) {
+    rand_num.push_back(rand());
+  }
+  void *tensor_data = const_cast<void *>(static_cast<const void *>(tensor.flat<int32_t>().data()));
+  size_t tensor_size = tensor.flat<int32_t>().size();
+  
+  memcpy(tensor_data, rand_num.data(), 1024 * 1024 * 1024 * sizeof(int32_t));
+  Node *const_node = nullptr;
+  NodeBuilder("ConstOp", "Const")
+      .Input(std::vector<NodeBuilder::NodeOut>{})
+      .Attr("dtypes", DT_INT32)
+      .Attr("value", tensor)
+      .Finalize(graph.get(), &const_node);
+  ASSERT_EQ(Run(), Status::OK());
 }
 }  // end namespace
 }  // namespace tensorflow
