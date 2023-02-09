@@ -494,21 +494,36 @@ TEST_F(GeOpTest, test_MakeCompatShape) {
   PartialTensorShape kUnknownRankShape = PartialTensorShape();
   EXPECT_EQ(shape2.IsCompatibleWith(kUnknownRankShape), true);
 }
-TEST_F(GeOpTest, test_SeparateWeightFromConst) {
+TEST_F(GeOpTest, test_SeparateGraphDef) {
   GeOp *geop_node;
   GraphDef graph_def;
   std::map<std::string, std::string> const_value_map;
+  std::vector<std::string> partition_graph;
   NodeDef *node_def = graph_def.add_node();
   node_def->set_op("Const");
   node_def->set_name("ConstOp");
-  EXPECT_EQ(geop_node->SeparateWeightFromConst(graph_def, const_value_map).ok(), false);
+  EXPECT_EQ(geop_node->SeparateGraphDef(graph_def, partition_graph, const_value_map).ok(), true);
   auto attr = node_def->mutable_attr();
   std::string tensor_content = "abcdefe";
   AttrValue value_attr;
   TensorProto *tensor = value_attr.mutable_tensor();
   tensor->set_tensor_content(tensor_content);
   attr->insert({"value", value_attr});
-  EXPECT_EQ(geop_node->SeparateWeightFromConst(graph_def, const_value_map).ok(), true);
+  EXPECT_EQ(geop_node->SeparateGraphDef(graph_def, partition_graph, const_value_map).ok(), true);
+  NodeDef *node_def2 = graph_def.add_node();
+  node_def2->set_op("Const");
+  node_def2->set_name("ConstOp2");
+  auto attr2 = node_def2->mutable_attr();
+  for (int j = 0; j < 3; j++) {
+    for (int64_t i = 0; i < 1024*1024*1024; i++) {
+      tensor_content.append("a");
+    }
+  }
+  AttrValue value_attr2;
+  TensorProto *tensor2 = value_attr2.mutable_tensor();
+  tensor2->set_tensor_content(tensor_content);
+  attr2->insert({"value", value_attr2});
+  EXPECT_EQ(geop_node->SeparateGraphDef(graph_def, partition_graph, const_value_map).ok(), true);
 }
 }  // namespace
 }  // namespace tensorflow

@@ -813,12 +813,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
     std::map<std::string, std::string> const_value_map;
-    std::string graph_def_str = ori_graph_def.SerializeAsString();
-    if (graph_def_str.empty()) {
-      OP_REQUIRES_OK_ASYNC(ctx, SeparateWeightFromConst(ori_graph_def, const_value_map), done);
-      graph_def_str = ori_graph_def.SerializeAsString();
-    }
-    std::vector<std::string> partition_graph{graph_def_str};
+    std::vector<std::string> partition_graph;
+    OP_REQUIRES_OK_ASYNC(ctx, SeparateGraphDef(ori_graph_def, partition_graph, const_value_map), done);
     auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
       return this->BuildSubGraph(flib_def, graph);
     };
@@ -1330,15 +1326,22 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   return Status::OK();
 }
 
-Status GeOp::SeparateWeightFromConst(GraphDef &ori_graph_def,
-                                     std::map<std::string, std::string> &const_value_map) {
+Status GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
+                              std::vector<std::string> &partition_graph,
+                              std::map<std::string, std::string> &const_value_map) {
+  std::string graph_def_str = ori_graph_def.SerializeAsString();
+  if (!graph_def_str.empty()) {
+    partition_graph.push_back(graph_def_str);
+    return Status::OK();
+  }
+  LOG(INFO) << "GraphDef is beyond 2G, which is need separate";
   for (NodeDef &node : *ori_graph_def.mutable_node()) {
     if (node.op() == "Const") {
       std::string node_name = node.name();
       auto iter = node.mutable_attr()->find("value");
       if (iter == node.mutable_attr()->end()) {
         ADP_LOG(ERROR) << "Const node: " << node_name << " don't have value attribute";
-        return errors::InvalidArgument("Const node don't have value attribute");;
+        return errors::InvalidArgument("Const node don't have value attribute");
       }
       TensorProto *tensor = iter->second.mutable_tensor();
       std::string tensor_content = tensor->tensor_content();
@@ -1346,6 +1349,8 @@ Status GeOp::SeparateWeightFromConst(GraphDef &ori_graph_def,
       tensor->set_tensor_content("");
     }
   }
+  graph_def_str = ori_graph_def.SerializeAsString();
+  partition_graph.push_back(graph_def_str);
   return Status::OK();
 }
 

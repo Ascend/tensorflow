@@ -509,8 +509,15 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::un
   tensorflow::OptimizeGraph(&lib, g, options);
 }
 
-tensorflow::Status SeparateWeightFromConst(tensorflow::GraphDef *def,
-                                           std::map<std::string, std::string> &const_value_map) {
+tensorflow::Status SeparateGraphDef(tensorflow::GraphDef *def,
+                                    std::vector<std::string> &partition_graph,
+                                    std::map<std::string, std::string> &const_value_map) {
+  std::string def_str = def->SerializeAsString();
+  if (!def_str.empty()) {
+    partition_graph.push_back(def_str);
+    return tensorflow::Status::OK();
+  }
+  LOG(INFO) << "GraphDef is beyond 2G, which is need separate";
   for (tensorflow::NodeDef &node : *def->mutable_node()) {
     if (node.op() == "Const") {
       std::string node_name = node.name();
@@ -525,6 +532,8 @@ tensorflow::Status SeparateWeightFromConst(tensorflow::GraphDef *def,
       tensor->set_tensor_content("");
     }
   }
+  def_str = def->SerializeAsString();
+  partition_graph.push_back(def_str);
   return tensorflow::Status::OK();
 }
 

@@ -12,8 +12,8 @@ class GE_FUNC_VISIBILITY ModelParser {
   Status ParseProtoWithSubgraph(const std::string &serialized_proto, GetGraphCallbackV2 callback,
                                 ge::ComputeGraphPtr &graph);
 
-  Status ParseProtoWithSubgraph(std::vector<std::string> &partitioned_serialized,
-                                std::map<std::string, std::string> &const_value_map,
+  Status ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
+                                const std::map<std::string, std::string> &const_value_map,
                                 GetGraphCallbackV2 callback,
                                 ge::ComputeGraphPtr &graph);
 };

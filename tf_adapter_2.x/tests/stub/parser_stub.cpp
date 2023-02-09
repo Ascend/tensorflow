@@ -85,14 +85,11 @@ Status ModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto, 
   return ParseProtoWithSubgraph(partitioned_serialized, const_value_map, callback, graph);
 }
 
-Status ModelParser::ParseProtoWithSubgraph(std::vector<std::string> &partitioned_serialized,
-                                           std::map<std::string, std::string> &const_value_map,
+Status ModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
+                                           const std::map<std::string, std::string> &const_value_map,
                                            GetGraphCallbackV2 callback,
                                            ge::ComputeGraphPtr &graph) {
-  std::string graph_def_str;
-  for (size_t i = 0UL; i < partitioned_serialized.size(); i++) {
-    graph_def_str += partitioned_serialized[i];
-  }
+  std::string graph_def_str = partitioned_serialized[0];
   tensorflow::GraphDef graph_def;
   graph_def.ParseFromString(graph_def_str);
 
