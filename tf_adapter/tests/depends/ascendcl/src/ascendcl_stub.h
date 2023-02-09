@@ -168,6 +168,8 @@ struct aclTensorDesc {
 
 void SetDynamicType(int32_t dynamic_type);
 
+void SetOutputDynamic(const bool is_dynamic);
+
 using ACLMdlGetDescStub = std::function<aclError(aclmdlDesc *)>;
 void RegACLMdlGetDescStub(ACLMdlGetDescStub stub);
 

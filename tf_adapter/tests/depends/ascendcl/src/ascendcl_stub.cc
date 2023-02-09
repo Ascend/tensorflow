@@ -502,7 +502,11 @@ aclError aclmdlDestroyDataset(const aclmdlDataset *dataset) {
 }
 
 size_t aclGetTensorDescElementCount(const aclTensorDesc *desc) {
-  return 1;
+  size_t cnt = 1;
+  for (auto dim : desc->dims) {
+    cnt *= dim;
+  }
+  return cnt;
 }
 
 size_t aclmdlGetDatasetNumBuffers(const aclmdlDataset *dataset) {
@@ -572,7 +576,19 @@ aclError aclmdlGetDesc(aclmdlDesc *modelDesc, uint32_t modelId) {
   return ACL_SUCCESS;
 }
 
+bool g_output_dynamic = false;
+void SetOutputDynamic(const bool is_dynamic) {
+  g_output_dynamic = true;
+}
+
+aclTensorDesc g_output_dynamic_desc;
 aclTensorDesc *aclmdlGetDatasetTensorDesc(const aclmdlDataset *dataset, size_t index) {
+  if (g_output_dynamic) {
+    g_output_dynamic_desc.dataType = ACL_FLOAT;
+    int64_t dim = 2;
+    g_output_dynamic_desc.dims.emplace_back(dim);
+    return &g_output_dynamic_desc;
+  }
   return dataset->blobs[index].tensorDesc;
 }
 
@@ -662,7 +678,11 @@ aclDataType aclmdlGetOutputDataType(const aclmdlDesc *modelDesc, size_t index) {
 
 aclError aclmdlGetOutputDims(const aclmdlDesc *modelDesc, size_t index, aclmdlIODims *dims) {
   dims->dimCount = 1;
-  dims->dims[0] = 2;
+  if (g_output_dynamic) {
+    dims->dims[0] = -1;
+  } else {
+    dims->dims[0] = 2;
+  }
   return ACL_SUCCESS;
 }
 
@@ -673,6 +693,10 @@ aclError aclmdlGetCurOutputDims(const aclmdlDesc *modelDesc, size_t index, aclmd
 }
 
 aclError aclGetTensorDescDimV2(const aclTensorDesc *desc, size_t index, int64_t *dimSize) {
+  if (desc->dims.size() <= index) {
+    return ACL_ERROR_INVALID_PARAM;
+  }
+  *dimSize = desc->dims[index];
   return ACL_SUCCESS;
 }
 
