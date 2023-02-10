@@ -55,76 +55,72 @@ class NpuUnaryDataset(dataset_ops.UnaryDataset):
     def map(self,
             map_func,
             num_parallel_calls=None,
-            deterministic=None,
-            name=None):
+            deterministic=None):
         """Maps `map_func` across the elements of this dataset."""
 
         if self.check_output_device("map"):
             return super(NpuUnaryDataset, self).map(map_func,
                                                     num_parallel_calls=num_parallel_calls,
-                                                    deterministic=deterministic,
-                                                    name=name)
+                                                    deterministic=deterministic)
         else:
             return None
 
-    def concatenate(self, dataset, name=None):
+    def concatenate(self, dataset):
         if self.check_output_device("concatenate"):
-            return super(NpuUnaryDataset, self).concatenate(dataset, name=name)
+            return super(NpuUnaryDataset, self).concatenate(dataset)
         else:
             return None
 
-    def prefetch(self, buffer_size, name=None):
+    def prefetch(self, buffer_size):
         if self.check_output_device("prefetch"):
-            return super(NpuUnaryDataset, self).prefetch(buffer_size, name=name)
+            return super(NpuUnaryDataset, self).prefetch(buffer_size)
         else:
             return None
 
-    def repeat(self, count=None, name=None):
+    def repeat(self, count=None):
         if self.check_output_device("repeat"):
-            return super(NpuUnaryDataset, self).repeat(count=count, name=name)
+            return super(NpuUnaryDataset, self).repeat(count=count)
         else:
             return None
 
-    def enumerate(self, start=0, name=None):
+    def enumerate(self, start=0):
         if self.check_output_device("enumerate"):
-            return super(NpuUnaryDataset, self).enumerate(start=start, name=name)
+            return super(NpuUnaryDataset, self).enumerate(start=start)
         else:
             return None
 
     def shuffle(self,
                 buffer_size,
                 seed=None,
-                reshuffle_each_iteration=None,
-                name=None):
+                reshuffle_each_iteration=None):
         if self.check_output_device("shuffle"):
             return super(NpuUnaryDataset, self).shuffle(buffer_size,
                                                         seed=seed,
-                                                        reshuffle_each_iteration=reshuffle_each_iteration,
-                                                        name=name)
+                                                        reshuffle_each_iteration=reshuffle_each_iteration)
         else:
             return None
 
-    def cache(self, filename="", name=None):
+    def cache(self, filename=""):
         if self.check_output_device("cache"):
-            return super(NpuUnaryDataset, self).cache(filename=filename, name=name)
+            return super(NpuUnaryDataset, self).cache(filename=filename)
         else:
             return None
 
-    def take(self, count, name=None):
+    def take(self, count):
         if self.check_output_device("take"):
-            return super(NpuUnaryDataset, self).take(count, name=name)
+            return super(NpuUnaryDataset, self).take(count)
         else:
             return None
 
-    def skip(self, count, name=None):
+    def skip(self, count):
         if self.check_output_device("skip"):
-            return super(NpuUnaryDataset, self).skip(count, name=name)
+            return super(NpuUnaryDataset, self).skip(count)
         else:
             return None
 
-    def shard(self, num_shards, index, name=None):
+    def shard(self, num_shards, index):
         if self.check_output_device("shard"):
-            return super(NpuUnaryDataset, self).shard(num_shards, index, name=name)
+            return super(NpuUnaryDataset, self).shard(num_shards, index)
         else:
             return None
 
@@ -132,14 +128,12 @@ class NpuUnaryDataset(dataset_ops.UnaryDataset):
               batch_size,
               drop_remainder=False,
               num_parallel_calls=None,
-              deterministic=None,
-              name=None):
+              deterministic=None):
         if self.check_output_device("batch"):
             return super(NpuUnaryDataset, self).batch(batch_size,
                                                       drop_remainder=drop_remainder,
                                                       num_parallel_calls=num_parallel_calls,
-                                                      deterministic=deterministic,
-                                                      name=name)
+                                                      deterministic=deterministic)
         else:
             return None
 
@@ -147,20 +141,18 @@ class NpuUnaryDataset(dataset_ops.UnaryDataset):
                      batch_size,
                      padded_shapes=None,
                      padding_values=None,
-                     drop_remainder=False,
-                     name=None):
+                     drop_remainder=False):
         if self.check_output_device("padded_batch"):
             return super(NpuUnaryDataset, self).padded_batch(batch_size,
                                                              padded_shapes=padded_shapes,
                                                              padding_values=padding_values,
-                                                             drop_remainder=drop_remainder,
-                                                             name=name)
+                                                             drop_remainder=drop_remainder)
         else:
             return None
 
-    def flat_map(self, map_func, name=None):
+    def flat_map(self, map_func):
         if self.check_output_device("flat_map"):
-            return super(NpuUnaryDataset, self).flat_map(map_func, name=name)
+            return super(NpuUnaryDataset, self).flat_map(map_func)
         else:
             return None
 
@@ -168,20 +160,18 @@ class NpuUnaryDataset(dataset_ops.UnaryDataset):
                    map_func,
                    cycle_length=None,
                    block_length=None,
-                   deterministic=None,
-                   name=None):
+                   deterministic=None):
         if self.check_output_device("interleave"):
             return super(NpuUnaryDataset, self).interleave(map_func,
                                                            cycle_length=cycle_length,
                                                            block_length=block_length,
-                                                           deterministic=deterministic,
-                                                           name=name)
+                                                           deterministic=deterministic)
         else:
             return None
 
-    def filter(self, predicate, name=None):
+    def filter(self, predicate):
         if self.check_output_device("filter"):
-            return super(NpuUnaryDataset, self).filter(predicate, name=name)
+            return super(NpuUnaryDataset, self).filter(predicate)
         else:
             return None
 
@@ -191,25 +181,24 @@ class NpuUnaryDataset(dataset_ops.UnaryDataset):
         else:
             return None
 
-    def window(self, size, shift=None, stride=1, drop_remainder=False, name=None):
+    def window(self, size, shift=None, stride=1, drop_remainder=False):
         if self.check_output_device("window"):
             return super(NpuUnaryDataset, self).window(size,
                                                        shift=shift,
                                                        stride=stride,
-                                                       drop_remainder=drop_remainder,
-                                                       name=name)
+                                                       drop_remainder=drop_remainder)
         else:
             return None
 
-    def unbatch(self, name=None):
+    def unbatch(self):
         if self.check_output_device("unbatch"):
-            return super(NpuUnaryDataset, self).unbatch(name=name)
+            return super(NpuUnaryDataset, self).unbatch()
         else:
             return None
 
-    def with_options(self, options, name=None):
+    def with_options(self, options):
         if self.check_output_device("with_options"):
-            return super(NpuUnaryDataset, self).with_options(options, name=name)
+            return super(NpuUnaryDataset, self).with_options(options)
         else:
             return None
 
@@ -224,8 +213,7 @@ class MapDataset(NpuUnaryDataset):
                  deterministic=False,
                  output_device="cpu",
                  preserve_cardinality=False,
-                 use_legacy_function=False,
-                 name=None):
+                 use_legacy_function=False):
         """See `Dataset.map()` for details."""
         self._input_dataset = input_dataset
         self._output_device = output_device
@@ -238,7 +226,6 @@ class MapDataset(NpuUnaryDataset):
         self._preserve_cardinality = preserve_cardinality
         self._num_parallel_npu = ops.convert_to_tensor(
             num_parallel_npu, dtype=dtypes.int64, name="num_parallel_npu")
-        self._name = name
         variant_tensor = gen_npu_cpu_ops.npu_map_dataset(
             input_dataset._variant_tensor,  # pylint: disable=protected-access
             self._map_func.function.captured_inputs,

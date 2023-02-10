@@ -81,6 +81,7 @@ namespace {
 constexpr int64 kMicrosToMillis = 1000;
 constexpr int64_t kSleepUs = 10;
 constexpr int64_t kMaxBatchSize = 2;
+constexpr uint64_t kTFTensorAlignment = 64;
 constexpr char kParallelism[] = "parallelism";
 constexpr char kCallCounter[] = "call_counter";
 constexpr char kBatchResultsSize[] = "batch_results_size";
@@ -392,9 +393,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             output = nullptr;
           }
 
-          if (output_cpu != nullptr) {
-            delete[] output_cpu;
-            output_cpu = nullptr;
+          if (output_cpu_addr != nullptr) {
+            delete[] output_cpu_addr;
+            output_cpu_addr = nullptr;
           }
           ADP_LOG(EVENT) << "~BatchResultBase finish.";
         }
@@ -506,6 +507,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         uint8_t *output = nullptr;
         std::vector<uint8_t*> outputs;
 
+        uint8_t *output_cpu_addr = nullptr;
         uint8_t *output_cpu = nullptr;
         std::vector<uint8_t*> outputs_cpu;
         std::function<void(uint64_t, DataStatus, DataStatus)> act;
@@ -565,11 +567,19 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void InitBatchResultCpuMem(BatchResultBase &batch_result) {
-        batch_result.output_cpu = new (std::nothrow)uint8_t[batch_mem_size_];
+        batch_result.output_cpu_addr = new (std::nothrow)uint8_t[batch_mem_size_aligned_];
+        batch_result.output_cpu = batch_result.output_cpu_addr;
+
+        // reset start address for cpu memory when pass data to tensorflow
+        uint64_t offset = reinterpret_cast<uintptr_t>(batch_result.output_cpu_addr) % kTFTensorAlignment;
+        if (offset != 0UL) {
+          offset = kTFTensorAlignment - offset;
+          batch_result.output_cpu = batch_result.output_cpu_addr + offset;
+        }
         if (batch_result.output_cpu != nullptr) {
           batch_result.InitOutputs(batch_result.output_cpu, func_tensor_align_size_, batch_result.outputs_cpu);
         } else {
-          ADP_LOG(ERROR) << "InitBatchResultCpuMem, new [" << batch_mem_size_ << "], failed";
+          ADP_LOG(ERROR) << "InitBatchResultCpuMem, new [" << batch_mem_size_aligned_ << "], failed";
         }
       }
 
@@ -873,6 +883,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       std::vector<uint64_t> func_tensor_size_;
       std::vector<uint64_t> func_tensor_align_size_;
       uint64_t batch_mem_size_ = 0;
+
+      // batch_mem_size_aligned_ only for cpu output memory
+      uint64_t batch_mem_size_aligned_ = 0;
       DatasetFunction func_;
       uint32_t device_id_ = 0;
       int64_t thread_num_ GUARDED_BY(*mu_) = 0;
@@ -923,6 +936,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
                                 ", type = ", dataset()->output_types_[i]));
         uint64_t tensor_size = static_cast<uint64_t>(shape_size * type_size);
         func_tensor_size_.push_back(tensor_size);
+
+        // support address align
+        tensor_size = NpuAllocator::AlignSize(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
         DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, tensor_size),
             errors::Unavailable("batch_mem_size_ is too big, batch_mem_size_ = ",
@@ -932,7 +948,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(batch_mem_size_, dataset()->batch_size_),
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
               ", batch_size_ = ", dataset()->batch_size_));
+
+      // support address align
+      batch_mem_size_ += NpuAllocator::GetAlignment();
       batch_mem_size_ *= dataset()->batch_size_;
+      batch_mem_size_aligned_ = batch_mem_size_ + NpuAllocator::GetAlignment();
       ADP_LOG(INFO) << "BatchMem, batch_mem_size : " << batch_mem_size_;
 
       stream_pool_.reset(new (std::nothrow)StreamPool(GetParallelCallsNum(), static_cast<int>(kMaxTask)));
@@ -1083,7 +1103,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
    protected:
     uint8_t* GetStartAddr(BatchResultBase &batch_result) override {
-      if (batch_result.output_cpu == nullptr) {
+      if (batch_result.output_cpu_addr == nullptr) {
         InitBatchResultCpuMem(batch_result);
       }
 
@@ -1147,6 +1167,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         DATASET_REQUIRES(tensor_size != 0U, errors::Internal("Get tensor_size == 0."));
 
         func_tensor_size_.push_back(tensor_size);
+        // support address align
+        tensor_size = NpuAllocator::AlignSize(tensor_size);
         func_tensor_align_size_.push_back(tensor_size);
         DATASET_REQUIRES(!DatasetFunction::CheckAddOverflow(batch_mem_size_, tensor_size),
             errors::Unavailable("batch_mem_size_ is too big, batch_mem_size_ = ",
@@ -1161,7 +1183,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       DATASET_REQUIRES(!DatasetFunction::CheckMultiplyOverflow(batch_mem_size_, dataset()->batch_size_),
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
               ", batch_size_ = ", dataset()->batch_size_));
+
+      // support address align
+      batch_mem_size_ += NpuAllocator::GetAlignment();
       batch_mem_size_ *= dataset()->batch_size_;
+      batch_mem_size_aligned_ = batch_mem_size_ + NpuAllocator::GetAlignment();
       return Status::OK();
     }
 
@@ -1319,9 +1345,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     }
    protected:
     void CheckAndFreeCpuMem(BatchDynResult &batch_result) const {
-      if (batch_result.output_cpu != nullptr) {
-        delete[] batch_result.output_cpu;
-        batch_result.output_cpu = nullptr;
+      if (batch_result.output_cpu_addr != nullptr) {
+        delete[] batch_result.output_cpu_addr;
+        batch_result.output_cpu_addr = nullptr;
       }
     }
 
@@ -1332,19 +1358,19 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         return nullptr;
       }
 
-      if (batch_result.output_cpu == nullptr) {
+      if (batch_result.output_cpu_addr == nullptr) {
         InitBatchResultCpuMem(batch_result);
-        result.max_output_mem_size = batch_mem_size_;
+        result.max_output_mem_size = batch_mem_size_aligned_;
       }
 
-      if (batch_mem_size_ <= result.max_output_mem_size) {
+      if (batch_mem_size_aligned_ <= result.max_output_mem_size) {
         // reuse the device memory if needed
         batch_result.InitOutputs(batch_result.output_cpu, func_tensor_align_size_, batch_result.outputs_cpu);
       } else {
         // free old memory and then malloc new memory when we need bigger memory currently
         CheckAndFreeCpuMem(result);
         InitBatchResultCpuMem(batch_result);
-        result.max_output_mem_size = batch_mem_size_;
+        result.max_output_mem_size = batch_mem_size_aligned_;
       }
 
       if (batch_result.output_cpu != nullptr) {

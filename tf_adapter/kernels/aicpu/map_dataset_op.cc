@@ -75,6 +75,7 @@ constexpr const char* const
 namespace {
 constexpr int64 kMicrosToMillis = 1000;
 constexpr int64_t kSleepUs = 10;
+constexpr uint64_t kTFTensorAlignment = 64;
 constexpr char kParallelism[] = "parallelism";
 constexpr char kOutputResultsSize[] = "output_results_size";
 constexpr char kOutputResults[] = "output_results";
@@ -342,9 +343,9 @@ private:
           output = nullptr;
         }
 
-        if (output_cpu != nullptr) {
-          delete[] output_cpu;
-          output_cpu = nullptr;
+        if (output_cpu_addr != nullptr) {
+          delete[] output_cpu_addr;
+          output_cpu_addr = nullptr;
         }
         ADP_LOG(EVENT) << "~OutputResultBase finish.";
       }
@@ -373,6 +374,7 @@ private:
       uint8_t *output = nullptr;
       std::vector<uint8_t*> outputs;
 
+      uint8_t *output_cpu_addr = nullptr;
       uint8_t *output_cpu = nullptr;
       std::vector<uint8_t*> outputs_cpu;
     }; // class OutputResultBase
@@ -424,7 +426,15 @@ private:
     }
 
     void InitOutputResultCpuMem(OutputResultBase &output_result) {
-      output_result.output_cpu = new (std::nothrow)uint8_t[output_mem_size_];
+      output_result.output_cpu_addr = new (std::nothrow)uint8_t[output_mem_size_aligned_];
+      output_result.output_cpu = output_result.output_cpu_addr;
+
+      // reset start address for cpu memory when pass data to tensorflow
+      uint64_t offset = reinterpret_cast<uintptr_t>(output_result.output_cpu_addr) % kTFTensorAlignment;
+      if (offset != 0UL) {
+        offset = kTFTensorAlignment - offset;
+        output_result.output_cpu = output_result.output_cpu_addr + offset;
+      }
       if (output_result.output_cpu != nullptr) {
         output_result.InitOutputs(output_result.output_cpu, func_tensor_align_size_, output_result.outputs_cpu);
       }
@@ -730,7 +740,9 @@ private:
     std::vector<uint64_t> func_tensor_size_;
     std::vector<uint64_t> func_tensor_align_size_;
     uint64_t output_mem_size_ = 0;
-    uint64_t max_output_mem_size_ = 0;
+
+    // output_mem_size_aligned_ only for cpu output memory
+    uint64_t output_mem_size_aligned_ = 0;
     uint64_t thread_num_ = 0;
     uint32_t device_id_ = 0;
     std::shared_ptr<TimeStatistic> timestat = nullptr;
@@ -784,6 +796,7 @@ private:
 
       // support address align
       output_mem_size_ += NpuAllocator::GetAlignment();
+      output_mem_size_aligned_ = output_mem_size_ + NpuAllocator::GetAlignment();
 
       stream_pool_.reset(new (std::nothrow)StreamPool(GetParallelCallsNum(), kMaxTask));
       DATASET_REQUIRES(stream_pool_ != nullptr, errors::Unavailable("create stream pool failed."));
@@ -937,7 +950,7 @@ private:
 
   protected:
     uint8_t* GetStartAddr(OutputResultBase &output_result) override {
-      if (output_result.output_cpu == nullptr) {
+      if (output_result.output_cpu_addr == nullptr) {
         InitOutputResultCpuMem(output_result);
       }
 
@@ -1008,6 +1021,7 @@ private:
         func_output_shape_.emplace_back(std::move(dims));
       }
       output_mem_size_ += NpuAllocator::GetAlignment();
+      output_mem_size_aligned_ = output_mem_size_ + NpuAllocator::GetAlignment();
       return Status::OK();
     }
 
@@ -1098,17 +1112,17 @@ private:
 
       if (output_result.output == nullptr) {
         InitOutputResultNpuMem(output_result);
-        result.max_output_mem_size = output_mem_size_;
+        result.max_output_mem_size = output_mem_size_aligned_;
       }
 
-      if (output_mem_size_ <= result.max_output_mem_size) {
+      if (output_mem_size_aligned_ <= result.max_output_mem_size) {
         // reuse the device memory if needed
         output_result.InitOutputs(output_result.output, func_tensor_align_size_, output_result.outputs);
       } else {
         // free old memory and then malloc new memory when we need bigger memory currently
         CheckAndFreeNpuMem(result);
         (void)InitOutputResultNpuMem(output_result);
-        result.max_output_mem_size = output_mem_size_;
+        result.max_output_mem_size = output_mem_size_aligned_;
       }
 
       if (output_result.output != nullptr) {
@@ -1164,9 +1178,9 @@ private:
 
   protected:
     void CheckAndFreeCpuMem(OutputDynResult &output_result) const {
-      if (output_result.output_cpu != nullptr) {
-        delete[] output_result.output_cpu;
-        output_result.output_cpu = nullptr;
+      if (output_result.output_cpu_addr != nullptr) {
+        delete[] output_result.output_cpu_addr;
+        output_result.output_cpu_addr = nullptr;
       }
     }
 
@@ -1177,19 +1191,19 @@ private:
         return nullptr;
       }
 
-      if (output_result.output_cpu == nullptr) {
+      if (output_result.output_cpu_addr == nullptr) {
         InitOutputResultCpuMem(output_result);
-        result.max_output_mem_size = output_mem_size_;
+        result.max_output_mem_size = output_mem_size_aligned_;
       }
 
-      if (output_mem_size_ <= result.max_output_mem_size) {
+      if (output_mem_size_aligned_ <= result.max_output_mem_size) {
         // reuse the device memory if needed
         output_result.InitOutputs(output_result.output_cpu, func_tensor_align_size_, output_result.outputs_cpu);
       } else {
         // free old memory and then malloc new memory when we need bigger memory currently
         CheckAndFreeCpuMem(result);
         InitOutputResultCpuMem(output_result);
-        result.max_output_mem_size = output_mem_size_;
+        result.max_output_mem_size = output_mem_size_aligned_;
       }
 
       if (output_result.output_cpu != nullptr) {
