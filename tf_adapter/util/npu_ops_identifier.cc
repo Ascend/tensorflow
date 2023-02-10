@@ -33,6 +33,7 @@ const static std::string kOpsInfoJsonV01 = "/framework/built-in/tensorflow/npu_s
 const static std::string kOpsInfoJsonV02 = "/built-in/framework/tensorflow/npu_supported_ops.json";
 const static std::string kCustomOpsInfoJsonV01 = "/framework/custom/tensorflow/npu_supported_ops.json";
 const static std::string kCustomOpsInfoJsonV02 = "/vendors/%s/framework/tensorflow/npu_supported_ops.json";
+const static std::string kCustomOpsInfoJsonV03 = "/framework/tensorflow/npu_supported_ops.json";
 const size_t kVendorConfigPartsCount = 2U;
 const static std::string kGray = "isGray";
 const static std::string kHeavy = "isHeavy";
@@ -80,6 +81,36 @@ bool NpuOpsIdentifier::IsNewOppPathStruct(const std::string &opp_path) {
   return mmIsDir((opp_path + "/built-in").c_str()) == EN_OK;
 }
 
+void NpuOpsIdentifier::GetCustomOpPathFromCustomOppPath(std::vector<std::string> &custom_ops_json_path_vec) {
+  ADP_LOG(INFO) << "Start to get custom ops json path from ASCEND_CUSTOM_OPP_PATH schedule.";
+  custom_ops_json_path_vec.clear();
+  const char *const custom_opp_path_env = std::getenv("ASCEND_CUSTOM_OPP_PATH");
+  if (custom_opp_path_env == nullptr) {
+    ADP_LOG(INFO) << "env ASCEND_CUSTOM_OPP_PATH is not defined.";
+    return;
+  }
+  const std::string custom_opp_path = custom_opp_path_env;
+  if (custom_opp_path.empty()) {
+    ADP_LOG(WARNING) << "env ASCEND_CUSTOM_OPP_PATH is defined but it's empty.";
+    return;
+  }
+  ADP_LOG(INFO) << "value of env ASCEND_CUSTOM_OPP_PATH is " << custom_opp_path << ".";
+  std::vector<std::string> custom_paths = ge::StringUtils::Split(custom_opp_path, ':');
+  for (const auto &custom_path : custom_paths) {
+    if ((!custom_path.empty()) && (mmIsDir(custom_path.c_str()) == EN_OK)) {
+      custom_ops_json_path_vec.push_back(custom_path + kCustomOpsInfoJsonV03);
+      ADP_LOG(INFO) << "custom_path '" << custom_path << "' is valid.";
+    } else {
+      ADP_LOG(INFO) << "custom_path '" << custom_path << "' is invalid, which is skipped.";
+    }
+  }
+  std::string json_paths;
+  for (const auto &path : custom_ops_json_path_vec) {
+    json_paths += (json_paths.empty() ? "" : ":") + path;
+  }
+  ADP_LOG(INFO) << "Run GetCustomOpPathFromCustomOppPath finished, current json path vec is " << json_paths << ".";
+}
+
 bool NpuOpsIdentifier::GetCustomOpPath(const std::string &ops_path, std::string &ops_json_path,
                                        std::vector<std::string> &custom_ops_json_path_vec) {
   if (!IsNewOppPathStruct(ops_path)) {
@@ -88,6 +119,7 @@ bool NpuOpsIdentifier::GetCustomOpPath(const std::string &ops_path, std::string 
     return true;
   }
   ops_json_path = ops_path + kOpsInfoJsonV02;
+  GetCustomOpPathFromCustomOppPath(custom_ops_json_path_vec);
   std::vector<std::string> vendors;
   if (!GetOppPluginVendors(ops_path + "/vendors/config.ini", vendors)) {
     ADP_LOG(INFO) << "Can not get opp plugin vendors!";

@@ -304,7 +304,7 @@ Status ModelProcess::ProcessDynamicOutput(const size_t index, const tensorflow::
       << shape_size << " dt is " << tf_type;
   int64_t cur_dim = 0;
   for (size_t j = 0U; j < shape_size; ++j) {
-    REQUIRES_ACL_STATUS_OK(aclGetTensorDescDimV2(desc, index, &cur_dim), aclGetTensorDescDimV2);
+    REQUIRES_ACL_STATUS_OK(aclGetTensorDescDimV2(desc, j, &cur_dim), aclGetTensorDescDimV2);
     tf_shape.AddDim(cur_dim);
   }
   Tensor tensor = Tensor(tf_type, tf_shape);

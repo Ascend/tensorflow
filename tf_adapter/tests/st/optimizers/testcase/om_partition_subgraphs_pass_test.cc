@@ -215,7 +215,7 @@ TEST_F(OmOptimizationPassTest, StringInputMaxSizeTest) {
 TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest01) {
   SetLogLevelForC(0);
   std::string opp_path = __FILE__;
-  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1);
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
   setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
   std::string path_builtin = opp_path + "built-in";
   std::string path_vendors = opp_path + "vendors";
@@ -230,11 +230,12 @@ TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest01) {
   EXPECT_EQ(vendors[1], "mdc");
   EXPECT_EQ(vendors[2], "lhisi");
   ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
 }
 TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest02) {
   SetLogLevelForC(0);
   std::string opp_path = __FILE__;
-  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1);
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
   setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
   std::string path_builtin = opp_path + "built-in";
   std::string path_vendors = opp_path + "vendors";
@@ -247,11 +248,12 @@ TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest02) {
   EXPECT_NE(instance, nullptr);
   delete instance;
   ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
 }
 TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest03) {
   SetLogLevelForC(0);
   std::string opp_path = __FILE__;
-  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1);
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
   setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
   std::string path_builtin = opp_path + "built-in";
   std::string path_vendors = opp_path + "vendors";
@@ -264,6 +266,72 @@ TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest03) {
   EXPECT_NE(instance, nullptr);
   delete instance;
   ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
+}
+TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest04) {
+  SetLogLevelForC(0);
+  std::string opp_path = __FILE__;
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
+  std::string custom_opp_path = opp_path + "custom_opp_path";
+  setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
+  setenv("ASCEND_CUSTOM_OPP_PATH", custom_opp_path.c_str(), 1);
+  std::string path_builtin = opp_path + "built-in";
+  std::string path_vendors = opp_path + "vendors";
+  std::string path_config = path_vendors + "/config.ini";
+  system(("mkdir -p " + path_builtin).c_str());
+  system(("mkdir -p " + path_vendors).c_str());
+  system(("echo 'load_priority=customize,mdc,lhisi' > " + path_config).c_str());
+  system(("mkdir -p " + custom_opp_path).c_str());
+  nlohmann::json allJson;
+  NpuOpsIdentifier *instance = new NpuOpsIdentifier(false, allJson);
+  EXPECT_NE(instance, nullptr);
+  delete instance;
+  ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
+}
+TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest05) {
+  SetLogLevelForC(0);
+  std::string opp_path = __FILE__;
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
+  std::string custom_opp_path = opp_path + "custom_opp_path";
+  setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
+  setenv("ASCEND_CUSTOM_OPP_PATH", "", 1);
+  std::string path_builtin = opp_path + "built-in";
+  std::string path_vendors = opp_path + "vendors";
+  std::string path_config = path_vendors + "/config.ini";
+  system(("mkdir -p " + path_builtin).c_str());
+  system(("mkdir -p " + path_vendors).c_str());
+  system(("echo 'load_priority=customize,mdc,lhisi' > " + path_config).c_str());
+  system(("mkdir -p " + custom_opp_path).c_str());
+  nlohmann::json allJson;
+  NpuOpsIdentifier *instance = new NpuOpsIdentifier(false, allJson);
+  EXPECT_NE(instance, nullptr);
+  delete instance;
+  ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
+}
+TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest06) {
+  SetLogLevelForC(0);
+  std::string opp_path = __FILE__;
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
+  std::string custom_opp_path_01 = opp_path + "custom_opp_path_01";
+  std::string custom_opp_path_02 = opp_path + "custom_opp_path_02";
+  setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
+  setenv("ASCEND_CUSTOM_OPP_PATH", (custom_opp_path_01 + ":" + custom_opp_path_02).c_str(), 1);
+  std::string path_builtin = opp_path + "built-in";
+  std::string path_vendors = opp_path + "vendors";
+  std::string path_config = path_vendors + "/config.ini";
+  system(("mkdir -p " + path_builtin).c_str());
+  system(("mkdir -p " + path_vendors).c_str());
+  system(("echo 'load_priority=customize,mdc,lhisi' > " + path_config).c_str());
+  system(("mkdir -p " + custom_opp_path_01).c_str());
+  system(("mkdir -p " + custom_opp_path_02).c_str());
+  nlohmann::json allJson;
+  NpuOpsIdentifier *instance = new NpuOpsIdentifier(false, allJson);
+  EXPECT_NE(instance, nullptr);
+  delete instance;
+  ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
 }
 } // end namespace
 } // end tensorflow
