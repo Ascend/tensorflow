@@ -205,6 +205,14 @@ TEST_F(ST_NpuDevice, eager_add_op) {
     .RunExpectStatus(TF_OK);
 }
 
+TEST_F(ST_NpuDevice, eager_identity_op) {
+  EagerOpBuilder()
+    .Op("Identity")
+    .Input(CreateCpuHandle(tensorflow::TensorShape{1}, std::vector<float>{1.0}))
+    .NumOutputs(1)
+    .RunExpectStatus(TF_OK);
+}
+
 TEST_F(ST_NpuDevice, eager_unknown_shape_where_op) {
   EagerOpBuilder()
     .Op("Where")
