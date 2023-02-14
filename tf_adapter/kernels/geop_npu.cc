@@ -812,11 +812,14 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
 
+    std::map<std::string, std::string> const_value_map;
+    std::vector<std::string> partition_graph;
+    OP_REQUIRES_OK_ASYNC(ctx, SeparateGraphDef(ori_graph_def, partition_graph, const_value_map), done);
     auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
       return this->BuildSubGraph(flib_def, graph);
     };
     ge::Status status =
-        model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(), build_sub_graph, compute_graph);
+        model_parser->ParseProtoWithSubgraph(partition_graph, const_value_map, build_sub_graph, compute_graph);
     if (status != ge::SUCCESS) {
       std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
@@ -1320,6 +1323,34 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
     }
     graph.ToGraphDef(&graph_def);
   }
+  return Status::OK();
+}
+
+Status GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
+                              std::vector<std::string> &partition_graph,
+                              std::map<std::string, std::string> &const_value_map) {
+  std::string graph_def_str = ori_graph_def.SerializeAsString();
+  if (!graph_def_str.empty()) {
+    partition_graph.push_back(graph_def_str);
+    return Status::OK();
+  }
+  LOG(INFO) << "GraphDef is beyond 2G, which is need separate";
+  for (NodeDef &node : *ori_graph_def.mutable_node()) {
+    if (node.op() == "Const") {
+      std::string node_name = node.name();
+      auto iter = node.mutable_attr()->find("value");
+      if (iter == node.mutable_attr()->end()) {
+        ADP_LOG(ERROR) << "Const node: " << node_name << " don't have value attribute";
+        return errors::InvalidArgument("Const node don't have value attribute");
+      }
+      TensorProto *tensor = iter->second.mutable_tensor();
+      std::string tensor_content = tensor->tensor_content();
+      const_value_map.insert({node_name, tensor_content});
+      tensor->set_tensor_content("");
+    }
+  }
+  graph_def_str = ori_graph_def.SerializeAsString();
+  partition_graph.push_back(graph_def_str);
   return Status::OK();
 }
 

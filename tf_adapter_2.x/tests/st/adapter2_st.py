@@ -541,6 +541,11 @@ class Adapter2St_EnvGeStaticMemory(unittest.TestCase):
     def test_op_in_static_memory(self):
         self.assertEqual(tf.add(1, 1), tf.constant(2))
 
+    def test_big_model(self):
+        @tf.function
+        def run_fill():
+            return [tf.fill([1024, 1024], i) for i in range(1024)]
+        run_fill()
 
 if __name__ == '__main__':
     unittest.main()

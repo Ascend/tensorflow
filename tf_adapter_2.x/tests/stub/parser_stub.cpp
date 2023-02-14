@@ -80,8 +80,36 @@ ge::DataType ModelParser::ConvertToGeDataType(const uint32_t type) {
 
 Status ModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto, GetGraphCallbackV2 callback,
                                            ge::ComputeGraphPtr &graph) {
+  std::vector<std::string> partitioned_serialized{serialized_proto};
+  std::map<std::string, std::string> const_value_map;
+  return ParseProtoWithSubgraph(partitioned_serialized, const_value_map, callback, graph);
+}
+
+Status ModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
+                                           const std::map<std::string, std::string> &const_value_map,
+                                           GetGraphCallbackV2 callback,
+                                           ge::ComputeGraphPtr &graph) {
+  std::string graph_def_str = partitioned_serialized[0];
   tensorflow::GraphDef graph_def;
-  graph_def.ParseFromString(serialized_proto);
+  graph_def.ParseFromString(graph_def_str);
+
+  if (!const_value_map.empty()) {
+    for (auto &node : *graph_def.mutable_node()) {
+      if (node.op() == "Const") {
+        std::string node_name = node.name();
+        auto iter = const_value_map.find(node_name);
+        if (iter == const_value_map.end()) {
+          return ge::FAILED;
+        }
+        auto attr_iter = node.mutable_attr()->find("value");
+        if (attr_iter == node.mutable_attr()->end()) {
+          return ge::FAILED;
+        }
+        tensorflow::TensorProto *tensor = attr_iter->second.mutable_tensor();
+        tensor->set_tensor_content(iter->second);
+      }
+    }
+  }
   graph->graph = std::make_shared<tensorflow::Graph>(tensorflow::OpRegistry::Global());
   tensorflow::GraphConstructorOptions opts;
   opts.allow_internal_ops = true;

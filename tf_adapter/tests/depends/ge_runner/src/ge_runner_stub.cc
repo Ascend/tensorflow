@@ -112,6 +112,11 @@ class TensorFlowModelParser : public domi::ModelParser {
   Status ParseProtoWithSubgraph(const std::string &serialized_proto, domi::GetGraphCallbackV2 callback,
                                 ge::ComputeGraphPtr &graph) override;
 
+  Status ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
+                                const std::map<std::string, std::string> &const_value_map,
+                                domi::GetGraphCallbackV2 callback,
+                                ge::ComputeGraphPtr &graph) override;
+
   ge::DataType ConvertToGeDataType(const uint32_t type) override;
 
   Status ParseAllGraph(const google::protobuf::Message *root_proto, ge::ComputeGraphPtr &root_graph) override ;
@@ -134,6 +139,15 @@ Status TensorFlowModelParser::ToJson(const char *model_file, const char *json_fi
 Status TensorFlowModelParser::ParseProto(const google::protobuf::Message *proto, ge::ComputeGraphPtr &graph) { return ge::SUCCESS; }
 
 Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto,
+                                                     domi::GetGraphCallbackV2 callback,
+                                                     ge::ComputeGraphPtr &graph) {
+  std::vector<std::string> partitioned_serialized{serialized_proto};
+  std::map<std::string, std::string> const_value_map;
+  return ParseProtoWithSubgraph(partitioned_serialized, const_value_map, callback, graph);
+}
+
+Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
+                                                     const std::map<std::string, std::string> &const_value_map,
                                                      domi::GetGraphCallbackV2 callback,
                                                      ge::ComputeGraphPtr &graph) {
   callback("finall_branch1_Y3CNZMF9Vv8");
