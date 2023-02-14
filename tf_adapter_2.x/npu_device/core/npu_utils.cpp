@@ -509,6 +509,34 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::un
   tensorflow::OptimizeGraph(&lib, g, options);
 }
 
+tensorflow::Status SeparateGraphDef(tensorflow::GraphDef *def,
+                                    std::vector<std::string> &partition_graph,
+                                    std::map<std::string, std::string> &const_value_map) {
+  std::string def_str = def->SerializeAsString();
+  if (!def_str.empty()) {
+    partition_graph.push_back(def_str);
+    return tensorflow::Status::OK();
+  }
+  LOG(INFO) << "GraphDef is beyond 2G, which is need separate";
+  for (tensorflow::NodeDef &node : *def->mutable_node()) {
+    if (node.op() == "Const") {
+      std::string node_name = node.name();
+      auto iter = node.mutable_attr()->find("value");
+      if (iter == node.mutable_attr()->end()) {
+        LOG(ERROR) << "Const node: " << node_name << " don't have value attribute";
+        return tensorflow::errors::Internal("Const node don't have value attribute");
+      }
+      tensorflow::TensorProto *tensor = iter->second.mutable_tensor();
+      std::string tensor_content = tensor->tensor_content();
+      const_value_map.insert({node_name, tensor_content});
+      tensor->set_tensor_content("");
+    }
+  }
+  def_str = def->SerializeAsString();
+  partition_graph.push_back(def_str);
+  return tensorflow::Status::OK();
+}
+
 tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size) {
   size_t copy_size = 0UL;
   size_t org_src_size = src_size;

@@ -62,7 +62,9 @@ private:
   // Build GraphDef from FunctionDef.
   Status BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vector<Tensor> &input_vec,
                        GraphDef &graph_def, bool &is_initialize, bool &is_allreduce);
-
+  Status SeparateGraphDef(GraphDef &ori_graph_def,
+                          std::vector<std::string> &partition_graph,
+                          std::map<std::string, std::string> &const_value_map);
   // Analyze sting input data
   Status AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::string *string_vector) const;
 

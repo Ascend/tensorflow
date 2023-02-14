@@ -22,6 +22,7 @@
 
 #include "npu_device_register.h"
 #include "npu_env.h"
+#include "npu_utils.h"
 #include "npu_hdc.h"
 #include "npu_managed_buffer.h"
 #include "npu_tensor.h"
@@ -239,6 +240,37 @@ TEST_F(ST_NpuDevice, eager_iterator_v2_op) {
     .Input(dataset_result->Get(0))
     .Input(iterator_result->Get(0))
     .RunExpectStatus(TF_OK);
+}
+
+TEST(NpuUtils, SeparateGraphDef) {
+  tensorflow::GraphDef graph_def;
+  std::map<std::string, std::string> const_value_map;
+  std::vector<std::string> partition_graph;
+  tensorflow::NodeDef *node_def = graph_def.add_node();
+  node_def->set_op("Const");
+  node_def->set_name("ConstOp");
+  EXPECT_EQ(npu::SeparateGraphDef(&graph_def, partition_graph, const_value_map).ok(), true);
+  auto attr = node_def->mutable_attr();
+  std::string tensor_content = "abcdefe";
+  tensorflow::AttrValue value_attr;
+  tensorflow::TensorProto *tensor = value_attr.mutable_tensor();
+  tensor->set_tensor_content(tensor_content);
+  attr->insert({"value", value_attr});
+  EXPECT_EQ(npu::SeparateGraphDef(&graph_def, partition_graph, const_value_map).ok(), true);
+  tensorflow::NodeDef *node_def2 = graph_def.add_node();
+  node_def2->set_op("Const");
+  node_def2->set_name("ConstOp2");
+  auto attr2 = node_def2->mutable_attr();
+  for (int j = 0; j < 3; j++) {
+    for (int64_t i = 0; i < 1024*1024*1024; i++) {
+      tensor_content.append("a");
+    }
+  }
+  tensorflow::AttrValue value_attr2;
+  tensorflow::TensorProto *tensor2 = value_attr2.mutable_tensor();
+  tensor2->set_tensor_content(tensor_content);
+  attr2->insert({"value", value_attr2});
+  EXPECT_EQ(npu::SeparateGraphDef(&graph_def, partition_graph, const_value_map).ok(), true);
 }
 
 TEST(NpuManagedBuffer, Assemble) {

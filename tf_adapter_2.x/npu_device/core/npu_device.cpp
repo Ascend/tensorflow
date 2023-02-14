@@ -110,7 +110,6 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   tensorflow::FunctionLibraryRuntime *flr = pflr->GetFLR(underlying_device);
   tensorflow::FunctionLibraryRuntime::Handle f_handle;
   NPU_CTX_REQUIRES_OK(status, flr->Instantiate(dp_provider.signature().name(), tensorflow::AttrSlice{}, &f_handle));
-
   auto consume_func = [flr, f_handle, cancel_manager](tensorflow::Tensor tensor, int64_t nums) -> tensorflow::Status {
     std::vector<tensorflow::Tensor> get_next_outputs;
     tensorflow::FunctionLibraryRuntime::Options options;
@@ -978,8 +977,11 @@ tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const s
     return graph->ToGraphDefDebug().SerializeAsString();
   };
 
+  std::map<std::string, std::string> const_value_map;
+  std::vector<std::string> partition_graph;
+  NPU_REQUIRES_OK(SeparateGraphDef(const_cast<tensorflow::GraphDef *>(&def), partition_graph, const_value_map));
   NPU_REQUIRES(
-    parser->ParseProtoWithSubgraph(def.SerializeAsString(), request_subgraph, ge_compute_graph) == ge::SUCCESS,
+    parser->ParseProtoWithSubgraph(partition_graph, const_value_map, request_subgraph, ge_compute_graph) == ge::SUCCESS,
     tensorflow::errors::Internal("NPU Parse tensorflow model failed"));
 
   if (ge_compute_graph->GetAllNodesSize() != 0) {

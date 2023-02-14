@@ -145,6 +145,38 @@ class GE_FUNC_VISIBILITY ModelParser {
                                         ge::ComputeGraphPtr &graph) {
     return UNSUPPORTED;
   }
+
+  /**
+   * @ingroup domi_omg
+   * @brief Analyze callback model data in subgraph
+   * @param [in] partitioned_serialized partitioned serialized network model
+   * @param [in] const_value_map const value map, key: constant node name value: serialized constant output tensor
+   * @param [in] callback callback of subgraph
+   * @param [in|out] graph Save the network information after analysis
+   * @return SUCCESS
+   * @return Others failed
+   */
+  virtual Status ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
+                                        const std::map<std::string, std::string> &const_value_map,
+                                        GetGraphCallbackV2 callback,
+                                        ge::ComputeGraphPtr &graph) {
+    return UNSUPPORTED;
+  }
+
+  /**
+   * @ingroup domi_omg
+   * @brief Analyze network model data
+   * @param [in] partitioned_serialized partitioned serialized network model
+   * @param [in] const_value_map const value map, key: constant node name value: serialized constant output tensor
+   * @param [in|out]  graph Save the network information after analysis
+   * @return SUCCESS
+   * @return Others failed
+   */
+  virtual Status ParseProto(const std::vector<std::string> &partitioned_serialized,
+                            const std::map<std::string, std::string> &const_value_map,
+                            ge::ComputeGraphPtr &graph) {
+    return UNSUPPORTED;
+  }
 };
 }  // namespace domi
 
