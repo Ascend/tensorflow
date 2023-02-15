@@ -30,6 +30,7 @@
 #include "mmpa/mmpa_api.h"
 #include "tf_adapter/util/ge_plugin.h"
 #include "ge/ge_api.h"
+#include "tf_adapter_2.x/npu_device/core/npu_micros.h"
 namespace tensorflow {
 namespace {
   bool kIsNewDataTransfer = true;
@@ -726,7 +727,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
         if (dynamic_input) {
           if (params.count("dynamic_graph_execute_mode") > 0) {
             dynamic_graph_execute_mode = params.at("dynamic_graph_execute_mode").s();
-            if (dynamic_graph_execute_mode != "lazy_recompile" && dynamic_graph_execute_mode != "dynamic_execute") {
+            if ((dynamic_graph_execute_mode != "lazy_recompile") && (dynamic_graph_execute_mode != "dynamic_execute")) {
               ADP_LOG(ERROR) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
               LOG(FATAL) << "dynamic_graph_execute_mode should be lazy_recompile or dynamic_execute.";
             }
@@ -1733,6 +1734,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("precision_mode") > 0) {
         precision_mode = params.at("precision_mode").s();
+        const static std::vector<std::string> kPrecisionModeList = {"force_fp32",          "allow_fp32_to_fp16",
+                                                                    "force_fp16",          "must_keep_origin_dtype",
+                                                                    "allow_mix_precision", "cube_fp16in_fp32out"};
+        NPU_REQUIRES_OK(CheckValueAllowed<std::string>(precision_mode, kPrecisionModeList));
       } else {
         if (static_cast<bool>(graph_run_mode)) {
           precision_mode = "allow_fp32_to_fp16";
@@ -1864,7 +1869,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("buffer_optimize") > 0) {
         buffer_optimize = params.at("buffer_optimize").s();
-        if (buffer_optimize != "l2_optimize" && buffer_optimize != "off_optimize") {
+        if ((buffer_optimize != "l2_optimize") && (buffer_optimize != "off_optimize")) {
           ADP_LOG(FATAL) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
           LOG(FATAL) << "buffer_optimize is valid, should be one of [l2_optimize, off_optimize]";
         }
@@ -1881,7 +1886,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("fusion_switch_file") > 0) {
         fusion_switch_file = params.at("fusion_switch_file").s();
       }
-      if (params.count("enable_compress_weight") > 0 && params.count("compress_weight_conf") > 0) {
+      if ((params.count("enable_compress_weight") > 0) && (params.count("compress_weight_conf") > 0)) {
         ADP_LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
         LOG(FATAL) << "enable_compress_weight can not use with compress_weight_conf.";
       }

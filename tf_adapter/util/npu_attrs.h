@@ -17,6 +17,9 @@
 #ifndef TENSORFLOW_NPU_ATTRS_H_
 #define TENSORFLOW_NPU_ATTRS_H_
 
+#include <vector>
+#include <sstream>
+#include <algorithm>
 #include <map>
 #include <string>
 #include "ge/ge_api_types.h"
@@ -58,6 +61,32 @@ class NpuAttrs {
   static bool GetNewDataTransferFlag();
   // only use for ut/st
   static void SetNewDataTransferFlag(bool flag);
+  template<typename T>
+  static std::string VectorToString(const std::vector<T> &values) {
+    std::stringstream ss;
+    ss << '[';
+    const auto size = values.size();
+    for (size_t i = 0U; i < size; ++i) {
+      ss << values[i];
+      if (i != (size - 1U)) {
+        ss << ", ";
+      }
+    }
+    ss << ']';
+    return ss.str();
+  }
+  template<typename T>
+  static Status CheckValueAllowed(const T &v, const std::vector<T> &allowed_values) {
+    if (find(allowed_values.begin(), allowed_values.end(), v) != allowed_values.cend()) {
+      return Status::OK();
+    } else {
+      std::stringstream ss;
+      ss << v << " is invalid, it should be one of the list:";
+      ss << VectorToString(allowed_values);
+      return errors::InvalidArgument(ss.str());
+    }
+  }
+
  private:
   static bool CheckIsNewDataTransfer();
   static std::map<int32_t, bool> turn_on_tdt_info_;
