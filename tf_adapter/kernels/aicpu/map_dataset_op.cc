@@ -346,6 +346,7 @@ private:
         if (output_cpu_addr != nullptr) {
           delete[] output_cpu_addr;
           output_cpu_addr = nullptr;
+          output_cpu = nullptr;
         }
         ADP_LOG(EVENT) << "~OutputResultBase finish.";
       }
@@ -430,7 +431,8 @@ private:
       output_result.output_cpu = output_result.output_cpu_addr;
 
       // reset start address for cpu memory when pass data to tensorflow
-      uint64_t offset = reinterpret_cast<uintptr_t>(output_result.output_cpu_addr) % kTFTensorAlignment;
+      uint64_t offset = reinterpret_cast<uint64_t>(reinterpret_cast<uintptr_t>(output_result.output_cpu_addr))
+                        % kTFTensorAlignment;
       if (offset != 0UL) {
         offset = kTFTensorAlignment - offset;
         output_result.output_cpu = output_result.output_cpu_addr + offset;

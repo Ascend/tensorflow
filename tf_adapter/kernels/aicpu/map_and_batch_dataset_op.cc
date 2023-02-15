@@ -396,6 +396,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           if (output_cpu_addr != nullptr) {
             delete[] output_cpu_addr;
             output_cpu_addr = nullptr;
+            output_cpu = nullptr;
           }
           ADP_LOG(EVENT) << "~BatchResultBase finish.";
         }
@@ -571,7 +572,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         batch_result.output_cpu = batch_result.output_cpu_addr;
 
         // reset start address for cpu memory when pass data to tensorflow
-        uint64_t offset = reinterpret_cast<uintptr_t>(batch_result.output_cpu_addr) % kTFTensorAlignment;
+        uint64_t offset = reinterpret_cast<uint64_t>(reinterpret_cast<uintptr_t>(batch_result.output_cpu_addr))
+                          % kTFTensorAlignment;
         if (offset != 0UL) {
           offset = kTFTensorAlignment - offset;
           batch_result.output_cpu = batch_result.output_cpu_addr + offset;
