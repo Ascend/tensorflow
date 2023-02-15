@@ -29,6 +29,7 @@
 #include "op_executors/npu_unsupported_op.h"
 
 namespace npu {
+const static std::set<std::string> kAlwaysFallbackOps = {"Identity"};
 std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *device, const tensorflow::NodeDef &ndef,
                                                int num_inputs, TFE_TensorHandle **inputs, TF_Status *s) {
   tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
@@ -73,6 +74,10 @@ std::shared_ptr<OpExecutor> OpExecutor::Create(TFE_Context *context, NpuDevice *
 
   if (!device->Supported(op_name)) {
     return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, "Op unsupported by NPU");
+  }
+
+  if (kAlwaysFallbackOps.count(op_name) > 0U) {
+    return std::make_shared<NpuUnsupportedOp>(op_reg_data, ndef, input_shapes, "Op always fallback by NPU");
   }
 
   for (auto type : input_types) {
