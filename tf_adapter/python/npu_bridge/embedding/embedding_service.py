@@ -27,6 +27,8 @@ from npu_bridge.npu_cpu.npu_cpu_ops import gen_npu_cpu_ops
 from npu_bridge.embedding.embedding_resource import NpuEmbeddingResource
 from npu_bridge.embedding import embedding_optimizer
 
+_INT32_MAX_VALUE = 2147483647
+
 
 @contextlib.contextmanager
 def specified_ps_engine_scope():
@@ -70,6 +72,8 @@ class ESWorker:
         self._optimizer = None
         self.slot_vars_num = None
         self._initializer = None
+        self._init_flag = False
+        self._table_has_init = []
         config = tf.ConfigProto()
         custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
         custom_op.name = "NpuOptimizer"
@@ -89,14 +93,28 @@ class ESWorker:
     # @param mode string 类型
     # @param partition_num int 类型
     def embedding_init(self, vocabulary_size, file_path, file_name, table_id, max_batch_size, optimizer=None,
-                       initializer=None, embedding_dim=1, only_var=False, mode="bin", partition_num=65537):
+                       initializer=None, embedding_dim=-1, only_var=False, mode="bin", partition_num=65537):
         """ Operator for init embedding table. """
+        if vocabulary_size is None or table_id is None or max_batch_size is None or embedding_dim is None:
+            raise ValueError("vocabulary_size or table_id or max_batch_size or embedding_dim is None.")
+        if (not isinstance(vocabulary_size, int)) or (not isinstance(table_id, int)) or \
+                (not isinstance(max_batch_size, int)) or (not isinstance(embedding_dim, int)):
+            raise ValueError("vocabulary_size, table_id, max_batch_size and embedding_dim must be int.")
+        if vocabulary_size < 0 or table_id < 0:
+            raise ValueError("vocabulary_size and table_id can not be smaller than zero.")
+        if vocabulary_size >= _INT32_MAX_VALUE or table_id >= _INT32_MAX_VALUE:
+            raise ValueError("vocabulary_size and table_id exceed int32 max value.")
+        if embedding_dim <= 0 or partition_num <= 0 or max_batch_size <= 0:
+            raise ValueError("embedding_dim, partition_num and max_batch_size must be greater than zero.")
         self._embedding_dim = embedding_dim
         self._max_num = max_batch_size
         self._table_to_embedding_dim[table_id] = embedding_dim
         self._initializer = initializer
+        self._table_has_init.append(table_id)
         bucket_size = math.ceil(vocabulary_size / self._ps_num)
         if optimizer is None:
+            if file_path is None or file_name is None or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
+                raise ValueError("embedding table file not exist.")
             self._train_mode = False
             self.slot_vars_num = 0
         else:
@@ -104,11 +122,16 @@ class ESWorker:
                     not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)):
                 raise ValueError(
                     "optimizer should be embedding_optimizer.AdamOptimizer or embedding_optimizer.AdagradOptimizer")
+            if (initializer is not None) and (initializer is not 'random_uniform') and \
+                    (initializer is not 'truncated_normal'):
+                raise ValueError("initializer must be random_uniform or truncated_normal.")
             self._optimizer = optimizer
             self._optimizer._embedding_dims = embedding_dim
             # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
             self.slot_vars_num = 2 if isinstance(self._optimizer, embedding_optimizer.AdamOptimizer) else 1
-        if file_path is None or file_name is None:
+        if (file_path is None) or (file_name is None) or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
+            if initializer is None:
+                raise ValueError("In new embedding training, initializer can not be None.")
             self._train_level = True
         with specified_ps_engine_scope():
             self._init_partition_maps[table_id] = \
@@ -131,6 +154,18 @@ class ESWorker:
     # @return values float32 类型
     def embedding_lookup(self, table_id, input_ids):
         """ Operator for look up in embedding table. """
+        if (table_id is None) or (input_ids is None):
+            raise ValueError("table_id or input_ids must be specified.")
+        if not isinstance(table_id, int):
+            raise ValueError("type of table_id must be int.")
+        if input_ids.dtype != tf.int64:
+            raise ValueError("dtype of input_ids must be tf.int64.")
+        if table_id < 0:
+            raise ValueError("table_id can not be smaller than zero.")
+        if not self._init_flag:
+            raise ValueError("embedding must init first!")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
         if self._train_mode:
             seed1, seed2 = random_seed.get_seed(None)
             result = gen_npu_cpu_ops.embedding_table_find_and_init(table_id=ops.convert_to_tensor(table_id),
@@ -160,11 +195,21 @@ class ESWorker:
     # @param input_ids_list int64 类型
     def embedding_update(self, loss, params, table_ids, input_ids_list):
         """ Operator for update in embedding table. """
+        if (loss is None) or (params is None) or (table_ids is None) or (input_ids_list is None):
+            raise ValueError("loss or params or table_ids or input_ids_list is None.")
+        if (isinstance(loss, str)) or (isinstance(params, str)) or isinstance(table_ids, str) or \
+                isinstance(input_ids_list, str):
+            raise ValueError("loss, params, table_ids and input_ids_list can not be str.")
+        if not self._init_flag:
+            raise ValueError("embedding must init first!")
         if (not isinstance(params, (list, tuple)) and not isinstance(table_ids, (list, tuple))
                 and not isinstance(input_ids_list, (list, tuple))):
             params = [params]
             table_ids = [table_ids]
             input_ids_list = [input_ids_list]
+        for table_id in table_ids:
+            if table_id not in self._table_has_init:
+                raise ValueError("this table has not yet initialized.")
         if (len(params) != len(table_ids)) or (len(params) != len(input_ids_list)) \
                 or (len(table_ids) != len(input_ids_list)):
             raise ValueError("The length of params, table_ids, input_ids_list should be equal.")
@@ -184,6 +229,12 @@ class ESWorker:
     # @param mode string 类型
     def embedding_save(self, file_path, file_name, table_id, mode="bin"):
         """ Operator for save values in embedding table. """
+        if file_path is None or file_name is None or table_id is None:
+            raise ValueError("table_id, embedding table file_name and file_path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        if not os.path.exists(file_path):
+            os.mkdir(file_path)
         with specified_ps_engine_scope():
             embedding_dim = self._table_to_embedding_dim.get(table_id)
             return gen_npu_cpu_ops.embedding_table_export(file_path, file_name, ops.convert_to_tensor(-1), table_id,
@@ -196,6 +247,12 @@ class ESWorker:
     # @param mode string 类型
     def embedding_ckpt_save(self, file_path, file_name, table_id, mode="bin"):
         """ Operator for save values and optimizer params in embedding table. """
+        if file_path is None or file_name is None or table_id is None:
+            raise ValueError("table_id, embedding table file_name and file_path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        if not os.path.exists(file_path):
+            os.mkdir(file_path)
         with specified_ps_engine_scope():
             embedding_dim = self._table_to_embedding_dim.get(table_id)
             return gen_npu_cpu_ops.embedding_table_export(file_path, file_name, ops.convert_to_tensor(-1), table_id,
@@ -228,6 +285,7 @@ class ESWorker:
                                                            value_total_len=embedding_dim,
                                                            embedding_dim=embedding_dim,
                                                            random_alg=None, seed=None, seed2=None)
+        self._init_flag = True
         return self._init_or_restore(file_path, file_name, table_id, embedding_dim, only_var, mode)
 
     def _init_or_restore(self, file_path, file_name, table_id, embedding_dim, only_var, mode):
