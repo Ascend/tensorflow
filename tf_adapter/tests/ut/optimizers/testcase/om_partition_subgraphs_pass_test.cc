@@ -212,7 +212,7 @@ TEST_F(OmOptimizationPassTest, StringInputMaxSizeTest) {
   std::string target_graph = DoRunOmOptimizationPassTest();
   EXPECT_EQ(target_graph, "arg_input_0_0->DecodeJpeg;DecodeJpeg->retval_DecodeJpeg_0_0");
 }
-TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest01) {
+TEST_F(OmOptimizationPassTest, GetOppPluginVendorsTest01) {
   SetLogLevelForC(0);
   std::string opp_path = __FILE__;
   opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
@@ -224,7 +224,78 @@ TEST_F(OmOptimizationPassTest, NpuOpsIdentifierTest01) {
   system(("mkdir -p " + path_vendors).c_str());
   system(("echo 'load_priority=customize,mdc,lhisi' > " + path_config).c_str());
   std::vector<std::string> vendors;
-  NpuOpsIdentifier::GetOppPluginVendors(path_config, vendors);
+  EXPECT_TRUE(NpuOpsIdentifier::GetOppPluginVendors(path_config, vendors));
+  EXPECT_EQ(vendors.size(), 3);
+  EXPECT_EQ(vendors[0], "customize");
+  EXPECT_EQ(vendors[1], "mdc");
+  EXPECT_EQ(vendors[2], "lhisi");
+  ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
+}
+TEST_F(OmOptimizationPassTest, GetOppPluginVendorsTest02) {
+  SetLogLevelForC(0);
+  std::string opp_path = __FILE__;
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
+  setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
+  std::string path_builtin = opp_path + "built-in";
+  std::string path_vendors = opp_path + "vendors";
+  std::string path_config = path_vendors + "/config.ini";
+  system(("mkdir -p " + path_builtin).c_str());
+  system(("mkdir -p " + path_vendors).c_str());
+  system(("echo '' > " + path_config).c_str());
+  std::vector<std::string> vendors;
+  EXPECT_FALSE(NpuOpsIdentifier::GetOppPluginVendors(path_config, vendors));
+  EXPECT_EQ(vendors.size(), 0);
+  ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
+}
+TEST_F(OmOptimizationPassTest, GetOppPluginVendorsTest03) {
+  SetLogLevelForC(0);
+  std::string opp_path = __FILE__;
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
+  setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
+  std::string path_builtin = opp_path + "built-in";
+  std::string path_vendors = opp_path + "vendors";
+  std::string path_config = path_vendors + "/config.ini";
+  system(("mkdir -p " + path_builtin).c_str());
+  system(("mkdir -p " + path_vendors).c_str());
+  system(("echo 'load_priority' > " + path_config).c_str());
+  std::vector<std::string> vendors;
+  EXPECT_FALSE(NpuOpsIdentifier::GetOppPluginVendors(path_config, vendors));
+  EXPECT_EQ(vendors.size(), 0);
+  ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
+}
+TEST_F(OmOptimizationPassTest, GetOppPluginVendorsTest04) {
+  SetLogLevelForC(0);
+  std::string opp_path = __FILE__;
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
+  setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
+  std::string path_builtin = opp_path + "built-in";
+  std::string path_vendors = opp_path + "vendors";
+  std::string path_config = path_vendors + "/config.ini";
+  system(("mkdir -p " + path_builtin).c_str());
+  system(("mkdir -p " + path_vendors).c_str());
+  system(("rm -rf " + path_config).c_str());
+  std::vector<std::string> vendors;
+  EXPECT_FALSE(NpuOpsIdentifier::GetOppPluginVendors(path_config, vendors));
+  EXPECT_EQ(vendors.size(), 0);
+  ClearLogLevelForC();
+  system(("rm -rf " + opp_path).c_str());
+}
+TEST_F(OmOptimizationPassTest, GetOppPluginVendorsTest05) {
+  SetLogLevelForC(0);
+  std::string opp_path = __FILE__;
+  opp_path = opp_path.substr(0, opp_path.rfind("/") + 1) + "opp_path/";
+  setenv("ASCEND_OPP_PATH", opp_path.c_str(), 1);
+  std::string path_builtin = opp_path + "built-in";
+  std::string path_vendors = opp_path + "vendors";
+  std::string path_config = path_vendors + "/config.ini";
+  system(("mkdir -p " + path_builtin).c_str());
+  system(("mkdir -p " + path_vendors).c_str());
+  system(("echo ' load_priority = customize , mdc , lhisi ' > " + path_config).c_str());
+  std::vector<std::string> vendors;
+  EXPECT_TRUE(NpuOpsIdentifier::GetOppPluginVendors(path_config, vendors));
   EXPECT_EQ(vendors.size(), 3);
   EXPECT_EQ(vendors[0], "customize");
   EXPECT_EQ(vendors[1], "mdc");

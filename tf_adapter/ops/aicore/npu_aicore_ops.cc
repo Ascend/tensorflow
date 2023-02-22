@@ -445,6 +445,32 @@ REGISTER_OP("DynamicRnnGrad")
       return Status::OK();
     });
 
+REGISTER_OP("LRUCacheV2")
+    .Input("index_list: T")
+    .Input("data: Ref(dtype)")
+    .Input("cache: Ref(dtype)")
+    .Input("tag: Ref(T)")
+    .Input("is_last_call: T")
+    .Output("data1:Ref(dtype)")
+    .Output("cache1: Ref(dtype)")
+    .Output("tag1: Ref(dtype)")
+    .Output("index_offset_list: T")
+    .Output("not_in_cache_index_list: T")
+    .Output("not_in_cache_number: T")
+    .Attr("T: {int32, int64}")
+    .Attr("dtype: {float32}")
+    .Attr("pre_route_count: int")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      c->set_output(0, c->input(1));
+      c->set_output(1, c->input(2));
+      c->set_output(2, c->input(3));
+      c->set_output(3, c->input(0));
+      c->set_output(4, c->input(0));
+      c->set_output(5, c->MakeShape({1}));
+      return Status::OK();
+    });
+
 REGISTER_OP("Centralization")
     .Input("x: T")
     .Output("y: T")
