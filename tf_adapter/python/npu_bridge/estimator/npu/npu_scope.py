@@ -66,7 +66,40 @@ def keep_dtype_scope():
 @contextlib.contextmanager
 def npu_stage_scope(stage):
     """
-    Enable the node in the scope adding _stage_level attr.
+    npu_stage_scope provides a graph-building space, all nodes under this space form a 'Stage'.
+    The graph will be divided into different execution units according to different 'Stage'
+    Stage's sequential execution is equivalent to graph execution，
+    When the graph is executed multiple times, there is a possibility of parallelism between stages of different Steps.
+
+    Input:
+        stage: stage id of current scope, all nodes under this scope will have attr '_stage_level' with value 'stage'
+
+    Usage example：
+        We want to perform a unique calculation on the input data first, and then sum， just like
+        def my_model(x):
+            ux, _ = tf.unique(x)
+            sum = tf.reduce_sum(ux)
+        The executed prof data is as follows：
+        ┌─────────────────┐ ┌─────────────────────────┐
+        │  Unique @AICPU  │ │    ReduceSum @AICORE    │
+        └─────────────────┘ └─────────────────────────┘
+        We can optimize it at execution time through npu stage scope，and with 'iterations_per_loop' = '2'
+        def my_model(x):
+            with npu_stage_scope(0):
+               ux, _ = tf.unique(x)
+            sum = tf.reduce_sum(ux)
+        Then the executed prof data is as follows：
+        ┌─────────────────┐ ┌───────────────────────┐
+        │  Unique @CPU    │ │    ReduceSum @CORE    │
+        └─────────────────┘ └───────────────────────┘
+                           ┌───────────────┐         ┌───────────────────────┐
+                           │  Unique @CPU  │         │    ReduceSum @CORE    │
+                           └───────────────┘         └───────────────────────┘
+
+    Use constraints:
+        1. The 'iterations_per_loop' config must be configured to be greater than 1 during pipeline execution
+        2. Performance gains are possible only when different computing resources are used between different stages
+        3. Communication under the same communication domain is not allowed between different Stages
     """
     attrs = {
         "_stage_level": attr_value_pb2.AttrValue(i=stage)
