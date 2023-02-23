@@ -74,6 +74,7 @@ bool NpuOpsIdentifier::GetOppPluginVendors(const std::string &vendors_config, st
     ADP_LOG(ERROR) << "Format of file content is invalid!";
     return false;
   }
+  (void) for_each(vendors.begin(), vendors.end(), &ge::StringUtils::Trim);
   return true;
 }
 
