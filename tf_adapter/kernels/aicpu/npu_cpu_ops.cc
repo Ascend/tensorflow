@@ -277,6 +277,13 @@ public:
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingTableExportOp Compute"; }
 };
 
+class EmbeddingFeatureMappingOp : public OpKernel {
+public:
+  explicit EmbeddingFeatureMappingOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingFeatureMappingOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingFeatureMappingOp Compute"; }
+};
+
 REGISTER_KERNEL_BUILDER(Name("ScatterElementsV2").Device(DEVICE_CPU), ScatterElementsV2Op);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingRankId").Device(DEVICE_CPU), EmbeddingRankIdOpKernel);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingLocalIndex").Device(DEVICE_CPU), EmbeddingLocalIndexOpKernel);
@@ -306,6 +313,7 @@ REGISTER_KERNEL_BUILDER(Name("EmbeddingTableFindAndInit").Device(DEVICE_CPU), Em
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdam").Device(DEVICE_CPU), EmbeddingApplyAdamOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdaGrad").Device(DEVICE_CPU), EmbeddingApplyAdaGradOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingTableExport").Device(DEVICE_CPU), EmbeddingTableExportOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingFeatureMapping").Device(DEVICE_CPU), EmbeddingFeatureMappingOp);
 
 class DecodeImageV3Op : public OpKernel {
 public:

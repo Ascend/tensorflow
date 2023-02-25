@@ -343,6 +343,14 @@ REGISTER_OP("EmbeddingTableExport")
   .Attr("file_type: string = 'bin' ")
   .SetShapeFn(shape_inference::NoOutputs);
 
+REGISTER_OP("EmbeddingFeatureMapping")
+  .Input("feature_id: int64")
+  .Output("offset_id: int32")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    c->set_output(0, c->input(0));
+    return Status::OK();
+  });
+
 // regist dense image warp op
 REGISTER_OP("DenseImageWarp")
   .Input("image: T")
