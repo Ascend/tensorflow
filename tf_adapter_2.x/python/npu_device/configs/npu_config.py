@@ -37,7 +37,8 @@ class NpuConfig(NpuBaseConfig):
         self.fusion_switch_file = OptionValue(None, None)
         self.precision_mode = OptionValue('allow_fp32_to_fp16',
                                           ['force_fp32', 'allow_fp32_to_fp16', 'force_fp16', 'must_keep_origin_dtype',
-                                           'allow_mix_precision', 'cube_fp16in_fp32out'])
+                                           'allow_mix_precision', 'cube_fp16in_fp32out', 'allow_mix_precision_fp16',
+                                           'allow_mix_precision_bf16', 'allow_fp32_to_bp16'])
         self.op_select_implmode = DeprecatedValue(['high_performance', 'high_precision'],
                                                   replacement='op_precision_mode')
         self.optypelist_for_implmode = DeprecatedValue(None, replacement='op_precision_mode')
