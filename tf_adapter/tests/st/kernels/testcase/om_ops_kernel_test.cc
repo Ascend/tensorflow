@@ -119,6 +119,7 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicBatchSuccess) {
   tensors.emplace_back(tensor_var);
   SetDynamicType(0); // set dynamic batch
   ASSERT_EQ(Run(tensors), Status::OK());
+  SetDynamicType(-1);
 }
 
 TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputSuccess) {
@@ -144,6 +145,30 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputSuccess) {
   Tensor tensor_var = Tensor(DT_STRING, {});
   tensors.emplace_back(tensor_var);
   SetOutputDynamic(true);
+  ASSERT_EQ(Run(tensors), Status::OK());
+  SetOutputDynamic(false);
+}
+
+TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputZero) {
+  NodeDef def;
+  auto status = tensorflow::NodeDefBuilder("om", "LoadAndExecuteOm")
+                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{})
+                    .Attr("Tin", DataTypeVector{})
+                    .Attr("output_dtypes", DataTypeVector{})
+                    .Attr("om_path", "path_to_om")
+                    .Finalize(&def);
+  ASSERT_EQ(status.error_message(), "");
+  ASSERT_EQ(CreateKernel(def), Status::OK());
+  std::vector<Tensor> tensors;
+  TensorShape tf_shape;
+  tf_shape.AddDim(2);
+  tf_shape.AddDim(1);
+  Tensor tensor = Tensor(DT_FLOAT, tf_shape);
+  tensors.emplace_back(tensor);
+  tensors.emplace_back(tensor);
+  SetOutputDynamic(true);
+  SetOutputNeedNull(true);
+  RegAclRunGraphStub(nullptr);
   ASSERT_EQ(Run(tensors), Status::OK());
 }
 }  // namespace

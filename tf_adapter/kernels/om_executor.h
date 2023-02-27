@@ -67,11 +67,11 @@ private:
 
   Status ProcessOutput(std::vector<Tensor> &outputs);
 
-  Status ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) const;
+  Status ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type, const aclDataBuffer *data_buf,
+    std::vector<Tensor> &outputs) const;
 
-  Status ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) const;
+  Status ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type, aclDataBuffer *data_buf,
+    std::vector<Tensor> &outputs) const;
 
   void WorkThread();
 
@@ -111,6 +111,7 @@ private:
   Status thread_ret_;
   std::vector<Tensor> inputs_;
   std::vector<Tensor> outputs_;
+  std::vector<bool> outputs_feed_nullptr_vec_;
 
   DynamicGearType dymainc_gear_type_ = DYNAMIC_UNDEFINED;
   std::vector<std::vector<uint64_t>> dynamic_gear_info_;
