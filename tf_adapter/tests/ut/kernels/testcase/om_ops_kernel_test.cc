@@ -72,11 +72,14 @@ REGISTER_OP("LoadAndExecuteOm")
 
 TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteSuccess) {
   NodeDef def;
+  NodeDefBuilder::NodeOut input1("input1", 0, DT_FLOAT);
+  NodeDefBuilder::NodeOut input2("input1", 1, DT_FLOAT);
+  NodeDefBuilder::NodeOut var_input("model_data", 2, DT_STRING);
   auto status = tensorflow::NodeDefBuilder("om", "LoadAndExecuteOm")
-                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{})
-                    .Attr("Tin", DataTypeVector{})
+                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{input1, input2})
+                    .Input(var_input)
+                    .Attr("Tin", DataTypeVector{DT_FLOAT, DT_FLOAT})
                     .Attr("output_dtypes", DataTypeVector{})
-                    .Attr("om_path", "path_to_om")
                     .Finalize(&def);
   ASSERT_EQ(status.error_message(), "");
   ASSERT_EQ(CreateKernel(def), Status::OK());
@@ -87,16 +90,21 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteSuccess) {
   Tensor tensor = Tensor(DT_FLOAT, tf_shape);
   tensors.emplace_back(tensor);
   tensors.emplace_back(tensor);
+  Tensor tensor_var = Tensor(DT_STRING, {});
+  tensors.emplace_back(tensor_var);
   ASSERT_EQ(Run(tensors), Status::OK());
 }
 
 TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicBatchSuccess) {
   NodeDef def;
+  NodeDefBuilder::NodeOut input1("input1", 0, DT_FLOAT);
+  NodeDefBuilder::NodeOut input2("input1", 1, DT_FLOAT);
+  NodeDefBuilder::NodeOut var_input("model_data", 2, DT_STRING);
   auto status = tensorflow::NodeDefBuilder("om", "LoadAndExecuteOm")
-                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{})
-                    .Attr("Tin", DataTypeVector{})
+                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{input1, input2})
+                    .Input(var_input)
+                    .Attr("Tin", DataTypeVector{DT_FLOAT, DT_FLOAT})
                     .Attr("output_dtypes", DataTypeVector{})
-                    .Attr("om_path", "path_to_om")
                     .Finalize(&def);
   ASSERT_EQ(status.error_message(), "");
   ASSERT_EQ(CreateKernel(def), Status::OK());
@@ -107,17 +115,22 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicBatchSuccess) {
   Tensor tensor = Tensor(DT_FLOAT, tf_shape);
   tensors.emplace_back(tensor);
   tensors.emplace_back(tensor);
+  Tensor tensor_var = Tensor(DT_STRING, {});
+  tensors.emplace_back(tensor_var);
   SetDynamicType(0); // set dynamic batch
   ASSERT_EQ(Run(tensors), Status::OK());
 }
 
 TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputSuccess) {
   NodeDef def;
+  NodeDefBuilder::NodeOut input1("input1", 0, DT_FLOAT);
+  NodeDefBuilder::NodeOut input2("input1", 1, DT_FLOAT);
+  NodeDefBuilder::NodeOut var_input("model_data", 2, DT_STRING);
   auto status = tensorflow::NodeDefBuilder("om", "LoadAndExecuteOm")
-                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{})
-                    .Attr("Tin", DataTypeVector{})
+                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{input1, input2})
+                    .Input(var_input)
+                    .Attr("Tin", DataTypeVector{DT_FLOAT, DT_FLOAT})
                     .Attr("output_dtypes", DataTypeVector{})
-                    .Attr("om_path", "path_to_om")
                     .Finalize(&def);
   ASSERT_EQ(status.error_message(), "");
   ASSERT_EQ(CreateKernel(def), Status::OK());
@@ -128,6 +141,8 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputSuccess) {
   Tensor tensor = Tensor(DT_FLOAT, tf_shape);
   tensors.emplace_back(tensor);
   tensors.emplace_back(tensor);
+  Tensor tensor_var = Tensor(DT_STRING, {});
+  tensors.emplace_back(tensor_var);
   SetOutputDynamic(true);
   ASSERT_EQ(Run(tensors), Status::OK());
 }
