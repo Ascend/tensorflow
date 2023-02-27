@@ -109,9 +109,11 @@ class ESWorker:
         if vocabulary_size < 0 or table_id < 0:
             raise ValueError("vocabulary_size and table_id can not be smaller than zero.")
         if vocabulary_size >= _INT32_MAX_VALUE or table_id >= _INT32_MAX_VALUE:
-            raise ValueError("vocabulary_size and table_id exceed int32 max value.")
+            raise ValueError("vocabulary_size or table_id exceed int32 max value.")
         if embedding_dim <= 0 or partition_num <= 0 or max_batch_size <= 0:
             raise ValueError("embedding_dim, partition_num and max_batch_size must be greater than zero.")
+        if table_id in self._table_has_init:
+            raise ValueError("this table has already initialized.")
         self._embedding_dim = embedding_dim
         self._max_num = max_batch_size
         self._table_to_embedding_dim[table_id] = embedding_dim
