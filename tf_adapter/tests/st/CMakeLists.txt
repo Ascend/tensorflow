@@ -15,7 +15,7 @@
 
 project(st_optimizers)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 file(GLOB_RECURSE ST_SOURCES
     ${TFADAPTER_DIR}/tf_adapter/common/*.cc

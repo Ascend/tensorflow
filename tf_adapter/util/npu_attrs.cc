@@ -694,6 +694,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   bool in_out_pair_flag = true;
   std::string in_out_pair;
   std::string const_input;
+  bool frozen_variable = false;
+  std::string variable_location = "Device";
 
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
@@ -762,6 +764,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       if (params.count("const_input") > 0) {
         const_input = params.at("const_input").s();
       }
+      if (params.count("frozen_variable") > 0) {
+        frozen_variable = params.at("frozen_variable").b();
+      }
+      if (params.count("variable_placement") > 0) {
+        variable_location = params.at("variable_placement").s();
+      }
     }
   }
   if (!do_npu_optimizer) {
@@ -792,6 +800,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
   pass_options["in_out_pair_flag"] = std::to_string(static_cast<int32_t>(in_out_pair_flag));
   pass_options["in_out_pair"] = in_out_pair;
   pass_options["const_input"] = const_input;
+  pass_options["frozen_variable"] = std::to_string(static_cast<int32_t>(frozen_variable));
+  pass_options["variable_location"] = variable_location;
 
   return pass_options;
 }
@@ -814,6 +824,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
   std::string in_out_pair_flag = "1";
   std::string in_out_pair;
   std::string npuOptimizer;
+  std::string frozen_variable = "0";
+  std::string variable_location = "Device";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     do_npu_optimizer = "1";
@@ -834,6 +846,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
     }
     (void) ctx->GetAttr("_in_out_pair_flag", &in_out_pair_flag);
     (void) ctx->GetAttr("_in_out_pair", &in_out_pair);
+    (void) ctx->GetAttr("_frozen_variable", &frozen_variable);
+    (void) ctx->GetAttr("_variable_location", &variable_location);
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -851,6 +865,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
   pass_options["local_device_list"] = local_device_list;
   pass_options["in_out_pair_flag"] = in_out_pair_flag;
   pass_options["in_out_pair"] = in_out_pair;
+  pass_options["frozen_variable"] = frozen_variable;
+  pass_options["variable_location"] = variable_location;
 
   return pass_options;
 }
@@ -872,6 +888,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &att
   std::string local_device_list;
   std::string in_out_pair_flag = "1";
   std::string in_out_pair;
+  std::string frozen_variable = "0";
+  std::string variable_location = "Device";
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -888,6 +906,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &att
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
+  auto frozen_variable_value = attrs.Find("_frozen_variable");
+  auto variable_location_value = attrs.Find("_variable_location");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -935,6 +955,12 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &att
     if (in_out_pair_value != nullptr) {
       in_out_pair = in_out_pair_value->s();
     }
+    if (frozen_variable_value != nullptr) {
+      frozen_variable = frozen_variable_value->s();
+    }
+    if (variable_location_value != nullptr) {
+      variable_location = variable_location_value->s();
+    }
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -952,6 +978,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const AttrSlice &att
   pass_options["local_device_list"] = local_device_list;
   pass_options["in_out_pair_flag"] = in_out_pair_flag;
   pass_options["in_out_pair"] = in_out_pair;
+  pass_options["frozen_variable"] = frozen_variable;
+  pass_options["variable_location"] = variable_location;
 
   return pass_options;
 }
@@ -970,6 +998,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string local_device_list;
   std::string in_out_pair_flag = "1";
   std::string in_out_pair;
+  std::string frozen_variable = "0";
+  std::string variable_location = "Device";
 
   std::string variable_format_optimize;
   std::string hcom_parallel = "1";
@@ -1053,6 +1083,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto local_device_list_value = attrs.Find("_local_device_list");
   auto in_out_pair_flag_value = attrs.Find("_in_out_pair_flag");
   auto in_out_pair_value = attrs.Find("_in_out_pair");
+  auto frozen_variable_value = attrs.Find("_frozen_variable");
+  auto variable_location_value = attrs.Find("_variable_location");
 
   auto variable_format_optimize_value = attrs.Find("_variable_format_optimize");
   auto hcom_parallel_value = attrs.Find("_hcom_parallel");
@@ -1160,6 +1192,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
     if (in_out_pair_value != nullptr) {
       in_out_pair = in_out_pair_value->s();
+    }
+    if (frozen_variable_value != nullptr) {
+      frozen_variable = frozen_variable_value->s();
+    }
+    if (variable_location_value != nullptr) {
+      variable_location = variable_location_value->s();
     }
 
     if (variable_format_optimize_value != nullptr) {
@@ -1491,6 +1529,8 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["ge.externalWeight"] = external_weight;
   all_options["graph_parallel_option_path"] = graph_parallel_option_path;
   all_options["enable_graph_parallel"] = enable_graph_parallel;
+  all_options["frozen_variable"] = frozen_variable;
+  all_options["variable_location"] = variable_location;
 
   return all_options;
 }
@@ -1505,6 +1545,8 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
   pass_options["lower_functional_ops"] = "0";
   pass_options["job"] = "default";
   pass_options["task_index"] = std::to_string(0);
+  pass_options["frozen_variable"] = "0";
+  pass_options["variable_location"] = "Device";
   return pass_options;
 }
 
@@ -1592,6 +1634,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   int32_t stream_sync_timeout = -1;
   int32_t event_sync_timeout = -1;
   bool external_weight = false;
+  bool frozen_variable = false;
+  std::string variable_location = "Device";
 
   const RewriterConfig &rewrite_options =
     options.session_options->config.graph_options().rewrite_options();
@@ -2024,6 +2068,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         init_options_["es_cluster_config"] = es_cluster_config;
         init_options_["ge.esClusterConfig"] = es_cluster_config;
       }
+      if (params.count("frozen_variable") > 0) {
+        frozen_variable = params.at("frozen_variable").b();
+      }
+      if (params.count("variable_placement") > 0) {
+        variable_location = params.at("variable_placement").s();
+      }
     }
   }
 
@@ -2163,6 +2213,8 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["local_device_list"] = local_device_list;
   pass_options["in_out_pair_flag"] = std::to_string(static_cast<int32_t>(in_out_pair_flag));
   pass_options["in_out_pair"] = in_out_pair;
+  pass_options["frozen_variable"] = frozen_variable;
+  pass_options["variable_location"] = variable_location;
 
   if (!node) {
     ADP_LOG(ERROR) << "node is null.";
