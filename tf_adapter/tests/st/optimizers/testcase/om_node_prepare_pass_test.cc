@@ -65,10 +65,12 @@ TEST_F(OmNodePreparePassTest, TestGraphWithoutOmNodeSuccess) {
 
 TEST_F(OmNodePreparePassTest, TestGraphWithOmNodeSuccess) {
   Node *om_node = nullptr;
+  NodeBuilder::NodeOut var_input("model_data", 2, DT_STRING);
   NodeBuilder("om_node", "LoadAndExecuteOm")
       .Input(std::vector<NodeBuilder::NodeOut>{})
+      .Input(var_input)
+      .Attr("Tin", DataTypeVector{})
       .Attr("output_dtypes", tensorflow::DataTypeVector{})
-      .Attr("om_path", "")
       .Finalize(graph.get(), &om_node);
   ASSERT_EQ(Run(), Status::OK());
 

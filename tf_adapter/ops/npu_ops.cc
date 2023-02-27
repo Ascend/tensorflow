@@ -36,10 +36,10 @@ REGISTER_OP("GeOp")
 
 REGISTER_OP("LoadAndExecuteOm")
     .Input("inputs: Tin")
+    .Input("model_data: string")
     .Attr("Tin: list(type) >= 0")
     .Output("outputs: output_dtypes")
     .Attr("output_dtypes: list(type) >= 0")
-    .Attr("om_path: string")
     .Attr("executor_type: string = ''")
     .SetIsStateful()
     .SetShapeFn(shape_inference::UnknownShape);

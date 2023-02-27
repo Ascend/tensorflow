@@ -19,8 +19,8 @@
 #include "tf_adapter/util/npu_attrs.h"
 
 namespace tensorflow {
-ModelProcess::ModelProcess(const std::string &om_path) {
-  om_path_ = om_path;
+ModelProcess::ModelProcess(const std::string &model_data) {
+  model_data_ = model_data;
   StartWorkThread();
 }
 
@@ -111,7 +111,7 @@ Status ModelProcess::LoadModelFromFile() {
   (void)GetEnvDeviceID(device_id_);
   REQUIRES_ACL_STATUS_OK(aclrtSetDevice(device_id_), aclrtSetDevice);
   is_set_device_ = true;
-  REQUIRES_ACL_STATUS_OK(aclmdlLoadFromFile(om_path_.c_str(), &model_id_), aclmdlLoadFromFile);
+  REQUIRES_ACL_STATUS_OK(aclmdlLoadFromMem(model_data_.c_str(), model_data_.size(), &model_id_), aclmdlLoadFromMem);
   load_flag_ = true;
   model_desc_ = aclmdlCreateDesc();
   REQUIRES_NOT_NULL(model_desc_);
@@ -476,13 +476,12 @@ Status ModelProcess::GetThreadRet() {
   return thread_ret_;
 }
 
-Status OmExecutor::Create(const std::string &om_path, std::unique_ptr<OmExecutor> &executor) {
-  ADP_LOG(INFO) << "om path is " << om_path;
+Status OmExecutor::Create(const std::string &model_data, std::unique_ptr<OmExecutor> &executor) {
   executor.reset(new (std::nothrow) OmExecutor());
   if (executor == nullptr) {
-    return errors::Internal("Failed create executor for om ", om_path);
+    return errors::Internal("Failed create executor for om");
   }
-  executor->model_process_ = std::unique_ptr<ModelProcess> (new (std::nothrow) ModelProcess(om_path));
+  executor->model_process_ = std::unique_ptr<ModelProcess> (new (std::nothrow) ModelProcess(model_data));
   REQUIRES_NOT_NULL(executor->model_process_);
   return Status::OK();
 }
