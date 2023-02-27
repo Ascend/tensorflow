@@ -1734,9 +1734,15 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("precision_mode") > 0) {
         precision_mode = params.at("precision_mode").s();
-        const static std::vector<std::string> kPrecisionModeList = {"force_fp32",          "allow_fp32_to_fp16",
-                                                                    "force_fp16",          "must_keep_origin_dtype",
-                                                                    "allow_mix_precision", "cube_fp16in_fp32out"};
+        const static std::vector<std::string> kPrecisionModeList = {"force_fp32",
+                                                                    "allow_fp32_to_fp16",
+                                                                    "force_fp16",
+                                                                    "must_keep_origin_dtype",
+                                                                    "allow_mix_precision",
+                                                                    "cube_fp16in_fp32out",
+                                                                    "allow_mix_precision_fp16",
+                                                                    "allow_mix_precision_bf16",
+                                                                    "allow_fp32_to_bp16"};
         NPU_REQUIRES_OK(CheckValueAllowed<std::string>(precision_mode, kPrecisionModeList));
       } else {
         if (static_cast<bool>(graph_run_mode)) {
