@@ -151,11 +151,14 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputSuccess) {
 
 TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputZero) {
   NodeDef def;
+  NodeDefBuilder::NodeOut input1("input1", 0, DT_FLOAT);
+  NodeDefBuilder::NodeOut input2("input1", 1, DT_FLOAT);
+  NodeDefBuilder::NodeOut var_input("model_data", 2, DT_STRING);
   auto status = tensorflow::NodeDefBuilder("om", "LoadAndExecuteOm")
-                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{})
-                    .Attr("Tin", DataTypeVector{})
+                    .Input(gtl::ArraySlice<NodeDefBuilder::NodeOut>{input1, input2})
+                    .Input(var_input)
+                    .Attr("Tin", DataTypeVector{DT_FLOAT, DT_FLOAT})
                     .Attr("output_dtypes", DataTypeVector{})
-                    .Attr("om_path", "path_to_om")
                     .Finalize(&def);
   ASSERT_EQ(status.error_message(), "");
   ASSERT_EQ(CreateKernel(def), Status::OK());
@@ -166,10 +169,13 @@ TEST_F(LoadAndExecuteOmTest, TestOmNodeExecuteDynamicOutputZero) {
   Tensor tensor = Tensor(DT_FLOAT, tf_shape);
   tensors.emplace_back(tensor);
   tensors.emplace_back(tensor);
+  Tensor tensor_var = Tensor(DT_STRING, {});
+  tensors.emplace_back(tensor_var);
   SetOutputDynamic(true);
   SetOutputNeedNull(true);
   RegAclRunGraphStub(nullptr);
   ASSERT_EQ(Run(tensors), Status::OK());
+  SetOutputDynamic(false);
 }
 }  // namespace
 }  // namespace tensorflow
