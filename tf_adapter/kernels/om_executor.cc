@@ -19,8 +19,8 @@
 #include "tf_adapter/util/npu_attrs.h"
 
 namespace tensorflow {
-ModelProcess::ModelProcess(const std::string &om_path) {
-  om_path_ = om_path;
+ModelProcess::ModelProcess(const std::string &model_data) {
+  model_data_ = model_data;
   StartWorkThread();
 }
 
@@ -111,7 +111,7 @@ Status ModelProcess::LoadModelFromFile() {
   (void)GetEnvDeviceID(device_id_);
   REQUIRES_ACL_STATUS_OK(aclrtSetDevice(device_id_), aclrtSetDevice);
   is_set_device_ = true;
-  REQUIRES_ACL_STATUS_OK(aclmdlLoadFromFile(om_path_.c_str(), &model_id_), aclmdlLoadFromFile);
+  REQUIRES_ACL_STATUS_OK(aclmdlLoadFromMem(model_data_.c_str(), model_data_.size(), &model_id_), aclmdlLoadFromMem);
   load_flag_ = true;
   model_desc_ = aclmdlCreateDesc();
   REQUIRES_NOT_NULL(model_desc_);
@@ -138,13 +138,11 @@ Status ModelProcess::CreateInput() {
   for (size_t i = 0U; i < input_num; ++i) {
     size_t input_size = aclmdlGetInputSizeByIndex(model_desc_, i);
     ADP_LOG(INFO) << "this "<< i << " input size is " << input_size;
-    if (input_size == 0U) {
-      ADP_LOG(ERROR) << "current " << i << " input is 0, can not get its real size";
-      return tensorflow::errors::Internal("get input size is 0");
-    }
     void *dev_ptr = nullptr;
-    REQUIRES_ACL_STATUS_OK(aclrtMalloc(&dev_ptr, input_size, ACL_MEM_MALLOC_NORMAL_ONLY), aclrtMalloc);
-    REQUIRES_NOT_NULL(dev_ptr);
+    if (input_size > 0U) {
+      REQUIRES_ACL_STATUS_OK(aclrtMalloc(&dev_ptr, input_size, ACL_MEM_MALLOC_NORMAL_ONLY), aclrtMalloc);
+      REQUIRES_NOT_NULL(dev_ptr);
+    }
     aclDataBuffer *data_buf = aclCreateDataBuffer(dev_ptr, input_size);
     if (data_buf == nullptr) {
       (void)aclrtFree(dev_ptr);
@@ -166,13 +164,12 @@ Status ModelProcess::CreateOutput() {
   for (size_t i = 0U; i < output_num; ++i) {
     size_t output_size = aclmdlGetOutputSizeByIndex(model_desc_, i);
     ADP_LOG(INFO) << "this "<< i << " output size is " << output_size;
-    if (output_size == 0U) {
-      ADP_LOG(ERROR) << "current " << i << " output is 0, can not get its real size";
-      return tensorflow::errors::Internal("get output size is 0");
-    }
     void *dev_ptr = nullptr;
-    REQUIRES_ACL_STATUS_OK(aclrtMalloc(&dev_ptr, output_size, ACL_MEM_MALLOC_NORMAL_ONLY), aclrtMalloc);
-    REQUIRES_NOT_NULL(dev_ptr);
+    if (output_size > 0U) {
+      REQUIRES_ACL_STATUS_OK(aclrtMalloc(&dev_ptr, output_size, ACL_MEM_MALLOC_NORMAL_ONLY), aclrtMalloc);
+      REQUIRES_NOT_NULL(dev_ptr);
+    }
+    outputs_feed_nullptr_vec_.emplace_back(dev_ptr == nullptr);
     aclDataBuffer *data_buf = aclCreateDataBuffer(dev_ptr, output_size);
     if (data_buf == nullptr) {
       (void)aclrtFree(dev_ptr);
@@ -242,14 +239,17 @@ Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) const {
     aclDataBuffer *data_buf = aclmdlGetDatasetBuffer(input_, i);
     REQUIRES_NOT_NULL(data_buf);
     void *dev_ptr = aclGetDataBufferAddr(data_buf);
-    REQUIRES_NOT_NULL(dev_ptr);
     size_t cur_size = aclGetDataBufferSizeV2(data_buf);
     ADP_LOG(INFO) << "current input tensor is " << inputs[i].DebugString() << " model cur size is " << cur_size;
-    if (tensor_size > cur_size) {
-      ADP_LOG(ERROR) << "input " << i << " size " << tensor_size << " is larger than model input size " << cur_size;
-      return tensorflow::errors::Internal("input size is too long");
+    if (tensor_size > cur_size) { // dynamic input maybe larger than last, free and malloc larger size
+      if (dev_ptr != nullptr) { // only not nullptr need to be free, first infer maybe nullptr and 0 size
+        (void)aclrtFree(dev_ptr);
+      }
+      REQUIRES_ACL_STATUS_OK(aclrtMalloc(&dev_ptr, tensor_size, ACL_MEM_MALLOC_NORMAL_ONLY), aclrtMalloc);
+      (void)aclUpdateDataBuffer(data_buf, dev_ptr, tensor_size);
     }
-    REQUIRES_ACL_STATUS_OK(aclrtMemcpy(dev_ptr, cur_size,
+    REQUIRES_NOT_NULL(dev_ptr);
+    REQUIRES_ACL_STATUS_OK(aclrtMemcpy(dev_ptr, tensor_size,
         tensor_data, tensor_size, ACL_MEMCPY_HOST_TO_DEVICE), aclrtMemcpy);
     // set shpae
     tensorflow::DataType tf_type = inputs[i].dtype();
@@ -268,9 +268,11 @@ Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) const {
   return Status::OK();
 }
 
-Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) const {
+Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type,
+    const aclDataBuffer *data_buf, std::vector<Tensor> &outputs) const {
   ADP_LOG(INFO) << "this out " << index << " is static";
+  void *dev_ptr = aclGetDataBufferAddr(data_buf);
+  REQUIRES_NOT_NULL(dev_ptr);
   aclmdlIODims acl_dims = {};
   if (dymainc_gear_type_ == DYNAMIC_UNDEFINED) {
     REQUIRES_ACL_STATUS_OK(aclmdlGetOutputDims(model_desc_, index, &acl_dims), aclmdlGetOutputDims);
@@ -291,10 +293,11 @@ Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::D
   return Status::OK();
 }
 
-Status ModelProcess::ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) const {
+Status ModelProcess::ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type,
+    aclDataBuffer *data_buf, std::vector<Tensor> &outputs) const {
   ADP_LOG(INFO) << "this out " << index << " is dynamic";
-  (void)cur_size;
+  void *dev_ptr = aclGetDataBufferAddr(data_buf);
+  REQUIRES_NOT_NULL(dev_ptr);
   auto *desc = aclmdlGetDatasetTensorDesc(output_, index);
   REQUIRES_NOT_NULL(desc);
   size_t real_size = aclGetTensorDescSize(desc);
@@ -314,6 +317,11 @@ Status ModelProcess::ProcessDynamicOutput(const size_t index, const tensorflow::
       aclrtMemcpy(tensor_data, tensor_size, dev_ptr, tensor_size, ACL_MEMCPY_DEVICE_TO_HOST), aclrtMemcpy);
   ADP_LOG(INFO) << "current output " << index << " tensor is " << tensor.DebugString();
   outputs.emplace_back(std::move(tensor));
+  if (outputs_feed_nullptr_vec_[index]) {
+    ADP_LOG(INFO) << "this output  " << index << " need update nullptr";
+    (void)aclrtFree(dev_ptr);
+    (void)aclUpdateDataBuffer(data_buf, nullptr, 0);
+  }
   return Status::OK();
 }
 
@@ -322,17 +330,14 @@ Status ModelProcess::ProcessOutput(std::vector<Tensor> &outputs) {
   for (size_t i = 0U; i < aclmdlGetNumOutputs(model_desc_); ++i) {
     aclDataBuffer *data_buf = aclmdlGetDatasetBuffer(output_, i);
     REQUIRES_NOT_NULL(data_buf);
-    void *dev_ptr = aclGetDataBufferAddr(data_buf);
-    REQUIRES_NOT_NULL(dev_ptr);
-    size_t cur_size = aclGetDataBufferSizeV2(data_buf);
     aclDataType acl_dt = aclmdlGetOutputDataType(model_desc_, i);
     tensorflow::DataType tf_type = DT_FLOAT;
     TF_RETURN_IF_ERROR(MappingAclDtToTf(acl_dt, tf_type));
-    ADP_LOG(INFO) << "model output size is " << cur_size << ", dt is " << tf_type;
+    ADP_LOG(INFO) << "model output " << i << " dt is " << tf_type;
     if (!is_output_dynamic_[i]) {
-      TF_RETURN_IF_ERROR(ProcessStaticOutput(i, tf_type, dev_ptr, cur_size, outputs));
+      TF_RETURN_IF_ERROR(ProcessStaticOutput(i, tf_type, data_buf, outputs));
     } else {
-      TF_RETURN_IF_ERROR(ProcessDynamicOutput(i, tf_type, dev_ptr, cur_size, outputs));
+      TF_RETURN_IF_ERROR(ProcessDynamicOutput(i, tf_type, data_buf, outputs));
     }
   }
   return Status::OK();
@@ -476,13 +481,12 @@ Status ModelProcess::GetThreadRet() {
   return thread_ret_;
 }
 
-Status OmExecutor::Create(const std::string &om_path, std::unique_ptr<OmExecutor> &executor) {
-  ADP_LOG(INFO) << "om path is " << om_path;
+Status OmExecutor::Create(const std::string &model_data, std::unique_ptr<OmExecutor> &executor) {
   executor.reset(new (std::nothrow) OmExecutor());
   if (executor == nullptr) {
-    return errors::Internal("Failed create executor for om ", om_path);
+    return errors::Internal("Failed create executor for om");
   }
-  executor->model_process_ = std::unique_ptr<ModelProcess> (new (std::nothrow) ModelProcess(om_path));
+  executor->model_process_ = std::unique_ptr<ModelProcess> (new (std::nothrow) ModelProcess(model_data));
   REQUIRES_NOT_NULL(executor->model_process_);
   return Status::OK();
 }

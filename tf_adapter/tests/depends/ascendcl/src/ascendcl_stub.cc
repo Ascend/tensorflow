@@ -532,7 +532,16 @@ aclError aclDestroyDataBuffer(const aclDataBuffer *dataBuffer) {
   return ACL_ERROR_NONE;
 }
 
+bool g_set_output_feed_null = false;
+void SetOutputNeedNull(const bool feed_null) {
+  g_set_output_feed_null = feed_null;
+}
+
 void *aclGetDataBufferAddr(const aclDataBuffer *dataBuffer) {
+  if (g_set_output_feed_null) {
+    void* p = malloc(8);
+    return p;
+  }
   return dataBuffer->data;
 }
 
@@ -682,10 +691,13 @@ aclError aclmdlUnload(uint32_t modelId) {
 }
 
 size_t aclGetDataBufferSizeV2(const aclDataBuffer *dataBuffer) {
+  if (g_set_output_feed_null) {
+    return 8;
+  }
   if (dataBuffer == nullptr) {
-        return 0U;
-    }
-    return static_cast<size_t>(dataBuffer->length);
+      return 0U;
+  }
+  return static_cast<size_t>(dataBuffer->length);
 }
 
 aclDataType aclmdlGetOutputDataType(const aclmdlDesc *modelDesc, size_t index) {
@@ -728,10 +740,16 @@ aclError aclSetTensorShape(aclTensorDesc *desc, int numDims, const int64_t *dims
 }
 
 size_t aclmdlGetOutputSizeByIndex(aclmdlDesc *modelDesc, size_t index) {
+  if (g_set_output_feed_null) {
+    return 0;
+  }
   return 8;
 }
 
 size_t aclmdlGetInputSizeByIndex(aclmdlDesc *modelDesc, size_t index) {
+  if (g_set_output_feed_null) {
+    return 0;
+  }
   return 8;
 }
 
@@ -770,5 +788,11 @@ aclError aclmdlGetDynamicBatch(const aclmdlDesc *modelDesc, aclmdlBatch *batch) 
 
 aclError aclmdlGetInputIndexByName(const aclmdlDesc *modelDesc, const char *name, size_t *index) {
   *index = 1;
+  return ACL_SUCCESS;
+}
+
+aclError aclUpdateDataBuffer(aclDataBuffer *dataBuffer, void *data, size_t size) {
+  dataBuffer->data = data;
+  dataBuffer->length = size;
   return ACL_SUCCESS;
 }

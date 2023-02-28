@@ -105,4 +105,19 @@ bool IsWithoutNpuScope(const NodeDef &node_def) {
 bool IsWithoutNpuScope(const Node *node) {
   return IsWithoutNpuScope(node->def());
 }
+
+bool IsVariableOrResourceVariable(const Node * const node) {
+  if (node->IsVariable() || node->type_string() == "VarHandleOp") {
+    return true;
+  }
+  return false;
+}
+
+bool IsVariableExecuteOnHost(const Node * const node, const std::string &variable_location) {
+  if (variable_location == "Host" && IsVariableOrResourceVariable(node)) {
+    ADP_LOG(INFO) << "Node : " << node->name() << " op name : " << node->type_string() << "is execute on host";
+    return true;
+  }
+  return false;
+}
 } // namespace tensorflow

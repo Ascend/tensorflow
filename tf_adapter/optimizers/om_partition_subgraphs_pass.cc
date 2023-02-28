@@ -466,11 +466,11 @@ int ParseInOutPair(const std::string &in_out_pair, AllGraphIOP &all_graph_iop) {
 }
 
 Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet &candidates,
-                                 const FunctionLibraryDefinition *func_lib, const std::string &in_out_pair,
-                                 const std::string &in_out_pair_flag) {
+                                 const FunctionLibraryDefinition *func_lib,
+                                 std::map<std::string, std::string> pass_options) {
   AllGraphIOP all_graph_iop;
-  if (ParseInOutPair(in_out_pair, all_graph_iop) <= 0) {
-    return errors::Internal("in_out_pair: ", in_out_pair, " is invalid.");
+  if (ParseInOutPair(pass_options["in_out_pair"], all_graph_iop) <= 0) {
+    return errors::Internal("in_out_pair: ", pass_options["in_out_pair"], " is invalid.");
   }
   NodeSet ops_save;
   for (auto &one_graph_iop : all_graph_iop) {
@@ -500,7 +500,7 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet &candidates,
       }
     }
   }
-  if ("1" == in_out_pair_flag) {
+  if ("1" == pass_options["in_out_pair_flag"]) {
     for (auto node : ops_save) {
       if (!IsNpuSupportingNode(node, true, func_lib, true)) {
         return errors::Internal(node->name(), " is not supported npu node.");
@@ -523,8 +523,11 @@ Status FindCandidatesByInOutPair(const Graph &graph, OrderedNodeSet &candidates,
 }
 
 Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
-                                const FunctionLibraryDefinition *func_lib, bool enableDP, bool mix_compile_mode) {
+                                const FunctionLibraryDefinition *func_lib,
+                                std::map<std::string, std::string> pass_options) {
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
+  bool enable_dp = pass_options["enable_dp"] == "1";
+  bool mix_compile_mode = pass_options["mix_compile_mode"] == "1";
   compile_mode = mix_compile_mode;
   std::vector<Node *> sortedNodes;
   bool hasIteratorOp = false;
@@ -549,7 +552,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
   }
 
   std::sort(sortedNodes.begin(), sortedNodes.end(), NodeCompare());
-  ADP_LOG(INFO) << "FindNpuSupportCandidates enableDP:" << enableDP << ", mix_compile_mode: " << compile_mode
+  ADP_LOG(INFO) << "FindNpuSupportCandidates enable_dp:" << enable_dp << ", mix_compile_mode: " << compile_mode
             << ", hasMakeIteratorOp:" << hasMakeIteratorOp << ", hasIteratorOp:" << hasIteratorOp;
 
   if (hasMakeIteratorOp && hasIteratorOp) {
@@ -565,7 +568,7 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
     if (!node->IsOp()) {  // Ship Sink/Source nodes.
       continue;
     }
-    if (enableDP
+    if (enable_dp
         && (node->type_string() == "Iterator" || node->type_string() == "IteratorV2"
             || node->type_string() == "IteratorGetNext" || node->type_string() == "AdpGetNext")) {
       if (node->type_string() == "IteratorGetNext") {
@@ -600,7 +603,8 @@ Status FindNpuSupportCandidates(const Graph &graph, OrderedNodeSet *candidates,
         if (ctrlEdgeNum >= 1) { continue; }
       }
       // normal needed down op
-      if (IsNpuSupportingNode(node, compile_mode, func_lib) && !IsUnSupportedResource(compile_mode, node)) {
+      if (IsNpuSupportingNode(node, compile_mode, func_lib) && !IsUnSupportedResource(compile_mode, node) &&
+        !IsVariableExecuteOnHost(node, pass_options["variable_location"])) {
         (void) candidates->insert(node);
       } else {
         (void) outSet.insert(node);
@@ -869,11 +873,12 @@ std::vector<string> string_split(const string &str, const string &pattern) {
   return resultVec;
 }
 
-Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum, bool mix_compile_mode, int graph_num,
+Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum, int graph_num,
                         const FunctionLibraryDefinition *func_lib, std::map<std::string, std::string> pass_options,
                         std::map<std::string, std::string> &graph_options) {
   Graph *graph = graph_in->get();
   bool enable_dp = pass_options["enable_dp"] == "1";
+  bool mix_compile_mode = pass_options["mix_compile_mode"] == "1";
   bool is_set_lazy_recompile = graph_options["dynamic_input"] == "1" &&
                                graph_options["dynamic_graph_execute_mode"] == "lazy_recompile";
   OrderedNodeSet npuSupportCandidates;
@@ -881,11 +886,10 @@ Status MarkForPartition(const std::unique_ptr<Graph> *graph_in, int &clusterNum,
     if (!mix_compile_mode) {
       return errors::Internal("mix_compile_mode must be True when use in_out_pair.");
     }
-    TF_RETURN_IF_ERROR(FindCandidatesByInOutPair(*graph, npuSupportCandidates, func_lib, pass_options["in_out_pair"],
-                                                 pass_options["in_out_pair_flag"]));
+    TF_RETURN_IF_ERROR(FindCandidatesByInOutPair(*graph, npuSupportCandidates, func_lib, pass_options));
   }
   if (npuSupportCandidates.empty()) {
-    TF_RETURN_IF_ERROR(FindNpuSupportCandidates(*graph, &npuSupportCandidates, func_lib, enable_dp, mix_compile_mode));
+    TF_RETURN_IF_ERROR(FindNpuSupportCandidates(*graph, &npuSupportCandidates, func_lib, pass_options));
     TF_RETURN_IF_ERROR(AddRelationalConst(*graph, &npuSupportCandidates));
   }
 
@@ -2080,8 +2084,6 @@ Status OMPartitionSubgraphsPass::ProcessGetNext(Node &node, const std::string en
 
 Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, FunctionLibraryDefinition *func_lib,
                                               const OptimizationPassRegistry::Grouping pass_group_value) const {
-  int graph_num = graph_run_num++;
-
   if (graph == nullptr) { return Status::OK(); }
 
   int64 startTime = InferShapeUtil::GetCurrentTimestap();
@@ -2116,7 +2118,11 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   if (job == "localhost" && pass_group_value != OptimizationPassRegistry::POST_REWRITE_FOR_EXEC) {
     return Status::OK();
   }
-  if (job != "localhost" && pass_group_value != OptimizationPassRegistry::POST_PARTITIONING) { return Status::OK(); }
+  if (job != "localhost" && pass_group_value != OptimizationPassRegistry::POST_PARTITIONING) {
+    return Status::OK();
+  }
+
+  int graph_num = graph_run_num++;
 
   bool use_off_line = pass_options["use_off_line"] == "1";
   bool mix_compile_mode = pass_options["mix_compile_mode"] == "1";
@@ -2249,7 +2255,7 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
   }
 
   int subgraphNum = 0;
-  TF_RETURN_IF_ERROR(OMSplitter::MarkForPartition(graph, subgraphNum, mix_compile_mode, graph_num, func_lib,
+  TF_RETURN_IF_ERROR(OMSplitter::MarkForPartition(graph, subgraphNum, graph_num, func_lib,
                                                   pass_options, graph_options));
   ADP_LOG(EVENT) << "OMPartition subgraph_" << std::to_string(graph_num) << " markForPartition success.";
   if (subgraphNum < 1) {

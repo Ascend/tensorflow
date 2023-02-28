@@ -25,20 +25,22 @@ namespace {
 class LoadAndExecuteOmOp : public OpKernel {
  public:
   explicit LoadAndExecuteOmOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("om_path", &om_path_));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("executor_type", &executor_type_));
   }
   ~LoadAndExecuteOmOp() override = default;
 
   void Compute(OpKernelContext *ctx) override {
     std::unique_lock<std::mutex> lk(mu_);
+    auto input_num = ctx->num_inputs();
+    OP_REQUIRES(ctx, input_num > 0,
+                errors::Internal("input num should more than 0"));
+    model_data_ = ctx->input(input_num - 1).scalar<tstring>()();
     OP_REQUIRES_OK(ctx, Initialize());
     std::vector<Tensor> inputs;
-    inputs.reserve(ctx->num_inputs());
-    for (int i = 0; i < ctx->num_inputs(); i++) {
+    inputs.reserve(input_num - 1);
+    for (int32_t i = 0; i < input_num - 1; i++) {
       inputs.push_back(ctx->input(i));
     }
-
     std::vector<Tensor> outputs;
     OP_REQUIRES_OK(ctx, executor_->Execute(inputs, outputs));
     OP_REQUIRES(ctx, outputs.size() == static_cast<size_t>(ctx->num_outputs()),
@@ -55,14 +57,14 @@ class LoadAndExecuteOmOp : public OpKernel {
       return Status::OK();
     }
     // todo: 将om_path_转换为绝对路径
-    TF_RETURN_IF_ERROR(OmExecutor::Create(om_path_, executor_));
+    TF_RETURN_IF_ERROR(OmExecutor::Create(model_data_, executor_));
     initialized_ = true;
     return Status::OK();
   }
 
   std::mutex mu_;
   bool initialized_{false};
-  std::string om_path_;
+  std::string model_data_;
   std::string executor_type_;  // Reserved
 
   std::unique_ptr<OmExecutor> executor_;

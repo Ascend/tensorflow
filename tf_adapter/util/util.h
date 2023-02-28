@@ -35,5 +35,7 @@ Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&
 
 bool IsWithoutNpuScope(const NodeDef &node_def);
 bool IsWithoutNpuScope(const Node *node);
+bool IsVariableOrResourceVariable(const Node * const node);
+bool IsVariableExecuteOnHost(const Node * const node, const std::string &variable_location);
 } // namespace tensorflow
 #endif // TENSORFLOW_UTILS_H_

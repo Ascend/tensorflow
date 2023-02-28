@@ -26,6 +26,7 @@ from tensorflow.core.framework import attr_value_pb2
 from npu_bridge.npu_cpu.npu_cpu_ops import gen_npu_cpu_ops
 from npu_bridge.embedding.embedding_resource import NpuEmbeddingResource
 from npu_bridge.embedding import embedding_optimizer
+from npu_bridge.embedding.embedding_table_map_policy import NoneTableMapPolicy, AutoMergeTableMapPolicy
 
 _INT32_MAX_VALUE = 2147483647
 
@@ -74,6 +75,11 @@ class ESWorker:
         self._initializer = None
         self._init_flag = False
         self._table_has_init = []
+        self.user_defined_table_infos = []
+        self.table_map_policy = None
+        self.table_create_infos = []
+        self.total_variable_table = []
+        self.total_embedding_count = 0
         config = tf.ConfigProto()
         custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
         custom_op.name = "NpuOptimizer"
@@ -103,9 +109,11 @@ class ESWorker:
         if vocabulary_size < 0 or table_id < 0:
             raise ValueError("vocabulary_size and table_id can not be smaller than zero.")
         if vocabulary_size >= _INT32_MAX_VALUE or table_id >= _INT32_MAX_VALUE:
-            raise ValueError("vocabulary_size and table_id exceed int32 max value.")
+            raise ValueError("vocabulary_size or table_id exceed int32 max value.")
         if embedding_dim <= 0 or partition_num <= 0 or max_batch_size <= 0:
             raise ValueError("embedding_dim, partition_num and max_batch_size must be greater than zero.")
+        if table_id in self._table_has_init:
+            raise ValueError("this table has already initialized.")
         self._embedding_dim = embedding_dim
         self._max_num = max_batch_size
         self._table_to_embedding_dim[table_id] = embedding_dim
@@ -258,6 +266,54 @@ class ESWorker:
             return gen_npu_cpu_ops.embedding_table_export(file_path, file_name, ops.convert_to_tensor(-1), table_id,
                                                           embedding_dim, embedding_dim * (self.slot_vars_num + 1),
                                                           False, mode)
+
+    def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True):
+        if not isinstance(multihot_lens, list):
+            raise ValueError("multihot_lens must be list.")
+        new_table_info = dict(
+            max_vocabulary_size=max_vocabulary_size,
+            embedding_dim=embedding_dim,
+            multihot_lens=multihot_lens,
+            allow_merge=allow_merge
+        )
+        self.user_defined_table_infos.append(new_table_info)
+
+    def init_table(self, table_map_policy=AutoMergeTableMapPolicy()):
+        self.table_map_policy = table_map_policy
+        self.table_create_infos = self.table_map_policy.map_table_infos(self.user_defined_table_infos)
+        for table_info_ in self.table_create_infos:
+            self.total_variable_table.append(tf.Variable(
+                tf.random_normal([table_info_['max_vocabulary_size'], table_info_['embedding_dim']], mean=0.0,
+                                 stddev=1.0, dtype=tf.float32, seed=1234)
+            ))
+            self.total_embedding_count += 1
+
+    def embeddings_look_up(self, tf_indices):
+        if self.total_embedding_count != len(self.table_create_infos):
+            raise ValueError("Must init_table() first!")
+        (in_slot_size_group, slot_to_table, table_to_input_group, \
+         table_to_slot, table_to_output_slots) = \
+            (self.table_map_policy.in_slot_size_group, self.table_map_policy.slot_to_table, \
+             self.table_map_policy.table_to_input_groups, self.table_map_policy.table_to_slot, \
+             self.table_map_policy.table_to_output_slots)
+
+        indices_split = tf.split(tf_indices, in_slot_size_group, axis=1)
+        for tid in range(self.total_embedding_count):
+            table_to_input_group[tid] = []
+        for sid, indices in enumerate(indices_split):
+            tid = slot_to_table[sid]
+            table_to_input_group[tid].append(indices)
+
+        output_slots = [None for _ in in_slot_size_group]
+        for tid, table_input_group in enumerate(table_to_input_group):
+            table_input_after_mapping = \
+                gen_npu_cpu_ops.embedding_feature_mapping(feature_id=tf.concat(table_input_group, axis=1))
+            table_to_input_group[tid] = table_input_after_mapping
+            table_embedding = tf.nn.embedding_lookup(self.total_variable_table[tid], table_input_after_mapping)
+            out_embedding_splited = tf.split(table_embedding, table_to_output_slots[tid], axis=1)
+            for out_emb, sid in zip(out_embedding_splited, table_to_slot[tid]):
+                output_slots[sid] = out_emb
+        return output_slots
 
     def _init_hashmap_and_table_import(self, bucket_size, file_path, file_name, table_id,
                                        initializer, embedding_dim, only_var, mode):

@@ -106,7 +106,9 @@ class NPURunConfig(run_config_lib.RunConfig):
                  event_sync_timeout=-1,
                  external_weight=False,
                  es_cluster_config=None,
-                 deterministic=0
+                 deterministic=0,
+                 frozen_variable=False,
+                 variable_placement="Device"
                  ):
         """
         Constructs a NPUConfig.
@@ -165,6 +167,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         topo_sorting_mode: Provides an interface for users to customize topology sorting.
         external_weight: Whether convert const to fileconstant and save weight to file.
         es_cluster_config: esClusterConfig from user input in embedding service.
+        frozen_variable: Whether folding constant variables
+        variable_placement: Process variable on host or device
         """
 
         # Check iterations_per_loop.
@@ -223,6 +227,8 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._deterministic = deterministic
         self._fusion_switch_file = fusion_switch_file
         self._enable_compress_weight = enable_compress_weight
+        self._frozen_variable = frozen_variable
+        self._variable_placement = variable_placement
         self._compress_weight_conf = compress_weight_conf
         self._op_compiler_cache_mode = op_compiler_cache_mode
         self._op_compiler_cache_dir = op_compiler_cache_dir

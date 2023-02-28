@@ -173,6 +173,8 @@ void SetDynamicType(int32_t dynamic_type);
 
 void SetOutputDynamic(const bool is_dynamic);
 
+void SetOutputNeedNull(const bool feed_null);
+
 using ACLMdlGetDescStub = std::function<aclError(aclmdlDesc *)>;
 void RegACLMdlGetDescStub(ACLMdlGetDescStub stub);
 

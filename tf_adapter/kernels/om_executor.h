@@ -34,7 +34,7 @@ enum DynamicGearType {
 };
 
 public:
-  explicit ModelProcess(const std::string &om_path);
+  explicit ModelProcess(const std::string &model_data);
 
   ~ModelProcess();
 
@@ -67,11 +67,11 @@ private:
 
   Status ProcessOutput(std::vector<Tensor> &outputs);
 
-  Status ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) const;
+  Status ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type, const aclDataBuffer *data_buf,
+    std::vector<Tensor> &outputs) const;
 
-  Status ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type, const void* dev_ptr,
-    const size_t cur_size, std::vector<Tensor> &outputs) const;
+  Status ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type, aclDataBuffer *data_buf,
+    std::vector<Tensor> &outputs) const;
 
   void WorkThread();
 
@@ -88,7 +88,7 @@ private:
   void DestroyResource();
 
 private:
-  std::string om_path_;
+  std::string model_data_;
   uint32_t model_id_ = UINT32_MAX;
   uint32_t device_id_ = 0;
   aclmdlDesc *model_desc_ = nullptr;
@@ -111,6 +111,7 @@ private:
   Status thread_ret_;
   std::vector<Tensor> inputs_;
   std::vector<Tensor> outputs_;
+  std::vector<bool> outputs_feed_nullptr_vec_;
 
   DynamicGearType dymainc_gear_type_ = DYNAMIC_UNDEFINED;
   std::vector<std::vector<uint64_t>> dynamic_gear_info_;
@@ -122,10 +123,10 @@ private:
 
 class OmExecutor {
 public:
-  /// \param om_path Absolute file path of the om file
+  /// \param model_data file of the om file
   /// \param executor Created om executor
   /// \return Status::OK() or error status if any error occurs
-  static Status Create(const std::string &om_path, std::unique_ptr<OmExecutor> &executor);
+  static Status Create(const std::string &model_data, std::unique_ptr<OmExecutor> &executor);
 
   /// \param inputs Tensorflow host input tensors
   /// \param outputs Empty output tensors to be filling

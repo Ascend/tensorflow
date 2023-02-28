@@ -154,7 +154,7 @@ else()
         ${TOP_DIR}/metadef/inc/external/
         ${TOP_DIR}/libc_sec/include/
         ${TOP_DIR}/abl/libc_sec/include/
-        ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow_core/include
+        ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow_core/include/
         ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow-1.15.5.data/purelib/tensorflow_core/include/
         ${CMAKE_CURRENT_LIST_DIR}/inc/tensorflow/
         ${HI_PYTHON_INC}/
