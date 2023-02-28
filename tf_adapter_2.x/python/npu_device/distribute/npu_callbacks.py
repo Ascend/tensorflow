@@ -54,8 +54,7 @@ def broadcast_keras_model(model, root_rank=0):
 def get_ranksize():
     if os.getenv("CM_WORK_SIZE") is not None and os.getenv("RANK_SIZE") is not None:
         raise ValueError("RANK_SIZE and CM_WORK_SIZE cannot be configured at the same time")
-    rank_size = os.getenv('RANK_SIZE') if os.getenv(
-        "RANK_SIZE") is not None else os.getenv('CM_WORK_SIZE', '1')
+    rank_size = os.getenv('RANK_SIZE') if os.getenv("RANK_SIZE") is not None else os.getenv('CM_WORK_SIZE', '1')
     return rank_size
 
 
