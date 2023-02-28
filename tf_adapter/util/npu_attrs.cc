@@ -1786,7 +1786,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
                                                                     "cube_fp16in_fp32out",
                                                                     "allow_mix_precision_fp16",
                                                                     "allow_mix_precision_bf16",
-                                                                    "allow_fp32_to_bp16"};
+                                                                    "allow_fp32_to_bf16"};
         NPU_REQUIRES_OK(CheckValueAllowed<std::string>(precision_mode, kPrecisionModeList));
       } else {
         if (static_cast<bool>(graph_run_mode)) {
