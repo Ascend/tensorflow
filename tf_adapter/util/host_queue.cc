@@ -208,7 +208,7 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
 
   if ((head_buf != nullptr) && (head_size >= sizeof(MsgInfo))) {
     MsgInfo *msg_info = reinterpret_cast<MsgInfo *>(static_cast<uint8_t *>(head_buf) + head_size - sizeof(MsgInfo));
-    msg_info->ret_code = 0;
+    *msg_info = {};
   }
   if (kIsHeterogeneous) {
     // need skip RuntimeTensorDesc, this data for GetNext op, so the RuntimeTensorDesc can be left blank
