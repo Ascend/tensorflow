@@ -293,7 +293,7 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
   (void) flib_def;
   REQUIRES_NOT_NULL(graph);
   REQUIRES_NOT_NULL(func_def);
-  ADP_LOG(INFO) << "InferShapeUtil::InferShape";
+  ADP_LOG(INFO) << "InferShapeUtil::InferShape.";
   size_t iTensorNums = vecTensor.size();
   const OpDef &sig = func_def->signature();
   size_t iInputArgNums = static_cast<size_t>(sig.input_arg_size());
@@ -350,7 +350,7 @@ Status InferShapeUtil::InferShape(const std::vector<Tensor> &vecTensor, const Fu
     (void)graph->AddEdge(edgeInfo.src_, edgeInfo.src_output_, edgeInfo.dst_, edgeInfo.dst_input_);
   }
 
-  ADP_LOG(INFO) << "InferShapeUtil::InferShape success";
+  ADP_LOG(INFO) << "InferShapeUtil::InferShape success.";
   return Status::OK();
 }
 }  // namespace tensorflow

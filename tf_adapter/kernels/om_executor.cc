@@ -27,17 +27,17 @@ ModelProcess::ModelProcess(const std::string &model_data) {
 ModelProcess::~ModelProcess() {
   DestroyResource();
   run_flag_ = false;
-  ADP_LOG(INFO) << "send request to thread";
+  ADP_LOG(INFO) << "send request to thread.";
   {
     std::unique_lock<std::mutex> lk {mu_request_};
     request_flag_ = true;
     cond_request_.notify_one();
   }
-  ADP_LOG(INFO) << "start join";
+  ADP_LOG(INFO) << "start join.";
   if (work_thread_.joinable()) {
     work_thread_.join();
   }
-  ADP_LOG(INFO) << "join success";
+  ADP_LOG(INFO) << "join success.";
 }
 
 void ModelProcess::DestroyResource() {
@@ -270,7 +270,7 @@ Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) const {
 
 Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::DataType tf_type,
     const aclDataBuffer *data_buf, std::vector<Tensor> &outputs) const {
-  ADP_LOG(INFO) << "this out " << index << " is static";
+  ADP_LOG(INFO) << "this out " << index << " is static.";
   void *dev_ptr = aclGetDataBufferAddr(data_buf);
   REQUIRES_NOT_NULL(dev_ptr);
   aclmdlIODims acl_dims = {};
@@ -295,7 +295,7 @@ Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::D
 
 Status ModelProcess::ProcessDynamicOutput(const size_t index, const tensorflow::DataType tf_type,
     aclDataBuffer *data_buf, std::vector<Tensor> &outputs) const {
-  ADP_LOG(INFO) << "this out " << index << " is dynamic";
+  ADP_LOG(INFO) << "this out " << index << " is dynamic.";
   void *dev_ptr = aclGetDataBufferAddr(data_buf);
   REQUIRES_NOT_NULL(dev_ptr);
   auto *desc = aclmdlGetDatasetTensorDesc(output_, index);
@@ -318,7 +318,7 @@ Status ModelProcess::ProcessDynamicOutput(const size_t index, const tensorflow::
   ADP_LOG(INFO) << "current output " << index << " tensor is " << tensor.DebugString();
   outputs.emplace_back(std::move(tensor));
   if (outputs_feed_nullptr_vec_[index]) {
-    ADP_LOG(INFO) << "this output  " << index << " need update nullptr";
+    ADP_LOG(INFO) << "this output  " << index << " need update nullptr.";
     (void)aclrtFree(dev_ptr);
     (void)aclUpdateDataBuffer(data_buf, nullptr, 0);
   }
@@ -349,13 +349,13 @@ void ModelProcess::WorkThread() {
   while (run_flag_) {
     {
       std::unique_lock<std::mutex> lk {mu_request_};
-      ADP_LOG(INFO) << "start wait request";
+      ADP_LOG(INFO) << "start wait request.";
       cond_request_.wait(lk, [this] { return (!this->run_flag_.load() || this->request_flag_.load()); });
       request_flag_ = false;
     }
-    ADP_LOG(INFO) << "get request, start working";
+    ADP_LOG(INFO) << "get request, start working.";
     if (!run_flag_) {
-      ADP_LOG(INFO) << "stop thread";
+      ADP_LOG(INFO) << "stop thread.";
       return;
     }
     if (!is_prepared) {
@@ -460,7 +460,7 @@ void ModelProcess::DestroyOutput() {
 
 void ModelProcess::SendRequest(const std::vector<Tensor> &inputs) {
   inputs_ = inputs;
-  ADP_LOG(INFO) << "send request to thread";
+  ADP_LOG(INFO) << "send request to thread.";
   {
     std::unique_lock<std::mutex> lk {mu_request_};
     request_flag_ = true;
@@ -492,9 +492,9 @@ Status OmExecutor::Create(const std::string &model_data, std::unique_ptr<OmExecu
 }
 
 Status OmExecutor::Execute(const std::vector<Tensor> &inputs, std::vector<Tensor> &outputs) {
-  ADP_LOG(INFO) << "send request start";
+  ADP_LOG(INFO) << "send request start.";
   model_process_->SendRequest(inputs);
-  ADP_LOG(INFO) << "send request end, start wait thread reply";
+  ADP_LOG(INFO) << "send request end, start wait thread reply.";
   model_process_->WaitReply(outputs);
   auto ret = model_process_->GetThreadRet();
   ADP_LOG(INFO) << "execute end " << ret.ToString();

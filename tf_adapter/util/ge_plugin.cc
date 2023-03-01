@@ -365,12 +365,12 @@ Status RegisterNpuCancellationCallback(std::function<void()> callback, std::func
 
 void PluginInit(std::map<std::string, std::string> &init_options) {
   GePlugin::GetInstance()->Init(init_options, true);
-  ADP_LOG(INFO) << "[GePlugin] npu plugin init success";
+  ADP_LOG(INFO) << "[GePlugin] npu plugin init success.";
 }
 
 void PluginFinalize() {
   GePlugin::GetInstance()->Finalize();
-  ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success";
+  ADP_LOG(INFO) << "[GePlugin] npu plugin finalize success.";
 }
 
 void AoeFinalizeIfNeed() {
@@ -416,7 +416,7 @@ void NpuClose() {
       NpuAttrs::SetUseTdtStatus(device_id, false);
     }
   }
-  ADP_LOG(INFO) << "[GePlugin] npu finalize resource success";
+  ADP_LOG(INFO) << "[GePlugin] npu finalize resource success.";
 }
 
 int32_t InitRdmaPool(size_t size) {

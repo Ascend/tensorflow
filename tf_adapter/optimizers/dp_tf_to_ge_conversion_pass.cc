@@ -513,7 +513,7 @@ Status DpTfToGEConversionPassImpl::RemoveNotSupportDataset(Graph &g, const std::
 }
 
 inline void DpTfToGEConversionPassImpl::RemoveSplitEdges(Node *topo_end) {
-  ADP_LOG(INFO) << "Start to remove split edges";
+  ADP_LOG(INFO) << "Start to remove split edges.";
   for (const Edge *e : split_edges_.at(topo_end)) {
     ADP_LOG(INFO) << "Remove_" << GetEdgeName(e);
     graph_->RemoveEdge(e);

@@ -133,7 +133,8 @@ main() {
     export ASCEND_OPP_PATH=${BASE_PATH}/tf_adapter/tests/depends/support_json
     export PRINT_MODEL=1
     export LD_LIBRARY_PATH=${CMAKE_PATH}/tf_adapter/tests/depends/aoe/:$LD_LIBRARY_PATH
-    RUN_TEST_CASE=${CMAKE_PATH}/tf_adapter/tests/ut/tfadapter_utest && ${RUN_TEST_CASE}
+    RUN_TEST_CASE=${CMAKE_PATH}/tf_adapter/tests/ut/tfadapter_utest && unset ENABLE_MBUF_ALLOCATOR \
+    && ${RUN_TEST_CASE} && export ENABLE_MBUF_ALLOCATOR=1 && ${RUN_TEST_CASE} "--gtest_filter=MbufAllocatorTest.EnableMbufAllocatorTest"
     if [[ "$?" -ne 0 ]]; then
       echo "!!! UT FAILED, PLEASE CHECK YOUR CHANGES !!!"
       echo -e "\033[31m${RUN_TEST_CASE}\033[0m"
@@ -154,7 +155,8 @@ main() {
     export ASCEND_OPP_PATH=${BASE_PATH}/tf_adapter/tests/depends/support_json
     export PRINT_MODEL=1
     export LD_LIBRARY_PATH=${CMAKE_PATH}/tf_adapter/tests/depends/aoe/:$LD_LIBRARY_PATH
-    RUN_TEST_CASE=${CMAKE_PATH}/tf_adapter/tests/st/tfadapter_stest && ${RUN_TEST_CASE}
+    RUN_TEST_CASE=${CMAKE_PATH}/tf_adapter/tests/st/tfadapter_stest && unset ENABLE_MBUF_ALLOCATOR \
+    && ${RUN_TEST_CASE} && export ENABLE_MBUF_ALLOCATOR=1 && ${RUN_TEST_CASE} "--gtest_filter=MbufAllocatorTest.EnableMbufAllocatorTest"
     if [[ "$?" -ne 0 ]]; then
       echo "!!! ST FAILED, PLEASE CHECK YOUR CHANGES !!!"
       echo -e "\033[31m${RUN_TEST_CASE}\033[0m"

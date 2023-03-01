@@ -145,9 +145,9 @@ Status GetEnvDeviceID(uint32_t &device_id) {
   (void) ReadStringFromEnvVar("DEVICE_ID", "", &env_device_id);
   if (env_ascend_device_id.empty() && env_device_id.empty()) {
     ADP_LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set "
-                        "session_device_id, session_device_id has a higher priority";
+                        "session_device_id, session_device_id has a higher priority.";
     LOG(WARNING) << "[GePlugin] DEVICE_ID and ASCEND_DEVICE_ID is none, use default device id : 0, if set "
-                    "session_device_id, session_device_id has a higher priority";
+                    "session_device_id, session_device_id has a higher priority.";
   } else if (!env_ascend_device_id.empty()) {
     if (!strings::safe_strto64(env_ascend_device_id, &logic_device_id)) {
       return errors::InvalidArgument("ASCEND_DEVICE_ID is invalid, should be int, such as 0, 1, 2.");

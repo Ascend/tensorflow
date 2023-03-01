@@ -100,10 +100,10 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
 
  private:
   explicit NpuHostFixedAllocator(geDataUniquePtr ptr) : ptr_(std::move(ptr)) {
-    ADP_LOG(INFO) << "[GEOP] Zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
+    ADP_LOG(INFO) << "[GEOP] Zero copied ge tensor: " << std::hex << reinterpret_cast<uintptr_t>(ptr_.get());
   }
   ~NpuHostFixedAllocator() override {
-    ADP_LOG(INFO) << "[GEOP] Release zero copied ge tensor " << reinterpret_cast<uintptr_t>(ptr_.get());
+    ADP_LOG(INFO) << "[GEOP] Release zero copied ge tensor: " << std::hex << reinterpret_cast<uintptr_t>(ptr_.get());
   }
   std::string Name() override {
     return "NpuHostFixedAllocator";
@@ -208,7 +208,7 @@ Status BuildOutputTensorInfo(OpKernelContext *ctx, std::vector<ge::Tensor> &outp
     geDataUniquePtr data_ptr = std::move(output.ResetData());
     ADP_LOG(INFO) << "[GEOP] Get ge output: " << i << " tensor shape is: " << out_shape.DebugString()
                   << ", data placement is: " << data_placement << ", output_size is: " << output_size
-                  << ", data addr is: " << reinterpret_cast<uintptr_t>(data_ptr.get());
+                  << ", data addr is: " << std::hex << reinterpret_cast<uintptr_t>(data_ptr.get());
 
     if (data_placement != ge::kPlacementDevice) {
       const static int64_t kTensorAlignBytes = 64;
@@ -366,7 +366,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   } else {
     init_options_ = NpuAttrs::GetInitOptions(ctx);
     GePlugin::GetInstance()->Init(init_options_);
-    ADP_LOG(INFO) << "[GEOP] GePlugin init success";
+    ADP_LOG(INFO) << "[GEOP] GePlugin init success.";
   }
   ADP_LOG(INFO) << "init options: ";
   NpuAttrs::LogOptions(init_options_);
@@ -464,7 +464,7 @@ void GeOp::Finalize() {
           }
           tuned_initialize_flag_ = false;
           GePlugin::GetInstance()->Finalize();
-          ADP_LOG(INFO) << "[GEOP] GePlugin Finalize success";
+          ADP_LOG(INFO) << "[GEOP] GePlugin Finalize success.";
         } else {
           ADP_LOG(INFO) << "[GEOP] GePlugin global, skip GePlugin Finalize";
         }
@@ -833,7 +833,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     domi::GetContext().format = ge::GetParserContext().format;
 
     ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success, kernel_name: " << geop_name
-                  << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id
+                  << ", tf session: " << tf_session_ << " , graph id: " << cache_graph_id
                   << ", iteration_per_loop: " << iteration_per_loop_ << ", need iteration: " << this->need_iteration_;
 
     size_t nodes = compute_graph->GetAllNodesSize();
@@ -850,7 +850,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     // convert to ge::graph
     if (graph_options_.count("input_format") != 0) {
-      ADP_LOG(INFO) << "graph_options_[\"input_format\"] = " << graph_options_["input_format"];
+      ADP_LOG(INFO) << "graph_options_[\"input_format\"]: " << graph_options_["input_format"];
     }
     ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
@@ -905,7 +905,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     } else {
       add_graph_flag_ = true;
       ADP_LOG(INFO) << "[GEOP] Add graph to ge session success, kernel_name: " << geop_name
-                    << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id;
+                    << ", tf session: " << tf_session_ << ", graph id: " << cache_graph_id;
     }
     build_flag_ = true;
     if (!is_set_dynamic_config && is_lazy_recompile_mode) {
@@ -990,9 +990,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name:" << geop_name
-                << ", ret_status:" << ToString(run_graph_status) << " ,tf session: " << tf_session_
-                << " ,graph id: " << cache_graph_id << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+  ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name: " << geop_name
+                << ", ret_status: " << ToString(run_graph_status) << ", tf session : " << tf_session_
+                << " ,graph id: " << cache_graph_id << "[" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;
 }
 
@@ -1004,7 +1004,7 @@ void GeOp::ChangeChannelNameAttr(NodeDef &node_def) const {
   channel_name.set_s(std::to_string(
       std::hash<std::string>{}(tf_session_ + pre_channel_name + "_device_" + std::to_string(device_id))));
   (*node_def.mutable_attr())["channel_name"] = channel_name;
-  ADP_LOG(INFO) << "[GEOP] changed the value of channel_name attr of node:" << node_def.name() << " to "
+  ADP_LOG(INFO) << "[GEOP] changed the value of channel_name attr of node: " << node_def.name() << " to "
                 << channel_name.s();
 }
 
@@ -1409,13 +1409,13 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
     // add shape node to get getnext node real shape
     if (dynamic_node_type == "0" && node->type_string() == "IteratorGetNext") {
       dynamic_shape_nodes_.emplace_back(node);
-      ADP_LOG(INFO) << "push in dynamic shape nodes, node: " << node->name() << ", type:" << node->type_string();
+      ADP_LOG(INFO) << "push in dynamic shape nodes, node: " << node->name() << ", type: " << node->type_string();
       std::set<int32_t> out_index;
       for (auto out_edge : node->out_edges()) {
         if (!out_edge->IsControlEdge()) {
           std::string msg = "Src:" + out_edge->src()->name() + ":" + std::to_string(out_edge->src_output()) +
               ", Dst:" + out_edge->dst()->name() + ":" + std::to_string(out_edge->dst_input());
-          ADP_LOG(INFO) << "[GEOP] GetNext node in out info:" << msg;
+          ADP_LOG(INFO) << "[GEOP] GetNext node in out info : " << msg;
           out_index.insert(out_edge->src_output());
         }
       }
@@ -1439,12 +1439,12 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
       if (node->name().find("IteratorGetNext_") != std::string::npos) {
         if (dynamic_node_type == "0") {
           dynamic_shape_nodes_.emplace_back(node);
-          ADP_LOG(INFO) << "push in dynamic shape nodes, node: " <<  node->name() << ", type:" << node->type_string();
+          ADP_LOG(INFO) << "push in dynamic shape nodes, node : " <<  node->name() << ", type : " << node->type_string();
         }
       } else {
         if (dynamic_node_type == "1") {
           dynamic_shape_nodes_.emplace_back(node);
-          ADP_LOG(INFO) << "push in dynamic shape nodes, node: " << node->name() << ", type:" << node->type_string();
+          ADP_LOG(INFO) << "push in dynamic shape nodes, node: " << node->name() << ", type: " << node->type_string();
         }
       }
     }
@@ -1507,7 +1507,7 @@ void GeOp::SetShapesToOutputDesc(const std::vector<std::string> &input_shapes, c
     LOG(ERROR) << "[GEOP] index must more than 0.";
     return;
   }
-  ADP_LOG(INFO) << "[GEOP] get input: " << index << " input shape is: " << input_shapes[index];
+  ADP_LOG(INFO) << "[GEOP] get input: " << index << ", input shape: " << input_shapes[index];
   std::vector<std::string> shape;
   Split(input_shapes[index], shape, ":");  // e.g. shape:["data", "2,3,4"]
   if (shape.empty() || shape.size() != 2) {
@@ -1677,7 +1677,7 @@ std::string GeOp::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::
   ADP_LOG(INFO) << "[GEOP] build_sub_graph enter, sub graph name is " << graph;
   const FunctionDef *func_def = flib_def->Find(graph);
   if (func_def == nullptr) {
-    ADP_LOG(ERROR) << "[GEOP] Sub graph not found in library, sub graph name is " << graph;
+    ADP_LOG(ERROR) << "[GEOP] Sub graph not found in library, sub_graph_name: " << graph;
     return "";
   }
   // get infershape
@@ -1719,7 +1719,7 @@ std::string GeOp::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::
     const std::string pbtxt_path = GetDumpPath() + "TF_Subgraph_" + graph.c_str() + ".pbtxt";
     (void) WriteTextProto(Env::Default(), pbtxt_path, *sub_graph_def);
   }
-  ADP_LOG(INFO) << "[GEOP] build_sub_graph exit, sub graph name is " << graph;
+  ADP_LOG(INFO) << "[GEOP] build_sub_graph exit, sub_graph_name : " << graph;
   return sub_graph_def->SerializeAsString();
 }
 
@@ -1755,9 +1755,9 @@ void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType ty
 
   uint8_t *data = output_info->data_.release();
   input.SetData(data, output_info->output_size_, output_info->data_.get_deleter());
-  ADP_LOG(INFO) << "[GEOP] Get input shape:" << input_shape.DebugString()
-                << ", input placement:" << output_info->placement_ << ", input length:" << output_info->output_size_
-                << ", input data addr:" << reinterpret_cast<uintptr_t>(data);
+  ADP_LOG(INFO) << "[GEOP] Get input shape: " << input_shape.DebugString()
+                << ", input placement: " << output_info->placement_ << ", input length: " << output_info->output_size_
+                << ", input data addr: " << reinterpret_cast<uintptr_t>(data);
 }
 
 Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::string *string_vector) const {
@@ -1779,7 +1779,7 @@ Status GeOp::AnalyzeStringInput(ge::Tensor &input, uint64_t count, const std::st
     const char *string_addr = str.c_str();
     while (str_size >= SECUREC_MEM_MAX_LEN) {
       const auto ret = memcpy_s(data_addr, SECUREC_MEM_MAX_LEN, string_addr, SECUREC_MEM_MAX_LEN);
-      NPU_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+      NPU_REQUIRES(ret == EOK, errors::Internal("call memcpy_s failed, ret: ", ret));
       str_size -= SECUREC_MEM_MAX_LEN;
       offset += SECUREC_MEM_MAX_LEN;
       data_addr += SECUREC_MEM_MAX_LEN;
@@ -1852,7 +1852,7 @@ Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
   }
 
   if (remove_index_.size() == 0) {
-    ADP_LOG(INFO) << "[GEOP]Return for dont have const input.";
+    ADP_LOG(INFO) << "[GEOP] Return for dont have const input.";
     return Status::OK();
   }
 
@@ -1948,6 +1948,8 @@ Status GeOp::BuildInputTensorInfo(OpKernelContext *const ctx, std::vector<Tensor
       ge_tensor_desc.SetDataType(type);
       ge_tensor_desc.SetOriginShape(ge_shape);
       input.SetTensorDesc(ge_tensor_desc);
+      ADP_LOG(INFO) << "[GEOP] input_" << i << ", type=" << type << ", tensor_ptr=" << tensor_ptr
+                    << ", tensor_size=" << total_bytes;
       if (type == ge::DT_STRING) {
         REQUIRES_NOT_NULL(tensor_ptr);
         const uint64_t count = static_cast<uint64_t>(tensor.NumElements());
@@ -2152,7 +2154,7 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
 bool GeOp::IsDynamicConfig() {
   const bool result = !sess_options_["ge.inputShape"].empty() && !sess_options_["ge.dynamicDims"].empty() &&
       !sess_options_["ge.dynamicNodeType"].empty();
-  ADP_LOG(INFO) << "[GEOP] IsDynamicConfig result is." << result;
+  ADP_LOG(INFO) << "[GEOP] IsDynamicConfig result is: " << result;
   return result;
 }
 }  // namespace tensorflow
