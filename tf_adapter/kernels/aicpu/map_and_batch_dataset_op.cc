@@ -80,7 +80,9 @@ constexpr const char* const NpuMapAndBatchDatasetOp::kOutputDevice;
 namespace {
 constexpr int64 kMicrosToMillis = 1000;
 constexpr int64_t kSleepUs = 10;
-constexpr int64_t kMaxBatchSize = 2;
+
+// keep minimum value of batch_capacity_ is 2, one for consumer, one for producer.
+constexpr uint64_t kMinBatchCapacity = 2;
 constexpr uint64_t kTFTensorAlignment = 64;
 constexpr char kParallelism[] = "parallelism";
 constexpr char kCallCounter[] = "call_counter";
@@ -367,7 +369,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       uint64_t result_index = read_index_;
       read_index_++;
-      if (read_index_ >= max_batch_results_) {
+      if (read_index_ >= batch_capacity_) {
         read_index_ = 0;
       }
 
@@ -610,7 +612,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       uint64_t WaitingResultNum() const {
         uint64_t count = 0;
-        for (uint64_t i = 0; i < max_batch_results_; i++) {
+        for (uint64_t i = 0; i < batch_capacity_; i++) {
           if (batch_results_[i]->data_status == DataStatus::WAIT_RESULT) {
             count++;
           }
@@ -650,21 +652,21 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void StopBatchResultWritingStatus() {
-        for (uint64_t i = 0; i < max_batch_results_; i++) {
+        for (uint64_t i = 0; i < batch_capacity_; i++) {
           mutex_lock l(batch_results_[i]->mu);
           if (batch_results_[i]->data_status == DataStatus::WRITING) {
             if (batch_results_[i]->num_recv < batch_results_[i]->num_run) {
               batch_results_[i]->UpdateState(DataStatus::WAIT_RESULT);
             } else {
               batch_results_[i]->UpdateState(DataStatus::WAIT_WRITE);
-              batch_results_[(write_index_.load() % max_batch_results_)]->num_run = 0;
+              batch_results_[(write_index_.load() % batch_capacity_)]->num_run = 0;
             }
           }
         }
       }
 
       bool GetNextBatchIndex(uint64_t &batch_id, uint64_t &batch_offset) EXCLUSIVE_LOCKS_REQUIRED(*mu_) {
-        uint64_t idx = write_index_.load() % max_batch_results_;
+        uint64_t idx = write_index_.load() % batch_capacity_;
         if (batch_results_[idx]->data_status > DataStatus::WAIT_RESULT) {
           return false;
         }
@@ -824,7 +826,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         // right away to avoid introducing tracing overhead.
         if (mu_->try_lock()) {
           parallelism = static_cast<int64>(GetParallelCallsNum());
-          max_batch_results = static_cast<int64>(max_batch_results_);
+          max_batch_results = static_cast<int64>(batch_capacity_);
           mu_->unlock();
         }
         auto result = dataset()->traceme_metadata_;
@@ -874,7 +876,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       std::function<void()> deregister_fn_;
 
       const std::shared_ptr<model::SharedState> num_parallel_calls_;
-      uint64_t max_batch_results_ GUARDED_BY(*mu_) = 0;
+      uint64_t batch_capacity_ GUARDED_BY(*mu_) = 0;
       bool end_of_input_ GUARDED_BY(*mu_) = false;
       std::vector<std::vector<int64_t>> func_output_shape_;
       uint64_t read_index_ = 0;
@@ -899,11 +901,8 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     explicit IteratorStatic(const Params& params)
         : IteratorMeBase(params) {
       ADP_LOG(EVENT) << "IteratorStatic";
-      max_batch_results_ = CeilDiv(GetParallelCallsNum() * kMaxTask, params.dataset->batch_size_);
-      if (max_batch_results_ <= 1) {
-        max_batch_results_ = kMaxBatchSize;
-      }
-      max_batch_results_ += 1;
+      batch_capacity_ = std::max(kMinBatchCapacity,
+          CeilDiv(GetParallelCallsNum() * kMaxTask, params.dataset->batch_size_));
     }
 
     ~IteratorStatic() override {
@@ -1053,10 +1052,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     }
 
     Status InitBatchResultMem() {
-      batch_results_ = new std::shared_ptr<BatchResultBase>[max_batch_results_]();
+      batch_results_ = new std::shared_ptr<BatchResultBase>[batch_capacity_]();
       DATASET_REQUIRES(batch_results_ != nullptr,
           errors::InvalidArgument("Make batch results faild."));
-      for (uint64_t i = 0; i < max_batch_results_; i++) {
+      for (uint64_t i = 0; i < batch_capacity_; i++) {
         batch_results_[i].reset(new (std::nothrow)BatchStaticResult(i, dataset()->batch_size_));
         DATASET_REQUIRES(batch_results_[i] != nullptr,
             errors::InvalidArgument("Make batch result faild: i = ", i));
@@ -1131,7 +1130,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   public:
     explicit IteratorDyn(const Params& params)
         : IteratorMeBase(params) {
-      max_batch_results_ = CeilDiv(GetParallelCallsNum(), params.dataset->batch_size_);
+      batch_capacity_ = std::max(kMinBatchCapacity, CeilDiv(GetParallelCallsNum(), params.dataset->batch_size_));
       ADP_LOG(EVENT) << "IteratorDyn.";
     };
 
@@ -1224,10 +1223,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
     }
 
     Status InitBatchResult() override {
-      batch_results_ = new (std::nothrow)std::shared_ptr<BatchResultBase>[max_batch_results_]();
+      batch_results_ = new (std::nothrow)std::shared_ptr<BatchResultBase>[batch_capacity_]();
       DATASET_REQUIRES(batch_results_ != nullptr,
           errors::InvalidArgument("Make batch results faild."));
-      for (uint64_t i = 0; i < max_batch_results_; i++) {
+      for (uint64_t i = 0; i < batch_capacity_; i++) {
         batch_results_[i].reset(new (std::nothrow)BatchDynResult(i, dataset()->batch_size_));
         DATASET_REQUIRES(batch_results_[i] != nullptr,
             errors::InvalidArgument("Make batch result faild: i = ", i));
