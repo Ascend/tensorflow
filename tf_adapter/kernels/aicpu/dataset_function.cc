@@ -368,7 +368,7 @@ void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output, bool isFree
     aclDataBuffer* data_buffer = aclmdlGetDatasetBuffer(output, i);
     if (isFree) {
       void* data_addr = aclGetDataBufferAddr(data_buffer);
-      aclError ret = aclrtFree(data_addr);
+      ret = aclrtFree(data_addr);
       if (ret != ACL_ERROR_NONE) {
         ADP_LOG(ERROR) << "Free acl device memory failed.";
       }
