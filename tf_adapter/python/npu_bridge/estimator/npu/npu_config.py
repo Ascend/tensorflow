@@ -330,20 +330,16 @@ class MemoryConfig():
 
     def __init__(self,
                  atomic_clean_policy=0,
-                 static_memory_policy=0,
-                 memory_optimization_policy=None):
+                 static_memory_policy=0):
         """
         Constructs a MemoryConfig.
         Args:
             atomic_clean_policy: atomic_clean_policy, default is 0.
             static_memory_policy: static_memory_policy.
-            memory_optimization_policy: memory_optimization_policy.
         """
 
         self._atomic_clean_policy = atomic_clean_policy
         self._static_memory_policy = static_memory_policy
-        self._memory_optimization_policy = memory_optimization_policy
-
 
 
 class DumpConfig():

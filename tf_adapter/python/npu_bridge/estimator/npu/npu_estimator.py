@@ -518,11 +518,8 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["atomic_clean_policy"].i = config._memory_config._atomic_clean_policy
             if config._memory_config._static_memory_policy is not None:
                 custom_op.parameter_map["static_memory_policy"].i = config._memory_config._static_memory_policy
-            if config._memory_config._memory_optimization_policy is not None:
-                custom_op.parameter_map[
-                    "memory_optimization_policy"].s = tf.compat.as_bytes(
-                    config._memory_config._memory_optimization_policy)
         
+
     def __load_mix_precision(self, config, custom_op):
         """Load mix precision config ,and add to custom_optimizers
         Args:
