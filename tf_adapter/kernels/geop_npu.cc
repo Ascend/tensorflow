@@ -1337,7 +1337,8 @@ Status GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
     partition_graph.push_back(graph_def_str);
     return Status::OK();
   }
-  LOG(INFO) << "GraphDef is beyond 2G, which is need separate";
+  LOG(INFO) << "GraphDef is beyond 2G, which is need separate weight from model";
+  ADP_LOG(INFO) << "GraphDef is beyond 2G, which is need separate weight from model";
   for (NodeDef &node : *ori_graph_def.mutable_node()) {
     if (node.op() == "Const") {
       std::string node_name = node.name();
