@@ -61,20 +61,11 @@ const int64_t kUnknownShapeDepth = 3LL;
 const uint64_t PARALLEL_MEMORY_TRHESHOLD = 10 * 1024 * 1024ULL;
 const uint32_t MAX_THREAD_NUM = 4U;
 std::atomic<bool> tdt_release(false);
-
 // total memory usage controlled below 2G
 const uint64_t kTotalBytes = 8 * 1024 * 1024 * 1024LL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
-
-const size_t kThreadIndexNum = 2;
-const size_t kRecvThreadIndex = 0;
-const size_t kSendThreadIndex = 1;
-
-enum class ChannelType {
-  TDT = 0,
-  ACL_QUEUE = 1, /* mbuf */
-  HOST_QUEUE = 2
-};
+enum class ChannelType { TDT = 0, ACL_QUEUE = 1, HOST_QUEUE = 2 }; /* ACL_QUEUE indicates mbuf */
+enum class ThreadType : size_t { RECV = 0, SEND = 1, BUTT };
 
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
@@ -315,13 +306,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         delete data_deliver_;
         FinishMemory();
         DestroyQueue();
-        ADP_LOG(ERROR) << "DataThreadPerfStat::channel_name:" <<
-          dataset()->channel_name_ << "[" <<
-          buffer_.size() << "], Receive [" <<
-          data_thread_perf_stat_[kRecvThreadIndex].elapsed_time << "us, " <<
-          data_thread_perf_stat_[kRecvThreadIndex].total_bytes << "], Send [" <<
-          data_thread_perf_stat_[kSendThreadIndex].elapsed_time << "us, " <<
-          data_thread_perf_stat_[kSendThreadIndex].total_bytes << "].";
+        ADP_LOG(EVENT) << "DataThreadPerfStat::channel_name:" <<
+          dataset()->channel_name_ << "[" << buffer_.size() << "], recv [" <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].elapsed_time << "us, " <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].total_bytes << "], send [" <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].elapsed_time << "us, " <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].total_bytes << "].";
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
 
@@ -450,15 +440,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
       }
 
-      void RefreshDataThreadPerf(const size_t index, const double elapsed_time,
+      void RefreshDataThreadPerf(const ThreadType type, const double elapsed_time,
                                  const std::vector<Tensor> &args) {
-        if (elapsed_time > data_thread_perf_stat_[index].elapsed_time) {
+        if (elapsed_time > data_thread_perf_stat_[static_cast<size_t>(type)].elapsed_time) {
           uint64_t total_bytes = 0;
           for (auto &tensor : args) {
             total_bytes += tensor.TotalBytes();
           }
-          data_thread_perf_stat_[index].total_bytes = total_bytes;
-          data_thread_perf_stat_[index].elapsed_time = elapsed_time;
+          data_thread_perf_stat_[static_cast<size_t>(type)].total_bytes = total_bytes;
+          data_thread_perf_stat_[static_cast<size_t>(type)].elapsed_time = elapsed_time;
         }
       }
 
@@ -528,7 +518,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             return;
           }
           auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
-          RefreshDataThreadPerf(kRecvThreadIndex, elapsed_time, args);
+          RefreshDataThreadPerf(ThreadType::RECV, elapsed_time, args);
           uint64_t args_tensor_size = 0ULL;
           if (from_npu_dataset == NPU_ALLOCATOR_UNKNOW) {
             if (args.empty()) {
@@ -619,7 +609,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           auto end = std::chrono::steady_clock::now();
           if (status.ok() && !is_need_resend) {
             auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
-            RefreshDataThreadPerf(kSendThreadIndex, elapsed_time, args);
+            RefreshDataThreadPerf(ThreadType::SEND, elapsed_time, args);
           }
         } while (status.ok() && is_need_resend);
         return status;
@@ -1009,7 +999,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       struct DataThreadPerf {
         double elapsed_time = 0;
         uint64_t total_bytes = 0;
-      } data_thread_perf_stat_[kThreadIndexNum];
+      } data_thread_perf_stat_[static_cast<size_t>(ThreadType::BUTT)];
     };
     const std::vector<DatasetBase *> inputs_;
     std::string channel_name_;
