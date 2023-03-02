@@ -101,12 +101,12 @@ Status GetDataTypeByTensorType(acltdtTensorType tensor_type, int32_t &data_type)
   auto ret = type_map.find(tensor_type);
   if (ret == type_map.end()) {
     ADP_LOG(ERROR) << "invalid tensor_type: " << static_cast<int32_t>(tensor_type);
-    return errors::Internal("invalid tensor type : ", tensor_type);
+    return errors::Internal("invalid tensor type: ", tensor_type);
   }
 
   data_type = ret->second;
   ADP_LOG(INFO) << "get data type[" << data_type << "] by tensor type[" << static_cast<int32_t>(tensor_type)
-    << "] success";
+    << "] success.";
   return Status::OK();
 }
 
@@ -208,7 +208,7 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
 
   if ((head_buf != nullptr) && (head_size >= sizeof(MsgInfo))) {
     MsgInfo *msg_info = reinterpret_cast<MsgInfo *>(static_cast<uint8_t *>(head_buf) + head_size - sizeof(MsgInfo));
-    msg_info->ret_code = 0;
+    *msg_info = {};
   }
   if (kIsHeterogeneous) {
     // need skip RuntimeTensorDesc, this data for GetNext op, so the RuntimeTensorDesc can be left blank
@@ -245,7 +245,7 @@ Status HostQueueSetTransId(const uint32_t queue_id, void *&buff) {
     MsgInfo *msg_info = ge::PtrToPtr<char, MsgInfo>(static_cast<char *>(head_buff) + head_size - sizeof(MsgInfo));
     const std::lock_guard<std::mutex> lk(queue_id_to_trans_id_map_mutex);
     msg_info->trans_id = ++queue_id_to_trans_id_map[queue_id];
-    ADP_LOG(INFO) << "host queue[" << queue_id << "] set trans id[" << msg_info->trans_id << "] success";
+    ADP_LOG(INFO) << "host queue[" << queue_id << "] set trans id[" << msg_info->trans_id << "] success.";
   }
   return Status::OK();
 }
@@ -264,13 +264,13 @@ Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &q
 
   auto rt_error = rtSetDevice(0);
   NPU_REQUIRES(rt_error == ACL_RT_SUCCESS, errors::Internal("call rtSetDevice device[0] failed, ret=", rt_error));
-  ADP_LOG(INFO) << "call rtSetDevice device[0] success";
+  ADP_LOG(INFO) << "call rtSetDevice device[0] success.";
 
   rt_error = rtMemQueueInit(0);
   NPU_REQUIRES(((rt_error == ACL_RT_SUCCESS) || (rt_error == ACL_ERROR_RT_REPEATED_INIT)),
                errors::Internal("call rtMemQueueInit device[0] failed, ret=", rt_error));
 
-  ADP_LOG(INFO) << "call rtMemQueueInit with device[0] success";
+  ADP_LOG(INFO) << "call rtMemQueueInit with device[0] success.";
 
   rtMemQueueAttr_t attr = {};
   (void)memset_s(attr.name, RT_MQ_MAX_NAME_LEN, 0, RT_MQ_MAX_NAME_LEN);
@@ -285,7 +285,7 @@ Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &q
   rt_error = rtMemQueueCreate(0, &attr, &queue_id);
   NPU_REQUIRES(rt_error == ACL_RT_SUCCESS, errors::Internal("call rtMemQueueCreate device[0] failed, ret=", rt_error));
 
-  ADP_LOG(INFO) << "call rtMemQueueCreate with device[0] queue[" << queue_id << "] success";
+  ADP_LOG(INFO) << "call rtMemQueueCreate with device[0] queue[" << queue_id << "] success.";
 
   rtMemBuffCfg_t buff_cfg = {};
   rt_error = rtMbufInit(&buff_cfg);

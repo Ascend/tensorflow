@@ -18,6 +18,7 @@
 #include <memory>
 #include <atomic>
 #include <unordered_set>
+#include <securec.h>
 #include "runtime/config.h"
 #include "runtime/dev.h"
 #include "runtime/mem.h"
@@ -64,6 +65,33 @@ rtError_t rtMemQueueGrant(int32_t devId, uint32_t qid, int32_t pid, rtMemQueueSh
 rtError_t rtMemQueueAttach(int32_t devId, uint32_t qid, int32_t timeout) { return RT_ERROR_NONE; }
 
 rtError_t rtMbufInit(rtMemBuffCfg_t *cfg) { return RT_ERROR_NONE; }
+
+rtError_t rtMemGrpCreate(const char *name, const rtMemGrpConfig_t *cfg) { return RT_ERROR_NONE; }
+
+rtError_t rtMemGrpAddProc(const char *name, int32_t pid, const rtMemGrpShareAttr_t *attr) { return RT_ERROR_NONE; }
+
+rtError_t rtMemGrpAttach(const char *name, int32_t timeout) { return RT_ERROR_NONE; }
+
+rtError_t rtBuffConfirm(void *buff, const uint64_t size) { return RT_ERROR_NONE; }
+
+rtError_t rtBuffAlloc(const uint64_t size, void **const buff) {
+  if (size > 0) {
+    *buff = new uint8_t[size];
+    memset_s(*buff, size, 0, size);
+    return RT_ERROR_NONE;
+  }
+  return -1;
+}
+
+rtError_t rtBuffFree(void *buff) {
+  auto *buffer = reinterpret_cast<uint8_t*>(buff);
+  delete []buffer;
+  return RT_ERROR_NONE;
+}
+
+rtError_t rtMbufBuild(void *buff, const uint64_t size, rtMbufPtr_t *mbuf) { return RT_ERROR_NONE; }
+
+rtError_t rtMbufUnBuild(rtMbufPtr_t mbuf, void **buff, uint64_t *const size) { return RT_ERROR_NONE; }
 
 rtError_t rtMbufAlloc(rtMbufPtr_t *mbuf, uint64_t size) {
   rtMbuf *buf = new rtMbuf();

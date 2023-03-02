@@ -79,7 +79,7 @@ class DatasetFunction {
         output_types_(output_types),
         input_shape_(input_shape),
         output_shape_(output_shape) {
-      ADP_LOG(EVENT) << "[DatasetFunction] init success";
+      ADP_LOG(EVENT) << "[DatasetFunction] init success.";
     };
     ~DatasetFunction();
 

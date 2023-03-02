@@ -190,16 +190,20 @@ RTS_API rtError_t rtMbufGetBuffSize(rtMbufPtr_t mbuf, uint64_t *size) WEAKFUC;
 
 RTS_API rtError_t rtMbufGetPrivInfo(rtMbufPtr_t mbuf, void **priv, uint64_t *size) WEAKFUC;
 
+#define RT_MEM_GRP_NAME_LEN 32  // it must be same as driver define BUFF_GRP_NAME_LEN
+// mem group
 typedef struct {
     uint64_t maxMemSize;
+    uint32_t cacheAllocFlag;
+    int32_t rsv[RT_MEM_GRP_NAME_LEN - 1];
 } rtMemGrpConfig_t;
 
 typedef struct {
-    int32_t admin:1;
-    int32_t read:1;
-    int32_t write:1;
-    int32_t alloc:1;
-    int32_t rsv:28;
+    uint32_t admin : 1;    // admin permission, can add other proc to grp
+    uint32_t read : 1;     // read only permission
+    uint32_t write : 1;    // read and write permission
+    uint32_t alloc : 1;    // alloc permission (have read and write permission)
+    uint32_t rsv : 28;
 } rtMemGrpShareAttr_t;
 
 #define RT_MEM_GRP_QUERY_GROUPS_OF_PROCESS 1
@@ -225,7 +229,24 @@ typedef struct {
     size_t resultNum;
 } rtMemGrpQueryOutput_t;
 
+#define RT_MEM_CACHE_MAX_NUM 1024
+typedef struct {
+    uint64_t memSize;
+    uint32_t memFlag;
+    int32_t rsv[RT_MEM_CACHE_MAX_NUM];
+} rtMemGrpCacheAllocPara;
+
 RTS_API rtError_t rtMemGrpCreate(const char *name, const rtMemGrpConfig_t *cfg) WEAKFUC;
+
+RTS_API rtError_t rtBuffConfirm(void *buff, const uint64_t size) WEAKFUC;
+
+RTS_API rtError_t rtBuffAlloc(const uint64_t size, void **const buff) WEAKFUC;
+
+RTS_API rtError_t rtBuffFree(void *buff) WEAKFUC;
+
+RTS_API rtError_t rtMbufBuild(void *buff, const uint64_t size, rtMbufPtr_t *mbuf) WEAKFUC;
+
+RTS_API rtError_t rtMbufUnBuild(rtMbufPtr_t mbuf, void **buff, uint64_t *const size) WEAKFUC;
 
 RTS_API rtError_t rtMemGrpAddProc(const char *name, int32_t pid, const rtMemGrpShareAttr_t *attr) WEAKFUC;
 
