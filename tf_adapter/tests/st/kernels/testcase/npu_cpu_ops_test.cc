@@ -86,8 +86,8 @@ TEST(EmbeddingOpsTest, TestInitEmbeddingHashmap) {
     delete context;
 }
 
-TEST(EmbeddingOpsTest, TestEmbeddingTableFind) {
-    DataTypeSlice input_types({DT_UINT32});
+TEST(EmbeddingOpsTest, TestEmbeddingTableFind01) {
+    DataTypeSlice input_types({DT_INT32, DT_INT64});
     MemoryTypeSlice input_memory_types;
     DataTypeSlice output_types({DT_FLOAT});
     MemoryTypeSlice output_memory_types;
@@ -100,10 +100,29 @@ TEST(EmbeddingOpsTest, TestEmbeddingTableFind) {
     EmbeddingTableFindOp cache(context);
     OpKernelContext *ctx = nullptr;
     cache.Compute(ctx);
+
     delete device;
     delete node_def;
     delete op_def;
     delete context;
+}
+
+TEST(EmbeddingOpsTest, TestEmbeddingTableFind02) {
+    const OpRegistrationData *reg;
+    TF_CHECK_OK(OpRegistry::Global()->LookUp("EmbeddingTableFind", &reg));
+    OpDef op_def = reg->op_def;
+    NodeDef def;
+    TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                    .Attr("embedding_dim", 4)
+                    .Input(FakeInputStub(DT_INT32))
+                    .Input(FakeInputStub(DT_INT64))
+                    .Finalize(&def));
+
+    shape_inference::InferenceContext c(
+        0, &def, op_def,
+        {TShape({1}), TShape({16})},
+        {}, {}, {});
+    TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
 
 TEST(EmbeddingOpsTest, TestEmbeddingTableImport) {
@@ -291,7 +310,7 @@ TEST(EmbeddingOpsTest, TestEmbeddingFeatureMappingShapeInfer) {
   TF_CHECK_OK(OpRegistry::Global()->LookUp("EmbeddingFeatureMapping", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
-  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)                  
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
                   .Input(FakeInputStub(DT_INT64))
                   .Finalize(&def));
   shape_inference::InferenceContext c(0, &def, op_def,{TShape({2, 2, 3, 4})}, {}, {}, {});

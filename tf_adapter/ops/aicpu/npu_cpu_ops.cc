@@ -254,8 +254,13 @@ REGISTER_OP("EmbeddingTableFind")
   .Output("values: float32")
   .Attr("embedding_dim: int = 0")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
-    auto data_shape = c->input(0);
-    c->set_output(0, data_shape);
+    ShapeHandle keys_shape;
+    TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 1, &keys_shape));
+    int embedding_dim;
+    if (!c->GetAttr("embedding_dim", &embedding_dim).ok()) {
+        return errors::InvalidArgument("Invalid embedding_dim");
+    }
+    c->set_output(0, c->Matrix(c->Dim(keys_shape, 0), embedding_dim));
     return Status::OK();
   });
 
