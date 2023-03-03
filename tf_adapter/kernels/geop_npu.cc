@@ -1337,7 +1337,8 @@ Status GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
     partition_graph.push_back(graph_def_str);
     return Status::OK();
   }
-  LOG(INFO) << "GraphDef is beyond 2G, which is need separate";
+  LOG(INFO) << "GraphDef is beyond 2G, which is need separate weight from model";
+  ADP_LOG(INFO) << "GraphDef is beyond 2G, which is need separate weight from model";
   for (NodeDef &node : *ori_graph_def.mutable_node()) {
     if (node.op() == "Const") {
       std::string node_name = node.name();
@@ -1601,9 +1602,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
 
   // convert to ge::graph
   ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
-  if (iteration_per_loop_ > 1) {
-    ge_graph.SetNeedIteration(this->need_iteration_);
-  }
+  ge_graph.SetNeedIteration(false);
   if (is_host_graph_) {
     graph_options_["ge.exec.placement"] = "HOST";
   }

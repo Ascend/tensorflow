@@ -517,7 +517,8 @@ tensorflow::Status SeparateGraphDef(tensorflow::GraphDef *def,
     partition_graph.push_back(def_str);
     return tensorflow::Status::OK();
   }
-  LOG(INFO) << "GraphDef is beyond 2G, which is need separate";
+  LOG(INFO) << "GraphDef is beyond 2G, which is need separate weight from model";
+  DLOG() << "GraphDef is beyond 2G, which is need separate weight from model";
   for (tensorflow::NodeDef &node : *def->mutable_node()) {
     if (node.op() == "Const") {
       std::string node_name = node.name();
