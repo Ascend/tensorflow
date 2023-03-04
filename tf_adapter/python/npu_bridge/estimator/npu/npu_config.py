@@ -182,10 +182,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         if tmp_cluster_spec and mix_compile_mode is False:
             raise ValueError(
                 '"mix_compile_mode" can only be True with "cluster" is set')
-        if aoe_mode is None and os.getenv("AOE_MODE") is None:
-            self.iterations_per_loop = iterations_per_loop
-        else:
-            self.iterations_per_loop = 1
+        self.iterations_per_loop = iterations_per_loop
         self.mix_compile_mode = mix_compile_mode
         self.enable_data_pre_proc = enable_data_pre_proc
         self.is_tailing_optimization = is_tailing_optimization

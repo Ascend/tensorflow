@@ -2133,9 +2133,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["enable_data_pre_proc"] = std::to_string(static_cast<int32_t>(enable_dp));
   pass_options["use_off_line"] = std::to_string(static_cast<int32_t>(use_off_line));
   pass_options["mix_compile_mode"] = std::to_string(static_cast<int32_t>(mix_compile_mode));
-  if (!aoe_mode.empty()) {
-    iterations_per_loop = 1;
-  }
   pass_options["iterations_per_loop"] = std::to_string(iterations_per_loop);
   pass_options["lower_functional_ops"] = std::to_string(static_cast<int32_t>(lower_functional_ops));
   pass_options["job"] = job;

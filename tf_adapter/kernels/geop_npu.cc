@@ -1570,9 +1570,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
 
   // convert to ge::graph
   ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
-  if (iteration_per_loop_ > 1) {
-    ge_graph.SetNeedIteration(this->need_iteration_);
-  }
+  ge_graph.SetNeedIteration(false);
   if (is_host_graph_) {
     graph_options_["ge.exec.placement"] = "HOST";
   }
