@@ -70,7 +70,7 @@ Status ModelProcess::GetDynamicGearInfo() {
   aclmdlBatch dynamic_batch = {};
   REQUIRES_ACL_STATUS_OK(aclmdlGetDynamicBatch(model_desc_, &dynamic_batch), aclmdlGetDynamicBatch);
   if (dynamic_batch.batchCount > 0U) {
-    dymainc_gear_type_ = DYNAMIC_BATCH;
+    dymainc_gear_type_ = DynamicGearType::DYNAMIC_BATCH;
     for (size_t i = 0U; i < dynamic_batch.batchCount; ++i) {
       std::vector<uint64_t> current_batch;
       current_batch.emplace_back(dynamic_batch.batch[i]);
@@ -192,10 +192,10 @@ Status ModelProcess::Execute(const std::vector<Tensor> &inputs, std::vector<Tens
 }
 
 Status ModelProcess::ProcessDynamicGearInput(const std::vector<Tensor> &inputs) const {
-  if (dymainc_gear_type_ == DYNAMIC_UNDEFINED) {
+  if (dymainc_gear_type_ == DynamicGearType::DYNAMIC_UNDEFINED) {
     return Status::OK();
   }
-  if (dymainc_gear_type_ == DYNAMIC_BATCH) {
+  if (dymainc_gear_type_ == DynamicGearType::DYNAMIC_BATCH) {
     if (inputs.size() <= dynamic_gear_input_index_) {
       ADP_LOG(ERROR) << "input size " << inputs.size() << " is invalid, need be larger than "
           << dynamic_gear_input_index_;
@@ -224,15 +224,16 @@ Status ModelProcess::ProcessDynamicGearInput(const std::vector<Tensor> &inputs) 
 
 Status ModelProcess::ProcessInput(const std::vector<Tensor> &inputs) const {
   const size_t model_input_size = aclmdlGetNumInputs(model_desc_);
-  if (dymainc_gear_type_ == DYNAMIC_UNDEFINED) {
+  if (dymainc_gear_type_ == DynamicGearType::DYNAMIC_UNDEFINED) {
     if (inputs.size() < model_input_size) {
       ADP_LOG(ERROR) << "input num " << inputs.size() << " is smaller than model input num " << model_input_size;
       return tensorflow::errors::Internal("input num is invalid");
     }
   }
   // dynamic gear data need to be feeded alone
-  size_t need_feed_input_cnts = ((dymainc_gear_type_ == DYNAMIC_UNDEFINED) && (model_input_size >= 1U))
-      ? model_input_size : (model_input_size - 1U);
+  size_t need_feed_input_cnts = ((dymainc_gear_type_ == DynamicGearType::DYNAMIC_UNDEFINED) && (model_input_size >= 1U))
+      ? model_input_size
+      : (model_input_size - 1U);
   for (size_t i = 0U; i < need_feed_input_cnts; ++i) {
     auto tensor_data = inputs[i].tensor_data().data();
     auto tensor_size = inputs[i].tensor_data().size();
@@ -274,7 +275,7 @@ Status ModelProcess::ProcessStaticOutput(const size_t index, const tensorflow::D
   void *dev_ptr = aclGetDataBufferAddr(data_buf);
   REQUIRES_NOT_NULL(dev_ptr);
   aclmdlIODims acl_dims = {};
-  if (dymainc_gear_type_ == DYNAMIC_UNDEFINED) {
+  if (dymainc_gear_type_ == DynamicGearType::DYNAMIC_UNDEFINED) {
     REQUIRES_ACL_STATUS_OK(aclmdlGetOutputDims(model_desc_, index, &acl_dims), aclmdlGetOutputDims);
   } else {
     REQUIRES_ACL_STATUS_OK(aclmdlGetCurOutputDims(model_desc_, index, &acl_dims), aclmdlGetCurOutputDims);

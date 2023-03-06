@@ -26,7 +26,7 @@
 
 namespace tensorflow {
 class ModelProcess {
-enum DynamicGearType {
+enum class DynamicGearType {
   DYNAMIC_UNDEFINED = -1,
   DYNAMIC_BATCH,
   DYNAMIC_HW,
@@ -113,7 +113,7 @@ private:
   std::vector<Tensor> outputs_;
   std::vector<bool> outputs_feed_nullptr_vec_;
 
-  DynamicGearType dymainc_gear_type_ = DYNAMIC_UNDEFINED;
+  DynamicGearType dymainc_gear_type_ = DynamicGearType::DYNAMIC_UNDEFINED;
   std::vector<std::vector<uint64_t>> dynamic_gear_info_;
   // which inut is dynamic gear
   size_t dynamic_gear_input_index_ = SIZE_MAX;
