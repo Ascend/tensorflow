@@ -342,6 +342,7 @@ aclError aclrtDestroyEvent(aclrtEvent event) {
 }
 
 std::string g_SocVersionStub = "Ascend910B";
+uint64_t g_MbufSize = 0;
 
 const char *aclrtGetSocName() {
   return g_SocVersionStub.c_str();
@@ -354,6 +355,20 @@ void aclrtSetSocNameStub(std::string socVersion) {
 void aclrtSetDefaultSocNameStub() {
   g_SocVersionStub = "Ascend910B";
 }
+
+void setMbufSize(uint64_t value) {
+  g_MbufSize = value;
+}
+
+void setDefaultMbufSize() {
+  g_MbufSize = 0;
+}
+
+aclError acltdtQueryChannelSize(const acltdtChannelHandle *handle, size_t *size) {
+  *size = g_MbufSize;
+  return ACL_SUCCESS;
+}
+
 // for GE RunGraph api
 #if 0
 aclError aclrtSynchronizeStream(aclrtStream stream) {

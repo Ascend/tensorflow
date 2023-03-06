@@ -5,6 +5,7 @@
 #include "tensorflow/core/graph/graph_def_builder.h"
 #include "tensorflow/core/kernels/data/dataset_test_base.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "ascendcl_stub.h"
 
 class HostQueueDatasetOp;
 namespace tensorflow {
@@ -63,6 +64,17 @@ struct TestCase {
   DataTypeVector expected_output_dtypes;
   std::vector<PartialTensorShape> expected_output_shapes;
 };
+
+TestCase NormalizeTestStringCase() {
+  return {
+      // input_tensors expected_outputs expected_output_dtypes
+      // expected_output_shapes
+      {CreateTensor<tstring>(TensorShape{10, 1}, {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"})},
+      {CreateTensor<tstring>(TensorShape{1}, {"0"})},
+      {DT_STRING},
+      {PartialTensorShape({1})},
+  };
+}
 
 TestCase NormalizeTestCase() {
   return {
@@ -487,6 +499,181 @@ TEST_F(HostQueueDatasetOpTest, iterator_getnext05_host_queue) {
                                  &end_of_sequence));
   *const_cast<bool *>(&kIsHeterogeneous) = false;
 }
+
+TEST_F(HostQueueDatasetOpTest, isholddatatrans1) {
+  NpuAttrs::SetNewDataTransferFlag(true);
+  int thread_num = 2, cpu_num = 2;
+  TF_ASSERT_OK(InitThreadPool(thread_num));
+  TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
+
+  const TestCase &test_case = NormalizeTestStringCase();
+  Tensor tensor_slice_dataset_tensor(DT_VARIANT, TensorShape({}));
+  std::vector<Tensor> inputs_for_tensor_slice_dataset = test_case.input_tensors;
+  TF_ASSERT_OK(CreateTensorSliceDatasetTensorForQueue(&inputs_for_tensor_slice_dataset,
+                                              &tensor_slice_dataset_tensor));
+
+  gtl::InlinedVector<TensorValue, 4> inputs_for_host_queue_dataset(
+      {TensorValue(&tensor_slice_dataset_tensor),
+       TensorValue(&tensor_slice_dataset_tensor)});
+
+  std::unique_ptr<OpKernel> host_queue_dataset_kernel;
+  TF_ASSERT_OK(CreateHostQueueDatasetKernel(test_case.expected_output_dtypes,
+                                            test_case.expected_output_shapes,
+                                            &host_queue_dataset_kernel, "-1"));
+  std::unique_ptr<OpKernelContext> host_queue_dataset_context;
+  TF_ASSERT_OK(CreateHostQueueDatasetContext(host_queue_dataset_kernel.get(),
+                                             &inputs_for_host_queue_dataset,
+                                             &host_queue_dataset_context));
+  DatasetBase *host_queue_dataset;
+  TF_ASSERT_OK(CreateDataset(host_queue_dataset_kernel.get(),
+                             host_queue_dataset_context.get(),
+                             &host_queue_dataset));
+  core::ScopedUnref scoped_unref(host_queue_dataset);
+
+  EXPECT_EQ(host_queue_dataset->node_name(), kNodeName);
+
+  host_queue_dataset->output_dtypes();
+  host_queue_dataset->output_shapes();
+  host_queue_dataset->DebugString();
+
+  SerializationContext context(SerializationContext::Params{});
+  GraphDefBuilder b;
+  DatasetBase::DatasetGraphDefBuilder db(&b);
+  Node *output;
+  host_queue_dataset->AsGraphDefInternal(&context, &db, &output);
+
+  std::unique_ptr<IteratorContext> iterator_context;
+  TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
+                                     &iterator_context));
+  std::unique_ptr<IteratorBase> iterator;
+  TF_ASSERT_OK(host_queue_dataset->MakeIterator(iterator_context.get(),
+                                                "Iterator", &iterator));
+
+  bool end_of_sequence = false;
+  std::vector<Tensor> out_tensors;
+  sleep(5);
+  setMbufSize(2);
+  TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
+                                 &end_of_sequence));
+  setDefaultMbufSize();
+}
+
+TEST_F(HostQueueDatasetOpTest, isholddatatrans2) {
+  NpuAttrs::SetNewDataTransferFlag(true);
+  int thread_num = 2, cpu_num = 2;
+  TF_ASSERT_OK(InitThreadPool(thread_num));
+  TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
+
+  const TestCase &test_case = NormalizeTestStringCase();
+  Tensor tensor_slice_dataset_tensor(DT_VARIANT, TensorShape({}));
+  std::vector<Tensor> inputs_for_tensor_slice_dataset = test_case.input_tensors;
+  TF_ASSERT_OK(CreateTensorSliceDatasetTensorForQueue(&inputs_for_tensor_slice_dataset,
+                                              &tensor_slice_dataset_tensor));
+
+  gtl::InlinedVector<TensorValue, 4> inputs_for_host_queue_dataset(
+      {TensorValue(&tensor_slice_dataset_tensor),
+       TensorValue(&tensor_slice_dataset_tensor)});
+
+  std::unique_ptr<OpKernel> host_queue_dataset_kernel;
+  TF_ASSERT_OK(CreateHostQueueDatasetKernel(test_case.expected_output_dtypes,
+                                            test_case.expected_output_shapes,
+                                            &host_queue_dataset_kernel, "-1"));
+  std::unique_ptr<OpKernelContext> host_queue_dataset_context;
+  TF_ASSERT_OK(CreateHostQueueDatasetContext(host_queue_dataset_kernel.get(),
+                                             &inputs_for_host_queue_dataset,
+                                             &host_queue_dataset_context));
+  DatasetBase *host_queue_dataset;
+  TF_ASSERT_OK(CreateDataset(host_queue_dataset_kernel.get(),
+                             host_queue_dataset_context.get(),
+                             &host_queue_dataset));
+  core::ScopedUnref scoped_unref(host_queue_dataset);
+
+  EXPECT_EQ(host_queue_dataset->node_name(), kNodeName);
+
+  host_queue_dataset->output_dtypes();
+  host_queue_dataset->output_shapes();
+  host_queue_dataset->DebugString();
+
+  SerializationContext context(SerializationContext::Params{});
+  GraphDefBuilder b;
+  DatasetBase::DatasetGraphDefBuilder db(&b);
+  Node *output;
+  host_queue_dataset->AsGraphDefInternal(&context, &db, &output);
+
+  std::unique_ptr<IteratorContext> iterator_context;
+  TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
+                                     &iterator_context));
+  std::unique_ptr<IteratorBase> iterator;
+  TF_ASSERT_OK(host_queue_dataset->MakeIterator(iterator_context.get(),
+                                                "Iterator", &iterator));
+
+  bool end_of_sequence = false;
+  std::vector<Tensor> out_tensors;
+  sleep(5);
+  setMbufSize(3);
+  TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
+                                 &end_of_sequence));
+  setDefaultMbufSize();
+}
+
+TEST_F(HostQueueDatasetOpTest, isholddatatrans3) {
+  NpuAttrs::SetNewDataTransferFlag(true);
+  int thread_num = 2, cpu_num = 2;
+  TF_ASSERT_OK(InitThreadPool(thread_num));
+  TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
+
+  const TestCase &test_case = NormalizeTestStringCase();
+  Tensor tensor_slice_dataset_tensor(DT_VARIANT, TensorShape({}));
+  std::vector<Tensor> inputs_for_tensor_slice_dataset = test_case.input_tensors;
+  TF_ASSERT_OK(CreateTensorSliceDatasetTensorForQueue(&inputs_for_tensor_slice_dataset,
+                                              &tensor_slice_dataset_tensor));
+
+  gtl::InlinedVector<TensorValue, 4> inputs_for_host_queue_dataset(
+      {TensorValue(&tensor_slice_dataset_tensor),
+       TensorValue(&tensor_slice_dataset_tensor)});
+
+  std::unique_ptr<OpKernel> host_queue_dataset_kernel;
+  TF_ASSERT_OK(CreateHostQueueDatasetKernel(test_case.expected_output_dtypes,
+                                            test_case.expected_output_shapes,
+                                            &host_queue_dataset_kernel, "-1"));
+  std::unique_ptr<OpKernelContext> host_queue_dataset_context;
+  TF_ASSERT_OK(CreateHostQueueDatasetContext(host_queue_dataset_kernel.get(),
+                                             &inputs_for_host_queue_dataset,
+                                             &host_queue_dataset_context));
+  DatasetBase *host_queue_dataset;
+  TF_ASSERT_OK(CreateDataset(host_queue_dataset_kernel.get(),
+                             host_queue_dataset_context.get(),
+                             &host_queue_dataset));
+  core::ScopedUnref scoped_unref(host_queue_dataset);
+
+  EXPECT_EQ(host_queue_dataset->node_name(), kNodeName);
+
+  host_queue_dataset->output_dtypes();
+  host_queue_dataset->output_shapes();
+  host_queue_dataset->DebugString();
+
+  SerializationContext context(SerializationContext::Params{});
+  GraphDefBuilder b;
+  DatasetBase::DatasetGraphDefBuilder db(&b);
+  Node *output;
+  host_queue_dataset->AsGraphDefInternal(&context, &db, &output);
+
+  std::unique_ptr<IteratorContext> iterator_context;
+  TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
+                                     &iterator_context));
+  std::unique_ptr<IteratorBase> iterator;
+  TF_ASSERT_OK(host_queue_dataset->MakeIterator(iterator_context.get(),
+                                                "Iterator", &iterator));
+
+  bool end_of_sequence = false;
+  std::vector<Tensor> out_tensors;
+  sleep(5);
+  setMbufSize(65);
+  TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
+                                 &end_of_sequence));
+  setDefaultMbufSize();
+}
+
 }  // namespace
 }  // namespace data
 }  // namespace tensorflow

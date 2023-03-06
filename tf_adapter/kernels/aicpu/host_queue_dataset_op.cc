@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <sched.h>
 #include <thread>
 #include <dlfcn.h>
 #include <vector>
@@ -61,6 +62,8 @@ const int64_t kUnknownShapeDepth = 3LL;
 const uint64_t PARALLEL_MEMORY_TRHESHOLD = 10 * 1024 * 1024ULL;
 const uint32_t MAX_THREAD_NUM = 4U;
 std::atomic<bool> tdt_release(false);
+std::atomic<bool> is_hold_type(false);
+
 // total memory usage controlled below 2G
 const uint64_t kTotalBytes = 8 * 1024 * 1024 * 1024LL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
@@ -192,6 +195,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     for (size_t i = 0UL; i < output_shape_size; i++) {
       DataType tensor_data_type = output_types_.at(i);
       if (tensor_data_type == DT_STRING) {
+        is_hold_type.store(true);
         ADP_LOG(INFO) << "Current tensor type is DT_STRING.";
         return kStringTypeDepth;
       }
@@ -441,13 +445,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       void RefreshDataThreadPerf(const ThreadType type, const double elapsed_time,
-                                 const std::vector<Tensor> &args) {
+                                 const uint64_t args_total_bytes) {
         if (elapsed_time > data_thread_perf_stat_[static_cast<size_t>(type)].elapsed_time) {
-          uint64_t total_bytes = 0;
-          for (auto &tensor : args) {
-            total_bytes += tensor.TotalBytes();
-          }
-          data_thread_perf_stat_[static_cast<size_t>(type)].total_bytes = total_bytes;
+          data_thread_perf_stat_[static_cast<size_t>(type)].total_bytes = args_total_bytes;
           data_thread_perf_stat_[static_cast<size_t>(type)].elapsed_time = elapsed_time;
         }
       }
@@ -517,8 +517,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             get_thread_exception_.store(true);
             return;
           }
-          auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
-          RefreshDataThreadPerf(ThreadType::RECV, elapsed_time, args);
           uint64_t args_tensor_size = 0ULL;
           if (from_npu_dataset == NPU_ALLOCATOR_UNKNOW) {
             if (args.empty()) {
@@ -548,6 +546,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               args_tensor_size += tensor.TotalBytes();
               total_bytes_ += tensor.TotalBytes();
             }
+            auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
+            RefreshDataThreadPerf(ThreadType::RECV, elapsed_time, args_tensor_size);
           }
           if ((!is_string) && (from_npu_dataset != NPU_ALLOCATOR_NPU) &&
               (dataset()->channel_type_ == ChannelType::ACL_QUEUE)) {
@@ -596,22 +596,50 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Slave SendDataThread exit.";
       }
 
-      Status SendDataByAclQueue(const vector<Tensor> &args, const acltdtTensorType &data_type) {
-        Status status;
+      void RecordMbufQueueBytes(const bool is_hold_type, const uint64_t args_total_bytes) {
+        if (!is_hold_type) { return; }
+        mbuf_queue_rear_ = (mbuf_queue_rear_ + 1) % kStringTypeDepth;
+        mbuf_queue_bytes_[mbuf_queue_rear_] = args_total_bytes;
+      }
+
+      bool IsHoldDataTrans() {
+        if (!is_hold_type) { return false; }
+        size_t mbuf_size;
+        aclError status = acltdtQueryChannelSize(acl_handle_, &mbuf_size);
+        if ((status != ACL_SUCCESS) || (mbuf_size > kStringTypeDepth)) {
+          ADP_LOG(ERROR) << "Failed to get the mbuf size, status = " << status << "mbuf_size = " << mbuf_size;
+          return false;
+        }
+        if (mbuf_size <= 1) { return false; }
+        uint64_t mbuf_total_bytes = 0;
+        for (size_t i = 0; i < mbuf_size; i++) {
+          size_t index = (mbuf_queue_rear_ + kStringTypeDepth - i) % kStringTypeDepth;
+          mbuf_total_bytes += mbuf_queue_bytes_[index];
+        }
+        return (mbuf_total_bytes >= static_cast<uint64_t>(kMaxBytes));
+      }
+
+      Status SendDataByAclQueue(const vector<Tensor> &args, const acltdtTensorType &data_type,
+                                const uint64_t args_total_bytes) {
+        Status status = Status::OK();
         bool is_need_resend = false;
-        do {
-          {
-            mutex_lock lck(mu_);
-            if (finish_send_) { break; }
+
+        while(!finish_send_) {
+          if (IsHoldDataTrans()) {
+            sched_yield();
+            continue;
           }
           auto start = std::chrono::steady_clock::now();
           status = SendTensorsByAcl(acl_handle_, data_type, args, is_need_resend);
-          auto end = std::chrono::steady_clock::now();
-          if (status.ok() && !is_need_resend) {
+          if (!status.ok()) { break; }
+          if (!is_need_resend) {
+            auto end = std::chrono::steady_clock::now();
             auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
-            RefreshDataThreadPerf(ThreadType::SEND, elapsed_time, args);
+            RefreshDataThreadPerf(ThreadType::SEND, elapsed_time, args_total_bytes);
+            RecordMbufQueueBytes(is_hold_type, args_total_bytes);
+            break;
           }
-        } while (status.ok() && is_need_resend);
+        }
         return status;
       }
 
@@ -689,6 +717,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         while (true) {
           std::vector<Tensor> args;
           acltdtTensorType data_type = ACL_TENSOR_DATA_TENSOR;
+          uint64_t args_total_bytes = 0ULL;
           {
             mutex_lock lck(mu_);
             while ((!finish_send_) && buffer_.empty()) {
@@ -709,15 +738,16 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               args = buffer_.front().value;
               buffer_.pop_front();
               for (auto &tensor : args) {
-                total_bytes_ -= tensor.TotalBytes();
+                args_total_bytes += tensor.TotalBytes();
               }
+              total_bytes_ -= args_total_bytes;
             }
             ADP_LOG(INFO) << "Host queue " << dataset()->channel_name_
                           << ", buffer_size: " << buffer_.size() << ", data_type: " << data_type;
           }
           Status status;
           if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-            status = SendDataByAclQueue(args, data_type);
+            status = SendDataByAclQueue(args, data_type, args_total_bytes);
           } else {
             status = SendDataByHostQueue(args, data_type);
           }
@@ -1000,6 +1030,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         double elapsed_time = 0;
         uint64_t total_bytes = 0;
       } data_thread_perf_stat_[static_cast<size_t>(ThreadType::BUTT)];
+      uint64_t mbuf_queue_bytes_[kStringTypeDepth];
+      size_t mbuf_queue_rear_ = 0;
     };
     const std::vector<DatasetBase *> inputs_;
     std::string channel_name_;

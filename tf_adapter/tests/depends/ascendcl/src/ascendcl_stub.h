@@ -27,6 +27,8 @@
 
 void aclrtSetSocNameStub(std::string socVersion);
 void aclrtSetDefaultSocNameStub();
+void setMbufSize(uint64_t value);
+void setDefaultMbufSize();
 
 extern uint32_t g_tensor_desc_size;
 void SetTensorDescSize(uint32_t val);
