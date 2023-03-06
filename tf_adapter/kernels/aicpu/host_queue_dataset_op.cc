@@ -310,8 +310,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         delete data_deliver_;
         FinishMemory();
         DestroyQueue();
-        ADP_LOG(EVENT) << "DataThreadPerfStat::channel_name:" <<
-          dataset()->channel_name_ << "[" << buffer_.size() << "], recv [" <<
+        ADP_LOG(EVENT) << "DataThreadPerf[" << dataset()->device_id_ <<
+          "]::channel_name:" << dataset()->channel_name_ << "[" << buffer_.size() << "], recv [" <<
           data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].elapsed_time << "us, " <<
           data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].total_bytes << "], send [" <<
           data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].elapsed_time << "us, " <<
