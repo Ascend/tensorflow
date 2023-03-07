@@ -51,6 +51,7 @@ class FrozenVariablePass : public GraphOptimizationPass {
   bool IsAllOutputsReadOp(const Node * const node);
   bool IsNeedBuildPartitionedCall(const Node * const node);
   std::map<std::string, std::string> GetGraphConfigs(const Graph &graph);
+  void RemoveDeadNodes(Graph* g);
   Status DoConstantFolding(const GraphOptimizationPassOptions &options, const uint64_t index);
 };
 
@@ -92,6 +93,17 @@ std::map<std::string, std::string> FrozenVariablePass::GetGraphConfigs(const Gra
   return {};
 }
 
+void FrozenVariablePass::RemoveDeadNodes(Graph* g) {
+  std::unordered_set<const Node*> nodes;
+  for (auto n : g->nodes()) {
+    ADP_LOG(DEBUG) << "Remove dead node, node type: " << n->type_string();
+    if (n->IsControlFlow() || n->op_def().is_stateful()) {
+      nodes.insert(n);
+    }
+  }
+  (void)PruneForReverseReachability(g, std::move(nodes));
+}
+
 Status FrozenVariablePass::DoConstantFolding(const GraphOptimizationPassOptions &options,
         const uint64_t index) {
   ADP_LOG(INFO) << "Before do const folding" << options.session_options->config.DebugString();
@@ -126,6 +138,7 @@ Status FrozenVariablePass::DoConstantFolding(const GraphOptimizationPassOptions 
   GraphOptimizer::Options graph_optimizer_options;
   GraphOptimizer optimizer(opts);
   optimizer.Optimize(flr, flr->env(), flr->device(), options.graph, graph_optimizer_options);
+  (void)RemoveDeadNodes((options.graph)->get());
   ADP_LOG(INFO) << "After do const folding optimize";
   if (kDumpGraph) {
     const std::string pbtxt_path = GetDumpPath() + "TF_AfterFrozenVariable_" + std::to_string(index) + ".pbtxt";

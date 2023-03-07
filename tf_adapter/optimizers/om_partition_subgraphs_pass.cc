@@ -46,7 +46,7 @@
 namespace tensorflow {
 namespace {
 const char *const kNpuRecomputePrefix = "NpuRecompute";
-const char *const kGradientsPrefix = "gradients/";
+const char *const kGradientsPrefix = "gradients";
 const char *const kRecomputeAttr = "_recompute";
 const char *const kBackwardAttr = "_backward";
 } // namespace
