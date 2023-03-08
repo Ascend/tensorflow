@@ -311,7 +311,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         FinishMemory();
         DestroyQueue();
         ADP_LOG(EVENT) << "DataThreadPerf[" << dataset()->device_id_ <<
-          "]::channel_name:" << dataset()->channel_name_ << "[" << buffer_.size() << "], recv [" <<
+          "]::channel_name:" << dataset()->channel_name_ << "[" << buffer_.size() <<
+          "], IsHoldDataTrans =" << IsHoldDataTrans() << ", recv [" <<
           data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].elapsed_time << "us, " <<
           data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].total_bytes << "], send [" <<
           data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].elapsed_time << "us, " <<
@@ -648,7 +649,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             break;
           }
         }
-        ADP_LOG(EVENT) << "IsHoldDataTrans = " << IsHoldDataTrans() << ", deviceId = " << dataset()->device_id_;
         return status;
       }
 
