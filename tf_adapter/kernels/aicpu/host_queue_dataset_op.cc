@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <sched.h>
 #include <thread>
 #include <dlfcn.h>
 #include <vector>
@@ -57,6 +56,7 @@ constexpr int64 kSleepUs = 10;
 const uint32_t kMaxValue = 128U;
 const size_t kMaxDepth = 128UL;
 const int32_t kSleepTime = 1;
+const uint32_t kSleepDuration = 5000;
 const static int64_t kStringTypeDepth = 64LL;
 const int64_t kUnknownShapeDepth = 3LL;
 const uint64_t PARALLEL_MEMORY_TRHESHOLD = 10 * 1024 * 1024ULL;
@@ -606,9 +606,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         if (!is_hold_type) { return false; }
         size_t mbuf_size;
         aclError status = acltdtQueryChannelSize(acl_handle_, &mbuf_size);
-        if ((status != ACL_SUCCESS) || (mbuf_size > kStringTypeDepth)) {
-          ADP_LOG(ERROR) << "Failed to get the mbuf size, status = " << status << "mbuf_size = " << mbuf_size;
+        if (status != ACL_SUCCESS) {
+          ADP_LOG(ERROR) << "Failed to get the mbuf size, status = " << status;
           return false;
+        }
+        if (mbuf_size > kStringTypeDepth) {
+          ADP_LOG(ERROR) << "An exception occurs::size[" << mbuf_size << "vs" << kStringTypeDepth <<"].";
+          return true;
         }
         if (mbuf_size <= 1) { return false; }
         uint64_t mbuf_total_bytes = 0;
@@ -626,7 +630,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
         while(!finish_send_) {
           if (IsHoldDataTrans()) {
-            sched_yield();
+            auto start = std::chrono::high_resolution_clock::now();
+            auto end = start + std::chrono::microseconds(kSleepDuration);
+            do {
+              std::this_thread::yield();
+            } while (std::chrono::high_resolution_clock::now() < end);
             continue;
           }
           auto start = std::chrono::steady_clock::now();
@@ -640,6 +648,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             break;
           }
         }
+        ADP_LOG(EVENT) << "IsHoldDataTrans = " << IsHoldDataTrans() << ", deviceId = " << dataset()->device_id_;
         return status;
       }
 

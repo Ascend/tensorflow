@@ -552,10 +552,10 @@ TEST_F(HostQueueDatasetOpTest, isholddatatrans1) {
   bool end_of_sequence = false;
   std::vector<Tensor> out_tensors;
   sleep(5);
-  setMbufSize(2);
+  SetMbufChannelSize(2);
   TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
                                  &end_of_sequence));
-  setDefaultMbufSize();
+  RestoreMbufDefaultSize();
 }
 
 TEST_F(HostQueueDatasetOpTest, isholddatatrans2) {
@@ -610,10 +610,10 @@ TEST_F(HostQueueDatasetOpTest, isholddatatrans2) {
   bool end_of_sequence = false;
   std::vector<Tensor> out_tensors;
   sleep(5);
-  setMbufSize(3);
+  SetMbufChannelSize(3);
   TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
                                  &end_of_sequence));
-  setDefaultMbufSize();
+  RestoreMbufDefaultSize();
 }
 
 TEST_F(HostQueueDatasetOpTest, isholddatatrans3) {
@@ -662,16 +662,15 @@ TEST_F(HostQueueDatasetOpTest, isholddatatrans3) {
   TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
                                      &iterator_context));
   std::unique_ptr<IteratorBase> iterator;
+  SetMbufChannelSize(80);
   TF_ASSERT_OK(host_queue_dataset->MakeIterator(iterator_context.get(),
                                                 "Iterator", &iterator));
-
+  sleep(2); // sleep two seconds
+  RestoreMbufDefaultSize();
   bool end_of_sequence = false;
   std::vector<Tensor> out_tensors;
-  sleep(5);
-  setMbufSize(65);
   TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
                                  &end_of_sequence));
-  setDefaultMbufSize();
 }
 
 }  // namespace

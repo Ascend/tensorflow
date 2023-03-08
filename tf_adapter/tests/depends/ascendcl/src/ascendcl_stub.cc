@@ -342,7 +342,7 @@ aclError aclrtDestroyEvent(aclrtEvent event) {
 }
 
 std::string g_SocVersionStub = "Ascend910B";
-uint64_t g_MbufSize = 0;
+uint64_t g_MbufChannelSize = 0;
 
 const char *aclrtGetSocName() {
   return g_SocVersionStub.c_str();
@@ -356,16 +356,16 @@ void aclrtSetDefaultSocNameStub() {
   g_SocVersionStub = "Ascend910B";
 }
 
-void setMbufSize(uint64_t value) {
-  g_MbufSize = value;
+void SetMbufChannelSize(uint64_t value) {
+  g_MbufChannelSize = value;
 }
 
-void setDefaultMbufSize() {
-  g_MbufSize = 0;
+void RestoreMbufDefaultSize() {
+  g_MbufChannelSize = 0;
 }
 
 aclError acltdtQueryChannelSize(const acltdtChannelHandle *handle, size_t *size) {
-  *size = g_MbufSize;
+  *size = g_MbufChannelSize;
   return ACL_SUCCESS;
 }
 
