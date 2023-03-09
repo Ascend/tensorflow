@@ -282,6 +282,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       ~Iterator() override {
+        ADP_LOG(EVENT) << "DataThreadPerf[" << dataset()->device_id_ <<
+          "]::channel_name:" << dataset()->channel_name_ <<
+          "[" << buffer_.size() << "," << IsHoldDataTrans() << "], recv [" <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].elapsed_time << "us, " <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].total_bytes << "], send [" <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].elapsed_time << "us, " <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].total_bytes << "].";
         std::vector<DataItem> stop_message;
         data_deliver_->ParallelSendDataVec(stop_message);
         {
@@ -310,13 +317,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         delete data_deliver_;
         FinishMemory();
         DestroyQueue();
-        ADP_LOG(EVENT) << "DataThreadPerf[" << dataset()->device_id_ <<
-          "]::channel_name:" << dataset()->channel_name_ << "[" << buffer_.size() <<
-          "], IsHoldDataTrans =" << IsHoldDataTrans() << ", recv [" <<
-          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].elapsed_time << "us, " <<
-          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].total_bytes << "], send [" <<
-          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].elapsed_time << "us, " <<
-          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].total_bytes << "].";
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
 
