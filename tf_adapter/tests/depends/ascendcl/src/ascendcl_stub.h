@@ -33,6 +33,9 @@ void RestoreMbufDefaultSize();
 extern uint32_t g_tensor_desc_size;
 void SetTensorDescSize(uint32_t val);
 
+extern bool g_loadModelStatus;
+void SetAclLoadModelFlag(bool load_status);
+
 struct acltdtDataItem {
     acltdtDataItem(acltdtTensorType tdtType,
         const int64_t *dims, size_t dimNum, const std::string &dimsStr,
@@ -185,6 +188,9 @@ void RegAclRunGraphWithStreamAsyncStub(AclRunGraphWithStreamAsyncStub stub);
 
 using AclRunGraphStub = std::function<aclError(uint32_t, const aclmdlDataset*, aclmdlDataset*)>;
 void RegAclRunGraphStub(AclRunGraphStub stub);
+
+void SetAclmdlAddDatasetBufferRet(const bool isSuccess);
+void SetAclmdlSetDatasetTensorDescRet(const bool isSuccess);
 
 #endif //ACL_TENSOR_DATA_TRANSFER_H
 

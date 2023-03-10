@@ -503,8 +503,17 @@ aclError aclrtFree(void *devPtr) {
   return ACL_ERROR_NONE;
 }
 
+bool g_loadModelStatus = true;
+void SetAclLoadModelFlag(bool load_status) {
+  g_loadModelStatus = load_status;
+}
+
 aclError aclmdlLoadFromMem(const void *model, size_t modelSize, uint32_t *modelId) {
-  return ACL_SUCCESS;
+  if (g_loadModelStatus) {
+    return ACL_SUCCESS;
+  } else {
+    return ACL_ERROR_INVALID_PARAM;
+  }
 }
 
 aclmdlDataset *aclmdlCreateDataset() {
@@ -536,10 +545,18 @@ aclDataBuffer *aclCreateDataBuffer(void *data, size_t size) {
   return new(std::nothrow) aclDataBuffer(data, size);
 }
 
+bool g_aclDataBuf = true;
+void SetAclmdlAddDatasetBufferRet(const bool isSuccess) {
+  g_aclDataBuf = isSuccess;
+}
+
 aclError aclmdlAddDatasetBuffer(aclmdlDataset *dataset, aclDataBuffer *dataBuffer) {
-  const acl::AclModelTensor tensor = acl::AclModelTensor(dataBuffer, nullptr);
-  dataset->blobs.push_back(tensor);
-  return ACL_SUCCESS;
+  if (g_aclDataBuf) {
+    const acl::AclModelTensor tensor = acl::AclModelTensor(dataBuffer, nullptr);
+    dataset->blobs.push_back(tensor);
+    return ACL_SUCCESS;
+  }
+  return ACL_ERROR_INVALID_PARAM;
 }
 
 aclError aclDestroyDataBuffer(const aclDataBuffer *dataBuffer) {
@@ -649,8 +666,16 @@ int64_t aclGetTensorDescDim(const aclTensorDesc *desc, size_t index) {
   return elementCount;
 }
 
+bool g_aclSetTensorDesc = true;
+void SetAclmdlSetDatasetTensorDescRet(const bool isSuccess) {
+  g_aclSetTensorDesc = isSuccess;
+}
+
 aclError aclmdlSetDatasetTensorDesc(aclmdlDataset *dataset, aclTensorDesc *tensorDesc, size_t index) {
-  return ACL_SUCCESS;
+  if (g_aclSetTensorDesc) {
+    return ACL_SUCCESS;
+  }
+  return ACL_ERROR_INVALID_PARAM;
 }
 
 AclRunGraphStub g_RunGraphStub = nullptr;

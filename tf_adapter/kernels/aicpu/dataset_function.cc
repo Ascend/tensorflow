@@ -271,7 +271,10 @@ Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, 
   void *device_addr = ReAllocDeviceMem(tensor_addr, tensor_size);
   DATASET_REQUIRES(device_addr != nullptr, errors::Internal("Create device memory for input tensor failed."));
   aclDataBuffer* inputData = aclCreateDataBuffer(device_addr, tensor_size);
-  DATASET_REQUIRES(inputData != nullptr, errors::Internal("Create data buffer for input tensor failed."));
+  if (inputData == nullptr) {
+    (void)aclrtFree(device_addr);
+    return errors::Internal("Create data buffer for input tensor failed.");
+  }
 
   aclError ret = aclmdlAddDatasetBuffer(input_dataset, inputData);
   if (ret != ACL_SUCCESS) {
@@ -290,7 +293,10 @@ aclmdlDataset *DatasetFunction::CreateAclInputDatasetWithTFTensors(std::vector<T
 
   for (size_t i = 0; i < tf_tensors.size(); i++) {
     Status status = TransTfTensorToDataBuffer(input_dataset, tf_tensors[i]);
-    DATASET_REQUIRES_RETURN_NULL(status.ok(), status);
+    if (!status.ok()) {
+      DestroyAclInputDataset(input_dataset);
+      return nullptr;
+    }
   }
 
   return input_dataset;
@@ -340,7 +346,7 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
 
     aclError ret = aclmdlAddDatasetBuffer(output, outputData);
     if (ret != ACL_SUCCESS) {
-      (void)aclDestroyDataBuffer(outputData);
+      DestroyAclOutputDataset(output, false);
       ADP_LOG(ERROR) << "Can't add data buffer, create output failed, errorCode is " << ret;
       return nullptr;
     }
@@ -349,7 +355,7 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
     aclTensorDesc *output_desc = aclCreateTensorDesc(ACL_FLOAT, 1, shape, ACL_FORMAT_NCHW);
     ret = aclmdlSetDatasetTensorDesc(output, output_desc, i);
     if (ret != ACL_SUCCESS) {
-      (void)aclDestroyTensorDesc(output_desc);
+      DestroyAclOutputDataset(output, false);
       ADP_LOG(ERROR) << "Add tensor desc failed, errorCode is " << ret;
       return nullptr;
     }

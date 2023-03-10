@@ -63,6 +63,14 @@
     }                                                \
   } while (0)
 
+#define DATASET_REQUIRES_RET_VOID(EXP, CALLBACK)    \
+  do {                                              \
+    if (!(EXP)) {                                   \
+      CALLBACK;                                     \
+      return;                                       \
+    }                                               \
+  } while (0)
+
 namespace tensorflow {
 namespace data {
 class DatasetFunction {

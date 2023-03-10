@@ -313,7 +313,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       Status Initialize(IteratorContext* ctx) override {
         int64 startTime = InferShapeUtil::GetCurrentTimestap();
-        mutex_lock l(*mu_);
         TF_RETURN_IF_ERROR(DatasetFunction::RegisterNpuCancellation(
             [this]() { CancelThreads(/*wait=*/ true); }, &deregister_fn_));
 
@@ -347,11 +346,11 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           // 1. No data, return ok, end_of_sequence is false;
           // 2. get first data failed, return status;
           if (!status.ok()) {
-            *end_of_sequence = end_of_input_;
+            *end_of_sequence = end_of_sequence_;
             return status;
           }
           while (!cancelled_ && (!(batch_results_[read_index_]->data_status == DataStatus::WAIT_READ))) {
-            if ((end_of_input_) && (batch_results_[read_index_]->data_status == DataStatus::WAIT_WRITE)) {
+            if ((end_of_sequence_) && (batch_results_[read_index_]->data_status == DataStatus::WAIT_WRITE)) {
               *end_of_sequence = true;
               return Status::OK();
             }
@@ -516,21 +515,25 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         std::function<void(uint64_t, DataStatus, DataStatus)> act;
       };
 
-      virtual uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id,
-          DatasetFunction::ModelId model_id, uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) = 0;
+      virtual Status MapFunc(uint64_t thread_id, DatasetFunction::ModelId model_id,
+          uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) = 0;
       virtual Status InitBatchResult() = 0;
       virtual void DestroyOutputDataset(BatchResultBase &batch_result) = 0;
       virtual uint8_t* GetStartAddr(BatchResultBase &batch_result) = 0;
       virtual NpuAllocator* CreateAllocator(BatchResultBase &batch_result,
           uint64_t step, std::function<void(void *)> del) = 0;
 
-      virtual bool HasRunRes(uint64_t thread_id) const {
+      virtual bool HasResourceOnStream(uint64_t thread_id) const {
         (void)thread_id;
         return true;
       }
 
-      virtual uint64_t WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) {
-        (void)ctx;
+      virtual uint64_t WaitingForStreamRun(uint64_t thread_id) {
+        (void)thread_id;
+        return 0;
+      }
+
+      virtual uint64_t GetRunningResources(uint64_t thread_id) {
         (void)thread_id;
         return 0;
       }
@@ -555,6 +558,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
         delete[] batch_results_;
         batch_results_ = nullptr;
+        rtError_t rt = rtDeviceReset(static_cast<int32_t>(device_id_));
+        if (rt != RT_ERROR_NONE) {
+          ADP_LOG(ERROR) << "Call reset device failed. device id=" << device_id_ << "  rt=" << rt;
+        }
         ADP_LOG(INFO) << "~Finalize finish.";
       }
 
@@ -679,19 +686,22 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) LOCKS_EXCLUDED(*mu_) {
+        auto handleThreadException = [this](const Status &status) {
+          ADP_LOG(ERROR) << "ThreadException, status=" << status.ToString();
+          mutex_lock l(*mu_);
+          cancelled_ = true;
+          cond_var_->notify_all();
+        };
+
         rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
-        if (rt != ACL_RT_SUCCESS) {
-          ADP_LOG(ERROR) << "Thread rtSetDevice failed: thread_id = " << thread_id
-            << "thread_num = " << this->thread_num_ << "device_id_ = " << device_id_ << " rt=" << rt;
-          return;
-        }
+        DATASET_REQUIRES_RET_VOID((rt == ACL_RT_SUCCESS),
+            handleThreadException(errors::Internal("Thread rtSetDevice failed: thread_id = ", thread_id,
+            " thread_num = ", this->thread_num_, " device_id_ = ", device_id_, " rt=", rt)));
 
         DatasetFunction::ModelId model_id;
         Status status = func_.LoadGeModelFromMem(model_id);
-        if (!status.ok()) {
-          ADP_LOG(ERROR) << "DatasetFunction Instantialte failed, status = " << status.ToString();
-          return;
-        }
+        DATASET_REQUIRES_RET_VOID((status.ok()),
+            handleThreadException(errors::Internal("DatasetFunction load model failed, status = ", status.ToString())));
 
         {
           mutex_lock l(*mu_);
@@ -716,21 +726,21 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           // Implementation class to implement
           // if no run res, need to wait run res
           // if end of input, need to wait run end
-          while (!HasRunRes(thread_id) || (end_of_input_ && (run_res > 0))) {
-            run_res = WaitRunRes(ctx, thread_id);
+          while (!HasResourceOnStream(thread_id) || (end_of_sequence_ && (run_res > 0))) {
+            run_res = WaitingForStreamRun(thread_id);
           }
 
           uint64_t batch_id;
           uint64_t batch_offset;
-          bool map_func = false;
+          bool run_map_func = false;
           std::vector<Tensor> in_tensors;
           {
             mutex_lock l(*mu_);
             //  if tf restore the data status, this will continue;
-            if (!end_of_input_ && GetNextBatchIndex(batch_id, batch_offset)) {
-              status = input_impl_->GetNext(ctx.get(), &in_tensors, &end_of_input_);
-              if (status.ok() && !end_of_input_) {
-                map_func = true;
+            if (!end_of_sequence_ && GetNextBatchIndex(batch_id, batch_offset)) {
+              status = input_impl_->GetNext(ctx.get(), &in_tensors, &end_of_sequence_);
+              if (status.ok() && !end_of_sequence_) {
+                run_map_func = true;
               } else {
                 if (!status.ok()) {
                   batch_results_[batch_id]->UpdateStatus(status, batch_offset);
@@ -751,12 +761,14 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               }
             }
           }
-          if (map_func) {
+          if (run_map_func) {
             timestat->RecordStartTime(timestat->statis_threads[thread_id]);
-            run_res = MapFunc(ctx, thread_id, model_id, batch_id, batch_offset, in_tensors);
+            status = MapFunc(thread_id, model_id, batch_id, batch_offset, in_tensors);
+            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            run_res = GetRunningResources(thread_id);
             timestat->RecordEndTime(timestat->statis_threads[thread_id]);
           } else {
-            run_res = WaitRunRes(ctx, thread_id);
+            run_res = WaitingForStreamRun(thread_id);
           }
         }
       }
@@ -764,15 +776,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       Status EnsureRunnerThreadStarted(IteratorContext &ctx) EXCLUSIVE_LOCKS_REQUIRED(*mu_) {
         if (runner_threads_.size() == 0) {
           rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
-          if (rt != ACL_RT_SUCCESS) {
-            ADP_LOG(ERROR) << "Main thread rtSetDevice failed: device_id_ = " << device_id_;
-          }
-
+          DATASET_REQUIRES((rt == ACL_RT_SUCCESS),
+              errors::Internal("Dataset rtSetDevice failed: device_id_=", device_id_, ", rt=", rt));
           Status status = InitBatchResult();
-          if (!status.ok()) {
-            return status;
-          }
-
+          DATASET_REQUIRES((status.ok()), status);
           ctx_ = std::make_shared<IteratorContext>(ctx);
           for (uint64_t i = 0; i < GetParallelCallsNum(); i++) {
             runner_threads_.emplace_back(std::move(ctx.StartThread(
@@ -877,7 +884,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       const std::shared_ptr<model::SharedState> num_parallel_calls_;
       uint64_t batch_capacity_ GUARDED_BY(*mu_) = 0;
-      bool end_of_input_ GUARDED_BY(*mu_) = false;
+      bool end_of_sequence_ GUARDED_BY(*mu_) = false;
       std::vector<std::vector<int64_t>> func_output_shape_;
       uint64_t read_index_ = 0;
       std::atomic<uint64_t> write_index_{0};
@@ -950,9 +957,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
               ", batch_size_ = ", dataset()->batch_size_));
 
-      // support address align
-      batch_mem_size_ += NpuAllocator::GetAlignment();
       batch_mem_size_ *= dataset()->batch_size_;
+      // Current dataset is followed by TF dataset,
+      // need recalculate the start addres, make sure the start address is 64-aligned.
       batch_mem_size_aligned_ = batch_mem_size_ + NpuAllocator::GetAlignment();
       ADP_LOG(INFO) << "BatchMem, batch_mem_size : " << batch_mem_size_;
 
@@ -962,19 +969,23 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return InitBatchResultMem();
     }
 
-    bool HasRunRes(uint64_t thread_id) const override {
+    bool HasResourceOnStream(uint64_t thread_id) const override {
       return stream_pool_->GetIdleEventCount(thread_id) > 0;
     }
 
-    uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id, DatasetFunction::ModelId model_id,
+    Status MapFunc(uint64_t thread_id, DatasetFunction::ModelId model_id,
         uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) override {
-      (void)ctx;
       aclmdlDataset *input_dataset = nullptr;
       aclmdlDataset *output_dataset = nullptr;
 
       input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
+      DATASET_REQUIRES((input_dataset != nullptr), errors::Internal("Create input dataset with tf tensor failed."));
       output_dataset = InitOutTensorsMem(*static_cast<BatchStaticResult*>(batch_results_[batch_id].get()),
                                          batch_offset);
+      if (output_dataset == nullptr) {
+        DatasetFunction::DestroyAclInputDataset(input_dataset);
+        return errors::Internal("Create output dataset failed.");
+      }
 
       std::shared_ptr<Items> time_tag = std::make_shared<Items>();
       BatchResultBase *batch_result = batch_results_[batch_id].get();
@@ -987,20 +998,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         DatasetFunction::DestroyAclInputDataset(input_dataset);
       };
 
-      if (input_dataset == nullptr) {
-        done(errors::Unavailable("Create input dataset failed."));
-        return stream_pool_->GetWaitingEventCount(thread_id);
-      }
-
-      if (output_dataset == nullptr) {
-        done(errors::Unavailable("Create output dataset failed."));
-        return stream_pool_->GetWaitingEventCount(thread_id);
-      }
-
       std::shared_ptr<Stream> stream = stream_pool_->GetStream(thread_id);
       if (stream == nullptr) {
-        done(errors::Unavailable("Get Stream failed"));
-        return stream_pool_->GetWaitingEventCount(thread_id);
+        done(errors::Internal("Get Stream failed."));
+        return errors::Internal("Get Stream failed.");
       }
       timestat->RecordStartTime(*time_tag);
       Status status = func_.RunWithStreamAsyn(model_id, input_dataset, output_dataset, stream->GetStream());
@@ -1011,11 +1012,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         ADP_LOG(ERROR) << "RecordEvent Failed, status = " << status.ToString();
         done(status);
       }
-      return stream_pool_->GetWaitingEventCount(thread_id);
+      return status;
     }
 
-    uint64_t WaitRunRes(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) override {
-      (void)ctx;
+    uint64_t WaitingForStreamRun(uint64_t thread_id) override {
       (void)stream_pool_->WaitOneEvent(thread_id);
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
@@ -1042,8 +1042,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
                                                        func_tensor_size_[i]);
         aclError ret = aclmdlAddDatasetBuffer(output_dataset, data_buff);
         if (ret != ACL_SUCCESS) {
-          // tensor的description不需要添加进去吗？
-          (void)aclDestroyDataBuffer(data_buff);
+          DatasetFunction::DestroyAclOutputDataset(output_dataset, false);
           ADP_LOG(ERROR) << "Add data buffer to output dataset failed.";
           return nullptr;
         }
@@ -1185,27 +1184,25 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           errors::Unavailable("batch results memory is too big, batch_mem_size_ = ", batch_mem_size_,
               ", batch_size_ = ", dataset()->batch_size_));
 
-      // support address align
-      batch_mem_size_ += NpuAllocator::GetAlignment();
       batch_mem_size_ *= dataset()->batch_size_;
+      // Current dataset is followed by TF dataset,
+      // need recalculate the start addres, make sure the start address is 64-aligned.
       batch_mem_size_aligned_ = batch_mem_size_ + NpuAllocator::GetAlignment();
       return Status::OK();
     }
 
-    uint64_t MapFunc(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id, DatasetFunction::ModelId model_id,
+    Status MapFunc(uint64_t thread_id, DatasetFunction::ModelId model_id,
         uint64_t batch_id, uint64_t batch_offset, std::vector<Tensor> &input) override {
-      (void)ctx;
       (void)thread_id;
       aclmdlDataset *input_dataset = nullptr;
       input_dataset = DatasetFunction::CreateAclInputDatasetWithTFTensors(input);
-      if (input_dataset == nullptr) {
-        return 0;
-      }
+      DATASET_REQUIRES((input_dataset != nullptr), errors::Internal("Create input dataset with tf tensor failed."));
 
       aclmdlDataset *output_dataset = nullptr;
       output_dataset = DatasetFunction::CreateAclOutputDataset(model_id);
       if (output_dataset == nullptr) {
-        return 0;
+        DatasetFunction::DestroyAclInputDataset(input_dataset);
+        return errors::Internal("Create output dataset failed.");
       }
 
       BatchDynResult *batch_dyn_result = static_cast<BatchDynResult*>(batch_results_[batch_id].get());
@@ -1215,11 +1212,13 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       timestat->RecordEndTime(timestat->statis_threads_ge[thread_id]);
       if (status.ok()) {
         batch_dyn_result->output_datasets[batch_offset] = std::move(output_dataset);
+      } else {
+        DatasetFunction::DestroyAclOutputDataset(output_dataset, true);
       }
       batch_dyn_result->UpdateStatus(status, batch_offset);
       CallCompleted();
       DatasetFunction::DestroyAclInputDataset(input_dataset);
-      return 0;
+      return status;
     }
 
     Status InitBatchResult() override {
