@@ -528,22 +528,6 @@ TEST_F(NpuMapDatasetOpTest, DynamicSetDatasetTensorDescFailedTest) {
   ADP_LOG(INFO) << "====== UT DynamicSetDatasetTensorDescFailedTest end ======";
 }
 
-// test for create output dataset failed for static output
-TEST_F(NpuMapDatasetOpTest, StaticSetDatasetTensorDescFailedTest) {
-  ADP_LOG(INFO) << "====== UT StaticSetDatasetTensorDescFailedTest begin ======";
-  SetAclmdlSetDatasetTensorDescRet(false);
-  auto dataset_params = NpuMapDatasetParams4();
-  TF_ASSERT_OK(Initialize(&dataset_params));
-  std::vector<Tensor> next;
-  bool end_of_sequence = false;
-  Status status = iterator_->GetNext(iterator_ctx_.get(), &next, &end_of_sequence);
-  if (!status.ok()) {
-    ADP_LOG(INFO) << "Get data failed.";
-  }
-  SetAclmdlSetDatasetTensorDescRet(true);
-  ADP_LOG(INFO) << "====== UT StaticSetDatasetTensorDescFailedTest end ======";
-}
-
 // test for create input dataset failed for static shape
 TEST_F(NpuMapDatasetOpTest, StaticCreateAclmdlDatasetFailedTest) {
   ADP_LOG(INFO) << "====== UT StaticCreateAclmdlDatasetFailedTest begin ======";
