@@ -66,6 +66,10 @@ class ESWorker:
             self._init_embedding_hash_maps = {}
             self._init_partition_maps = {}
             self._table_to_embedding_dim = {}
+            self._table_to_max_num = {}
+            self._table_to_optimizer = {}
+            self._table_to_initializer = {}
+            self._table_to_slot_var_num = {}
             for each_ps in self._ps_ids_list:
                 self._ps_ids.append(each_ps["id"])
         self._train_mode = True
@@ -117,7 +121,9 @@ class ESWorker:
         self._embedding_dim = embedding_dim
         self._max_num = max_batch_size
         self._table_to_embedding_dim[table_id] = embedding_dim
+        self._table_to_max_num[table_id] = max_batch_size
         self._initializer = initializer
+        self._table_to_initializer[table_id] = initializer
         self._table_has_init.append(table_id)
         bucket_size = math.ceil(vocabulary_size / self._ps_num)
         if optimizer is None:
@@ -135,8 +141,11 @@ class ESWorker:
                 raise ValueError("initializer must be random_uniform or truncated_normal.")
             self._optimizer = optimizer
             self._optimizer._embedding_dims = embedding_dim
+            self._optimizer._max_nums = max_batch_size
+            self._table_to_optimizer[table_id] = self._optimizer
             # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
             self.slot_vars_num = 2 if isinstance(self._optimizer, embedding_optimizer.AdamOptimizer) else 1
+        self._table_to_slot_var_num[table_id] = self.slot_vars_num
         if (file_path is None) or (file_name is None) or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
             if initializer is None:
                 raise ValueError("In new embedding training, initializer can not be None.")
@@ -180,18 +189,18 @@ class ESWorker:
                                                                    keys=input_ids,
                                                                    embedding_dim=
                                                                    self._table_to_embedding_dim.get(table_id),
-                                                                   random_alg=self._initializer,
+                                                                   random_alg=self._table_to_initializer.get(table_id),
                                                                    seed=seed1, seed2=seed2,
                                                                    value_total_len=
                                                                    self._table_to_embedding_dim.get(table_id) *
-                                                                   (self.slot_vars_num + 1)
+                                                                   (self._table_to_slot_var_num.get(table_id) + 1)
                                                                    )
         else:
             result = gen_npu_cpu_ops.embedding_table_find(table_id=ops.convert_to_tensor(table_id),
                                                           keys=input_ids,
                                                           embedding_dim=self._table_to_embedding_dim.get(table_id))
-        result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dim))
-        result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_num))
+        result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
+        result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
         result.op._set_attr("_deploy_inject_config",
                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
         return result
@@ -222,12 +231,13 @@ class ESWorker:
                 or (len(table_ids) != len(input_ids_list)):
             raise ValueError("The length of params, table_ids, input_ids_list should be equal.")
         embedding_grads = tf.gradients(loss, params)
-        params_grads = []
-        for i in range(len(embedding_grads)):
-            params_grads.append(tf.IndexedSlices(embedding_grads[i], input_ids_list[i], dense_shape=params[i].shape))
+        update_op = []
         with specified_ps_engine_scope():
-            var_refs = [NpuEmbeddingResource(table_id) for table_id in table_ids]
-            update_op = self._optimizer.apply_gradients(list(zip(params_grads, var_refs)))
+            for i in range(len(table_ids)):
+                params_grads = [tf.IndexedSlices(embedding_grads[i], input_ids_list[i], dense_shape=params[i].shape)]
+                var_refs = [NpuEmbeddingResource(table_ids[i])]
+                update_op.append(
+                    self._table_to_optimizer.get(table_ids[i]).apply_gradients(list(zip(params_grads, var_refs))))
             return update_op
 
     # 提供训练好的embedding values save功能
@@ -264,7 +274,8 @@ class ESWorker:
         with specified_ps_engine_scope():
             embedding_dim = self._table_to_embedding_dim.get(table_id)
             return gen_npu_cpu_ops.embedding_table_export(file_path, file_name, ops.convert_to_tensor(-1), table_id,
-                                                          embedding_dim, embedding_dim * (self.slot_vars_num + 1),
+                                                          embedding_dim, embedding_dim *
+                                                          (self._table_to_slot_var_num.get(table_id) + 1),
                                                           False, mode)
 
     def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True):
