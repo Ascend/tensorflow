@@ -12,7 +12,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                 enable_exception_dump=0, op_select_implmode=None, optypelist_for_implmode=None, dynamic_input_config=None,
                 aoe_mode=None, work_path=None, buffer_optimize="l2_optimize", enable_small_channel=0, fusion_switch_file=None,
                 enable_compress_weight=False, compress_weight_conf=None,
-                op_compiler_cache_mode=None, op_compiler_cache_dir=None, debug_dir=None, hcom_multi_mode=False, dynamic_input=False,
+                op_compiler_cache_mode=None, op_compiler_cache_dir=None, debug_dir=None, hcom_multi_mode=False, dynamic_input=None,
                 dynamic_graph_execute_mode="dynamic_execute", dynamic_inputs_shape_range=None,
                 train_distribute=None, eval_distribute=None, local_rank_id=None, local_device_list=None, session_device_id=None,
                 distribute_config=None, modify_mixlist=None, op_precision_mode=None, device_type="default_device_type",

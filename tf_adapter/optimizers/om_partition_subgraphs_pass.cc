@@ -2263,7 +2263,9 @@ Status OMPartitionSubgraphsPass::ProcessGraph(std::unique_ptr<Graph> *graph, Fun
     return Status::OK();
   }
   if (mix_compile_mode) {
-    TF_RETURN_IF_ERROR(CopyVarsBetweenGeOp(graph_in));
+    if (pass_options["variable_location"] != "Host") {
+      TF_RETURN_IF_ERROR(CopyVarsBetweenGeOp(graph_in));
+    }
     TF_RETURN_IF_ERROR(CopyConstBetweenGeOp(graph_in));
   }
 

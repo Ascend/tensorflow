@@ -78,7 +78,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  op_compiler_cache_dir=None,
                  debug_dir=None,
                  hcom_multi_mode=False,
-                 dynamic_input=False,
+                 dynamic_input=None,
                  dynamic_graph_execute_mode="dynamic_execute",
                  dynamic_inputs_shape_range=None,
                  train_distribute=None,
