@@ -61,16 +61,11 @@ const int64_t kUnknownShapeDepth = 3LL;
 const uint64_t PARALLEL_MEMORY_TRHESHOLD = 10 * 1024 * 1024ULL;
 const uint32_t MAX_THREAD_NUM = 4U;
 std::atomic<bool> tdt_release(false);
-
 // total memory usage controlled below 2G
 const uint64_t kTotalBytes = 8 * 1024 * 1024 * 1024LL;
 const int64_t kMaxBytes = 2 * 1024 * 1024 * 1024LL;
-
-enum class ChannelType {
-  TDT = 0,
-  ACL_QUEUE = 1, /* mbuf */
-  HOST_QUEUE = 2
-};
+enum class ChannelType { TDT = 0, ACL_QUEUE = 1, HOST_QUEUE = 2 }; /* ACL_QUEUE indicates mbuf */
+enum class ThreadType : size_t { RECV = 0, SEND = 1, BUTT };
 
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
@@ -283,6 +278,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       ~Iterator() override {
+        ADP_LOG(EVENT) << "DataThreadPerf[" << dataset()->device_id_ <<
+          "]::channel_name:" << dataset()->channel_name_ <<
+          "[" << buffer_.size() << "], recv [" <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].elapsed_time << "us, " <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::RECV)].total_bytes << "], send [" <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].elapsed_time << "us, " <<
+          data_thread_perf_stat_[static_cast<size_t>(ThreadType::SEND)].total_bytes << "].";
         std::vector<DataItem> stop_message;
         data_deliver_->ParallelSendDataVec(stop_message);
         {
@@ -327,6 +329,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "End to destroy queue.";
       }
 
+      // Indicates that a thread execution task has finished
       void NotifyEventFinish() {
         if (event_num_.fetch_add(1U) >= (MAX_THREAD_NUM - 1)) {
           {
@@ -360,12 +363,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             char *dst = reinterpret_cast<char *>(reinterpret_cast<uintptr_t>(dst_ptr) + start_pos);
             const char *src = src_ptr + start_pos;
             uint64_t dst_len = dst_size - start_pos;
-            // end pos must bigger than start_pos
+            // end_pos must larger than start_pos
             uint64_t len = end_pos - start_pos;
             if (len > src_size || dst_len < len) {
-              ADP_LOG(ERROR) << "Len is invalid, len: " << len << "buffer len: " << dst_len;
               closure_ret = false;
               NotifyEventFinish();
+              ADP_LOG(ERROR) << "Parameters is invalid. "<< "[len:" << len << ", buffer_size:" << dst_len <<"].";
               return;
             }
             uint64_t temp_len = 0ULL;
@@ -374,9 +377,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               uint64_t copy_size = (temp_copy_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : temp_copy_size;
               if (memcpy_s(reinterpret_cast<void *>(dst), static_cast<size_t>(dst_len),
                            src, static_cast<size_t>(copy_size)) != EOK) {
-                ADP_LOG(ERROR) << "Memcpy failed, start:" << start_pos << ", len: " << copy_size;
                 closure_ret = false;
                 NotifyEventFinish();
+                ADP_LOG(ERROR) << "Failed to execute memcpy_s. [" << start_pos << "," << copy_size << "].";
                 return;
               }
               temp_len += copy_size;
@@ -388,16 +391,14 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           };
           thread_pool_.PushTask(closure);
         }
-        ADP_LOG(INFO) << "Wait enter into parallel copy.";
+        ADP_LOG(INFO) << "Wait for all threads finish to copy.";
         mutex_lock lck(event_finish_mu_);
         while (!event_finish_flag_) {
           event_finish_var_.wait(lck);
         }
-        if (!closure_ret) {
-          return false;
-        }
-        ADP_LOG(INFO) << "End enter into parallel copy.";
-        return true;
+        ADP_LOG(INFO) << "All threads has finished to copy " <<
+          (closure_ret ? "successfully" : "unsuccessfully") << ".";
+        return closure_ret;
       }
 
       bool CopyTensor(void* const memory_ptr, uint64_t memory_size,
@@ -433,9 +434,22 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
       void FinishMemory() {
         if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
-          ADP_LOG(INFO) << "FinishMemory ...";
+          ADP_LOG(INFO) << "Begin to release host memory pool.";
           thread_pool_.StopThreadPool();
           (void)mem_pool_.FreeAllMemory();
+          ADP_LOG(INFO) << "Finish to release host memory pool.";
+        }
+      }
+
+      void RefreshDataThreadPerf(const ThreadType type, const double elapsed_time,
+                                 const std::vector<Tensor> &args) {
+        if (elapsed_time > data_thread_perf_stat_[static_cast<size_t>(type)].elapsed_time) {
+          uint64_t total_bytes = 0;
+          for (auto &tensor : args) {
+            total_bytes += tensor.TotalBytes();
+          }
+          data_thread_perf_stat_[static_cast<size_t>(type)].total_bytes = total_bytes;
+          data_thread_perf_stat_[static_cast<size_t>(type)].elapsed_time = elapsed_time;
         }
       }
 
@@ -485,7 +499,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             return;
           }
 
+          auto start = std::chrono::steady_clock::now();
           buffer_element.status = input_impls_[1]->GetNext(ctx.get(), &args, &end_of_sequence);
+          auto end = std::chrono::steady_clock::now();
           if ((!buffer_element.status.ok()) || (buffer_element.status.ok() && end_of_sequence)) {
             if ((!buffer_element.status.ok()) &&
                 (!errors::IsCancelled(buffer_element.status))) {
@@ -502,6 +518,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             get_thread_exception_.store(true);
             return;
           }
+          auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
+          RefreshDataThreadPerf(ThreadType::RECV, elapsed_time, args);
           uint64_t args_tensor_size = 0ULL;
           if (from_npu_dataset == NPU_ALLOCATOR_UNKNOW) {
             if (args.empty()) {
@@ -585,11 +603,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         do {
           {
             mutex_lock lck(mu_);
-            if (finish_send_) {
-              break;
-            }
+            if (finish_send_) { break; }
           }
+          auto start = std::chrono::steady_clock::now();
           status = SendTensorsByAcl(acl_handle_, data_type, args, is_need_resend);
+          auto end = std::chrono::steady_clock::now();
+          if (status.ok() && !is_need_resend) {
+            auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
+            RefreshDataThreadPerf(ThreadType::SEND, elapsed_time, args);
+          }
         } while (status.ok() && is_need_resend);
         return status;
       }
@@ -625,8 +647,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         cond_var_.notify_all();
       }
 
-      bool HandleMemory(std::vector<Tensor> &src_args, std::vector<Tensor> &dst_args,
-                        uint64_t args_size) {
+      bool HandleMemory(std::vector<Tensor> &src_args, std::vector<Tensor> &dst_args, uint64_t args_size) {
         void *buffer = nullptr;
         if (!mem_pool_.MallocMemory(buffer, args_size).ok()) {
           ADP_LOG(ERROR) << "MallocMemory memory failed";
@@ -976,6 +997,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       acltdtChannelHandle *acl_handle_;
       uint32_t queue_id_;
       int active_thread_num = 0;
+      struct DataThreadPerf {
+        double elapsed_time = 0;
+        uint64_t total_bytes = 0;
+      } data_thread_perf_stat_[static_cast<size_t>(ThreadType::BUTT)];
     };
     const std::vector<DatasetBase *> inputs_;
     std::string channel_name_;
