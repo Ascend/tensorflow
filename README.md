@@ -50,13 +50,15 @@ chmod +x build.sh
 ./build.sh
 ```
 
-脚本执行成功后，会在output目录生成tfadapter.tar压缩文件。
+编译结束后，安装包会生成在
+```
+./build/tfadapter/dist/python/dist/npu_bridge-1.15.0-py3-none-any.whl
+```
 
 #### 安装插件包
-解压tfadapter.tar文件，生成npu_bridge-1.15.0-py3-none-any.whl,
-然后使用 pip 安装 TF_Adapter 插件。
+使用 pip3 安装 Ascend Adapter 到您期望的位置。
 ```
-pip install npu_bridge-1.15.0-py3-none-any.whl
+pip3 install ./build/tfadapter/dist/python/dist/npu_bridge-1.15.0-py3-none-any.whl --upgrade
 ```
 需要注意的是， 您应当保证安装路径与您编译时指定的 python
  解释器搜索路径是一致的。
@@ -71,6 +73,13 @@ https://gitee.com/ascend/tensorflow/wikis/Home?sort_id=3076366
 ## Release Notes
 
 Release Notes请参考[RELEASE](RELEASE.md).
+
+## FAQ
+#### 执行./build.sh时提示配置swig的路径
+需要执行以下命令安装swig
+```
+pip3 install swig
+```
 
 ## License
 

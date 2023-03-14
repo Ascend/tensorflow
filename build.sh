@@ -25,7 +25,7 @@ RELEASE_TARGET="tfadapter.tar"
 # print usage message
 usage() {
   echo "Usage:"
-  echo "    bash build.sh [-h] [-j[n]] [-v] [-g] [-u]"
+  echo "    bash build.sh [-h] [-j[n]] [-v] [-g] [-u] [-s] [-c]"
   echo ""
   echo "Options:"
   echo "    -h Print usage"
@@ -34,6 +34,7 @@ usage() {
   echo "    -g GCC compiler prefix, used to specify the compiler toolchain"
   echo "    -u TF_adapter utest"
   echo "    -s TF_adapter stest"
+  echo "    -c TF_adapter ci build"
   echo "to be continued ..."
 }
 
@@ -48,8 +49,9 @@ checkopts() {
   GCC_PREFIX=""
   ENABLE_TFADAPTER_UT="off"
   ENABLE_TFADAPTER_ST="off"
+  ENABLE_CI_BUILD="off"
   # Process the options
-  while getopts 'hj:vusg:' opt
+  while getopts 'hj:vuscg:' opt
   do
     case "${opt}" in
       h) usage
@@ -59,6 +61,7 @@ checkopts() {
       g) GCC_PREFIX=$OPTARG ;;
       u) ENABLE_TFADAPTER_UT="on" ;;
       s) ENABLE_TFADAPTER_ST="on" ;;
+      c) ENABLE_CI_BUILD="on" ;;
       *) logging "Undefined option: ${opt}"
          usage
          exit 1 ;;
@@ -125,7 +128,7 @@ main() {
   ${GCC_PREFIX}g++ -v
   mk_dir "${RELEASE_PATH}"
   build_tfadapter
-  if [[ "X$ENABLE_TFADAPTER_UT" = "Xoff" ]] && [[ "X$ENABLE_TFADAPTER_ST" = "Xoff" ]]; then
+  if [[ "X$ENABLE_TFADAPTER_UT" = "Xoff" ]] && [[ "X$ENABLE_TFADAPTER_ST" = "Xoff" ]] && [[ "X$ENABLE_CI_BUILD" = "Xon" ]]; then
     release_tfadapter
   fi
   if [[ "X$ENABLE_TFADAPTER_UT" = "Xon" ]]; then
