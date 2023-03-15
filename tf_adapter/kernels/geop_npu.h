@@ -190,10 +190,6 @@ private:
   std::atomic_flag tuned_flag_;
   std::vector<std::pair<Tensor, int32_t>> remove_index_;
   std::string is_var_init_graph_;
-  std::string deploy_inject_config_;
-  std::string execute_times_;
-  std::string max_num_;
-  std::string embedding_dim_;
   std::string recompute_mode_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;
   bool jit_compile_;
