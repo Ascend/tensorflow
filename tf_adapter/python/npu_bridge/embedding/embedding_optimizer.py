@@ -19,6 +19,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.eager import context
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.training import adam
 from tensorflow.python.training import adagrad
 from tensorflow.python.training import training_ops
@@ -38,6 +39,14 @@ class AdamOptimizer(adam.AdamOptimizer):
     def embedding_dims(self, val):
         self._embedding_dims = val
 
+    @property
+    def max_nums(self):
+        return self._max_nums
+
+    @max_nums.setter
+    def max_nums(self, val):
+        self._max_nums = val
+
     def _prepare(self):
         lr = self._call_if_callable(self._lr)
         epsilon = self._call_if_callable(self._epsilon)
@@ -56,15 +65,18 @@ class AdamOptimizer(adam.AdamOptimizer):
             self._beta2_t_list.append(self._beta2_t)
             beta1_power, beta2_power = self._get_beta_accumulators()
             self.table_idx += 1
-            return gen_npu_cpu_ops.embedding_apply_adam(var.handle, beta1_power, beta2_power,
-                                                        math_ops.cast(self._lr_t, grad.dtype),
-                                                        math_ops.cast(self._beta1_t, grad.dtype),
-                                                        math_ops.cast(self._beta2_t, grad.dtype),
-                                                        math_ops.cast(self._epsilon_t, grad.dtype),
-                                                        grad,
-                                                        indices,
-                                                        ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
-                                                        self._embedding_dims)
+            result = gen_npu_cpu_ops.embedding_apply_adam(var.handle, beta1_power, beta2_power,
+                                                          math_ops.cast(self._lr_t, grad.dtype),
+                                                          math_ops.cast(self._beta1_t, grad.dtype),
+                                                          math_ops.cast(self._beta2_t, grad.dtype),
+                                                          math_ops.cast(self._epsilon_t, grad.dtype),
+                                                          grad,
+                                                          indices,
+                                                          ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
+                                                          self._embedding_dims)
+            result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
+            result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            return result
         else:
             return self._apply_sparse_shared(grad, var, indices, self._resource_scatter_add)
 
