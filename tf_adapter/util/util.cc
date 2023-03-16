@@ -115,7 +115,6 @@ bool IsVariableOrResourceVariable(const Node * const node) {
 
 bool IsVariableExecuteOnHost(const Node * const node, const std::string &variable_location) {
   if (variable_location == "Host" && IsVariableOrResourceVariable(node)) {
-    ADP_LOG(INFO) << "Node : " << node->name() << " op name : " << node->type_string() << "is execute on host";
     return true;
   }
   return false;

@@ -740,7 +740,8 @@ class NPUEstimator(estimator_lib.Estimator):
         if config._debug_dir is not None:
             custom_op.parameter_map["debug_dir"].s = tf.compat.as_bytes(config._debug_dir)
         custom_op.parameter_map["hcom_multi_mode"].b = config._hcom_multi_mode
-        custom_op.parameter_map["dynamic_input"].b = config._dynamic_input
+        if config._dynamic_input is not None:
+            custom_op.parameter_map["dynamic_input"].b = config._dynamic_input
         custom_op.parameter_map["dynamic_graph_execute_mode"].s = tf.compat.as_bytes(config._dynamic_graph_execute_mode)
         if config._dynamic_inputs_shape_range is not None:
             custom_op.parameter_map["dynamic_inputs_shape_range"].s = tf.compat.as_bytes(
