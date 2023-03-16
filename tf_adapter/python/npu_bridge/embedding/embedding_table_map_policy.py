@@ -47,15 +47,14 @@ class BaseTableMapPolicy():
         self.table_to_input_groups.append([])
         self.table_to_slot.append([])
 
-    def _merge_new_table_info(self, new_table_info, assign_tabld_id):
-        main_table_info = self.table_create_infos[assign_tabld_id]
+    def _merge_new_table_info(self, new_table_info, assign_table_id):
+        main_table_info = self.table_create_infos[assign_table_id]
         main_table_info['multihot_lens'] += new_table_info['multihot_lens']
         main_table_info['max_vocabulary_size'] += new_table_info['max_vocabulary_size']
 
     def _register_table_info(self, new_table_info, assign_tid=-1):
         multihot_lens = new_table_info['multihot_lens']
-        in_slot_size = sum(multihot_lens)
-        out_slot_size = len(multihot_lens)
+        in_slot_size = multihot_lens
 
         tid = assign_tid
         if tid == -1:
