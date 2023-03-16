@@ -597,8 +597,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Slave SendDataThread exit.";
       }
 
-      void RecordMbufQueueBytes(const bool is_hold_type, const uint64_t args_total_bytes) {
-        if (!is_hold_type) { return; }
+      void RecordMbufQueueBytes(const bool is_hold, const uint64_t args_total_bytes) {
+        if (!is_hold) { return; }
         mbuf_queue_rear_ = (mbuf_queue_rear_ + 1) % kStringTypeDepth;
         mbuf_queue_bytes_[mbuf_queue_rear_] = args_total_bytes;
       }
@@ -629,7 +629,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         Status status = Status::OK();
         bool is_need_resend = false;
 
-        while(!finish_send_) {
+        while (!finish_send_) {
           if (IsHoldDataTrans()) {
             auto start = std::chrono::high_resolution_clock::now();
             auto end = start + std::chrono::microseconds(kSleepDuration);
