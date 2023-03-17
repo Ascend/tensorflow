@@ -113,7 +113,7 @@ tensorflow::Status TryToBuildShapeForDynDims(const std::map<std::string, std::st
     (options.find(ge::DYNAMIC_NODE_TYPE) == options.end()) ? "" : options.at(ge::DYNAMIC_NODE_TYPE);
   std::string dynamic_dims = (options.find(ge::kDynamicDims) == options.end()) ? "" : options.at(ge::kDynamicDims);
   bool need_dyn_proc = (!input_shapes.empty()) && (!dynamic_node_type.empty()) && (!dynamic_dims.empty());
-  if (!need_dyn_proc || dynamic_node_type == kDynamicNodeTypeData) {
+  if ((!need_dyn_proc) || (dynamic_node_type == kDynamicNodeTypeData)) {
     DLOG() << "Skip dynamic dims. Option configuration is complete:" << (need_dyn_proc ? "true" : "false")
            << ", dynamic_node_type(0 for GetNext, 1 for Data):" << dynamic_node_type;
     return tensorflow::Status::OK();
@@ -159,7 +159,7 @@ tensorflow::Status BuildNpuOpOptimize(TFE_Context *context, NpuMutableConcreteGr
   }
   if (!ss.str().empty()) {
     tensorflow::Node *key;
-    if (IsGraphNeedLoop(*(graph->MutableGraph()), key) || key != nullptr) {
+    if (IsGraphNeedLoop(*(graph->MutableGraph()), key) || (key != nullptr)) {
       graph->SetLoopType(NpuConcreteGraph::LoopType::BUILTIN_LOOP);
     }
     graph->SetExecutionType(NpuConcreteGraph::ExecutionType::MIX);
