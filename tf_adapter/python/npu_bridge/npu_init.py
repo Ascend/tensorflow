@@ -65,7 +65,6 @@ from hccl.manage.api import get_world_rank_from_group_rank
 from hccl.manage.api import get_group_rank_from_world_rank
 from hccl.split.api import set_split_strategy_by_idx
 from hccl.split.api import set_split_strategy_by_size
-from npu_bridge import embedding as npu_embedding
 
 import tensorflow as tf
 
