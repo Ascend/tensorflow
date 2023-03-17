@@ -31,6 +31,7 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
+#include <cstdlib>
 
 #include "tensorflow/core/common_runtime/dma_helper.h"
 #include "framework/common/ge_inner_error_codes.h"
@@ -53,6 +54,8 @@
 #include "graph/op_desc.h"
 #include "runtime/dev.h"
 #include "runtime/mem.h"
+#include "tf_adapter/util/infershape_util.h"
+#include "tensorflow/core/framework/graph_to_functiondef.h"
 
 namespace tensorflow {
 namespace data {
@@ -62,6 +65,15 @@ static constexpr const char* const kOutputDesc = "output_tensor_desc";
 static constexpr const char* const kFormat = "serialize_format";
 static constexpr const char* const kType = "serialize_datatype";
 static constexpr const char* const kShape = "serialize_shape";
+static constexpr const char* const kPreProcessOps = "preprocess_ops";
+static constexpr const char* const kControlOps = "control_ops";
+static constexpr const char* const kTfaSplitGraphJsonPath = "/built-in/framework/tensorflow/dp_split_graph_ops.json";
+// Indicates the chips that allows split graph
+// rule of this map : {"real chip name", "dvpp ops ini file name"}
+const static std::map<std::string, std::string> kDvppAccelerateChips = {
+    {"Ascend910B1", "ascend910b"},
+    {"Ascend910B2", "ascend910b"},
+    {"Ascend910B3", "ascend910b"}};
 } // namespace
 
 void *DatasetFunction::ReAllocDeviceMem(void *addr, size_t len) {
@@ -506,17 +518,14 @@ void DatasetFunction::UpdateShapeForArgOp(Graph &graph) const {
   }
 }
 
-std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) const {
+Status DatasetFunction::BuildSubGraph(FunctionLibraryDefinition &flib_def, tensorflow::Graph &sub_graph,
+                                      const std::string &func_name) const {
   const FunctionDef *func_def = flib_def.Find(func_name);
-  DATASET_REQUIRES(func_def != nullptr, "");
+  DATASET_REQUIRES(func_def != nullptr, errors::Internal("Can not find ", func_name));
 
   // step-1 create and initialize a graph
-  Graph sub_graph(&flib_def);
   Status status = InferShapeUtil::GetSubGraphFromFunctionDef(flib_def, *func_def, &sub_graph);
-  if (!status.ok()) {
-    ADP_LOG(ERROR) << status.ToString();
-    return "";
-  }
+  DATASET_REQUIRES(status.ok(), status);
 
   // step-2 Add _output_shapes for arg op.
   // If we do not add "_output_shapes" for arg op, it's shape_inference (tensorflow/core/ops/function_ops.cc)
@@ -527,12 +536,378 @@ std::string DatasetFunction::BuildSubGraph(FunctionLibraryDefinition &flib_def, 
   // this assemble process is referenced from TF2.X in npu_parse.cpp file
   AssembleParserAddons(flib_def, sub_graph);
 
-  // step-4 convert graph to graphdef
-  GraphDef sub_graph_def;
-  sub_graph.ToGraphDef(&sub_graph_def);
+  return Status::OK();
+}
 
-  DumpTfGraph(std::string("Build"), func_name, sub_graph_def);
-  return sub_graph_def.SerializeAsString();
+std::string DatasetFunction::SerializeGraph(tensorflow::Graph &input_graph) const {
+  // convert graph to graphdef
+  GraphDef graph_def;
+  input_graph.ToGraphDef(&graph_def);
+
+  DumpTfGraph(std::string("DpBuild"), "OriginalTFGraph", graph_def);
+  return graph_def.SerializeAsString();
+}
+
+Status DatasetFunction::ReadJsonFile(const string &json_file_path, nlohmann::json &json_read) const {
+  ADP_LOG(INFO) << "Read "<< json_file_path.c_str() << " json file.";
+  Status status = tensorflow::Env::Default()->FileExists(json_file_path);
+  DATASET_REQUIRES(status.ok(), status);
+
+  std::ifstream ifs(json_file_path);
+  DATASET_REQUIRES(ifs.is_open(), errors::Internal("Open json file failed."));
+
+  try {
+    ifs >> json_read;
+    ifs.close();
+  } catch (const nlohmann::json::exception &e) {
+    ifs.close();
+    return errors::Internal("Read json file exception : ", e.what());
+  }
+
+  ADP_LOG(INFO) << "Read " << json_file_path.c_str() << "json file, content is:" << json_read.dump().c_str();
+  return Status::OK();
+}
+
+std::string DatasetFunction::GetSocVersion() const {
+  const char *soc_name = aclrtGetSocName();
+  std::string soc_version = "";
+  if (soc_name == nullptr) { return soc_version; }
+  soc_version = soc_name;
+  if (kDvppAccelerateChips.count(soc_version)) {
+    soc_version = kDvppAccelerateChips.at(soc_version);
+    transform(soc_version.begin(), soc_version.end(), soc_version.begin(), ::tolower);
+    return soc_version;
+  }
+  return "";
+}
+
+Status DatasetFunction::InitAccelateOpList(std::vector<std::string> &acc_while_list) const {
+  std::string kOppInstallPath;
+  (void)tensorflow::ReadStringFromEnvVar("ASCEND_OPP_PATH", "", &kOppInstallPath);
+  std::string dp_split_graph_file = kOppInstallPath + kTfaSplitGraphJsonPath;
+  nlohmann::json json_data;
+  Status status = ReadJsonFile(dp_split_graph_file, json_data);
+  DATASET_REQUIRES(status.ok(), status);
+
+  std::string soc_version = GetSocVersion();
+  DATASET_REQUIRES(json_data.contains(soc_version), errors::Internal("Target element does not exists : ", soc_version));
+  DATASET_REQUIRES(json_data.contains(kControlOps), errors::Internal("Target element does not exists : ", kControlOps));
+
+  auto parse_op_fun = [&acc_while_list, &json_data](std::string first_key, std::string second_key) -> bool {
+    nlohmann::json first_json_data;
+    first_json_data = json_data[first_key];
+    if (!first_json_data.contains(second_key)) { return false; }
+    nlohmann::json second_data = first_json_data[second_key];
+    for (auto const& e : second_data) {
+        acc_while_list.emplace_back(e);
+        ADP_LOG(INFO) << "Add op " << e <<" to acc_while_list.";
+    }
+    return true;
+  };
+  // parse preprocess ops
+  if (!parse_op_fun(soc_version, kPreProcessOps)) {
+    acc_while_list.clear();
+    return errors::InvalidArgument("Target element does not exists : ", kPreProcessOps);
+  }
+
+#if defined(TF_VERSION_TF2)
+    const std::string tf_version = "TF2";
+#else
+    const std::string tf_version = "TF1";
+#endif
+  // parse control ops
+  if (!parse_op_fun(kControlOps, tf_version)) {
+    acc_while_list.clear();
+    return errors::InvalidArgument("Target element does not exists : ", tf_version);
+  }
+
+  return Status::OK();
+}
+
+void DatasetFunction::MarkDvppGraphNodes(Graph &sub_graph_tf, std::vector<Node*> &acc_nodes,
+                                         std::vector<Node*> &dvpp_graph_nodes,
+                                         const std::vector<std::string> acc_while_list) {
+  for (Node *node : sub_graph_tf.nodes()) {
+    if (node->IsSource() || node->IsSink()) { continue; }
+
+    auto leave = [&dvpp_graph_nodes](tensorflow::Node *node) {
+      if (node->IsSource() || node->IsSink()) { return; }
+      if (std::find(dvpp_graph_nodes.begin(), dvpp_graph_nodes.end(), node) == dvpp_graph_nodes.end()) {
+        dvpp_graph_nodes.emplace_back(node);
+        ADP_LOG(INFO) << "DFSMarkNodes insert node to dvpp_graph_nodes, node name is " << node->name();
+      }
+    };
+    for (std::string item : acc_while_list) {
+      if (node->type_string().find(item) != string::npos) {
+        acc_nodes.emplace_back(node);
+        tensorflow::DFSFrom(sub_graph_tf, {node}, {}, leave, {}, {});
+      }
+    }
+  }
+}
+
+void DatasetFunction::MarkConstNodes(const Graph &sub_graph_tf, std::vector<Node*> &dvpp_graph_nodes) const {
+  for (Node *node : sub_graph_tf.nodes()) {
+    if (node->IsSource() || node->IsSink() || !node->IsConstant()) { continue; }
+    if (std::find(dvpp_graph_nodes.begin(), dvpp_graph_nodes.end(), node) != dvpp_graph_nodes.end()) {
+      // const node already in dvpp_graph_nodes, Identity -> Const with ControlEdge
+      continue;
+    }
+
+    bool connect_host = false;
+    for (Node *out_node : node->out_nodes()) {
+      if (std::find(dvpp_graph_nodes.begin(), dvpp_graph_nodes.end(), out_node) == dvpp_graph_nodes.end()) {
+        connect_host = true;
+        break;
+      }
+    }
+    // No connection to host graph, only connect to dvpp graph
+    if (!connect_host) {
+      dvpp_graph_nodes.emplace_back(node);
+      ADP_LOG(INFO) << "Const node only connect dvpp graph, node name is " << node->name();
+    }
+  }
+}
+
+void DatasetFunction::MarkHostGraphNodes(const tensorflow::Graph &sub_graph_tf,
+                                         const std::vector<Node*> dvpp_graph_nodes,
+                                         std::vector<Node*> &host_graph_nodes) const {
+  for (Node *node : sub_graph_tf.nodes()) {
+    if (node->IsSource() || node->IsSink()) { continue;}
+
+    if (std::find(dvpp_graph_nodes.begin(), dvpp_graph_nodes.end(), node) != dvpp_graph_nodes.end()) {
+      continue;
+    }
+    ADP_LOG(INFO) << "Add node to host graph node list, node name: " << node->name()
+      << " , node type:" << node->type_string();
+    host_graph_nodes.emplace_back(node);
+  }
+}
+
+tensorflow::DataType DatasetFunction::EdgeDataType(const tensorflow::Edge &edge) const {
+  return edge.src()->output_type(edge.src_output());
+}
+
+bool DatasetFunction::CheckCorrectness(const tensorflow::Graph &sub_graph_tf,
+                                       const std::vector<Node*> dvpp_graph_nodes,
+                                       const std::vector<Node*> host_graph_nodes) const {
+  for (Node *node : sub_graph_tf.nodes()) {
+    if (node->IsSource() || node->IsSink()) { continue;}
+    if ((std::find(dvpp_graph_nodes.begin(), dvpp_graph_nodes.end(), node) == dvpp_graph_nodes.end())
+         && (std::find(host_graph_nodes.begin(), host_graph_nodes.end(), node) == host_graph_nodes.end())) {
+      ADP_LOG(ERROR) << "Check results failed, node " << node->name() << " is lost.";
+      return false;
+    }
+  }
+  return true;
+}
+
+void DatasetFunction::UpdateAttrsForArgOp(tensorflow::Node *arg, const tensorflow::Edge *edge) const {
+    // add op_def, input_tensor_desc, output_tensor_desc for arg node
+    AssembleOpDef(*arg);
+    auto output_attr = edge->src()->attrs().Find(kOutputDesc);
+    if (output_attr != nullptr) {
+      tensorflow::AttrValue input_desc_attrs;
+      *input_desc_attrs.mutable_list()->add_func() = output_attr->list().func(edge->src_output());
+      arg->AddAttr(kInputDesc, input_desc_attrs);
+    }
+
+    auto input_attr = edge->dst()->attrs().Find(kInputDesc);
+    if (input_attr != nullptr) {
+      tensorflow::AttrValue output_desc_attrs;
+      *output_desc_attrs.mutable_list()->add_func() = input_attr->list().func(edge->dst_input());
+      arg->AddAttr(kOutputDesc, output_desc_attrs);
+    }
+}
+
+void DatasetFunction::CreateHostGraph(tensorflow::Graph &sub_graph_host, const std::vector<Node*> host_graph_nodes,
+                                      std::vector<Node*> &dvpp_graph_nodes,
+                                      std::map<tensorflow::Node*, int64> &dvpp_arg_indexs) const {
+  std::map<tensorflow::Node *, tensorflow::Node *> node_map;
+  std::vector<const tensorflow::Edge *> output_edges;
+  std::vector<tensorflow::DataType> output_types;
+
+  // exist_retvals stors exist retval for calculating new index for other retval node
+  std::map<int64, tensorflow::Node*> exist_retvals;
+
+  // Add new node to graph
+  for (Node *node : host_graph_nodes) {
+    // add independent retval node for graph output
+    if (node->IsRetval()) {
+      dvpp_graph_nodes.emplace_back(node);
+    }
+    Status status;
+    node_map[node] = sub_graph_host.AddNode(node->def(), &status);
+    TF_CHECK_OK(status);
+    ADP_LOG(INFO) << "Create host graph, add node to sub_graph_host, node name: " << node_map[node]->name();
+  }
+
+  // Add edges to graph
+  for (Node *node : host_graph_nodes) {
+    // add edges
+    for (auto edge : node->in_edges()) {
+      if (edge->src()->IsSource()) { continue; }
+      if (edge->IsControlEdge()) {
+        ADP_LOG(INFO) << "sub_graph_host add control edge from " << node_map[edge->src()]->name()
+            << " to " << node_map[node]->name();
+        (void)sub_graph_host.AddControlEdge(node_map[edge->src()], node_map[node]);
+        continue;
+      }
+      auto e = sub_graph_host.AddEdge(node_map[edge->src()], edge->src_output(), node_map[node], edge->dst_input());
+      ADP_LOG(INFO) << "sub_graph_host add input edge " << e->DebugString() << " for node " << node->name();
+    }
+
+    // check if need add a retval node for current edge
+    for (auto edge : node->out_edges()) {
+      if (edge->dst()->IsSink() || edge->IsControlEdge()) { continue; }
+      ADP_LOG(INFO) << "sub_graph_host node " << node->name() << " , node_map[node]=" << node_map[node]
+        << " node_map[edge->dst()]=" << node_map[edge->dst()] << "  edge->dst()=" << edge->dst();
+      if (edge->dst()->IsRetval()) {
+        int64 index = static_cast<int64>(edge->dst()->attrs().Find("index")->i());
+        exist_retvals[index] = edge->dst();
+        dvpp_arg_indexs[edge->src()] = index;
+        ADP_LOG(INFO) << "update dvpp_arg_indexs for node : " << edge->src()->name() << " index=" << index;
+      }
+      if (node_map[edge->dst()] == nullptr) {
+        ADP_LOG(INFO) << "sub_graph_host node "<< node->name() << "  need add RetVal node.";
+        output_edges.emplace_back(edge);
+        output_types.emplace_back(EdgeDataType(*edge));
+      }
+    }
+  }
+
+  for (size_t i = 0U; i < output_edges.size(); i++) {
+    auto &edge = output_edges[i];
+    // calculate the "index" attr for current retval node
+    int64 retval_index = 0;
+    for (auto it = exist_retvals.cbegin(); it != exist_retvals.end(); it++) {
+      if (exist_retvals[retval_index] == nullptr) {
+          break;
+      }
+      retval_index++;
+    }
+    tensorflow::Node *ret;
+    TF_CHECK_OK(tensorflow::NodeBuilder("_RetVal" + std::to_string(retval_index), "_Retval")
+                      .Input(node_map[edge->src()], edge->src_output())
+                      .Attr("index", retval_index)
+                      .Attr("T", output_types[i])
+                      .Finalize(&sub_graph_host, &ret));
+    exist_retvals[retval_index] = ret;
+    dvpp_arg_indexs[edge->src()] = retval_index;
+    ADP_LOG(INFO) << "sub_graph_host edge src: " << edge->src()->name() << " , edge dst: " << edge->dst()->name()
+        << "  retval_index=" << retval_index;
+  }
+}
+
+void DatasetFunction::CreateDvppGraph(tensorflow::Graph &sub_graph_dvpp, const std::vector<Node*> dvpp_graph_nodes,
+                                      const std::map<tensorflow::Node*, int64> dvpp_arg_indexs) const {
+  std::map<tensorflow::Node *, tensorflow::Node *> node_map;
+  std::vector<const tensorflow::Edge *> input_edges;
+  TensorDataTypes input_types;
+
+  for (Node *node : dvpp_graph_nodes) {
+    Status status;
+    node_map[node] = sub_graph_dvpp.AddNode(node->def(), &status);
+    TF_CHECK_OK(status);
+    ADP_LOG(INFO) << "Create dvpp graph, add node to sub_graph_dvpp, node name: " << node_map[node]->name()
+      << "  originalnode=" << node << ",newnode=" << node_map[node];
+  }
+
+  for (Node *node : dvpp_graph_nodes) {
+    for (auto edge : node->in_edges()) {
+      if (edge->src()->IsSource() || edge->src()->IsSink() || edge->IsControlEdge()) { continue; }
+      // record the edge where the arg node needs to be added
+      if (node_map[edge->src()] == nullptr && !edge->IsControlEdge()) {
+        ADP_LOG(INFO) << "node " << node->name() << "  need add Arg node.";
+        input_edges.emplace_back(edge);
+        input_types.emplace_back(EdgeDataType(*edge));
+        continue;
+      }
+    }
+
+    // add output edges
+    for (auto edge : node->out_edges()) {
+      if (edge->dst()->IsSink()) { continue; }
+      if (edge->IsControlEdge()) {
+        ADP_LOG(INFO) << "sub_graph_dvpp add control edge from " << node_map[node]->name()
+            << " to " << node_map[edge->dst()]->name();
+        (void)sub_graph_dvpp.AddControlEdge(node_map[node], node_map[edge->dst()]);
+        continue;
+      }
+      auto e = sub_graph_dvpp.AddEdge(node_map[node], edge->src_output(), node_map[edge->dst()], edge->dst_input());
+      ADP_LOG(INFO) << "sub_graph_dvpp add out edge " << e->DebugString() << " for node " << node->name();
+    }
+  }
+
+  for (size_t i = 0U; i < input_edges.size(); i++) {
+    auto edge = input_edges[i];
+    int64 arg_index = -1;
+    if (dvpp_arg_indexs.find(edge->src()) != dvpp_arg_indexs.end()) {
+      arg_index = dvpp_arg_indexs.at(edge->src());
+    }
+    if (arg_index == -1) {
+      ADP_LOG(ERROR) << "Sub_graph_dvpp can not found the index for arg node. edge->dst()=" << edge->dst()->name();
+      return;
+    }
+    tensorflow::Node *arg;
+    TF_CHECK_OK(tensorflow::NodeBuilder("arg" + std::to_string(arg_index), "_Arg")
+                      .Attr("index", arg_index)
+                      .Attr("T", input_types[i])
+                      .Finalize(&sub_graph_dvpp, &arg));
+    auto e = sub_graph_dvpp.AddEdge(arg, 0, node_map[edge->dst()], edge->dst_input());
+    ADP_LOG(INFO) << "sub_graph_dvpp add input edge " << e->DebugString() << " with Arg node. arg_index=" << arg_index;
+
+    UpdateAttrsForArgOp(arg, edge);
+  }
+}
+
+std::string DatasetFunction::SplitSubGraph(FunctionLibraryDefinition &flib_def,
+                                           const std::vector<std::string> acc_while_list) {
+  // Init original tf sub graph
+  tensorflow::Graph sub_graph_tf(&flib_def);
+  TF_CHECK_OK(BuildSubGraph(flib_def, sub_graph_tf, funcName_));
+
+  // mark all the nodes with white list in acc_nodes
+  // dvpp_graph_nodes stores acc_nodes and nodes which depend on the output of nodes in acc_nodes
+  std::vector<Node*> acc_nodes;
+  std::vector<Node*> dvpp_graph_nodes;
+  MarkDvppGraphNodes(sub_graph_tf, acc_nodes, dvpp_graph_nodes, acc_while_list);
+  // handle const node, save the const node which connect host graph and dvpp graph,
+  // we will copy this const node for dvpp graph
+  MarkConstNodes(sub_graph_tf, dvpp_graph_nodes);
+  // mark all the nodes which will add to host graph
+  std::vector<Node*> host_graph_nodes;
+  MarkHostGraphNodes(sub_graph_tf, dvpp_graph_nodes, host_graph_nodes);
+  // Check whether any node is lost
+  if (!CheckCorrectness(sub_graph_tf, dvpp_graph_nodes, host_graph_nodes)) { return ""; }
+  // create host graph
+  tensorflow::Graph sub_graph_host(tensorflow::OpRegistry::Global());
+  std::map<tensorflow::Node*, int64> dvpp_arg_indexs;
+  CreateHostGraph(sub_graph_host, host_graph_nodes, dvpp_graph_nodes, dvpp_arg_indexs);
+  // create dvpp graph
+  tensorflow::Graph sub_graph_dvpp(tensorflow::OpRegistry::Global());
+  CreateDvppGraph(sub_graph_dvpp, dvpp_graph_nodes, dvpp_arg_indexs);
+  // remove attrs for host graph, because these atts only used for GE parser
+  for (Node *node : sub_graph_host.nodes()) {
+    node->ClearAttr(kInputDesc);
+    node->ClearAttr(kOutputDesc);
+    node->ClearAttr("op_def");
+  }
+
+  // replace the old sub graph with new graph
+  tensorflow::FunctionDefLibrary flib;
+  TF_CHECK_OK(flib_def.RemoveFunction(funcName_));
+  TF_CHECK_OK(tensorflow::GraphToFunctionDef(sub_graph_host, funcName_, flib.add_function()));
+  TF_CHECK_OK(flib_def.AddLibrary(flib));
+
+  GraphDef graph_def_tf;
+  sub_graph_host.ToGraphDef(&graph_def_tf);
+  DumpTfGraph(std::string("DpBuild"), "HostGraph", graph_def_tf);
+  GraphDef graph_def_dvpp;
+  sub_graph_dvpp.ToGraphDef(&graph_def_dvpp);
+  DumpTfGraph(std::string("DpBuild"), "DvppGraph", graph_def_dvpp);
+
+  return graph_def_dvpp.SerializeAsString();
 }
 
 Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser,
@@ -540,13 +915,29 @@ Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &
   ge::ComputeGraphPtr compute_graph = std::make_shared<ge::ComputeGraph>(funcName_);
   DATASET_REQUIRES(model_parser != nullptr, errors::Internal("Create compute graph failed."));
 
-  auto build_sub_graph = [this, &flib_def](const std::string &graph) -> std::string {
-    return this->BuildSubGraph(flib_def, graph);
+  auto build_sub_graph = [this, &flib_def](const std::string &graph_name) -> std::string {
+    Graph sub_graph(&flib_def);
+    TF_CHECK_OK(this->BuildSubGraph(flib_def, sub_graph, graph_name));
+    return this->SerializeGraph(sub_graph);
   };
-  auto graph_def = build_sub_graph(funcName_);
 
-  ge::Status status = model_parser->ParseProtoWithSubgraph(graph_def, build_sub_graph, compute_graph);
-  DATASET_REQUIRES(status == ge::SUCCESS, GeError("Parse proto with graph failed.", status));
+  std::string graph_def;
+  // read file and init op white list who can be accelated by device
+  std::vector<std::string> acc_while_list;
+  Status status = InitAccelateOpList(acc_while_list);
+  if (!status.ok()) {
+    ADP_LOG(WARNING) << "Init acc_while_list failed, run whole sub graph. " << status.ToString();
+    graph_def = build_sub_graph(funcName_);
+  } else {
+    ADP_LOG(WARNING) << "Init acc_while_list success, run split graph process.";
+    // split graph, and run part graph on device
+    graph_def = SplitSubGraph(flib_def, acc_while_list);
+    DATASET_REQUIRES(!graph_def.empty(), errors::Internal("Split graph failed."));
+    run_split_graph_ = true;
+  }
+
+  ge::Status ge_status = model_parser->ParseProtoWithSubgraph(graph_def, build_sub_graph, compute_graph);
+  DATASET_REQUIRES(ge_status == ge::SUCCESS, GeError("Parse proto with graph failed.", ge_status));
 
   // add performance priority tag for each node
   for (const auto &node : compute_graph->GetDirectNode()) {
@@ -559,6 +950,10 @@ Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &
 
   ge_graph_ = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
   return Status::OK();
+}
+
+bool DatasetFunction::IsSplitGraph() {
+  return run_split_graph_;
 }
 
 std::vector<int64_t> DatasetFunction::GetTfShapeDims(const PartialTensorShape &tf_shape) {

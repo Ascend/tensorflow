@@ -1,0 +1,369 @@
+node {
+  name: "args_0"
+  op: "_Arg"
+  attr {
+    key: "T"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\004_Arg\032\032\n\006output\022\rThe argument.\"\001T\"\t\n\001T\022\004type\"\310\006\n\005index\022\003int\"\267\006This argument is the index-th argument of the function.\n\nAttributes for shape inference:\n1. _output_shapes: this attribute can be set on an _Arg node producing\n   non-resource output(s). If set, its value should contain a list of\n   TensorShapeProto describing the shape(s) of the tensor(s) this _Arg node will\n   produce. If set, _Arg node\'s shape inference function will use it as the\n   node\'s output shapes.\n2. _handle_dtypes and _handle_shapes: these attributes can be set on an _Arg\n   node producing resource output(s). If set, value of _handle_dtypes should\n   contain the dtype(s) of the resource(s) and value of _handle_shapes should\n   contain the shape(s) of the resource(s). If both attributes are set, _Arg\n   node\'s shape inference function will use their values as the node\'s output\n   type(s) and shape(s).(\001*8A graph node which represents an argument to a function.\210\001\001"
+    }
+  }
+}
+node {
+  name: "args_1"
+  op: "_Arg"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\004_Arg\032\032\n\006output\022\rThe argument.\"\001T\"\t\n\001T\022\004type\"\310\006\n\005index\022\003int\"\267\006This argument is the index-th argument of the function.\n\nAttributes for shape inference:\n1. _output_shapes: this attribute can be set on an _Arg node producing\n   non-resource output(s). If set, its value should contain a list of\n   TensorShapeProto describing the shape(s) of the tensor(s) this _Arg node will\n   produce. If set, _Arg node\'s shape inference function will use it as the\n   node\'s output shapes.\n2. _handle_dtypes and _handle_shapes: these attributes can be set on an _Arg\n   node producing resource output(s). If set, value of _handle_dtypes should\n   contain the dtype(s) of the resource(s) and value of _handle_shapes should\n   contain the shape(s) of the resource(s). If both attributes are set, _Arg\n   node\'s shape inference function will use their values as the node\'s output\n   type(s) and shape(s).(\001*8A graph node which represents an argument to a function.\210\001\001"
+    }
+  }
+}
+node {
+  name: "ParseSingleExample/Reshape"
+  op: "Const"
+  attr {
+    key: "_NoNeedOptimize"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\005Const\032\017\n\006output\"\005dtype\"\017\n\005value\022\006tensor\"\r\n\005dtype\022\004type"
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT64
+        tensor_shape {
+        }
+        tensor_content: "\377\377\377\377\377\377\377\377"
+      }
+    }
+  }
+}
+node {
+  name: "ParseSingleExample/key_image/class/text"
+  op: "Const"
+  attr {
+    key: "_NoNeedOptimize"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_STRING
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\005Const\032\017\n\006output\"\005dtype\"\017\n\005value\022\006tensor\"\r\n\005dtype\022\004type"
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_STRING
+        tensor_shape {
+        }
+        string_val: ""
+      }
+    }
+  }
+}
+node {
+  name: "stack"
+  op: "Const"
+  attr {
+    key: "_NoNeedOptimize"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\005Const\032\017\n\006output\"\005dtype\"\017\n\005value\022\006tensor\"\r\n\005dtype\022\004type"
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 4
+          }
+        }
+        tensor_content: "\000\000\000\000\000\000\000\000\007\000\000\000\007\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "ParseSingleExample/ParseSingleExample"
+  op: "ParseSingleExample"
+  input: "args_0"
+  input: "ParseSingleExample/Reshape"
+  input: "ParseSingleExample/key_image/class/text"
+  input: "ParseSingleExample/key_image/class/text"
+  attr {
+    key: "Tdense"
+    value {
+      list {
+        type: DT_INT64
+        type: DT_STRING
+        type: DT_STRING
+      }
+    }
+  }
+  attr {
+    key: "_NoNeedOptimize"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "dense_keys"
+    value {
+      list {
+        s: "image/class/label"
+        s: "image/class/text"
+        s: "image/encoded"
+      }
+    }
+  }
+  attr {
+    key: "dense_shapes"
+    value {
+      list {
+        shape {
+        }
+        shape {
+        }
+        shape {
+        }
+      }
+    }
+  }
+  attr {
+    key: "num_sparse"
+    value {
+      i: 4
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\022ParseSingleExample\022\016\n\nserialized\030\007\022\030\n\016dense_defaults2\006Tdense\032\036\n\016sparse_indices\030\t*\nnum_sparse\032\035\n\rsparse_values2\014sparse_types\032\035\n\rsparse_shapes\030\t*\nnum_sparse\032\026\n\014dense_values2\006Tdense\"\023\n\nnum_sparse\022\003int(\001\"\035\n\013sparse_keys\022\014list(string)(\001\"\034\n\ndense_keys\022\014list(string)(\001\"%\n\014sparse_types\022\nlist(type)(\001:\007\n\0052\003\001\t\007\"\037\n\006Tdense\022\nlist(type)(\001:\007\n\0052\003\001\t\007\"\035\n\014dense_shapes\022\013list(shape)(\001"
+    }
+  }
+  attr {
+    key: "sparse_keys"
+    value {
+      list {
+        s: "image/object/bbox/xmax"
+        s: "image/object/bbox/xmin"
+        s: "image/object/bbox/ymax"
+        s: "image/object/bbox/ymin"
+      }
+    }
+  }
+  attr {
+    key: "sparse_types"
+    value {
+      list {
+        type: DT_FLOAT
+        type: DT_FLOAT
+        type: DT_FLOAT
+        type: DT_FLOAT
+      }
+    }
+  }
+}
+node {
+  name: "Cast"
+  op: "Cast"
+  input: "ParseSingleExample/ParseSingleExample:12"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+  attr {
+    key: "_NoNeedOptimize"
+    value {
+      b: true
+    }
+  }
+
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\004Cast\022\t\n\001x\"\004SrcT\032\t\n\001y\"\004DstT\"\014\n\004SrcT\022\004type\"\014\n\004DstT\022\004type\"\024\n\010Truncate\022\004bool\032\002(\000"
+    }
+  }
+}
+node {
+  name: "DecodeAndCropJpeg"
+  op: "DecodeAndCropJpeg"
+  input: "ParseSingleExample/ParseSingleExample:14"
+  input: "stack"
+  attr {
+    key: "_NoNeedOptimize"
+    value {
+      b: true
+    }
+  }
+  attr {
+    key: "acceptable_fraction"
+    value {
+      f: 1
+    }
+  }
+  attr {
+    key: "channels"
+    value {
+      i: 3
+    }
+  }
+  attr {
+    key: "dct_method"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "fancy_upscaling"
+    value {
+      b: true
+    }
+  }
+
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\021DecodeAndCropJpeg\022\014\n\010contents\030\007\022\017\n\013crop_window\030\003\032\t\n\005image\030\004\"\023\n\010channels\022\003int\032\002\030\000\"\020\n\005ratio\022\003int\032\002\030\001\"\033\n\017fancy_upscaling\022\004bool\032\002(\001\"!\n\025try_recover_truncated\022\004bool\032\002(\000\"#\n\023acceptable_fraction\022\005float\032\005%\000\000\200?\"\030\n\ndct_method\022\006string\032\002\022\000"
+    }
+  }
+  attr {
+    key: "ratio"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "try_recover_truncated"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "identity_RetVal"
+  op: "_Retval"
+  input: "DecodeAndCropJpeg"
+  attr {
+    key: "T"
+    value {
+      type: DT_UINT8
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\007_Retval\022\035\n\005input\022\021The return value.\"\001T\"\t\n\001T\022\004type\"O\n\005index\022\003int\"?This return value is the index-th return value of the function.(\001*;A graph node which represents a return value of a function.\210\001\001"
+    }
+  }
+}
+node {
+  name: "identity_1_RetVal"
+  op: "_Retval"
+  input: "Cast"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "op_def"
+    value {
+      s: "\n\007_Retval\022\035\n\005input\022\021The return value.\"\001T\"\t\n\001T\022\004type\"O\n\005index\022\003int\"?This return value is the index-th return value of the function.(\001*;A graph node which represents a return value of a function.\210\001\001"
+    }
+  }
+}
+library {
+}
+versions {
+  producer: 134
+}

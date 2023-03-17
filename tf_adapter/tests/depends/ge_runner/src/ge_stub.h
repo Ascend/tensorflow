@@ -39,6 +39,8 @@
 #include "graph/model.h"
 
 namespace ge {
+extern bool g_parse_root_graph;
+void SetParseRootGraph(bool is_root);
 
 using RunGraphWithStreamAsyncStub = std::function<Status(uint32_t, void *, const std::vector<Tensor>&, std::vector<Tensor>&)>;
 void RegRunGraphWithStreamAsyncStub(RunGraphWithStreamAsyncStub stub);

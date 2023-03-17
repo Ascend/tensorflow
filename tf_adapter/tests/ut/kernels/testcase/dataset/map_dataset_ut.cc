@@ -176,6 +176,7 @@ class NpuMapDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapDatasetParams> {
   }
 
   void SetUp() {
+    ge::SetParseRootGraph(true);
     RegAclRunGraphWithStreamAsyncStub([](uint32_t graph_id, const aclmdlDataset *inputs,
         aclmdlDataset *outputs, void *stream) -> aclError {
       ADP_LOG(INFO) << "Map and batch test RunGraphWithStreamAsyncStub, stream = " << stream;
@@ -227,6 +228,7 @@ class NpuMapDatasetOpTest : public DatasetOpsTestBaseV2<NpuMapDatasetParams> {
   }
 
   void TearDown() {
+    ge::SetParseRootGraph(false);
     RegAclRunGraphWithStreamAsyncStub(nullptr);
     ClearLogLevelForC();
   }

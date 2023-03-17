@@ -280,6 +280,12 @@ private:
 #endif
       Status status = func_.Initialize(dataset()->sess_options_,
           const_cast<FunctionLibraryDefinition &>(*dataset()->captured_func_->lib_def()));
+      TF_RETURN_IF_ERROR(status);
+
+      if (func_.IsSplitGraph()) {
+        status = dataset()->captured_func_->Instantiate(ctx, &instantiated_captured_func_);
+      }
+
       int64 endTime = InferShapeUtil::GetCurrentTimestap();
       ADP_LOG(EVENT) << "[MapDatasetOp] Initialize finish, cost: "
                       << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
@@ -562,6 +568,7 @@ private:
         ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id << "thread_num = " << this->thread_num_;
       });
 
+      bool run_split_graph = func_.IsSplitGraph();
       uint64_t run_res = 0;
       while (!cancelled_) {
         // Implementation class to implement
@@ -571,17 +578,16 @@ private:
           run_res = WaitingForStreamRun(thread_id);
         }
 
-        uint64_t result_id;
-        uint64_t write_idx;
-        bool run_map_func = false;
+        uint64_t result_id = 0;
+        uint64_t write_idx = 0;
         std::vector<Tensor> in_tensors;
+        std::vector<Tensor> out_tensors;
         {
           mutex_lock l(*mu_);
           // if tf restore the data status, this will continue;
           if (!end_of_sequence_ && GetNextResultIndex(result_id)) {
             status = input_impl_->GetNext(ctx.get(), &in_tensors, &end_of_sequence_);
             if (status.ok() && !end_of_sequence_) {
-              run_map_func = true;
               write_idx = write_idx_;
               write_idx_++;
               recved_num_++;
@@ -597,9 +603,7 @@ private:
               cond_var_->notify_all();
             }
           } else {
-            if (run_res > 0) {
-              // to wait run complete
-            } else {
+            if (run_res == 0) {
               RecordStop(ctx.get());
               cond_var_->wait(l);
               RecordStart(ctx.get());
@@ -607,10 +611,17 @@ private:
             }
           }
         }
-        if (run_map_func) {
+        if (status.ok() && !in_tensors.empty()) {
           timestat->RecordStartTime(timestat->statis_threads[thread_id]);
-          status = MapFunc(thread_id, model_id, write_idx, result_id, in_tensors);
-          DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+          if (run_split_graph) {
+            status = instantiated_captured_func_->Run(ctx.get(), std::move(in_tensors), &out_tensors);
+            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            status = MapFunc(thread_id, model_id, write_idx, result_id, out_tensors);
+            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+          } else {
+            status = MapFunc(thread_id, model_id, write_idx, result_id, in_tensors);
+            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+          }
           run_res = GetRunningResources(thread_id);
           timestat->RecordEndTime(timestat->statis_threads[thread_id]);
         } else {
@@ -752,6 +763,7 @@ private:
     uint64_t thread_num_ = 0;
     uint32_t device_id_ = 0;
     std::shared_ptr<TimeStatistic> timestat = nullptr;
+    std::unique_ptr<InstantiatedCapturedFunction> instantiated_captured_func_;
   }; // class IteratorMeBase
 
   class IteratorStatic : public IteratorMeBase {

@@ -328,6 +328,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 #endif
         Status status = func_.Initialize(dataset()->sess_options_,
             const_cast<FunctionLibraryDefinition &>(*dataset()->captured_func_->lib_def()));
+        TF_RETURN_IF_ERROR(status);
+
+        if (func_.IsSplitGraph()) {
+          status = dataset()->captured_func_->Instantiate(ctx, &instantiated_captured_func_);
+        }
+
         int64 endTime = InferShapeUtil::GetCurrentTimestap();
         ADP_LOG(EVENT) << "[MapAndBatchDatasetOp] Initialize finish, cost: "
                        << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
@@ -337,6 +343,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       Status GetNextInternal(IteratorContext* ctx,
                            std::vector<Tensor>* out_tensors,
                            bool* end_of_sequence) override {
+      ADP_LOG(INFO) << "[MapAndBatchDatasetOp] GetNextInternal start";
       timestat->RecordStartTime(timestat->statis);
       {
         {
@@ -374,6 +381,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       Status status = ProcessBatch(batch_results_[result_index], *out_tensors, *end_of_sequence);
       timestat->RecordEndTime(timestat->statis);
+      ADP_LOG(INFO) << "[MapAndBatchDatasetOp] return one data to host queue.";
       return status;
     }
 
@@ -721,6 +729,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
                         << " thread_num = " << this->thread_num_;
         });
 
+        bool run_split_graph = func_.IsSplitGraph();
         uint64_t run_res = 0;
         while (!cancelled_) {
           // Implementation class to implement
@@ -730,30 +739,26 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             run_res = WaitingForStreamRun(thread_id);
           }
 
-          uint64_t batch_id;
-          uint64_t batch_offset;
-          bool run_map_func = false;
+          uint64_t batch_id = 0;
+          uint64_t batch_offset = 0;
           std::vector<Tensor> in_tensors;
+          std::vector<Tensor> out_tensors;
           {
             mutex_lock l(*mu_);
             //  if tf restore the data status, this will continue;
             if (!end_of_sequence_ && GetNextBatchIndex(batch_id, batch_offset)) {
               status = input_impl_->GetNext(ctx.get(), &in_tensors, &end_of_sequence_);
-              if (status.ok() && !end_of_sequence_) {
-                run_map_func = true;
-              } else {
-                if (!status.ok()) {
-                  batch_results_[batch_id]->UpdateStatus(status, batch_offset);
-                } else {
-                  batch_results_[batch_id]->EndofInputUpdateStatus();
-                  ADP_LOG(INFO) << "End of sequence in thread " << thread_id;
-                }
+              if (!status.ok()) {
+                batch_results_[batch_id]->UpdateStatus(status, batch_offset);
                 cond_var_->notify_all();
               }
+              if (end_of_sequence_) {
+                batch_results_[batch_id]->EndofInputUpdateStatus();
+                cond_var_->notify_all();
+                ADP_LOG(INFO) << "End of sequence in thread " << thread_id;
+              }
             } else {
-              if (run_res > 0) {
-                // to wait run complete
-              } else {
+              if (run_res == 0) {
                 RecordStop(ctx.get());
                 cond_var_->wait(l);
                 RecordStart(ctx.get());
@@ -761,10 +766,17 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               }
             }
           }
-          if (run_map_func) {
+          if (status.ok() && !in_tensors.empty()) {
             timestat->RecordStartTime(timestat->statis_threads[thread_id]);
-            status = MapFunc(thread_id, model_id, batch_id, batch_offset, in_tensors);
-            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            if (run_split_graph) {
+              status = instantiated_captured_func_->Run(ctx.get(), std::move(in_tensors), &out_tensors);
+              DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+              status = MapFunc(thread_id, model_id, batch_id, batch_offset, out_tensors);
+              DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            } else {
+              status = MapFunc(thread_id, model_id, batch_id, batch_offset, in_tensors);
+              DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            }
             run_res = GetRunningResources(thread_id);
             timestat->RecordEndTime(timestat->statis_threads[thread_id]);
           } else {
@@ -901,6 +913,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       uint32_t device_id_ = 0;
       int64_t thread_num_ GUARDED_BY(*mu_) = 0;
       std::shared_ptr<TimeStatistic> timestat = nullptr;
+      std::unique_ptr<InstantiatedCapturedFunction> instantiated_captured_func_;
   };
 
   class IteratorStatic : public IteratorMeBase {

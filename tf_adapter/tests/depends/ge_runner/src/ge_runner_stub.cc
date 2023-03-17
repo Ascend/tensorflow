@@ -146,11 +146,18 @@ Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::string &serializ
   return ParseProtoWithSubgraph(partitioned_serialized, const_value_map, callback, graph);
 }
 
+bool g_parse_root_graph = false;
+void SetParseRootGraph(bool is_root) {
+  g_parse_root_graph = is_root;
+}
+
 Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
                                                      const std::map<std::string, std::string> &const_value_map,
                                                      domi::GetGraphCallbackV2 callback,
                                                      ge::ComputeGraphPtr &graph) {
-  callback("finall_branch1_Y3CNZMF9Vv8");
+  if (!g_parse_root_graph) {
+    callback("finall_branch1_Y3CNZMF9Vv8");
+  }
   return ge::SUCCESS;
 }
 
@@ -486,7 +493,7 @@ OpDesc::OpDesc(std::string const&, std::string const&) {
 
 ProtoAttrMap &OpDesc::MutableAttrMap() {
   // Stub
-  return attrs_; 
+  return attrs_;
 }
 
 ConstProtoAttrMap &OpDesc::GetAttrMap() const{

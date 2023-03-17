@@ -19,6 +19,7 @@
 
 #include <unordered_map>
 #include <atomic>
+#include <nlohmann/json.hpp>
 
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/framework/tensor_shape.h"
@@ -31,6 +32,7 @@
 #include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/common_runtime/dma_helper.h"
 #include "tensorflow/core/graph/algorithm.h"
+#include "tensorflow/core/graph/node_builder.h"
 
 #include "graph/tensor.h"
 #include "graph/utils/graph_utils.h"
@@ -115,6 +117,7 @@ class DatasetFunction {
     static void DestoryAclModelDesc(aclmdlDesc *model_desc);
     static Status GetAclTenorDescDims(aclTensorDesc *desc, std::vector<int64_t> &ret_dims);
     static void *ReAllocDeviceMem(void *addr, size_t len);
+    bool IsSplitGraph();
 
     static inline bool CheckMultiplyOverflow(int64_t a, int64_t b) {
       const static int64_t max_int64 = INT64_MAX;
@@ -170,6 +173,24 @@ class DatasetFunction {
     }
 
   private:
+    void MarkDvppGraphNodes(Graph &sub_graph_tf, std::vector<Node*> &acc_nodes,
+        std::vector<Node*> &dvpp_graph_nodes, const std::vector<std::string> acc_while_list);
+    void MarkConstNodes(const Graph &sub_graph_tf, std::vector<Node*> &dvpp_graph_nodes) const;
+    bool CheckCorrectness(const tensorflow::Graph &sub_graph_tf, const std::vector<Node*> dvpp_graph_nodes,
+        const std::vector<Node*> host_graph_nodes) const;
+    void MarkHostGraphNodes(const tensorflow::Graph &sub_graph_tf, const std::vector<Node*> dvpp_graph_nodes,
+        std::vector<Node*> &host_graph_nodes) const;
+    void UpdateAttrsForArgOp(tensorflow::Node *arg, const tensorflow::Edge *edge) const;
+    void CreateHostGraph(tensorflow::Graph &sub_graph_host, const std::vector<Node*> host_graph_nodes,
+        std::vector<Node*> &dvpp_graph_nodes, std::map<tensorflow::Node*, int64> &dvpp_arg_indexs) const;
+    void CreateDvppGraph(tensorflow::Graph &sub_graph_dvpp, const std::vector<Node*> dvpp_graph_nodes,
+        const std::map<tensorflow::Node*, int64> dvpp_arg_indexs) const;
+    std::string SplitSubGraph(FunctionLibraryDefinition &flib_def, const std::vector<std::string> acc_while_list);
+    Status InitAccelateOpList(std::vector<std::string> &acc_while_list) const;
+    Status ReadJsonFile(const string &file_name, nlohmann::json &json_read) const;
+    tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge) const;
+    std::string GetSocVersion() const;
+
     void AssembleParserAddons(const tensorflow::FunctionLibraryDefinition &lib_def, tensorflow::Graph &graph) const;
     void AssembleOpDef(tensorflow::Node &n) const;
     void AssembleInputDesc(TensorPartialShapes shapes, TensorDataTypes types, tensorflow::Node &n) const;
@@ -181,7 +202,9 @@ class DatasetFunction {
     void DumpGeComputeGraph(const std::string &procPrifex, const std::string &func_name,
         const ge::ComputeGraphPtr &graph) const;
     Status GeError(std::string errorDesc, ge::Status status) const;
-    std::string BuildSubGraph(FunctionLibraryDefinition &flib_def, const std::string &func_name) const;
+    std::string SerializeGraph(tensorflow::Graph &input_graph) const;
+    Status BuildSubGraph(FunctionLibraryDefinition &flib_def, tensorflow::Graph &sub_graph,
+        const std::string &func_name) const;
     Status CreateGeGraph(const std::shared_ptr<domi::ModelParser> &model_parser, FunctionLibraryDefinition &flib_def);
     ge::InputTensorInfo BuildTensorInfo(const std::shared_ptr<domi::ModelParser> &model_parser,
         DataType type, const PartialTensorShape &shape) const;
@@ -215,6 +238,7 @@ class DatasetFunction {
     std::shared_ptr<ge::Session> ge_session_ = nullptr;
     ge::Graph ge_graph_;
     ge::ModelBufferData ge_model_;
+    bool run_split_graph_ = false;
 }; // class DatasetFunction
 
 struct Items {
