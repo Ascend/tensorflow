@@ -279,8 +279,13 @@ class ESWorker:
                                                           False, mode)
 
     def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True):
-        if not isinstance(multihot_lens, list):
-            raise ValueError("multihot_lens must be list.")
+        if max_vocabulary_size is None or embedding_dim is None or multihot_lens is None:
+            raise ValueError("max_vocabulary_size or embedding_dim or multihot_lens can not be None.")
+        if (not isinstance(max_vocabulary_size, int)) or (not isinstance(embedding_dim, int)) or \
+                (not isinstance(multihot_lens, int)) or (not isinstance(allow_merge, bool)):
+            raise TypeError("max_vocabulary_size, embedding_dim, multihot_lens must be int, allow_merge must be bool.")
+        if max_vocabulary_size <= 0 or embedding_dim <= 0 or multihot_lens <= 0:
+            raise ValueError("max_vocabulary_size, embedding_dim, multihot_lens must be greater than zero.")
         new_table_info = dict(
             max_vocabulary_size=max_vocabulary_size,
             embedding_dim=embedding_dim,
@@ -290,6 +295,11 @@ class ESWorker:
         self.user_defined_table_infos.append(new_table_info)
 
     def init_table(self, table_map_policy=AutoMergeTableMapPolicy()):
+        if (not isinstance(table_map_policy, NoneTableMapPolicy)) and\
+                (not isinstance(table_map_policy, AutoMergeTableMapPolicy)):
+            raise TypeError("table_map_policy should be NoneTableMapPolicy or AutoMergeTableMapPolicy.")
+        if len(self.user_defined_table_infos) == 0:
+            raise ValueError("small table has not been created.")
         self.table_map_policy = table_map_policy
         self.table_create_infos = self.table_map_policy.map_table_infos(self.user_defined_table_infos)
         for table_info_ in self.table_create_infos:
@@ -300,13 +310,24 @@ class ESWorker:
             self.total_embedding_count += 1
 
     def embeddings_look_up(self, tf_indices):
-        if self.total_embedding_count != len(self.table_create_infos):
+        if self.total_embedding_count != len(self.table_create_infos) or self.total_embedding_count == 0:
             raise ValueError("Must init_table() first!")
+        if tf_indices is None:
+            raise ValueError("tf_indices can not be None.")
+        if tf_indices.dtype != tf.int64:
+            raise TypeError("dtype of tf_indices must be tf.int64.")
         (in_slot_size_group, slot_to_table, table_to_input_group, \
          table_to_slot, table_to_output_slots) = \
             (self.table_map_policy.in_slot_size_group, self.table_map_policy.slot_to_table, \
              self.table_map_policy.table_to_input_groups, self.table_map_policy.table_to_slot, \
              self.table_map_policy.table_to_output_slots)
+
+        tf_indices_shape_list = tf_indices.get_shape().as_list()
+        total_in_slot_num = 0
+        for in_slot_size in in_slot_size_group:
+            total_in_slot_num += in_slot_size
+        if tf_indices_shape_list[1] != total_in_slot_num:
+            raise ValueError("size of tf_indices is not the same as all small tables.")
 
         indices_split = tf.split(tf_indices, in_slot_size_group, axis=1)
         for tid in range(self.total_embedding_count):
@@ -317,11 +338,18 @@ class ESWorker:
 
         output_slots = [None for _ in in_slot_size_group]
         for tid, table_input_group in enumerate(table_to_input_group):
+            table_input_hash = tf.concat(table_input_group, axis=1)
+            table_input_hash_shape = table_input_hash.get_shape().as_list()
+            input_hash_after_unique, recovery_matrix =\
+                tf.unique(x=tf.reshape(table_input_hash, shape=[table_input_hash_shape[0] * table_input_hash_shape[1]]),
+                          out_idx=tf.int64)
             table_input_after_mapping = \
-                gen_npu_cpu_ops.embedding_feature_mapping(feature_id=tf.concat(table_input_group, axis=1))
+                gen_npu_cpu_ops.embedding_feature_mapping(feature_id=input_hash_after_unique)
             table_to_input_group[tid] = table_input_after_mapping
             table_embedding = tf.nn.embedding_lookup(self.total_variable_table[tid], table_input_after_mapping)
-            out_embedding_splited = tf.split(table_embedding, table_to_output_slots[tid], axis=1)
+            table_embedding_after_gather = tf.reshape(tf.gather(params=table_embedding, indices=recovery_matrix),
+                                                      shape=[table_input_hash_shape[0], table_input_hash_shape[1], -1])
+            out_embedding_splited = tf.split(table_embedding_after_gather, table_to_output_slots[tid], axis=1)
             for out_emb, sid in zip(out_embedding_splited, table_to_slot[tid]):
                 output_slots[sid] = out_emb
         return output_slots
