@@ -209,17 +209,17 @@ private:
 };
 
 Status StreamEvent::RecordEvent(const std::function<void(Status status)> hook) {
-  if (event_ != nullptr) {
-    aclError rt = aclrtRecordEvent(event_, stream_->GetStream());
-    if (rt != ACL_SUCCESS) {
-      ADP_LOG(ERROR) << "[StreamPool] Record event faild, rt : " << rt;
-      return errors::InvalidArgument("[StreamPool] Record event faild: ", rt);
-    }
-    hook_ = hook;
-  } else {
-    ADP_LOG(INFO) << "[StreamPool] Record event faild: event is null. ";
+  if (event_ == nullptr) {
+    ADP_LOG(ERROR) << "[StreamPool] Record event faild: event is null. ";
+    return errors::Internal("Record event faild: event is null.");
   }
 
+  aclError rt = aclrtRecordEvent(event_, stream_->GetStream());
+  if (rt != ACL_SUCCESS) {
+    ADP_LOG(ERROR) << "[StreamPool] Record event faild, rt : " << rt;
+    return errors::InvalidArgument("[StreamPool] Record event faild: ", rt);
+  }
+  hook_ = hook;
   return Status::OK();
 }
 
@@ -231,7 +231,7 @@ Status StreamEvent::Wait() {
     rt = aclrtSynchronizeStream(stream_->GetStream());
   }
 
-  Status status;
+  Status status = Status::OK();
   if (rt != ACL_SUCCESS) {
     ADP_LOG(ERROR) << "[StreamPool] Syn event faild, rt = " << rt;
     status = errors::InvalidArgument("[StreamPool] Syn event faild, rt: ", rt);
@@ -311,10 +311,10 @@ public:
 
   static uint64_t CheckStreamNum(uint64_t stream_num) {
     if (stream_num == 0) {
-      ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
+      ADP_LOG(WARNING) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
       return static_cast<uint64_t>(StreamNum::DEFAULT_STREAM_NUM);
     } else if (stream_num > static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM)) {
-      ADP_LOG(ERROR) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
+      ADP_LOG(WARNING) << "[StreamPool] Check stream number error with stream_num=" << stream_num;
       return static_cast<uint64_t>(StreamNum::MAX_STREAM_NUM);
     }
     return stream_num;
