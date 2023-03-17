@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "runtime_stub.h"
 #include <cstring>
 #include <chrono>
 #include <memory>
@@ -23,6 +24,15 @@
 #include "runtime/dev.h"
 #include "runtime/mem.h"
 #include "runtime/rt_mem_queue.h"
+
+#include "tf_adapter/common/adapter_logger.h"
+
+bool g_runtime_stub_mock = true;
+
+void setMockStub(bool g_stub){
+  g_runtime_stub_mock = g_stub;
+  ADP_LOG(INFO) << "g_runtime_stub_mock = " << g_runtime_stub_mock;
+}
 
 struct rtMbuf {
   void *data;
@@ -38,6 +48,10 @@ void del_fun(rtMbuf *buf_ptr) {
 static std::unordered_set<std::unique_ptr<rtMbuf, void(*)(rtMbuf *)>> buff_set;
 
 rtError_t rtSetDevice(int32_t device) {
+  ADP_LOG(INFO) << "rtSetDevice, g_runtime_stub_mock = " << g_runtime_stub_mock;
+  if (!g_runtime_stub_mock) {
+    return -1;
+  }
   return RT_ERROR_NONE;
 }
 

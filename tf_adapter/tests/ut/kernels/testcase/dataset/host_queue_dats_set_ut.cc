@@ -8,6 +8,7 @@
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "ascendcl_stub.h"
+#include "runtime_stub.h"
 
 class HostQueueDatasetOp;
 namespace tensorflow {
@@ -814,6 +815,59 @@ TEST_F(HostQueueDatasetOpTest, isholddatatrans3) {
   std::vector<Tensor> out_tensors;
   TF_EXPECT_OK(iterator->GetNext(iterator_context.get(), &out_tensors,
                                  &end_of_sequence));
+}
+
+TEST_F(HostQueueDatasetOpTest, rtsetdevice_failure) {
+  setMockStub(false);
+  NpuAttrs::SetNewDataTransferFlag(true);
+  int thread_num = 2, cpu_num = 2;
+  TF_ASSERT_OK(InitThreadPool(thread_num));
+  TF_ASSERT_OK(InitFunctionLibraryRuntime({}, cpu_num));
+
+  const TestCase &test_case = NormalizeTestStringCase();
+  Tensor tensor_slice_dataset_tensor(DT_VARIANT, TensorShape({}));
+  std::vector<Tensor> inputs_for_tensor_slice_dataset = test_case.input_tensors;
+  TF_ASSERT_OK(CreateTensorSliceDatasetTensorForQueue(&inputs_for_tensor_slice_dataset,
+                                              &tensor_slice_dataset_tensor));
+
+  gtl::InlinedVector<TensorValue, 4> inputs_for_host_queue_dataset(
+      {TensorValue(&tensor_slice_dataset_tensor),
+       TensorValue(&tensor_slice_dataset_tensor)});
+
+  std::unique_ptr<OpKernel> host_queue_dataset_kernel;
+  TF_ASSERT_OK(CreateHostQueueDatasetKernel(test_case.expected_output_dtypes,
+                                            test_case.expected_output_shapes,
+                                            &host_queue_dataset_kernel, "-1"));
+  std::unique_ptr<OpKernelContext> host_queue_dataset_context;
+  TF_ASSERT_OK(CreateHostQueueDatasetContext(host_queue_dataset_kernel.get(),
+                                             &inputs_for_host_queue_dataset,
+                                             &host_queue_dataset_context));
+  DatasetBase *host_queue_dataset;
+  TF_ASSERT_OK(CreateDataset(host_queue_dataset_kernel.get(),
+                             host_queue_dataset_context.get(),
+                             &host_queue_dataset));
+  core::ScopedUnref scoped_unref(host_queue_dataset);
+
+  EXPECT_EQ(host_queue_dataset->node_name(), kNodeName);
+
+  host_queue_dataset->output_dtypes();
+  host_queue_dataset->output_shapes();
+  host_queue_dataset->DebugString();
+
+  SerializationContext context(SerializationContext::Params{});
+  GraphDefBuilder b;
+  DatasetBase::DatasetGraphDefBuilder db(&b);
+  Node *output;
+  host_queue_dataset->AsGraphDefInternal(&context, &db, &output);
+
+  std::unique_ptr<IteratorContext> iterator_context;
+  TF_ASSERT_OK(CreateIteratorContext(host_queue_dataset_context.get(),
+                                     &iterator_context));
+  std::unique_ptr<IteratorBase> iterator;
+  TF_ASSERT_OK(host_queue_dataset->MakeIterator(iterator_context.get(),
+                                                "Iterator", &iterator));
+  sleep(2);
+  setMockStub(true);
 }
 
 }  // namespace

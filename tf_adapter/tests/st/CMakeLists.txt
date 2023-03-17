@@ -46,6 +46,7 @@ target_include_directories(tfadapter_stest PRIVATE
     ${TFADAPTER_DIR}/tf_adapter/kernels/aicpu
     ${TFADAPTER_DIR}/tf_adapter/tests/depends/test_util
     ${TFADAPTER_DIR}/tf_adapter/tests/depends/ascendcl/src
+    ${TFADAPTER_DIR}/tf_adapter/tests/depends/runtime/src
     ${TFADAPTER_DIR}/tf_adapter/tests/depends/ge_runner/src/
     ${TFADAPTER_DIR}/tf_adapter/tests/depends/alog/src/
 )

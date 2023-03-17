@@ -34,6 +34,7 @@ std::mutex queue_id_to_trans_id_map_mutex;
 std::unordered_map<uint32_t, uint64_t> queue_id_to_trans_id_map;
 
 constexpr int64_t kMaxDimSize = 32;
+constexpr uint32_t RESERVED_SIZE = 32U;
 
 #pragma pack(push, 1)
 struct RuntimeTensorDesc {
@@ -55,7 +56,7 @@ struct ItemInfo {
   uint32_t cnt;
   int32_t tensor_type;
   uint32_t dim_num;
-  char reserved[32];
+  char reserved[RESERVED_SIZE];
   uint64_t data_len;
 };
 

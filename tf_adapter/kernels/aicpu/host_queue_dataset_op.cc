@@ -309,7 +309,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         cond_var_.notify_all();
 
-        while (active_thread_num) {
+        while (active_thread_num_) {
           cond_var_.notify_all();
           (void)usleep(kSleepUs);
         }
@@ -456,7 +456,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
         {
           mutex_lock lck(mu_);
-          active_thread_num++;
+          active_thread_num_++;
         }
 
         RecordStart(ctx.get());
@@ -464,7 +464,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           RecordStop(ctx.get());
           {
             mutex_lock lck(mu_);
-            active_thread_num--;
+            active_thread_num_--;
           }
         });
         enum NPU_ALLOCATOR_CHECK {
@@ -495,7 +495,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           BufferElement buffer_element;
           if (dataset()->local_rank_id_ > 0) {
             ADP_LOG(INFO) << "Do not need to GetNext.";
-            get_thread_exception_.store(true);
             return;
           }
 
@@ -515,7 +514,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             buffer_element.host_thread_finished = true;
             buffer_.push_back(std::move(buffer_element));
             cond_var_.notify_all();
-            get_thread_exception_.store(true);
             return;
           }
           uint64_t args_tensor_size = 0ULL;
@@ -541,7 +539,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 buffer_element.host_thread_finished = true;
                 buffer_.push_back(std::move(buffer_element));
                 cond_var_.notify_all();
-                get_thread_exception_.store(true);
                 return;
               }
               args_tensor_size += tensor.TotalBytes();
@@ -553,7 +550,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if ((!is_string) && (from_npu_dataset != NPU_ALLOCATOR_NPU) &&
               (dataset()->channel_type_ == ChannelType::ACL_QUEUE)) {
             if (!HandleMemory(args, buffer_element.value, args_tensor_size)) {
-              get_thread_exception_.store(true);
               return;
             }
           } else {
@@ -570,13 +566,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       void SendDataThread() {
         {
           mutex_lock lck(mu_);
-          active_thread_num++;
+          active_thread_num_++;
         }
 
         auto cleanup = gtl::MakeCleanup([this] {
           {
             mutex_lock lck(mu_);
-            active_thread_num--;
+            active_thread_num_--;
           }
         });
         std::vector<DataItem> items;
@@ -597,8 +593,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Slave SendDataThread exit.";
       }
 
-      void RecordMbufQueueBytes(const bool is_hold_type, const uint64_t args_total_bytes) {
-        if (!is_hold_type) { return; }
+      void RecordMbufQueueBytes(const bool is_hold, const uint64_t args_total_bytes) {
+        if (!is_hold) { return; }
         mbuf_queue_rear_ = (mbuf_queue_rear_ + 1) % kStringTypeDepth;
         mbuf_queue_bytes_[mbuf_queue_rear_] = args_total_bytes;
       }
@@ -629,7 +625,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         Status status = Status::OK();
         bool is_need_resend = false;
 
-        while(!finish_send_) {
+        while (!finish_send_) {
           if (IsHoldDataTrans()) {
             auto start = std::chrono::high_resolution_clock::now();
             auto end = start + std::chrono::microseconds(kSleepDuration);
@@ -704,18 +700,20 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "Begin to send data to the NPU. ";
         rtError_t rt = rtSetDevice(dataset()->device_id_);
         if (rt != ACL_RT_SUCCESS) {
+          StopNotify();
           ADP_LOG(ERROR) << "Thread rtSetDevice failed: device_id_ = " << dataset()->device_id_ << " rt=" << rt;
+          return;
         }
 
         {
           mutex_lock lck(mu_);
-          active_thread_num++;
+          active_thread_num_++;
         }
 
         auto cleanup = gtl::MakeCleanup([this] {
           {
             mutex_lock lck(mu_);
-            active_thread_num--;
+            active_thread_num_--;
           }
           rtError_t rt = rtDeviceReset(this->dataset()->device_id_);
           if (rt != RT_ERROR_NONE) {
@@ -780,13 +778,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       void SendDataThread(const std::shared_ptr<IteratorContext> &ctx) {
         {
           mutex_lock lck(mu_);
-          active_thread_num++;
+          active_thread_num_++;
         }
 
         auto cleanup = gtl::MakeCleanup([this] {
           {
             mutex_lock lck(mu_);
-            active_thread_num--;
+            active_thread_num_--;
           }
         });
         vector<Tensor> args;
@@ -1022,7 +1020,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       condition_variable event_finish_var_;
       bool cancelled_ GUARDED_BY(mu_) = true;
       bool finish_send_ GUARDED_BY(mu_) = false;
-      std::atomic<bool> get_thread_exception_ { false };
       uint64_t total_bytes_ GUARDED_BY(mu_) = 0;
       // The following two thread must be the first member to be destructed,
       // because tensorflow::Thread does not provide an explicit join function.
@@ -1034,7 +1031,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       DataItemDeliver *data_deliver_;
       acltdtChannelHandle *acl_handle_;
       uint32_t queue_id_;
-      int active_thread_num = 0;
+      int active_thread_num_ = 0;
       struct DataThreadPerf {
         double elapsed_time = 0;
         uint64_t total_bytes = 0;
