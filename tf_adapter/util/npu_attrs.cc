@@ -247,12 +247,20 @@ inline Status CheckPath(const std::string &input, std::string &output) {
 Status CheckOpImplMode(const std::string &op_select_implmode) {
   std::set<string> op_impl_mode_list = {"high_precision", "high_performance", "high_precision_for_all",
                                         "high_performance_for_all"};
-
   if (op_impl_mode_list.find(op_select_implmode) != op_impl_mode_list.end()) {
     return Status::OK();
   } else {
     return errors::InvalidArgument("op select impl mode should be one of the list:[high_precision, "
                                    "high_performance, high_precision_for_all, high_performance_for_all]");
+  }
+}
+
+Status CheckVariablePlacement(const std::string &variable_placement) {
+  std::set<string> variable_placement_list = {"Host", "Device"};
+  if (variable_placement_list.find(variable_placement) != variable_placement_list.end()) {
+    return Status::OK();
+  } else {
+    return errors::InvalidArgument("variable placement should be one of the list:[Host, Device]");
   }
 }
 
@@ -769,6 +777,11 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const GraphOptimizat
       }
       if (params.count("variable_placement") > 0) {
         variable_location = params.at("variable_placement").s();
+        Status s = CheckVariablePlacement(variable_location);
+        if (!s.ok()) {
+          ADP_LOG(ERROR) << s.error_message();
+          LOG(FATAL) << s.error_message();
+        }
       }
     }
   }
@@ -824,8 +837,8 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
   std::string in_out_pair_flag = "1";
   std::string in_out_pair;
   std::string npuOptimizer;
-  std::string frozen_variable = "0";
   std::string variable_location = "Device";
+  std::string frozen_variable = "0";
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     do_npu_optimizer = "1";
@@ -2210,7 +2223,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["local_device_list"] = local_device_list;
   pass_options["in_out_pair_flag"] = std::to_string(static_cast<int32_t>(in_out_pair_flag));
   pass_options["in_out_pair"] = in_out_pair;
-  pass_options["frozen_variable"] = frozen_variable;
+  pass_options["frozen_variable"] = std::to_string(static_cast<int32_t>(frozen_variable));
   pass_options["variable_location"] = variable_location;
 
   if (!node) {
