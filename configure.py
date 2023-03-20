@@ -32,7 +32,7 @@ except ImportError:
 _COMPAT_TENSORFLOW_VERSION = "1.15.0"
 _COMPAT_PYTHON_VERSION = "Python 3.7"
 _COMPAT_SWIG_VERSION = "SWIG Version "
-_ASCEND_INSTALL_PATH_ENV = "ASCEND_CUSTOM_PATH"
+_ASCEND_INSTALL_PATH_ENV = "ASCEND_HOME_PATH"
 _OPEN_UT = "OPEN_UT"
 
 
@@ -135,7 +135,7 @@ def setup_python():
 
 def setup_ascend(env_path):
     """Get ascend install path."""
-    default_ascend_path = os.path.realpath("/usr/local/Ascend")
+    default_ascend_path = os.path.realpath("/usr/local/Ascend/latest")
     custom_ascend_path = env_path
     while True:
         if not custom_ascend_path:
