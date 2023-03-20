@@ -765,8 +765,6 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["topo_sorting_mode"].i = config.topo_sorting_mode
         if config.insert_op_file is not None:
             custom_op.parameter_map["insert_op_file"].s = config.insert_op_file
-        if config.es_cluster_config is not None:
-            custom_op.parameter_map["es_cluster_config"].s = tf.compat.as_bytes(config.es_cluster_config)
         custom_op.parameter_map["stream_sync_timeout"].i = config.stream_sync_timeout
         custom_op.parameter_map["event_sync_timeout"].i = config.event_sync_timeout
         custom_op.parameter_map["external_weight"].b = config._external_weight

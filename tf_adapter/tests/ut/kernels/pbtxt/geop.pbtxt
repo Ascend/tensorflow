@@ -114,30 +114,6 @@ node {
     }
   }
   attr {
-    key: "_deploy_inject_config"
-    value {
-      s: "deploy_inject_config"
-    }
-  }
-  attr {
-    key: "_execute_times"
-    value {
-      s: "2"
-    }
-  }
-  attr {
-    key: "_max_num"
-    value {
-      s: "1"
-    }
-  }
-  attr {
-    key: "_embedding_dim"
-    value {
-      s: "1"
-    }
-  }
-  attr {
     key: "_dynamic_input"
     value {
       s: "0"

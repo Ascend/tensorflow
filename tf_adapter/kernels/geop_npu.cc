@@ -326,10 +326,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   }
 
   ctx->GetAttr("_recompute_mode", &recompute_mode_);
-  ctx->GetAttr("_deploy_inject_config", &deploy_inject_config_);
-  ctx->GetAttr("_execute_times", &execute_times_);
-  ctx->GetAttr("_max_num", &max_num_);
-  ctx->GetAttr("_embedding_dim", &embedding_dim_);
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
     jit_compile_ = true;
@@ -349,9 +345,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
-                << ", is_var_init_graph: " << is_var_init_graph_ << ", deploy_inject_config: " << deploy_inject_config_
-                << ", execute_times: " << execute_times_ << ", max_num: " << max_num_
-                << ", embedding_dim: " << embedding_dim_;
+                << ", is_var_init_graph: " << is_var_init_graph_;
 
   // global environment Initialize, invoke once for each process
   std::string sess_config = "";
@@ -861,18 +855,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
     if (!recompute_mode_.empty()) {
       graph_options_["ge.recompute"] = recompute_mode_;
-    }
-    if (!deploy_inject_config_.empty()) {
-      graph_options_["ge.exec.clusterSpec"] = deploy_inject_config_;
-    }
-    if (!execute_times_.empty()) {
-      graph_options_["ge.execute_times"] = execute_times_;
-    }
-    if (!max_num_.empty()) {
-      graph_options_["ge.max_num"] = max_num_;
-    }
-    if (!embedding_dim_.empty()) {
-      graph_options_["ge.embedding_dim"] = embedding_dim_;
     }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
