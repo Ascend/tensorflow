@@ -56,7 +56,7 @@ tensorflow::Status TailingOptimizeInner(tensorflow::FunctionLibraryDefinition *l
         }
       }
     }
-    if (node->type_string() == kNpuAllocFloatStatusOp && node->attrs().Find(kNpuLossScaleAttr) != nullptr) {
+    if ((node->type_string() == kNpuAllocFloatStatusOp) && (node->attrs().Find(kNpuLossScaleAttr) != nullptr)) {
       std::unordered_set<const tensorflow::Edge *> edges_to_remove;
       tensorflow::Node *last_allreduce = nullptr;
       for (auto in_edge : node->in_edges()) {

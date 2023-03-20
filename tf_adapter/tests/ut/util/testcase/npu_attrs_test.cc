@@ -11,6 +11,7 @@
 
 namespace tensorflow {
 Status CheckOpImplMode(const string &op_select_implmode);
+Status CheckVariablePlacement(const std::string &variable_placement);
 namespace {
 class NpuAttrTest : public testing::Test {
  protected:
@@ -41,10 +42,10 @@ TEST_F(NpuAttrTest, GetEnvDeviceIdNotIntFailTest) {
   EXPECT_EQ(s.ok(), false);
 }
 TEST_F(NpuAttrTest, GetEnvAscendDeviceIdNotIntFailTest) {
-uint32_t device_id = 0;
-setenv("ASCEND_DEVICE_ID", "1.1", true);
-Status s = GetEnvDeviceID(device_id);
-EXPECT_EQ(s.ok(), false);
+  uint32_t device_id = 0;
+  setenv("ASCEND_DEVICE_ID", "1.1", true);
+  Status s = GetEnvDeviceID(device_id);
+  EXPECT_EQ(s.ok(), false);
 }
 TEST_F(NpuAttrTest, GetEnvDeviceIdEmptyTest) {
   uint32_t device_id = 0;
@@ -98,6 +99,11 @@ TEST_F(NpuAttrTest, CheckPrecisionMode ) {
   precision_mode.set_s("force_Dp32");
   (*custom_config->mutable_parameter_map())["precision_mode"] = precision_mode;
   Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+}
+
+TEST_F(NpuAttrTest, CheckVariablePlacement) {
+  Status s = CheckVariablePlacement("sss");
   EXPECT_EQ(s.ok(), false);
 }
 

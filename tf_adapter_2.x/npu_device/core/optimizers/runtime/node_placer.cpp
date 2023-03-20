@@ -316,7 +316,7 @@ tensorflow::Status NodePlacer::PlaceCpuNodeSubgraphs(size_t depth) const {
 bool NodePlacer::IsClusterMustPlaceOnNpu(const Cluster &cluster) {
   for (auto node : cluster.nodes) {
     auto iter = node_placement_.find(node);
-    if (iter != node_placement_.end() && iter->second == Placement::NPU) {
+    if ((iter != node_placement_.end()) && (iter->second == Placement::NPU)) {
       DLOG() << cluster.name << " must place on npu as has determined npu node " << node->name();
       return true;
     }
@@ -405,7 +405,7 @@ void NodePlacer::Concrete(tensorflow::Node *src, tensorflow::Node *dst) {
   DLOG() << "Concrete node " << src->name() << " with " << dst->name() << " to cluster " << target->name;
 
   auto iter = concrete_clusters_.find(src);
-  if (iter != concrete_clusters_.end() && iter->second == target) {
+  if ((iter != concrete_clusters_.end()) && (iter->second == target)) {
     DLOG() << "Node " << src->name() << " has already concrete with " << dst->name() << " in cluster " << target->name;
     return;
   }
@@ -468,7 +468,7 @@ tensorflow::Status NodePlacer::BuildConcreteCluster() {
     std::queue<std::shared_ptr<Cluster>> q;
     for (auto &node : cluster->nodes) {
       auto iter = concrete_clusters_.find(node);
-      if (iter != concrete_clusters_.end() && iter->second != cluster) {
+      if ((iter != concrete_clusters_.end()) && (iter->second != cluster)) {
         q.push(iter->second);
       }
     }
