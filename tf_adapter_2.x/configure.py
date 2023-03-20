@@ -26,7 +26,7 @@ import sys
 
 _COMPAT_TENSORFLOW_VERSION = "2.6"
 _PYTHON_BIN_PATH_ENV = "ADAPTER_TARGET_PYTHON_PATH"
-_ASCEND_INSTALLED_PATH_ENV = "ASCEND_INSTALLED_PATH"
+_ASCEND_INSTALLED_PATH_ENV = "ASCEND_HOME_PATH"
 
 
 def run_command(cmd):
@@ -108,7 +108,7 @@ def setup_python(env_path):
 
 def setup_ascend(env_path):
     """Get ascend install path."""
-    default_ascend_path = os.path.realpath("/usr/local/Ascend")
+    default_ascend_path = os.path.realpath("/usr/local/Ascend/latest")
     ask_ascend_path = ('Please specify the location of ascend. [Default is '
                        '%s]\n(You can make this quiet by set env [ASCEND_INSTALLED_PATH]): ') % default_ascend_path
     custom_ascend_path = env_path

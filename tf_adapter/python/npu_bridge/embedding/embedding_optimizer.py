@@ -81,15 +81,14 @@ class AdamOptimizer(adam.AdamOptimizer):
             return self._apply_sparse_shared(grad, var, indices, self._resource_scatter_add)
 
     def _create_slots(self, var_list):
-        self.table_num = 0
+        self.table_num = 1
         self.table_idx = 0
+        self._var_idx = var_list[0].name
         first_var = min(var_list, key=lambda x: x.name)
-        for idx in range(len(var_list)):
-            self._create_non_slot_variable(
-                initial_value=self._beta1, name="beta1_power" + str(idx), colocate_with=first_var)
-            self._create_non_slot_variable(
-                initial_value=self._beta2, name="beta2_power" + str(idx), colocate_with=first_var)
-            self.table_num += 1
+        self._create_non_slot_variable(
+            initial_value=self._beta1, name="beta1_power" + str(self._var_idx), colocate_with=first_var)
+        self._create_non_slot_variable(
+            initial_value=self._beta2, name="beta2_power" + str(self._var_idx), colocate_with=first_var)
 
         for v in var_list:
             if not isinstance(v, NpuEmbeddingResource):
@@ -102,8 +101,8 @@ class AdamOptimizer(adam.AdamOptimizer):
                 graph = None
             else:
                 graph = ops.get_default_graph()
-        return (self._get_non_slot_variable("beta1_power" + str(self.table_idx), graph=graph),
-                self._get_non_slot_variable("beta2_power" + str(self.table_idx), graph=graph))
+        return (self._get_non_slot_variable("beta1_power" + str(self._var_idx), graph=graph),
+                self._get_non_slot_variable("beta2_power" + str(self._var_idx), graph=graph))
 
     def _finish(self, update_ops, name_scope):
         # Update the power accumulators.
@@ -142,14 +141,25 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
     def embedding_dims(self, val):
         self._embedding_dims = val
 
+    @property
+    def max_nums(self):
+        return self._max_nums
+
+    @max_nums.setter
+    def max_nums(self, val):
+        self._max_nums = val
+
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
-            return gen_npu_cpu_ops.embedding_apply_ada_grad(var.handle,
-                                                           math_ops.cast(self._learning_rate_tensor, grad.dtype),
-                                                           grad,
-                                                           indices,
-                                                           ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
-                                                           self._embedding_dims)
+            result = gen_npu_cpu_ops.embedding_apply_ada_grad(var.handle,
+                                                              math_ops.cast(self._learning_rate_tensor, grad.dtype),
+                                                              grad,
+                                                              indices,
+                                                              ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
+                                                              self._embedding_dims)
+            result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
+            result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            return result
         else:
             return self.training_ops.resource_sparse_apply_adagrad(var.handle, grad.handle,
                                                                    math_ops.cast(self._learning_rate_tensor,
