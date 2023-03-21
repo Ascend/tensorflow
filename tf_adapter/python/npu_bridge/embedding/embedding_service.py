@@ -279,7 +279,7 @@ class ESWorker:
                                                           False, mode)
 
     def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True):
-        if max_vocabulary_size is None or embedding_dim is None or multihot_lens is None:
+        if (max_vocabulary_size is None) or (embedding_dim is None) or (multihot_lens is None):
             raise ValueError("max_vocabulary_size or embedding_dim or multihot_lens can not be None.")
         if (not isinstance(max_vocabulary_size, int)) or (not isinstance(embedding_dim, int)) or \
                 (not isinstance(multihot_lens, int)) or (not isinstance(allow_merge, bool)):
