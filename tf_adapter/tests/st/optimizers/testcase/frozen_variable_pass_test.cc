@@ -84,7 +84,7 @@ public:
     return strings::StrCat(absl::StrJoin(edges, ";"));
   }
 
-  string DoRunFrozenVariablePassTest(bool need_frozen) {
+  string DoRunFrozenVariablePassTest(bool need_frozen, const string &placement) {
     string before = CanonicalGraphString(graph_.get());
     LOG(INFO) << "Before replace variable pass: " << before;
 
@@ -95,7 +95,10 @@ public:
     custom_config->set_name("NpuOptimizer");
     AttrValue is_need_frozen = AttrValue();
     is_need_frozen.set_b(need_frozen);
+    AttrValue variable_placement = AttrValue();
+    variable_placement.set_s(placement);
     (*custom_config->mutable_parameter_map())["frozen_variable"] = is_need_frozen;
+    (*custom_config->mutable_parameter_map())["variable_placement"] = variable_placement;
     options.session_options = &session_options;
     options.graph = ug;
     FunctionLibraryDefinition flib_def((*ug)->flib_def());
@@ -127,21 +130,21 @@ TEST_F(FrozenVariablePassTest, frozen_variable_true) {
   string org_graph_def_path = "tf_adapter/tests/st/optimizers/pbtxt/om_test_build_geop.pbtxt";
   InitGraph(org_graph_def_path);
   std::string target_graph = "Const->Add;Add->_Retval;PartitionedCall->Add:1";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(true), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(true, "Host"), target_graph);
 }
 
 TEST_F(FrozenVariablePassTest, frozen_variable_false) {
   string org_graph_def_path = "tf_adapter/tests/st/optimizers/pbtxt/om_test_build_geop.pbtxt";
   InitGraph(org_graph_def_path);
   std::string target_graph = "VariableV2->Identity;Const->Add;Identity->Add:1;Add->_Retval";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(false), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(false, "Host"), target_graph);
 }
 
 TEST_F(FrozenVariablePassTest, frozen_varhandleop_true) {
   string org_graph_def_path = "tf_adapter/tests/st/optimizers/pbtxt/varhandleop_test.pbtxt";
   InitGraph(org_graph_def_path);
   std::string target_graph = "Const->Add;Add->_Retval;PartitionedCall->Add:1";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(true), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(true, "Host"), target_graph);
 }
 
 TEST_F(FrozenVariablePassTest, frozen_no_variable_true) {
@@ -151,7 +154,7 @@ TEST_F(FrozenVariablePassTest, frozen_no_variable_true) {
                              "Less->LoopCond;Merge->Switch;LoopCond->Switch:1;Switch->Exit;Exit->_Retval;"
                              "Switch:1->Identity;Identity:control->Const:control;Const->Add;Identity->Add:1;"
                              "Add->NextIteration;NextIteration->Merge:1";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(true), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(true, "Host"), target_graph);
 }
 } // end namespace
 }

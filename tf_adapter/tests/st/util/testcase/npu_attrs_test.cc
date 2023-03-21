@@ -11,6 +11,7 @@
 
 namespace tensorflow {
 Status CheckOpImplMode(const string &op_select_implmode);
+Status CheckVariablePlacement(const std::string &variable_placement);
 namespace {
 class NpuAttrTest : public testing::Test {
  protected:
@@ -64,7 +65,7 @@ TEST_F(NpuAttrTest, SplitTest) {
   Split(s, res, ",");
   EXPECT_EQ(res[2], "c");
 }
-TEST_F(NpuAttrTest, SetNpuOptimizerAttr) {
+TEST_F(NpuAttrTest, CheckOpImplMode) {
   Status s = CheckOpImplMode("xxx");
   EXPECT_EQ(s.ok(), false);
 }
@@ -97,6 +98,11 @@ TEST_F(NpuAttrTest, CheckPrecisionMode ) {
   precision_mode.set_s("force_Dp32");
   (*custom_config->mutable_parameter_map())["precision_mode"] = precision_mode;
   Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+}
+
+TEST_F(NpuAttrTest, CheckVariablePlacement) {
+  Status s = CheckVariablePlacement("sss");
   EXPECT_EQ(s.ok(), false);
 }
 

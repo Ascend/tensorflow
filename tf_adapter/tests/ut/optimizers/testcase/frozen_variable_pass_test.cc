@@ -16,20 +16,28 @@ namespace tensorflow {
 class FrozenVariablePass : public GraphOptimizationPass {
  public:
   FrozenVariablePass() = default;
+
   ~FrozenVariablePass() override = default;
+
   Status Run(const GraphOptimizationPassOptions &options) override;
+
  private:
   std::map<std::string, std::string> GetGraphConfigs(const Graph &graph);
+
   Status DoConstantFolding(const GraphOptimizationPassOptions &options, const uint64_t index);
-  bool IsAllOutputsIdentity(const Node * const node);
-  bool IsAllOutputsReadOp(const Node * const node);
-  bool IsNeedBuildPartitionedCall(const Node * const node);
+
+  bool IsAllOutputsIdentity(const Node *const node);
+
+  bool IsAllOutputsReadOp(const Node *const node);
+
+  bool IsNeedBuildPartitionedCall(const Node *const node);
 };
 
 namespace {
 class FrozenVariablePassTest : public testing::Test {
-public:
+ public:
   FrozenVariablePassTest() : graph_(absl::make_unique<Graph>(OpRegistry::Global())) {}
+
   static void InitGraph(const string &graph_def_path, Graph *graph) {
     GraphDef graph_def;
     ReadTextProto(Env::Default(), graph_def_path, &graph_def);
@@ -38,7 +46,7 @@ public:
   }
 
   void InitGraph(const string &graph_def_path) {
-    char trusted_path[MMPA_MAX_PATH] = { "\0" };
+    char trusted_path[MMPA_MAX_PATH] = {"\0"};
     if (mmRealPath(graph_def_path.c_str(), trusted_path, MMPA_MAX_PATH) != EN_OK) {
       LOG(ERROR) << "Get real path failed.";
       return;
@@ -50,7 +58,7 @@ public:
 
   static bool IncludeNode(const Node *n) { return n->IsOp(); }
 
-  static string EdgeId(const Node* n, int index) {
+  static string EdgeId(const Node *n, int index) {
     if (index == 0) {
       return n->type_string();
     } else if (index == Graph::kControlSlot) {
@@ -60,8 +68,8 @@ public:
     }
   }
 
-  string CanonicalGraphString(Graph* g) {
-    for (Node* n : g->nodes()) {
+  string CanonicalGraphString(Graph *g) {
+    for (Node *n : g->nodes()) {
       if (IncludeNode(n)) {
         if (n->type_string() == "Add" && n->assigned_device_name().empty()) {
           n->set_assigned_device_name("/job:localhost/replica:0/task:0/device:CPU:0");
@@ -74,7 +82,7 @@ public:
     }
 
     std::vector<string> edges;
-    for (const Edge* e : g->edges()) {
+    for (const Edge *e : g->edges()) {
       if (IncludeNode(e->src()) && IncludeNode(e->dst())) {
         edges.push_back(strings::StrCat(EdgeId(e->src(), e->src_output()), "->",
                                         EdgeId(e->dst(), e->dst_input())));
@@ -84,28 +92,32 @@ public:
     return strings::StrCat(absl::StrJoin(edges, ";"));
   }
 
-  string DoRunFrozenVariablePassTest(bool need_frozen) {
+  string DoRunFrozenVariablePassTest(bool need_frozen, const string &placement) {
     string before = CanonicalGraphString(graph_.get());
     LOG(INFO) << "Before replace variable pass: " << before;
 
     std::unique_ptr<Graph> *ug = &graph_;
     GraphOptimizationPassOptions options;
     SessionOptions session_options;
-    auto *custom_config = session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+    auto *custom_config =
+        session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
     custom_config->set_name("NpuOptimizer");
     AttrValue is_need_frozen = AttrValue();
     is_need_frozen.set_b(need_frozen);
+    AttrValue variable_placement = AttrValue();
+    variable_placement.set_s(placement);
     (*custom_config->mutable_parameter_map())["frozen_variable"] = is_need_frozen;
+    (*custom_config->mutable_parameter_map())["variable_placement"] = variable_placement;
     options.session_options = &session_options;
     options.graph = ug;
     FunctionLibraryDefinition flib_def((*ug)->flib_def());
     options.flib_def = &flib_def;
 
     DeviceSet device_set;
-    DeviceFactory* cpu_factory = DeviceFactory::GetFactory("CPU");
+    DeviceFactory *cpu_factory = DeviceFactory::GetFactory("CPU");
     std::vector<std::unique_ptr<Device>> devices;
     cpu_factory->CreateDevices(
-            session_options, "/job:localhost/replica:0/task:0", &devices);
+        session_options, "/job:localhost/replica:0/task:0", &devices);
     device_set.AddDevice(devices.begin()->get());
     options.device_set = &device_set;
     FrozenVariablePass().Run(options);
@@ -120,6 +132,7 @@ public:
   string original_;
  protected:
   virtual void SetUp() { *const_cast<bool *>(&kDumpGraph) = true; }
+
   virtual void TearDown() {}
 };
 
@@ -127,21 +140,21 @@ TEST_F(FrozenVariablePassTest, frozen_variable_true) {
   string org_graph_def_path = "tf_adapter/tests/st/optimizers/pbtxt/om_test_build_geop.pbtxt";
   InitGraph(org_graph_def_path);
   std::string target_graph = "Const->Add;Add->_Retval;PartitionedCall->Add:1";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(true), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(true, "Host"), target_graph);
 }
 
 TEST_F(FrozenVariablePassTest, frozen_variable_false) {
   string org_graph_def_path = "tf_adapter/tests/st/optimizers/pbtxt/om_test_build_geop.pbtxt";
   InitGraph(org_graph_def_path);
   std::string target_graph = "VariableV2->Identity;Const->Add;Identity->Add:1;Add->_Retval";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(false), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(false, "Host"), target_graph);
 }
 
 TEST_F(FrozenVariablePassTest, frozen_varhandleop_true) {
   string org_graph_def_path = "tf_adapter/tests/st/optimizers/pbtxt/varhandleop_test.pbtxt";
   InitGraph(org_graph_def_path);
   std::string target_graph = "Const->Add;Add->_Retval;PartitionedCall->Add:1";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(true), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(true, "Host"), target_graph);
 }
 
 TEST_F(FrozenVariablePassTest, frozen_no_variable_true) {
@@ -151,7 +164,7 @@ TEST_F(FrozenVariablePassTest, frozen_no_variable_true) {
                              "Less->LoopCond;Merge->Switch;LoopCond->Switch:1;Switch->Exit;Exit->_Retval;"
                              "Switch:1->Identity;Identity:control->Const:control;Const->Add;Identity->Add:1;"
                              "Add->NextIteration;NextIteration->Merge:1";
-  EXPECT_EQ(DoRunFrozenVariablePassTest(true), target_graph);
+  EXPECT_EQ(DoRunFrozenVariablePassTest(true, "Host"), target_graph);
 }
 } // end namespace
 }
