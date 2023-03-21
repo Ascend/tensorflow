@@ -850,7 +850,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     // convert to ge::graph
     if (graph_options_.count("input_format") != 0) {
-      ADP_LOG(INFO) << "graph_options_[\"input_format\"]: " << graph_options_["input_format"];
+      ADP_LOG(INFO) << "graph_options_[\"input_format\"] = " << graph_options_["input_format"];
     }
     ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
@@ -973,8 +973,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   };
 
   // call ge session runGraphAsync api
-  ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name:" << geop_name << " ,tf session: " << tf_session_
-                << " ,graph id: " << cache_graph_id;
+  ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name: " << geop_name << ", tf session: " << tf_session_
+                << ", graph id: " << cache_graph_id;
   ge::Status run_graph_status = ge_session_->RunGraphAsync(cache_graph_id, inputs, callback);
   if (run_graph_status != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
@@ -992,7 +992,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name: " << geop_name
                 << ", ret_status: " << ToString(run_graph_status) << ", tf session : " << tf_session_
-                << " ,graph id: " << cache_graph_id << "[" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+                << ", graph id: " << cache_graph_id << "[" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;
 }
 
@@ -1440,7 +1440,7 @@ void GeOp::BuildShapeNodeAndCacheArgNodes(Graph &graph) {
       if (node->name().find("IteratorGetNext_") != std::string::npos) {
         if (dynamic_node_type == "0") {
           dynamic_shape_nodes_.emplace_back(node);
-          ADP_LOG(INFO) << "push in dynamic shape nodes, node : " <<  node->name() << ", type : " << node->type_string();
+          ADP_LOG(INFO) << "push in dynamic shape nodes, node : " << node->name() << ", type : " << node->type_string();
         }
       } else {
         if (dynamic_node_type == "1") {
