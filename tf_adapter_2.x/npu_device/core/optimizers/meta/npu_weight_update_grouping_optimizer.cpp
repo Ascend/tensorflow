@@ -57,7 +57,7 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
       }
     }
 
-    if (node->type_string() == kHcomBroadcast && node->attrs().Find(kWeightUpdateGroupingAttr) != nullptr) {
+    if ((node->type_string() == kHcomBroadcast) && (node->attrs().Find(kWeightUpdateGroupingAttr) != nullptr)) {
       std::unordered_set<const tensorflow::Edge *> edges_to_remove;
       tensorflow::Node *read_var_node = nullptr;
       for (auto in_edge : node->in_edges()) {
@@ -114,7 +114,7 @@ tensorflow::Status WeightUpdateGroupingOptimizeInner(tensorflow::FunctionLibrary
       (void)graph->AddEdge(var_node, 0, new_read_var_node, 0);
       (void)graph->AddEdge(new_read_var_node, 0, node, 0);
       for (auto var_edge : var_node->out_edges()) {
-        if (var_edge->dst() != new_read_var_node && var_edge->dst() != assign_node) {
+        if ((var_edge->dst() != new_read_var_node) && (var_edge->dst() != assign_node)) {
           (void)graph->AddControlEdge(assign_node, var_edge->dst());
         }
       }

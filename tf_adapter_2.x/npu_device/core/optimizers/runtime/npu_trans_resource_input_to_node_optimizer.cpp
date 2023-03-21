@@ -180,7 +180,8 @@ tensorflow::Status TransHasSubgraphNode(TFE_Context *context, tensorflow::Graph 
     functions.emplace_back(const_cast<tensorflow::AttrValue*>(node->attrs().Find("then_branch"))->mutable_func());
     functions.emplace_back(const_cast<tensorflow::AttrValue*>(node->attrs().Find("else_branch"))->mutable_func());
   } else if (node->IsCaseNode()) {
-    for (auto &f : *const_cast<tensorflow::AttrValue*>(node->attrs().Find("branches"))->mutable_list()->mutable_func()) {
+    for (auto &f :
+         *const_cast<tensorflow::AttrValue *>(node->attrs().Find("branches"))->mutable_list()->mutable_func()) {
       functions.emplace_back(&f);
     }
   } else {
