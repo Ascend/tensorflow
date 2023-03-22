@@ -269,6 +269,21 @@ REGISTER_OP("DropOutGenMaskV3")
       return Status::OK();
     });
 
+REGISTER_OP("DropOutGenMaskV4")
+    .Input("shape: T")
+    .Attr("T: {int64, int32}")
+    .Input("prob: S")
+    .Attr("S: {float, half}")
+    .Output("output: uint8")
+    .Attr("seed: int = 0")
+    .Attr("seed2: int = 0")
+    .Attr("dtype: {bool} = DT_BOOL")
+    .SetIsStateful()
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      c->set_output(0, c->input(0));
+      return Status::OK();
+    });
+
 REGISTER_OP("BasicLSTMCell")
     .Input("x: T")
     .Input("h: T")

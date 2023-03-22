@@ -101,5 +101,23 @@ TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenMaskV3Inference) {
       {}, {}, {});
   TF_CHECK_OK(reg->shape_inference_fn(&c));
 }
+
+TEST(DropOutGenOrDoMaskOpTest, TestDropOutGenMaskV4Inference) {
+  const OpRegistrationData *reg;
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("DropOutGenMaskV4", &reg));
+  OpDef op_def = reg->op_def;
+  NodeDef def;
+  TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
+                  .Attr("T", DT_INT64)
+                  .Attr("S", DT_FLOAT)
+                  .Input(FakeInputStub(DT_INT64))
+                  .Input(FakeInputStub(DT_FLOAT))
+                  .Finalize(&def));
+  shape_inference::InferenceContext c(
+      0, &def, op_def,
+      {TShape({16}), TShape({})},
+      {}, {}, {});
+  TF_CHECK_OK(reg->shape_inference_fn(&c));
+}
 }  // namespace
 }  // namespace tensorflow

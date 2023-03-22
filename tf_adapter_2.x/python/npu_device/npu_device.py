@@ -131,6 +131,38 @@ def enable_v1():
     tf.load_op_library(os.path.join(os.path.dirname(__file__), "compat", "v1", "_tf_adapter.so"))
 
 
+def get_ranksize():
+    if os.getenv("CM_WORKER_SIZE") is not None and os.getenv("RANK_SIZE") is not None:
+        raise ValueError("RANK_SIZE and CM_WORK_SIZE cannot be configured at the same time")
+    rank_size = os.getenv('RANK_SIZE') if os.getenv("RANK_SIZE") is not None else os.getenv('CM_WORKER_SIZE', '1')
+    return rank_size
+
+
+def set_cm_chief_worksize_env(global_kw_options=None, env_cm_chief_ip=None, workers_num=None):
+    env_cm_chief_port = os.getenv("CM_CHIEF_PORT")
+    env_cm_chief_device = os.getenv("CM_CHIEF_DEVICE")
+    env_cm_worker_ip = os.getenv("CM_WORKER_IP")
+    if not env_cm_chief_port:
+        raise RuntimeError('You must specify cm chief port by set env CM_CHIEF_PORT in distribution mode')
+    if not env_cm_chief_device:
+        raise RuntimeError('You must specify cm chief device by set env CM_CHIEF_DEVICE in distribution mode')
+    if not env_cm_chief_ip:
+        raise RuntimeError('You must specify cm chief ip by set env CM_CHIEF_IP in distribution mode')
+    global_kw_options['_distribute.cm_chief_ip'] = env_cm_chief_ip
+    global_kw_options['_distribute.cm_chief_port'] = env_cm_chief_port
+    global_kw_options['_distribute.cm_chief_worker_device'] = env_cm_chief_device
+    global_kw_options['_distribute.cm_worker_ip'] = env_cm_worker_ip
+    global_kw_options['_distribute.cm_worker_size'] = str(workers_num)
+
+
+def set_rank_table_file_env(global_kw_options=None, env_rank_table=None):
+    env_worker_id = os.getenv('RANK_ID')
+    if not env_worker_id:
+        raise RuntimeError('You must specify rank id by set env RANK_ID in distribution mode')
+    global_kw_options['_distribute.rank_table'] = env_rank_table
+    global_kw_options['_distribute.rank_id'] = env_worker_id
+
+
 def open(device_id=None):
     """Initiate and return a NPU device handle"""
     if device_id is None:
@@ -152,18 +184,18 @@ def open(device_id=None):
                                ''.format(device_id, list(_npu_device_instances.keys())))
 
         global_kw_options = global_options().as_dict()
-        workers_num = int(os.getenv('RANK_SIZE', '1'))
+        workers_num = int(get_ranksize())
         if workers_num > 1:
+            env_cm_chief_ip = os.getenv("CM_CHIEF_IP")
             env_rank_table = os.getenv("RANK_TABLE_FILE")
-            env_worker_id = os.getenv('RANK_ID')
-            if not env_rank_table:
-                raise RuntimeError('You must specify a rank table file by set env RANK_TABLE_FILE in distribution mode')
-
-            if not env_worker_id:
-                raise RuntimeError('You must specify rank id by set env RANK_ID in distribution mode')
-
-            global_kw_options['_distribute.rank_table'] = env_rank_table
-            global_kw_options['_distribute.rank_id'] = env_worker_id
+            if env_cm_chief_ip is not None and env_rank_table is not None:
+                raise RuntimeError('CM_CHIEF_IP and RANK_TABLE_FILE cannot be configured at the same time.')
+            elif env_cm_chief_ip is not None:
+                set_cm_chief_worksize_env(global_kw_options, env_cm_chief_ip, workers_num)
+            elif env_rank_table is not None:
+                set_rank_table_file_env(global_kw_options, env_rank_table)
+            else:
+                raise RuntimeError('CM_CHIEF_IP and RANK_TABLE_FILE are all not be configured.')
 
         device_options = {}
         error_message = _npu_device_backends.Open(context.context()._handle, NPU, device_id, global_kw_options,

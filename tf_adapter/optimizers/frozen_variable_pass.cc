@@ -47,11 +47,11 @@ class FrozenVariablePass : public GraphOptimizationPass {
   ~FrozenVariablePass() override = default;
   Status Run(const GraphOptimizationPassOptions &options) override;
  private:
-  bool IsAllOutputsIdentity(const Node * const node);
-  bool IsAllOutputsReadOp(const Node * const node);
+  bool IsAllOutputsIdentity(const Node * const node) const;
+  bool IsAllOutputsReadOp(const Node * const node) const;
   bool IsNeedBuildPartitionedCall(const Node * const node);
-  std::map<std::string, std::string> GetGraphConfigs(const Graph &graph);
-  void RemoveDeadNodes(Graph* g);
+  std::map<std::string, std::string> GetGraphConfigs(const Graph &graph) const;
+  void RemoveDeadNodes(Graph* g) const;
   Status DoConstantFolding(const GraphOptimizationPassOptions &options, const uint64_t index);
 };
 
@@ -61,7 +61,7 @@ struct StableNodeCompartor {
 
 DataType EdgeDataType(const tensorflow::Edge &edge) { return edge.src()->output_type(edge.src_output()); }
 
-bool FrozenVariablePass::IsAllOutputsIdentity(const Node * const node) {
+bool FrozenVariablePass::IsAllOutputsIdentity(const Node * const node) const {
   for (auto out : node->out_nodes()) {
     if (!out->IsIdentity()) {
       return false;
@@ -70,7 +70,7 @@ bool FrozenVariablePass::IsAllOutputsIdentity(const Node * const node) {
   return true;
 }
 
-bool FrozenVariablePass::IsAllOutputsReadOp(const Node * const node) {
+bool FrozenVariablePass::IsAllOutputsReadOp(const Node * const node) const {
   for (auto out : node->out_nodes()) {
     if (out->type_string() != "ReadVariableOp") {
       return false;
@@ -84,7 +84,7 @@ bool FrozenVariablePass::IsNeedBuildPartitionedCall(const Node * const node) {
          (node->type_string() == "VarHandleOp" && IsAllOutputsReadOp(node));
 }
 
-std::map<std::string, std::string> FrozenVariablePass::GetGraphConfigs(const Graph &graph) {
+std::map<std::string, std::string> FrozenVariablePass::GetGraphConfigs(const Graph &graph) const {
   for (Node *n : graph.nodes()) {
     if ((n != nullptr) && (n->attrs().Find("_NpuOptimizer") != nullptr)) {
       return NpuAttrs::GetAllAttrOptions(n->attrs());
@@ -93,7 +93,7 @@ std::map<std::string, std::string> FrozenVariablePass::GetGraphConfigs(const Gra
   return {};
 }
 
-void FrozenVariablePass::RemoveDeadNodes(Graph* g) {
+void FrozenVariablePass::RemoveDeadNodes(Graph* g) const {
   std::unordered_set<const Node*> nodes;
   for (auto n : g->nodes()) {
     ADP_LOG(DEBUG) << "Remove dead node, node type: " << n->type_string();
@@ -106,7 +106,7 @@ void FrozenVariablePass::RemoveDeadNodes(Graph* g) {
 
 Status FrozenVariablePass::DoConstantFolding(const GraphOptimizationPassOptions &options,
         const uint64_t index) {
-  ADP_LOG(INFO) << "Before do const folding" << options.session_options->config.DebugString();
+  ADP_LOG(INFO) << "Before do const folding " << options.session_options->config.DebugString();
   if (options.device_set == nullptr) {
     return errors::Internal("Failed to get device set to run constant folding");
   }
@@ -139,7 +139,7 @@ Status FrozenVariablePass::DoConstantFolding(const GraphOptimizationPassOptions 
   GraphOptimizer optimizer(opts);
   optimizer.Optimize(flr, flr->env(), flr->device(), options.graph, graph_optimizer_options);
   (void)RemoveDeadNodes((options.graph)->get());
-  ADP_LOG(INFO) << "After do const folding optimize";
+  ADP_LOG(INFO) << "After do const folding optimize.";
   if (kDumpGraph) {
     const std::string pbtxt_path = GetDumpPath() + "TF_AfterFrozenVariable_" + std::to_string(index) + ".pbtxt";
     tensorflow::GraphDef def;
