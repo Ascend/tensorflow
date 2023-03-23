@@ -117,7 +117,12 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"graph_parallel_option_path", "ge.graphParallelOptionPath"},
   {"enable_graph_parallel", "ge.enableGraphParallel"},
   {"atomic_clean_policy", "ge.exec.atomicCleanPolicy"},
-  {"static_memory_policy", "ge.exec.staticMemoryPolicy"}};
+  {"static_memory_policy", "ge.exec.staticMemoryPolicy"},
+  {"_distribute.cm_chief_ip", ge::OPTION_EXEC_CM_CHIEF_IP},
+  {"_distribute.cm_chief_port", ge::OPTION_EXEC_CM_CHIEF_PORT},
+  {"_distribute.cm_chief_worker_device", ge::OPTION_EXEC_CM_CHIEF_DEVICE},
+  {"_distribute.cm_worker_ip", ge::OPTION_EXEC_CM_WORKER_IP},
+  {"_distribute.cm_worker_size", ge::OPTION_EXEC_CM_WORKER_SIZE}};
 }  // namespace
 
 #undef PYBIND11_CHECK_PYTHON_VERSION
@@ -128,6 +133,13 @@ std::unordered_set<std::string> npu_specify_ops_cache;
 constexpr uint32_t kDeviceSatModeLimit = 2U;
 }
 namespace npu {
+bool CheckIsDistribute(std::map<std::string, std::string> &global_options) {
+  return ((global_options.find(ge::OPTION_EXEC_RANK_TABLE_FILE) != global_options.end() &&
+           global_options.find(ge::OPTION_EXEC_RANK_ID) != global_options.end()) ||
+          (global_options.find(ge::OPTION_EXEC_CM_CHIEF_IP) != global_options.end() &&
+           global_options.find(ge::OPTION_EXEC_CM_CHIEF_PORT) != global_options.end() &&
+           global_options.find(ge::OPTION_EXEC_CM_CHIEF_DEVICE) != global_options.end()));
+}
 void ParseGlobalOptions(int device_index, const std::map<std::string, std::string> &user_options,
                         std::map<std::string, std::string> &global_options) {
   for (const auto &option : user_options) {
@@ -138,8 +150,7 @@ void ParseGlobalOptions(int device_index, const std::map<std::string, std::strin
       LOG(WARNING) << "Unrecognized graph engine option " << option.first << ":" << option.second;
     }
   }
-  if (global_options.find(ge::OPTION_EXEC_RANK_TABLE_FILE) != global_options.end() &&
-      global_options.find(ge::OPTION_EXEC_RANK_ID) != global_options.end()) {
+  if (CheckIsDistribute(global_options)) {
     const static std::string kTrue = "1";
     global_options[ge::OPTION_EXEC_DEPLOY_MODE] = "0";
     global_options[ge::OPTION_EXEC_IS_USEHCOM] = kTrue;
