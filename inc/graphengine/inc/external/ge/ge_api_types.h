@@ -43,6 +43,13 @@ const char *const OPTION_EXEC_DEPLOY_MODE = "ge.exec.deployMode";
 const char *const OPTION_EXEC_RANK_TABLE_FILE = "ge.exec.rankTableFile";
 const char *const GE_AICPU_FLAG = "ge.aicpuFlag";
 const char *const OPTION_EXEC_EXTERN_PLUGIN_PATH = "ge.soLoadPath";
+
+const std::string OPTION_EXEC_CM_CHIEF_IP = "ge.cmChiefIp";
+const std::string OPTION_EXEC_CM_CHIEF_PORT = "ge.cmChiefPort";
+const std::string OPTION_EXEC_CM_CHIEF_DEVICE = "ge.cmChiefWorkerDevice";
+const std::string OPTION_EXEC_CM_WORKER_IP = "ge.cmWorkerIp";
+const std::string OPTION_EXEC_CM_WORKER_SIZE = "ge.cmWorkerSize";
+
 // Dump flag and para
 const char *const OPTION_EXEC_ENABLE_DUMP = "ge.exec.enableDump";
 const char *const OPTION_EXEC_DUMP_PATH = "ge.exec.dumpPath";
