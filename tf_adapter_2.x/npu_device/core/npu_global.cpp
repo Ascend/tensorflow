@@ -39,25 +39,40 @@ std::unordered_set<std::string> g_npu_specify_ops;
 tensorflow::mutex dev_memory_shared_lock;
 bool dev_memory_released = false;
 
-void RtsCtx::SetGlobalCtx(aclrtContext global_ctx) {
-  static std::atomic_bool already_set{false};
-  if (!already_set.exchange(true)) {
-    global_ctx_ = global_ctx;
-    global_ctx_set_ = true;
+tensorflow::Status RtsCtx::CreateGlobalCtx(int32_t device_index) {
+  {
+    tensorflow::tf_shared_lock read_lock(global_ctx_mutex_);
+    if (global_ctx_ != nullptr) {
+      DLOG() << "Global context has been created.";
+      return tensorflow::Status::OK();
+    }
   }
+  tensorflow::mutex_lock write_lock(global_ctx_mutex_);
+  NPU_REQUIRES_ACL_OK("Acl create rts ctx failed", aclrtCreateContext(&global_ctx_, device_index));
+  return tensorflow::Status::OK();
 }
 
 // 存在rtMalloc和rtFree在不同线程操作的情况，也存在同一线程会切换context的场景
 // 这里保证全局唯一的ctx，且对device资源操作时都设置这个全局ctx
 tensorflow::Status RtsCtx::EnsureInitialized() {
-  if (global_ctx_set_) {
+  tensorflow::tf_shared_lock read_lock(global_ctx_mutex_);
+  if (global_ctx_ != nullptr) {
     NPU_REQUIRES_ACL_OK("Acl set current thread ctx failed", aclrtSetCurrentContext(global_ctx_));
   }
   return tensorflow::Status::OK();
 }
 
+tensorflow::Status RtsCtx::DestroyGlobalCtx() {
+  tensorflow::mutex_lock write_lock(global_ctx_mutex_);
+  if (global_ctx_ != nullptr) {
+    NPU_REQUIRES_ACL_OK("Acl Destroy global ctx failed", aclrtDestroyContext(global_ctx_));
+  }
+  global_ctx_ = nullptr;
+  return tensorflow::Status::OK();
+}
+
+tensorflow::mutex RtsCtx::global_ctx_mutex_;
 aclrtContext RtsCtx::global_ctx_{nullptr};
-std::atomic_bool RtsCtx::global_ctx_set_{false};
 
 std::map<int, NpuCtx::Ctx> NpuCtx::npu_ctx_;
 

@@ -205,16 +205,10 @@ PYBIND11_MODULE(_npu_device_backends, m) {
                       return status.error_message();
                     }
                   }
-
-                  aclrtContext global_rt_ctx = nullptr;
-                  auto status = [&global_rt_ctx, device_index]() -> tensorflow::Status {
-                    NPU_REQUIRES_ACL_OK("Acl create rts ctx failed", aclrtCreateContext(&global_rt_ctx, device_index));
-                    return tensorflow::Status::OK();
-                  }();
+                  auto status = npu::global::RtsCtx::CreateGlobalCtx(device_index);
                   if (!status.ok()) {
                     return status.error_message();
                   }
-                  npu::global::RtsCtx::SetGlobalCtx(global_rt_ctx);
                   status = npu::global::RtsCtx::EnsureInitialized();
                   if (!status.ok()) {
                     return status.error_message();
@@ -262,6 +256,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
       }
 
       (void)npu::NpuAoe::GetInstance().AoeTuningFinalize();
+      (void)npu::global::RtsCtx::DestroyGlobalCtx();
     }
     pybind11::gil_scoped_acquire acquire;
   });

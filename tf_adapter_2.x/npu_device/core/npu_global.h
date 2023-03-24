@@ -41,12 +41,12 @@ extern bool dev_memory_released TF_GUARDED_BY(dev_memory_shared_lock);
 // Rts ctx管理器
 class RtsCtx {
  public:
-  static void SetGlobalCtx(aclrtContext global_ctx);
+  static tensorflow::Status CreateGlobalCtx(int32_t device_index);
   static tensorflow::Status EnsureInitialized();
-
+  static tensorflow::Status DestroyGlobalCtx();
  private:
   static aclrtContext global_ctx_;
-  static std::atomic_bool global_ctx_set_;
+  static tensorflow::mutex global_ctx_mutex_;
 };
 
 class NpuCtx {
