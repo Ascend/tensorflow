@@ -15,7 +15,6 @@
  */
 
 #include "tf_adapter/util/npu_attrs.h"
-#include <mutex>
 #include <regex>
 #include <iostream>
 #include <sstream>
@@ -43,6 +42,7 @@ std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
 std::map<std::string, bool> NpuAttrs::use_adp_info_;
 std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
 std::map<std::string, std::string> NpuAttrs::init_options_;
+std::mutex NpuAttrs::mutex_;
 const static int32_t kRuntimeTypeHeterogeneous = 1;
 
 bool NpuAttrs::CheckIsNewDataTransfer() {
@@ -626,6 +626,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_es_cluster_config", &es_cluster_config);
   }
 
+  std::lock_guard<std::mutex> lock(mutex_);
   init_options_[ge::PRECISION_MODE] = precision_mode;
   init_options_["ge.autoTuneMode"] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
@@ -676,6 +677,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
 }
 
 std::map<std::string, std::string> NpuAttrs::GetInitOptions() {
+  std::lock_guard<std::mutex> lock(mutex_);
   return init_options_;
 }
 
@@ -1560,6 +1562,11 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultPassOptions() {
 }
 
 Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options, Node *node) {
+  if (!node) {
+    ADP_LOG(ERROR) << "node is null.";
+    LOG(ERROR) << "node is null.";
+    return errors::Internal("node is null.");
+  }
   std::map<std::string, std::string> sess_options;
   bool hcom_parallel = true;
   std::string graph_memory_max_size;
@@ -1645,9 +1652,10 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool external_weight = false;
   bool frozen_variable = false;
   std::string variable_location = "Device";
+  int64_t op_debug_level = 0;
+  std::string es_cluster_config;
 
-  const RewriterConfig &rewrite_options =
-    options.session_options->config.graph_options().rewrite_options();
+  const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
     if (custom_optimizer.name() == "NpuOptimizer") {
       const auto &params = custom_optimizer.parameter_map();
@@ -1742,9 +1750,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
       }
       if (params.count("op_debug_level") > 0) {
-        int64_t op_debug_level = params.at("op_debug_level").i();
-        init_options_["op_debug_level"] = std::to_string(op_debug_level);
-        init_options_[ge::OP_DEBUG_LEVEL] = std::to_string(op_debug_level);
+        op_debug_level = params.at("op_debug_level").i();
         LOG_DEPRECATED_WITH_REPLACEMENT(op_debug_level, op_debug_config);
       }
       if (params.count("enable_scope_fusion_passes") > 0) {
@@ -2067,9 +2073,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         external_weight = params.at("external_weight").b();
       }
       if (params.count("es_cluster_config") > 0) {
-        std::string es_cluster_config = params.at("es_cluster_config").s();
-        init_options_["es_cluster_config"] = es_cluster_config;
-        init_options_["ge.esClusterConfig"] = es_cluster_config;
+        es_cluster_config = params.at("es_cluster_config").s();
       }
       if (params.count("frozen_variable") > 0) {
         frozen_variable = params.at("frozen_variable").b();
@@ -2125,74 +2129,85 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
   sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
 
-  init_options_["precision_mode"] = precision_mode;
-  init_options_[ge::PRECISION_MODE] = precision_mode;
-  init_options_["profiling_mode"] = std::to_string(static_cast<int32_t>(profiling_mode));
-  init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(static_cast<int32_t>(profiling_mode));
-  init_options_["profiling_options"] = profiling_options;
-  init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
-  init_options_["ge.autoTuneMode"] = auto_tune_mode;
-  init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
-  init_options_[ge::OPTION_GRAPH_RUN_MODE] = std::to_string(graph_run_mode);
-  init_options_["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
-  init_options_[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
-  init_options_["enable_exception_dump"] = std::to_string(enable_exception_dump);
-  init_options_["ge.exec.enable_exception_dump"] = std::to_string(enable_exception_dump);
-  init_options_["ge.deterministic"] = std::to_string(deterministic);
-  init_options_["aoe_mode"] = aoe_mode;
-  init_options_["ge.jobType"] = aoe_mode;
-  init_options_["work_path"] = work_path;
-  init_options_["ge.tuningPath"] = work_path;
-  init_options_["distribute_config"] = distribute_config;
-  init_options_["op_compiler_cache_mode"] = op_compiler_cache_mode;
-  init_options_["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
-  init_options_["op_compiler_cache_dir"] = op_compiler_cache_dir;
-  init_options_["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
-  init_options_["debug_dir"] = debug_dir;
-  init_options_["ge.debugDir"] = debug_dir;
-  init_options_["device_type"] = device_type;
-  init_options_["ge.deviceType"] = device_type;
-  init_options_["soc_config"] = soc_config;
-  if (!soc_config.empty()) {
-    init_options_["ge.socVersion"] = soc_config;
-  }
-  init_options_["op_wait_timeout"] = op_wait_timeout;
-  init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
-  init_options_["op_execute_timeout"] = op_execute_timeout;
-  init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
-  init_options_["customize_dtypes"] = customize_dtypes;
-  init_options_["ge.customizeDtypes"] = customize_dtypes;
-  init_options_["op_debug_config"] = op_debug_config;
-  init_options_["ge.exec.opDebugConfig"] = op_debug_config;
-  init_options_["static_memory_policy"] = static_memory_policy;
-  // Commercial version has been released, temporarily used
-  init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
-  init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    init_options_["precision_mode"] = precision_mode;
+    init_options_[ge::PRECISION_MODE] = precision_mode;
+    init_options_["op_debug_level"] = std::to_string(op_debug_level);
+    init_options_[ge::OP_DEBUG_LEVEL] = std::to_string(op_debug_level);
+    init_options_["profiling_mode"] = std::to_string(static_cast<int32_t>(profiling_mode));
+    init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(static_cast<int32_t>(profiling_mode));
+    init_options_["profiling_options"] = profiling_options;
+    init_options_[ge::OPTION_EXEC_PROFILING_OPTIONS] = profiling_options;
+    init_options_["ge.autoTuneMode"] = auto_tune_mode;
+    init_options_["graph_run_mode"] = std::to_string(graph_run_mode);
+    init_options_[ge::OPTION_GRAPH_RUN_MODE] = std::to_string(graph_run_mode);
+    init_options_["enable_scope_fusion_passes"] = enable_scope_fusion_passes;
+    init_options_[ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES] = enable_scope_fusion_passes;
+    init_options_["enable_exception_dump"] = std::to_string(enable_exception_dump);
+    init_options_["ge.exec.enable_exception_dump"] = std::to_string(enable_exception_dump);
+    init_options_["ge.deterministic"] = std::to_string(deterministic);
+    init_options_["aoe_mode"] = aoe_mode;
+    init_options_["ge.jobType"] = aoe_mode;
+    init_options_["work_path"] = work_path;
+    init_options_["ge.tuningPath"] = work_path;
+    init_options_["distribute_config"] = distribute_config;
+    init_options_["op_compiler_cache_mode"] = op_compiler_cache_mode;
+    init_options_["ge.op_compiler_cache_mode"] = op_compiler_cache_mode;
+    init_options_["op_compiler_cache_dir"] = op_compiler_cache_dir;
+    init_options_["ge.op_compiler_cache_dir"] = op_compiler_cache_dir;
+    init_options_["debug_dir"] = debug_dir;
+    init_options_["ge.debugDir"] = debug_dir;
+    init_options_["device_type"] = device_type;
+    init_options_["ge.deviceType"] = device_type;
+    init_options_["soc_config"] = soc_config;
+    if (!soc_config.empty()) {
+      init_options_["ge.socVersion"] = soc_config;
+    }
+    init_options_["op_wait_timeout"] = op_wait_timeout;
+    init_options_["ge.exec.opWaitTimeout"] = op_wait_timeout;
+    init_options_["op_execute_timeout"] = op_execute_timeout;
+    init_options_["ge.exec.opExecuteTimeout"] = op_execute_timeout;
+    init_options_["customize_dtypes"] = customize_dtypes;
+    init_options_["ge.customizeDtypes"] = customize_dtypes;
+    init_options_["op_debug_config"] = op_debug_config;
+    init_options_["ge.exec.opDebugConfig"] = op_debug_config;
+    init_options_["static_memory_policy"] = static_memory_policy;
+    // Commercial version has been released, temporarily used
+    init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
+    init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
 
-  init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
-  init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
-  init_options_["ge.fusionSwitchFile"] = fusion_switch_file;
-  init_options_[ge::OP_PRECISION_MODE] = op_precision_mode;
-  init_options_[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
-  init_options_[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
-  init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
-  init_options_["HCCL_algorithm"] = HCCL_algorithm;
-  init_options_["graph_exec_timeout"] = std::to_string(graph_exec_timeout);
-  init_options_["ge.exec.graphExecTimeout"] = std::to_string(graph_exec_timeout);
-  init_options_["logical_device_cluster_deploy_mode"] = logical_device_cluster_deploy_mode;
-  init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
-  init_options_["logical_device_id"] = logical_device_id;
-  init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
-  init_options_["model_deploy_mode"] = model_deploy_mode;
-  init_options_["ge.exec.modelDeployMode"] = model_deploy_mode;
-  init_options_["model_deploy_devicelist"] = model_deploy_devicelist;
-  init_options_["ge.exec.modelDeployDevicelist"] = model_deploy_devicelist;
-  init_options_["dump_data"] = dump_data;
-  init_options_["ge.exec.dumpData"] = dump_data;
-  init_options_["aoe_config_file"] = aoe_config_file;
-  init_options_["ge.aoe_config_file"] = aoe_config_file;
-  init_options_["stream_sync_timeout"] = std::to_string(stream_sync_timeout);
-  init_options_["event_sync_timeout"] = std::to_string(event_sync_timeout);
+    init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
+    init_options_[ge::MODIFY_MIXLIST] = modify_mixlist;
+    init_options_["ge.fusionSwitchFile"] = fusion_switch_file;
+    init_options_[ge::OP_PRECISION_MODE] = op_precision_mode;
+    init_options_[ge::OP_SELECT_IMPL_MODE] = op_select_implmode;
+    init_options_[ge::OPTYPELIST_FOR_IMPLMODE] = optypelist_for_implmode;
+    init_options_["ge.exec.hcclExecuteTimeOut"] = hccl_timeout;
+    init_options_["HCCL_algorithm"] = HCCL_algorithm;
+    init_options_["graph_exec_timeout"] = std::to_string(graph_exec_timeout);
+    init_options_["ge.exec.graphExecTimeout"] = std::to_string(graph_exec_timeout);
+    init_options_["logical_device_cluster_deploy_mode"] = logical_device_cluster_deploy_mode;
+    init_options_["ge.exec.logicalDeviceClusterDeployMode"] = logical_device_cluster_deploy_mode;
+    init_options_["logical_device_id"] = logical_device_id;
+    init_options_["ge.exec.logicalDeviceId"] = logical_device_id;
+    init_options_["model_deploy_mode"] = model_deploy_mode;
+    init_options_["ge.exec.modelDeployMode"] = model_deploy_mode;
+    init_options_["model_deploy_devicelist"] = model_deploy_devicelist;
+    init_options_["ge.exec.modelDeployDevicelist"] = model_deploy_devicelist;
+    init_options_["dump_data"] = dump_data;
+    init_options_["ge.exec.dumpData"] = dump_data;
+    init_options_["aoe_config_file"] = aoe_config_file;
+    init_options_["ge.aoe_config_file"] = aoe_config_file;
+    init_options_["stream_sync_timeout"] = std::to_string(stream_sync_timeout);
+    init_options_["event_sync_timeout"] = std::to_string(event_sync_timeout);
+    init_options_["es_cluster_config"] = es_cluster_config;
+    init_options_["ge.esClusterConfig"] = es_cluster_config;
+    for (const auto &option : init_options_) {
+      std::string attr_name = std::string("_") + option.first;
+      node->AddAttr(attr_name, option.second);
+    }
+  }
 
   pass_options["do_npu_optimizer"] = std::to_string(static_cast<int32_t>(do_npu_optimizer));
   pass_options["enable_data_pre_proc"] = std::to_string(static_cast<int32_t>(enable_dp));
@@ -2212,22 +2227,12 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["frozen_variable"] = std::to_string(static_cast<int32_t>(frozen_variable));
   pass_options["variable_location"] = variable_location;
 
-  if (!node) {
-    ADP_LOG(ERROR) << "node is null.";
-    LOG(ERROR) << "node is null.";
-    return errors::Internal("node is null.");
-  }
-  std::string attr_name;
   for (const auto &option : sess_options) {
-    attr_name = std::string("_") + option.first;
-    node->AddAttr(attr_name, option.second);
-  }
-  for (const auto &option : init_options_) {
-    attr_name = std::string("_") + option.first;
+    std::string attr_name = std::string("_") + option.first;
     node->AddAttr(attr_name, option.second);
   }
   for (const auto &option : pass_options) {
-    attr_name = std::string("_") + option.first;
+    std::string attr_name = std::string("_") + option.first;
     node->AddAttr(attr_name, option.second);
   }
   node->AddAttr("_NpuOptimizer", "NpuOptimizer");
