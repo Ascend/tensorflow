@@ -596,11 +596,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       void RecordMbufQueueBytes(const bool is_hold, const uint64_t args_total_bytes) {
         if (!is_hold) { return; }
         mbuf_queue_rear_ = (mbuf_queue_rear_ + 1) % kStringTypeDepth;
+        mbuf_queue_total_bytes_ = mbuf_queue_total_bytes_ - mbuf_queue_bytes_[mbuf_queue_rear_] + args_total_bytes;
         mbuf_queue_bytes_[mbuf_queue_rear_] = args_total_bytes;
       }
 
       bool IsHoldDataTrans() {
-        if (!is_hold_type) { return false; }
+        if (mbuf_queue_total_bytes_ < static_cast<uint64_t>(kMaxBytes)) { return false; }
         size_t mbuf_size;
         aclError status = acltdtQueryChannelSize(acl_handle_, &mbuf_size);
         if (status != ACL_SUCCESS) {
@@ -1036,7 +1037,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         double elapsed_time = 0;
         uint64_t total_bytes = 0;
       } data_thread_perf_stat_[static_cast<size_t>(ThreadType::BUTT)];
-      uint64_t mbuf_queue_bytes_[kStringTypeDepth];
+      uint64_t mbuf_queue_bytes_[kStringTypeDepth] = { 0 };
+      uint64_t mbuf_queue_total_bytes_ = 0;
       size_t mbuf_queue_rear_ = 0;
     };
     const std::vector<DatasetBase *> inputs_;
