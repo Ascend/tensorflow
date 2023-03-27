@@ -49,10 +49,10 @@ class FrozenVariablePass : public GraphOptimizationPass {
  private:
   bool IsAllOutputsIdentity(const Node * const node) const;
   bool IsAllOutputsReadOp(const Node * const node) const;
-  bool IsNeedBuildPartitionedCall(const Node * const node);
+  bool IsNeedBuildPartitionedCall(const Node * const node) const;
   std::map<std::string, std::string> GetGraphConfigs(const Graph &graph) const;
   void RemoveDeadNodes(Graph* g) const;
-  Status DoConstantFolding(const GraphOptimizationPassOptions &options, const uint64_t index);
+  Status DoConstantFolding(const GraphOptimizationPassOptions &options, const uint64_t index) const;
 };
 
 struct StableNodeCompartor {
@@ -79,7 +79,7 @@ bool FrozenVariablePass::IsAllOutputsReadOp(const Node * const node) const {
   return true;
 }
 
-bool FrozenVariablePass::IsNeedBuildPartitionedCall(const Node * const node) {
+bool FrozenVariablePass::IsNeedBuildPartitionedCall(const Node * const node) const {
   return ((node->type_string() == "Variable" || node->type_string() == "VariableV2") && IsAllOutputsIdentity(node)) ||
          (node->type_string() == "VarHandleOp" && IsAllOutputsReadOp(node));
 }
@@ -105,7 +105,7 @@ void FrozenVariablePass::RemoveDeadNodes(Graph* g) const {
 }
 
 Status FrozenVariablePass::DoConstantFolding(const GraphOptimizationPassOptions &options,
-        const uint64_t index) {
+        const uint64_t index) const {
   ADP_LOG(INFO) << "Before do const folding " << options.session_options->config.DebugString();
   if (options.device_set == nullptr) {
     return errors::Internal("Failed to get device set to run constant folding");
