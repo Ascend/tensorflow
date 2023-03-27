@@ -35,7 +35,7 @@ class NpuConfig(NpuBaseConfig):
         self.variable_format_optimize = DeprecatedValue([True, False], replacement=None)
         self.enable_scope_fusion_passes = OptionValue(None, None)
         self.fusion_switch_file = OptionValue(None, None)
-        self.precision_mode = OptionValue('allow_fp32_to_fp16',
+        self.precision_mode = OptionValue(None,
                                           ['force_fp32', 'allow_fp32_to_fp16', 'force_fp16', 'must_keep_origin_dtype',
                                            'allow_mix_precision', 'cube_fp16in_fp32out', 'allow_mix_precision_fp16',
                                            'allow_mix_precision_bf16', 'allow_fp32_to_bf16'])
