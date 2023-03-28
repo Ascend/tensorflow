@@ -36,6 +36,9 @@ void SetTensorDescSize(uint32_t val);
 extern bool g_loadModelStatus;
 void SetAclLoadModelFlag(bool load_status);
 
+extern bool gAclTdtSendTensorMock;
+void setAclTdtSendTensorMockStub(const bool isSuccess);
+
 struct acltdtDataItem {
     acltdtDataItem(acltdtTensorType tdtType,
         const int64_t *dims, size_t dimNum, const std::string &dimsStr,
