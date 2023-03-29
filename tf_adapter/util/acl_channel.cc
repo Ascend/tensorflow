@@ -22,6 +22,7 @@
 #include "tf_adapter/common/compat_tf1_tf2.h"
 #include "tf_adapter/util/npu_attrs.h"
 #include "tf_adapter/util/util.h"
+#include "ge/ge_api.h"
 namespace tensorflow {
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
@@ -251,6 +252,10 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
     return Status::OK();
   }
   if (acl_status != ACL_ERROR_NONE) {
+    std::string error_message = ge::GEGetErrorMsg();
+    LOG(ERROR) << "Failed to send data by acl, error code : "<< acl_status << std::endl
+               << "Error Message is " << std::endl
+               << error_message;
     return errors::Internal("Acl send data failed, acl status:", acl_status);
   }
   return Status::OK();
