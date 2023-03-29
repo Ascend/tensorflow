@@ -84,6 +84,7 @@ class ESWorker:
         self.table_create_infos = []
         self.total_variable_table = []
         self.total_embedding_count = 0
+        self._npu_table_to_embedding_dim = {}
         config = tf.ConfigProto()
         custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
         custom_op.name = "NpuOptimizer"
@@ -307,6 +308,7 @@ class ESWorker:
                 tf.random_normal([table_info_['max_vocabulary_size'], table_info_['embedding_dim']], mean=0.0,
                                  stddev=1.0, dtype=tf.float32, seed=1234)
             ))
+            self._npu_table_to_embedding_dim[self.total_embedding_count] = table_info_['embedding_dim']
             self.total_embedding_count += 1
 
     def embeddings_look_up(self, tf_indices):
@@ -337,18 +339,21 @@ class ESWorker:
             table_to_input_group[tid].append(indices)
 
         output_slots = [None for _ in in_slot_size_group]
+        variable_table_idx = 0
         for tid, table_input_group in enumerate(table_to_input_group):
             table_input_hash = tf.concat(table_input_group, axis=1)
             table_input_hash_shape = table_input_hash.get_shape().as_list()
             input_hash_after_unique, recovery_matrix =\
-                tf.unique(x=tf.reshape(table_input_hash, shape=[table_input_hash_shape[0] * table_input_hash_shape[1]]),
+                tf.unique(x=tf.reshape(table_input_hash, shape=[-1]),
                           out_idx=tf.int64)
             table_input_after_mapping = \
                 gen_npu_cpu_ops.embedding_feature_mapping(feature_id=input_hash_after_unique)
             table_to_input_group[tid] = table_input_after_mapping
             table_embedding = tf.nn.embedding_lookup(self.total_variable_table[tid], table_input_after_mapping)
             table_embedding_after_gather = tf.reshape(tf.gather(params=table_embedding, indices=recovery_matrix),
-                                                      shape=[table_input_hash_shape[0], table_input_hash_shape[1], -1])
+                                                      shape=[-1, table_input_hash_shape[1],
+                                                             self._npu_table_to_embedding_dim.get(variable_table_idx)])
+            variable_table_idx = variable_table_idx + 1
             out_embedding_splited = tf.split(table_embedding_after_gather, table_to_output_slots[tid], axis=1)
             for out_emb, sid in zip(out_embedding_splited, table_to_slot[tid]):
                 output_slots[sid] = out_emb
