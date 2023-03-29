@@ -246,8 +246,8 @@ Status StreamEvent::Wait() {
 class StreamPool {
 public:
   explicit StreamPool(uint64_t stream_num, uint64_t max_task)
-    : max_stream_(stream_num),
-      max_task_(max_task) {
+    : max_stream_num_(stream_num),
+      max_task_num_(max_task) {
     uint64_t pos_stream_num = StreamPool::CheckStreamNum(stream_num);
     cur_event_num_ = new uint64_t[pos_stream_num];
     uint64_t size_count = sizeof(uint64_t) * pos_stream_num;
@@ -255,6 +255,8 @@ public:
       ADP_LOG(ERROR) << "[StreamPool] Failed to reset cur_event_num_ memory. size_count=" << size_count;
     }
     streams_.resize(pos_stream_num, nullptr);
+    // we use one thread corresponds to one stream to execute tasks
+    max_stream_num_ = pos_stream_num;
   }
 
   ~StreamPool() {
@@ -262,43 +264,43 @@ public:
     streams_.clear();
   }
 
-  std::shared_ptr<Stream> GetStream(uint64_t streamid) {
-    if (streamid >= max_stream_) {
+  std::shared_ptr<Stream> GetStream(uint64_t stream_id) {
+    if (stream_id >= max_stream_num_) {
       return nullptr;
     }
     std::unique_lock<std::mutex> lck(mtx_);
-    if (streams_[streamid] == nullptr) {
-      streams_[streamid] = Stream::CreateStream(this, streamid);
+    if (streams_[stream_id] == nullptr) {
+      streams_[stream_id] = Stream::CreateStream(this, stream_id);
     }
 
-    return streams_[streamid];
+    return streams_[stream_id];
   }
 
-  Status RecordEvent(const std::shared_ptr<Stream> stream, const std::function<void(Status status)> func_) {
+  Status RecordEvent(const std::shared_ptr<Stream> stream, const std::function<void(Status status)> func) {
     uint64_t stream_id = stream->GetStreamId();
     {
       std::unique_lock<std::mutex> lck(mtx_);
-      if ((stream_id >= max_stream_) || (cur_event_num_[stream_id] >= max_task_)) {
+      if ((stream_id >= max_stream_num_) || (cur_event_num_[stream_id] >= max_task_num_)) {
         return errors::InvalidArgument("Cur stream is overload. reocrd event = ", cur_event_num_[stream_id]);
       }
       cur_event_num_[stream_id]++;
     }
 
-    return stream->RecordEvent(func_, [this, stream_id](StreamEvent*) {
+    return stream->RecordEvent(func, [this, stream_id](StreamEvent*) {
         std::unique_lock<std::mutex> lck(mtx_);
         this->cur_event_num_[stream_id]--;
     });
   }
 
   uint64_t GetIdleEventCount(const uint64_t stream_id) const {
-    if ((stream_id >= max_stream_) || (cur_event_num_[stream_id] >= max_task_)) {
+    if ((stream_id >= max_stream_num_) || (cur_event_num_[stream_id] >= max_task_num_)) {
       return 0;
     }
-    return max_task_ - cur_event_num_[stream_id];
+    return max_task_num_ - cur_event_num_[stream_id];
   }
 
   uint64_t GetWaitingEventCount(const uint64_t stream_id) const {
-    if (stream_id >= max_stream_) {
+    if (stream_id >= max_stream_num_) {
       return 0;
     }
     return cur_event_num_[stream_id];
@@ -322,8 +324,8 @@ public:
 
 private:
   std::mutex mtx_;
-  const uint64_t max_stream_;
-  const uint64_t max_task_;
+  uint64_t max_stream_num_;
+  const uint64_t max_task_num_;
   uint64_t cur_stream_num_ = 0;
   uint64_t *cur_event_num_ = nullptr;
   std::vector<std::shared_ptr<Stream>> streams_;

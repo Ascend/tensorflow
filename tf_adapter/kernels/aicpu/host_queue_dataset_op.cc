@@ -56,6 +56,7 @@ constexpr int64 kSleepUs = 10;
 const uint32_t kMaxValue = 128U;
 const size_t kMaxDepth = 128UL;
 const int32_t kSleepTime = 1;
+const int32_t kDelayTime = 5;
 const uint32_t kSleepDuration = 5000;
 const static int64_t kStringTypeDepth = 64LL;
 const int64_t kUnknownShapeDepth = 3LL;
@@ -445,6 +446,26 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
       }
 
+      void HandleGetNextStatus(const Status status, const bool endOfSequence) {
+        if (status.ok() || errors::IsCancelled(status)) {
+          ADP_LOG(INFO) << "Finish to get tensor data, Status:" << status.ToString()
+                        << "; end_of_sequence: " << endOfSequence;
+          return;
+        }
+        auto showLog = [status]() {
+          ADP_LOG(ERROR) << "Failed to get tensor data, Status:" << status.ToString();
+          LOG(ERROR) << "Failed to get tensor data, Status:" << status.ToString();
+        };
+        if (!errors::IsNotFound(status)) {
+          showLog();
+          return;
+        }
+        mutex_lock lck(mu_);
+        // cond_error_.wait_for is to wait forthe iterator destructed, kDelayTime is an estimate value.
+        cond_error_.wait_for(lck, std::chrono::seconds(kDelayTime));
+        if (!finish_send_) { showLog(); }
+      }
+
       void RefreshDataThreadPerf(const ThreadType type, const double elapsed_time,
                                  const uint64_t args_total_bytes) {
         if (elapsed_time > data_thread_perf_stat_[static_cast<size_t>(type)].elapsed_time) {
@@ -502,14 +523,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           buffer_element.status = input_impls_[1]->GetNext(ctx.get(), &args, &end_of_sequence);
           auto end = std::chrono::steady_clock::now();
           if ((!buffer_element.status.ok()) || (buffer_element.status.ok() && end_of_sequence)) {
-            if ((!buffer_element.status.ok()) &&
-                (!errors::IsCancelled(buffer_element.status))) {
-              ADP_LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
-              LOG(ERROR) << "Failed to get tensor data, Status:" << buffer_element.status.ToString();
-            } else {
-              ADP_LOG(INFO) << "Finish to get tensor data, Status:" << buffer_element.status.ToString()
-                            << "; end_of_sequence:" << end_of_sequence;
-            }
+            HandleGetNextStatus(buffer_element.status, end_of_sequence);
             mutex_lock lck(mu_);
             buffer_element.host_thread_finished = true;
             buffer_.push_back(std::move(buffer_element));
@@ -1012,6 +1026,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       std::vector<std::unique_ptr<IteratorBase>> input_impls_ GUARDED_BY(mu_);
       condition_variable cond_var_;
       condition_variable destory_var_;
+      condition_variable cond_error_;
       std::deque<BufferElement> buffer_ GUARDED_BY(mu_);
       MemoryPool mem_pool_;
       HostThreadPool thread_pool_;

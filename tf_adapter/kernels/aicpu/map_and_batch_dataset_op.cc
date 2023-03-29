@@ -160,15 +160,15 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
              {"drop_remainder", drop_remainder ? "true" : "false"}})
 #endif
   {
-    ADP_LOG(EVENT) << "Dataset construct start.";
+    ADP_LOG(EVENT) << "Dataset construct enter.";
     input_->Ref();
-    ADP_LOG(EVENT) << "Dataset construct finish.";
+    ADP_LOG(EVENT) << "Dataset construct end.";
   }
 
   ~Dataset() override {
-    ADP_LOG(EVENT) << "~Dataset start.";
+    ADP_LOG(EVENT) << "~Dataset enter.";
     (void)input_->Unref();
-    ADP_LOG(EVENT) << "~Dataset finish.";
+    ADP_LOG(EVENT) << "~Dataset end.";
   }
 
   bool IsStaticShape() const {
@@ -288,20 +288,20 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           func_(dataset()->init_options_, dataset()->captured_func_->func().name(),
               dataset()->input_->output_dtypes(), dataset()->output_dtypes(),
               dataset()->input_->output_shapes(), dataset()->output_shapes()) {
-        ADP_LOG(EVENT) << "IteratorMeBase construct start.";
+        ADP_LOG(EVENT) << "IteratorMeBase construct enter.";
         Status status = GetEnvDeviceID(device_id_);
         if (!status.ok()) {
           ADP_LOG(ERROR) << "GetEnvDeviceID failed: rt = " << status.ToString()
                          << "device_id_ = " << device_id_;
         }
         timestat = std::make_shared<TimeStatistic>(static_cast<int64_t>(GetParallelCallsNum()));
-        ADP_LOG(EVENT) << "IteratorMeBase construct finish.";
+        ADP_LOG(EVENT) << "IteratorMeBase construct end.";
       }
 
       virtual ~IteratorMeBase() {
-        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase start.";
+        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase enter.";
         timestat->ShowTimeStatistic();
-        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase finish.";
+        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase end.";
       }
 
       uint64_t GetParallelCallsNum() const {
@@ -393,7 +393,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               status(Status::OK()),
               batch_size(batch_size_) {};
         virtual ~BatchResultBase() {
-          ADP_LOG(EVENT) << "~BatchResultBase start.";
+          ADP_LOG(EVENT) << "~BatchResultBase enter.";
           if (output != nullptr) {
             rtError_t rt = rtFree(output);
             if (rt != RT_ERROR_NONE) {
@@ -407,7 +407,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             output_cpu_addr = nullptr;
             output_cpu = nullptr;
           }
-          ADP_LOG(EVENT) << "~BatchResultBase finish.";
+          ADP_LOG(EVENT) << "~BatchResultBase end.";
         }
 
         void InitOutputs(uint8_t *start_addr, std::vector<uint64_t> &tensor_align_size,
@@ -693,6 +693,14 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         return true;
       }
 
+      void FinishRemainingTasks(const uint64_t thread_id) {
+        uint64_t waiting_tasks;
+        do {
+          waiting_tasks = WaitingForStreamRun(thread_id);
+          ADP_LOG(INFO) << "Thread " << thread_id << " remaining tasks : " << waiting_tasks;
+        } while (waiting_tasks > 0ULL);
+      }
+
       void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) LOCKS_EXCLUDED(*mu_) {
         auto handleThreadException = [this](const Status &status) {
           ADP_LOG(ERROR) << "ThreadException, status=" << status.ToString();
@@ -718,6 +726,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         }
 
         auto stop_cleanup = gtl::MakeCleanup([this, &ctx, thread_id]() {
+          FinishRemainingTasks(thread_id);
           mutex_lock l(*this->mu_);
           RecordStop(ctx.get());
           this->thread_num_--;
@@ -725,8 +734,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
           if (rt != RT_ERROR_NONE) {
             ADP_LOG(ERROR) << "Call reset device failed. device id=" << device_id_ << " rt=" << rt;
           }
-          ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id
-                        << " thread_num = " << this->thread_num_;
+          ADP_LOG(INFO) << "Thread exit: thread_id = " << thread_id << " thread_num = " << this->thread_num_;
         });
 
         bool run_split_graph = func_.IsSplitGraph();
@@ -1088,7 +1096,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     ~IteratorStaticNpu() override {
       Finalize();
-      ADP_LOG(EVENT) << "~IteratorStaticNpu finish.";
+      ADP_LOG(EVENT) << "~IteratorStaticNpu end.";
     }
 
    protected:
@@ -1111,7 +1119,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     ~IteratorStaticCpu() override {
       Finalize();
-      ADP_LOG(EVENT) << "~IteratorStaticCpu finish.";
+      ADP_LOG(EVENT) << "~IteratorStaticCpu end.";
     }
 
    protected:
@@ -1270,7 +1278,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     ~IteratorDynNpu() override {
       Finalize();
-      ADP_LOG(EVENT) << "~IteratorDynNpu finish.";
+      ADP_LOG(EVENT) << "~IteratorDynNpu end.";
     }
 
    protected:
@@ -1354,7 +1362,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     ~IteratorDynCpu() override {
       Finalize();
-      ADP_LOG(EVENT) << "~IteratorDynCpu finish.";
+      ADP_LOG(EVENT) << "~IteratorDynCpu end.";
     }
    protected:
     void CheckAndFreeCpuMem(BatchDynResult &batch_result) const {

@@ -624,9 +624,8 @@ Status DatasetFunction::InitAccelateOpList(std::vector<std::string> &acc_while_l
   return Status::OK();
 }
 
-void DatasetFunction::MarkDvppGraphNodes(Graph &sub_graph_tf, std::vector<Node*> &acc_nodes,
-                                         std::vector<Node*> &dvpp_graph_nodes,
-                                         const std::vector<std::string> acc_while_list) {
+void DatasetFunction::MarkDvppGraphNodes(Graph &sub_graph_tf, std::vector<Node*> &dvpp_graph_nodes,
+                                         const std::vector<std::string> acc_while_list) const {
   for (Node *node : sub_graph_tf.nodes()) {
     if (node->IsSource() || node->IsSink()) { continue; }
 
@@ -639,7 +638,6 @@ void DatasetFunction::MarkDvppGraphNodes(Graph &sub_graph_tf, std::vector<Node*>
     };
     for (std::string item : acc_while_list) {
       if (node->type_string().find(item) != string::npos) {
-        acc_nodes.emplace_back(node);
         tensorflow::DFSFrom(sub_graph_tf, {node}, {}, leave, {}, {});
       }
     }
@@ -869,9 +867,8 @@ std::string DatasetFunction::SplitSubGraph(FunctionLibraryDefinition &flib_def,
 
   // mark all the nodes with white list in acc_nodes
   // dvpp_graph_nodes stores acc_nodes and nodes which depend on the output of nodes in acc_nodes
-  std::vector<Node*> acc_nodes;
   std::vector<Node*> dvpp_graph_nodes;
-  MarkDvppGraphNodes(sub_graph_tf, acc_nodes, dvpp_graph_nodes, acc_while_list);
+  MarkDvppGraphNodes(sub_graph_tf, dvpp_graph_nodes, acc_while_list);
   // handle const node, save the const node which connect host graph and dvpp graph,
   // we will copy this const node for dvpp graph
   MarkConstNodes(sub_graph_tf, dvpp_graph_nodes);
@@ -952,7 +949,7 @@ Status DatasetFunction::CreateGeGraph(const std::shared_ptr<domi::ModelParser> &
   return Status::OK();
 }
 
-bool DatasetFunction::IsSplitGraph() {
+bool DatasetFunction::IsSplitGraph() const {
   return run_split_graph_;
 }
 

@@ -533,6 +533,14 @@ private:
       return true;
     }
 
+    void FinishRemainingTasks(const uint64_t thread_id) {
+      uint64_t waiting_tasks = 0ULL;
+      do {
+        waiting_tasks = WaitingForStreamRun(thread_id);
+        ADP_LOG(INFO) << "Thread " << thread_id << " remaining tasks : " << waiting_tasks;
+      } while (waiting_tasks > 0ULL);
+    }
+
     void RunnerThread(const std::shared_ptr<IteratorContext>& ctx, uint64_t thread_id) LOCKS_EXCLUDED(*mu_) {
       auto handleThreadException = [this](const Status &status) {
         ADP_LOG(ERROR) << "ThreadException, status=" << status.ToString();
@@ -558,6 +566,7 @@ private:
       }
 
       auto stop_cleanup = gtl::MakeCleanup([this, &ctx, thread_id]() {
+        FinishRemainingTasks(thread_id);
         mutex_lock l(*this->mu_);
         RecordStop(ctx.get());
         this->thread_num_--;

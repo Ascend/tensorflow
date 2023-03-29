@@ -117,7 +117,7 @@ class DatasetFunction {
     static void DestoryAclModelDesc(aclmdlDesc *model_desc);
     static Status GetAclTenorDescDims(aclTensorDesc *desc, std::vector<int64_t> &ret_dims);
     static void *ReAllocDeviceMem(void *addr, size_t len);
-    bool IsSplitGraph();
+    bool IsSplitGraph() const;
 
     static inline bool CheckMultiplyOverflow(int64_t a, int64_t b) {
       const static int64_t max_int64 = INT64_MAX;
@@ -173,8 +173,8 @@ class DatasetFunction {
     }
 
   private:
-    void MarkDvppGraphNodes(Graph &sub_graph_tf, std::vector<Node*> &acc_nodes,
-        std::vector<Node*> &dvpp_graph_nodes, const std::vector<std::string> acc_while_list);
+    void MarkDvppGraphNodes(Graph &sub_graph_tf, std::vector<Node*> &dvpp_graph_nodes,
+        const std::vector<std::string> acc_while_list) const;
     void MarkConstNodes(const Graph &sub_graph_tf, std::vector<Node*> &dvpp_graph_nodes) const;
     bool CheckCorrectness(const tensorflow::Graph &sub_graph_tf, const std::vector<Node*> dvpp_graph_nodes,
         const std::vector<Node*> host_graph_nodes) const;
@@ -187,7 +187,7 @@ class DatasetFunction {
         const std::map<tensorflow::Node*, int64> dvpp_arg_indexs) const;
     std::string SplitSubGraph(FunctionLibraryDefinition &flib_def, const std::vector<std::string> acc_while_list);
     Status InitAccelateOpList(std::vector<std::string> &acc_while_list) const;
-    Status ReadJsonFile(const string &file_name, nlohmann::json &json_read) const;
+    Status ReadJsonFile(const string &json_file_path, nlohmann::json &json_read) const;
     tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge) const;
     std::string GetSocVersion() const;
 
