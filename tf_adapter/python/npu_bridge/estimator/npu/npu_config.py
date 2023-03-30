@@ -126,7 +126,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         keep_checkpoint_every_n_hours: Reference tensorflow tf.estimator.RunConfig keep_checkpoint_every_n_hours.
         log_step_count_steps: Reference tensorflow tf.estimator.RunConfig log_step_count_steps.
         enabel_data_pre_proc: This is the switch of data preprocess.
-        precision_mode: if train, default is: allow_fp32_to_fp16; if inference, default is: force_fp16.
+        precision_mode: if train, default is empty; if inference, default is: force_fp16.
         variable_format_optimize: enable or disable variable format optimize while graph
             engineer optimize process.
         mix_compile_mode: This is the swith of mix_compile_mode. When the value is

@@ -534,7 +534,7 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 }
 
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstruction *ctx) {
-  std::string precision_mode = "allow_fp32_to_fp16";
+  std::string precision_mode = "";
   std::string profiling_mode = "0";
   std::string static_memory_policy = "0";
   std::string auto_tune_mode;
@@ -612,11 +612,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
     (void) ctx->GetAttr("_event_sync_timeout", &event_sync_timeout);
   }
 
-  if (precision_mode.empty()) {
-    init_options_[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
-  } else {
-    init_options_[ge::PRECISION_MODE] = precision_mode;
-  }
+  init_options_[ge::PRECISION_MODE] = precision_mode;
   init_options_["ge.autoTuneMode"] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
@@ -1723,12 +1719,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
                                                                     "allow_mix_precision_bf16",
                                                                     "allow_fp32_to_bf16"};
         NPU_REQUIRES_OK(CheckValueAllowed<std::string>(precision_mode, kPrecisionModeList));
-      } else {
-        if (static_cast<bool>(graph_run_mode)) {
-          precision_mode = "allow_fp32_to_fp16";
-        } else {
-          precision_mode = "force_fp16";
-        }
       }
       if (params.count("soc_config") > 0) {
         soc_config = params.at("soc_config").s();
@@ -2042,11 +2032,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
 
   init_options_["precision_mode"] = precision_mode;
-  if (precision_mode.empty()) {
-    init_options_[ge::PRECISION_MODE] = "allow_fp32_to_fp16";
-  } else {
-    init_options_[ge::PRECISION_MODE] = precision_mode;
-  }
+  init_options_[ge::PRECISION_MODE] = precision_mode;
   init_options_["profiling_mode"] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_["profiling_options"] = profiling_options;

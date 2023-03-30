@@ -528,11 +528,6 @@ class NPUEstimator(estimator_lib.Estimator):
         """
         if config._precision_mode is not None:
             custom_op.parameter_map["precision_mode"].s = tf.compat.as_bytes(config._precision_mode)
-        else:
-            if config.graph_run_mode:
-                custom_op.parameter_map["precision_mode"].s = tf.compat.as_bytes("allow_fp32_to_fp16")
-            else:
-                custom_op.parameter_map["precision_mode"].s = tf.compat.as_bytes("force_fp16")
 
         custom_op.parameter_map["enable_reduce_precision"].b = config._enable_reduce_precision
 

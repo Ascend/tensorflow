@@ -92,11 +92,6 @@ def npu_resource_init(graph_run_mode=1,
 
     if precision_mode is not None:
         init["ge.exec.precision_mode"] = str(precision_mode)
-    else:
-        if graph_run_mode:
-            init["ge.exec.precision_mode"] = str("allow_fp32_to_fp16")
-        else:
-            init["ge.exec.precision_mode"] = str("force_fp16")
 
     if enable_scope_fusion_passes is not None:
         init[__option_exec_enable_scope_fusion_passes] = str(enable_scope_fusion_passes)
