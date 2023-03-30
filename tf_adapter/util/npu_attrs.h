@@ -21,6 +21,7 @@
 #include <sstream>
 #include <algorithm>
 #include <map>
+#include <mutex>
 #include <string>
 #include "ge/ge_api_types.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
@@ -93,6 +94,7 @@ class NpuAttrs {
   static std::map<std::string, bool> use_adp_info_;
   static std::map<std::string, bool> dataset_execute_info_;
   static std::map<std::string, std::string> init_options_;
+  static std::mutex mutex_;
 };
 }  // namespace tensorflow
 
