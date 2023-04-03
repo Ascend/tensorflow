@@ -33,6 +33,8 @@ Status MappingDTStringTensor2DataItem(const Tensor &tensor, tdt::DataItem &item,
 Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&acl_data,
                                          std::vector<std::unique_ptr<uint8_t[]>> &buff_list);
 
+Status LoopCopy(char *dst_ptr, size_t dst_size, char *src_ptr, size_t src_size);
+
 bool IsWithoutNpuScope(const NodeDef &node_def);
 bool IsWithoutNpuScope(const Node *node);
 bool IsVariableOrResourceVariable(const Node * const node);

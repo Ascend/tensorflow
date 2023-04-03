@@ -217,19 +217,32 @@ Status SerializeDataItemInfo(std::vector<DataItemInfo> &items, void *&buff, cons
   }
   size_t offset = 0UL;
   for (size_t i = 0UL; i < cnt; ++i) {
-    // can not use memcpy_s here, data size may over 2G
-    // total_size is calculate by item info, could not overflow here
-    (void)memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &items[i].ctrl_info, sizeof(ItemInfo));
+    auto ret = memcpy_s(ge::ValueToPtr(ge::PtrToValue(data) + offset), sizeof(ItemInfo),
+                        &items[i].ctrl_info, sizeof(ItemInfo));
+    if (ret != EOK) {
+      (void)rtMbufFree(buff);
+      return errors::Internal("Copy item info failed, ret=", ret);
+    }
     offset += sizeof(ItemInfo);
 
     for (size_t j = 0UL; j < items[i].ctrl_info.dim_num; ++j) {
-      (void)memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), &(items[i].dims[j]), sizeof(int64_t));
+      ret = memcpy_s(ge::ValueToPtr(ge::PtrToValue(data) + offset), sizeof(int64_t),
+                     &(items[i].dims[j]), sizeof(int64_t));
+      if (ret != EOK) {
+        (void)rtMbufFree(buff);
+        return errors::Internal("Copy dim info failed, ret=", ret);
+      }
       offset += sizeof(int64_t);
     }
 
     if (items[i].ctrl_info.data_len == 0UL) { continue; }
 
-    (void)memcpy(ge::ValueToPtr(ge::PtrToValue(data) + offset), items[i].data_ptr, items[i].ctrl_info.data_len);
+    auto status = LoopCopy(static_cast<char *>(ge::ValueToPtr(ge::PtrToValue(data) + offset)), (total_size - offset),
+                           static_cast<char *>(items[i].data_ptr), items[i].ctrl_info.data_len);
+    if (!status.ok()) {
+      (void)rtMbufFree(buff);
+      return status;
+    }
     offset += items[i].ctrl_info.data_len;
   }
 
