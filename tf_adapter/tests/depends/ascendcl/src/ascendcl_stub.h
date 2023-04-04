@@ -36,7 +36,7 @@ void SetTensorDescSize(uint32_t val);
 extern bool g_loadModelStatus;
 void SetAclLoadModelFlag(bool load_status);
 
-extern bool gAclTdtSendTensorMock;
+extern bool g_AclTdtSendTensorMock;
 void setAclTdtSendTensorMockStub(const bool isSuccess);
 
 struct acltdtDataItem {
