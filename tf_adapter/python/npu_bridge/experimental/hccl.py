@@ -19,6 +19,7 @@
 
 import os
 import ctypes
+from npu_bridge.estimator.npu import util as util_lib
 
 
 hccl_graph_adp_ctypes = ctypes.CDLL('libhcom_graph_adaptor.so')
@@ -38,7 +39,7 @@ def get_actual_rank_size(group="hccl_world_group"):
 
 
 def get_user_rank_size():
-    rank_size = int(os.getenv('RANK_SIZE'))
+    rank_size = int(util_lib.get_ranksize())
     return rank_size
 
 

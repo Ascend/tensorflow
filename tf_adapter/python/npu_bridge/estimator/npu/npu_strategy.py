@@ -20,6 +20,7 @@
 import os
 from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import one_device_strategy
+from npu_bridge.estimator.npu import util as util_lib
 
 from hccl.manage.api import get_rank_size
 from hccl.manage.api import get_rank_id
@@ -33,7 +34,7 @@ class NPUExtended(one_device_strategy.OneDeviceExtended):
 
     @property
     def _num_replicas_in_sync(self):
-        rank_size = os.getenv("RANK_SIZE", "1")
+        rank_size = util_lib.get_ranksize()
         return int(rank_size)
 
     def _experimental_distribute_dataset(self, dataset):

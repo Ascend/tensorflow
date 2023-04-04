@@ -303,7 +303,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
         """
         logging.debug("compute_gradients...")
         gradients = self._optimizer.compute_gradients(*args, **kwargs)
-        rank_size = os.getenv('RANK_SIZE')
+        rank_size = util.get_ranksize()
         if rank_size is None or int(rank_size) <= 1:
             return gradients
 
@@ -322,7 +322,7 @@ class NPUDistributedOptimizer(tf.train.Optimizer):
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
         """Apply gradients on variables"""
-        rank_size = os.getenv('RANK_SIZE')
+        rank_size = util.get_ranksize()
         if rank_size is None or int(rank_size) <= 1:
             return self._optimizer.apply_gradients(grads_and_vars, global_step, name)
 
@@ -405,7 +405,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
 
         def new_get_gradient(loss, params):
             grads = old_get_gradient(loss, params)
-            rank_size = os.getenv('RANK_SIZE', '1')
+            rank_size = util.get_ranksize()
             if rank_size is None or int(rank_size) <= 1:
                 return grads
             averaged_grads = []
@@ -435,7 +435,7 @@ class KerasDistributeOptimizer(optimizer_v2.OptimizerV2):
 
     def _compute_gradients(self, loss, var_list, grad_loss=None):
         gradients = self._optimizer._compute_gradients(loss, var_list, grad_loss)
-        rank_size = os.getenv('RANK_SIZE', '1')
+        rank_size = util.get_ranksize()
         if rank_size is None or int(rank_size) <= 1:
             return gradients
         averaged_grads = []
@@ -453,7 +453,7 @@ def npu_distributed_optimizer_wrapper(optimizer):
     """
     if isinstance(optimizer, str):
         optimizer = optimizers.get(optimizer)
-    rank_size = os.getenv('RANK_SIZE')
+    rank_size = util.get_ranksize()
     if hasattr(optimizer, "compute_gradients"):
         org_compute_gradients = optimizer.compute_gradients
 
@@ -515,7 +515,7 @@ def _npu_allreduce(values, reduction="mean", fusion=1, fusion_id=-1, group="hccl
         reduction = "sum"
 
     reduced_values = []
-    size = int(os.getenv("RANK_SIZE", "1"))
+    size = int(util.get_ranksize())
     for value in values:
         if isinstance(value, tf.IndexedSlices):
             # For IndexedSlices, do two allgathers intead of an allreduce.

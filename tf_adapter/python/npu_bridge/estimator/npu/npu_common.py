@@ -208,7 +208,7 @@ class NPUBasics(object):
             checkpoint_dir = os.getenv('LOCAL_CHECKPOINT_DIR', "")
 
             # cann't get rank_size from env, set to default 1
-            rank_size = os.getenv('RANK_SIZE', '1')
+            rank_size = util_lib.get_ranksize()
             if rank_size.isdigit() is False:
                 print("set rank_size to default 1")
                 rank_size = 1
