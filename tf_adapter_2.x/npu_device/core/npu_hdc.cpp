@@ -26,7 +26,7 @@ constexpr size_t kParallelMemCopyThreshold = 10 * 1024 * 1024UL;
 /**
  * @brief: parallel mem copy
  */
-tensorflow::Status Copy2ContinuousMem(void *dst_ptr, void *src_ptr, const size_t src_size) {
+tensorflow::Status Copy2ContinuousMem(void *dst_ptr, const size_t dst_size, void *src_ptr, const size_t src_size) {
   if (dst_ptr == nullptr || src_ptr == nullptr) {
     return tensorflow::errors::Internal("dst_ptr or src_ptr is null before do parallel memory copy.");
   }
@@ -44,19 +44,21 @@ tensorflow::Status Copy2ContinuousMem(void *dst_ptr, void *src_ptr, const size_t
   size_t block_size = src_size / npu::kDefaultThreadNum;
   size_t remained_size = src_size % npu::kDefaultThreadNum;
   std::vector<tensorflow::Status> copy_results(npu::kDefaultThreadNum);
+  size_t dst_remain_size = dst_size;
   for (size_t i = 0UL; i < npu::kDefaultThreadNum; i++) {
     if (i == npu::kDefaultThreadNum - 1U) {
       block_size += remained_size;
     }
     auto &ret = copy_results[i];
-    std::function<void()> closure = [dst_ptr, src_ptr, block_size, &ret, &parallel_cpy_count]() {
-      ret = npu::LoopCopy(static_cast<char *>(dst_ptr), static_cast<char *>(src_ptr), block_size);
+    std::function<void()> closure = [dst_ptr, dst_remain_size, src_ptr, block_size, &ret, &parallel_cpy_count]() {
+      ret = npu::LoopCopy(static_cast<char *>(dst_ptr), dst_remain_size, static_cast<char *>(src_ptr), block_size);
       ++parallel_cpy_count;
     };
     NPU_REQUIRES_OK(npu::NpuThreadPool::GetInstance().EnqueueTask(closure));
     enqueue_count++;
     dst_ptr = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(dst_ptr) + block_size);
     src_ptr = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(src_ptr) + block_size);
+    dst_remain_size -= block_size;
   }
   while (parallel_cpy_count < enqueue_count) {
   }
@@ -135,13 +137,14 @@ tensorflow::Status HdcChannel::AssembleAclTensor2Tensor(const acltdtDataItem *it
       tf_shape.AddDim(dim);
     }
     tensorflow::Tensor tensor = tensorflow::Tensor(tf_type, tf_shape);
-    auto tensor_data = tensor.data();
     auto tensor_size = tensor.tensor_data().size();
     if (tensor_size != acl_data_len) {
       return tensorflow::errors::Internal("Hdc channel receive size mismatch tensor size acl:", acl_data_len,
                                           " vs. tensorflow:", tensor_size);
     }
-    (void)memcpy(tensor_data, acl_data, tensor_size);
+    auto status = LoopCopy(static_cast<char *>(tensor.data()), tensor_size,
+                           const_cast<char *>(acl_data), tensor_size);
+    if (!status.ok()) { return status; }
     tensors.emplace_back(std::move(tensor));
   } else {
     return tensorflow::errors::InvalidArgument("Hdc channel receive un-copyable tensorflow data type",
@@ -260,7 +263,8 @@ tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_t
   for (auto &tensor : tensors) {
     total_size += tensor.TotalBytes();
   }
-  tensors_buffer_.resize(std::max(tensors_buffer_.size(), total_size));
+  size_t dst_size = std::max(tensors_buffer_.size(), total_size);
+  tensors_buffer_.resize(dst_size);
 
   bool npu_alloc = NpuAllocatorUtils::IsNpuAllocator(tensors[0]);
 
@@ -275,7 +279,7 @@ tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_t
       if (IsNeedContinuousMem() && !npu_alloc) {
         size_t src_size = tensor.TotalBytes();
         tensor_data = tensors_buffer_.data() + offset;
-        NPU_REQUIRES_OK(Copy2ContinuousMem(tensor_data, tensor.data(), src_size));
+        NPU_REQUIRES_OK(Copy2ContinuousMem(tensor_data, (dst_size - offset), tensor.data(), src_size));
         offset += src_size;
       }
       acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR,

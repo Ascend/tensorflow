@@ -46,9 +46,9 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
     ge::StringHead *head = ge::PtrToPtr<uint8_t, ge::StringHead>(base_ptr + i * sizeof(ge::StringHead));
     head->addr = offset;
     head->len = tensor.flat<tstring>()(i).size();
-    // can not use memcpy_s here, data size may over 2G
-    // total_size is calculate by item info, could not overflow here
-    (void)memcpy(base_ptr + offset, tensor.flat<tstring>()(i).data(), head->len);
+    auto status = LoopCopy(ge::PtrToPtr<uint8_t, char>(base_ptr + offset), (buff_size - offset),
+                           const_cast<char *>(tensor.flat<tstring>()(i).data()), head->len);
+    if (!status.ok()) { return status; }
     offset += head->len;
   }
   data_ptr = buff_list.back().get();
@@ -95,6 +95,26 @@ Status MappingDtStringTensor2AclDataItem(const Tensor &tensor, acltdtDataItem *&
   acl_data = acltdtCreateDataItem(ACL_TENSOR_DATA_TENSOR, dims.data(), dims.size(),
                                   ACL_STRING, data_ptr, data_size);
   return Status::OK();
+}
+
+Status LoopCopy(char *dst_ptr, size_t dst_size, char *src_ptr, size_t src_size) {
+  if (dst_size < src_size) {
+    return tensorflow::errors::Internal("Loop memory copy failed. dst_size:", dst_size, ", src_size:", src_size);
+  }
+  size_t copy_size = 0UL;
+  size_t org_src_size = src_size;
+  do {
+    size_t src_copy_size = (src_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : src_size;
+    if (memcpy_s(dst_ptr, src_copy_size, src_ptr, src_copy_size) != EOK) {
+      return tensorflow::errors::Internal("Loop memory copy failed , dst_size:", src_copy_size,
+                                          ", src_size:", src_copy_size);
+    }
+    copy_size += src_copy_size;
+    dst_ptr += src_copy_size;
+    src_ptr += src_copy_size;
+    src_size -= src_copy_size;
+  } while (copy_size < org_src_size);
+  return tensorflow::Status::OK();
 }
 
 bool IsWithoutNpuScope(const NodeDef &node_def) {
