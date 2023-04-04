@@ -509,14 +509,17 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::un
   tensorflow::OptimizeGraph(&lib, g, options);
 }
 
-tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size) {
+tensorflow::Status LoopCopy(char *dst_ptr, size_t dst_size, char *src_ptr, size_t src_size) {
+  NPU_REQUIRES((dst_size >= src_size),
+      tensorflow::errors::Internal("Loop memory copy failed. dst_size:", dst_size, ", src_size:", src_size));
+
   size_t copy_size = 0UL;
   size_t org_src_size = src_size;
   do {
     size_t src_copy_size = (src_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : src_size;
     if (memcpy_s(dst_ptr, src_copy_size, src_ptr, src_copy_size) != EOK) {
-      return tensorflow::errors::Internal("loop memory copy failed , dst:", dst_ptr, ", dst_size:", src_copy_size,
-                                          ", src:", src_ptr, ", src_size:", src_copy_size);
+      return tensorflow::errors::Internal("loop memory copy failed , dst_size:", src_copy_size,
+                                          ", src_size:", src_copy_size);
     }
     copy_size += src_copy_size;
     dst_ptr += src_copy_size;

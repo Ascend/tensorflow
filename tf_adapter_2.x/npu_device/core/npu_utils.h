@@ -153,7 +153,7 @@ class OptimizeStageGraphDumper {
 
 void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::unique_ptr<tensorflow::Graph> *g);
 
-tensorflow::Status LoopCopy(char *dst_ptr, char *src_ptr, size_t src_size);
+tensorflow::Status LoopCopy(char *dst_ptr, size_t dst_size, char *src_ptr, size_t src_size);
 
 int64_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types);
 
