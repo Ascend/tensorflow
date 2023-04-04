@@ -234,16 +234,16 @@ aclError acltdtAddDataItem(acltdtDataset *dataset, acltdtDataItem *dataItem) {
     return ACL_SUCCESS;
 }
 
-bool gAclTdtSendTensorMock = false;
+bool g_AclTdtSendTensorMock = false;
 void setAclTdtSendTensorMockStub(const bool isDriverSuccess) {
-  gAclTdtSendTensorMock = isDriverSuccess;
+  g_AclTdtSendTensorMock = isDriverSuccess;
 }
 
 aclError acltdtSendTensor(const acltdtChannelHandle *handle,
                           const acltdtDataset *dataset,
                           int32_t timeout) {
-    if (gAclTdtSendTensorMock) {
-      return ACL_ERROR_DRV_FAILURE;
+    if (g_AclTdtSendTensorMock) {
+      return ACL_ERROR_RT_QUEUE_FULL;
     }
     if (dataset == nullptr || handle == nullptr) {
         return ACL_ERROR_INVALID_PARAM;

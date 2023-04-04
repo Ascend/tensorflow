@@ -239,21 +239,21 @@ Status RecvTensorByAcl(const acltdtChannelHandle *acl_handle, std::vector<Tensor
 // cases , we need to push data into dequeue to sent again.
 Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
                         const std::vector<Tensor> &tensors, bool &is_need_resend) {
-  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
-  acltdtDataset *acl_dataset = nullptr;
   is_need_resend = false;
+  acltdtDataset *acl_dataset = nullptr;
+  std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset, buff_list));
-  const int32_t kTimeOut = 3000;
-  auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, kTimeOut);
+  const int32_t kTimeout = 3000;
+  auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, kTimeout);
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status == ACL_ERROR_RT_QUEUE_FULL) {
     is_need_resend = true;
-    ADP_LOG(INFO) << "Send data ret != 0 , need send data again.";
+    ADP_LOG(INFO) << "Queue is full , try to send data again.";
     return Status::OK();
   }
   if (acl_status != ACL_ERROR_NONE) {
     std::string error_message = ge::GEGetErrorMsg();
-    LOG(ERROR) << "Failed to send data by acl, error code : "<< acl_status << std::endl
+    LOG(FATAL) << "Failed to send data by acl, error code : "<< acl_status << std::endl
                << "Error Message is " << std::endl
                << error_message;
     return errors::Internal("Acl send data failed, acl status:", acl_status);
