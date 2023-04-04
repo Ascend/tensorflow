@@ -531,17 +531,17 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       virtual NpuAllocator* CreateAllocator(BatchResultBase &batch_result,
           uint64_t step, std::function<void(void *)> del) = 0;
 
-      virtual bool HasResourceOnStream(uint64_t thread_id) const {
+      virtual bool HasResourceOnStream(const uint64_t thread_id) const {
         (void)thread_id;
         return true;
       }
 
-      virtual uint64_t WaitingForStreamRun(uint64_t thread_id) {
+      virtual uint64_t WaitingForStreamRun(const uint64_t thread_id) const {
         (void)thread_id;
         return 0;
       }
 
-      virtual uint64_t GetRunningResources(uint64_t thread_id) {
+      virtual uint64_t GetRunningResources(const uint64_t thread_id) const {
         (void)thread_id;
         return 0;
       }
@@ -990,7 +990,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return InitBatchResultMem();
     }
 
-    bool HasResourceOnStream(uint64_t thread_id) const override {
+    bool HasResourceOnStream(const uint64_t thread_id) const override {
       return stream_pool_->GetIdleEventCount(thread_id) > 0;
     }
 
@@ -1036,8 +1036,12 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       return status;
     }
 
-    uint64_t WaitingForStreamRun(uint64_t thread_id) override {
+    uint64_t WaitingForStreamRun(const uint64_t thread_id) const override {
       (void)stream_pool_->WaitOneEvent(thread_id);
+      return stream_pool_->GetWaitingEventCount(thread_id);
+    }
+
+    uint64_t GetRunningResources(const uint64_t thread_id) const override {
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
@@ -1496,6 +1500,17 @@ NpuMapAndBatchDatasetOp::NpuMapAndBatchDatasetOp(OpKernelConstruction* ctx)
   }
 }
 
+bool NpuMapAndBatchDatasetOp::IsShapeSupprotBatch(const int batch_size) const {
+  for (auto it : output_shapes_) {
+    ADP_LOG(INFO) << "Current output shape is " << it.DebugString() << ", dims is " << it.dims();
+    // Shapes not supported eg. [?], [?, 3], [?, ?, 3]
+    if ((batch_size > 1) && DatasetFunction::IsUnknowShape(it) && (it.dims() > 0)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void NpuMapAndBatchDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* input,
     DatasetBase** output) {
   ADP_LOG(INFO) << "NpuMapAndBatchDatasetOp:: MakeDataset";
@@ -1509,6 +1524,11 @@ void NpuMapAndBatchDatasetOp::MakeDataset(OpKernelContext* ctx, DatasetBase* inp
   OP_REQUIRES_OK(ctx, ParseScalarArgument(ctx, kBatchSize, &batch_size));
   OP_REQUIRES(ctx, batch_size > 0,
               errors::InvalidArgument("batch_size must be greater than zero."));
+  if (!IsShapeSupprotBatch(batch_size)) {
+    ADP_LOG(ERROR) << "ERROR : NpuMapAndBatchDatasetOp does not support packing tensors of different shapes.";
+    LOG(ERROR) << "ERROR : NpuMapAndBatchDatasetOp does not support packing tensors of different shapes.";
+    return;
+  }
 
   int64 num_parallel_calls = 0;
   OP_REQUIRES_OK(

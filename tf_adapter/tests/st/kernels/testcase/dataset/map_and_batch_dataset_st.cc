@@ -534,7 +534,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam6) {
 NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams7() {
   return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 6, 1),
                                   /*other_arguments=*/{},
-                                  /*batch_size=*/3,
+                                  /*batch_size=*/1,
                                   /*num_parallel_calls=*/2,
                                   /*drop_remainder=*/false,
                                   /*func=*/MapFunc("AddOne", DT_INT64),
@@ -551,8 +551,11 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam7) {
   ADP_LOG(INFO) << "====== UT case-7 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams7();
   TF_ASSERT_OK(Initialize(&dataset_params));
-  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({3}), {2,3,4}),
-                                     CreateTensor<int64>(TensorShape({2}), {5,6})}, /*compare_order=*/ true));
+  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({1}), {2}),
+                                     CreateTensor<int64>(TensorShape({1}), {3}),
+                                     CreateTensor<int64>(TensorShape({1}), {4}),
+                                     CreateTensor<int64>(TensorShape({1}), {5}),
+                                     CreateTensor<int64>(TensorShape({1}), {6})}, /*compare_order=*/ true));
   ADP_LOG(INFO) << "====== UT case-7 end ======";
 }
 #endif
@@ -563,7 +566,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam7) {
 NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams8() {
   return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 6, 1),
                                   /*other_arguments=*/{},
-                                  /*batch_size=*/3,
+                                  /*batch_size=*/1,
                                   /*num_parallel_calls=*/2,
                                   /*drop_remainder=*/false,
                                   /*func=*/MapFunc("AddOne", DT_INT64),
@@ -580,8 +583,11 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam8) {
   ADP_LOG(INFO) << "====== UT case-8 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams8();
   TF_ASSERT_OK(Initialize(&dataset_params));
-  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({3}), {2,3,4}),
-                                     CreateTensor<int64>(TensorShape({2}), {5,6})}, /*compare_order=*/ true));
+  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({1}), {2}),
+                                     CreateTensor<int64>(TensorShape({1}), {3}),
+                                     CreateTensor<int64>(TensorShape({1}), {4}),
+                                     CreateTensor<int64>(TensorShape({1}), {5}),
+                                     CreateTensor<int64>(TensorShape({1}), {6})}, /*compare_order=*/ true));
   ADP_LOG(INFO) << "====== UT case-8 end ======";
 }
 #endif
@@ -593,7 +599,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam8) {
 NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams9() {
   return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 15, 1),
                                   /*other_arguments=*/{},
-                                  /*batch_size=*/3,
+                                  /*batch_size=*/1,
                                   /*num_parallel_calls=*/4,
                                   /*drop_remainder=*/false,
                                   /*func=*/MapFunc("AddOne", DT_INT64),
@@ -610,11 +616,20 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam9) {
   ADP_LOG(INFO) << "====== UT case-9 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams9();
   TF_ASSERT_OK(Initialize(&dataset_params));
-  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({3}), {2, 3, 4}),
-                                     CreateTensor<int64>(TensorShape({3}), {5, 6, 7}),
-                                     CreateTensor<int64>(TensorShape({3}), {8, 9, 10}),
-                                     CreateTensor<int64>(TensorShape({3}), {11, 12, 13}),
-                                     CreateTensor<int64>(TensorShape({2}), {14, 15})}, /*compare_order=*/ true));
+  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({1}), {2}),
+                                     CreateTensor<int64>(TensorShape({1}), {3}),
+                                     CreateTensor<int64>(TensorShape({1}), {4}),
+                                     CreateTensor<int64>(TensorShape({1}), {5}),
+                                     CreateTensor<int64>(TensorShape({1}), {6}),
+                                     CreateTensor<int64>(TensorShape({1}), {7}),
+                                     CreateTensor<int64>(TensorShape({1}), {8}),
+                                     CreateTensor<int64>(TensorShape({1}), {9}),
+                                     CreateTensor<int64>(TensorShape({1}), {10}),
+                                     CreateTensor<int64>(TensorShape({1}), {11}),
+                                     CreateTensor<int64>(TensorShape({1}), {12}),
+                                     CreateTensor<int64>(TensorShape({1}), {13}),
+                                     CreateTensor<int64>(TensorShape({1}), {14}),
+                                     CreateTensor<int64>(TensorShape({1}), {15})}, /*compare_order=*/ true));
   ADP_LOG(INFO) << "====== UT case-9 end ======";
 }
 #endif
@@ -626,7 +641,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam9) {
 NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams10() {
   return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 15, 1),
                                   /*other_arguments=*/{},
-                                  /*batch_size=*/3,
+                                  /*batch_size=*/1,
                                   /*num_parallel_calls=*/4,
                                   /*drop_remainder=*/true,
                                   /*func=*/MapFunc("AddOne", DT_INT64),
@@ -643,10 +658,20 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam10) {
   ADP_LOG(INFO) << "====== UT case-10 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams10();
   TF_ASSERT_OK(Initialize(&dataset_params));
-  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({3}), {2, 3, 4}),
-                                     CreateTensor<int64>(TensorShape({3}), {5, 6, 7}),
-                                     CreateTensor<int64>(TensorShape({3}), {8, 9, 10}),
-                                     CreateTensor<int64>(TensorShape({3}), {11, 12, 13})}, /*compare_order=*/ true));
+  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({1}), {2}),
+                                     CreateTensor<int64>(TensorShape({1}), {3}),
+                                     CreateTensor<int64>(TensorShape({1}), {4}),
+                                     CreateTensor<int64>(TensorShape({1}), {5}),
+                                     CreateTensor<int64>(TensorShape({1}), {6}),
+                                     CreateTensor<int64>(TensorShape({1}), {7}),
+                                     CreateTensor<int64>(TensorShape({1}), {8}),
+                                     CreateTensor<int64>(TensorShape({1}), {9}),
+                                     CreateTensor<int64>(TensorShape({1}), {10}),
+                                     CreateTensor<int64>(TensorShape({1}), {11}),
+                                     CreateTensor<int64>(TensorShape({1}), {12}),
+                                     CreateTensor<int64>(TensorShape({1}), {13}),
+                                     CreateTensor<int64>(TensorShape({1}), {14}),
+                                     CreateTensor<int64>(TensorShape({1}), {15})}, /*compare_order=*/ true));
   ADP_LOG(INFO) << "====== UT case-10 end ======";
 }
 #endif
@@ -658,7 +683,7 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam10) {
 NpuMapAndBatchDatasetParams NpuMapAndBatchDatasetParams11() {
   return NpuMapAndBatchDatasetParams(RangeDatasetParams(1, 5, 1),
                                   /*other_arguments=*/{},
-                                  /*batch_size=*/3,
+                                  /*batch_size=*/1,
                                   /*num_parallel_calls=*/4,
                                   /*drop_remainder=*/true,
                                   /*func=*/MapFunc("AddOne", DT_INT64),
@@ -675,7 +700,9 @@ TEST_F(NpuMapAndBatchDatasetOpTest, DatasetParam11) {
   ADP_LOG(INFO) << "====== UT case-11 begin ======";
   auto dataset_params = NpuMapAndBatchDatasetParams11();
   TF_ASSERT_OK(Initialize(&dataset_params));
-  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({3}), {2, 3, 4}),
+  TF_ASSERT_OK(CheckIteratorGetNext({CreateTensor<int64>(TensorShape({1}), {2}),
+                                     CreateTensor<int64>(TensorShape({1}), {3}),
+                                     CreateTensor<int64>(TensorShape({1}), {4}),
                                      CreateTensor<int64>(TensorShape({1}), {5})}, /*compare_order=*/ true));
   ADP_LOG(INFO) << "====== UT case-11 end ======";
 }

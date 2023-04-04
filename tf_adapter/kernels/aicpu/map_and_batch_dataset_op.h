@@ -53,6 +53,7 @@ protected:
 private:
   Status CheckOutputType();
   void RemoveBatchForOutputShapes(std::vector<PartialTensorShape>& output_shapes) const;
+  bool IsShapeSupprotBatch(const int batch_size) const;
   class Dataset;
   std::shared_ptr<FunctionMetadata> func_metadata_ = nullptr;
   DataTypeVector output_types_;

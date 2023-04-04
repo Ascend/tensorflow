@@ -384,7 +384,7 @@ private:
       std::vector<uint8_t*> outputs_cpu;
     }; // class OutputResultBase
 
-    virtual bool HasResourceOnStream(uint64_t thread_id) const {
+    virtual bool HasResourceOnStream(const uint64_t thread_id) const {
       (void)thread_id;
       return true;
     }
@@ -396,11 +396,11 @@ private:
         std::function<void(void *)> del) = 0;
     virtual Status MapFunc(uint64_t thread_id, DatasetFunction::ModelId model_id,
         uint64_t write_idx, uint64_t result_id, std::vector<Tensor> &input) = 0;
-    virtual uint64_t WaitingForStreamRun(uint64_t thread_id) {
+    virtual uint64_t WaitingForStreamRun(const uint64_t thread_id) const {
       (void)thread_id;
       return 0;
     }
-    virtual uint64_t GetRunningResources(uint64_t thread_id) {
+    virtual uint64_t GetRunningResources(const uint64_t thread_id) const {
       (void)thread_id;
       return 0;
     }
@@ -829,7 +829,7 @@ private:
       return InitOutputResultsMem();
     }
 
-    bool HasResourceOnStream(uint64_t thread_id) const override {
+    bool HasResourceOnStream(const uint64_t thread_id) const override {
       return stream_pool_->GetIdleEventCount(thread_id) > 0;
     }
 
@@ -879,12 +879,12 @@ private:
       return status;
     }
 
-    uint64_t WaitingForStreamRun(uint64_t thread_id) override {
+    uint64_t WaitingForStreamRun(const uint64_t thread_id) const override {
       (void)stream_pool_->WaitOneEvent(thread_id);
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
-    uint64_t GetRunningResources(uint64_t thread_id) override {
+    uint64_t GetRunningResources(const uint64_t thread_id) const override {
       return stream_pool_->GetWaitingEventCount(thread_id);
     }
 
