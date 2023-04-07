@@ -632,6 +632,47 @@ REGISTER_OP("OCRDetectionPostHandle")
       return Status::OK();
     });
 
+REGISTER_OP("WarpAffineV2")
+    .Input("x: T")
+    .Input("matrix: float32")
+    .Input("dst_size: dstT")
+    .Output("y: T")
+    .Attr("interpolation: string")
+    .Attr("border_type: string")
+    .Attr("border_value: int = 0")
+    .Attr("T: {uint8, float32}")
+    .Attr("dstT: {int32, int64}")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      auto src_shape = c->input(0);
+      auto dst_shape = c->input(2);
+      const int32_t rank = 3;
+      std::vector<DimensionHandle> out_dims(rank);
+      out_dims[0] = c->Dim(dst_shape, 0);
+      out_dims[1] = c->Dim(dst_shape, 1);
+      out_dims[2] = c->Dim(src_shape, 2);
+      c->set_output(0, c->MakeShape(out_dims));
+      return Status::OK();
+    });
+
+REGISTER_OP("ResizeV2")
+    .Input("x: T")
+    .Input("dst_size: dstT")
+    .Output("y: T")
+    .Attr("interpolation: string")
+    .Attr("T: {uint8, float32}")
+    .Attr("dstT: {int32, int64}")
+    .SetShapeFn([](shape_inference::InferenceContext *c) {
+      auto src_shape = c->input(0);
+      auto dst_shape = c->input(1);
+      const int32_t rank = 3;
+      std::vector<DimensionHandle> out_dims(rank);
+      out_dims[0] = c->Dim(dst_shape, 0);
+      out_dims[1] = c->Dim(dst_shape, 1);
+      out_dims[2] = c->Dim(src_shape, 2);
+      c->set_output(0, c->MakeShape(out_dims));
+      return Status::OK();
+    });
+
     REGISTER_OP("ResizeAndClipPolys")
     .Input("polys_data: int32")
     .Input("polys_offset: int32")

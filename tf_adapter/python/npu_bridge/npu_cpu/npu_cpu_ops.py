@@ -248,6 +248,40 @@ def ocr_detection_post_handle(img, polys_data, polys_offset, polys_size, data_fo
     return result
 
 
+## 提供WarpAffineV2功能
+#  @param x uint8, float32 类型
+#  @param matrix float32 类型
+#  @param dst_size int32, int64 类型
+#  @param interploation string 类型
+#  @param border_type string 类型
+#  @param border_value int 类型
+#  @return y uint8, float32 类型
+def warp_affine_v2(x, matrix, dst_size, interploation="INTEL_BILINEAR", border_type="BORDER_CONSTANT", border_value=0):
+    """ Warp Affine V2. """
+    result = gen_npu_cpu_ops.warp_affine_v2(
+        x=x,
+        matrix=matrix,
+        dst_size=dst_size,
+        interploation=interploation,
+        border_type=border_type,
+        border_value=border_value)
+    return result
+
+
+## 提供ResizeV2功能
+#  @param x uint8, float32 类型
+#  @param dst_size int32, int64 类型
+#  @param interploation string 类型
+#  @return y uint8, float32 类型
+def resize_v2(x, dst_size, interploation="INTEL_BILINEAR"):
+    """ Resize V2. """
+    result = gen_npu_cpu_ops.resize_v2(
+        x=x,
+        dst_size=dst_size,
+        interploation=interploation)
+    return result
+
+
 ## 提供ResizeAndClipPolys功能
 #  @param polys_data int32 类型
 #  @param polys_offset int32 类型

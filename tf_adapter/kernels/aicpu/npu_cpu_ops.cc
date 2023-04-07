@@ -165,6 +165,20 @@ class OCRDetectionPostHandleOp : public OpKernel {
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "OCRDetectionPostHandleOp Compute"; }
 };
 
+class WarpAffineV2Op : public OpKernel {
+ public:
+  explicit WarpAffineV2Op(OpKernelConstruction *context) : OpKernel(context) {}
+  ~WarpAffineV2Op() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "WarpAffineV2Op Compute"; }
+};
+
+class ResizeV2Op : public OpKernel {
+ public:
+  explicit ResizeV2Op(OpKernelConstruction *context) : OpKernel(context) {}
+  ~ResizeV2Op() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "ResizeV2Op Compute"; }
+};
+
 class ResizeAndClipPolysOp : public OpKernel {
  public:
   explicit ResizeAndClipPolysOp(OpKernelConstruction *context) : OpKernel(context) {}
@@ -314,6 +328,8 @@ REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdam").Device(DEVICE_CPU), Embedding
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdaGrad").Device(DEVICE_CPU), EmbeddingApplyAdaGradOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingTableExport").Device(DEVICE_CPU), EmbeddingTableExportOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingFeatureMapping").Device(DEVICE_CPU), EmbeddingFeatureMappingOp);
+REGISTER_KERNEL_BUILDER(Name("WarpAffineV2").Device(DEVICE_CPU), WarpAffineV2Op);
+REGISTER_KERNEL_BUILDER(Name("ResizeV2").Device(DEVICE_CPU), ResizeV2Op);
 
 class DecodeImageV3Op : public OpKernel {
 public:
