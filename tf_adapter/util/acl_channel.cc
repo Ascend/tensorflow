@@ -24,6 +24,10 @@
 #include "tf_adapter/util/util.h"
 #include "ge/ge_api.h"
 namespace tensorflow {
+namespace {
+  const uint32_t kWaitingForLogRecord = 1U;
+}
+
 Status MappingTfDtypeToAcl(const tensorflow::DataType tf_type, aclDataType &acl_type) {
   const static std::map<tensorflow::DataType, aclDataType> type_mapping = {
       {DT_FLOAT, ACL_FLOAT}, {DT_HALF, ACL_FLOAT16}, {DT_INT8, ACL_INT8},
@@ -238,8 +242,8 @@ Status RecvTensorByAcl(const acltdtChannelHandle *acl_handle, std::vector<Tensor
 // because they cannot return no evnet code , only empty). The above 2
 // cases , we need to push data into dequeue to sent again.
 Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
-                        const std::vector<Tensor> &tensors, bool &is_need_resend) {
-  is_need_resend = false;
+                        const std::vector<Tensor> &tensors, bool &need_resend) {
+  need_resend = false;
   acltdtDataset *acl_dataset = nullptr;
   std::vector<std::unique_ptr<uint8_t[]>> buff_list;
   TF_RETURN_IF_ERROR(AssembleTensors2AclDataset(acl_type, tensors, &acl_dataset, buff_list));
@@ -247,11 +251,12 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
   auto acl_status = acltdtSendTensor(acl_handle, acl_dataset, kTimeout);
   TF_RETURN_IF_ERROR(DestroyAclDataset(acl_dataset));
   if (acl_status == ACL_ERROR_RT_QUEUE_FULL) {
-    is_need_resend = true;
+    need_resend = true;
     ADP_LOG(INFO) << "Queue is full , try to send data again.";
     return Status::OK();
   }
   if (acl_status != ACL_ERROR_NONE) {
+    sleep(kWaitingForLogRecord);
     std::string error_message = ge::GEGetErrorMsg();
     LOG(FATAL) << "Failed to send data by acl, error code : "<< acl_status << std::endl
                << "Error Message is " << std::endl
