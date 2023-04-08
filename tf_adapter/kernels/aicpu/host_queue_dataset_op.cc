@@ -628,7 +628,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       Status SendDataByAclQueue(const vector<Tensor> &args, const acltdtTensorType &data_type,
                                 const uint64_t args_total_bytes) {
         Status status = Status::OK();
-        bool is_need_resend = false;
+        bool need_resend = false;
 
         while (!finish_send_) {
           if (IsHoldDataTrans()) {
@@ -640,9 +640,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             continue;
           }
           auto start = std::chrono::steady_clock::now();
-          status = SendTensorsByAcl(acl_handle_, data_type, args, is_need_resend);
+          status = SendTensorsByAcl(acl_handle_, data_type, args, need_resend);
           if (!status.ok()) { break; }
-          if (!is_need_resend) {
+          if (!need_resend) {
             auto end = std::chrono::steady_clock::now();
             auto elapsed_time = std::chrono::duration<double, std::micro>(end - start).count();
             RefreshDataThreadPerf(ThreadType::SEND, elapsed_time, args_total_bytes);
