@@ -737,7 +737,9 @@ class NPUEstimator(estimator_lib.Estimator):
         custom_op.parameter_map["hcom_multi_mode"].b = config._hcom_multi_mode
         if config._dynamic_input is not None:
             custom_op.parameter_map["dynamic_input"].b = config._dynamic_input
-        custom_op.parameter_map["dynamic_graph_execute_mode"].s = tf.compat.as_bytes(config._dynamic_graph_execute_mode)
+        if config._dynamic_graph_execute_mode is not None:
+            custom_op.parameter_map["dynamic_graph_execute_mode"].s = tf.compat.as_bytes(
+                config._dynamic_graph_execute_mode)
         if config._dynamic_inputs_shape_range is not None:
             custom_op.parameter_map["dynamic_inputs_shape_range"].s = tf.compat.as_bytes(
                 config._dynamic_inputs_shape_range)
@@ -766,6 +768,8 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["insert_op_file"].s = config.insert_op_file
         if config.es_cluster_config is not None:
             custom_op.parameter_map["es_cluster_config"].s = tf.compat.as_bytes(config.es_cluster_config)
+        if config._dynamic_input is not None:
+            custom_op.parameter_map["jit_compile"].b = config._jit_compile
         custom_op.parameter_map["stream_sync_timeout"].i = config.stream_sync_timeout
         custom_op.parameter_map["event_sync_timeout"].i = config.event_sync_timeout
         custom_op.parameter_map["external_weight"].b = config._external_weight

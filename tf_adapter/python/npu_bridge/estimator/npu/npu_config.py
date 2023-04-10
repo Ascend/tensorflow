@@ -108,7 +108,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  es_cluster_config=None,
                  deterministic=0,
                  frozen_variable=False,
-                 variable_placement="Device"
+                 variable_placement="Device",
+                 jit_compile=None
                  ):
         """
         Constructs a NPUConfig.
@@ -169,6 +170,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         es_cluster_config: esClusterConfig from user input in embedding service.
         frozen_variable: Whether folding constant variables
         variable_placement: Process variable on host or device
+        jit_compile: Whether enable jit compile
         """
 
         # Check iterations_per_loop.
@@ -257,6 +259,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         self.event_sync_timeout = event_sync_timeout
         self._external_weight = external_weight
         self.es_cluster_config = es_cluster_config
+        self._jit_compile = jit_compile
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,

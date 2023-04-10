@@ -196,7 +196,7 @@ private:
   std::string embedding_dim_;
   std::string recompute_mode_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;
-  bool jit_compile_;
+  std::string jit_compile_;
   bool is_getnext_dynamic_shape_;
   SessionId session_id_;
   AoeInitializeFunc aoe_initialize_;

@@ -219,6 +219,9 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue op_debug_level = AttrValue();
   op_debug_level.set_i(0);
   (*custom_config->mutable_parameter_map())["op_debug_level"] = op_debug_level;
+  AttrValue jit_compile = AttrValue();
+  jit_compile.set_b(true);
+  (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {

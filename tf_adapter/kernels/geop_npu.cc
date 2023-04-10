@@ -291,7 +291,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       compute_graph_empty_(false), is_input_convert_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr), job_type_(""),
       is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT),
-      jit_compile_(false), is_getnext_dynamic_shape_(false), session_id_(0), aoe_initialize_(nullptr),
+      jit_compile_(""), is_getnext_dynamic_shape_(false), session_id_(0), aoe_initialize_(nullptr),
       aoe_finalize_(nullptr), aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
       aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr) {
@@ -325,23 +325,24 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     ADP_LOG(INFO) << "[GEOP] get session info from attr, tf session: " << tf_session_;
   }
 
-  ctx->GetAttr("_recompute_mode", &recompute_mode_);
-  ctx->GetAttr("_deploy_inject_config", &deploy_inject_config_);
-  ctx->GetAttr("_execute_times", &execute_times_);
-  ctx->GetAttr("_max_num", &max_num_);
-  ctx->GetAttr("_embedding_dim", &embedding_dim_);
-  ctx->GetAttr("_dynamic_input", &dynamic_input_);
+  (void) ctx->GetAttr("_recompute_mode", &recompute_mode_);
+  (void) ctx->GetAttr("_deploy_inject_config", &deploy_inject_config_);
+  (void) ctx->GetAttr("_execute_times", &execute_times_);
+  (void) ctx->GetAttr("_max_num", &max_num_);
+  (void) ctx->GetAttr("_embedding_dim", &embedding_dim_);
+  (void) ctx->GetAttr("_dynamic_input", &dynamic_input_);
+  (void) ctx->GetAttr("_jit_compile", &jit_compile_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
-    jit_compile_ = true;
+    jit_compile_ = "1";
     is_getnext_dynamic_shape_ = true;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
-    ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
-    ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
-    ctx->GetAttr("_is_dynamic_getnext", &is_dynamic_getnext_);
-    ctx->GetAttr("_placeholder_index", &placeholder_index_);
+    (void) ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
+    (void) ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
+    (void) ctx->GetAttr("_is_dynamic_getnext", &is_dynamic_getnext_);
+    (void) ctx->GetAttr("_placeholder_index", &placeholder_index_);
   }
-  ctx->GetAttr("_train_graph", &is_train_graph_);
-  ctx->GetAttr("_is_var_init_graph", &is_var_init_graph_);
+  (void) ctx->GetAttr("_train_graph", &is_train_graph_);
+  (void) ctx->GetAttr("_is_var_init_graph", &is_var_init_graph_);
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
                 << ", jit_compile: " << jit_compile_
@@ -583,6 +584,7 @@ void GeOp::GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> inp
     cache_graph_id = cache_graphs_[input_shapes];
     build_flag_ = true;
   } else {
+    ADP_LOG(INFO) << "[GEOP] This is a dynamic shape neural network, we recommend setting jit_compile to false";
     if (num >= kMaxCacheNum) {
       ADP_LOG(INFO) << "[GEOP] the cache vector size is : " << num << " , begin erase the least uesed";
       std::sort(graph_counts_.begin(), graph_counts_.end(), CmpValue);
@@ -711,9 +713,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   // To be compatible with old versions, we should check dynamic_input_ and dynamic_config
   bool is_set_dynamic_config = IsDynamicConfig();
-  if (dynamic_input_ != "1" && !is_set_dynamic_config) {
+  if (dynamic_input_ != "1" && !is_set_dynamic_config && jit_compile_ != "1") {
     bool shape_changed = MaybeUpdateShape(ctx);
     if (build_flag_ && shape_changed) {
+      jit_compile_ = "0";
       ge::Status status = ge_session_->RemoveGraph(graph_id_);
       if (status != ge::SUCCESS) {
         ADP_LOG(WARNING) << "[GEOP] GE remove graph failed, ret : " << ToString(status) << ", graph_id: " << graph_id_;
@@ -879,7 +882,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
-    graph_options_["ge.jit_compile"] = jit_compile_ ? "1" : "0";
+    if (!jit_compile_.empty()) {
+      graph_options_["ge.jit_compile"] = jit_compile_;
+    }
     graph_options_["ge.exec.overflow"] = "1";
     graph_options_["ge.graphLevelSat"] = (mix_compile_mode_ == "0") ? "1" : "0";
 
@@ -1293,7 +1298,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
 
   bool is_set_dynamic_config = IsDynamicConfig();
   if (is_set_dynamic_config) {
-    jit_compile_ = true;
+    jit_compile_ = "1";
     BuildShapeNodeAndCacheArgNodes(graph);
   }
 
@@ -1311,7 +1316,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   HandleDpOpAndGetNextNodes(graph);
 
   // 二进制场景,更新输入shape
-  if (!jit_compile_) {
+  if (jit_compile_ != "1") {
     UpdateInputsShapeDesc(graph);
   }
 
