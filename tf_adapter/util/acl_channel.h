@@ -42,7 +42,7 @@ Status DestroyAclDataset(acltdtDataset *acl_dataset, bool include_data_item = tr
 Status RecvTensorByAcl(const acltdtChannelHandle *acl_handle, std::vector<Tensor> &tensors);
 
 Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType acl_type,
-                        const std::vector<Tensor> &tensors, bool &is_need_resend);
+                        const std::vector<Tensor> &tensors, bool &need_resend);
 
 Status StopRecvTensorByAcl(acltdtChannelHandle **handle, const std::string &channel_name);
 
