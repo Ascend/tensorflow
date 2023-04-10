@@ -216,6 +216,9 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   AttrValue external_weight = AttrValue();
   external_weight.set_b(true);
   (*custom_config->mutable_parameter_map())["external_weight"] = external_weight;
+  AttrValue op_debug_level = AttrValue();
+  op_debug_level.set_i(0);
+  (*custom_config->mutable_parameter_map())["op_debug_level"] = op_debug_level;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }
 TEST_F(GetAttrOptimizationPassTest, NotSetAttrTest) {
