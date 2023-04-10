@@ -359,6 +359,457 @@ class ESWorker:
                 output_slots[sid] = out_emb
         return output_slots
 
+    def save_embedding(self, path, table_id_list):
+        """ Operator for save values in table_id embedding table. """
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            embedding_table_export = gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                                            ps_id=ops.convert_to_tensor(-1),
+                                                                            table_id=table_id_list,
+                                                                            embedding_dim=
+                                                                            self._table_to_embedding_dim.get(table_id),
+                                                                            value_total_len=
+                                                                            self._table_to_embedding_dim.get(table_id),
+                                                                            export_mode="all",
+                                                                            only_var_flag=True,
+                                                                            file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def save_embeddings(self, path):
+        """ Operator for save values in all embedding tables. """
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+            embedding_table_export = gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                                            ps_id=ops.convert_to_tensor(-1),
+                                                                            table_id=table_id_list,
+                                                                            embedding_dim=embedding_dim_list,
+                                                                            value_total_len=embedding_dim_list,
+                                                                            export_mode="all",
+                                                                            only_var_flag=True,
+                                                                            file_type="bin")
+            mbedding_table_export.op._set_attr("_deploy_inject_config",
+                                               attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def restore_embedding(self, path, table_id_list):
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        with specified_ps_engine_scope():
+            embedding_table_import = gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                                            file_path=ops.convert_to_tensor(path),
+                                                                            table_id=ops.convert_to_tensor(table_id),
+                                                                            embedding_dim=
+                                                                            self._table_to_embedding_dim.get(table_id),
+                                                                            value_total_len=
+                                                                            self._table_to_embedding_dim.get(table_id),
+                                                                            only_var_flag=True,
+                                                                            file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
+    def restore_embeddings(self, path):
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+            embedding_table_import = gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                                            file_path=ops.convert_to_tensor(path),
+                                                                            table_id=
+                                                                            ops.convert_to_tensor(table_id_list),
+                                                                            embedding_dim=embedding_dim_list,
+                                                                            value_total_len=embedding_dim_list,
+                                                                            only_var_flag=True,
+                                                                            file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
+    def save_checkpoint(self, path, table_id_list):
+        """ Operator for save values and optimizer params in table_id embedding table. """
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id,
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id) *
+                                                       (self._table_to_slot_var_num.get(table_id) + 1),
+                                                       export_mode="all",
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def save_checkpoints(self, path):
+        """ Operator for save values and optimizer params in all embedding tables. """
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            value_total_len_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+                value_total_len_list.append(self._table_to_embedding_dim.get(table_id) *
+                                            (self._table_to_slot_var_num.get(table_id) + 1))
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id_list,
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=value_total_len_list,
+                                                       export_mode="all",
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def restore_checkpoint(self, path, table_id_list):
+        """ Operator for restore values and optimizer params in table_id embedding table. """
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        with specified_ps_engine_scope():
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id) *
+                                                       (self._table_to_slot_var_num.get(table_id) + 1),
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
+    def restore_checkpoints(self, path):
+        """ Operator for restore values and optimizer params in all embedding tables. """
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            value_total_len_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+                value_total_len_list.append(self._table_to_embedding_dim.get(table_id) *
+                                            (self._table_to_slot_var_num.get(table_id) + 1))
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=value_total_len_list,
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
+    def save_incremental_embedding(self, path, table_id):
+        """ Operator for save incremental values in table_id embedding table. """
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id,
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id),
+                                                       export_mode="new",
+                                                       only_var_flag=True,
+                                                       file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def save_incremental_embeddings(self, path):
+        """ Operator for save incremental values in all embedding tables. """
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id_list,
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
+                                                       export_mode="new",
+                                                       only_var_flag=True,
+                                                       file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def restore_incremental_embedding(self, path, table_id_list):
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        with specified_ps_engine_scope():
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       alue_total_len=self._table_to_embedding_dim.get(table_id),
+                                                       only_var_flag=True,
+                                                       file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
+    def restore_incremental_embeddings(self, path):
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
+                                                       only_var_flag=True,
+                                                       file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
+    def save_incremental_checkpoint(self, path, table_id_list):
+        """ Operator for save incremental values and optimizer params in table_id embedding table. """
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id,
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id) *
+                                                       (self._table_to_slot_var_num.get(table_id) + 1),
+                                                       export_mode="specifiednew",
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def save_incremental_checkpoints(self, path):
+        """ Operator for save values and optimizer params in all embedding tables. """
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        env_dist = os.environ
+        rank_id_from_env = env_dist.get("RANK_ID")
+        if rank_id_from_env != "0":
+            raise ValueError("Device must be rank_id 0.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            value_total_len_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+                value_total_len_list.append(self._table_to_embedding_dim.get(table_id) *
+                                            (self._table_to_slot_var_num.get(table_id) + 1))
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id_list,
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=value_total_len_list,
+                                                       export_mode="specifiednew",
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            with tf.control_dependencies([embedding_table_export]):
+                embedding_compute_var_export = \
+                    gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_export])
+
+    def restore_incremental_checkpoint(self, path, table_id_list):
+        """ Operator for restore incremental values and optimizer params in table_id embedding table. """
+        table_id = table_id_list[0]
+        if path is None or table_id is None:
+            raise ValueError("table_id, embedding table path can not be None.")
+        if table_id not in self._table_has_init:
+            raise ValueError("this table has not yet initialized.")
+        with specified_ps_engine_scope():
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id) *
+                                                       (self._table_to_slot_var_num.get(table_id) + 1),
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
+    def restore_incremental_checkpoints(self, path):
+        """ Operator for restore incremental values and optimizer params in all embedding tables. """
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        with specified_ps_engine_scope():
+            table_id_list = []
+            embedding_dim_list = []
+            value_total_len_list = []
+            for table_id in self._table_has_init:
+                table_id_list.append(table_id)
+                embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
+                value_total_len_list.append(self._table_to_embedding_dim.get(table_id) *
+                                            (self._table_to_slot_var_num.get(table_id) + 1))
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=value_total_len_list,
+                                                       only_var_flag=False,
+                                                       file_type="bin")
+            with tf.control_dependencies([embedding_table_import]):
+                embedding_compute_var_import = \
+                    gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
+                                                                 ps_id=ops.convert_to_tensor(-1),
+                                                                 table_id=table_id_list)
+                return tf.group([embedding_compute_var_import])
+
     def _init_hashmap_and_table_import(self, bucket_size, file_path, file_name, table_id,
                                        initializer, embedding_dim, only_var, mode):
         with tf.control_dependencies([self._init_partition_maps.get(table_id)]):
