@@ -306,7 +306,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
         cond_var_.notify_all();
 
-        while (active_thread_num_) {
+        while (active_thread_num_ > 0) {
           cond_var_.notify_all();
           (void)usleep(kSleepUs);
         }
@@ -317,7 +317,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
 
-      std::string FormatTimestampToDate(uint64_t timestamp) {
+      std::string FormatTimestampToDate(const uint64_t timestamp) const {
           const uint64_t kMicroSecondConvert = 1000000ULL;
           const uint64_t kMilliSecondConvert = 1000ULL;
           const uint32_t kFormatTimeLen = 64U;
@@ -339,7 +339,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           return format_time + std::string(time_str);
       }
 
-      void ShowDataThreadPerfRecord() {
+      void ShowDataThreadPerfRecord() const {
         for (uint32_t i = 0; i < static_cast<uint32_t>(ThreadType::BUTT); i++) {
           uint32_t start_index = 0;
           uint32_t record_num = data_thread_perf_stat_[i].data_record_num;
