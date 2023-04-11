@@ -473,6 +473,11 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_external_weight", &external_weight);
     (void) ctx->GetAttr("_graph_parallel_option_path", &graph_parallel_option_path);
     (void) ctx->GetAttr("_enable_graph_parallel", &enable_graph_parallel);
+    std::string jit_compile;
+    if (ctx->GetAttr("_jit_compile", &jit_compile).ok()) {
+      sess_options["jit_compile"] = jit_compile;
+      sess_options["ge.jit_compile"] = jit_compile;
+    }
   }
 
   // session options
@@ -1166,6 +1171,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto external_weight_value = attrs.Find("_external_weight");
   auto graph_parallel_option_path_val = attrs.Find("_graph_parallel_option_path");
   auto enable_graph_parallel_val = attrs.Find("_enable_graph_parallel");
+  auto jit_compile_value = attrs.Find("_jit_compile");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1441,6 +1447,11 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
     if (es_cluster_config_value != nullptr) {
       es_cluster_config = es_cluster_config_value->s();
+    }
+    if (jit_compile_value != nullptr) {
+      std::string jit_compile = jit_compile_value->s();
+      all_options["jit_compile"] = jit_compile;
+      all_options["ge.jit_compile"] = jit_compile;
     }
   }
 
@@ -2082,6 +2093,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("variable_placement") > 0) {
         variable_location = params.at("variable_placement").s();
+      }
+      if (params.count("jit_compile") > 0) {
+        bool jit_compile = params.at("jit_compile").b();
+        sess_options["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
+        sess_options["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
       }
     }
   }
