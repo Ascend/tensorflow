@@ -533,8 +533,8 @@ private:
       return true;
     }
 
-    void FinishRemainingTasks(const uint64_t thread_id) {
-      uint64_t waiting_tasks = 0ULL;
+    void FinishRemainingTasks(const uint64_t thread_id) const {
+      uint64_t waiting_tasks;
       do {
         waiting_tasks = WaitingForStreamRun(thread_id);
         ADP_LOG(INFO) << "Thread " << thread_id << " remaining tasks : " << waiting_tasks;
@@ -550,13 +550,13 @@ private:
       };
 
       rtError_t rt = rtSetDevice(static_cast<int32_t>(device_id_));
-      DATASET_REQUIRES_RET_VOID((rt == ACL_RT_SUCCESS),
+      DATASET_REQUIRES_RT_VOID((rt == ACL_RT_SUCCESS),
           handleThreadException(errors::Internal("Thread rtSetDevice failed: thread_id = ", thread_id,
           " thread_num = ", this->thread_num_, " device_id_ = ", device_id_, " rt=", rt)));
 
       DatasetFunction::ModelId model_id;
       Status status = func_.LoadGeModelFromMem(model_id);
-      DATASET_REQUIRES_RET_VOID((status.ok()),
+      DATASET_REQUIRES_RT_VOID((status.ok()),
           handleThreadException(errors::Internal("DatasetFunction load model failed, status = ", status.ToString())));
 
       {
@@ -624,12 +624,12 @@ private:
           timestat->RecordStartTime(timestat->statis_threads[thread_id]);
           if (run_split_graph) {
             status = instantiated_captured_func_->Run(ctx.get(), std::move(in_tensors), &out_tensors);
-            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            DATASET_REQUIRES_RT_VOID((status.ok()), handleThreadException(status));
             status = MapFunc(thread_id, model_id, write_idx, result_id, out_tensors);
-            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            DATASET_REQUIRES_RT_VOID((status.ok()), handleThreadException(status));
           } else {
             status = MapFunc(thread_id, model_id, write_idx, result_id, in_tensors);
-            DATASET_REQUIRES_RET_VOID((status.ok()), handleThreadException(status));
+            DATASET_REQUIRES_RT_VOID((status.ok()), handleThreadException(status));
           }
           run_res = GetRunningResources(thread_id);
           timestat->RecordEndTime(timestat->statis_threads[thread_id]);
@@ -901,7 +901,7 @@ private:
   private:
     aclmdlDataset* InitOutTensorsMem(OutputStaticResult &output_result) {
       aclmdlDataset* output_dataset = aclmdlCreateDataset();
-      DATASET_REQUIRES_RETURN_NULL(output_dataset != nullptr,
+      DATASET_REQUIRES_RT_NULL(output_dataset != nullptr,
           errors::Internal("Can't create dataset, create output failed."));
 
       uint64_t tensor_num = func_output_shape_.size();
@@ -1172,7 +1172,7 @@ private:
         uint64_t out_tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
         aclDataBuffer *data_buff = aclmdlGetDatasetBuffer(out_dataset, i);
         void* data_addr = aclGetDataBufferAddr(data_buff);
-        DATASET_REQUIRES_RETURN_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
+        DATASET_REQUIRES_RT_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
 
         aclError ret = aclrtMemcpy(npu_addr, tensor_size, data_addr, out_tensor_size,
             ACL_MEMCPY_DEVICE_TO_DEVICE);
@@ -1253,7 +1253,7 @@ private:
         uint64_t out_tensor_size = static_cast<uint64_t>(aclGetTensorDescSize(out_desc));
         aclDataBuffer *data_buff = aclmdlGetDatasetBuffer(out_dataset, i);
         void* data_addr = aclGetDataBufferAddr(data_buff);
-        DATASET_REQUIRES_RETURN_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
+        DATASET_REQUIRES_RT_NULL(data_addr != nullptr, errors::Internal("Get data addr is nullptr."));
 
         aclError ret = aclrtMemcpy(npu_addr, tensor_size, data_addr, out_tensor_size,
             ACL_MEMCPY_DEVICE_TO_HOST);

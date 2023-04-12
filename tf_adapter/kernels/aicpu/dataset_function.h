@@ -57,20 +57,28 @@
     }                                    \
   } while (0)
 
-#define DATASET_REQUIRES_RETURN_NULL(EXP, STATUS)    \
-  do {                                               \
-    if (!(EXP)) {                                    \
-      ADP_LOG(ERROR) << (STATUS);                    \
-      return nullptr;                                \
-    }                                                \
+#define DATASET_REQUIRES_WARNING(EXP, STATUS)    \
+  do {                                           \
+    if (!(EXP)) {                                \
+      ADP_LOG(WARNING) << (STATUS);              \
+      return (STATUS);                           \
+    }                                            \
   } while (0)
 
-#define DATASET_REQUIRES_RET_VOID(EXP, CALLBACK)    \
-  do {                                              \
-    if (!(EXP)) {                                   \
-      CALLBACK;                                     \
-      return;                                       \
-    }                                               \
+#define DATASET_REQUIRES_RT_NULL(EXP, STATUS)    \
+  do {                                           \
+    if (!(EXP)) {                                \
+      ADP_LOG(ERROR) << (STATUS);                \
+      return nullptr;                            \
+    }                                            \
+  } while (0)
+
+#define DATASET_REQUIRES_RT_VOID(EXP, CALLBACK)    \
+  do {                                             \
+    if (!(EXP)) {                                  \
+      CALLBACK;                                    \
+      return;                                      \
+    }                                              \
   } while (0)
 
 namespace tensorflow {
@@ -111,10 +119,9 @@ class DatasetFunction {
     static Status TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, Tensor &tf_tensor);
     static void *ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &tensor_size);
     static void DestroyAclInputDataset(aclmdlDataset *input);
-    static aclmdlDataset *CreateAclOutputDataset(ModelId model_id);
-    static void DestroyAclOutputDataset(aclmdlDataset *output, bool isFree);
-    static aclmdlDesc *CreateAclModelDesc(ModelId model_id);
-    static void DestoryAclModelDesc(aclmdlDesc *model_desc);
+    static aclmdlDataset *CreateAclOutputDataset(const ModelId model_id);
+    static void DestroyAclOutputDataset(aclmdlDataset *output, const bool isFree);
+    static aclmdlDesc *CreateAclModelDesc(const ModelId model_id);
     static Status GetAclTenorDescDims(aclTensorDesc *desc, std::vector<int64_t> &ret_dims);
     static void *ReAllocDeviceMem(void *addr, size_t len);
     bool IsSplitGraph() const;

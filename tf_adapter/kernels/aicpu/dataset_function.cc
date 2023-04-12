@@ -73,7 +73,8 @@ static constexpr const char* const kTfaSplitGraphJsonPath = "/built-in/framework
 const static std::map<std::string, std::string> kDvppAccelerateChips = {
     {"Ascend910B1", "ascend910b"},
     {"Ascend910B2", "ascend910b"},
-    {"Ascend910B3", "ascend910b"}};
+    {"Ascend910B3", "ascend910b"},
+    {"Ascend910B4", "ascend910b"}};
 } // namespace
 
 void *DatasetFunction::ReAllocDeviceMem(void *addr, size_t len) {
@@ -215,14 +216,14 @@ void *DatasetFunction::ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &
     // add 1U for the end of string identifier '\0'
     total_size += (string_vector[i].size() + string_head_size + 1U);
   }
-  DATASET_REQUIRES_RETURN_NULL(total_size != 0U,
+  DATASET_REQUIRES_RT_NULL(total_size != 0U,
       errors::Internal("Convert string data failed with total size equals 0."));
 
   std::unique_ptr<char[]> addr = absl::make_unique<char[]>(total_size);
-  DATASET_REQUIRES_RETURN_NULL(addr != nullptr,
+  DATASET_REQUIRES_RT_NULL(addr != nullptr,
       errors::Internal("Malloc host memory failed."));
   ge::StringHead *string_head = ge::PtrToPtr<char, ge::StringHead>(addr.get());
-  DATASET_REQUIRES_RETURN_NULL(!DatasetFunction::CheckMultiplyOverflow(count, string_head_size),
+  DATASET_REQUIRES_RT_NULL(!DatasetFunction::CheckMultiplyOverflow(count, string_head_size),
       errors::Unavailable("Wrong offset, count = ", count,
                           ", string_head_size = ", string_head_size));
   uint64_t offset = count * string_head_size;
@@ -235,7 +236,7 @@ void *DatasetFunction::ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &
     const char *string_addr = str.c_str();
     while (str_size >= SECUREC_MEM_MAX_LEN) {
       const auto ret = memcpy_s(data_addr, total_size - offset, string_addr, SECUREC_MEM_MAX_LEN);
-      DATASET_REQUIRES_RETURN_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+      DATASET_REQUIRES_RT_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
       str_size -= SECUREC_MEM_MAX_LEN;
       offset += SECUREC_MEM_MAX_LEN;
       data_addr += SECUREC_MEM_MAX_LEN;
@@ -243,7 +244,7 @@ void *DatasetFunction::ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &
     }
     auto remain_size = total_size - offset;
     const auto ret = memcpy_s(data_addr, remain_size, string_addr, str_size + 1U);
-    DATASET_REQUIRES_RETURN_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
+    DATASET_REQUIRES_RT_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
     data_addr += (str_size + 1U);
     offset += (static_cast<int64_t>(str_size) + 1);
   }
@@ -341,23 +342,31 @@ void DatasetFunction::DestroyAclInputDataset(aclmdlDataset *input) {
   input = nullptr;
 }
 
-aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
+aclmdlDataset *DatasetFunction::CreateAclOutputDataset(const ModelId model_id) {
   aclmdlDesc *model_desc = nullptr;
   model_desc = DatasetFunction::CreateAclModelDesc(model_id);
-  DATASET_REQUIRES_RETURN_NULL(model_desc != nullptr, errors::Internal("No model description, create ouput failed."));
+  DATASET_REQUIRES_RT_NULL(model_desc != nullptr, errors::Internal("No model description, create ouput failed."));
 
   aclmdlDataset* output = aclmdlCreateDataset();
-  DATASET_REQUIRES_RETURN_NULL(output != nullptr, errors::Internal("Can't create dataset, create output failed."));
+  if (output == nullptr) {
+    (void)aclmdlDestroyDesc(model_desc);
+    ADP_LOG(ERROR) << "Create output failed, output is nullptr, model_id = " << model_id;
+    return nullptr;
+  }
 
   size_t output_num = aclmdlGetNumOutputs(model_desc);
   for (size_t i = 0; i < output_num; ++i) {
     // create aclDataBuffer with nullptr, aclmdlExecute() will set device memory for it
     aclDataBuffer *outputData = aclCreateDataBuffer(nullptr, 0U);
-    DATASET_REQUIRES_RETURN_NULL(outputData != nullptr,
-                                 errors::Internal("Can't create data buffer, create output failed."));
-
+    if (outputData == nullptr) {
+      (void)aclmdlDestroyDesc(model_desc);
+      DestroyAclOutputDataset(output, false);
+      ADP_LOG(ERROR) << "Can't create data buffer failed.";
+      return nullptr;
+    }
     aclError ret = aclmdlAddDatasetBuffer(output, outputData);
     if (ret != ACL_SUCCESS) {
+      (void)aclmdlDestroyDesc(model_desc);
       DestroyAclOutputDataset(output, false);
       ADP_LOG(ERROR) << "Can't add data buffer, create output failed, errorCode is " << ret;
       return nullptr;
@@ -365,19 +374,26 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(ModelId model_id) {
     // 当前修改只针对同步接口+动态图，acl会反刷tensordesc; 同步接口+静态图，acl不会反刷tensordesc
     int64_t shape[1] = {-1};
     aclTensorDesc *output_desc = aclCreateTensorDesc(ACL_FLOAT, 1, shape, ACL_FORMAT_NCHW);
+    if (output_desc == nullptr) {
+      (void)aclmdlDestroyDesc(model_desc);
+      DestroyAclOutputDataset(output, false);
+      ADP_LOG(ERROR) << "Create tensor desc failed.";
+      return nullptr;
+    }
     ret = aclmdlSetDatasetTensorDesc(output, output_desc, i);
     if (ret != ACL_SUCCESS) {
+      (void)aclmdlDestroyDesc(model_desc);
       DestroyAclOutputDataset(output, false);
       ADP_LOG(ERROR) << "Add tensor desc failed, errorCode is " << ret;
       return nullptr;
     }
   }
 
-  DestoryAclModelDesc(model_desc);
+  (void)aclmdlDestroyDesc(model_desc);
   return output;
 }
 
-void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output, bool isFree) {
+void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output, const bool isFree) {
   if (output == nullptr) {
     return;
   }
@@ -404,24 +420,18 @@ void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output, bool isFree
   output = nullptr;
 }
 
-aclmdlDesc *DatasetFunction::CreateAclModelDesc(ModelId model_id) {
+aclmdlDesc *DatasetFunction::CreateAclModelDesc(const ModelId model_id) {
   aclmdlDesc* model_desc = aclmdlCreateDesc();
-  DATASET_REQUIRES_RETURN_NULL(model_desc != nullptr, errors::Internal("Create model description failed."));
+  DATASET_REQUIRES_RT_NULL(model_desc != nullptr, errors::Internal("Create model description failed."));
 
   aclError ret = aclmdlGetDesc(model_desc, model_id);
-  DATASET_REQUIRES_RETURN_NULL(ret == ACL_SUCCESS, errors::Internal("Get model description failed."));
+  if (ret != ACL_SUCCESS) {
+    (void)aclmdlDestroyDesc(model_desc);
+    ADP_LOG(ERROR) << "Get model description failed with model_id = " << model_id << ", ret = " << ret;
+    return nullptr;
+  }
 
   return model_desc;
-}
-
-void DatasetFunction::DestoryAclModelDesc(aclmdlDesc *model_desc) {
-  if (model_desc != nullptr) {
-    aclError ret = aclmdlDestroyDesc(model_desc);
-    if (ret != ACL_SUCCESS) {
-      ADP_LOG(ERROR) << "Destory model desc failed.";
-    }
-    model_desc = nullptr;
-  }
 }
 
 Status DatasetFunction::GetAclTenorDescDims(aclTensorDesc *desc, std::vector<int64_t> &ret_dims) {
@@ -551,10 +561,10 @@ std::string DatasetFunction::SerializeGraph(tensorflow::Graph &input_graph) cons
 Status DatasetFunction::ReadJsonFile(const string &json_file_path, nlohmann::json &json_read) const {
   ADP_LOG(INFO) << "Read "<< json_file_path.c_str() << " json file.";
   Status status = tensorflow::Env::Default()->FileExists(json_file_path);
-  DATASET_REQUIRES(status.ok(), status);
+  DATASET_REQUIRES_WARNING(status.ok(), status);
 
   std::ifstream ifs(json_file_path);
-  DATASET_REQUIRES(ifs.is_open(), errors::Internal("Open json file failed."));
+  DATASET_REQUIRES_WARNING(ifs.is_open(), errors::Internal("Open json file failed."));
 
   try {
     ifs >> json_read;
@@ -587,11 +597,13 @@ Status DatasetFunction::InitAccelateOpList(std::vector<std::string> &acc_while_l
   std::string dp_split_graph_file = kOppInstallPath + kTfaSplitGraphJsonPath;
   nlohmann::json json_data;
   Status status = ReadJsonFile(dp_split_graph_file, json_data);
-  DATASET_REQUIRES(status.ok(), status);
+  DATASET_REQUIRES_WARNING(status.ok(), status);
 
   std::string soc_version = GetSocVersion();
-  DATASET_REQUIRES(json_data.contains(soc_version), errors::Internal("Target element does not exists : ", soc_version));
-  DATASET_REQUIRES(json_data.contains(kControlOps), errors::Internal("Target element does not exists : ", kControlOps));
+  DATASET_REQUIRES_WARNING(json_data.contains(soc_version),
+      errors::Internal("Target element does not exists : ", soc_version));
+  DATASET_REQUIRES_WARNING(json_data.contains(kControlOps),
+      errors::Internal("Target element does not exists : ", kControlOps));
 
   auto parse_op_fun = [&acc_while_list, &json_data](std::string first_key, std::string second_key) -> bool {
     nlohmann::json first_json_data;

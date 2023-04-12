@@ -206,6 +206,37 @@ TEST_F(DatasetFunctionTest, SplitGraphTest) {
   EXPECT_EQ(dvpp_graph_infos, target_graph);
   aclrtSetDefaultSocNameStub();
 }
+
+TEST_F(DatasetFunctionTest, CreateAclModelDescFailedTest) {
+  ADP_LOG(INFO) << "====== DatasetFunctionTest CreateAclModelDescFailedTest ======";
+  SetModelDescStub(true);
+
+  uint32_t model_id = 0UL;
+  auto  model_desc = dataset_func_->CreateAclModelDesc(model_id);
+  EXPECT_EQ(model_desc, nullptr);
+  SetModelDescStub(false);
+}
+
+TEST_F(DatasetFunctionTest, CreateAclDatasetFailedTest) {
+  ADP_LOG(INFO) << "====== DatasetFunctionTest CreateAclDatasetFailedTest ======";
+  SetCreateDataset(false);
+
+  uint32_t model_id = 0UL;
+  auto acl_dataset = dataset_func_->CreateAclOutputDataset(model_id);
+  EXPECT_EQ(acl_dataset, nullptr);
+  SetCreateDataset(true);
+}
+
+
+TEST_F(DatasetFunctionTest, CreateTensorDescFailedTest) {
+  ADP_LOG(INFO) << "====== DatasetFunctionTest CreateTensorDescFailedTest ======";
+  SetCreateTensorDesc(false);
+
+  uint32_t model_id = 0UL;
+  auto acl_dataset = dataset_func_->CreateAclOutputDataset(model_id);
+  EXPECT_EQ(acl_dataset, nullptr);
+  SetCreateTensorDesc(true);
+}
 }  // namespace
 }  // namespace data
 }  // namespace tensorflow

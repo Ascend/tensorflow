@@ -524,8 +524,16 @@ aclError aclmdlLoadFromMem(const void *model, size_t modelSize, uint32_t *modelI
   }
 }
 
+bool g_createDatasetStatus = true;
+void SetCreateDataset(const bool isSuccess) {
+  g_createDatasetStatus = isSuccess;
+}
+
 aclmdlDataset *aclmdlCreateDataset() {
-  return new(std::nothrow) aclmdlDataset();
+  if (g_createDatasetStatus) {
+    return new(std::nothrow) aclmdlDataset();
+  }
+  return nullptr;
 }
 
 aclError aclmdlDestroyDataset(const aclmdlDataset *dataset) {
@@ -585,8 +593,16 @@ void *aclGetDataBufferAddr(const aclDataBuffer *dataBuffer) {
   return dataBuffer->data;
 }
 
+bool g_createTensorDescStatus = true;
+void SetCreateTensorDesc(const bool isSuccess) {
+  g_createTensorDescStatus = isSuccess;
+}
+
 aclTensorDesc *aclCreateTensorDesc(aclDataType dataType, int numDims, const int64_t *dims, aclFormat format) {
-  return new(std::nothrow) aclTensorDesc;
+  if (g_createTensorDescStatus) {
+    return new(std::nothrow) aclTensorDesc();
+  }
+  return nullptr;
 }
 
 size_t aclmdlGetNumOutputs(aclmdlDesc *modelDesc) {
@@ -614,7 +630,16 @@ ACLMdlGetDescStub g_mdlGetDescStub = nullptr;
 void RegACLMdlGetDescStub(ACLMdlGetDescStub stub) {
   g_mdlGetDescStub = stub;
 }
+
+bool g_getModelDescStub = false;
+void SetModelDescStub(const bool isSuccess) {
+  g_getModelDescStub = isSuccess;
+}
+
 aclError aclmdlGetDesc(aclmdlDesc *modelDesc, uint32_t modelId) {
+  if (g_getModelDescStub) {
+    return ACL_ERROR_INVALID_PARAM;
+  }
   if (g_mdlGetDescStub != nullptr) {
     return g_mdlGetDescStub(modelDesc);
   } else {
