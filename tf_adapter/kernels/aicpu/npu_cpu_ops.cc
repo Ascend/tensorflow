@@ -277,6 +277,13 @@ public:
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplyAdamOp Compute"; }
 };
 
+class EmbeddingApplyAdamWOp : public OpKernel {
+public:
+  explicit EmbeddingApplyAdamWOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingApplyAdamWOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplyAdamWOp Compute"; }
+};
+
 class EmbeddingApplyAdaGradOp : public OpKernel {
 public:
   explicit EmbeddingApplyAdaGradOp(OpKernelConstruction *context) : OpKernel(context) {}
@@ -325,6 +332,7 @@ REGISTER_KERNEL_BUILDER(Name("UninitEmbeddingHashmap").Device(DEVICE_CPU), Unini
 REGISTER_KERNEL_BUILDER(Name("TableToResource").Device(DEVICE_CPU), TableToResourceOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingTableFindAndInit").Device(DEVICE_CPU), EmbeddingTableFindAndInitOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdam").Device(DEVICE_CPU), EmbeddingApplyAdamOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdamW").Device(DEVICE_CPU), EmbeddingApplyAdamWOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdaGrad").Device(DEVICE_CPU), EmbeddingApplyAdaGradOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingTableExport").Device(DEVICE_CPU), EmbeddingTableExportOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingFeatureMapping").Device(DEVICE_CPU), EmbeddingFeatureMappingOp);

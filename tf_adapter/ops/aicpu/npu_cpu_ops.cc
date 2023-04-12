@@ -321,6 +321,29 @@ REGISTER_OP("EmbeddingApplyAdam")
     return Status::OK();
   });
 
+REGISTER_OP("EmbeddingApplyAdamW")
+  .Input("var_handle: resource")
+  .Input("beta1_power: T")
+  .Input("beta2_power: T")
+  .Input("lr: T")
+  .Input("weight_decay: T")
+  .Input("beta1: T")
+  .Input("beta2: T")
+  .Input("epsilon: T")
+  .Input("grad: T")
+  .Input("keys: int64")
+  .Input("max_grad_norm: T")
+  .Output("var_handle_output: resource")
+  .Attr("amsgrad: bool")
+  .Attr("maximize: bool")
+  .Attr("embedding_dim: int = 0")
+  .Attr("T: {float32, float16}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
 REGISTER_OP("EmbeddingApplyAdaGrad")
   .Input("var_handle: resource")
   .Input("lr: T")
