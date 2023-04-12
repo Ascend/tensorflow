@@ -133,10 +133,11 @@ class ESWorker:
             self._train_mode = False
             self.slot_vars_num = 0
         else:
-            if (not isinstance(optimizer, embedding_optimizer.AdamOptimizer) and
-                    not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)):
+            if (not isinstance(optimizer, embedding_optimizer.AdamOptimizer)) and \
+                    (not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)) and \
+                    (not isinstance(optimizer, embedding_optimizer.AdamWOptimizer)):
                 raise ValueError(
-                    "optimizer should be embedding_optimizer.AdamOptimizer or embedding_optimizer.AdagradOptimizer")
+                    "optimizer should be embedding_optimizer AdamOptimizer, AdagradOptimizer or AdamWOptimizer.")
             if (initializer is not None) and (initializer is not 'random_uniform') and \
                     (initializer is not 'truncated_normal'):
                 raise ValueError("initializer must be random_uniform or truncated_normal.")
