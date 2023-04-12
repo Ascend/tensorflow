@@ -341,16 +341,13 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
       void ShowDataThreadPerfRecord() const {
         for (uint32_t i = 0; i < static_cast<uint32_t>(ThreadType::BUTT); i++) {
-          uint32_t start_index = 0;
-          uint32_t record_num = data_thread_perf_stat_[i].data_record_num;
-          if (data_thread_perf_stat_[i].data_record_num >= kDataPerRecord) {
-            start_index = data_thread_perf_stat_[i].data_record_num - kDataPerRecord;
-            record_num = kDataPerRecord;
-          }
-
-          for (uint32_t j = 0; j < record_num; j++) {
+          uint32_t start_index = static_cast<uint32_t>(data_thread_perf_stat_[i].data_record_num % kDataPerRecord);
+          for (uint32_t j = 0; j < kDataPerRecord; j++) {
             uint32_t index = (start_index + j + 1) % kDataPerRecord;
             auto record = &data_thread_perf_stat_[i].data_record[index];
+            if (record->start_time == 0) {
+              continue;
+            }
             ADP_LOG(EVENT) << "DataThreadPerf: " << i
                            << "(0:revc, 1:send), data_index: " << record->data_index
                            << ", start_time: " << FormatTimestampToDate(record->start_time)
