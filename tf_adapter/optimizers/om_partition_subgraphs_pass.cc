@@ -2003,6 +2003,7 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   const std::string kDeployInjectConfig = "_deploy_inject_config";
   const std::string kExecuteTimes = "_execute_times";
   const std::string kMaxNum = "_max_num";
+  const std::string kMaxKeyNum = "_max_key_num";
   const std::string kEmbeddingDim = "_embedding_dim";
   if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
     bool dynamic_input = node_attrs.at(kDynamicInput).b();
@@ -2034,6 +2035,9 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   if (node_attrs.find(kMaxNum) != node_attrs.end()) {
     const auto max_num = node_attrs.at(kMaxNum).i();
     graph_options["max_num"] = std::to_string(static_cast<const int32_t>(max_num));
+  }
+  if (node_attrs.find(kMaxKeyNum) != node_attrs.end()) {
+    graph_options["max_key_num"] = std::to_string(static_cast<const int32_t>(node_attrs.at(kMaxKeyNum).i()));
   }
   if (node_attrs.find(kEmbeddingDim) != node_attrs.end()) {
     const auto embedding_dim = node_attrs.at(kEmbeddingDim).i();

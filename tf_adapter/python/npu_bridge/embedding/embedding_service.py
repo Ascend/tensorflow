@@ -161,6 +161,7 @@ class ESWorker:
             self._init_partition_maps.get(table_id)._set_attr("_embedding_dim",
                                                               attr_value_pb2.AttrValue(i=self._embedding_dim))
             self._init_partition_maps.get(table_id)._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_num))
+            self._init_partition_maps.get(table_id)._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_num))
             self._init_partition_maps.get(table_id)._set_attr("_deploy_inject_config",
                                                               attr_value_pb2.AttrValue(
                                                                   s=tf.compat.as_bytes(self._es_cluster_conf)))
@@ -203,6 +204,7 @@ class ESWorker:
                                                           embedding_dim=self._table_to_embedding_dim.get(table_id))
         result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
         result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
+        result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
         result.op._set_attr("_deploy_inject_config",
                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
         return result
@@ -372,16 +374,15 @@ class ESWorker:
         if rank_id_from_env != "0":
             raise ValueError("Device must be rank_id 0.")
         with specified_ps_engine_scope():
-            embedding_table_export = gen_npu_cpu_ops.embedding_table_export(file_path=path,
-                                                                            ps_id=ops.convert_to_tensor(-1),
-                                                                            table_id=table_id_list,
-                                                                            embedding_dim=
-                                                                            self._table_to_embedding_dim.get(table_id),
-                                                                            value_total_len=
-                                                                            self._table_to_embedding_dim.get(table_id),
-                                                                            export_mode="all",
-                                                                            only_var_flag=True,
-                                                                            file_type="bin")
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id_list,
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id),
+                                                       export_mode="all",
+                                                       only_var_flag=True,
+                                                       file_type="bin")
             embedding_table_export.op._set_attr("_deploy_inject_config",
                                                 attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
@@ -405,16 +406,17 @@ class ESWorker:
             for table_id in self._table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
-            embedding_table_export = gen_npu_cpu_ops.embedding_table_export(file_path=path,
-                                                                            ps_id=ops.convert_to_tensor(-1),
-                                                                            table_id=table_id_list,
-                                                                            embedding_dim=embedding_dim_list,
-                                                                            value_total_len=embedding_dim_list,
-                                                                            export_mode="all",
-                                                                            only_var_flag=True,
-                                                                            file_type="bin")
-            mbedding_table_export.op._set_attr("_deploy_inject_config",
-                                               attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export = \
+                gen_npu_cpu_ops.embedding_table_export(file_path=path,
+                                                       ps_id=ops.convert_to_tensor(-1),
+                                                       table_id=table_id_list,
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
+                                                       export_mode="all",
+                                                       only_var_flag=True,
+                                                       file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -429,15 +431,14 @@ class ESWorker:
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
         with specified_ps_engine_scope():
-            embedding_table_import = gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
-                                                                            file_path=ops.convert_to_tensor(path),
-                                                                            table_id=ops.convert_to_tensor(table_id),
-                                                                            embedding_dim=
-                                                                            self._table_to_embedding_dim.get(table_id),
-                                                                            value_total_len=
-                                                                            self._table_to_embedding_dim.get(table_id),
-                                                                            only_var_flag=True,
-                                                                            file_type="bin")
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id),
+                                                       only_var_flag=True,
+                                                       file_type="bin")
             with tf.control_dependencies([embedding_table_import]):
                 embedding_compute_var_import = \
                     gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
@@ -454,14 +455,14 @@ class ESWorker:
             for table_id in self._table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
-            embedding_table_import = gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
-                                                                            file_path=ops.convert_to_tensor(path),
-                                                                            table_id=
-                                                                            ops.convert_to_tensor(table_id_list),
-                                                                            embedding_dim=embedding_dim_list,
-                                                                            value_total_len=embedding_dim_list,
-                                                                            only_var_flag=True,
-                                                                            file_type="bin")
+            embedding_table_import = \
+                gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
+                                                       file_path=ops.convert_to_tensor(path),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
+                                                       only_var_flag=True,
+                                                       file_type="bin")
             with tf.control_dependencies([embedding_table_import]):
                 embedding_compute_var_import = \
                     gen_npu_cpu_ops.embedding_compute_var_import(file_path=path,
@@ -484,7 +485,7 @@ class ESWorker:
             embedding_table_export = \
                 gen_npu_cpu_ops.embedding_table_export(file_path=path,
                                                        ps_id=ops.convert_to_tensor(-1),
-                                                       table_id=table_id,
+                                                       table_id=table_id_list,
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id) *
                                                        (self._table_to_slot_var_num.get(table_id) + 1),
@@ -526,6 +527,8 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin")
+            embedding_table_export.op._set_attr("_deploy_inject_config",
+                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -544,7 +547,7 @@ class ESWorker:
             embedding_table_import = \
                 gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
                                                        file_path=ops.convert_to_tensor(path),
-                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id) *
                                                        (self._table_to_slot_var_num.get(table_id) + 1),
@@ -585,7 +588,7 @@ class ESWorker:
                                                                  table_id=table_id_list)
                 return tf.group([embedding_compute_var_import])
 
-    def save_incremental_embedding(self, path, table_id):
+    def save_incremental_embedding(self, path, table_id_list):
         """ Operator for save incremental values in table_id embedding table. """
         table_id = table_id_list[0]
         if path is None or table_id is None:
@@ -600,7 +603,7 @@ class ESWorker:
             embedding_table_export = \
                 gen_npu_cpu_ops.embedding_table_export(file_path=path,
                                                        ps_id=ops.convert_to_tensor(-1),
-                                                       table_id=table_id,
+                                                       table_id=table_id_list,
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id),
                                                        export_mode="new",
@@ -657,7 +660,7 @@ class ESWorker:
             embedding_table_import = \
                 gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
                                                        file_path=ops.convert_to_tensor(path),
-                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        alue_total_len=self._table_to_embedding_dim.get(table_id),
                                                        only_var_flag=True,
@@ -708,7 +711,7 @@ class ESWorker:
             embedding_table_export = \
                 gen_npu_cpu_ops.embedding_table_export(file_path=path,
                                                        ps_id=ops.convert_to_tensor(-1),
-                                                       table_id=table_id,
+                                                       table_id=table_id_list,
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id) *
                                                        (self._table_to_slot_var_num.get(table_id) + 1),
@@ -770,7 +773,7 @@ class ESWorker:
             embedding_table_import = \
                 gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
                                                        file_path=ops.convert_to_tensor(path),
-                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id) *
                                                        (self._table_to_slot_var_num.get(table_id) + 1),

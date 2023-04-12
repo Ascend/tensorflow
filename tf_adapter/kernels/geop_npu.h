@@ -193,6 +193,7 @@ private:
   std::string deploy_inject_config_;
   std::string execute_times_;
   std::string max_num_;
+  std::string max_key_num_;
   std::string embedding_dim_;
   std::string recompute_mode_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;

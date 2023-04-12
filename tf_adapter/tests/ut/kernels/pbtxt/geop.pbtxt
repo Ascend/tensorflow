@@ -132,6 +132,12 @@ node {
     }
   }
   attr {
+    key: "_max_key_num"
+    value {
+      s: "1"
+    }
+  }
+  attr {
     key: "_embedding_dim"
     value {
       s: "1"
