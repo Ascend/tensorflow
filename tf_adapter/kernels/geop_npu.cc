@@ -329,6 +329,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   (void) ctx->GetAttr("_deploy_inject_config", &deploy_inject_config_);
   (void) ctx->GetAttr("_execute_times", &execute_times_);
   (void) ctx->GetAttr("_max_num", &max_num_);
+  (void) ctx->GetAttr("_max_key_num", &max_key_num_);
   (void) ctx->GetAttr("_embedding_dim", &embedding_dim_);
   (void) ctx->GetAttr("_dynamic_input", &dynamic_input_);
   (void) ctx->GetAttr("_jit_compile", &jit_compile_);
@@ -352,7 +353,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
                 << ", is_var_init_graph: " << is_var_init_graph_ << ", deploy_inject_config: " << deploy_inject_config_
                 << ", execute_times: " << execute_times_ << ", max_num: " << max_num_
-                << ", embedding_dim: " << embedding_dim_;
+                << ", max_key_num: " << max_key_num_ << ", embedding_dim: " << embedding_dim_;
 
   // global environment Initialize, invoke once for each process
   std::string sess_config = "";
@@ -876,6 +877,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     if (!max_num_.empty()) {
       graph_options_["ge.max_num"] = max_num_;
+    }
+    if (!max_key_num_.empty()) {
+      graph_options_["ge.max_key_num"] = max_key_num_;
     }
     if (!embedding_dim_.empty()) {
       graph_options_["ge.embedding_dim"] = embedding_dim_;
