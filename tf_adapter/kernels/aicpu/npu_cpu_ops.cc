@@ -291,6 +291,20 @@ public:
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplyAdaGradOp Compute"; }
 };
 
+class EmbeddingComputeVarExportOp : public OpKernel {
+public:
+  explicit EmbeddingComputeVarExportOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingComputeVarExportOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingComputeVarExportOp Compute"; }
+};
+
+class EmbeddingComputeVarImportOp : public OpKernel {
+public:
+  explicit EmbeddingComputeVarImportOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingComputeVarImportOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingComputeVarImportOp Compute"; }
+};
+
 class EmbeddingTableExportOp : public OpKernel {
 public:
   explicit EmbeddingTableExportOp(OpKernelConstruction *context) : OpKernel(context) {}
@@ -338,6 +352,8 @@ REGISTER_KERNEL_BUILDER(Name("EmbeddingTableExport").Device(DEVICE_CPU), Embeddi
 REGISTER_KERNEL_BUILDER(Name("EmbeddingFeatureMapping").Device(DEVICE_CPU), EmbeddingFeatureMappingOp);
 REGISTER_KERNEL_BUILDER(Name("WarpAffineV2").Device(DEVICE_CPU), WarpAffineV2Op);
 REGISTER_KERNEL_BUILDER(Name("ResizeV2").Device(DEVICE_CPU), ResizeV2Op);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingComputeVarExport").Device(DEVICE_CPU), EmbeddingComputeVarExportOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingComputeVarImport").Device(DEVICE_CPU), EmbeddingComputeVarImportOp);
 
 class DecodeImageV3Op : public OpKernel {
 public:

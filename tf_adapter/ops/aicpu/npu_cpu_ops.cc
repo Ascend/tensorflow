@@ -360,6 +360,18 @@ REGISTER_OP("EmbeddingApplyAdaGrad")
     return Status::OK();
   });
 
+REGISTER_OP("EmbeddingComputeVarExport")
+  .Input("file_path: string")
+  .Input("ps_id: int32")
+  .Input("table_id: int32")
+  .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("EmbeddingComputeVarImport")
+  .Input("file_path: string")
+  .Input("ps_id: int32")
+  .Input("table_id: int32")
+  .SetShapeFn(shape_inference::NoOutputs);
+
 REGISTER_OP("EmbeddingTableExport")
   .Input("file_path: string")
   .Input("file_name: string")

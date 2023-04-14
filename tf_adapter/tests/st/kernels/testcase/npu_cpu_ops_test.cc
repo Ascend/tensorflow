@@ -225,6 +225,46 @@ TEST(EmbeddingOpsTest, TestEmbeddingTableFindAndInit) {
     delete context;
 }
 
+TEST(EmbeddingOpsTest, TestEmbeddingComputeVarExport) {
+    DataTypeSlice input_types({DT_STRING});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_STRING});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    EmbeddingComputeVarExportOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestEmbeddingComputeVarImport) {
+    DataTypeSlice input_types({DT_STRING});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_STRING});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    EmbeddingComputeVarImportOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
 TEST(EmbeddingOpsTest, TestEmbeddingTableExport) {
     DataTypeSlice input_types({DT_STRING});
     MemoryTypeSlice input_memory_types;
