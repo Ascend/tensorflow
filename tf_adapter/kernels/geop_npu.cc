@@ -897,7 +897,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (is_tuning) {
       graph_options["ge.buildMode"] = "normal";
     }
-    ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << graph_options["ge.jit_compile"];
+    ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << jit_compile_;
     status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
@@ -1266,6 +1266,7 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       const TensorShapeProto &shape_proto = *shape_attrs[i];
       tensorflow::PartialTensorShape shape(shape_proto);
       if (!shape.IsFullyDefined()) {
+        jit_compile_ = "0";
         is_dynamic_shape = true;
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_dynamic_shape come true.";
       }
@@ -1286,8 +1287,10 @@ void GeOp::UpdateInputsShapeDesc(Graph &graph) {
     }
     size_t index = static_cast<size_t>(node->attrs().Find("index")->i());
     node->ClearAttr("_output_shapes");
+    if (!input_shapes_vec_[index].has_value()) {
+      continue;
+    }
     node->AddAttr("_output_shapes", std::vector<PartialTensorShape>{input_shapes_vec_[index].value()});
-
     NodeDef &node_def = const_cast<NodeDef &>(node->def());
     AttrValue &output_tensor_descs = (*node_def.mutable_attr())[OUTPUT_DESC];
     auto &shape = input_shapes_vec_[index].value();
@@ -1338,8 +1341,8 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   }
   HandleDpOpAndGetNextNodes(graph);
 
-  // 二进制场景,更新输入shape
-  if (jit_compile_ != "1") {
+  // 二进制场景, 如果shape变化，则更新输入shape
+  if (jit_compile_ == "0") {
     UpdateInputsShapeDesc(graph);
   }
 
