@@ -192,7 +192,8 @@ class DatasetFunction {
         std::vector<Node*> &dvpp_graph_nodes, std::map<tensorflow::Node*, int64> &dvpp_arg_indexs) const;
     void CreateDvppGraph(tensorflow::Graph &sub_graph_dvpp, const std::vector<Node*> dvpp_graph_nodes,
         const std::map<tensorflow::Node*, int64> dvpp_arg_indexs) const;
-    std::string SplitSubGraph(FunctionLibraryDefinition &flib_def, const std::vector<std::string> acc_while_list);
+    std::string SplitSubGraph(FunctionLibraryDefinition &flib_def,
+        const std::vector<std::string> acc_while_list) const;
     Status InitAccelateOpList(std::vector<std::string> &acc_while_list) const;
     Status ReadJsonFile(const string &json_file_path, nlohmann::json &json_read) const;
     tensorflow::DataType EdgeDataType(const tensorflow::Edge &edge) const;

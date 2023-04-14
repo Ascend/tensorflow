@@ -872,7 +872,7 @@ void DatasetFunction::CreateDvppGraph(tensorflow::Graph &sub_graph_dvpp, const s
 }
 
 std::string DatasetFunction::SplitSubGraph(FunctionLibraryDefinition &flib_def,
-                                           const std::vector<std::string> acc_while_list) {
+                                           const std::vector<std::string> acc_while_list) const {
   // Init original tf sub graph
   tensorflow::Graph sub_graph_tf(&flib_def);
   TF_CHECK_OK(BuildSubGraph(flib_def, sub_graph_tf, funcName_));
