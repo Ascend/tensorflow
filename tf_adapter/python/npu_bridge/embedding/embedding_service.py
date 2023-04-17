@@ -146,7 +146,7 @@ class ESWorker:
             self._optimizer._es_cluster_configs = self._es_cluster_conf
             self._table_to_optimizer[table_id] = self._optimizer
             # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
-            self.slot_vars_num = 2 if isinstance(self._optimizer, embedding_optimizer.AdamOptimizer) else 1
+            self.slot_vars_num = 1 if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer) else 2
         self._table_to_slot_var_num[table_id] = self.slot_vars_num
         if (file_path is None) or (file_name is None) or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
             if initializer is None:
