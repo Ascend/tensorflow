@@ -1259,9 +1259,11 @@ Status GeOp::ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is
 
 void GeOp::ProcessGetNextNode(const Node *node) {
   bool is_dynamic_shape = false;
+  const char *kTypeAttrName = "output_types";
+  const char *kShapeAttrName = "output_shapes";
+  std::vector<DataType> type_attrs;
   std::vector<const TensorShapeProto *> shape_attrs;
-  const char *kAttrName = "output_shapes";
-  if (tensorflow::TryGetNodeAttr(node->attrs(), kAttrName, &shape_attrs)) {
+  if (tensorflow::TryGetNodeAttr(node->attrs(), kShapeAttrName, &shape_attrs)) {
     for (auto i = 0; i < node->num_outputs(); i++) {
       const TensorShapeProto &shape_proto = *shape_attrs[i];
       tensorflow::PartialTensorShape shape(shape_proto);
@@ -1269,6 +1271,16 @@ void GeOp::ProcessGetNextNode(const Node *node) {
         jit_compile_ = "0";
         is_dynamic_shape = true;
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_dynamic_shape come true.";
+      }
+    }
+  }
+  if (is_dynamic_shape == false &&
+      tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
+    for (auto i = 0; i < node->num_outputs(); i++) {
+      if (DT_STRING == type_attrs[i]) {
+        jit_compile_ = "0";
+        is_dynamic_shape = true;
+        ADP_LOG(INFO) << "[GEOP]node: " + node->name() + "'s output_types include DT_STRING.";
       }
     }
   }

@@ -95,7 +95,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       local_device_list_.push_back(device_id);
     }
     SetChannelType();
-    ADP_LOG(INFO) << "Start to init channel.";
+    ADP_LOG(INFO) << "Begin to init channel in device[" << device_id_ << "].";
     OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
     if (channel_type_ == ChannelType::TDT) {
       int32_t tdt_status = TdtInFeedInit(device_id_);
@@ -345,11 +345,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           for (uint32_t j = 0; j < kDataPerRecord; j++) {
             uint32_t index = (start_index + j + 1) % kDataPerRecord;
             auto record = &data_thread_perf_stat_[i].data_record[index];
-            if (record->start_time == 0) {
-              continue;
-            }
+            if (record->start_time == 0) { continue; }
             ADP_LOG(EVENT) << "DataThreadPerf: " << i
-                           << "(0:revc, 1:send), data_index: " << record->data_index
+                           << "(0:recv, 1:send), data_index: " << record->data_index
                            << ", start_time: " << FormatTimestampToDate(record->start_time)
                            << ", end_time: " << FormatTimestampToDate(record->end_time)
                            << ", elapsed_time: " << record->elapsed_time
@@ -358,7 +356,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           }
           auto record_max =  &data_thread_perf_stat_[i].data_record_max;
           ADP_LOG(EVENT) << "DataThreadPerf: " << i
-                         << "(0:revc, 1:send), device_id: " << dataset()->device_id_
+                         << "(0:recv, 1:send), device_id: " << dataset()->device_id_
                          << ", channel_name: " << dataset()->channel_name_
                          << ", longest time data_index: " << record_max->data_index
                          << ", start_time: " << FormatTimestampToDate(record_max->start_time)

@@ -243,8 +243,9 @@ aclError acltdtSendTensor(const acltdtChannelHandle *handle,
                           const acltdtDataset *dataset,
                           int32_t timeout) {
     if (g_AclTdtSendTensorMock) {
+      // 这里保证ACL_ERROR_RT_QUEUE_FULL只返回一次，否则会导致日志持续刷屏
       g_AclTdtSendTensorMock = false;
-      return ACL_ERROR_RT_QUEUE_FULL; // 保证ACL_ERROR_RT_QUEUE_FULL只返回一次，否则会导致日志持续打屏
+      return ACL_ERROR_RT_QUEUE_FULL;
     }
     if (dataset == nullptr || handle == nullptr) {
         return ACL_ERROR_INVALID_PARAM;
