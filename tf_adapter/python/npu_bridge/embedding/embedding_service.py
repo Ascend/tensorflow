@@ -138,15 +138,15 @@ class ESWorker:
                     (not isinstance(optimizer, embedding_optimizer.AdamWOptimizer)):
                 raise ValueError(
                     "optimizer should be embedding_optimizer AdamOptimizer, AdagradOptimizer or AdamWOptimizer.")
-            if (initializer is not None) and (initializer is not 'random_uniform') and \
-                    (initializer is not 'truncated_normal'):
+            if (initializer is not None) and (initializer != 'random_uniform') and (initializer != 'truncated_normal'):
                 raise ValueError("initializer must be random_uniform or truncated_normal.")
             self._optimizer = optimizer
             self._optimizer._embedding_dims = embedding_dim
             self._optimizer._max_nums = max_batch_size
+            self._optimizer._es_cluster_configs = self._es_cluster_conf
             self._table_to_optimizer[table_id] = self._optimizer
             # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
-            self.slot_vars_num = 2 if isinstance(self._optimizer, embedding_optimizer.AdamOptimizer) else 1
+            self.slot_vars_num = 1 if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer) else 2
         self._table_to_slot_var_num[table_id] = self.slot_vars_num
         if (file_path is None) or (file_name is None) or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
             if initializer is None:
@@ -383,8 +383,8 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -415,8 +415,8 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -434,7 +434,7 @@ class ESWorker:
             embedding_table_import = \
                 gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
                                                        file_path=ops.convert_to_tensor(path),
-                                                       table_id=ops.convert_to_tensor(table_id),
+                                                       table_id=ops.convert_to_tensor(table_id_list),
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id),
                                                        only_var_flag=True,
@@ -492,8 +492,8 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -527,8 +527,8 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -609,8 +609,8 @@ class ESWorker:
                                                        export_mode="new",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -641,8 +641,8 @@ class ESWorker:
                                                        export_mode="new",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -718,8 +718,8 @@ class ESWorker:
                                                        export_mode="specifiednew",
                                                        only_var_flag=False,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,
@@ -753,8 +753,8 @@ class ESWorker:
                                                        export_mode="specifiednew",
                                                        only_var_flag=False,
                                                        file_type="bin")
-            embedding_table_export.op._set_attr("_deploy_inject_config",
-                                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
+            embedding_table_export._set_attr("_deploy_inject_config",
+                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=path,

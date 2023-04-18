@@ -15,6 +15,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.eager import context
 from tensorflow.python.ops import math_ops
@@ -34,6 +35,20 @@ _ADAMW_BEAT2_POWER_VALUE = 0.99
 
 
 class AdamOptimizer(adam.AdamOptimizer):
+    def __init__(self,
+                 learning_rate=0.01,
+                 beta_1=0.9,
+                 beta_2=0.999,
+                 epsilon=1e-8,
+                 using_locking=False,
+                 name="EmbeddingAdamOptimizer"):
+        """Construct a EmbeddingAdam optimizer."""
+        super(AdamOptimizer, self).__init__(learning_rate, beta_1, beta_2, epsilon, using_locking, name)
+        self._beta1_t_list = []
+        self._beta2_t_list = []
+        self._table_idx = 0
+        self._var_idx = None
+
     @property
     def embedding_dims(self):
         return self._embedding_dims
@@ -50,11 +65,18 @@ class AdamOptimizer(adam.AdamOptimizer):
     def max_nums(self, val):
         self._max_nums = val
 
+    @property
+    def es_cluster_configs(self):
+        return self._es_cluster_configs
+
+    @es_cluster_configs.setter
+    def es_cluster_configs(self, val):
+        self._es_cluster_configs = val
+
     def _prepare(self):
         lr = self._call_if_callable(self._lr)
         epsilon = self._call_if_callable(self._epsilon)
-        self._beta1_t_list = []
-        self._beta2_t_list = []
+
         self._lr_t = ops.convert_to_tensor(lr, name="learning_rate")
         self._epsilon_t = ops.convert_to_tensor(epsilon, name="epsilon")
 
@@ -62,12 +84,12 @@ class AdamOptimizer(adam.AdamOptimizer):
         if isinstance(var, NpuEmbeddingResource):
             beta1 = self._call_if_callable(self._beta1)
             beta2 = self._call_if_callable(self._beta2)
-            self._beta1_t = ops.convert_to_tensor(beta1, name="beta1" + str(self.table_idx))
-            self._beta2_t = ops.convert_to_tensor(beta2, name="beta2" + str(self.table_idx))
+            self._beta1_t = ops.convert_to_tensor(beta1, name="beta1" + str(self._table_idx))
+            self._beta2_t = ops.convert_to_tensor(beta2, name="beta2" + str(self._table_idx))
             self._beta1_t_list.append(self._beta1_t)
             self._beta2_t_list.append(self._beta2_t)
             beta1_power, beta2_power = self._get_beta_accumulators()
-            self.table_idx += 1
+            self._table_idx += 1
             result = gen_npu_cpu_ops.embedding_apply_adam(var.handle, beta1_power, beta2_power,
                                                           math_ops.cast(self._lr_t, grad.dtype),
                                                           math_ops.cast(self._beta1_t, grad.dtype),
@@ -79,13 +101,14 @@ class AdamOptimizer(adam.AdamOptimizer):
                                                           self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
             result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            result.op._set_attr("_deploy_inject_config",
+                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_configs)))
             return result
         else:
             return self._apply_sparse_shared(grad, var, indices, self._resource_scatter_add)
 
     def _create_slots(self, var_list):
-        self.table_num = 1
-        self.table_idx = 0
         self._var_idx = var_list[0].name
         first_var = min(var_list, key=lambda x: x.name)
         self._create_non_slot_variable(
@@ -109,8 +132,7 @@ class AdamOptimizer(adam.AdamOptimizer):
 
     def _finish(self, update_ops, name_scope):
         # Update the power accumulators.
-        self.table_num = 0
-        self.table_idx = 0
+        self._table_idx = 0
         finish_output = []
         with ops.control_dependencies(update_ops):
             beta1_power_list = []
@@ -119,7 +141,7 @@ class AdamOptimizer(adam.AdamOptimizer):
                 beta1_power, beta2_power = self._get_beta_accumulators()
                 beta1_power_list.append(beta1_power)
                 beta2_power_list.append(beta2_power)
-                self.table_idx += 1
+                self._table_idx += 1
         for idx in range(len(update_ops)):
             beta1_power = beta1_power_list[idx]
             beta2_power = beta2_power_list[idx]
@@ -152,6 +174,14 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
     def max_nums(self, val):
         self._max_nums = val
 
+    @property
+    def es_cluster_configs(self):
+        return self._es_cluster_configs
+
+    @es_cluster_configs.setter
+    def es_cluster_configs(self, val):
+        self._es_cluster_configs = val
+
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
             result = gen_npu_cpu_ops.embedding_apply_ada_grad(var.handle,
@@ -162,6 +192,9 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
                                                               self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
             result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            result.op._set_attr("_deploy_inject_config",
+                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_configs)))
             return result
         else:
             return self.training_ops.resource_sparse_apply_adagrad(var.handle, grad.handle,
@@ -239,6 +272,14 @@ class AdamWOptimizer(optimizer.Optimizer):
     def max_nums(self, val):
         self._max_nums = val
 
+    @property
+    def es_cluster_configs(self):
+        return self._es_cluster_configs
+
+    @es_cluster_configs.setter
+    def es_cluster_configs(self, val):
+        self._es_cluster_configs = val
+
     def _prepare(self):
         beta1_power = self._call_if_callable(_ADAMW_BEAT1_POWER_VALUE)
         beta2_power = self._call_if_callable(_ADAMW_BEAT2_POWER_VALUE)
@@ -264,7 +305,7 @@ class AdamWOptimizer(optimizer.Optimizer):
                                                             beta1_power=
                                                             math_ops.cast(self._beta1_power_t, grad.dtype),
                                                             beta2_power=
-                                                            math_ops.cast(self._beta1_power_t, grad.dtype),
+                                                            math_ops.cast(self._beta2_power_t, grad.dtype),
                                                             lr=math_ops.cast(self._lr_t, grad.dtype),
                                                             weight_decay=
                                                             math_ops.cast(self._weight_decay_t, grad.dtype),
@@ -280,6 +321,9 @@ class AdamWOptimizer(optimizer.Optimizer):
                                                             embedding_dim=self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
             result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            result.op._set_attr("_deploy_inject_config",
+                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_configs)))
             return result
         else:
             raise TypeError("Variable is not NpuEmbeddingResource type, please check.")
