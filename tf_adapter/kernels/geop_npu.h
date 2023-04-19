@@ -124,6 +124,8 @@ private:
 
   void HandleDpOpAndGetNextNodes(Graph &graph);
 
+  bool IsDynamicGetNext(const Node *node);
+
   void ChangeChannelNameAttr(NodeDef &node_def) const;
 
   bool IsDynamicConfig();
@@ -191,7 +193,8 @@ private:
   std::string recompute_mode_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;
   bool jit_compile_;
-  bool is_getnext_dynamic_shape_;
+  bool is_dynamic_input_;
+  std::map<std::string, bool> is_getnext_dynamic_shape_;
   SessionId session_id_;
   AoeInitializeFunc aoe_initialize_;
   AoeFinalizeFunc aoe_finalize_;
