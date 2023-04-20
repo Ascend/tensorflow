@@ -291,7 +291,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       compute_graph_empty_(false), is_input_convert_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr), job_type_(""),
       is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT),
-      jit_compile_(false), is_getnext_dynamic_shape_(false), session_id_(0), aoe_initialize_(nullptr),
+      jit_compile_(""), is_dynamic_input_(false), session_id_(0), aoe_initialize_(nullptr),
       aoe_finalize_(nullptr), aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
       aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr) {
@@ -329,7 +329,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ctx->GetAttr("_dynamic_input", &dynamic_input_);
   if (!dynamic_input_.empty() && dynamic_input_ == "1") {
     jit_compile_ = true;
-    is_getnext_dynamic_shape_ = true;
+    is_dynamic_input_ = true;
     OP_REQUIRES_OK(ctx, ctx->GetAttr("_dynamic_graph_execute_mode", &dynamic_graph_execute_mode_));
     ctx->GetAttr("_getnext_inputs_shape_range", &getnext_inputs_shape_range_);
     ctx->GetAttr("_data_inputs_shape_range", &data_inputs_shape_range_);
@@ -341,7 +341,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   ADP_LOG(INFO) << "[GEOP] dynamic_input: " << dynamic_input_
                 << ", dynamic_graph_execute_mode: " << dynamic_graph_execute_mode_
                 << ", jit_compile: " << jit_compile_
-                << ", is_getnext_dynamic_shape_: " << is_getnext_dynamic_shape_
+                << ", is_dynamic_input: " << is_dynamic_input_
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
@@ -1106,6 +1106,18 @@ void GeOp::BuildQueueDataAndGetNextFromQueue(Graph &graph, const Node &getnext_n
   get_next_node_def.mutable_attr()->insert({"op_def", get_next_attr});
 }
 
+bool GeOp::IsDynamicGetNext(const Node *node) {
+  if (is_dynamic_input_) {
+    return true;
+  }
+  auto it = is_getnext_dynamic_shape_.find(node->name());
+  if (it == is_getnext_dynamic_shape_.end()) {
+    return false;
+  } else {
+    return it->second;
+  }
+}
+
 void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
   std::vector<Node *> remove_nodes;
   for (Node *node : graph.nodes()) {
@@ -1143,14 +1155,14 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
           remove_nodes.push_back(iterator_node);
         }
       } else if (NpuAttrs::IsDatasetExecuteInDevice(tf_session_ + iterator_name)) {
-        if (is_getnext_dynamic_shape_) {
+        if (IsDynamicGetNext(node)) {
           node_def.set_op("DynamicGetNext");
         }
       } else {
         Node *aicpu_getnext = nullptr;
         std::string aicpu_getnext_name = "aicpu_getnext_" + node->name();
         auto getnext_attrs = node->def().attr();
-        std::string aicpu_getnext_type = is_getnext_dynamic_shape_ ? "DynamicGetNextV2" : "GetNext";
+        std::string aicpu_getnext_type = IsDynamicGetNext(node) ? "DynamicGetNextV2" : "GetNext";
         TF_CHECK_OK(NodeBuilder(aicpu_getnext_name, aicpu_getnext_type)
                         .Device(node->def().device())
                         .Attr("channel_name", channel_name)
@@ -1219,17 +1231,37 @@ Status GeOp::ProcessForDiffNodeTypes(Graph &graph, bool &is_initialize, bool &is
 }
 
 void GeOp::ProcessGetNextNode(const Node *node) {
+  bool is_dynamic_shape = false;
+  const char *kTypeAttrName = "output_types";
+  const char *kShapeAttrName = "output_shapes";
+  std::vector<DataType> type_attrs;
   std::vector<const TensorShapeProto *> shape_attrs;
-  const char *kAttrName = "output_shapes";
-  if (tensorflow::TryGetNodeAttr(node->attrs(), kAttrName, &shape_attrs)) {
+  if (tensorflow::TryGetNodeAttr(node->attrs(), kShapeAttrName, &shape_attrs)) {
     for (auto i = 0; i < node->num_outputs(); i++) {
       const TensorShapeProto &shape_proto = *shape_attrs[i];
       tensorflow::PartialTensorShape shape(shape_proto);
       if (!shape.IsFullyDefined()) {
-        is_getnext_dynamic_shape_ = true;
-        ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_getnext_dynamic_shape_ come true.";
+        jit_compile_ = "0";
+        is_dynamic_shape = true;
+        ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_dynamic_shape come true.";
       }
     }
+  }
+  if (is_dynamic_shape == false &&
+      tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
+    for (auto i = 0; i < node->num_outputs(); i++) {
+      if (DT_STRING == type_attrs[i]) {
+        jit_compile_ = "0";
+        is_dynamic_shape = true;
+        ADP_LOG(INFO) << "[GEOP]node: " + node->name() + "'s output_types include DT_STRING.";
+      }
+    }
+  }
+  auto it = is_getnext_dynamic_shape_.find(node->name());
+  if (it == is_getnext_dynamic_shape_.end()) {
+    (void)is_getnext_dynamic_shape_.insert(std::make_pair(node->name(), is_dynamic_shape));
+  } else {
+    ADP_LOG(WARNING) << "[GEOP]node: " + node->name() + " has is_dynamic_shape[" << it->second << "].";
   }
 }
 
