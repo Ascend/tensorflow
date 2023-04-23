@@ -134,17 +134,36 @@ TEST_F(GeOpTest, GeOpVarInitGraphTest) {
   gtl::InlinedVector<TensorValue, 4> inputs;
   EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp14_0").ok());
 }
+TEST_F(GeOpTest, GeOpJitCompileFalseTest) {
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_jit_compile_true.pbtxt";
+  std::vector<int64_t> ge_output1_dims{2, 2};
+  auto getnext_output1_info =
+      std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output1_dims, 8, nullptr));
+  Allocator* allocator1 = NpuHostGetNextAllocator::Create(std::move(getnext_output1_info));
+  Tensor a(allocator1, DT_INT64, TensorShape({2, 2}));
+  std::vector<int64_t> ge_output2_dims{2, 2};
+  auto getnext_output2_info =
+      std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output2_dims, 8, nullptr));
+  Allocator* allocator2 = NpuHostGetNextAllocator::Create(std::move(getnext_output2_info));
+  Tensor b(allocator2, DT_INT64, TensorShape({2, 2}));
+  Tensor c(DT_INT32, TensorShape({1,}));
+  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a), TensorValue(&b), TensorValue(&c)};
+  Tensor d(DT_INT32, TensorShape({2,}));
+  gtl::InlinedVector<TensorValue, 4> inputs2{TensorValue(&a), TensorValue(&b), TensorValue(&d)};
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs2, node_def, "GeOp11_1", false).ok());
+}
 TEST_F(GeOpTest, GeOpDynamicInputTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_input_lazy_recompile.pbtxt";
   std::vector<int64_t> ge_output1_dims{2, 2};
   auto getnext_output1_info =
-    std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output1_dims, 8, nullptr));
+      std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output1_dims, 8, nullptr));
   Allocator* allocator1 = NpuHostGetNextAllocator::Create(std::move(getnext_output1_info));
   Tensor a(allocator1, DT_INT64, TensorShape({2, 2}));
   std::vector<int64_t> ge_output2_dims{2, 2};
   auto getnext_output2_info =
-    std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output2_dims, 8, nullptr));
+      std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output2_dims, 8, nullptr));
   Allocator* allocator2 = NpuHostGetNextAllocator::Create(std::move(getnext_output2_info));
   Tensor b(allocator2, DT_INT64, TensorShape({2, 2}));
   Tensor c(DT_INT32, TensorShape({1,}));

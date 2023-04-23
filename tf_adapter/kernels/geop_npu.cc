@@ -351,7 +351,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
-                << ", is_var_init_graph: " << is_var_init_graph_ << ", deploy_inject_config: " << deploy_inject_config_
+                << ", is_var_init_graph: " << is_var_init_graph_
+                << ", deploy_inject_config: " << deploy_inject_config_
                 << ", execute_times: " << execute_times_ << ", max_num: " << max_num_
                 << ", max_key_num: " << max_key_num_ << ", embedding_dim: " << embedding_dim_;
 
@@ -429,7 +430,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   init_flag_ = true;
   int64 endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(EVENT) << "[GEOP] GeOp Initialize success, cost: "
-                 << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+                 << " [" << ((endTime - startTime) / kMicrosToMillis) << " ms].";
   return;
 }
 
@@ -606,6 +607,25 @@ void GeOp::GetExecGraphId(uint32_t &cache_graph_id, std::vector<std::string> inp
   }
 }
 
+bool GeOp::IsDynamicConfig() {
+  const bool result = !sess_options_["ge.inputShape"].empty() && !sess_options_["ge.dynamicDims"].empty() &&
+      !sess_options_["ge.dynamicNodeType"].empty();
+  ADP_LOG(INFO) << "[GEOP] IsDynamicConfig result is: " << result;
+  return result;
+}
+
+void GeOp::SetDynamicInput() {
+  if (dynamic_input_ == "1") {
+    graph_options_["ge.exec.dynamicInput"] = dynamic_input_;
+    graph_options_["ge.exec.dynamicGraphExecuteMode"] = dynamic_graph_execute_mode_;
+    graph_options_["ge.exec.dataInputsShapeRange"] = data_inputs_shape_range_;
+    if (dynamic_graph_execute_mode_ == "dynamic_execute" && data_inputs_shape_range_.empty() &&
+        getnext_inputs_shape_range_.empty()) {
+      graph_options_["ge.shape_generalized_build_mode"] = "shape_generalized";
+    }
+  }
+}
+
 PartialTensorShape GeOp::MakeCompatShape(const PartialTensorShape &a, const PartialTensorShape &b) const {
   const static auto kUnknownRankShape = PartialTensorShape();
   if (a.dims() != b.dims()) {
@@ -637,7 +657,12 @@ bool GeOp::MaybeUpdateShape(OpKernelContext *const ctx) {
         updated = true;
         ADP_LOG(INFO) << "Compat input " << i << " shape " << shape.value().DebugString() << " vs. "
                 << value_shape.DebugString();
-        shape = MakeCompatShape(shape.value(), value_shape);
+        if (jit_compile_ == "1") {
+          shape = value_shape;
+          ADP_LOG(WARNING) << "Dynamic shape, recommended to configure jit_compile value to false";
+        } else {
+          shape = MakeCompatShape(shape.value(), value_shape);
+        }
         ADP_LOG(INFO) << "Refresh input " << i << " shape to " << shape.value().DebugString();
       }
     }
@@ -714,10 +739,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   // To be compatible with old versions, we should check dynamic_input_ and dynamic_config
   bool is_set_dynamic_config = IsDynamicConfig();
-  if (dynamic_input_ != "1" && !is_set_dynamic_config && jit_compile_ != "1") {
+  if (dynamic_input_ != "1" && !is_set_dynamic_config) {
     bool shape_changed = MaybeUpdateShape(ctx);
     if (build_flag_ && shape_changed) {
-      jit_compile_ = "0";
+      if (jit_compile_.empty()) {
+        jit_compile_ = "0";
+      }
       ge::Status status = ge_session_->RemoveGraph(graph_id_);
       if (status != ge::SUCCESS) {
         ADP_LOG(WARNING) << "[GEOP] GE remove graph failed, ret : " << ToString(status) << ", graph_id: " << graph_id_;
@@ -735,7 +762,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   uint32_t cache_graph_id = graph_id_;
   bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
   bool is_lazy_recompile_mode = (dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile");
-  ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config << " is_tuning: " << is_tuning
+  ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config
+                << " is_tuning: " << is_tuning
                 << " is_lazy_recompile_mode: " << is_lazy_recompile_mode;
 
   if (is_tuning) {
@@ -801,7 +829,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     endTime = InferShapeUtil::GetCurrentTimestap();
     ADP_LOG(EVENT) << "[GEOP] In GEOP computeAsync, kernel_name: " << geop_name << " ,TFadapter cost time: ["
-                   << ((endTime - startTime) / kMicrosToMillis) << " ms]";
+                   << ((endTime - startTime) / kMicrosToMillis) << " ms].";
     ADP_LOG(INFO) << "[GEOP] TFadpter process graph success, GE parser begin, kernel_name: " << geop_name
                   << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id;
     // parser,  tensorflow graph to ge graph
@@ -1268,7 +1296,9 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       const TensorShapeProto &shape_proto = *shape_attrs[i];
       tensorflow::PartialTensorShape shape(shape_proto);
       if (!shape.IsFullyDefined()) {
-        jit_compile_ = "0";
+        if (jit_compile_.empty()) {
+          jit_compile_ = "0";
+        }
         is_dynamic_shape = true;
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_dynamic_shape come true.";
       }
@@ -1765,18 +1795,6 @@ std::string GeOp::BuildSubGraph(FunctionLibraryDefinition *flib_def, const std::
   return sub_graph_def->SerializeAsString();
 }
 
-void GeOp::SetDynamicInput() {
-  if (dynamic_input_ == "1") {
-    graph_options_["ge.exec.dynamicInput"] = dynamic_input_;
-    graph_options_["ge.exec.dynamicGraphExecuteMode"] = dynamic_graph_execute_mode_;
-    graph_options_["ge.exec.dataInputsShapeRange"] = data_inputs_shape_range_;
-    if (dynamic_graph_execute_mode_ == "dynamic_execute" && data_inputs_shape_range_.empty() &&
-        getnext_inputs_shape_range_.empty()) {
-      graph_options_["ge.shape_generalized_build_mode"] = "shape_generalized";
-    }
-  }
-}
-
 void GeOp::AnalyzeInputDesc(void *tensor_ptr, ge::Tensor &input, ge::DataType type,
                             std::vector<std::string> &input_shapes) const {
   ADP_LOG(INFO) << "[GEOP] Start analyze input tensor.";
@@ -2191,13 +2209,6 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
     return Status::OK();
   }
   return errors::Unavailable("DomiFormatFromString, not supported format, format = ", format);
-}
-
-bool GeOp::IsDynamicConfig() {
-  const bool result = !sess_options_["ge.inputShape"].empty() && !sess_options_["ge.dynamicDims"].empty() &&
-      !sess_options_["ge.dynamicNodeType"].empty();
-  ADP_LOG(INFO) << "[GEOP] IsDynamicConfig result is: " << result;
-  return result;
 }
 }  // namespace tensorflow
 

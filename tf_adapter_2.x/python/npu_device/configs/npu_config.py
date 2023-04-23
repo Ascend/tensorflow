@@ -67,7 +67,7 @@ class NpuConfig(NpuBaseConfig):
         self.event_sync_timeout = OptionValue(-1, None)
         self.external_weight = OptionValue(False, [True, False])
         self.memory_config = MemoryConfig()
-        self.jit_compile = OptionValue(False, [True, False])
+        self.jit_compile = OptionValue(None, [True, False])
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()

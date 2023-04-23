@@ -42,6 +42,14 @@ class NpuCallOp : public OpKernel {
     DLOG() << "Compute npu op " << name() << " with function " << attr_.name();
     std::lock_guard<std::mutex> lk(mu_);  // Prevent run same npu graph parallel
     OP_REQUIRES_OK(ctx, Initilize(ctx));
+    TFE_Context *context;
+    NpuDevice *device;
+    auto status = std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)>(TF_NewStatus(), TF_DeleteStatus);
+    OP_REQUIRES_OK(ctx, global::NpuCtx::GetDeviceCtx(device_id_, &context, &device));
+    if (device->device_options.find("ge.jit_compile") != device->device_options.end()) {
+      jit_compile_ = device->device_options["ge.jit_compile"];
+    }
+
     bool loaded = false;
     OP_REQUIRES_OK(ctx, Build(ctx, loaded));
 
@@ -49,11 +57,6 @@ class NpuCallOp : public OpKernel {
       DLOG() << "Compute bypass for cluster graph " << attr_.name() << " of " << name() << " as empty ge graph";
       return;
     }
-
-    TFE_Context *context;
-    NpuDevice *device;
-    auto status = std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)>(TF_NewStatus(), TF_DeleteStatus);
-    OP_REQUIRES_OK(ctx, global::NpuCtx::GetDeviceCtx(device_id_, &context, &device));
 
     std::vector<TFE_TensorHandle *> inputs;
     inputs.reserve(static_cast<size_t>(ctx->num_inputs()));
@@ -137,7 +140,12 @@ class NpuCallOp : public OpKernel {
           updated = true;
           DLOG() << "Compat input " << i << " shape " << shape.value().DebugString() << " vs. "
                  << value_shape.DebugString();
-          shape = MakeCompatShape(shape.value(), value_shape);
+          if (jit_compile_ == "1") {
+            shape = value_shape;
+            DLOG() << "Dynamic shape, recommended to configure jit_compile value to false";
+          } else {
+            shape = MakeCompatShape(shape.value(), value_shape);
+          }
           DLOG() << "Refresh input " << i << " shape to " << shape.value().DebugString();
           args_[i]->ClearAttr("_output_shapes");
           args_[i]->AddAttr("_output_shapes", std::vector<PartialTensorShape>{shape.value()});
@@ -225,6 +233,7 @@ class NpuCallOp : public OpKernel {
   std::unique_ptr<tensorflow::GraphDef> graph_def_;
   std::vector<tensorflow::Node *> args_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_;
+  std::string jit_compile_;
 };
 
 REGISTER_KERNEL_BUILDER(Name("NpuCall").Device(DEVICE_CPU), NpuCallOp);

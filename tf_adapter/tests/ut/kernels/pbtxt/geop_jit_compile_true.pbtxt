@@ -1,0 +1,995 @@
+node {
+  name: "arg_arg_Placeholder_0_0"
+  op: "_Arg"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "retval_Mul_0_0"
+  op: "_Retval"
+  input: "GeOp11_1"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "index"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "GeOp11_1"
+  op: "GeOp"
+  input: "GeOp11_0"
+  input: "GeOp11_0:1"
+  input: "arg_arg_Placeholder_0_0"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "Tin"
+    value {
+      list {
+        type: DT_INT64
+        type: DT_INT64
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      list {
+        type: DT_INT32
+      }
+    }
+  }
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_auto_tune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_buffer_optimize"
+    value {
+      s: "l2_optimize"
+    }
+  }
+  attr {
+    key: "_compress_weight_conf"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_debug_dir"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_distribute_config"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_do_npu_optimizer"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_dump_debug_mode"
+    value {
+      s: "all"
+    }
+  }
+  attr {
+    key: "_dump_mode"
+    value {
+      s: "output"
+    }
+  }
+  attr {
+    key: "_dump_path"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_dump_step"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_compress_weight"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_data_pre_proc"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_enable_dump"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_dump_debug"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_exception_dump"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_scope_fusion_passes"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_small_channel"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_fusion_switch_file"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_graph_run_mode"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_hcom_multi_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_hcom_parallel"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_in_out_pair"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_in_out_pair_flag"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_input_shape"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_is_dynamic_getnext"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_jit_compile"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_is_tailing_optimization"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_local_device_list"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_local_rank_id"
+    value {
+      s: "-1"
+    }
+  }
+  attr {
+    key: "_lower_functional_ops"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_mstune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_compiler_cache_dir"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_compiler_cache_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_debug_level"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_op_select_implmode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_tune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_optypelist_for_implmode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_placeholder_index"
+    value {
+      s: "2"
+    }
+  }
+  attr {
+    key: "_precision_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_profiling_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_profiling_options"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_session_device_id"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_stream_max_parallel_num"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_task_index"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_variable_format_optimize"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_work_path"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "data_format"
+    value {
+      s: "NHWC"
+    }
+  }
+  attr {
+    key: "function"
+    value {
+      func {
+        name: "GeOp11_1"
+      }
+    }
+  }
+}
+node {
+  name: "GeOp11_0"
+  op: "GeOp"
+  device: "/job:localhost/replica:0/task:0/device:CPU:0"
+  attr {
+    key: "Tin"
+    value {
+      list {
+      }
+    }
+  }
+  attr {
+    key: "Tout"
+    value {
+      list {
+        type: DT_INT64
+        type: DT_INT64
+      }
+    }
+  }
+  attr {
+    key: "_NpuOptimizer"
+    value {
+      s: "NpuOptimizer"
+    }
+  }
+  attr {
+    key: "_auto_tune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_buffer_optimize"
+    value {
+      s: "l2_optimize"
+    }
+  }
+  attr {
+    key: "_compress_weight_conf"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_debug_dir"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_distribute_config"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_do_npu_optimizer"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_dump_debug_mode"
+    value {
+      s: "all"
+    }
+  }
+  attr {
+    key: "_dump_mode"
+    value {
+      s: "output"
+    }
+  }
+  attr {
+    key: "_dump_path"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_dump_step"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_dynamic_dims"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_dynamic_graph_execute_mode"
+    value {
+      s: "lazy_recompile"
+    }
+  }
+  attr {
+    key: "_dynamic_input"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_dynamic_node_type"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_compress_weight"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_data_pre_proc"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_enable_dump"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_dump_debug"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_enable_exception_dump"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_scope_fusion_passes"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_enable_small_channel"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_fusion_switch_file"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_graph_run_mode"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_hcom_multi_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_hcom_parallel"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_in_out_pair"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_in_out_pair_flag"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_input_shape"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_is_dynamic_getnext"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_is_tailing_optimization"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_iterations_per_loop"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_job"
+    value {
+      s: "localhost"
+    }
+  }
+  attr {
+    key: "_local_device_list"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_local_rank_id"
+    value {
+      s: "-1"
+    }
+  }
+  attr {
+    key: "_lower_functional_ops"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_mix_compile_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_mstune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_compiler_cache_dir"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_compiler_cache_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_debug_level"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_op_select_implmode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_op_tune_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_optypelist_for_implmode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_precision_mode"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_profiling_mode"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_profiling_options"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_session_device_id"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_stream_max_parallel_num"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "_task_index"
+    value {
+      s: "0"
+    }
+  }
+  attr {
+    key: "_use_off_line"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_variable_format_optimize"
+    value {
+      s: "1"
+    }
+  }
+  attr {
+    key: "_work_path"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "data_format"
+    value {
+      s: "NHWC"
+    }
+  }
+  attr {
+    key: "function"
+    value {
+      func {
+        name: "GeOp11_0"
+      }
+    }
+  }
+}
+library {
+  function {
+    signature {
+      name: "GeOp11_1"
+      input_arg {
+        name: "IteratorGetNext_0_arg"
+        type: DT_INT64
+      }
+      input_arg {
+        name: "IteratorGetNext_1_arg"
+        type: DT_INT64
+      }
+      input_arg {
+        name: "arg_arg_Placeholder_0_0_0_arg"
+        type: DT_INT32
+      }
+      output_arg {
+        name: "Mul_0_retval"
+        type: DT_INT32
+      }
+    }
+    node_def {
+      name: "Cast"
+      op: "Cast"
+      input: "IteratorGetNext_0_arg"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "DstT"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "SrcT"
+        value {
+          type: DT_INT64
+        }
+      }
+      attr {
+        key: "Truncate"
+        value {
+          b: false
+        }
+      }
+    }
+    node_def {
+      name: "Cast_1"
+      op: "Cast"
+      input: "IteratorGetNext_1_arg"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "DstT"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "SrcT"
+        value {
+          type: DT_INT64
+        }
+      }
+      attr {
+        key: "Truncate"
+        value {
+          b: false
+        }
+      }
+    }
+    node_def {
+      name: "Add"
+      op: "Add"
+      input: "Cast:y:0"
+      input: "Cast_1:y:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_INT32
+        }
+      }
+    }
+    node_def {
+      name: "Mul"
+      op: "Mul"
+      input: "Add:z:0"
+      input: "arg_arg_Placeholder_0_0_0_arg"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_INT32
+        }
+      }
+      attr {
+        key: "_graph_dynamic_graph_execute_mode"
+        value {
+          s: "lazy_recompile"
+        }
+      }
+      attr {
+        key: "_graph_dynamic_input"
+        value {
+          b: true
+        }
+      }
+      attr {
+        key: "_graph_dynamic_inputs_shape_range"
+        value {
+          s: ""
+        }
+      }
+    }
+    ret {
+      key: "Mul_0_retval"
+      value: "Mul:z:0"
+    }
+  }
+  function {
+    signature {
+      name: "GeOp11_0"
+      output_arg {
+        name: "IteratorGetNext_0_retval"
+        type: DT_INT64
+      }
+      output_arg {
+        name: "IteratorGetNext_1_retval"
+        type: DT_INT64
+      }
+    }
+    node_def {
+      name: "IteratorV2"
+      op: "IteratorV2"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "_NpuOptimizer"
+        value {
+          s: "NpuOptimizer"
+        }
+      }
+      attr {
+        key: "_enable_data_pre_proc"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_iterations_per_loop"
+        value {
+          s: "1"
+        }
+      }
+      attr {
+        key: "_job"
+        value {
+          s: "localhost"
+        }
+      }
+      attr {
+        key: "_mix_compile_mode"
+        value {
+          s: "0"
+        }
+      }
+      attr {
+        key: "container"
+        value {
+          s: ""
+        }
+      }
+      attr {
+        key: "output_shapes"
+        value {
+          list {
+            shape {
+              dim {
+                size: -1
+              }
+              dim {
+                size: -1
+              }
+            }
+            shape {
+              dim {
+                size: -1
+              }
+              dim {
+                size: -1
+              }
+            }
+          }
+        }
+      }
+      attr {
+        key: "output_types"
+        value {
+          list {
+            type: DT_INT64
+            type: DT_INT64
+          }
+        }
+      }
+      attr {
+        key: "shared_name"
+        value {
+          s: "IteratorV2"
+        }
+      }
+    }
+    node_def {
+      name: "IteratorGetNext"
+      op: "IteratorGetNext"
+      input: "IteratorV2:handle:0"
+      device: "/job:localhost/replica:0/task:0/device:CPU:0"
+      attr {
+        key: "output_shapes"
+        value {
+          list {
+            shape {
+              dim {
+                size: -1
+              }
+              dim {
+                size: -1
+              }
+            }
+            shape {
+              dim {
+                size: -1
+              }
+              dim {
+                size: -1
+              }
+            }
+          }
+        }
+      }
+      attr {
+        key: "output_types"
+        value {
+          list {
+            type: DT_INT64
+            type: DT_INT64
+          }
+        }
+      }
+    }
+    ret {
+      key: "IteratorGetNext_0_retval"
+      value: "IteratorGetNext:components:0"
+    }
+    ret {
+      key: "IteratorGetNext_1_retval"
+      value: "IteratorGetNext:components:1"
+    }
+  }
+}
+versions {
+  producer: 134
+  min_consumer: 12
+}
