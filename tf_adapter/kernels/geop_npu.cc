@@ -291,7 +291,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       compute_graph_empty_(false), is_input_convert_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr), job_type_(""),
       is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT),
-      jit_compile_(""), is_dynamic_input_(false), session_id_(0), aoe_initialize_(nullptr),
+      jit_compile_(false), is_dynamic_input_(false), session_id_(0), aoe_initialize_(nullptr),
       aoe_finalize_(nullptr), aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
       aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr) {
@@ -1238,7 +1238,6 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       const TensorShapeProto &shape_proto = *shape_attrs[i];
       tensorflow::PartialTensorShape shape(shape_proto);
       if (!shape.IsFullyDefined()) {
-        jit_compile_ = "0";
         is_dynamic_shape = true;
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_dynamic_shape come true.";
       }
@@ -1248,7 +1247,6 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
     for (auto i = 0; i < node->num_outputs(); i++) {
       if (DT_STRING == type_attrs[i]) {
-        jit_compile_ = "0";
         is_dynamic_shape = true;
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + "'s output_types include DT_STRING.";
       }
