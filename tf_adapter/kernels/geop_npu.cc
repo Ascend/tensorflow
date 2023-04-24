@@ -859,7 +859,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
       ge_graph.SetNeedIteration(this->need_iteration_);
-      graph_options_["iterations_per_loop"] = std::to_string(iteration_per_loop_);
     }
 
     if (is_host_graph_) {
