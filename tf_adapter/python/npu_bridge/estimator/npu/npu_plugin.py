@@ -225,3 +225,8 @@ def get_rdma_cache(data_type, shape, name="rdma_w"):
 
 def set_device_sat_mode(mode):
     tf_adapter.SetDeviceSatMode(mode)
+
+
+def is_inf_nan_enabled():
+    """device sat mode: 1 is INF-NAN"""
+    return tf_adapter.GetDeviceSatMode() == 1

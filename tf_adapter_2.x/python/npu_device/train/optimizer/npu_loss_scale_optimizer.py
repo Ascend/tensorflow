@@ -30,6 +30,7 @@ from tensorflow.python.keras.mixed_precision.loss_scale_optimizer import _op_in_
 from npu_device.npu_device import global_npu_ctx
 from npu_device import gen_npu_ops
 from npu_device.npu_device import npu_compat_function
+from npu_device.npu_device import is_inf_nan_enabled
 from npu_device.distribute.hccl import all_reduce
 
 
@@ -106,7 +107,7 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
                         grads_and_vars,
                         name=None):
         """Apply gradients on variables"""
-        if global_npu_ctx() is None:
+        if global_npu_ctx() is None or is_inf_nan_enabled():
             super().apply_gradients(grads_and_vars, name)
 
         grads_and_vars = tuple(grads_and_vars)  # grads_and_vars origin type is zip and can only be iter once

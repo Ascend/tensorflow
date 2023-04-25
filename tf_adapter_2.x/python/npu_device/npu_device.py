@@ -68,8 +68,9 @@ def set_device_sat_mode(mode):
     _npu_device_backends.SetDeviceSatMode(mode)
 
 
-def get_device_sat_mode():
-    return _npu_device_backends.GetDeviceSatMode()
+def is_inf_nan_enabled():
+    """device sat mode: 1 is INF-NAN"""
+    return _npu_device_backends.GetDeviceSatMode() == 1
 
 
 _global_options = None
