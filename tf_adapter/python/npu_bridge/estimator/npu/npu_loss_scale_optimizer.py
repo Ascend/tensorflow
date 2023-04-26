@@ -30,6 +30,7 @@ from tensorflow.contrib.mixed_precision.python import loss_scale_optimizer as ls
 from npu_bridge.hccl import hccl_ops
 from npu_bridge.estimator.npu.npu_loss_scale_manager import FixedLossScaleManager
 from npu_bridge.helper import helper
+from npu_bridge.estimator.npu import npu_plugin
 
 gen_npu_ops = helper.get_gen_ops()
 
@@ -51,6 +52,9 @@ class NPULossScaleOptimizer(lso.LossScaleOptimizer):
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
         """Apply gradients. See base class `tf.compat.v1.train.Optimizer`."""
+        if npu_plugin.is_inf_nan_enabled():
+            return super().apply_gradients(grads_and_vars, name)
+
         if self._enable_overflow_check():
             with tf.name_scope(self._name):
                 grads = []
