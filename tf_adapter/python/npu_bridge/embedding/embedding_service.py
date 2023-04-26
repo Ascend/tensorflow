@@ -43,6 +43,17 @@ def specified_ps_engine_scope():
         yield
 
 
+class Initializer:
+    """Initializer for embedding service table."""
+    def __init__(self, min, max, initializer_mode, constant_value, mu=0.0, sigma=1.0):
+        self.min = min
+        self.max = max
+        self.initializer_mode = initializer_mode
+        self.constant_value = constant_value
+        self.mu = mu
+        self.sigma = sigma
+
+
 class ESWorker:
     """ Embedding service class. """
 
@@ -91,6 +102,21 @@ class ESWorker:
         custom_op.parameter_map["es_cluster_config"].s = tf.compat.as_bytes(self._es_cluster_conf)
         self.es_all_config = config
 
+    # 提供 embedding_service table
+    def initializer(self, table_id, min, max, initializer_mode, constant_value, mu=0.0, sigma=1.0):
+        """Operator for init initializer."""
+        if min > max:
+            raise ValueError("Initializer min value can not be larger than max value.")
+        if (initializer_mode is not 'constant') and (initializer_mode is not 'random_uniform') and \
+                (initializer_mode is not 'truncated_normal'):
+            raise ValueError("Initializer mode must be random_uniform or truncated normal or constant.")
+        self._table_to_initializer[table_id] = Initializer(min=min,
+                                                           max=max,
+                                                           initializer_mode=initializer_mode,
+                                                           constant_value=constant_value,
+                                                           mu=mu,
+                                                           sigma=sigma)
+
     # 提供embedding init功能
     # @param vocabulary_size int 类型
     # @param file_path string 类型
@@ -123,10 +149,15 @@ class ESWorker:
         self._max_num = max_batch_size
         self._table_to_embedding_dim[table_id] = embedding_dim
         self._table_to_max_num[table_id] = max_batch_size
-        self._initializer = initializer
-        self._table_to_initializer[table_id] = initializer
         self._table_has_init.append(table_id)
         bucket_size = math.ceil(vocabulary_size / self._ps_num)
+        if (self._table_to_initializer.get(table_id) is None) and (initializer is not None):
+            self._table_to_initializer[table_id] = Initializer(min=-2,
+                                                               max=2,
+                                                               initializer_mode=initializer,
+                                                               constant_value=0,
+                                                               mu=0.0,
+                                                               sigma=1.0)
         if optimizer is None:
             if file_path is None or file_name is None or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
                 raise ValueError("embedding table file not exist.")
@@ -149,7 +180,7 @@ class ESWorker:
             self.slot_vars_num = 1 if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer) else 2
         self._table_to_slot_var_num[table_id] = self.slot_vars_num
         if (file_path is None) or (file_name is None) or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
-            if initializer is None:
+            if (initializer is None) and (self._table_to_initializer.get(table_id) is None):
                 raise ValueError("In new embedding training, initializer can not be None.")
             self._train_level = True
         with specified_ps_engine_scope():
@@ -166,7 +197,7 @@ class ESWorker:
                                                               attr_value_pb2.AttrValue(
                                                                   s=tf.compat.as_bytes(self._es_cluster_conf)))
             return self._init_hashmap_and_table_import(bucket_size, file_path, file_name, table_id,
-                                                       initializer, embedding_dim, only_var, mode)
+                                                       embedding_dim, only_var, mode)
 
     # 提供embedding lookup功能
     # @param table_id int32 类型
@@ -192,8 +223,22 @@ class ESWorker:
                                                                    keys=input_ids,
                                                                    embedding_dim=
                                                                    self._table_to_embedding_dim.get(table_id),
-                                                                   random_alg=self._table_to_initializer.get(table_id),
-                                                                   seed=seed1, seed2=seed2,
+                                                                   initializer_mode=
+                                                                   self._table_to_initializer.get(table_id)
+                                                                   .initializer_mode,
+                                                                   constant_value=
+                                                                   self._table_to_initializer.get(table_id)
+                                                                   .constant_value,
+                                                                   min=
+                                                                   self._table_to_initializer.get(table_id).min,
+                                                                   max=
+                                                                   self._table_to_initializer.get(table_id).max,
+                                                                   mu=
+                                                                   self._table_to_initializer.get(table_id).mu,
+                                                                   sigma=
+                                                                   self._table_to_initializer.get(table_id).sigma,
+                                                                   seed=seed1,
+                                                                   seed2=seed2,
                                                                    value_total_len=
                                                                    self._table_to_embedding_dim.get(table_id) *
                                                                    (self._table_to_slot_var_num.get(table_id) + 1)
@@ -675,7 +720,7 @@ class ESWorker:
             return tf.group([embedding_table_import])
 
     def _init_hashmap_and_table_import(self, bucket_size, file_path, file_name, table_id,
-                                       initializer, embedding_dim, only_var, mode):
+                                       embedding_dim, only_var, mode):
         with tf.control_dependencies([self._init_partition_maps.get(table_id)]):
             if self._train_mode:
                 if self._train_level:
@@ -685,21 +730,48 @@ class ESWorker:
                                                                bucket_size=bucket_size,
                                                                value_total_len=embedding_dim * (self.slot_vars_num + 1),
                                                                embedding_dim=embedding_dim,
-                                                               random_alg=initializer, seed=seed1, seed2=seed2)
+                                                               initializer_mode=
+                                                               self._table_to_initializer.get(table_id)
+                                                               .initializer_mode,
+                                                               constant_value=
+                                                               self._table_to_initializer.get(table_id)
+                                                               .constant_value,
+                                                               min=
+                                                               self._table_to_initializer.get(table_id).min,
+                                                               max=
+                                                               self._table_to_initializer.get(table_id).max,
+                                                               mu=
+                                                               self._table_to_initializer.get(table_id).mu,
+                                                               sigma=
+                                                               self._table_to_initializer.get(table_id).sigma,
+                                                               seed=seed1,
+                                                               seed2=seed2)
                 else:
                     self._init_embedding_hash_maps[table_id] = \
                         gen_npu_cpu_ops.init_embedding_hashmap(table_id=ops.convert_to_tensor(table_id),
                                                                bucket_size=bucket_size,
                                                                value_total_len=embedding_dim * (self.slot_vars_num + 1),
                                                                embedding_dim=embedding_dim,
-                                                               random_alg=None, seed=None, seed2=None)
+                                                               initializer_mode=None,
+                                                               constant_value=None,
+                                                               min=None,
+                                                               max=None,
+                                                               mu=None,
+                                                               sigma=None,
+                                                               seed=None, seed2=None)
             else:
                 self._init_embedding_hash_maps[table_id] = \
                     gen_npu_cpu_ops.init_embedding_hashmap(table_id=ops.convert_to_tensor(table_id),
                                                            bucket_size=bucket_size,
                                                            value_total_len=embedding_dim,
                                                            embedding_dim=embedding_dim,
-                                                           random_alg=None, seed=None, seed2=None)
+                                                           initializer_mode=None,
+                                                           constant_value=None,
+                                                           min=None,
+                                                           max=None,
+                                                           mu=None,
+                                                           sigma=None,
+                                                           seed=None, seed2=None)
         self._init_flag = True
         return self._init_or_restore(file_path, file_name, table_id, embedding_dim, only_var, mode)
 
