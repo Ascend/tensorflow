@@ -168,6 +168,20 @@ TEST_F(GeOpTest, GeOpDynamicInput1Test) {
   EXPECT_TRUE(!attrs["_dynamic_input"].s().empty());
   EXPECT_EQ(attrs["_dynamic_graph_execute_mode"].s() == "dynamic_execute", true);
 }
+TEST_F(GeOpTest, GeOpGetNextStringTest) {
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_getnext_string.pbtxt";
+  std::vector<int64_t> ge_output1_dims{2, 2};
+  auto getnext_output1_info =
+      std::unique_ptr<NpuGetNextOutputInfo>(new NpuGetNextOutputInfo(ge::kPlacementDevice, ge_output1_dims, 8, nullptr));
+  Allocator* allocator1 = NpuHostGetNextAllocator::Create(std::move(getnext_output1_info));
+  Tensor a(allocator1, DT_INT64, TensorShape({2, 2}));
+  Tensor in(DT_STRING, TensorShape({1}));
+  in.scalar<tstring>()() = "ABC";
+  Tensor d(DT_INT32, TensorShape({2, 2}));
+  gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a), TensorValue(&in), TensorValue(&d)};
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp14_0", false).ok());
+}
 TEST_F(GeOpTest, GeOpAoeTuningAndDynamicDimsTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_aoe_tuning_and_dynamic_dims.pbtxt";

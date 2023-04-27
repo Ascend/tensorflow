@@ -1296,20 +1296,17 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       const TensorShapeProto &shape_proto = *shape_attrs[i];
       tensorflow::PartialTensorShape shape(shape_proto);
       if (!shape.IsFullyDefined()) {
-        if (jit_compile_.empty()) {
-          jit_compile_ = "0";
-        }
         is_dynamic_shape = true;
+        if (jit_compile_.empty()) { jit_compile_ = "0"; }
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_dynamic_shape come true.";
       }
     }
   }
-  if (is_dynamic_shape == false &&
-      tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
+  if (is_dynamic_shape == false && tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
     for (auto i = 0; i < node->num_outputs(); i++) {
       if (DT_STRING == type_attrs[i]) {
-        jit_compile_ = "0";
         is_dynamic_shape = true;
+        if (jit_compile_.empty()) { jit_compile_ = "0"; }
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + "'s output_types include DT_STRING.";
       }
     }
@@ -1384,9 +1381,7 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   HandleDpOpAndGetNextNodes(graph);
 
   // 二进制场景, 如果shape变化，则更新输入shape
-  if (jit_compile_ == "0") {
-    UpdateInputsShapeDesc(graph);
-  }
+  if (jit_compile_ == "0") { UpdateInputsShapeDesc(graph); }
 
   graph.ToGraphDef(&graph_def);
   std::string enable_force_v2_control;
