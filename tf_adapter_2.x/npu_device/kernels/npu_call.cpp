@@ -144,6 +144,8 @@ class NpuCallOp : public OpKernel {
             shape = value_shape;
             DLOG() << "Dynamic shape, recommended to configure jit_compile value to false";
           } else {
+            // 如果用户没有设置jit_compile，但是shape发生变化了，需要把jit设置成0
+            jit_compile_ = "0";
             shape = MakeCompatShape(shape.value(), value_shape);
           }
           DLOG() << "Refresh input " << i << " shape to " << shape.value().DebugString();
@@ -195,7 +197,10 @@ class NpuCallOp : public OpKernel {
                                  device->GeSession()->RemoveGraph(static_cast<uint32_t>(graph_id_)));
         }();
         NPU_REQUIRES_OK(status->status);
-        const static std::map<std::string, std::string> kOptions;
+        static std::map<std::string, std::string> kOptions;
+        if (!jit_compile_.empty()) {
+          kOptions.emplace("ge.jit_compile", jit_compile_);
+        }
         (void)device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(), kOptions);
         NPU_REQUIRES_OK(status->status);
         loaded = true;
