@@ -45,7 +45,6 @@
 #include "npu_device_register.h"
 #include "npu_global.h"
 #include "npu_logger.h"
-#include "npu_micros.h"
 #include "npu_utils.h"
 #include "npu_thread_pool.h"
 #include "npu_run_context.h"
