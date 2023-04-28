@@ -1302,9 +1302,9 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       }
     }
   }
-  if (is_dynamic_shape == false && tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
+  if ((!is_dynamic_shape) && tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
     for (auto i = 0; i < node->num_outputs(); i++) {
-      if (DT_STRING == type_attrs[i]) {
+      if (type_attrs[i] == DT_STRING) {
         is_dynamic_shape = true;
         if (jit_compile_.empty()) { jit_compile_ = "0"; }
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + "'s output_types include DT_STRING.";
