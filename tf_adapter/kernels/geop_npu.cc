@@ -887,6 +887,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     ge::Graph ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(compute_graph);
     if (iteration_per_loop_ > 1) {
       ge_graph.SetNeedIteration(this->need_iteration_);
+      graph_options_["iterations_per_loop"] = std::to_string(iteration_per_loop_);
     }
 
     if (is_host_graph_) {
@@ -1302,9 +1303,9 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       }
     }
   }
-  if (is_dynamic_shape == false && tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
+  if ((!is_dynamic_shape) && tensorflow::TryGetNodeAttr(node->attrs(), kTypeAttrName, &type_attrs)) {
     for (auto i = 0; i < node->num_outputs(); i++) {
-      if (DT_STRING == type_attrs[i]) {
+      if (type_attrs[i] == DT_STRING) {
         is_dynamic_shape = true;
         if (jit_compile_.empty()) { jit_compile_ = "0"; }
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + "'s output_types include DT_STRING.";
