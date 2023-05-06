@@ -129,8 +129,8 @@ class ESWorker:
     # @param only_var bool 类型
     # @param mode string 类型
     # @param partition_num int 类型
-    def embedding_init(self, vocabulary_size, file_path, file_name, table_id, max_batch_size, optimizer=None,
-                       initializer=None, embedding_dim=-1, only_var=False, mode="bin", partition_num=65537):
+    def embedding_init(self, vocabulary_size, table_id, max_batch_size, optimizer=None, initializer=None,
+                       embedding_dim=-1, partition_num=65537):
         """ Operator for init embedding table. """
         if vocabulary_size is None or table_id is None or max_batch_size is None or embedding_dim is None:
             raise ValueError("vocabulary_size or table_id or max_batch_size or embedding_dim is None.")
@@ -159,8 +159,6 @@ class ESWorker:
                                                                mu=0.0,
                                                                sigma=1.0)
         if optimizer is None:
-            if file_path is None or file_name is None or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
-                raise ValueError("embedding table file not exist.")
             self._train_mode = False
             self.slot_vars_num = 0
         else:
@@ -178,11 +176,9 @@ class ESWorker:
             self._table_to_optimizer[table_id] = self._optimizer
             # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
             self.slot_vars_num = 1 if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer) else 2
+            if (initializer is not None) or (self._table_to_initializer.get(table_id) is not None):
+                self._train_level = True
         self._table_to_slot_var_num[table_id] = self.slot_vars_num
-        if (file_path is None) or (file_name is None) or (not tf.gfile.Exists(os.path.join(file_path, file_name))):
-            if (initializer is None) and (self._table_to_initializer.get(table_id) is None):
-                raise ValueError("In new embedding training, initializer can not be None.")
-            self._train_level = True
         with specified_ps_engine_scope():
             self._init_partition_maps[table_id] = \
                 gen_npu_cpu_ops.init_partition_map(ps_num=ops.convert_to_tensor(self._ps_num),
@@ -196,8 +192,7 @@ class ESWorker:
             self._init_partition_maps.get(table_id)._set_attr("_deploy_inject_config",
                                                               attr_value_pb2.AttrValue(
                                                                   s=tf.compat.as_bytes(self._es_cluster_conf)))
-            return self._init_hashmap_and_table_import(bucket_size, file_path, file_name, table_id,
-                                                       embedding_dim, only_var, mode)
+            return self._init_hashmap_and_table_import(bucket_size, table_id, embedding_dim)
 
     # 提供embedding lookup功能
     # @param table_id int32 类型
@@ -351,6 +346,8 @@ class ESWorker:
             raise ValueError("small table has not been created.")
         self.table_map_policy = table_map_policy
         self.table_create_infos = self.table_map_policy.map_table_infos(self.user_defined_table_infos)
+        self.total_embedding_count = 0
+        self.total_variable_table = []
         for table_info_ in self.table_create_infos:
             self.total_variable_table.append(tf.Variable(
                 tf.random_normal([table_info_['max_vocabulary_size'], table_info_['embedding_dim']], mean=0.0,
@@ -358,6 +355,7 @@ class ESWorker:
             ))
             self._npu_table_to_embedding_dim[self.total_embedding_count] = table_info_['embedding_dim']
             self.total_embedding_count += 1
+        self.user_defined_table_infos = []
 
     def embeddings_look_up(self, tf_indices):
         if self.total_embedding_count != len(self.table_create_infos) or self.total_embedding_count == 0:
@@ -387,22 +385,10 @@ class ESWorker:
             table_to_input_group[tid].append(indices)
 
         output_slots = [None for _ in in_slot_size_group]
-        variable_table_idx = 0
         for tid, table_input_group in enumerate(table_to_input_group):
             table_input_hash = tf.concat(table_input_group, axis=1)
-            table_input_hash_shape = table_input_hash.get_shape().as_list()
-            input_hash_after_unique, recovery_matrix =\
-                tf.unique(x=tf.reshape(table_input_hash, shape=[-1]),
-                          out_idx=tf.int64)
-            table_input_after_mapping = \
-                gen_npu_cpu_ops.embedding_feature_mapping(feature_id=input_hash_after_unique)
-            table_to_input_group[tid] = table_input_after_mapping
-            table_embedding = tf.nn.embedding_lookup(self.total_variable_table[tid], table_input_after_mapping)
-            table_embedding_after_gather = tf.reshape(tf.gather(params=table_embedding, indices=recovery_matrix),
-                                                      shape=[-1, table_input_hash_shape[1],
-                                                             self._npu_table_to_embedding_dim.get(variable_table_idx)])
-            variable_table_idx = variable_table_idx + 1
-            out_embedding_splited = tf.split(table_embedding_after_gather, table_to_output_slots[tid], axis=1)
+            table_embedding = tf.nn.embedding_lookup(self.total_variable_table[tid], table_input_hash)
+            out_embedding_splited = tf.split(table_embedding, table_to_output_slots[tid], axis=1)
             for out_emb, sid in zip(out_embedding_splited, table_to_slot[tid]):
                 output_slots[sid] = out_emb
         return output_slots
@@ -695,7 +681,7 @@ class ESWorker:
                                                        file_path=ops.convert_to_tensor(path),
                                                        table_id=ops.convert_to_tensor([table_id]),
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
-                                                       alue_total_len=self._table_to_embedding_dim.get(table_id),
+                                                       value_total_len=self._table_to_embedding_dim.get(table_id),
                                                        only_var_flag=True,
                                                        file_type="bin")
             return tf.group([embedding_table_import])
@@ -719,8 +705,7 @@ class ESWorker:
                                                        file_type="bin")
             return tf.group([embedding_table_import])
 
-    def _init_hashmap_and_table_import(self, bucket_size, file_path, file_name, table_id,
-                                       embedding_dim, only_var, mode):
+    def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim):
         with tf.control_dependencies([self._init_partition_maps.get(table_id)]):
             if self._train_mode:
                 if self._train_level:
@@ -773,22 +758,8 @@ class ESWorker:
                                                            sigma=None,
                                                            seed=None, seed2=None)
         self._init_flag = True
-        return self._init_or_restore(file_path, file_name, table_id, embedding_dim, only_var, mode)
-
-    def _init_or_restore(self, file_path, file_name, table_id, embedding_dim, only_var, mode):
-        if self._train_mode and self._train_level:
+        if self._train_mode:
             return tf.group(
                 [tf.initializers.variables(self._optimizer.variables()), self._init_embedding_hash_maps.get(table_id)])
-        # restore embedding table
-        with tf.control_dependencies([self._init_embedding_hash_maps.get(table_id)]):
-            embedding_table_import = gen_npu_cpu_ops.embedding_table_import(
-                file_path=ops.convert_to_tensor(file_path),
-                file_name=ops.convert_to_tensor(file_name),
-                # ps_id will be changed in executor, so can not be optimized in graph
-                ps_id=ops.convert_to_tensor(-1),
-                table_id=ops.convert_to_tensor(table_id),
-                embedding_dim=embedding_dim,
-                value_total_len=embedding_dim * (self.slot_vars_num + 1),
-                only_var_flag=only_var,
-                file_type=mode)
-        return tf.group([embedding_table_import])
+        else:
+            return tf.group([self._init_embedding_hash_maps.get(table_id)])
