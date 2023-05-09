@@ -458,7 +458,7 @@ void GeOp::Finalize() {
         if (!GePlugin::GetInstance()->IsGlobal()) {
           if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty() &&
               aoe_finalize_ != nullptr && tuned_initialize_flag_) {
-            Aoe::AoeStatus tune_ret = (*aoe_finalize_)();
+            AoeStatus tune_ret = (*aoe_finalize_)();
             if (tune_ret != Aoe::AOE_SUCCESS) {
               ADP_LOG(ERROR) << "[GEOP] exec aoe finalize func failed.";
               LOG(ERROR) << "[GEOP] exec aoe finalize func failed.";
@@ -713,10 +713,13 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
         tune_options_.insert({"job_type", init_options_["ge.jobType"]});
         // aoe ini
         if (!tuned_initialize_flag_) {
-          std::map<Aoe::AscendString, Aoe::AscendString> global_options;
+          std::map<ge::AscendString, ge::AscendString> global_options;
           global_options.insert(
-              {Aoe::AscendString("work_path"), Aoe::AscendString(init_options_["ge.tuningPath"].c_str())});
-          Aoe::AoeStatus init_ret = (*aoe_initialize_)(global_options);
+              {ge::AscendString("work_path"), ge::AscendString(init_options_["ge.tuningPath"].c_str())});
+          global_options.insert({ge::AscendString("job_type"), ge::AscendString(init_options_["ge.jobType"].c_str())});
+          global_options.insert({ge::AscendString("ge.resourceConfigPath"),
+                                 ge::AscendString(sess_options_["ge.resourceConfigPath"].c_str())});
+          AoeStatus init_ret = (*aoe_initialize_)(global_options);
           OP_REQUIRES_ASYNC(ctx, init_ret == Aoe::AOE_SUCCESS,
                             errors::Internal("[GEOP] exec aoe initialize func failed[", init_ret, "]."), done);
           tuned_initialize_flag_ = true;
@@ -1685,7 +1688,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
       ((init_options_["ge.jobType"] == "4") && is_allreduce) || is_mdat_tuning) {
     std::function<void()> callback = [this]() {
       if (aoe_destroy_session_ != nullptr) {
-        Aoe::AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(session_id_);
+        AoeStatus aoe_destroy_ret = (*aoe_destroy_session_)(session_id_);
         if (aoe_destroy_ret != Aoe::AOE_SUCCESS) {
           ADP_LOG(ERROR) << "exec aoe destroy func failed[" << aoe_destroy_ret << "].";
           return;
@@ -1696,11 +1699,7 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     ADP_LOG(INFO) << "[GEOP] in tune mode, training graph handled by tools.";
 
     // aoe create session
-    std::map<Aoe::AscendString, Aoe::AscendString> session_options;
-    session_options.insert({Aoe::AscendString("job_type"), Aoe::AscendString(init_options_["ge.jobType"].c_str())});
-    session_options.insert({Aoe::AscendString("ge.resourceConfigPath"),
-                            Aoe::AscendString(sess_options_["ge.resourceConfigPath"].c_str())});
-    Aoe::AoeStatus session_ret = (*aoe_create_session_)(session_options, session_id_);
+    AoeStatus session_ret = (*aoe_create_session_)(session_id_);
     if (session_ret != Aoe::AOE_SUCCESS) {
       ADP_LOG(ERROR) << "exec aoe create session func failed[" << session_ret << "].";
       return -1;
@@ -1708,29 +1707,29 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     {
       GE_MAKE_GUARD(destroy, callback);
       // aoe set ge session
-      Aoe::AoeStatus set_ret = (*aoe_set_gesession_)(session_id_, ge_session_);
+      AoeStatus set_ret = (*aoe_set_gesession_)(session_id_, ge_session_);
       if (set_ret != Aoe::AOE_SUCCESS) {
         ADP_LOG(ERROR) << "exec aoe set session func failed[" << set_ret << "].";
         return -1;
       }
       // set tuning graph
-      Aoe::AoeStatus tune_ret = (*aoe_set_tuninggraph_)(session_id_, ge_graph);
+      AoeStatus tune_ret = (*aoe_set_tuninggraph_)(session_id_, ge_graph);
       if (tune_ret != Aoe::AOE_SUCCESS) {
         ADP_LOG(ERROR) << "exec aoe set graph func failed[" << tune_ret << "].";
         return -1;
       }
       // set tuning inputs
-      Aoe::AoeStatus set_inputs_ret = (*aoe_set_tuning_graph_input_)(session_id_, inputs);
+      AoeStatus set_inputs_ret = (*aoe_set_tuning_graph_input_)(session_id_, inputs);
       if (set_inputs_ret != Aoe::AOE_SUCCESS) {
         ADP_LOG(ERROR) << "exec aoe set tuning inputs func failed[" << set_inputs_ret << "].";
         return -1;
       }
       // aoe tuning
-      std::map<Aoe::AscendString, Aoe::AscendString> tuingOptions;
-      tuingOptions.insert({Aoe::AscendString("ge.recompute"), Aoe::AscendString(recompute_mode_.c_str())});
-      tuingOptions.insert(
-          {Aoe::AscendString("ge.aoe_config_file"), Aoe::AscendString(init_options_["ge.aoe_config_file"].c_str())});
-      Aoe::AoeStatus aoe_tune_ret = (*aoe_tuning_graph_)(session_id_, tuingOptions);
+      std::map<ge::AscendString, ge::AscendString> tuing_options;
+      tuing_options.insert({ge::AscendString("ge.recompute"), ge::AscendString(recompute_mode_.c_str())});
+      tuing_options.insert(
+          {ge::AscendString("ge.aoe_config_file"), ge::AscendString(init_options_["ge.aoe_config_file"].c_str())});
+      AoeStatus aoe_tune_ret = (*aoe_tuning_graph_)(session_id_, tuing_options);
       if ((aoe_tune_ret != Aoe::AOE_SUCCESS) && (aoe_tune_ret != Aoe::AOE_ERROR_NO_AICORE_GRAPH)) {
         ADP_LOG(ERROR) << "exec aoe tuning func failed[" << aoe_tune_ret << "].";
         return -1;

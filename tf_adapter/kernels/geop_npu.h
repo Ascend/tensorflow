@@ -33,17 +33,18 @@
 
 namespace tensorflow {
 using SessionId = uint64_t;
+using AoeStatus = int32_t;
 // aoe mode
-using AoeInitializeFunc = Aoe::AoeStatus (*)(const std::map<Aoe::AscendString, Aoe::AscendString> &);
-using AoeFinalizeFunc = Aoe::AoeStatus (*)();
-using AoeCreateSessionFunc = Aoe::AoeStatus (*)(const std::map<Aoe::AscendString, Aoe::AscendString> &, SessionId &);
-using AoeDestroySessionFunc = Aoe::AoeStatus (*)(SessionId);
-using AoeSetGeSessionFunc = Aoe::AoeStatus (*)(SessionId, ge::Session*);
-using AoeSetDependGraphFunc = Aoe::AoeStatus (*)(SessionId, std::vector<ge::Graph>&);
-using AoeSetDependGraphsInputsFunc = Aoe::AoeStatus (*)(SessionId, std::vector<std::vector<ge::Tensor>> &);
-using AoeSetTuningGraphInputFunc = Aoe::AoeStatus (*)(SessionId, std::vector<ge::Tensor> &);
-using AoeSetTuningGraphFunc = Aoe::AoeStatus (*)(SessionId, ge::Graph &);
-using AoeTuningGraphFunc = Aoe::AoeStatus (*)(SessionId, const std::map<Aoe::AscendString, Aoe::AscendString> &);
+using AoeInitializeFunc = AoeStatus (*)(const std::map<ge::AscendString, ge::AscendString> &);
+using AoeFinalizeFunc = AoeStatus (*)();
+using AoeCreateSessionFunc = AoeStatus (*)(SessionId &);
+using AoeDestroySessionFunc = AoeStatus (*)(SessionId);
+using AoeSetGeSessionFunc = AoeStatus (*)(SessionId, ge::Session*);
+using AoeSetDependGraphFunc = AoeStatus (*)(SessionId, std::vector<ge::Graph>&);
+using AoeSetDependGraphsInputsFunc = AoeStatus (*)(SessionId, std::vector<std::vector<ge::Tensor>> &);
+using AoeSetTuningGraphInputFunc = AoeStatus (*)(SessionId, std::vector<ge::Tensor> &);
+using AoeSetTuningGraphFunc = AoeStatus (*)(SessionId, ge::Graph &);
+using AoeTuningGraphFunc = AoeStatus (*)(SessionId, const std::map<ge::AscendString, ge::AscendString> &);
 
 class GeOp : public AsyncOpKernel {
 public:

@@ -30,7 +30,9 @@
 #include "acl/acl_rt.h"
 #include "tf_adapter/util/npu_plugin.h"
 #include "aoe_tuning_api.h"
-using AoeFinalizeFunc = Aoe::AoeStatus (*)();
+
+using AoeStatus = int32_t;
+using AoeFinalizeFunc = AoeStatus (*)();
 using json = nlohmann::json;
 
 using namespace tdt;
