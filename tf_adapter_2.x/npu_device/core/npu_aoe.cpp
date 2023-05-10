@@ -30,11 +30,8 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice &device, TFE_Context *context,
   DLOG() << "Start to tune graph id: " << graph_id << ", name: " << name;
   ++exec_num_;
 
-  std::map<Aoe::AscendString, Aoe::AscendString> session_options;
-  (void)session_options.emplace(Aoe::AscendString("job_type"),
-                                Aoe::AscendString(device.device_options["ge.jobType"].c_str()));
-  SessionId aoe_session_id = 0;
-  auto ret = aoe_func_.aoe_create_session(session_options, aoe_session_id);
+  SessionId aoe_session_id = 0UL;
+  auto ret = aoe_func_.aoe_create_session(aoe_session_id);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe create session func failed"));
 
   ret = aoe_func_.aoe_set_gesession(aoe_session_id, device.GeSession());
@@ -68,9 +65,9 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice &device, TFE_Context *context,
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe set tuning inputs func failed"));
 
   // aoe tuning
-  std::map<Aoe::AscendString, Aoe::AscendString> tuning_options;
-  (void)tuning_options.emplace(Aoe::AscendString("ge.aoe_config_file"),
-                               Aoe::AscendString(device.device_options["ge.aoe_config_file"].c_str()));
+  std::map<ge::AscendString, ge::AscendString> tuning_options;
+  (void)tuning_options.emplace(ge::AscendString("ge.aoe_config_file"),
+                               ge::AscendString(device.device_options["ge.aoe_config_file"].c_str()));
   ret = aoe_func_.aoe_tuning_graph(aoe_session_id, tuning_options);
   NPU_REQUIRES((ret == Aoe::AOE_SUCCESS) || (ret == Aoe::AOE_ERROR_NO_AICORE_GRAPH),
                tensorflow::errors::Internal("exec aoe tuning graph func failed"));
@@ -82,7 +79,7 @@ tensorflow::Status NpuAoe::RunAoeTuning(NpuDevice &device, TFE_Context *context,
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status NpuAoe::AoeTuningInitialize(const std::string &work_path) {
+tensorflow::Status NpuAoe::AoeTuningInitialize(const std::string &work_path, const std::string &job_type) {
   DLOG() << "Start to run aoe initialize";
 
   handle_ = dlopen("libaoe_tuning.so", RTLD_NOW);
@@ -90,8 +87,10 @@ tensorflow::Status NpuAoe::AoeTuningInitialize(const std::string &work_path) {
 
   NPU_REQUIRES_OK(LoadAoeFunc());
 
-  std::map<Aoe::AscendString, Aoe::AscendString> global_options;
-  (void)global_options.emplace(Aoe::AscendString("work_path"), Aoe::AscendString(work_path.c_str()));
+  std::map<ge::AscendString, ge::AscendString> global_options;
+  (void)global_options.emplace(ge::AscendString("work_path"), ge::AscendString(work_path.c_str()));
+  (void)global_options.emplace(ge::AscendString("job_type"),
+                               ge::AscendString(job_type.c_str()));
   auto ret = aoe_func_.aoe_initialize(global_options);
   NPU_REQUIRES(ret == Aoe::AOE_SUCCESS, tensorflow::errors::Internal("exec aoe initialize func failed"));
 
