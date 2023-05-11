@@ -36,6 +36,7 @@
 #include "tensorflow/python/lib/core/pybind11_status.h"
 #include "tensorflow/python/lib/core/safe_ptr.h"
 #include "tensorflow/python/util/util.h"
+#include "tensorflow/core/platform/tensor_float_32_utils.h"
 
 #include "framework/omg/parser/parser_api.h"
 #include "ge/ge_api.h"
@@ -171,6 +172,7 @@ void ParseGlobalOptions(int device_index, const std::map<std::string, std::strin
   if (global_options[ge::OPTION_GRAPH_RUN_MODE] == "0") {
     global_options[ge::ENABLE_SMALL_CHANNEL] = "1";
   }
+  global_options["ge.exec.allow_hf32"] = tensorflow::tensor_float_32_execution_enabled() ? "1" : "0";
 }
 
 PYBIND11_MODULE(_npu_device_backends, m) {

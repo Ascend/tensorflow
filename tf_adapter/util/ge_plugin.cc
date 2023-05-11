@@ -91,6 +91,14 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
     return;
   }
   init_options_ = init_options;
+
+  std::string enable_hf32_execution;
+  (void) ReadStringFromEnvVar("ENABLE_HF32_EXECUTION", "", &enable_hf32_execution);
+  if (!enable_hf32_execution.empty()) {
+    init_options["ge.exec.allow_hf32"] = enable_hf32_execution;
+    ADP_LOG(INFO) << "[GePlugin] allow_hf32 : " << init_options["ge.exec.allow_hf32"];
+  }
+
   std::string tf_config;
   (void) ReadStringFromEnvVar("TF_CONFIG", "", &tf_config);
   int exec_hccl_flag = 1;
