@@ -21,7 +21,8 @@ using SessionId = uint64_t;
 using AoeStatus = int32_t;
 const AoeStatus AOE_SUCCESS = 0;
 const AoeStatus AOE_FALLURE = -1;
-const AoeStatus AOE_ERROR_NO_AICORE_GRAPH = 12;
+// 此枚举量需要与aoe保持一致
+const AoeStatus AOE_ERROR_NO_AICORE_GRAPH = 8;
 }
 
 
