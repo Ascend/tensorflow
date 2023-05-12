@@ -113,7 +113,7 @@ class NpuDevice {
 
   uint64_t AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
                            const tensorflow::GraphDef &def, bool loop, TF_Status *status,
-                           const std::map<std::string, std::string> &options = {});
+                           const std::map<std::string, std::string> &graph_options = {});
 
   tensorflow::Status TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
                                           const tensorflow::GraphDef &def, ge::Graph &ge_graph) const;

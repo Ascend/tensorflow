@@ -266,6 +266,18 @@ bool CmpVecValue(const Node *const node1, const Node *const node2) {
 bool CmpNodeIndex(const std::pair<Node *, uint32_t> &p1, const std::pair<Node *, uint32_t> &p2) {
   return p1.second < p2.second;
 }
+
+void SetReuseOptions(const std::string &key, int32_t num, std::map<std::string, std::string> &options) {
+  if (num < 1) { return; }
+  auto inserted_kv = options.insert(std::make_pair(key, ""));
+  if (inserted_kv.second) {
+    for (int32_t i = 0; i < (num - 1); i++) {
+      inserted_kv.first->second.append(std::to_string(i));
+      inserted_kv.first->second.append(",");
+    }
+    inserted_kv.first->second.append(std::to_string(num - 1));
+  }
+}
 }  // namespace
 
 std::string CurrentTimeInStr() {
@@ -929,6 +941,10 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (is_tuning) {
       graph_options["ge.buildMode"] = "normal";
     }
+    if ((is_dynamic_getnext_ != "1") && (iteration_per_loop_ <= 1)) {
+      SetReuseOptions("ge.exec.inputReuseMemIndexes", ctx->num_inputs(), graph_options);
+    }
+    SetReuseOptions("ge.exec.outputReuseMemIndexes", ctx->num_outputs(), graph_options);
     ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << jit_compile_;
     status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
     if (status != ge::SUCCESS) {

@@ -104,6 +104,8 @@ class ComputeGraph {
   ~ComputeGraph() = default;
   std::shared_ptr<tensorflow::Graph> graph;
   size_t GetAllNodesSize() const;
+  size_t GetInputSize() const;
+  size_t GetOutputSize() const;
 };
 
 class Graph {
@@ -140,6 +142,7 @@ class Session {
 
 struct GraphUtilsEx {
   static Graph CreateGraphFromComputeGraph(const ge::ComputeGraphPtr compute_graph);
+  static ge::ComputeGraphPtr GetComputeGraph(const ge::Graph &compute_graph);
 };  // namespace GraphUtilsEx
 
 }  // namespace ge

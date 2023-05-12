@@ -22,6 +22,12 @@ Graph GraphUtilsEx::CreateGraphFromComputeGraph(const ge::ComputeGraphPtr comput
   return graph;
 }
 
+ge::ComputeGraphPtr GraphUtilsEx::GetComputeGraph(const Graph &graph) {
+  auto compute_graph = std::make_shared<ge::ComputeGraph>("");
+  compute_graph->graph = graph.graph;
+  return compute_graph;
+}
+
 Status Session::AddGraph(uint32_t graphId, const Graph &graph) {
   graphs_[graphId] = graph.graph;
   graph_need_rebuild_[graphId] = false;
@@ -99,6 +105,8 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
 bool Session::IsGraphNeedRebuild(uint32_t graphId) { return graph_need_rebuild_[graphId]; }
 
 size_t ComputeGraph::GetAllNodesSize() const { return graph->num_op_nodes(); }
+size_t ComputeGraph::GetInputSize() const { return 1U; }
+size_t ComputeGraph::GetOutputSize() const { return 1U; }
 
 std::string GEGetErrorMsg() { return ""; }
 

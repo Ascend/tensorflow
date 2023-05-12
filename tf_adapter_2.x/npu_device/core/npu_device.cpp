@@ -67,6 +67,18 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   }
   std::unique_ptr<T, DT> ptr_;
 };
+
+void SetReuseOptions(const std::string &key, size_t num, std::map<std::string, std::string> &options) {
+  if (num < 1U) { return; }
+  auto inserted_kv = options.insert(std::make_pair(key, ""));
+  if (inserted_kv.second) {
+    for (size_t i = 0U; i < (num - 1U); i++) {
+      inserted_kv.first->second.append(std::to_string(i));
+      inserted_kv.first->second.append(",");
+    }
+    inserted_kv.first->second.append(std::to_string(num - 1U));
+  }
+}
 }  // namespace
 
 namespace npu {
@@ -920,13 +932,21 @@ void NpuDevice::TransTfInputs2GeInputs(int num_inputs, TFE_TensorHandle **inputs
  */
 uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, const std::string &name,
                                     const tensorflow::GraphDef &def, bool loop, TF_Status *status,
-                                    const std::map<std::string, std::string> &options) {
+                                    const std::map<std::string, std::string> &graph_options) {
   if (def.node_size() == 0) {
     return kEmptyGeGraphId;
   }
   ge::Graph ge_graph;
   NPU_CTX_REQUIRES_OK_RETURN(status, TransTfGraph2GeGraph(context, name, def, ge_graph), graph_id);
   ge_graph.SetNeedIteration(loop);
+
+  auto options = graph_options;
+  size_t num_inputs = ge::GraphUtilsEx::GetComputeGraph(ge_graph)->GetInputSize();
+  size_t num_outputs = ge::GraphUtilsEx::GetComputeGraph(ge_graph)->GetOutputSize();
+  if (!loop) {
+    SetReuseOptions("ge.exec.inputReuseMemIndexes", num_inputs, options);
+  }
+  SetReuseOptions("ge.exec.outputReuseMemIndexes", num_outputs, options);
 
   if (kDumpExecutionDetail && !options.empty()) {
     LOG(INFO) << "Add ge graph " << graph_id << " with options:";
