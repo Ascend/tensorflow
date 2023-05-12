@@ -37,7 +37,6 @@ TEST_F(GePluginTest, PluginInitTest) {
   setenv("POD_NAME", "0", true);
   setenv("RANK_TABLE_FILE", "rank_table", true);
   setenv("FUSION_TENSOR_SIZE", "524288000", true);
-  setenv("ENABLE_HF32_EXECUTION", "1", true);
   std::string tf_config = "{'task':{'type':'a'}, 'cluster':{'chief':['1']}}";
   setenv("TF_CONFIG", tf_config.c_str(), true);
   init_options["ge.exec.profilingMode"] = "1";
