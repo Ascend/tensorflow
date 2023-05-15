@@ -140,6 +140,7 @@ class ST_NpuDevice : public ::testing::Test {
     std::map<std::string, std::string> device_options;
     device_options["ge.jobType"] = "1";
     device_options["ge.tuningPath"] = "./";
+    device_options["ge.graph_compiler_cache_dir"] = "./";
     npu::CreateDevice(context, kNpuDeviceName, kNpuDeviceIndex, device_options);
 
     for (const auto &function_def : FunctionStrLibrary::Instance().Get()) {

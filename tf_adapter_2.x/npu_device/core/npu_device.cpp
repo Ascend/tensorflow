@@ -948,6 +948,12 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
   }
   SetReuseOptions("ge.exec.outputReuseMemIndexes", num_outputs, options);
 
+  const auto cache_dir_option = device_options.find("ge.graph_compiler_cache_dir");
+  if ((cache_dir_option != device_options.cend() && !cache_dir_option->second.empty())) {
+    LOG(INFO) << "ge.graph_compiler_cache_dir is exist, add option ge.graph_key=" << name;
+    options["ge.graph_key"] = name;
+  }
+
   if (kDumpExecutionDetail && !options.empty()) {
     LOG(INFO) << "Add ge graph " << graph_id << " with options:";
     for (auto &option : options) {

@@ -122,6 +122,13 @@ class Adapter2Options(unittest.TestCase):
         options = config.as_dict()
         self.assertTrue(options['hcom_parallel'], False)
 
+    def test_9_set_option_graph_compiler_cache_dir(self):
+        config = NpuConfig()
+        options = config.as_dict()
+        self.assertTrue('graph_compiler_cache_dir' not in options, True)
+        config.graph_compiler_cache_dir = "./st_graph_cache_dir"
+        options = config.as_dict()
+        self.assertEqual(options['graph_compiler_cache_dir'], "./st_graph_cache_dir")
 
 if __name__ == '__main__':
     unittest.main()

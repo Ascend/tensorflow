@@ -409,6 +409,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string external_weight = "0";
   std::string graph_parallel_option_path;
   std::string enable_graph_parallel;
+  std::string graph_compiler_cache_dir;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -478,6 +479,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
       sess_options["jit_compile"] = jit_compile;
       sess_options["ge.jit_compile"] = jit_compile;
     }
+    (void) ctx->GetAttr("_graph_compiler_cache_dir", &graph_compiler_cache_dir);
   }
 
   // session options
@@ -530,6 +532,9 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["external_weight"] = external_weight;
   sess_options["ge.graphParallelOptionPath"] = graph_parallel_option_path;
   sess_options["ge.enableGraphParallel"] = enable_graph_parallel;
+  if (!graph_compiler_cache_dir.empty()) {
+    sess_options["ge.graph_compiler_cache_dir"] = graph_compiler_cache_dir;
+  }
 
   return sess_options;
 }
@@ -677,7 +682,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["stream_sync_timeout"] = stream_sync_timeout;
   init_options_["event_sync_timeout"] = event_sync_timeout;
   init_options_["ge.esClusterConfig"] = es_cluster_config;
-
   return init_options_;
 }
 
@@ -1086,6 +1090,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string es_cluster_config;
   std::string graph_parallel_option_path;
   std::string enable_graph_parallel;
+  std::string graph_compiler_cache_dir;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1172,6 +1177,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto graph_parallel_option_path_val = attrs.Find("_graph_parallel_option_path");
   auto enable_graph_parallel_val = attrs.Find("_enable_graph_parallel");
   auto jit_compile_value = attrs.Find("_jit_compile");
+  auto graph_compiler_cache_dir_val = attrs.Find("_graph_compiler_cache_dir");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1453,6 +1459,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
       all_options["jit_compile"] = jit_compile;
       all_options["ge.jit_compile"] = jit_compile;
     }
+    if (graph_compiler_cache_dir_val != nullptr) {
+      graph_compiler_cache_dir = graph_compiler_cache_dir_val->s();
+    }
   }
 
   all_options["variable_format_optimize"] = variable_format_optimize;
@@ -1463,6 +1472,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   }
   if (!variable_memory_max_size.empty()) {
     all_options["variable_memory_max_size"] = variable_memory_max_size;
+  }
+  if (!graph_compiler_cache_dir.empty()) {
+    all_options["graph_compiler_cache_dir"] = graph_compiler_cache_dir;
   }
 
   all_options["enable_dump"] = enable_dump;
@@ -1659,6 +1671,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string model_deploy_mode;
   std::string model_deploy_devicelist;
   std::string aoe_config_file;
+  std::string graph_compiler_cache_dir;
   int32_t stream_sync_timeout = -1;
   int32_t event_sync_timeout = -1;
   bool external_weight = false;
@@ -2099,6 +2112,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         sess_options["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
         sess_options["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
       }
+      if (params.count("graph_compiler_cache_dir") > 0) {
+        graph_compiler_cache_dir = params.at("graph_compiler_cache_dir").s();
+      }
     }
   }
 
@@ -2111,7 +2127,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   if (!variable_memory_max_size.empty()) {
     sess_options["variable_memory_max_size"] = variable_memory_max_size;
   }
-
+  if (!graph_compiler_cache_dir.empty()) {
+    sess_options["graph_compiler_cache_dir"] = graph_compiler_cache_dir;
+  }
   sess_options["enable_dump"] = std::to_string(static_cast<int32_t>(enable_dump));
   sess_options["dump_path"] = dump_path;
   sess_options["dump_step"] = dump_step;

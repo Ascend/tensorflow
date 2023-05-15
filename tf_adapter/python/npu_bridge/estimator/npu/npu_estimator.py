@@ -602,6 +602,9 @@ class NPUEstimator(estimator_lib.Estimator):
             if config._experimental_config._resource_config_path is not None:
                 custom_op.parameter_map["resource_config_path"].s = tf.compat.as_bytes(
                     config._experimental_config._resource_config_path)
+            if config._experimental_config._graph_compiler_cache_dir is not None:
+                custom_op.parameter_map["graph_compiler_cache_dir"].s = tf.compat.as_bytes(
+                    config._experimental_config._graph_compiler_cache_dir)
             if config._experimental_config._graph_parallel_option_path is not None:
                 custom_op.parameter_map["graph_parallel_option_path"].s = tf.compat.as_bytes(
                     config._experimental_config._graph_parallel_option_path)
