@@ -229,5 +229,32 @@ TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableOnlineInference) {
   s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
   EXPECT_EQ(s.ok(), false);
 }
+
+TEST_F(NpuAttrTest, CheckGraphCompilerCacheDir) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  session_options.config.mutable_graph_options()->mutable_optimizer_options()->set_do_function_inlining(true);
+  auto *custom_config =
+      session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+
+  AttrValue graph_compiler_cache_dir = AttrValue();
+  graph_compiler_cache_dir.set_s("./cache_dir");
+  (*custom_config->mutable_parameter_map())["graph_compiler_cache_dir"] = graph_compiler_cache_dir;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_FALSE(s.ok());
+
+  AttrValueMap attr_map;
+  AttrValue npu_optimizer = AttrValue();
+  npu_optimizer.set_s("NpuOptimizer");
+  attr_map["_NpuOptimizer"] = npu_optimizer;
+  attr_map["_graph_compiler_cache_dir"] = graph_compiler_cache_dir;
+  AttrSlice attrs(&attr_map);
+  const auto &all_options = NpuAttrs::GetAllAttrOptions(attrs);
+  auto find_ret = all_options.find("graph_compiler_cache_dir");
+  ASSERT_TRUE(find_ret != all_options.cend());
+  EXPECT_EQ(find_ret->second, "./cache_dir");
+}
 }
 } // end tensorflow

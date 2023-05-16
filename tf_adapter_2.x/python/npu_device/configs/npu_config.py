@@ -68,6 +68,7 @@ class NpuConfig(NpuBaseConfig):
         self.external_weight = OptionValue(False, [True, False])
         self.memory_config = MemoryConfig()
         self.jit_compile = OptionValue(None, [True, False])
+        self.graph_compiler_cache_dir = OptionValue(None, None)
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()

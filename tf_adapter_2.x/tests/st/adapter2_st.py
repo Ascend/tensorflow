@@ -35,6 +35,7 @@ npu_device.global_options().experimental.multi_branches_config.dynamic_node_type
 npu_device.global_options().experimental.multi_branches_config.dynamic_dims = "1;2"
 npu_device.global_options().aoe_config.work_path = "./"
 npu_device.global_options().graph_run_mode = 0
+npu_device.global_options().graph_compiler_cache_dir = "./st_graph_cache_dir";
 os.environ['CM_CHIEF_IP'] = "1"
 os.environ['CM_CHIEF_PORT'] = "3"
 os.environ['CM_CHIEF_DEVICE'] = "4"

@@ -167,6 +167,9 @@ TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableOnlineInference) {
   AttrValue optypelist_for_implmode = AttrValue();
   optypelist_for_implmode.set_s("Pooling,SoftmaxV2");
   (*custom_config->mutable_parameter_map())["optypelist_for_implmode"] = optypelist_for_implmode;
+  AttrValue graph_compiler_cache_dir = AttrValue();
+  graph_compiler_cache_dir.set_s("./cache_dir");
+  (*custom_config->mutable_parameter_map())["graph_compiler_cache_dir"] = graph_compiler_cache_dir;
   s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
   EXPECT_EQ(s.ok(), false);
 }

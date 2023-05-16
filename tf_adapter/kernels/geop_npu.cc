@@ -905,6 +905,11 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options_["iterations_per_loop"] = std::to_string(iteration_per_loop_);
     }
 
+    const auto cahce_option_iter = sess_options_.find("ge.graph_compiler_cache_dir");
+    if (cahce_option_iter != sess_options_.cend() && !cahce_option_iter->second.empty()) {
+      graph_options_["ge.graph_key"] = geop_name;
+    }
+
     if (is_host_graph_) {
       ADP_LOG(INFO) << "[GEOP] set graph option.";
       graph_options_["ge.exec.placement"] = "HOST";
