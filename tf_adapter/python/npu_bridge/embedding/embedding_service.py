@@ -89,6 +89,7 @@ class ESWorker:
         self.slot_vars_num = None
         self._initializer = None
         self._init_flag = False
+        self._table_init = False
         self._table_has_init = []
         self.user_defined_table_infos = []
         self.table_map_policy = None
@@ -102,14 +103,29 @@ class ESWorker:
         custom_op.parameter_map["es_cluster_config"].s = tf.compat.as_bytes(self._es_cluster_conf)
         self.es_all_config = config
 
-    # 提供 embedding_service table
+    # 提供 embedding_service table initializer method
+    # table_id embedding 表索引, int 类型
+    # min 下限值, float 类型
+    # max 上限值, float 类型
+    # initializer_mode 初始化方式, string 类型
+    # constant_value 常量初始化的常量值, float 类型
+    # mu 正态分布的均值, float 类型
+    # sigma 正态分布的标准差, float 类型
     def initializer(self, table_id, min, max, initializer_mode, constant_value, mu=0.0, sigma=1.0):
         """Operator for init initializer."""
+        if (table_id is None) or (min is None) or (max is None) or (constant_value is None):
+            raise ValueError("table_id, min, max and constant_value can not be None.")
+        if (table_id < 0) or (table_id >= _INT32_MAX_VALUE) or (not isinstance(table_id, int)):
+            raise ValueError("table_id value is flase, must be [0, 2147483647) and int type, please check.")
+        if (not isinstance(min, float)) or (not isinstance(max, float)) or (not isinstance(constant_value, float)):
+            raise ValueError("Initializer min, max and constant value must be int.")
         if min > max:
             raise ValueError("Initializer min value can not be larger than max value.")
         if (initializer_mode is not 'constant') and (initializer_mode is not 'random_uniform') and \
                 (initializer_mode is not 'truncated_normal'):
             raise ValueError("Initializer mode must be random_uniform or truncated normal or constant.")
+        if (initializer_mode is 'constant') and (not isinstance(constant_value, float)):
+            raise ValueError("If initializer is constant, constant_value must be int.")
         self._table_to_initializer[table_id] = Initializer(min=min,
                                                            max=max,
                                                            initializer_mode=initializer_mode,
@@ -118,17 +134,13 @@ class ESWorker:
                                                            sigma=sigma)
 
     # 提供embedding init功能
-    # @param vocabulary_size int 类型
-    # @param file_path string 类型
-    # @param file_name string 类型
-    # @param table_id int32 类型
-    # @param max_batch_size int32 类型
-    # @param optimizer 类型
-    # @param initializer string 类型
-    # @param embedding_dim int32 类型
-    # @param only_var bool 类型
-    # @param mode string 类型
-    # @param partition_num int 类型
+    # @param vocabulary_size 表的初始大小, int 类型
+    # @param table_id, int32 类型
+    # @param max_batch_size, int32 类型
+    # @param optimizer, 支持EmbeddingAdamOptimizer，EmbeddingAdagradOptimizer，EmbeddingAdamwOptimizer
+    # @param initializer, string 类型
+    # @param embedding_dim, int32 类型
+    # @param partition_num, int 类型
     def embedding_init(self, vocabulary_size, table_id, max_batch_size, optimizer=None, initializer=None,
                        embedding_dim=-1, partition_num=65537):
         """ Operator for init embedding table. """
@@ -167,8 +179,9 @@ class ESWorker:
                     (not isinstance(optimizer, embedding_optimizer.AdamWOptimizer)):
                 raise ValueError(
                     "optimizer should be embedding_optimizer AdamOptimizer, AdagradOptimizer or AdamWOptimizer.")
-            if (initializer is not None) and (initializer != 'random_uniform') and (initializer != 'truncated_normal'):
-                raise ValueError("initializer must be random_uniform or truncated_normal.")
+            if (initializer is not None) and (initializer != 'random_uniform') and \
+                    (initializer != 'truncated_normal') and (initializer != 'constant'):
+                raise ValueError("initializer must be random_uniform or truncated_normal or constant.")
             self._optimizer = optimizer
             self._optimizer._embedding_dims = embedding_dim
             self._optimizer._max_nums = max_batch_size
@@ -289,6 +302,7 @@ class ESWorker:
     # @param file_name string 类型
     # @param table_id int32 类型
     # @param mode string 类型
+    # Unused API
     def embedding_save(self, file_path, file_name, table_id, mode="bin"):
         """ Operator for save values in embedding table. """
         if file_path is None or file_name is None or table_id is None:
@@ -307,6 +321,7 @@ class ESWorker:
     # @param file_name string 类型
     # @param table_id int32 类型
     # @param mode string 类型
+    # Unused API
     def embedding_ckpt_save(self, file_path, file_name, table_id, mode="bin"):
         """ Operator for save values and optimizer params in embedding table. """
         if file_path is None or file_name is None or table_id is None:
@@ -397,6 +412,8 @@ class ESWorker:
         """ Operator for save values in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
@@ -424,10 +441,14 @@ class ESWorker:
         """ Operator for save values in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
             raise ValueError("Device must be rank_id 0.")
+        if not self._table_init:
+            raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -453,6 +474,8 @@ class ESWorker:
     def restore_embedding(self, path, table_id):
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
         with specified_ps_engine_scope():
@@ -469,6 +492,10 @@ class ESWorker:
     def restore_embeddings(self, path):
         if path is None:
             raise ValueError("embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
+        if not self._table_init:
+            raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -489,6 +516,8 @@ class ESWorker:
         """ Operator for save values and optimizer params in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
@@ -522,10 +551,14 @@ class ESWorker:
         """ Operator for save values and optimizer params in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
             raise ValueError("Device must be rank_id 0.")
+        if not self._table_init:
+            raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -560,6 +593,8 @@ class ESWorker:
         """ Operator for restore values and optimizer params in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
         with specified_ps_engine_scope():
@@ -586,6 +621,10 @@ class ESWorker:
         """ Operator for restore values and optimizer params in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
+        if not self._table_init:
+            raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -617,6 +656,8 @@ class ESWorker:
         """ Operator for save incremental values in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
@@ -644,10 +685,14 @@ class ESWorker:
         """ Operator for save incremental values in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
             raise ValueError("Device must be rank_id 0.")
+        if not self._table_init:
+            raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -673,6 +718,8 @@ class ESWorker:
     def restore_incremental_embedding(self, path, table_id):
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
         with specified_ps_engine_scope():
@@ -689,6 +736,10 @@ class ESWorker:
     def restore_incremental_embeddings(self, path):
         if path is None:
             raise ValueError("embedding table path can not be None.")
+        if not self._table_init:
+            raise ValueError("Not any table has been initialized.")
+        if path[-1] is '/':
+            raise ValueError("path format is wrong, please check.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -758,6 +809,7 @@ class ESWorker:
                                                            sigma=None,
                                                            seed=None, seed2=None)
         self._init_flag = True
+        self._table_init = True
         if self._train_mode:
             return tf.group(
                 [tf.initializers.variables(self._optimizer.variables()), self._init_embedding_hash_maps.get(table_id)])
