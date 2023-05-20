@@ -45,6 +45,7 @@ def specified_ps_engine_scope():
 
 class Initializer:
     """Initializer for embedding service table."""
+
     def __init__(self, min, max, initializer_mode, constant_value, mu=0.0, sigma=1.0):
         self.min = min
         self.max = max
@@ -337,7 +338,8 @@ class ESWorker:
                                                           (self._table_to_slot_var_num.get(table_id) + 1),
                                                           False, mode)
 
-    def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True):
+    def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True,
+                                initializer=tf.random_uniform_initializer(minval=-0.01, maxval=0.01, seed=1234)):
         if (max_vocabulary_size is None) or (embedding_dim is None) or (multihot_lens is None):
             raise ValueError("max_vocabulary_size or embedding_dim or multihot_lens can not be None.")
         if (not isinstance(max_vocabulary_size, int)) or (not isinstance(embedding_dim, int)) or \
@@ -349,12 +351,13 @@ class ESWorker:
             max_vocabulary_size=max_vocabulary_size,
             embedding_dim=embedding_dim,
             multihot_lens=multihot_lens,
-            allow_merge=allow_merge
+            allow_merge=allow_merge,
+            initializer=initializer
         )
         self.user_defined_table_infos.append(new_table_info)
 
     def init_table(self, table_map_policy=AutoMergeTableMapPolicy()):
-        if (not isinstance(table_map_policy, NoneTableMapPolicy)) and\
+        if (not isinstance(table_map_policy, NoneTableMapPolicy)) and \
                 (not isinstance(table_map_policy, AutoMergeTableMapPolicy)):
             raise TypeError("table_map_policy should be NoneTableMapPolicy or AutoMergeTableMapPolicy.")
         if len(self.user_defined_table_infos) == 0:
@@ -364,10 +367,12 @@ class ESWorker:
         self.total_embedding_count = 0
         self.total_variable_table = []
         for table_info_ in self.table_create_infos:
-            self.total_variable_table.append(tf.Variable(
-                tf.random_normal([table_info_['max_vocabulary_size'], table_info_['embedding_dim']], mean=0.0,
-                                 stddev=1.0, dtype=tf.float32, seed=1234)
-            ))
+            self.total_variable_table.append(tf.get_variable('ES',
+                                                             shape=[table_info_['max_vocabulary_size'],
+                                                                    table_info_['embedding_dim']],
+                                                             initializer=table_info_['initializer'],
+                                                             dtype=tf.float32
+                                                             ))
             self._npu_table_to_embedding_dim[self.total_embedding_count] = table_info_['embedding_dim']
             self.total_embedding_count += 1
         self.user_defined_table_infos = []
@@ -534,7 +539,7 @@ class ESWorker:
                                                        table_id=table_id_tensor,
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id) *
-                                                       (self._table_to_slot_var_num.get(table_id) + 1),
+                                                                       (self._table_to_slot_var_num.get(table_id) + 1),
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin")
@@ -607,7 +612,7 @@ class ESWorker:
                                                        table_id=table_id_tensor,
                                                        embedding_dim=self._table_to_embedding_dim.get(table_id),
                                                        value_total_len=self._table_to_embedding_dim.get(table_id) *
-                                                       (self._table_to_slot_var_num.get(table_id) + 1),
+                                                                       (self._table_to_slot_var_num.get(table_id) + 1),
                                                        only_var_flag=False,
                                                        file_type="bin")
             with tf.control_dependencies([embedding_table_import]):

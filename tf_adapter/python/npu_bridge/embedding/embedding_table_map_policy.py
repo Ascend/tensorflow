@@ -36,6 +36,9 @@ class BaseTableMapPolicy():
         if info1['embedding_dim'] != info2['embedding_dim']:  # dim of table is the same or not
             print('embedding dim different!, value is %d and %d' % (info1['embedding_dim'], info2['embedding_dim']))
             return False
+        if info1['initializer'] != info2['initializer']:  # initializer of table is the same or not
+            print('initializer different!, value is %d and %d' % (info1['initializer'], info2['initializer']))
+            return False
         return True
 
     def map_table_infos(self, user_defined_table_infos):
