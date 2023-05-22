@@ -283,7 +283,7 @@ Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, 
 
   void *device_addr = ReAllocDeviceMem(tensor_addr, tensor_size);
   DATASET_REQUIRES(device_addr != nullptr, errors::Internal("Create device memory for input tensor failed."));
-  aclDataBuffer* inputData = aclCreateDataBuffer(device_addr, tensor_size);
+  aclDataBuffer *inputData = aclCreateDataBuffer(device_addr, tensor_size);
   if (inputData == nullptr) {
     (void)aclrtFree(device_addr);
     return errors::Internal("Create data buffer for input tensor failed.");
@@ -299,14 +299,16 @@ Status DatasetFunction::TransTfTensorToDataBuffer(aclmdlDataset *input_dataset, 
 }
 
 aclmdlDataset *DatasetFunction::CreateAclInputDatasetWithTFTensors(std::vector<Tensor> &tf_tensors) {
-  aclmdlDataset* input_dataset = aclmdlCreateDataset();
+  aclmdlDataset *input_dataset = aclmdlCreateDataset();
   if (input_dataset == nullptr) {
+    ADP_LOG(ERROR) << "Create input dataset failed, aclmdlCreateDataset return nullptr.";
     return nullptr;
   }
 
   for (size_t i = 0; i < tf_tensors.size(); i++) {
     Status status = TransTfTensorToDataBuffer(input_dataset, tf_tensors[i]);
     if (!status.ok()) {
+      ADP_LOG(ERROR) << "Create input dataset failed, status is " << status.ToString();
       DestroyAclInputDataset(input_dataset);
       return nullptr;
     }
@@ -317,21 +319,20 @@ aclmdlDataset *DatasetFunction::CreateAclInputDatasetWithTFTensors(std::vector<T
 
 void DatasetFunction::DestroyAclInputDataset(aclmdlDataset *input) {
   if (input == nullptr) {
+    ADP_LOG(ERROR) << "Destory input dataset failed, input is nullptr.";
     return;
   }
   for (size_t i = 0; i < aclmdlGetDatasetNumBuffers(input); i++) {
-    aclDataBuffer* data_buffer = aclmdlGetDatasetBuffer(input, i);
-    void* data_addr = aclGetDataBufferAddr(data_buffer);
+    aclDataBuffer *data_buffer = aclmdlGetDatasetBuffer(input, i);
+    void *data_addr = aclGetDataBufferAddr(data_buffer);
     CHECK_NOT_NULL(data_addr);
     aclError ret = aclrtFree(data_addr);
     if (ret != ACL_ERROR_NONE) {
       ADP_LOG(ERROR) << "Free acl device memory failed.";
-      return;
     }
     ret = aclDestroyDataBuffer(data_buffer);
     if (ret != ACL_ERROR_NONE) {
       ADP_LOG(ERROR) << "Destory acl input dataset buffer failed.";
-      return;
     }
   }
   aclError ret = aclmdlDestroyDataset(input);
@@ -339,7 +340,6 @@ void DatasetFunction::DestroyAclInputDataset(aclmdlDataset *input) {
     ADP_LOG(ERROR) << "Destory acl input dataset failed.";
     return;
   }
-  input = nullptr;
 }
 
 aclmdlDataset *DatasetFunction::CreateAclOutputDataset(const ModelId model_id) {
@@ -347,7 +347,7 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(const ModelId model_id) {
   model_desc = DatasetFunction::CreateAclModelDesc(model_id);
   DATASET_REQUIRES_RT_NULL(model_desc != nullptr, errors::Internal("No model description, create ouput failed."));
 
-  aclmdlDataset* output = aclmdlCreateDataset();
+  aclmdlDataset *output = aclmdlCreateDataset();
   if (output == nullptr) {
     (void)aclmdlDestroyDesc(model_desc);
     ADP_LOG(ERROR) << "Create output failed, output is nullptr, model_id = " << model_id;
@@ -395,13 +395,14 @@ aclmdlDataset *DatasetFunction::CreateAclOutputDataset(const ModelId model_id) {
 
 void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output, const bool isFree) {
   if (output == nullptr) {
+    ADP_LOG(ERROR) << "Destory output dataset failed, output is nullptr.";
     return;
   }
   aclError ret = ACL_ERROR_NONE;
   for (size_t i = 0; i < aclmdlGetDatasetNumBuffers(output); i++) {
-    aclDataBuffer* data_buffer = aclmdlGetDatasetBuffer(output, i);
+    aclDataBuffer *data_buffer = aclmdlGetDatasetBuffer(output, i);
     if (isFree) {
-      void* data_addr = aclGetDataBufferAddr(data_buffer);
+      void *data_addr = aclGetDataBufferAddr(data_buffer);
       ret = aclrtFree(data_addr);
       if (ret != ACL_ERROR_NONE) {
         ADP_LOG(ERROR) << "Free acl device memory failed.";
@@ -415,13 +416,11 @@ void DatasetFunction::DestroyAclOutputDataset(aclmdlDataset *output, const bool 
   ret = aclmdlDestroyDataset(output);
   if (ret != ACL_ERROR_NONE) {
     ADP_LOG(ERROR) << "Destory acl output dataset failed.";
-    return;
   }
-  output = nullptr;
 }
 
 aclmdlDesc *DatasetFunction::CreateAclModelDesc(const ModelId model_id) {
-  aclmdlDesc* model_desc = aclmdlCreateDesc();
+  aclmdlDesc *model_desc = aclmdlCreateDesc();
   DATASET_REQUIRES_RT_NULL(model_desc != nullptr, errors::Internal("Create model description failed."));
 
   aclError ret = aclmdlGetDesc(model_desc, model_id);

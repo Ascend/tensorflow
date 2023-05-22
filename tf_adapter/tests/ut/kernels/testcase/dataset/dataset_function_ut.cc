@@ -237,6 +237,22 @@ TEST_F(DatasetFunctionTest, CreateTensorDescFailedTest) {
   EXPECT_EQ(acl_dataset, nullptr);
   SetCreateTensorDesc(true);
 }
+
+TEST_F(DatasetFunctionTest, CreateAclInputDatasetFailedTest) {
+  ADP_LOG(INFO) << "====== DatasetFunctionTest CreateAclInputDatasetFailedTest ======";
+  SetCreateDataset(false);
+
+  aclmdlDataset *acl_input = nullptr;
+  aclmdlDataset *acl_output = nullptr;
+  Tensor tensor(tensorflow::DataType::DT_FLOAT, tensorflow::TensorShape());
+  std::vector<Tensor> tf_tensors;
+  tf_tensors.emplace_back(tensor);
+  auto acl_dataset = dataset_func_->CreateAclInputDatasetWithTFTensors(tf_tensors);
+  EXPECT_EQ(acl_dataset, nullptr);
+  dataset_func_->DestroyAclInputDataset(acl_input);
+  dataset_func_->DestroyAclOutputDataset(acl_output, false);
+  SetCreateDataset(true);
+}
 }  // namespace
 }  // namespace data
 }  // namespace tensorflow

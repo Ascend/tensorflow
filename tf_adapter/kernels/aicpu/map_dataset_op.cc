@@ -126,7 +126,7 @@ public:
   ~Dataset() override {
     ADP_LOG(EVENT) << "~Dataset start.";
     (void)input_->Unref();
-    ADP_LOG(EVENT) << "~Dataset end.";
+    ADP_LOG(EVENT) << "~Dataset finish.";
   }
 
   bool IsStaticShape() const {
@@ -312,11 +312,9 @@ private:
             *end_of_sequence = true;
             return Status::OK();
           }
-          ++waiting_;
           RecordStop(ctx);
           cond_var_->wait(l);
           RecordStart(ctx);
-          --waiting_;
         }
         if (cancelled_) {
           return errors::Cancelled("Iterator was cancelled");
@@ -439,6 +437,10 @@ private:
 
     void InitOutputResultCpuMem(OutputResultBase &output_result) {
       output_result.output_cpu_addr = new (std::nothrow)uint8_t[output_mem_size_aligned_];
+      if (output_result.output_cpu_addr == nullptr) {
+        ADP_LOG(ERROR) << "Failed to allocate cpu memory.";
+        return;
+      }
       output_result.output_cpu = output_result.output_cpu_addr;
 
       // reset start address for cpu memory when pass data to tensorflow
@@ -745,7 +747,6 @@ private:
 
     std::unique_ptr<IteratorBase> input_impl_;
     bool cancelled_ GUARDED_BY(*mu_) = false;
-    int64 waiting_ GUARDED_BY(*mu_) = 0;
 #ifdef TF_VERSION_TF2
     std::unique_ptr<CancellationManager> cancellation_manager_;
 #endif
@@ -821,7 +822,7 @@ private:
         output_mem_size_ += tensor_size;
       }
       // Current dataset is followed by TF dataset,
-      // need recalculate the start addres, make sure the start address is 64-aligned.
+      // need recalculate the start address, make sure the start address is 64-aligned.
       output_mem_size_aligned_ = output_mem_size_ + NpuAllocator::GetAlignment();
 
       stream_pool_.reset(new (std::nothrow)StreamPool(GetParallelCallsNum(), kMaxTask));
@@ -890,10 +891,6 @@ private:
 
     void DestroyOutputDataset(OutputResultBase &output_result) override {
       (void)output_result;
-    }
-
-    ge::Format GetFormat() const {
-      return ge::Format::FORMAT_ND;
     }
 
     std::unique_ptr<StreamPool> stream_pool_ = nullptr;
@@ -1096,11 +1093,6 @@ private:
     void DestroyOutputDataset(OutputResultBase &output_result) override {
       OutputDynResult& results = static_cast<OutputDynResult&>(output_result);
       DatasetFunction::DestroyAclOutputDataset(results.output_data, true);
-    }
-
-  private:
-    ge::Format GetFormat() const {
-      return ge::Format::FORMAT_ND;
     }
   }; // class IteratorDyn
 

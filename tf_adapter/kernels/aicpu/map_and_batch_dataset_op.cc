@@ -162,13 +162,13 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
   {
     ADP_LOG(EVENT) << "Dataset construct enter.";
     input_->Ref();
-    ADP_LOG(EVENT) << "Dataset construct end.";
+    ADP_LOG(EVENT) << "Dataset construct exit.";
   }
 
   ~Dataset() override {
     ADP_LOG(EVENT) << "~Dataset enter.";
     (void)input_->Unref();
-    ADP_LOG(EVENT) << "~Dataset end.";
+    ADP_LOG(EVENT) << "~Dataset exit.";
   }
 
   bool IsStaticShape() const {
@@ -295,13 +295,13 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
                          << "device_id_ = " << device_id_;
         }
         timestat = std::make_shared<TimeStatistic>(static_cast<int64_t>(GetParallelCallsNum()));
-        ADP_LOG(EVENT) << "IteratorMeBase construct end.";
+        ADP_LOG(EVENT) << "IteratorMeBase construct exit.";
       }
 
       virtual ~IteratorMeBase() {
         ADP_LOG(EVENT) << "~Dataset::IteratorMeBase enter.";
         timestat->ShowTimeStatistic();
-        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase end.";
+        ADP_LOG(EVENT) << "~Dataset::IteratorMeBase exit.";
       }
 
       uint64_t GetParallelCallsNum() const {
@@ -361,11 +361,9 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
               *end_of_sequence = true;
               return Status::OK();
             }
-            ++waiting_;
             RecordStop(ctx);
             cond_var_->wait(l);
             RecordStart(ctx);
-            --waiting_;
           }
           if (cancelled_) {
             return errors::Cancelled("IteratorStatic was cancelled");
@@ -407,7 +405,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
             output_cpu_addr = nullptr;
             output_cpu = nullptr;
           }
-          ADP_LOG(EVENT) << "~BatchResultBase end.";
+          ADP_LOG(EVENT) << "~BatchResultBase exit.";
         }
 
         void InitOutputs(uint8_t *start_addr, std::vector<uint64_t> &tensor_align_size,
@@ -558,7 +556,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       }
 
       void Finalize() noexcept {
-        ADP_LOG(INFO) << "~Finalize start.";
+        ADP_LOG(INFO) << "~Finalize enter.";
         CancelThreads(true);
         if (deregister_fn_) {
           deregister_fn_();
@@ -570,7 +568,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         if (rt != RT_ERROR_NONE) {
           ADP_LOG(ERROR) << "Call reset device failed. device id=" << device_id_ << "  rt=" << rt;
         }
-        ADP_LOG(INFO) << "~Finalize finish.";
+        ADP_LOG(INFO) << "~Finalize exit.";
       }
 
       Status InitBatchResultNpuMem(BatchResultBase &batch_result) {
@@ -586,6 +584,10 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       void InitBatchResultCpuMem(BatchResultBase &batch_result) {
         batch_result.output_cpu_addr = new (std::nothrow)uint8_t[batch_mem_size_aligned_];
+        if (batch_result.output_cpu_addr == nullptr) {
+          ADP_LOG(ERROR) << "Failed to allocate cpu memory.";
+          return;
+        }
         batch_result.output_cpu = batch_result.output_cpu_addr;
 
         // reset start address for cpu memory when pass data to tensorflow
@@ -623,16 +625,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         }
 
         return TransBatchResultToTensor(batch_result, out_tensors);
-      }
-
-      uint64_t WaitingResultNum() const {
-        uint64_t count = 0;
-        for (uint64_t i = 0; i < batch_capacity_; i++) {
-          if (batch_results_[i]->data_status == DataStatus::WAIT_RESULT) {
-            count++;
-          }
-        }
-        return count;
       }
 
       void CancelThreads(bool wait) LOCKS_EXCLUDED(*mu_) {
@@ -896,7 +888,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
       const std::shared_ptr<condition_variable> cond_var_;
       std::unique_ptr<IteratorBase> input_impl_;
       bool cancelled_ GUARDED_BY(*mu_) = false;
-      int64 waiting_ GUARDED_BY(*mu_) = 0;
 #ifdef TF_VERSION_TF2
       std::unique_ptr<CancellationManager> cancellation_manager_;
 #endif
@@ -980,7 +971,7 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
       batch_mem_size_ *= dataset()->batch_size_;
       // Current dataset is followed by TF dataset,
-      // need recalculate the start addres, make sure the start address is 64-aligned.
+      // need recalculate the start address, make sure the start address is 64-aligned.
       batch_mem_size_aligned_ = batch_mem_size_ + NpuAllocator::GetAlignment();
       ADP_LOG(INFO) << "BatchMem, batch_mem_size : " << batch_mem_size_;
 
@@ -1047,10 +1038,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
 
     void DestroyOutputDataset(BatchResultBase &batch_result) override {
       (void)batch_result;
-    }
-
-    ge::Format GetFormat() const {
-      return ge::Format::FORMAT_ND;
     }
 
     std::unique_ptr<StreamPool> stream_pool_ = nullptr;
@@ -1266,11 +1253,6 @@ class NpuMapAndBatchDatasetOp::Dataset : public DatasetBase {
         aclmdlDataset *out_dataset = results.output_datasets[j];
         DatasetFunction::DestroyAclOutputDataset(out_dataset, true);
       }
-    }
-
-  private:
-    ge::Format GetFormat() const {
-      return ge::Format::FORMAT_ND;
     }
   };
 
