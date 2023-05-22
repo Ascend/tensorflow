@@ -68,6 +68,9 @@ const char *const OPTION_EXEC_MODEL_DEPLOY_DEVICELIST = "ge.exec.modelDeployDevi
 // Option key: memory init
 const char *const GRAPH_MEMORY_MAX_SIZE = "ge.graphMemoryMaxSize";
 const char *const VARIABLE_MEMORY_MAX_SIZE = "ge.variableMemoryMaxSize";
+const char *const MEMORY_OPTIMIZATION_POLICY = "ge.exec.memoryOptimizationPolicy";
+const char *const OPTION_INPUT_REUSE_MEM_INDEXES = "ge.exec.inputReuseMemIndexes";
+const char *const OPTION_OUTPUT_REUSE_MEM_INDEXES = "ge.exec.outputReuseMemIndexes";
 
 // Configure stream num by Session constructor options param,
 // its value should be int32_t type, default value is "1"
