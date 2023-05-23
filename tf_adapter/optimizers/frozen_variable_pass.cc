@@ -34,7 +34,7 @@ class DummyDevice : public ThreadPoolDevice {
   explicit DummyDevice(const std::string &name, ResourceMgr *rmgr) :
     ThreadPoolDevice({}, name, Bytes(INT64_MAX), DeviceLocality(), cpu_allocator()),
     wrapped_rmgr_(rmgr) {}
-  ~DummyDevice() override = default;
+  ~DummyDevice() override { wrapped_rmgr_ = nullptr; };
   Status Sync() override { return Status::OK(); }
   ResourceMgr *resource_manager() override { return wrapped_rmgr_; }
  private:

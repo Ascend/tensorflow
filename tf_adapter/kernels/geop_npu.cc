@@ -269,6 +269,10 @@ bool CmpNodeIndex(const std::pair<Node *, uint32_t> &p1, const std::pair<Node *,
 
 void SetReuseOptions(const std::string &key, int32_t num, std::map<std::string, std::string> &options) {
   if (num < 1) { return; }
+  auto memory_optimization_option = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
+  if (memory_optimization_option == options.end() || memory_optimization_option->second != "MemoryPriority") {
+    return;
+  }
   auto inserted_kv = options.insert(std::make_pair(key, ""));
   if (inserted_kv.second) {
     for (int32_t i = 0; i < (num - 1); i++) {

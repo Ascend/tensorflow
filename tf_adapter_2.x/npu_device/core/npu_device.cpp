@@ -70,6 +70,10 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
 
 void SetReuseOptions(const std::string &key, size_t num, std::map<std::string, std::string> &options) {
   if (num < 1U) { return; }
+  auto memory_optimization_option = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
+  if (memory_optimization_option == options.end() || memory_optimization_option->second != "MemoryPriority") {
+    return;
+  }
   auto inserted_kv = options.insert(std::make_pair(key, ""));
   if (inserted_kv.second) {
     for (size_t i = 0U; i < (num - 1U); i++) {
