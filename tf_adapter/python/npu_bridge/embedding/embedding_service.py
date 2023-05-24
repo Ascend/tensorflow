@@ -267,7 +267,7 @@ class ESWorker:
                                                                    filter_freq=self._filter_freq,
                                                                    default_key_or_value=self._default_key_or_value,
                                                                    default_key=self._default_key,
-                                                                   defualt_value=self._default_value
+                                                                   default_value=self._default_value
                                                                    )
         else:
             result = gen_npu_cpu_ops.embedding_table_find(table_id=ops.convert_to_tensor(table_id),
