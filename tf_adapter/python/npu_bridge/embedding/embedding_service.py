@@ -98,6 +98,11 @@ class ESWorker:
         self.total_variable_table = []
         self.total_embedding_count = 0
         self._npu_table_to_embedding_dim = {}
+        self._use_counter_filter = False
+        self._default_key_or_value = True
+        self._filter_freq = None
+        self._default_key = None
+        self._default_value = None
         config = tf.ConfigProto()
         custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
         custom_op.name = "NpuOptimizer"
@@ -116,17 +121,20 @@ class ESWorker:
         """Operator for init initializer."""
         if (table_id is None) or (min is None) or (max is None) or (constant_value is None):
             raise ValueError("table_id, min, max and constant_value can not be None.")
-        if (table_id < 0) or (table_id >= _INT32_MAX_VALUE) or (not isinstance(table_id, int)):
-            raise ValueError("table_id value is flase, must be [0, 2147483647) and int type, please check.")
-        if (not isinstance(min, float)) or (not isinstance(max, float)) or (not isinstance(constant_value, float)):
-            raise ValueError("Initializer min, max and constant value must be int.")
+        if (not isinstance(table_id, int)) or (table_id < 0) or (table_id >= _INT32_MAX_VALUE):
+            raise ValueError("table_id value is false, must be [0, 2147483647) and int type, please check.")
+        if (not isinstance(min, float) and not isinstance(min, int)) or \
+                (not isinstance(max, float) and not isinstance(max, int)) or \
+                (not isinstance(constant_value, float) and not isinstance(constant_value, int)):
+            raise ValueError("Initializer min, max and constant value must be float or int.")
         if min > max:
             raise ValueError("Initializer min value can not be larger than max value.")
         if (initializer_mode is not 'constant') and (initializer_mode is not 'random_uniform') and \
                 (initializer_mode is not 'truncated_normal'):
             raise ValueError("Initializer mode must be random_uniform or truncated normal or constant.")
-        if (initializer_mode is 'constant') and (not isinstance(constant_value, float)):
-            raise ValueError("If initializer is constant, constant_value must be int.")
+        if (initializer_mode is 'constant') and (not isinstance(constant_value, float)) and \
+                (not isinstance(constant_value, int)):
+            raise ValueError("If initializer is constant, constant_value must be float or int.")
         self._table_to_initializer[table_id] = Initializer(min=min,
                                                            max=max,
                                                            initializer_mode=initializer_mode,
@@ -228,6 +236,10 @@ class ESWorker:
             raise ValueError("this table has not yet initialized.")
         if self._train_mode:
             seed1, seed2 = random_seed.get_seed(None)
+            if self._use_counter_filter:
+                filter_mode = "counter"
+            else:
+                filter_mode = "no_filter"
             result = gen_npu_cpu_ops.embedding_table_find_and_init(table_id=ops.convert_to_tensor(table_id),
                                                                    keys=input_ids,
                                                                    embedding_dim=
@@ -250,7 +262,12 @@ class ESWorker:
                                                                    seed2=seed2,
                                                                    value_total_len=
                                                                    self._table_to_embedding_dim.get(table_id) *
-                                                                   (self._table_to_slot_var_num.get(table_id) + 1)
+                                                                   (self._table_to_slot_var_num.get(table_id) + 1),
+                                                                   filter_mode=filter_mode,
+                                                                   filter_freq=self._filter_freq,
+                                                                   default_key_or_value=self._default_key_or_value,
+                                                                   default_key=self._default_key,
+                                                                   default_value=self._default_value
                                                                    )
         else:
             result = gen_npu_cpu_ops.embedding_table_find(table_id=ops.convert_to_tensor(table_id),
@@ -297,6 +314,23 @@ class ESWorker:
                 update_op.append(
                     self._table_to_optimizer.get(table_ids[i]).apply_gradients(list(zip(params_grads, var_refs))))
             return update_op
+
+    def counter_filter(self, filter_freq, default_key=None, default_value=None):
+        if (not isinstance(filter_freq, int)) or (not isinstance(default_key, int)) or \
+                (not isinstance(default_value, float)):
+            raise TypeError("filter_freq and default_key must be int, default_value must be float, please check.")
+        self._use_counter_filter = True
+        if (default_key is None) and (default_value is None):
+            raise ValueError("default_key and default_value can not be both None.")
+        if (default_key is not None) and (default_value is not None):
+            raise ValueError("default_key and default_value can not be both set.")
+        if default_key is None:
+            self._default_key_or_value = False
+        else:
+            self._default_key_or_value = True
+        self._filter_freq = filter_freq
+        self._default_key = default_key
+        self._default_value = default_value
 
     # 提供训练好的embedding values save功能
     # @param file_path string 类型
@@ -762,6 +796,10 @@ class ESWorker:
             return tf.group([embedding_table_import])
 
     def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim):
+        if self._use_counter_filter:
+            filter_mode = "counter"
+        else:
+            filter_mode = "no_filter"
         with tf.control_dependencies([self._init_partition_maps.get(table_id)]):
             if self._train_mode:
                 if self._train_level:
@@ -775,44 +813,30 @@ class ESWorker:
                                                                self._table_to_initializer.get(table_id)
                                                                .initializer_mode,
                                                                constant_value=
-                                                               self._table_to_initializer.get(table_id)
-                                                               .constant_value,
-                                                               min=
-                                                               self._table_to_initializer.get(table_id).min,
-                                                               max=
-                                                               self._table_to_initializer.get(table_id).max,
-                                                               mu=
-                                                               self._table_to_initializer.get(table_id).mu,
-                                                               sigma=
-                                                               self._table_to_initializer.get(table_id).sigma,
-                                                               seed=seed1,
-                                                               seed2=seed2)
+                                                               self._table_to_initializer.get(table_id).constant_value,
+                                                               min=self._table_to_initializer.get(table_id).min,
+                                                               max=self._table_to_initializer.get(table_id).max,
+                                                               mu=self._table_to_initializer.get(table_id).mu,
+                                                               sigma=self._table_to_initializer.get(table_id).sigma,
+                                                               seed=seed1, seed2=seed2, filter_mode=filter_mode)
                 else:
                     self._init_embedding_hash_maps[table_id] = \
                         gen_npu_cpu_ops.init_embedding_hashmap(table_id=ops.convert_to_tensor(table_id),
                                                                bucket_size=bucket_size,
                                                                value_total_len=embedding_dim * (self.slot_vars_num + 1),
                                                                embedding_dim=embedding_dim,
-                                                               initializer_mode=None,
-                                                               constant_value=None,
-                                                               min=None,
-                                                               max=None,
-                                                               mu=None,
-                                                               sigma=None,
-                                                               seed=None, seed2=None)
+                                                               initializer_mode=None, constant_value=None,
+                                                               min=None, max=None, mu=None, sigma=None,
+                                                               seed=None, seed2=None, filter_mode=filter_mode)
             else:
                 self._init_embedding_hash_maps[table_id] = \
                     gen_npu_cpu_ops.init_embedding_hashmap(table_id=ops.convert_to_tensor(table_id),
                                                            bucket_size=bucket_size,
                                                            value_total_len=embedding_dim,
                                                            embedding_dim=embedding_dim,
-                                                           initializer_mode=None,
-                                                           constant_value=None,
-                                                           min=None,
-                                                           max=None,
-                                                           mu=None,
-                                                           sigma=None,
-                                                           seed=None, seed2=None)
+                                                           initializer_mode=None, constant_value=None,
+                                                           min=None, max=None, mu=None, sigma=None,
+                                                           seed=None, seed2=None, filter_mode=filter_mode)
         self._init_flag = True
         self._table_init = True
         if self._train_mode:
