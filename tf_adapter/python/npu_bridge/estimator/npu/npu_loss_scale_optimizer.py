@@ -53,7 +53,7 @@ class NPULossScaleOptimizer(lso.LossScaleOptimizer):
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
         """Apply gradients. See base class `tf.compat.v1.train.Optimizer`."""
         if npu_plugin.is_inf_nan_enabled():
-            return super().apply_gradients(grads_and_vars, name)
+            return super().apply_gradients(grads_and_vars, global_step, name)
 
         if self._enable_overflow_check():
             with tf.name_scope(self._name):
