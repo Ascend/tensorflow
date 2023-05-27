@@ -267,10 +267,28 @@ bool CmpNodeIndex(const std::pair<Node *, uint32_t> &p1, const std::pair<Node *,
   return p1.second < p2.second;
 }
 
-void SetReuseOptions(const std::string &key, int32_t num, std::map<std::string, std::string> &options) {
-  if (num < 1) { return; }
-  auto memory_optimization_option = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
-  if (memory_optimization_option == options.end() || memory_optimization_option->second != "MemoryPriority") {
+bool IsNeedSetReuseOptions(const std::map<std::string, std::string> &global_options,
+                           const std::map<std::string, std::string> &init_options,
+                           const std::map<std::string, std::string> &graph_options) {
+  static auto kGetMemoryPolicy = [](const std::map<std::string, std::string> &options) -> std::string {
+    auto found = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
+    return (found == options.end()) ? "" : found->second;
+  };
+  auto policy = kGetMemoryPolicy(graph_options);
+  if (!policy.empty()) {
+    return policy == "MemoryPriority";
+  }
+  policy = kGetMemoryPolicy(init_options);
+  if (!policy.empty()) {
+    return policy == "MemoryPriority";
+  }
+  return kGetMemoryPolicy(global_options) == "MemoryPriority";
+}
+
+void SetReuseOptions(const std::string &key, int32_t num, const std::map<std::string, std::string> &global_options,
+                     const std::map<std::string, std::string> &init_options,
+                     std::map<std::string, std::string> &options) {
+  if ((num < 1) || (!IsNeedSetReuseOptions(global_options, init_options, options))) {
     return;
   }
   auto inserted_kv = options.insert(std::make_pair(key, ""));
@@ -280,6 +298,7 @@ void SetReuseOptions(const std::string &key, int32_t num, std::map<std::string, 
       inserted_kv.first->second.append(",");
     }
     inserted_kv.first->second.append(std::to_string(num - 1));
+    ADP_LOG(INFO) << "Set reuse options, key: " << key << ", value: " << inserted_kv.first->second;
   }
 }
 }  // namespace
@@ -951,9 +970,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       graph_options["ge.buildMode"] = "normal";
     }
     if ((is_dynamic_getnext_ != "1") && (iteration_per_loop_ <= 1)) {
-      SetReuseOptions("ge.exec.inputReuseMemIndexes", ctx->num_inputs(), graph_options);
+      SetReuseOptions("ge.exec.inputReuseMemIndexes", ctx->num_inputs(), sess_options_, init_options_, graph_options);
     }
-    SetReuseOptions("ge.exec.outputReuseMemIndexes", ctx->num_outputs(), graph_options);
+    SetReuseOptions("ge.exec.outputReuseMemIndexes", ctx->num_outputs(), sess_options_, init_options_, graph_options);
     ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << jit_compile_;
     status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
     if (status != ge::SUCCESS) {

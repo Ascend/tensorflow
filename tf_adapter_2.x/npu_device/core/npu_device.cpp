@@ -68,10 +68,22 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   std::unique_ptr<T, DT> ptr_;
 };
 
-void SetReuseOptions(const std::string &key, size_t num, std::map<std::string, std::string> &options) {
-  if (num < 1U) { return; }
-  auto memory_optimization_option = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
-  if (memory_optimization_option == options.end() || memory_optimization_option->second != "MemoryPriority") {
+bool IsNeedSetReuseOptions(const std::map<std::string, std::string> &global_options,
+                           const std::map<std::string, std::string> &graph_options) {
+  static auto kGetMemoryPolicy = [](const std::map<std::string, std::string> &options) -> std::string {
+    auto found = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
+    return (found == options.end()) ? "" : found->second;
+  };
+  auto policy = kGetMemoryPolicy(graph_options);
+  if (!policy.empty()) {
+    return policy == "MemoryPriority";
+  }
+  return kGetMemoryPolicy(global_options) == "MemoryPriority";
+}
+
+void SetReuseOptions(const std::string &key, size_t num, const std::map<std::string, std::string> &global_options,
+                     std::map<std::string, std::string> &options) {
+  if ((num < 1U) || (!IsNeedSetReuseOptions(global_options, options))) {
     return;
   }
   auto inserted_kv = options.insert(std::make_pair(key, ""));
@@ -948,9 +960,9 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
   size_t num_inputs = ge::GraphUtilsEx::GetComputeGraph(ge_graph)->GetInputSize();
   size_t num_outputs = ge::GraphUtilsEx::GetComputeGraph(ge_graph)->GetOutputSize();
   if (!loop) {
-    SetReuseOptions("ge.exec.inputReuseMemIndexes", num_inputs, options);
+    SetReuseOptions("ge.exec.inputReuseMemIndexes", num_inputs, device_options, options);
   }
-  SetReuseOptions("ge.exec.outputReuseMemIndexes", num_outputs, options);
+  SetReuseOptions("ge.exec.outputReuseMemIndexes", num_outputs, device_options, options);
 
   const auto cache_dir_option = device_options.find("ge.graph_compiler_cache_dir");
   if ((cache_dir_option != device_options.cend() && !cache_dir_option->second.empty())) {
