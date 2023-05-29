@@ -49,6 +49,11 @@ const char *const kNpuRecomputePrefix = "NpuRecompute";
 const char *const kGradientsPrefix = "gradients";
 const char *const kRecomputeAttr = "_recompute";
 const char *const kBackwardAttr = "_backward";
+const char *const kGraphSliceScope = "NpuGraphSlicing";
+const char *const kGraphSliceNum = "SliceNum";
+const char *const kGraphSliceScopeAttr = "_graph_slicing_scope";
+const char *const kGraphSliceNumAttr = "_graph_slice_num";
+const char *const kDefaultSliceNum = "None";
 } // namespace
 static const int64 kMicrosToMillis = 1000;
 
@@ -2483,6 +2488,34 @@ void OMPartitionSubgraphsPass::InheritAttributes(Node &node) const {
   }
   if (node.name().find(kGradientsPrefix) != std::string::npos) {
     node.AddAttr(kBackwardAttr, true);
+  }
+
+  const auto slice_scope_index = node.name().find(kGraphSliceScope);
+  const auto gradients_index = node.name().find(kGradientsPrefix);
+  if ((slice_scope_index != std::string::npos) && (slice_scope_index < gradients_index)) {
+    std::vector<std::string> result;
+    Split(node.name(), result, "/");
+    size_t kSliceNumIndex = 1U;
+    size_t kSliceScopeIndex = 2U;
+    size_t kValidSize = 3U;
+    for (const auto &scope : result) {
+      if (scope.find(kGraphSliceScope) != std::string::npos) {
+        // e.g. scope_res:["SliceNum", "2", "NpuGraphSlicing"]
+        std::vector<std::string> scope_res;
+        Split(scope, scope_res, "_");
+        if ((scope_res[0] != kGraphSliceNum) || (scope_res.size() != kValidSize)) {
+          continue;
+        }
+        std::string slice_num = scope_res[kSliceNumIndex];
+        if (slice_num == kDefaultSliceNum) {
+          slice_num.clear();
+        }
+        node.AddAttr(kGraphSliceNumAttr, slice_num);
+        node.AddAttr(kGraphSliceScopeAttr, scope_res[kSliceScopeIndex]);
+        ADP_LOG(INFO) << "node:" << node.name() << " graph slice scope:" << scope_res[kSliceScopeIndex]
+                      << " slice num:" << scope_res[kSliceNumIndex];
+      }
+    }
   }
 }
 

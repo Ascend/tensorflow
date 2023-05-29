@@ -388,15 +388,21 @@ class DumpConfig():
         self.dump_layer = dump_layer
 
 
+def _check_graph_mem_optimize_config(param, arg_name):
+    if param is not None and param not in ["auto", "manual"]:
+        raise ValueError(f"{arg_name} should be in ['auto', 'manual']")
+
+
 class GraphMemoryOptimizeConfig():
 
-    def __init__(self, recompute=None):
+    def __init__(self, recompute=None, graph_slice=None):
         """
         Args: recompute: "auto" or "manual"
         """
-        if recompute is not None and recompute not in ["auto", "manual"]:
-            raise ValueError("recompute should be in ['auto', 'manual']")
+        _check_graph_mem_optimize_config(recompute, "recompute")
+        _check_graph_mem_optimize_config(graph_slice, "graph_slice")
         self._recompute = recompute
+        self._graph_slice = graph_slice
 
 
 class ExperimentalConfig():

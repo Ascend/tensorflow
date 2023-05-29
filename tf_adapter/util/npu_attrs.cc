@@ -32,10 +32,12 @@
 #include "tf_adapter_2.x/npu_device/core/npu_micros.h"
 namespace tensorflow {
 namespace {
-  bool kIsNewDataTransfer = true;
-  bool kHasSetDataTransferMode = false;
-  std::mutex mu;
-}
+bool kIsNewDataTransfer = true;
+bool kHasSetDataTransferMode = false;
+std::mutex mu;
+std::string kGraphSliceModeAuto = "auto";
+std::string kGraphSliceModeManual = "manual";
+}  // namespace
 const string profiling_default_options = "{\"output\":\".\\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
 \"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metrics\":\"PipeUtilization\",\"msproftx\":\"off\"}";
 std::map<int32_t, bool> NpuAttrs::turn_on_tdt_info_;
@@ -410,6 +412,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string graph_parallel_option_path;
   std::string enable_graph_parallel;
   std::string graph_compiler_cache_dir;
+  std::string graph_slice_mode;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_variable_format_optimize", &variable_format_optimize);
@@ -474,6 +477,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
     (void) ctx->GetAttr("_external_weight", &external_weight);
     (void) ctx->GetAttr("_graph_parallel_option_path", &graph_parallel_option_path);
     (void) ctx->GetAttr("_enable_graph_parallel", &enable_graph_parallel);
+    (void) ctx->GetAttr("_graph_slice", &graph_slice_mode);
     std::string jit_compile;
     if (ctx->GetAttr("_jit_compile", &jit_compile).ok()) {
       sess_options["jit_compile"] = jit_compile;
@@ -483,6 +487,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   }
 
   // session options
+  sess_options["ge.graphSliceMode"] = graph_slice_mode;
   sess_options["ge.exec.variable_acc"] = variable_format_optimize;
   sess_options[ge::HCOM_PARALLEL] = hcom_parallel;
   sess_options[ge::STREAM_MAX_PARALLEL_NUM] = stream_max_parallel_num;
@@ -1091,6 +1096,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string graph_parallel_option_path;
   std::string enable_graph_parallel;
   std::string graph_compiler_cache_dir;
+  std::string graph_slice_mode;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1121,6 +1127,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto dump_debug_mode_value = attrs.Find("_dump_debug_mode");
   auto stream_max_parallel_num_value = attrs.Find("_stream_max_parallel_num");
   auto soc_config_value = attrs.Find("_soc_config");
+  auto graph_slice_value = attrs.Find("_graph_slice");
 
   auto is_tailing_optimization_value = attrs.Find("_is_tailing_optimization");
   auto precision_mode_value = attrs.Find("_precision_mode");
@@ -1279,7 +1286,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (stream_max_parallel_num_value != nullptr) {
       stream_max_parallel_num = stream_max_parallel_num_value->s();
     }
-
+    if (graph_slice_value != nullptr) {
+      graph_slice_mode = graph_slice_value->s();
+    }
     if (is_tailing_optimization_value != nullptr) {
       is_tailing_optimization = is_tailing_optimization_value->s();
     }
@@ -1477,6 +1486,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     all_options["graph_compiler_cache_dir"] = graph_compiler_cache_dir;
   }
 
+  all_options["graph_slice"] = graph_slice_mode;
   all_options["enable_dump"] = enable_dump;
   all_options["dump_path"] = dump_path;
   all_options["dump_step"] = dump_step;
@@ -1678,6 +1688,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   bool frozen_variable = false;
   std::string variable_location = "Device";
   std::string es_cluster_config;
+  std::string graph_slice_mode;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -2115,10 +2126,17 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("graph_compiler_cache_dir") > 0) {
         graph_compiler_cache_dir = params.at("graph_compiler_cache_dir").s();
       }
+      if (params.count("graph_slice") > 0) {
+        graph_slice_mode = params.at("graph_slice").s();
+        if (graph_slice_mode != kGraphSliceModeAuto && graph_slice_mode != kGraphSliceModeManual) {
+          return errors::Internal("graph_slice must be in ['auto', 'manual']");
+        }
+      }
     }
   }
 
   // session options
+  sess_options["graph_slice"] = graph_slice_mode;
   sess_options["hcom_parallel"] = std::to_string(static_cast<int32_t>(hcom_parallel));
   sess_options["stream_max_parallel_num"] = stream_max_parallel_num;
   if (!graph_memory_max_size.empty()) {

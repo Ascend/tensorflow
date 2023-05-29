@@ -522,7 +522,12 @@ class NPUEstimator(estimator_lib.Estimator):
                 custom_op.parameter_map[
                     "memory_optimization_policy"].s = tf.compat.as_bytes(
                     config._memory_config._memory_optimization_policy)
-        
+        if (config._experimental_config is not None) and (
+                config._experimental_config._graph_memory_optimize_config is not None) and (
+                config._experimental_config._graph_memory_optimize_config._graph_slice is not None):
+            custom_op.parameter_map["graph_slice"].s = tf.compat.as_bytes(
+                config._experimental_config._graph_memory_optimize_config._graph_slice)
+
     def __load_mix_precision(self, config, custom_op):
         """Load mix precision config ,and add to custom_optimizers
         Args:

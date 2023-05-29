@@ -23,5 +23,6 @@ class GraphMemoryOptimizeConfig(NpuBaseConfig):
 
     def __init__(self):
         self.recompute = OptionValue(None, ["auto", "manual"])
+        self.graph_slice = OptionValue(None, ["auto"])
 
         super(GraphMemoryOptimizeConfig, self).__init__()
