@@ -130,5 +130,11 @@ class Adapter2Options(unittest.TestCase):
         options = config.as_dict()
         self.assertEqual(options['graph_compiler_cache_dir'], "./st_graph_cache_dir")
 
+    def test_10_set_option_graph_slice(self):
+        config = NpuConfig()
+        config.experimental.graph_memory_optimize_config.graph_slice = "auto"
+        options = config.as_dict()
+        self.assertEqual(options['graph_slice'], "auto")
+
 if __name__ == '__main__':
     unittest.main()

@@ -57,6 +57,12 @@ node {
     }
   }
   attr {
+      key: "_graph_slice_mode"
+      value {
+        s: "auto"
+      }
+    }
+  attr {
     key: "dtype"
     value {
       type: DT_FLOAT
@@ -517,7 +523,7 @@ node {
   }
 }
 node {
-  name: "NpuRecompute/add"
+  name: "SliceNum_1_NpuGraphSlicing/NpuRecompute/add"
   op: "AddV2"
   input: "MatMul"
   input: "Variable_1/read"
@@ -538,7 +544,7 @@ node {
 node {
   name: "Softmax"
   op: "Softmax"
-  input: "NpuRecompute/add"
+  input: "SliceNum_1_NpuGraphSlicing/NpuRecompute/add"
   device: "/job:localhost/replica:0/task:0/device:CPU:0"
   attr {
     key: "T"

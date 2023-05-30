@@ -199,3 +199,7 @@ def npu_optimizer_scope():
 
 def npu_recompute_scope():
     return ops.name_scope_v2("NpuRecompute")
+
+
+def npu_graph_slice_scope(slice_num=None):
+    return ops.name_scope_v2("".join(["SliceNum_", str(slice_num), "_NpuGraphSlicing"]))

@@ -124,7 +124,9 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"_distribute.cm_worker_ip", ge::OPTION_EXEC_CM_WORKER_IP},
   {"_distribute.cm_worker_size", ge::OPTION_EXEC_CM_WORKER_SIZE},
   {"jit_compile", "ge.jit_compile"},
-  {"graph_compiler_cache_dir", "ge.graph_compiler_cache_dir"}};
+  {"graph_compiler_cache_dir", "ge.graph_compiler_cache_dir"},
+  {"graph_slice", "ge.graphSliceMode"}
+};
 }  // namespace
 
 #undef PYBIND11_CHECK_PYTHON_VERSION
