@@ -2486,9 +2486,9 @@ void OMPartitionSubgraphsPass::InheritAttributes(Node &node) const {
     size_t kValidSize = 3U;
     for (const auto &scope : result) {
       if (scope.find(kGraphSliceScope) != std::string::npos) {
-        // e.g. scope_res:["SliceNum", "2", "NpuGraphSlicing"]
+        // e.g. scope_res:["SliceNum", "2", "NpuGraphSlicingxxx"]
         std::vector<std::string> scope_res;
-        Split(scope, scope_res, "_");
+        Split(scope, scope_res, "-");
         if ((scope_res[0] != kGraphSliceNum) || (scope_res.size() != kValidSize)) {
           continue;
         }
