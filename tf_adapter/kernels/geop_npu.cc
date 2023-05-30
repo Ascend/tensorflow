@@ -361,9 +361,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   }
 
   (void) ctx->GetAttr("_recompute_mode", &recompute_mode_);
-  (void) ctx->GetAttr("_deploy_inject_config", &deploy_inject_config_);
-  (void) ctx->GetAttr("_execute_times", &execute_times_);
-  (void) ctx->GetAttr("_max_num", &max_num_);
   (void) ctx->GetAttr("_max_key_num", &max_key_num_);
   (void) ctx->GetAttr("_embedding_dim", &embedding_dim_);
   (void) ctx->GetAttr("_dynamic_input", &dynamic_input_);
@@ -387,8 +384,6 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
                 << ", is_var_init_graph: " << is_var_init_graph_
-                << ", deploy_inject_config: " << deploy_inject_config_
-                << ", execute_times: " << execute_times_ << ", max_num: " << max_num_
                 << ", max_key_num: " << max_key_num_ << ", embedding_dim: " << embedding_dim_;
 
   // global environment Initialize, invoke once for each process
@@ -940,15 +935,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     graph_options_["ge.shape_generalized_build_mode"] = "shape_precise";
     if (!recompute_mode_.empty()) {
       graph_options_["ge.recompute"] = recompute_mode_;
-    }
-    if (!deploy_inject_config_.empty()) {
-      graph_options_["ge.exec.clusterSpec"] = deploy_inject_config_;
-    }
-    if (!execute_times_.empty()) {
-      graph_options_["ge.execute_times"] = execute_times_;
-    }
-    if (!max_num_.empty()) {
-      graph_options_["ge.max_num"] = max_num_;
     }
     if (!max_key_num_.empty()) {
       graph_options_["ge.max_key_num"] = max_key_num_;

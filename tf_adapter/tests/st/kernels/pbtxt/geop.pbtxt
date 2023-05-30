@@ -114,18 +114,6 @@ node {
     }
   }
   attr {
-    key: "_execute_times"
-    value {
-      s: "2"
-    }
-  }
-  attr {
-    key: "_max_num"
-    value {
-      s: "1"
-    }
-  }
-  attr {
     key: "_max_key_num"
     value {
       s: "1"
