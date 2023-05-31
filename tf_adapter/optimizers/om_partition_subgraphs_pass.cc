@@ -2481,15 +2481,15 @@ void OMPartitionSubgraphsPass::InheritAttributes(Node &node) const {
   if ((slice_scope_index != std::string::npos) && (slice_scope_index < gradients_index)) {
     std::vector<std::string> result;
     Split(node.name(), result, "/");
-    size_t kSliceNumIndex = 1U;
-    size_t kSliceScopeIndex = 2U;
-    size_t kValidSize = 3U;
+    const size_t kSliceNumIndex = 1U;
+    const size_t kSliceScopeIndex = 2U;
+    const size_t kValidSize = 3U;
     for (const auto &scope : result) {
       if (scope.find(kGraphSliceScope) != std::string::npos) {
         // e.g. scope_res:["SliceNum", "2", "NpuGraphSlicingxxx"]
         std::vector<std::string> scope_res;
         Split(scope, scope_res, "-");
-        if ((scope_res[0] != kGraphSliceNum) || (scope_res.size() != kValidSize)) {
+        if ((scope_res.size() != kValidSize) || (scope_res[0] != kGraphSliceNum)) {
           continue;
         }
         std::string slice_num = scope_res[kSliceNumIndex];
