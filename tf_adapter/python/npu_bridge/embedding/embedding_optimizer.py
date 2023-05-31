@@ -46,6 +46,8 @@ class AdamOptimizer(adam.AdamOptimizer):
                  name="EmbeddingAdamOptimizer"):
         """Construct a EmbeddingAdam optimizer."""
         super(AdamOptimizer, self).__init__(learning_rate, beta_1, beta_2, epsilon, using_locking, name)
+        self._beta1_power = None
+        self._beta2_power = None
 
     @property
     def embedding_dims(self):
@@ -100,10 +102,7 @@ class AdamOptimizer(adam.AdamOptimizer):
                                                           ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
                                                           self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
-            result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
             result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
-            result.op._set_attr("_deploy_inject_config",
-                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_configs)))
             return result
         else:
             return self._apply_sparse_shared(grad, var, indices, self._resource_scatter_add)
@@ -153,10 +152,7 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
                                                               ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
                                                               self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
-            result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
             result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
-            result.op._set_attr("_deploy_inject_config",
-                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_configs)))
             return result
         else:
             return self.training_ops.resource_sparse_apply_adagrad(var.handle, grad.handle,
@@ -282,10 +278,7 @@ class AdamWOptimizer(optimizer.Optimizer):
                                                             maximize=self._maximize,
                                                             embedding_dim=self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
-            result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_nums))
             result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
-            result.op._set_attr("_deploy_inject_config",
-                                attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_configs)))
             return result
         else:
             raise TypeError("Variable is not NpuEmbeddingResource type, please check.")

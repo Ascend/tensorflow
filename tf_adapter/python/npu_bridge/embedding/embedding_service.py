@@ -123,16 +123,15 @@ class ESWorker:
             raise ValueError("table_id, min, max and constant_value can not be None.")
         if (not isinstance(table_id, int)) or (table_id < 0) or (table_id >= _INT32_MAX_VALUE):
             raise ValueError("table_id value is false, must be [0, 2147483647) and int type, please check.")
-        if (not isinstance(min, float) and not isinstance(min, int)) or \
-                (not isinstance(max, float) and not isinstance(max, int)) or \
-                (not isinstance(constant_value, float) and not isinstance(constant_value, int)):
+        if (not isinstance(min, (float, int))) or (not isinstance(max, (float, int))) or \
+                (not isinstance(constant_value, (float, int))):
             raise ValueError("Initializer min, max and constant value must be float or int.")
         if min > max:
             raise ValueError("Initializer min value can not be larger than max value.")
-        if (initializer_mode is not 'constant') and (initializer_mode is not 'random_uniform') and \
-                (initializer_mode is not 'truncated_normal'):
+        if (initializer_mode != 'constant') and (initializer_mode != 'random_uniform') and \
+                (initializer_mode != 'truncated_normal'):
             raise ValueError("Initializer mode must be random_uniform or truncated normal or constant.")
-        if (initializer_mode is 'constant') and (not isinstance(constant_value, float)) and \
+        if (initializer_mode == 'constant') and (not isinstance(constant_value, float)) and \
                 (not isinstance(constant_value, int)):
             raise ValueError("If initializer is constant, constant_value must be float or int.")
         self._table_to_initializer[table_id] = Initializer(min=min,
@@ -206,14 +205,9 @@ class ESWorker:
                 gen_npu_cpu_ops.init_partition_map(ps_num=ops.convert_to_tensor(self._ps_num),
                                                    ps_ids=ops.convert_to_tensor(self._ps_ids),
                                                    partition_num=partition_num)
-            self._init_partition_maps.get(table_id)._set_attr("_execute_times", attr_value_pb2.AttrValue(i=1))
             self._init_partition_maps.get(table_id)._set_attr("_embedding_dim",
                                                               attr_value_pb2.AttrValue(i=self._embedding_dim))
-            self._init_partition_maps.get(table_id)._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._max_num))
             self._init_partition_maps.get(table_id)._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_num))
-            self._init_partition_maps.get(table_id)._set_attr("_deploy_inject_config",
-                                                              attr_value_pb2.AttrValue(
-                                                                  s=tf.compat.as_bytes(self._es_cluster_conf)))
             return self._init_hashmap_and_table_import(bucket_size, table_id, embedding_dim)
 
     # 提供embedding lookup功能
@@ -274,10 +268,7 @@ class ESWorker:
                                                           keys=input_ids,
                                                           embedding_dim=self._table_to_embedding_dim.get(table_id))
         result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
-        result.op._set_attr("_max_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
         result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
-        result.op._set_attr("_deploy_inject_config",
-                            attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
         return result
 
     # 提供embedding update功能
@@ -316,14 +307,17 @@ class ESWorker:
             return update_op
 
     def counter_filter(self, filter_freq, default_key=None, default_value=None):
-        if (not isinstance(filter_freq, int)) or (not isinstance(default_key, int)) or \
-                (not isinstance(default_value, float)):
-            raise TypeError("filter_freq and default_key must be int, default_value must be float, please check.")
-        self._use_counter_filter = True
+        if not isinstance(filter_freq, int):
+            raise TypeError("filter_freq must be int, please check.")
         if (default_key is None) and (default_value is None):
             raise ValueError("default_key and default_value can not be both None.")
         if (default_key is not None) and (default_value is not None):
             raise ValueError("default_key and default_value can not be both set.")
+        if default_key is None and (not isinstance(default_value, (int, float))):
+            raise TypeError("When default_value is not None, it must be float or int, please check.")
+        if default_value is None and (not isinstance(default_key, int)):
+            raise TypeError("When default_key is not None, it must be int, please check.")
+        self._use_counter_filter = True
         if default_key is None:
             self._default_key_or_value = False
         else:
@@ -331,46 +325,6 @@ class ESWorker:
         self._filter_freq = filter_freq
         self._default_key = default_key
         self._default_value = default_value
-
-    # 提供训练好的embedding values save功能
-    # @param file_path string 类型
-    # @param file_name string 类型
-    # @param table_id int32 类型
-    # @param mode string 类型
-    # Unused API
-    def embedding_save(self, file_path, file_name, table_id, mode="bin"):
-        """ Operator for save values in embedding table. """
-        if file_path is None or file_name is None or table_id is None:
-            raise ValueError("table_id, embedding table file_name and file_path can not be None.")
-        if table_id not in self._table_has_init:
-            raise ValueError("this table has not yet initialized.")
-        if not os.path.exists(file_path):
-            os.mkdir(file_path)
-        with specified_ps_engine_scope():
-            embedding_dim = self._table_to_embedding_dim.get(table_id)
-            return gen_npu_cpu_ops.embedding_table_export(file_path, file_name, ops.convert_to_tensor(-1), table_id,
-                                                          embedding_dim, embedding_dim, True, mode)
-
-    # 提供训练好的embedding values + 调优参数 save功能
-    # @param file_path string 类型
-    # @param file_name string 类型
-    # @param table_id int32 类型
-    # @param mode string 类型
-    # Unused API
-    def embedding_ckpt_save(self, file_path, file_name, table_id, mode="bin"):
-        """ Operator for save values and optimizer params in embedding table. """
-        if file_path is None or file_name is None or table_id is None:
-            raise ValueError("table_id, embedding table file_name and file_path can not be None.")
-        if table_id not in self._table_has_init:
-            raise ValueError("this table has not yet initialized.")
-        if not os.path.exists(file_path):
-            os.mkdir(file_path)
-        with specified_ps_engine_scope():
-            embedding_dim = self._table_to_embedding_dim.get(table_id)
-            return gen_npu_cpu_ops.embedding_table_export(file_path, file_name, ops.convert_to_tensor(-1), table_id,
-                                                          embedding_dim, embedding_dim *
-                                                          (self._table_to_slot_var_num.get(table_id) + 1),
-                                                          False, mode)
 
     def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True,
                                 initializer=tf.random_uniform_initializer(minval=-0.01, maxval=0.01, seed=1234)):
@@ -451,7 +405,7 @@ class ESWorker:
         """ Operator for save values in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
@@ -472,15 +426,13 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export._set_attr("_deploy_inject_config",
-                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             return tf.group([embedding_table_export])
 
     def save_embeddings(self, path):
         """ Operator for save values in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -506,14 +458,12 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export._set_attr("_deploy_inject_config",
-                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             return tf.group([embedding_table_export])
 
     def restore_embedding(self, path, table_id):
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
@@ -531,7 +481,7 @@ class ESWorker:
     def restore_embeddings(self, path):
         if path is None:
             raise ValueError("embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if not self._table_init:
             raise ValueError("Not any table has been initialized.")
@@ -555,7 +505,7 @@ class ESWorker:
         """ Operator for save values and optimizer params in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
@@ -577,8 +527,6 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin")
-            embedding_table_export._set_attr("_deploy_inject_config",
-                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
@@ -590,7 +538,7 @@ class ESWorker:
         """ Operator for save values and optimizer params in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -619,8 +567,6 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin")
-            embedding_table_export._set_attr("_deploy_inject_config",
-                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
@@ -632,7 +578,7 @@ class ESWorker:
         """ Operator for restore values and optimizer params in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
@@ -660,7 +606,7 @@ class ESWorker:
         """ Operator for restore values and optimizer params in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if not self._table_init:
             raise ValueError("Not any table has been initialized.")
@@ -695,7 +641,7 @@ class ESWorker:
         """ Operator for save incremental values in table_id embedding table. """
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
@@ -716,15 +662,13 @@ class ESWorker:
                                                        export_mode="new",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export._set_attr("_deploy_inject_config",
-                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             return tf.group([embedding_table_export])
 
     def save_incremental_embeddings(self, path):
         """ Operator for save incremental values in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -750,14 +694,12 @@ class ESWorker:
                                                        export_mode="new",
                                                        only_var_flag=True,
                                                        file_type="bin")
-            embedding_table_export._set_attr("_deploy_inject_config",
-                                             attr_value_pb2.AttrValue(s=tf.compat.as_bytes(self._es_cluster_conf)))
             return tf.group([embedding_table_export])
 
     def restore_incremental_embedding(self, path, table_id):
         if path is None or table_id is None:
             raise ValueError("table_id, embedding table path can not be None.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if table_id not in self._table_has_init:
             raise ValueError("this table has not yet initialized.")
@@ -777,7 +719,7 @@ class ESWorker:
             raise ValueError("embedding table path can not be None.")
         if not self._table_init:
             raise ValueError("Not any table has been initialized.")
-        if path[-1] is '/':
+        if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         with specified_ps_engine_scope():
             table_id_list = []
