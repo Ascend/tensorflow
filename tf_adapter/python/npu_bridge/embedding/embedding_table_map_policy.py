@@ -37,7 +37,7 @@ class BaseTableMapPolicy():
             print('embedding dim different!, value is %d and %d' % (info1['embedding_dim'], info2['embedding_dim']))
             return False
         if info1['initializer'] != info2['initializer']:  # initializer of table is the same or not
-            print('initializer different!, value is %d and %d' % (info1['initializer'], info2['initializer']))
+            print('initializer of these table different!')
             return False
         return True
 
