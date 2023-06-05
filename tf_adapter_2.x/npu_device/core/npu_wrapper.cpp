@@ -49,9 +49,10 @@
 #include "npu_utils.h"
 #include "npu_thread_pool.h"
 #include "npu_run_context.h"
+#include "nlohmann/json.hpp"
 
 namespace py = pybind11;
-
+using json = nlohmann::json;
 namespace {
 TFE_Context *InputTFE_Context(const py::handle &ctx) {
   return static_cast<TFE_Context *>(PyCapsule_GetPointer(ctx.ptr(), nullptr));
@@ -137,6 +138,17 @@ std::unordered_set<std::string> npu_specify_ops_cache;
 constexpr uint32_t kDeviceSatModeLimit = 2U;
 }
 namespace npu {
+void SetOptionNameMap(json &option_name_map) {
+  if (kConfigurableOptions.empty()) {
+    return;
+  }
+  for (auto iter : kConfigurableOptions) {
+    if (iter.first != iter.second) {
+      option_name_map.emplace(iter.second, iter.first);
+    }
+  }
+}
+
 bool CheckIsDistribute(std::map<std::string, std::string> &global_options) {
   return ((global_options.find(ge::OPTION_EXEC_RANK_TABLE_FILE) != global_options.end() &&
            global_options.find(ge::OPTION_EXEC_RANK_ID) != global_options.end()) ||
@@ -191,6 +203,9 @@ PYBIND11_MODULE(_npu_device_backends, m) {
                   for (const auto &option : global_options) {
                     LOG(INFO) << "  " << option.first << ":" << option.second;
                   }
+                  json option_name_map;
+                  SetOptionNameMap(option_name_map);
+                  global_options["ge.optionNameMap"] = option_name_map.dump();
                   auto ge_status = ge::GEInitialize(global_options);
                   if (ge_status != ge::SUCCESS) {
                     return "Failed start graph engine:" + ge::GEGetErrorMsg();
