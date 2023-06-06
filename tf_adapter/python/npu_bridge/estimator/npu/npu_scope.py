@@ -23,6 +23,7 @@ from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops
 from tensorflow.python.util import compat
 from npu_bridge.estimator.npu.npu_config import NpuExecutePlacement
+from npu_bridge.estimator.npu import util
 
 
 @contextlib.contextmanager
@@ -202,4 +203,6 @@ def npu_recompute_scope():
 
 
 def npu_graph_slice_scope(slice_num=None):
+    if slice_num is not None:
+        util.check_positive_integer(slice_num, "slice_num")
     return ops.name_scope_v2("".join(["SliceNum-", str(slice_num), "-NpuGraphSlicing", str(slice_num)]))

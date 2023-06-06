@@ -62,6 +62,66 @@ void GeFinalize() {
     LOG(ERROR) << "[GePlugin] Parser finalize failed, ret : " << ToString(status_parser);
   }
 }
+
+void SetOptionNameMap(json &option_name_map) {
+  option_name_map.emplace(ge::OPTION_GRAPH_RUN_MODE, "graph_run_mode");
+  option_name_map.emplace(ge::GRAPH_MEMORY_MAX_SIZE, "graph_memory_max_size");
+  option_name_map.emplace(ge::VARIABLE_MEMORY_MAX_SIZE, "variable_memory_max_size");
+  option_name_map.emplace("ge.exec.variable_acc", "variable_format_optimize");
+  option_name_map.emplace(ge::OPTION_EXEC_ENABLE_SCOPE_FUSION_PASSES, "enable_scope_fusion_passes");
+  option_name_map.emplace(ge::FUSION_SWITCH_FILE, "fusion_switch_file");
+  option_name_map.emplace(ge::PRECISION_MODE, "precision_mode");
+  option_name_map.emplace(ge::OP_SELECT_IMPL_MODE, "op_select_implmode");
+  option_name_map.emplace(ge::OPTYPELIST_FOR_IMPLMODE, "optypelist_for_implmode");
+  option_name_map.emplace(ge::OP_COMPILER_CACHE_MODE, "op_compiler_cache_mode");
+  option_name_map.emplace(ge::OP_COMPILER_CACHE_DIR, "op_compiler_cache_dir");
+  option_name_map.emplace(ge::STREAM_MAX_PARALLEL_NUM, "stream_max_parallel_num");
+  option_name_map.emplace(ge::HCOM_PARALLEL, "hcom_parallel");
+  option_name_map.emplace(ge::HCOM_MULTI_MODE, "hcom_multi_mode");
+  option_name_map.emplace(ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION, "is_tailing_optimization");
+  option_name_map.emplace(ge::OP_DEBUG_LEVEL, "op_debug_level");
+  option_name_map.emplace(ge::DEBUG_DIR, "debug_dir");
+  option_name_map.emplace(ge::MODIFY_MIXLIST, "modify_mixlist");
+  option_name_map.emplace(ge::OPTION_EXEC_ENABLE_EXCEPTION_DUMP, "enable_exception_dump");
+  option_name_map.emplace(ge::OPTION_EXEC_ENABLE_DUMP, "enable_dump");
+  option_name_map.emplace(ge::OPTION_EXEC_DUMP_PATH, "dump_path");
+  option_name_map.emplace(ge::OPTION_EXEC_DUMP_STEP, "dump_step");
+  option_name_map.emplace(ge::OPTION_EXEC_DUMP_MODE, "dump_mode");
+  option_name_map.emplace(ge::OPTION_EXEC_ENABLE_DUMP_DEBUG, "enable_dump_debug");
+  option_name_map.emplace(ge::OPTION_EXEC_DUMP_DEBUG_MODE, "dump_debug_mode");
+  option_name_map.emplace(ge::OPTION_EXEC_PROFILING_MODE, "enable_profiling");
+  option_name_map.emplace(ge::OPTION_EXEC_PROFILING_OPTIONS, "profiling_options");
+  option_name_map.emplace("ge.jobType", "aoe_mode");
+  option_name_map.emplace("ge.tuningPath", "work_path");
+  option_name_map.emplace(ge::INPUT_SHAPE, "input_shape");
+  option_name_map.emplace(ge::DYNAMIC_NODE_TYPE, "dynamic_node_type");
+  option_name_map.emplace(ge::kDynamicDims, "dynamic_dims");
+  option_name_map.emplace(ge::ENABLE_SMALL_CHANNEL, "enable_small_channel");
+  option_name_map.emplace("ge.deterministic", "deterministic");
+  option_name_map.emplace("ge.exec.op_precision_mode", "op_precision_mode");
+  option_name_map.emplace("ge.exec.graphExecTimeout", "graph_exec_timeout");
+  option_name_map.emplace(ge::OPTION_EXEC_LOGICAL_DEVICE_CLUSTER_DEPLOY_MODE, "logical_device_cluster_deploy_mode");
+  option_name_map.emplace(ge::OPTION_EXEC_LOGICAL_DEVICE_ID, "logical_device_id");
+  option_name_map.emplace("ge.exec.modelDeployMode", "model_deploy_mode");
+  option_name_map.emplace("ge.exec.modelDeployDevicelist", "model_deploy_devicelist");
+  option_name_map.emplace("ge.topoSortingMode", "topo_sorting_mode");
+  option_name_map.emplace("ge.exec.overflow", "overflow_flag");
+  option_name_map.emplace("ge.insertOpFile", "insert_op_file");
+  option_name_map.emplace("ge.customizeDtypes", "customize_dtypes");
+  option_name_map.emplace("ge.exec.dumpData", "dump_data");
+  option_name_map.emplace("ge.exec.dumpLayer", "dump_layer");
+  option_name_map.emplace("ge.aoe_config_file", "aoe_config_file");
+  option_name_map.emplace("ge.externalWeight", "external_weight");
+  option_name_map.emplace("ge.autoTuneMode", "auto_tune_mode");
+  option_name_map.emplace("ge.deviceType", "device_type");
+  option_name_map.emplace("ge.exec.hcclExecuteTimeOut", "hccl_timeout");
+  option_name_map.emplace("ge.exec.opWaitTimeout", "op_wait_timeout");
+  option_name_map.emplace("ge.exec.opExecuteTimeout", "op_execute_timeout");
+  option_name_map.emplace("ge.exec.opDebugConfig", "op_debug_config");
+  option_name_map.emplace("ge.exec.staticMemoryPolicy", "static_memory_policy");
+  option_name_map.emplace("ge.socVersion", "soc_config");
+  option_name_map.emplace("ge.esClusterConfig", "es_cluster_config");
+}
 }  // namespace
 
 GePlugin::GePlugin()
@@ -231,6 +291,10 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
       LOG(FATAL) << "[GePlugin] Tdt host init failed, tdt error code : " << ret;
     }
   }
+
+  json option_name_map;
+  SetOptionNameMap(option_name_map);
+  init_options["ge.optionNameMap"] = option_name_map.dump();
 
   // ge Initialize
   ge::Status status = ge::GEInitialize(init_options);

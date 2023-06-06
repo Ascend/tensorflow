@@ -58,15 +58,12 @@ class Initializer:
 class ESWorker:
     """ Embedding service class. """
 
-    def __init__(self, config_from_param=None):
+    def __init__(self):
         env_dist = os.environ
         cluster_config_from_env = env_dist.get("ESCLUSTER_CONFIG_PATH")
         if cluster_config_from_env is None:
-            if config_from_param is None:
-                raise ValueError("EsClusterConfig and env variable are both null.")
-            es_cluster_config = config_from_param
-        else:
-            es_cluster_config = cluster_config_from_env
+            raise ValueError("EsClusterConfig env are both null.")
+        es_cluster_config = cluster_config_from_env
         with open(es_cluster_config, encoding='utf-8') as a:
             es_cluster_config_json = json.load(a)
             self._es_cluster_conf = json.dumps(es_cluster_config_json)
@@ -103,11 +100,6 @@ class ESWorker:
         self._filter_freq = None
         self._default_key = None
         self._default_value = None
-        config = tf.ConfigProto()
-        custom_op = config.graph_options.rewrite_options.custom_optimizers.add()
-        custom_op.name = "NpuOptimizer"
-        custom_op.parameter_map["es_cluster_config"].s = tf.compat.as_bytes(self._es_cluster_conf)
-        self.es_all_config = config
 
     # 提供 embedding_service table initializer method
     # table_id embedding 表索引, int 类型
@@ -170,6 +162,8 @@ class ESWorker:
         self._table_to_embedding_dim[table_id] = embedding_dim
         self._table_to_max_num[table_id] = max_batch_size
         self._table_has_init.append(table_id)
+        if len(self._table_has_init) > 10:
+            raise ValueError("Now only 10 embedding tables can be init.")
         bucket_size = math.ceil(vocabulary_size / self._ps_num)
         if (self._table_to_initializer.get(table_id) is None) and (initializer is not None):
             self._table_to_initializer[table_id] = Initializer(min=-2,
@@ -335,6 +329,12 @@ class ESWorker:
             raise TypeError("max_vocabulary_size, embedding_dim, multihot_lens must be int, allow_merge must be bool.")
         if max_vocabulary_size <= 0 or embedding_dim <= 0 or multihot_lens <= 0:
             raise ValueError("max_vocabulary_size, embedding_dim, multihot_lens must be greater than zero.")
+        if initializer is None:
+            raise ValueError("Initializer can not be None.")
+        if initializer is not None and not callable(initializer):
+            init_dtype = ops.convert_to_tensor(initializer).dtype.base_dtype
+            if init_dtype != tf.float32:
+                raise ValueError("Initializer type '%s' and explict dtype tf.float32 don't match." % init_dtype)
         new_table_info = dict(
             max_vocabulary_size=max_vocabulary_size,
             embedding_dim=embedding_dim,
