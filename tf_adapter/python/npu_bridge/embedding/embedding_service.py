@@ -43,6 +43,31 @@ def specified_ps_engine_scope():
         yield
 
 
+class EmbeddingVariableOption:
+    """ option for embedding service table. """
+
+    def __init__(self, filter_option=None,
+                 evict_option=None,
+                 storage_option=None,
+                 feature_freezing_option=None,
+                 communication_option=None):
+        self.filter_option = filter_option
+        self.evict_option = evict_option
+        self.storage_option = storage_option
+        self.feature_freezing_option = feature_freezing_option
+        self.communication_option = communication_option
+
+
+class CounterFilter:
+    """ Counter filter for embedding table. """
+
+    def __init__(self, filter_freq, default_key_or_value, default_key=None, default_value=None):
+        self.filter_freq = filter_freq
+        self.default_key = default_key
+        self.default_value = default_value
+        self.default_key_or_value = default_key_or_value
+
+
 class Initializer:
     """Initializer for embedding service table."""
 
@@ -79,6 +104,7 @@ class ESWorker:
             self._table_to_optimizer = {}
             self._table_to_initializer = {}
             self._table_to_slot_var_num = {}
+            self._table_to_counter_filter = {}
             for each_ps in self._ps_ids_list:
                 self._ps_ids.append(each_ps["id"])
         self._train_mode = True
@@ -133,6 +159,20 @@ class ESWorker:
                                                            mu=mu,
                                                            sigma=sigma)
 
+    # embedding variable option
+    # 包括特征准入及淘汰策略，特征存储策略及通信策略等
+    # 暂时只使用特征准入option
+    def embedding_variable_option(self, filter_option=None, evict_option=None, storage_option=None,
+                                  feature_freezing_option=None, communication_option=None):
+        if filter_option is None:
+            raise ValueError("Now filter_option can't be None.")
+        if not isinstance(filter_option, CounterFilter):
+            raise TypeError("If filter_option isn't None, it must be CounterFilter type.")
+        self._use_counter_filter = True
+        return EmbeddingVariableOption(filter_option=filter_option, evict_option=evict_option,
+                                       storage_option=storage_option, feature_freezing_option=feature_freezing_option,
+                                       communication_option=communication_option)
+
     # 提供embedding init功能
     # @param vocabulary_size 表的初始大小, int 类型
     # @param table_id, int32 类型
@@ -140,12 +180,13 @@ class ESWorker:
     # @param optimizer, 支持EmbeddingAdamOptimizer，EmbeddingAdagradOptimizer，EmbeddingAdamwOptimizer
     # @param initializer, string 类型
     # @param embedding_dim, int32 类型
-    # @param partition_num, int 类型
-    def embedding_init(self, vocabulary_size, table_id, max_batch_size, optimizer=None, initializer=None,
-                       embedding_dim=-1, partition_num=65537):
+    def embedding_init(self, vocabulary_size, table_id, max_batch_size, embedding_dim, optimizer=None,
+                       initializer=None, ev_option=None):
         """ Operator for init embedding table. """
         if vocabulary_size is None or table_id is None or max_batch_size is None or embedding_dim is None:
             raise ValueError("vocabulary_size or table_id or max_batch_size or embedding_dim is None.")
+        if (ev_option is not None) and (not isinstance(ev_option, EmbeddingVariableOption)):
+            raise TypeError("ev_option must be EmbeddingVariableOption type.")
         if (not isinstance(vocabulary_size, int)) or (not isinstance(table_id, int)) or \
                 (not isinstance(max_batch_size, int)) or (not isinstance(embedding_dim, int)):
             raise ValueError("vocabulary_size, table_id, max_batch_size and embedding_dim must be int.")
@@ -153,8 +194,8 @@ class ESWorker:
             raise ValueError("vocabulary_size and table_id can not be smaller than zero.")
         if vocabulary_size >= _INT32_MAX_VALUE or table_id >= _INT32_MAX_VALUE:
             raise ValueError("vocabulary_size or table_id exceed int32 max value.")
-        if embedding_dim <= 0 or partition_num <= 0 or max_batch_size <= 0:
-            raise ValueError("embedding_dim, partition_num and max_batch_size must be greater than zero.")
+        if embedding_dim <= 0 or max_batch_size <= 0:
+            raise ValueError("embedding_dim and max_batch_size must be greater than zero.")
         if table_id in self._table_has_init:
             raise ValueError("this table has already initialized.")
         self._embedding_dim = embedding_dim
@@ -198,11 +239,11 @@ class ESWorker:
             self._init_partition_maps[table_id] = \
                 gen_npu_cpu_ops.init_partition_map(ps_num=ops.convert_to_tensor(self._ps_num),
                                                    ps_ids=ops.convert_to_tensor(self._ps_ids),
-                                                   partition_num=partition_num)
+                                                   partition_num=65537)
             self._init_partition_maps.get(table_id)._set_attr("_embedding_dim",
                                                               attr_value_pb2.AttrValue(i=self._embedding_dim))
             self._init_partition_maps.get(table_id)._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_num))
-            return self._init_hashmap_and_table_import(bucket_size, table_id, embedding_dim)
+            return self._init_hashmap_and_table_import(bucket_size, table_id, embedding_dim, ev_option)
 
     # 提供embedding lookup功能
     # @param table_id int32 类型
@@ -224,39 +265,39 @@ class ESWorker:
             raise ValueError("this table has not yet initialized.")
         if self._train_mode:
             seed1, seed2 = random_seed.get_seed(None)
-            if self._use_counter_filter:
+            if self._table_to_counter_filter.get(table_id) is not None:
                 filter_mode = "counter"
+                self._filter_freq = self._table_to_counter_filter.get(table_id).filter_freq
+                self._default_key_or_value = self._table_to_counter_filter.get(table_id).default_key_or_value
+                self._default_key = self._table_to_counter_filter.get(table_id).default_key
+                self._default_value = self._table_to_counter_filter.get(table_id).default_value
             else:
                 filter_mode = "no_filter"
-            result = gen_npu_cpu_ops.embedding_table_find_and_init(table_id=ops.convert_to_tensor(table_id),
-                                                                   keys=input_ids,
-                                                                   embedding_dim=
-                                                                   self._table_to_embedding_dim.get(table_id),
-                                                                   initializer_mode=
-                                                                   self._table_to_initializer.get(table_id)
-                                                                   .initializer_mode,
-                                                                   constant_value=
-                                                                   self._table_to_initializer.get(table_id)
-                                                                   .constant_value,
-                                                                   min=
-                                                                   self._table_to_initializer.get(table_id).min,
-                                                                   max=
-                                                                   self._table_to_initializer.get(table_id).max,
-                                                                   mu=
-                                                                   self._table_to_initializer.get(table_id).mu,
-                                                                   sigma=
-                                                                   self._table_to_initializer.get(table_id).sigma,
-                                                                   seed=seed1,
-                                                                   seed2=seed2,
-                                                                   value_total_len=
-                                                                   self._table_to_embedding_dim.get(table_id) *
-                                                                   (self._table_to_slot_var_num.get(table_id) + 1),
-                                                                   filter_mode=filter_mode,
-                                                                   filter_freq=self._filter_freq,
-                                                                   default_key_or_value=self._default_key_or_value,
-                                                                   default_key=self._default_key,
-                                                                   default_value=self._default_value
-                                                                   )
+            result = gen_npu_cpu_ops. \
+                embedding_table_find_and_init(table_id=ops.convert_to_tensor(table_id),
+                                              keys=input_ids,
+                                              embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                              initializer_mode=self._table_to_initializer.get(table_id)
+                                              .initializer_mode,
+                                              constant_value=self._table_to_initializer.get(table_id).constant_value,
+                                              min=self._table_to_initializer.get(table_id).min,
+                                              max=self._table_to_initializer.get(table_id).max,
+                                              mu=self._table_to_initializer.get(table_id).mu,
+                                              sigma=self._table_to_initializer.get(table_id).sigma,
+                                              seed=seed1,
+                                              seed2=seed2,
+                                              value_total_len=self._table_to_embedding_dim.get(table_id) *
+                                                              (self._table_to_slot_var_num.get(table_id) + 1),
+                                              filter_mode=filter_mode,
+                                              filter_freq=self._filter_freq,
+                                              default_key_or_value=self._default_key_or_value,
+                                              default_key=self._default_key,
+                                              default_value=self._default_value
+                                              )
+            self._filter_freq = None
+            self._default_key_or_value = True
+            self._default_key = None
+            self._default_value = None
         else:
             result = gen_npu_cpu_ops.embedding_table_find(table_id=ops.convert_to_tensor(table_id),
                                                           keys=input_ids,
@@ -313,12 +354,11 @@ class ESWorker:
             raise TypeError("When default_key is not None, it must be int, please check.")
         self._use_counter_filter = True
         if default_key is None:
-            self._default_key_or_value = False
+            return CounterFilter(filter_freq=filter_freq, default_key_or_value=False,
+                                 default_key=default_key, default_value=default_value)
         else:
-            self._default_key_or_value = True
-        self._filter_freq = filter_freq
-        self._default_key = default_key
-        self._default_value = default_value
+            return CounterFilter(filter_freq=filter_freq, default_key_or_value=True,
+                                 default_key=default_key, default_value=default_value)
 
     def data_parallel_embedding(self, max_vocabulary_size, embedding_dim, multihot_lens, allow_merge=True,
                                 initializer=tf.random_uniform_initializer(minval=-0.01, maxval=0.01, seed=1234)):
@@ -737,9 +777,10 @@ class ESWorker:
                                                        file_type="bin")
             return tf.group([embedding_table_import])
 
-    def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim):
-        if self._use_counter_filter:
+    def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim, ev_option):
+        if (ev_option is not None) and (ev_option.filter_option is not None):
             filter_mode = "counter"
+            self._table_to_counter_filter[table_id] = ev_option.filter_option
         else:
             filter_mode = "no_filter"
         with tf.control_dependencies([self._init_partition_maps.get(table_id)]):
