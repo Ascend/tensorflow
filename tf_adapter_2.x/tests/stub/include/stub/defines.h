@@ -126,6 +126,8 @@ const std::string COMPRESS_FLAG = "ge.compressFlag";
 
 const std::string PRECISION_MODE = "ge.exec.precision_mode";
 
+const std::string PRECISION_MODE_V2 = "ge.exec.precision_mode_v2";
+
 const std::string TUNE_DEVICE_IDS = "ge.exec.tuneDeviceIds";
 
 // Configure single op flag for FE

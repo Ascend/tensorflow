@@ -29,6 +29,24 @@ TEST_F(GePluginTest, PluginInitTest_1) {
   PluginInit(init_options);
 }
 
+TEST_F(GePluginTest, PluginInitTest_Success) {
+  std::map<std::string, std::string> init_options;
+  setenv("JOB_ID", "1000", true);
+  setenv("RANK_SIZE", "1", true);
+  setenv("RANK_ID", "0", true);
+  setenv("RANK_TABLE_FILE", "rank_table", true);
+  setenv("FUSION_TENSOR_SIZE", "524288000", true);
+  std::string tf_config = "{'task':{'type':'a'}, 'cluster':{'chief':['1']}}";
+  setenv("TF_CONFIG", tf_config.c_str(), true);
+  init_options["ge.exec.profilingMode"] = "1";
+  init_options["ge.exec.profilingOptions"] = "trace";
+  init_options["ge.exec.precision_mode_v2"] = "fp16";
+  init_options["ge.autoTuneMode"] = "GA";
+  init_options["ge.opDebugLevel"] = "1";
+  init_options["ge.jobType"] = "2";
+  PluginInit(init_options);
+}
+
 TEST_F(GePluginTest, PluginInitTest) {
   std::map<std::string, std::string> init_options;
   setenv("JOB_ID", "1000", true);
@@ -66,6 +84,7 @@ TEST_F(GePluginTest, PluginInitTest_hccl) {
   init_options["ge.exec.profilingMode"] = "1";
   init_options["ge.exec.profilingOptions"] = "trace";
   init_options["ge.exec.precision_mode"] = "allow_fp32_to_fp16";
+  init_options["ge.exec.precision_mode_v2"] = "fp16";
   init_options["ge.autoTuneMode"] = "GA";
   init_options["ge.opDebugLevel"] = "1";
   init_options["ge.jobType"] = "2";

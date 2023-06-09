@@ -546,7 +546,6 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
 
 std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
   std::map<std::string, std::string> init_options;
-  init_options["ge.exec.precision_mode"] = "allow_fp32_to_fp16";
   init_options[ge::OPTION_EXEC_PROFILING_MODE] = "0";
   init_options[ge::OPTION_EXEC_PROFILING_OPTIONS] = "";
   init_options[ge::OPTION_GRAPH_RUN_MODE] = "1";
@@ -561,7 +560,8 @@ std::map<std::string, std::string> NpuAttrs::GetDefaultInitOptions() {
 }
 
 std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstruction *ctx) {
-  std::string precision_mode = "";
+  std::string precision_mode;
+  std::string precision_mode_v2;
   std::string profiling_mode = "0";
   std::string static_memory_policy = "0";
   std::string auto_tune_mode;
@@ -603,6 +603,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     (void) ctx->GetAttr("_precision_mode", &precision_mode);
+    (void) ctx->GetAttr("_precision_mode_v2", &precision_mode_v2);
     (void) ctx->GetAttr("_auto_tune_mode", &auto_tune_mode);
     (void) ctx->GetAttr("_graph_run_mode", &graph_run_mode);
     (void) ctx->GetAttr("_op_debug_level", &op_debug_level);
@@ -642,7 +643,12 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
-  init_options_[ge::PRECISION_MODE] = precision_mode;
+  if (!precision_mode.empty()) {
+    init_options_[ge::PRECISION_MODE] = precision_mode;
+  }
+  if (!precision_mode_v2.empty()) {
+    init_options_["ge.exec.precision_mode_v2"] = precision_mode_v2;
+  }
   init_options_["ge.autoTuneMode"] = auto_tune_mode;
   init_options_[ge::OPTION_GRAPH_RUN_MODE] = graph_run_mode;
   init_options_[ge::OP_DEBUG_LEVEL] = op_debug_level;
@@ -1043,6 +1049,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
 
   std::string is_tailing_optimization = "0";
   std::string precision_mode;
+  std::string precision_mode_v2;
   std::string profiling_mode = "0";
   std::string profiling_options;
   std::string atomic_clean_policy = "0";
@@ -1131,6 +1138,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
 
   auto is_tailing_optimization_value = attrs.Find("_is_tailing_optimization");
   auto precision_mode_value = attrs.Find("_precision_mode");
+  auto precision_mode_value_v2 = attrs.Find("_precision_mode_v2");
   auto profiling_mode_value = attrs.Find("_profiling_mode");
   auto profiling_options_value = attrs.Find("_profiling_options");
   auto atomic_clean_policy_value = attrs.Find("_atomic_clean_policy");
@@ -1294,6 +1302,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
     if (precision_mode_value != nullptr) {
       precision_mode = precision_mode_value->s();
+    }
+    if (precision_mode_value_v2 != nullptr) {
+      precision_mode_v2 = precision_mode_value_v2->s();
     }
     if (profiling_mode_value != nullptr) {
       profiling_mode = profiling_mode_value->s();
@@ -1501,6 +1512,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
 
   all_options["is_tailing_optimization"] = is_tailing_optimization;
   all_options["precision_mode"] = precision_mode;
+  all_options["precision_mode_v2"] = precision_mode_v2;
   all_options["profiling_mode"] = profiling_mode;
   all_options["profiling_options"] = profiling_options;
   all_options["atomic_clean_policy"] = atomic_clean_policy;
@@ -1621,6 +1633,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
   bool is_tailing_optimization = false;
   std::string precision_mode;
+  std::string precision_mode_v2;
   bool profiling_mode = false;
   std::string profiling_options;
   int64_t atomic_clean_policy = 0L;
@@ -1840,7 +1853,18 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
                                                                     "allow_mix_precision_bf16",
                                                                     "allow_fp32_to_bf16"};
         NPU_REQUIRES_OK(CheckValueAllowed<std::string>(precision_mode, kPrecisionModeList));
+        init_options_["precision_mode"] = precision_mode;
+        init_options_[ge::PRECISION_MODE] = precision_mode;
       }
+      if (params.count("precision_mode_v2") > 0) {
+        precision_mode_v2 = params.at("precision_mode_v2").s();
+        const static std::vector<std::string> kPrecisionModeV2List = {"fp16", "origin", "cube_fp16in_fp32out",
+                                                                      "mixed_float16", "mixed_bfloat16"};
+        NPU_REQUIRES_OK(CheckValueAllowed<std::string>(precision_mode_v2, kPrecisionModeV2List));
+        init_options_["precision_mode_v2"] = precision_mode_v2;
+        init_options_["ge.exec.precision_mode_v2"] = precision_mode_v2;
+      }
+
       if (params.count("soc_config") > 0) {
         soc_config = params.at("soc_config").s();
       }
@@ -2024,6 +2048,14 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
               "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
         }
       }
+      if ((params.count("precision_mode") > 0) && (params.count("precision_mode_v2") > 0)) {
+          ADP_LOG(ERROR)
+              << "'precision_mode' and 'precision_mode_v2' can not be assigned at the same time.";
+          LOG(ERROR)
+              << "'precision_mode' and 'precision_mode_v2' can not be assigned at the same time.";
+          return errors::Internal(
+              "'precision_mode' and 'precision_mode_v2' can not be assigned at the same time.");
+      }
       if (params.count("op_precision_mode") > 0) {
         op_precision_mode = params.at("op_precision_mode").s();
       }
@@ -2182,9 +2214,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["ge.exec.memoryOptimizationPolicy"] = memory_optimization_policy;
   sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
   sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
-
-  init_options_["precision_mode"] = precision_mode;
-  init_options_[ge::PRECISION_MODE] = precision_mode;
   init_options_["profiling_mode"] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_["profiling_options"] = profiling_options;

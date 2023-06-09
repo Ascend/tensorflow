@@ -97,7 +97,43 @@ TEST_F(NpuAttrTest, CheckPrecisionMode) {
   AttrValue precision_mode = AttrValue();
   precision_mode.set_s("force_Dp32");
   (*custom_config->mutable_parameter_map())["precision_mode"] = precision_mode;
-  Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+}
+
+TEST_F(NpuAttrTest, CheckPrecisionModeV2) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  session_options.config.mutable_graph_options()->mutable_optimizer_options()->set_do_function_inlining(true);
+  auto *custom_config =
+      session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+
+  AttrValue precision_mode_v2 = AttrValue();
+  precision_mode_v2.set_s("invalid");
+  (*custom_config->mutable_parameter_map())["precision_mode_v2"] = precision_mode_v2;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+}
+
+TEST_F(NpuAttrTest, CheckPrecisionModeV2_Failed_WhenAssignedBoth) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  session_options.config.mutable_graph_options()->mutable_optimizer_options()->set_do_function_inlining(true);
+  auto *custom_config =
+      session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+
+  AttrValue precision_mode_v2 = AttrValue();
+  precision_mode_v2.set_s("fp16");
+  (*custom_config->mutable_parameter_map())["precision_mode_v2"] = precision_mode_v2;
+
+  AttrValue precision_mode = AttrValue();
+  precision_mode.set_s("force_fp32");
+  (*custom_config->mutable_parameter_map())["precision_mode"] = precision_mode;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
   EXPECT_EQ(s.ok(), false);
 }
 

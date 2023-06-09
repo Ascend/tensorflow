@@ -71,7 +71,8 @@ def npu_resource_init(graph_run_mode=1,
                       debug_dir=None,
                       hcom_multi_mode=False,
                       distribute_config=None,
-                      aoe_config_file=None):
+                      aoe_config_file=None,
+                      precision_mode_v2=None):
     """Initialize NPU resource"""
     util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")
     check_graph_run_mode(graph_run_mode)
@@ -92,6 +93,8 @@ def npu_resource_init(graph_run_mode=1,
 
     if precision_mode is not None:
         init["ge.exec.precision_mode"] = str(precision_mode)
+    if precision_mode_v2 is not None:
+        init["ge.exec.precision_mode_v2"] = str(precision_mode_v2)
 
     if enable_scope_fusion_passes is not None:
         init[__option_exec_enable_scope_fusion_passes] = str(enable_scope_fusion_passes)

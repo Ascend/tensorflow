@@ -72,5 +72,8 @@ class NpuConfig(NpuBaseConfig):
 
         # Configuration for experiment
         self.experimental = NpuExperimentalConfig()
+        self.precision_mode_v2 = OptionValue(None,
+                                             ['fp16', 'origin', 'cube_fp16in_fp32out', 'mixed_float16',
+                                              'mixed_bfloat16'])
 
         super(NpuConfig, self).__init__()
