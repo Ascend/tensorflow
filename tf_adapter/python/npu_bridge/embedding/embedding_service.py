@@ -135,7 +135,7 @@ class ESWorker:
     # constant_value 常量初始化的常量值, float 类型
     # mu 正态分布的均值, float 类型
     # sigma 正态分布的标准差, float 类型
-    def initializer(self, table_id, min, max, initializer_mode, constant_value, mu=0.0, sigma=1.0):
+    def initializer(self, table_id, initializer_mode, min=-2.0, max=2.0, constant_value=0.0, mu=0.0, sigma=1.0):
         """Operator for init initializer."""
         if (table_id is None) or (min is None) or (max is None) or (constant_value is None):
             raise ValueError("table_id, min, max and constant_value can not be None.")
