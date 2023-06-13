@@ -486,6 +486,8 @@ void GeOp::Finalize() {
 
       if (!SessionManager::GetInstance().IsGeSessionExist()) {
         if (!GePlugin::GetInstance()->IsGlobal()) {
+          GePlugin::GetInstance()->Finalize();
+          ADP_LOG(INFO) << "[GEOP] GePlugin Finalize success.";
           if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty() &&
               aoe_finalize_ != nullptr && tuned_initialize_flag_) {
             AoeStatus tune_ret = (*aoe_finalize_)();
@@ -496,8 +498,6 @@ void GeOp::Finalize() {
             }
           }
           tuned_initialize_flag_ = false;
-          GePlugin::GetInstance()->Finalize();
-          ADP_LOG(INFO) << "[GEOP] GePlugin Finalize success.";
         } else {
           ADP_LOG(INFO) << "[GEOP] GePlugin global, skip GePlugin Finalize";
         }
