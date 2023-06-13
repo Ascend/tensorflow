@@ -110,7 +110,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  frozen_variable=False,
                  variable_placement="Device",
                  jit_compile=None,
-                 graph_compiler_cache_dir=None
+                 graph_compiler_cache_dir=None,
+                 precision_mode_v2=None
                  ):
         """
         Constructs a NPUConfig.
@@ -131,7 +132,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         keep_checkpoint_every_n_hours: Reference tensorflow tf.estimator.RunConfig keep_checkpoint_every_n_hours.
         log_step_count_steps: Reference tensorflow tf.estimator.RunConfig log_step_count_steps.
         enabel_data_pre_proc: This is the switch of data preprocess.
-        precision_mode: if train, default is empty; if inference, default is: force_fp16.
+        precision_mode: default is: ''.
         variable_format_optimize: enable or disable variable format optimize while graph
             engineer optimize process.
         mix_compile_mode: This is the swith of mix_compile_mode. When the value is
@@ -173,6 +174,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         variable_placement: Process variable on host or device
         jit_compile: Whether enable jit compile
         graph_compiler_cache_dir: Enable compile cache and assign the path to cache
+        precision_mode_v2: default is: ''.
         """
 
         # Check iterations_per_loop.
@@ -200,6 +202,7 @@ class NPURunConfig(run_config_lib.RunConfig):
 
         # mix precision configuration
         self._precision_mode = precision_mode
+        self._precision_mode_v2 = precision_mode_v2
         self._enable_reduce_precision = enable_reduce_precision
         self.variable_format_optimize = variable_format_optimize
         self._hcom_parallel = hcom_parallel

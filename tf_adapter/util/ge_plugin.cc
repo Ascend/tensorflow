@@ -236,7 +236,12 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
                 << ", profiling_options:" << init_options[ge::OPTION_EXEC_PROFILING_OPTIONS];
 
   // mix precision configuration
-  ADP_LOG(INFO) << "[GePlugin] precision_mode : " << init_options[ge::PRECISION_MODE];
+  if (init_options.find(ge::PRECISION_MODE) != init_options.end()) {
+    ADP_LOG(INFO) << "[GePlugin] precision_mode : " << init_options[ge::PRECISION_MODE];
+  }
+  if (init_options.find("ge.exec.precision_mode_v2") != init_options.end()) {
+    ADP_LOG(INFO) << "[GePlugin] precision_mode_v2 : " << init_options["ge.exec.precision_mode_v2"];
+  }
 
   // debug configuration
   ADP_LOG(INFO) << "[GePlugin] op_debug_level : " << init_options[ge::OP_DEBUG_LEVEL];

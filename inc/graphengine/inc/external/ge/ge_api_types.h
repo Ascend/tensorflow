@@ -100,6 +100,7 @@ const char *const INSERT_OP_FILE = "ge.insertOpFile";
 const char *const OUTPUT_NODE_NAME = "ge.outputNodeName";
 const char *const COMPRESS_FLAG = "ge.compressFlag";
 const char *const PRECISION_MODE = "ge.exec.precision_mode";
+const char *const PRECISION_MODE_V2 = "ge.exec.precision_mode_v2";
 const char *const SINGLE_OP_FLAG = "ge.exec.single_op";
 const char *const TRAIN_FLAG = "ge.trainFlag";
 const char *const RUN_FLAG = "ge.runFlag";
@@ -187,6 +188,8 @@ const std::string OUTPUT_NODE_NAME = "ge.outputNodeName";
 const std::string COMPRESS_FLAG = "ge.compressFlag";
 
 const std::string PRECISION_MODE = "ge.exec.precision_mode";
+
+const std::string PRECISION_MODE_V2 = "ge.exec.precision_mode_v2";
 
 const std::string TUNE_DEVICE_IDS = "ge.exec.tuneDeviceIds";
 
@@ -412,6 +415,7 @@ static const char *const DYNAMIC_IMAGE_SIZE = kDynamicImageSize;
 static const char *const DYNAMIC_DIMS = kDynamicDims;
 static const char *const INSERT_OP_FILE = ge::INSERT_OP_FILE.c_str();
 static const char *const PRECISION_MODE = ge::PRECISION_MODE.c_str();
+static const char *const PRECISION_MODE_V2 = ge::PRECISION_MODE_V2.c_str();
 static const char *const TUNE_DEVICE_IDS = ge::TUNE_DEVICE_IDS.c_str();
 static const char *const EXEC_DISABLE_REUSED_MEMORY = ge::OPTION_EXEC_DISABLE_REUSED_MEMORY;
 static const char *const CORE_TYPE = ge::CORE_TYPE.c_str();
@@ -457,6 +461,7 @@ const std::set<std::string> ir_builder_suppported_options = {INPUT_FORMAT,
                                                              INSERT_OP_FILE,
                                                              OP_PRECISION_MODE,
                                                              PRECISION_MODE,
+                                                             PRECISION_MODE_V2,
                                                              TUNE_DEVICE_IDS,
                                                              EXEC_DISABLE_REUSED_MEMORY,
                                                              OUTPUT_TYPE,
@@ -486,6 +491,7 @@ const std::set<std::string> global_options = {CORE_TYPE,
                                               ENABLE_COMPRESS_WEIGHT,
                                               COMPRESS_WEIGHT_CONF,
                                               PRECISION_MODE,
+                                              PRECISION_MODE_V2,
                                               TUNE_DEVICE_IDS,
                                               EXEC_DISABLE_REUSED_MEMORY,
                                               ENABLE_SINGLE_STREAM,
