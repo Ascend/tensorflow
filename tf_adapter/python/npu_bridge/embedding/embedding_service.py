@@ -137,21 +137,28 @@ class ESWorker:
     # sigma 正态分布的标准差, float 类型
     def initializer(self, table_id, initializer_mode, min=-2.0, max=2.0, constant_value=0.0, mu=0.0, sigma=1.0):
         """Operator for init initializer."""
-        if (table_id is None) or (min is None) or (max is None) or (constant_value is None):
-            raise ValueError("table_id, min, max and constant_value can not be None.")
+        if (table_id is None) or (initializer_mode is None):
+            raise ValueError("table_id and initializer_mode can not be None.")
+        if initializer_mode == 'random_uniform':
+            if (min is None) or (max is None) or \
+                    (not isinstance(min, (float, int))) or (not isinstance(max, (float, int))):
+                raise ValueError("If initializer is random_uniform, min and max can not be None, must be int or float.")
+        if initializer_mode == 'truncated_normal':
+            if (min is None) or (max is None) or (mu is None) or (sigma is None) or \
+                    (not isinstance(min, (float, int))) or (not isinstance(max, (float, int))) or \
+                    (not isinstance(mu, (float, int))) or (not isinstance(sigma, (float, int))):
+                raise ValueError("If initializer is truncated_normal, min, max, mu and sigma can not be None,"
+                                 "and they must be int or float.")
+        if initializer_mode == 'constant':
+            if (constant_value is None) or (not isinstance(constant_value, (float, int))):
+                raise ValueError("If initializer is constant, constant_value can not be None, must be float or int.")
         if (not isinstance(table_id, int)) or (table_id < 0) or (table_id >= _INT32_MAX_VALUE):
             raise ValueError("table_id value is false, must be [0, 2147483647) and int type, please check.")
-        if (not isinstance(min, (float, int))) or (not isinstance(max, (float, int))) or \
-                (not isinstance(constant_value, (float, int))):
-            raise ValueError("Initializer min, max and constant value must be float or int.")
         if min > max:
             raise ValueError("Initializer min value can not be larger than max value.")
         if (initializer_mode != 'constant') and (initializer_mode != 'random_uniform') and \
                 (initializer_mode != 'truncated_normal'):
             raise ValueError("Initializer mode must be random_uniform or truncated normal or constant.")
-        if (initializer_mode == 'constant') and (not isinstance(constant_value, float)) and \
-                (not isinstance(constant_value, int)):
-            raise ValueError("If initializer is constant, constant_value must be float or int.")
         self._table_to_initializer[table_id] = Initializer(min=min,
                                                            max=max,
                                                            initializer_mode=initializer_mode,
