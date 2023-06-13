@@ -47,6 +47,7 @@ class NpuCallOp : public OpKernel {
     auto status = std::unique_ptr<TF_Status, decltype(&TF_DeleteStatus)>(TF_NewStatus(), TF_DeleteStatus);
     OP_REQUIRES_OK(ctx, global::NpuCtx::GetDeviceCtx(device_id_, &context, &device));
     if (device->device_options.find("ge.jit_compile") != device->device_options.end()) {
+      DLOG() << "device_options ge.jit_compile : " << device->device_options["ge.jit_compile"];
       jit_compile_ = device->device_options["ge.jit_compile"];
     }
 
@@ -142,10 +143,8 @@ class NpuCallOp : public OpKernel {
                  << value_shape.DebugString();
           if (jit_compile_ == "1") {
             shape = value_shape;
-            DLOG() << "Dynamic shape, recommended to configure jit_compile value to false";
+            DLOG() << "Dynamic shape, recommended to configure jit_compile value to False or Auto";
           } else {
-            // 如果用户没有设置jit_compile，但是shape发生变化了，需要把jit设置成0
-            jit_compile_ = "0";
             shape = MakeCompatShape(shape.value(), value_shape);
           }
           DLOG() << "Refresh input " << i << " shape to " << shape.value().DebugString();
@@ -198,9 +197,6 @@ class NpuCallOp : public OpKernel {
         }();
         NPU_REQUIRES_OK(status->status);
         static std::map<std::string, std::string> kOptions;
-        if (!jit_compile_.empty()) {
-          kOptions.emplace("ge.jit_compile", jit_compile_);
-        }
         (void)device->AddGeGraph(context, graph_id_, attr_.name(), *graph_def_, status.get(), kOptions);
         NPU_REQUIRES_OK(status->status);
         loaded = true;
@@ -238,7 +234,7 @@ class NpuCallOp : public OpKernel {
   std::unique_ptr<tensorflow::GraphDef> graph_def_;
   std::vector<tensorflow::Node *> args_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_;
-  std::string jit_compile_;
+  std::string jit_compile_{"2"};
 };
 
 REGISTER_KERNEL_BUILDER(Name("NpuCall").Device(DEVICE_CPU), NpuCallOp);

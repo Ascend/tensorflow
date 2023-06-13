@@ -370,6 +370,16 @@ void NpuAttrs::SetDatasetExecuteInDeviceStatus(const std::string &iterator_name,
                 << " dataset_execute_info_: " << dataset_execute_info_[iterator_name];
 }
 
+std::string ConvertToGeJitValue(const std::string jit_compile) {
+  std::string ge_jit_compile = "2";
+  if (jit_compile == "False") {
+    ge_jit_compile = "0";
+  } else if (jit_compile == "True") {
+    ge_jit_compile = "1";
+  }
+  return ge_jit_compile;
+}
+
 std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstruction *ctx) {
   std::map<std::string, std::string> sess_options;
   std::string variable_format_optimize;
@@ -1702,6 +1712,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string variable_location = "Device";
   std::string es_cluster_config;
   std::string graph_slice_mode;
+  std::string jit_compile;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -2151,9 +2162,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         variable_location = params.at("variable_placement").s();
       }
       if (params.count("jit_compile") > 0) {
-        bool jit_compile = params.at("jit_compile").b();
-        sess_options["jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
-        sess_options["ge.jit_compile"] = std::to_string(static_cast<int32_t>(jit_compile));
+        const static std::vector<std::string> kJitCompileList = {"True",
+                                                                 "False",
+                                                                 "Auto"};
+        NPU_REQUIRES_OK(CheckValueAllowed<std::string>(params.at("jit_compile").s(), kJitCompileList));
+        jit_compile = ConvertToGeJitValue(params.at("jit_compile").s());
+      } else {
+        jit_compile = "2"; // 2 means Auto
       }
       if (params.count("graph_compiler_cache_dir") > 0) {
         graph_compiler_cache_dir = params.at("graph_compiler_cache_dir").s();
@@ -2214,6 +2229,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["ge.exec.memoryOptimizationPolicy"] = memory_optimization_policy;
   sess_options["external_weight"] = std::to_string(static_cast<int32_t>(external_weight));
   sess_options["ge.externalWeight"] = std::to_string(static_cast<int32_t>(external_weight));
+  sess_options["jit_compile"] = jit_compile;
+  sess_options["ge.jit_compile"] = jit_compile;
+
   init_options_["profiling_mode"] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_[ge::OPTION_EXEC_PROFILING_MODE] = std::to_string(static_cast<int32_t>(profiling_mode));
   init_options_["profiling_options"] = profiling_options;

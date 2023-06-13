@@ -220,7 +220,7 @@ TEST_F(GetAttrOptimizationPassTest, SetAttrTest) {
   external_weight.set_b(true);
   (*custom_config->mutable_parameter_map())["external_weight"] = external_weight;
   AttrValue jit_compile = AttrValue();
-  jit_compile.set_b(true);
+  jit_compile.set_s("True");
   (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
   EXPECT_EQ(DoRunGetAttrOptimizationPassTest(session_options), target_graph);
 }

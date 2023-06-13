@@ -26,7 +26,7 @@ import npu_device
 from npu_device.npu_device import stupid_repeat
 from tensorflow.python.eager import context
 
-npu_device.global_options().jit_compile = True
+npu_device.global_options().jit_compile = "True"
 npu = npu_device.open().as_default()
 
 
@@ -35,7 +35,7 @@ def tensor_equal(t1, t2):
 
 
 class Adapter2JitCompileSt(unittest.TestCase):
-    def test_mix_jit_compile_fuzz_compile(self):
+    def test_jit_compile_true(self):
         def gen():
             v = [['1'], ['2', '3'], ['4', '5', '6']]
             while len(v):

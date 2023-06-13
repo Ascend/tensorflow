@@ -326,7 +326,7 @@ GeOp::GeOp(OpKernelConstruction *ctx)
       compute_graph_empty_(false), is_input_convert_(false), data_format_(""), graph_id_(0),
       is_initialized_graph_(false), need_iteration_(false), tf_session_(""), ge_session_(nullptr), job_type_(""),
       is_host_graph_(false), handle_(nullptr), need_compile_graph_first_(false), tuned_flag_(ATOMIC_FLAG_INIT),
-      jit_compile_(""), is_dynamic_input_(false), session_id_(0), aoe_initialize_(nullptr),
+      jit_compile_("2"), is_dynamic_input_(false), session_id_(0), aoe_initialize_(nullptr),
       aoe_finalize_(nullptr), aoe_create_session_(nullptr), aoe_destroy_session_(nullptr), aoe_set_gesession_(nullptr),
       aoe_set_dependgraphs_(nullptr), aoe_set_tuninggraph_(nullptr), aoe_tuning_graph_(nullptr),
       aoe_set_depend_graphs_inputs_(nullptr), aoe_set_tuning_graph_input_(nullptr) {
@@ -689,7 +689,7 @@ bool GeOp::MaybeUpdateShape(OpKernelContext *const ctx) {
                 << value_shape.DebugString();
         if (jit_compile_ == "1") {
           shape = value_shape;
-          ADP_LOG(WARNING) << "Dynamic shape, recommended to configure jit_compile value to false";
+          ADP_LOG(WARNING) << "Dynamic shape, recommended to configure jit_compile value to False or Auto";
         } else {
           shape = MakeCompatShape(shape.value(), value_shape);
         }
@@ -775,9 +775,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   if (dynamic_input_ != "1" && !is_set_dynamic_config) {
     bool shape_changed = MaybeUpdateShape(ctx);
     if (build_flag_ && shape_changed) {
-      if (jit_compile_.empty()) {
-        jit_compile_ = "0";
-      }
       ge::Status status = ge_session_->RemoveGraph(graph_id_);
       if (status != ge::SUCCESS) {
         ADP_LOG(WARNING) << "[GEOP] GE remove graph failed, ret : " << ToString(status) << ", graph_id: " << graph_id_;
@@ -944,9 +941,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;
-    if (!jit_compile_.empty()) {
-      graph_options_["ge.jit_compile"] = jit_compile_;
-    }
+    graph_options_["ge.jit_compile"] = jit_compile_;
     graph_options_["ge.exec.overflow"] = "1";
     graph_options_["ge.graphLevelSat"] = (mix_compile_mode_ == "0") ? "1" : "0";
 
@@ -1331,7 +1326,6 @@ void GeOp::ProcessGetNextNode(const Node *node) {
       tensorflow::PartialTensorShape shape(shape_proto);
       if (!shape.IsFullyDefined()) {
         is_dynamic_shape = true;
-        if (jit_compile_.empty()) { jit_compile_ = "0"; }
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + " is_dynamic_shape come true.";
       }
     }
@@ -1340,7 +1334,6 @@ void GeOp::ProcessGetNextNode(const Node *node) {
     for (auto i = 0; i < node->num_outputs(); i++) {
       if (type_attrs[i] == DT_STRING) {
         is_dynamic_shape = true;
-        if (jit_compile_.empty()) { jit_compile_ = "0"; }
         ADP_LOG(INFO) << "[GEOP]node: " + node->name() + "'s output_types include DT_STRING.";
       }
     }
@@ -1414,8 +1407,8 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
   }
   HandleDpOpAndGetNextNodes(graph);
 
-  // 二进制场景, 如果shape变化，则更新输入shape
-  if (jit_compile_ == "0") { UpdateInputsShapeDesc(graph); }
+  // 二进制场景(jit=0 or jit=2), 如果shape变化，则更新输入shape
+  if (jit_compile_ != "1") { UpdateInputsShapeDesc(graph); }
 
   graph.ToGraphDef(&graph_def);
   std::string enable_force_v2_control;
