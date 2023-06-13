@@ -395,7 +395,7 @@ class ESWorker:
         self.total_embedding_count = 0
         self.total_variable_table = []
         for table_info_ in self.table_create_infos:
-            self.total_variable_table.append(tf.get_variable('ES',
+            self.total_variable_table.append(tf.get_variable('ES' + str(self.total_embedding_count),
                                                              shape=[table_info_['max_vocabulary_size'],
                                                                     table_info_['embedding_dim']],
                                                              initializer=table_info_['initializer'],
