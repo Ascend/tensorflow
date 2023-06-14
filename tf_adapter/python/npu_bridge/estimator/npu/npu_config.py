@@ -109,7 +109,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  deterministic=0,
                  frozen_variable=False,
                  variable_placement="Device",
-                 jit_compile=None,
+                 jit_compile="Auto",
                  graph_compiler_cache_dir=None,
                  precision_mode_v2=None
                  ):

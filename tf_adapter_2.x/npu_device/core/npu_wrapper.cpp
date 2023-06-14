@@ -157,6 +157,7 @@ bool CheckIsDistribute(std::map<std::string, std::string> &global_options) {
            global_options.find(ge::OPTION_EXEC_CM_CHIEF_PORT) != global_options.end() &&
            global_options.find(ge::OPTION_EXEC_CM_CHIEF_DEVICE) != global_options.end()));
 }
+
 void ParseGlobalOptions(int device_index, const std::map<std::string, std::string> &user_options,
                         std::map<std::string, std::string> &global_options) {
   for (const auto &option : user_options) {

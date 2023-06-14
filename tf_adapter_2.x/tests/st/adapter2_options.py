@@ -136,5 +136,23 @@ class Adapter2Options(unittest.TestCase):
         options = config.as_dict()
         self.assertEqual(options['graph_slice'], "auto")
 
+    def test_10_set_jit_compile_option_error(self):
+        config = NpuConfig()
+        try:
+            config.jit_compile = "true"
+        except ValueError as e:
+            err = "'true' not in optional list ['True', 'False', 'Auto']"
+            self.assertEqual(err, str(e))
+        try:
+            config.jit_compile = "false"
+        except ValueError as e:
+            err = "'false' not in optional list ['True', 'False', 'Auto']"
+            self.assertEqual(err, str(e))
+        try:
+            config.jit_compile = "auto"
+        except ValueError as e:
+            err = "'auto' not in optional list ['True', 'False', 'Auto']"
+            self.assertEqual(err, str(e))
+
 if __name__ == '__main__':
     unittest.main()

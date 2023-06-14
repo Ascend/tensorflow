@@ -43,6 +43,8 @@ class OptionValue:
             return "1"
         if str(self.__value) == str(False):
             return "0"
+        if str(self.__value) == "Auto":
+            return "2"
         return str(self.__value)
 
     @value.setter

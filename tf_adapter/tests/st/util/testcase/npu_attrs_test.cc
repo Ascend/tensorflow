@@ -146,9 +146,13 @@ TEST_F(NpuAttrTest, CheckJitCompile) {
   options.session_options = &session_options;
 
   AttrValue jit_compile = AttrValue();
-  jit_compile.set_b(true);
+  jit_compile.set_s("True");
   (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
   Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  EXPECT_EQ(s.ok(), false);
+  jit_compile.set_s("False");
+  (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
   EXPECT_EQ(s.ok(), false);
 }
 

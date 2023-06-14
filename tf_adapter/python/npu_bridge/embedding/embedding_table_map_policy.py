@@ -24,35 +24,29 @@ def compare_initializer(init1, init2):
         if isinstance(init1, tf.initializers.truncated_normal):
             if (init1.stddev != init2.stddev) or (init1.seed != init2.seed) or (init1.mean != init2.mean) or \
                     (init1.dtype != init2.dtype):
-                print("initializer type is the same, but parameter is different.")
                 return False
             else:
                 return True
         else:
-            print("initializer type is different.")
             return False
 
     if isinstance(init1, tf.initializers.random_uniform):
         if isinstance(init1, tf.initializers.random_uniform):
             if (init1.minval != init2.minval) or (init1.maxval != init2.maxval) or (init1.seed != init2.seed) or \
                     (init1.dtype != init2.dtype):
-                print("initializer type is the same, but parameter is different.")
                 return False
             else:
                 return True
         else:
-            print("Initializer type is different.")
             return False
 
     if isinstance(init1, tf.initializers.constant):
         if isinstance(init1, tf.initializers.constant):
             if (init1.value != init2.value) or (init1.dtype != init2.dtype):
-                print("Initializer type is the same, but parameter is different.")
                 return False
             else:
                 return True
         else:
-            print("Initializer type is different.")
             return False
     return True
 
@@ -76,7 +70,6 @@ class BaseTableMapPolicy():
             print('embedding dim different!, value is %d and %d' % (info1['embedding_dim'], info2['embedding_dim']))
             return False
         if not compare_initializer(info1['initializer'], info2['initializer']):  # initializer of table is same or not
-            print('initializer of these table different!')
             return False
         return True
 
