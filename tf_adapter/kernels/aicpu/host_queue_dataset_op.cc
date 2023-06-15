@@ -285,7 +285,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       ~Iterator() override {
-        ShowDataThreadPerfRecord();
         std::vector<DataItem> stop_message;
         data_deliver_->ParallelSendDataVec(stop_message);
         {
@@ -314,6 +313,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         delete data_deliver_;
         FinishMemory();
         DestroyQueue();
+        ShowDataThreadPerfRecord();
         ADP_LOG(INFO) << "HostQueueDatasetOp's iterator is released.";
       }
 
@@ -515,6 +515,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       void RefreshDataThreadPerf(const ThreadType type, const TimePoint &start,
                                  const TimePoint &end, const uint64_t args_total_bytes,
                                  const uint32_t buff_size) {
+        if (finish_send_) { return; }
         auto *perf_stat = &data_thread_perf_stat_[static_cast<size_t>(type)];
         perf_stat->data_record_num++;
         uint32_t index = perf_stat->data_record_num % kDataPerRecord;
@@ -615,6 +616,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                 ADP_LOG(ERROR) << "The size of tensor is too big";
                 LOG(ERROR) << "The size of tensor is too big";
                 buffer_element.host_thread_finished = true;
+                buffer_element.status = errors::Internal("[GetThread] The size of tensor is too big.",
+                    " tensor.TotalBytes() is ", tensor.TotalBytes());
                 buffer_.push_back(std::move(buffer_element));
                 cond_var_.notify_all();
                 return;
@@ -628,6 +631,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if ((!is_string) && (from_npu_dataset != NPU_ALLOCATOR_NPU) &&
               (dataset()->channel_type_ == ChannelType::ACL_QUEUE)) {
             if (!HandleMemory(args, buffer_element.value, args_tensor_size)) {
+              mutex_lock lck(mu_);
+              buffer_element.host_thread_finished = true;
+              buffer_element.status = errors::Internal("[GetThread] Copy tensor failed.");
+              buffer_.push_back(std::move(buffer_element));
+              cond_var_.notify_all();
               return;
             }
           } else {
@@ -774,6 +782,23 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         return true;
       }
 
+      void SendAbnormalData() {
+        // Try to send one abnormal data to device to avoid GetNext time out.
+        // This will add an additional DataThreadPerf statistics.
+        Status status = Status::OK();
+        std::vector<Tensor> tensors;
+        if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
+            status = SendDataByAclQueue(tensors, ACL_TENSOR_DATA_ABNORMAL, 0, UINT32_MAX);
+        } else {
+            status = SendDataByHostQueue(tensors, ACL_TENSOR_DATA_ABNORMAL);
+        }
+        if (!status.ok()) {
+          ADP_LOG(EVENT) << "Send abnormal data to device failed, status : " << status.ToString();
+        } else {
+          ADP_LOG(EVENT) << "Send abnormal data to device success";
+        }
+      }
+
       void SendDataByQueueThread(const std::shared_ptr<IteratorContext> &ctx) {
         ADP_LOG(INFO) << "Begin to send data to the NPU. ";
         rtError_t rt = rtSetDevice(dataset()->device_id_);
@@ -802,6 +827,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         while (true) {
           std::vector<Tensor> args;
           acltdtTensorType data_type = ACL_TENSOR_DATA_TENSOR;
+          Status ab_status = Status::OK();
           uint64_t args_total_bytes = 0ULL;
           uint32_t buff_size = 0;
           {
@@ -820,6 +846,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             }
             if (buffer_.front().host_thread_finished) {
               data_type = buffer_.front().status.ok() ? ACL_TENSOR_DATA_END_OF_SEQUENCE : ACL_TENSOR_DATA_ABNORMAL;
+              ab_status = buffer_.front().status;
             } else {
               args = buffer_.front().value;
               buffer_.pop_front();
@@ -839,8 +866,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             status = SendDataByHostQueue(args, data_type);
           }
           if (!status.ok()) {
+            SendAbnormalData();
             StopNotify();
             ADP_LOG(ERROR) << "Send data failed." << status.ToString();
+            LOG(ERROR) << "Send data failed." << status.ToString();
             return;
           }
           if ((data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) || (data_type == ACL_TENSOR_DATA_ABNORMAL)) {
@@ -848,6 +877,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               (data_type == ACL_TENSOR_DATA_END_OF_SEQUENCE) ? "end of sequence" : "abnormal";
             StopNotify();
             ADP_LOG(INFO) << "Host queue send " << data_type_str << " data success.";
+            if (data_type == ACL_TENSOR_DATA_ABNORMAL) {
+              LOG(ERROR) << "Host queue send abnormal data with status : " << ab_status.ToString();
+            }
             return;
           }
           mem_pool_.ReleaseMemory();
