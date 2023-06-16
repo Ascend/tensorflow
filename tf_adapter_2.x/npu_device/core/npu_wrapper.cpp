@@ -190,6 +190,10 @@ void ParseGlobalOptions(int device_index, const std::map<std::string, std::strin
     global_options[ge::ENABLE_SMALL_CHANNEL] = "1";
   }
   global_options["ge.exec.allow_hf32"] = tensorflow::tensor_float_32_execution_enabled() ? "1" : "0";
+
+  if (global_options["ge.jit_compile"] == "Auto") {
+    global_options["ge.jit_compile"] = "2";
+  }
 }
 
 PYBIND11_MODULE(_npu_device_backends, m) {
