@@ -609,6 +609,9 @@ class NPUEstimator(estimator_lib.Estimator):
             if config._experimental_config._resource_config_path is not None:
                 custom_op.parameter_map["resource_config_path"].s = tf.compat.as_bytes(
                     config._experimental_config._resource_config_path)
+            if config._experimental_config._graph_compiler_cache_dir is not None:
+                custom_op.parameter_map["graph_compiler_cache_dir"].s = tf.compat.as_bytes(
+                    config._experimental_config._graph_compiler_cache_dir)
             if config._experimental_config._graph_parallel_option_path is not None:
                 custom_op.parameter_map["graph_parallel_option_path"].s = tf.compat.as_bytes(
                     config._experimental_config._graph_parallel_option_path)
@@ -775,8 +778,6 @@ class NPUEstimator(estimator_lib.Estimator):
             custom_op.parameter_map["insert_op_file"].s = config.insert_op_file
         if config.es_cluster_config is not None:
             custom_op.parameter_map["es_cluster_config"].s = tf.compat.as_bytes(config.es_cluster_config)
-        if config._graph_compiler_cache_dir is not None:
-            custom_op.parameter_map["graph_compiler_cache_dir"].s = tf.compat.as_bytes(config._graph_compiler_cache_dir)
         custom_op.parameter_map["jit_compile"].s = tf.compat.as_bytes(config._jit_compile)
         custom_op.parameter_map["stream_sync_timeout"].i = config.stream_sync_timeout
         custom_op.parameter_map["event_sync_timeout"].i = config.event_sync_timeout
