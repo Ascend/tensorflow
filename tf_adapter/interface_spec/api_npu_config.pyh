@@ -20,8 +20,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                 customize_dtypes=None, op_debug_config=None, memory_config=None, experimental_config=None,
                 topo_sorting_mode=None, aoe_config_file=None, insert_op_file=None, stream_sync_timeout=-1,
                 event_sync_timeout=-1, external_weight=False, es_cluster_config=None, deterministic=0,
-                frozen_variable=False, variable_placement="Device", jit_compile="Auto", graph_compiler_cache_dir=None,
-                precision_mode_v2=None):
+                frozen_variable=False, variable_placement="Device", jit_compile="Auto", precision_mode_v2=None):
 
 class ProfilingConfig():
     def __init__(self, enable_profiling=False, profiling_options=None):

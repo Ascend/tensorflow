@@ -110,7 +110,6 @@ class NPURunConfig(run_config_lib.RunConfig):
                  frozen_variable=False,
                  variable_placement="Device",
                  jit_compile="Auto",
-                 graph_compiler_cache_dir=None,
                  precision_mode_v2=None
                  ):
         """
@@ -173,7 +172,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         frozen_variable: Whether folding constant variables
         variable_placement: Process variable on host or device
         jit_compile: Whether enable jit compile
-        graph_compiler_cache_dir: Enable compile cache and assign the path to cache
         precision_mode_v2: default is: ''.
         """
 
@@ -265,7 +263,6 @@ class NPURunConfig(run_config_lib.RunConfig):
         self._external_weight = external_weight
         self.es_cluster_config = es_cluster_config
         self._jit_compile = jit_compile
-        self._graph_compiler_cache_dir = graph_compiler_cache_dir
 
         super(NPURunConfig, self).__init__(
             model_dir=model_dir,
@@ -419,6 +416,7 @@ class ExperimentalConfig():
                  graph_memory_optimize_config=None,
                  enable_graph_parallel=None,
                  graph_parallel_option_path=None,
+                 graph_compiler_cache_dir=None,
                  resource_config_path=None):
         """
         Constructs a ExperimentalConfig.
@@ -439,6 +437,7 @@ class ExperimentalConfig():
         self._graph_memory_optimize_config = graph_memory_optimize_config
         self._enable_graph_parallel = enable_graph_parallel
         self._graph_parallel_option_path = graph_parallel_option_path
+        self._graph_compiler_cache_dir = graph_compiler_cache_dir
         self._resource_config_path = resource_config_path
 
 
