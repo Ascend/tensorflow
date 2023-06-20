@@ -45,6 +45,7 @@ from npu_bridge.estimator.npu import npu_scope
 from npu_bridge.estimator.npu import keras_to_npu
 from npu_bridge.estimator.npu import npu_strategy
 from npu_bridge.estimator.npu import util
+from npu_bridge.estimator.npu import npu_plugin
 from npu_bridge.estimator.npu_unary_ops import npu_unary_ops
 from npu_bridge.hccl import hccl_ops
 
