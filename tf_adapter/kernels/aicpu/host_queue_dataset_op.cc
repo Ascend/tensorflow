@@ -45,6 +45,7 @@
 #include "tf_adapter/util/host_allocator.h"
 #include "tf_adapter/kernels/aicpu/data_item_deliver.h"
 #include "tf_adapter/kernels/aicpu/npu_tensor.h"
+#include "tf_adapter/kernels/aicpu/dataset_function.h"
 
 namespace tensorflow {
 namespace data {
@@ -311,6 +312,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
 
         delete data_deliver_;
+        if (deregister_fn_) { deregister_fn_(); }
         FinishMemory();
         DestroyQueue();
         ShowDataThreadPerfRecord();
@@ -1082,6 +1084,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             TF_RETURN_IF_ERROR(data_deliver_->InitSocketServer());
           }
         }
+        TF_RETURN_IF_ERROR(DatasetFunction::RegisterNpuCancellation(
+            [this]() {
+              mutex_lock lck(mu_);
+              finish_send_ = true;
+              ADP_LOG(EVENT) << "Host queue[" << dataset()->channel_name_ << "]'s token is executed.";
+            }, &deregister_fn_));
         if (dataset()->channel_type_ == ChannelType::ACL_QUEUE) {
           TF_RETURN_IF_ERROR(thread_pool_.Init(dataset()->device_id_));
         }
@@ -1145,7 +1153,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       acltdtChannelHandle *acl_handle_;
       uint32_t queue_id_;
       int active_thread_num_ = 0;
-
+      std::function<void()> deregister_fn_;
       using DataPerfRecord = struct {
           uint64_t data_index;
           uint64_t start_time;
