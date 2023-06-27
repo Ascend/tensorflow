@@ -139,19 +139,19 @@ class Adapter2Options(unittest.TestCase):
     def test_10_set_jit_compile_option_error(self):
         config = NpuConfig()
         try:
-            config.jit_compile = "true"
+            config.jit_compile = "True"
         except ValueError as e:
-            err = "'true' not in optional list ['True', 'False', 'Auto']"
+            err = "'True' not in optional list ['true', 'false', 'auto']"
             self.assertEqual(err, str(e))
         try:
-            config.jit_compile = "false"
+            config.jit_compile = "False"
         except ValueError as e:
-            err = "'false' not in optional list ['True', 'False', 'Auto']"
+            err = "'False' not in optional list ['true', 'false', 'auto']"
             self.assertEqual(err, str(e))
         try:
-            config.jit_compile = "auto"
+            config.jit_compile = "Auto"
         except ValueError as e:
-            err = "'auto' not in optional list ['True', 'False', 'Auto']"
+            err = "'Auto' not in optional list ['true', 'false', 'auto']"
             self.assertEqual(err, str(e))
 
 if __name__ == '__main__':

@@ -109,7 +109,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  deterministic=0,
                  frozen_variable=False,
                  variable_placement="Device",
-                 jit_compile="Auto",
+                 jit_compile="auto",
                  precision_mode_v2=None
                  ):
         """
@@ -178,10 +178,12 @@ class NPURunConfig(run_config_lib.RunConfig):
         # Check iterations_per_loop.
         util.check_positive_integer(iterations_per_loop, "iterations_per_loop")
         if not isinstance(mix_compile_mode, bool):
-            raise ValueError('"mix_compile_mode" type must be bool')
+            raise TypeError('"mix_compile_mode" type must be bool')
         if mix_compile_mode is True and iterations_per_loop != 1:
             raise ValueError(
                 '"iterations_per_loop" must be 1 with "mix_compile_mode" is True')
+        if not isinstance(jit_compile, str):
+            raise TypeError('Expected str, got ' + type(jit_compile).__name__)
         tf_config = json.loads(os.environ.get(run_config_lib._TF_CONFIG_ENV, '{}'))
         tmp_cluster_spec = server_lib.ClusterSpec(tf_config.get(run_config_lib._CLUSTER_KEY, {}))
         if ((tmp_cluster_spec and not isinstance(distribute, ParameterServerStrategy)) or

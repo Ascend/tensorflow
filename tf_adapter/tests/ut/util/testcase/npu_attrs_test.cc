@@ -138,6 +138,33 @@ TEST_F(NpuAttrTest, CheckPrecisionModeV2_Failed_WhenAssignedBoth) {
   EXPECT_EQ(s.ok(), false);
 }
 
+TEST_F(NpuAttrTest, CheckJitCompile) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  auto *custom_config =
+      session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+  AttrValue jit_compile = AttrValue();
+  AttrValue graph_slice = AttrValue();
+  jit_compile.set_b(true);
+  (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+  jit_compile.clear_b();
+  jit_compile.set_s("True");
+  (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+  jit_compile.clear_s();
+  jit_compile.set_s("false");
+  (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
+  graph_slice.set_s("000");
+  (*custom_config->mutable_parameter_map())["graph_slice"] = graph_slice;
+  s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+}
+
 TEST_F(NpuAttrTest, CheckVariablePlacement) {
   Status s = CheckVariablePlacement("sss");
   EXPECT_EQ(s.ok(), false);

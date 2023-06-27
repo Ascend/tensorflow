@@ -67,7 +67,7 @@ class NpuConfig(NpuBaseConfig):
         self.event_sync_timeout = OptionValue(-1, None)
         self.external_weight = OptionValue(False, [True, False])
         self.memory_config = MemoryConfig()
-        self.jit_compile = OptionValue('Auto', ['True', 'False', 'Auto'])
+        self.jit_compile = OptionValue('auto', ['true', 'false', 'auto'])
         self.graph_compiler_cache_dir = OptionValue(None, None)
 
         # Configuration for experiment
