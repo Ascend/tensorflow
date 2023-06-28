@@ -29,7 +29,7 @@ import unittest
 import tensorflow as tf
 from tensorflow.python.eager import context
 
-npu_device.global_options().jit_compile = "False"
+npu_device.global_options().jit_compile = "false"
 npu_device.global_options().is_tailing_optimization = True
 npu_device.global_options().experimental.multi_branches_config.input_shape = "data_0:-1"
 npu_device.global_options().experimental.multi_branches_config.dynamic_node_type = "0"

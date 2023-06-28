@@ -191,8 +191,12 @@ void ParseGlobalOptions(int device_index, const std::map<std::string, std::strin
   }
   global_options["ge.exec.allow_hf32"] = tensorflow::tensor_float_32_execution_enabled() ? "1" : "0";
 
-  if (global_options["ge.jit_compile"] == "Auto") {
+  if (global_options["ge.jit_compile"] == "auto") {
     global_options["ge.jit_compile"] = "2";
+  } else if (global_options["ge.jit_compile"] == "true") {
+    global_options["ge.jit_compile"] = "1";
+  } else {
+    global_options["ge.jit_compile"] = "0";
   }
 }
 

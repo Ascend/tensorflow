@@ -372,9 +372,9 @@ void NpuAttrs::SetDatasetExecuteInDeviceStatus(const std::string &iterator_name,
 
 std::string ConvertToGeJitValue(const std::string jit_compile) {
   std::string ge_jit_compile = "2";
-  if (jit_compile == "False") {
+  if (jit_compile == "false") {
     ge_jit_compile = "0";
-  } else if (jit_compile == "True") {
+  } else if (jit_compile == "true") {
     ge_jit_compile = "1";
   }
   return ge_jit_compile;
@@ -2162,13 +2162,15 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         variable_location = params.at("variable_placement").s();
       }
       if (params.count("jit_compile") > 0) {
-        const static std::vector<std::string> kJitCompileList = {"True",
-                                                                 "False",
-                                                                 "Auto"};
+        const static std::vector<std::string> kJitCompileList = {"true",
+                                                                 "false",
+                                                                 "auto"};
+        NPU_REQUIRES(params.at("jit_compile").value_case() == params.at("jit_compile").kS,
+                     errors::InvalidArgument("The data type of jit_compile is invalid. Expected string type."));
         NPU_REQUIRES_OK(CheckValueAllowed<std::string>(params.at("jit_compile").s(), kJitCompileList));
         jit_compile = ConvertToGeJitValue(params.at("jit_compile").s());
       } else {
-        jit_compile = "2"; // 2 means Auto
+        jit_compile = "2"; // 2 means auto
       }
       if (params.count("graph_compiler_cache_dir") > 0) {
         graph_compiler_cache_dir = params.at("graph_compiler_cache_dir").s();

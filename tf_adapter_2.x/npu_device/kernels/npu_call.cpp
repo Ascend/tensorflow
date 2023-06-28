@@ -143,7 +143,7 @@ class NpuCallOp : public OpKernel {
                  << value_shape.DebugString();
           if (jit_compile_ == "1") {
             shape = value_shape;
-            DLOG() << "Dynamic shape, recommended to configure jit_compile value to False or Auto";
+            DLOG() << "Dynamic shape, recommended to configure jit_compile value to false or auto";
           } else {
             shape = MakeCompatShape(shape.value(), value_shape);
           }

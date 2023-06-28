@@ -689,7 +689,7 @@ bool GeOp::MaybeUpdateShape(OpKernelContext *const ctx) {
                 << value_shape.DebugString();
         if (jit_compile_ == "1") {
           shape = value_shape;
-          ADP_LOG(WARNING) << "Dynamic shape, recommended to configure jit_compile value to False or Auto";
+          ADP_LOG(WARNING) << "Dynamic shape, recommended to configure jit_compile value to false or auto";
         } else {
           shape = MakeCompatShape(shape.value(), value_shape);
         }

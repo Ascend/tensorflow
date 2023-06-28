@@ -144,15 +144,20 @@ TEST_F(NpuAttrTest, CheckJitCompile) {
       session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
   custom_config->set_name("NpuOptimizer");
   options.session_options = &session_options;
-
   AttrValue jit_compile = AttrValue();
+  jit_compile.set_b(true);
+  (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+  jit_compile.clear_b();
   jit_compile.set_s("True");
   (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
-  Status s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
   EXPECT_EQ(s.ok(), false);
+  jit_compile.clear_s();
   jit_compile.set_s("False");
   (*custom_config->mutable_parameter_map())["jit_compile"] = jit_compile;
-  s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
+  s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
   EXPECT_EQ(s.ok(), false);
 }
 

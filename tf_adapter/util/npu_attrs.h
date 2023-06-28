@@ -68,7 +68,7 @@ class NpuAttrs {
     ss << '[';
     const auto size = values.size();
     for (size_t i = 0U; i < size; ++i) {
-      ss << values[i];
+      ss << "'" << values[i] << "'";
       if (i != (size - 1U)) {
         ss << ", ";
       }
@@ -82,7 +82,7 @@ class NpuAttrs {
       return Status::OK();
     } else {
       std::stringstream ss;
-      ss << v << " is invalid, it should be one of the list:";
+      ss << "'" << v << "' is invalid, it should be one of the list:";
       ss << VectorToString(allowed_values);
       return errors::InvalidArgument(ss.str());
     }
