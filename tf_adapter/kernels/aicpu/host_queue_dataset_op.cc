@@ -210,11 +210,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       int64_t element_number = GetTensorElementNum(i);
       total_sizes += (element_number * static_cast<int64_t>(DataTypeSize(output_types_.at(i))));
     }
-    if (total_sizes <= 0LL) {
-      ADP_LOG(ERROR) << "Data size is <= 0, and current size is " << total_sizes;
+    if (total_sizes < 0LL) {
+      ADP_LOG(ERROR) << "Data size < 0, and current size is " << total_sizes;
       return -1LL;
     }
-    return std::max(2L, (kMaxBytes / total_sizes));
+    return (total_sizes == 0LL) ? kMaxDepth : std::max(2L, (kMaxBytes / total_sizes));
   }
 
   void CreateHostQueue(OpKernelContext *ctx, size_t channel_depth) {
@@ -460,6 +460,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         for (size_t i = 0UL; i < args.size(); i++) {
           const char *src_ptr = args[i].tensor_data().data();
           uint64_t src_size = args[i].tensor_data().size();
+          // Skip data copy for empty tensor
+          if (src_size == 0ULL) {
+            Tensor result_tensor(args[i].dtype(), args[i].shape());
+            result_args.emplace_back(std::move(result_tensor));
+            continue;
+          }
           void *dst_ptr = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(memory_ptr) + offset);
           uint64_t dst_size = memory_size - offset;
           if (src_size > PARALLEL_MEMORY_TRHESHOLD) {

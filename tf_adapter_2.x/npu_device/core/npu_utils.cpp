@@ -541,8 +541,6 @@ tensorflow::Status SeparateGraphDef(tensorflow::GraphDef *def,
 tensorflow::Status LoopCopy(char *dst_ptr, size_t dst_size, char *src_ptr, size_t src_size) {
   NPU_REQUIRES((dst_size >= src_size),
       tensorflow::errors::Internal("Loop memory copy failed. dst_size:", dst_size, ", src_size:", src_size));
-  // For empty tensor : dst_size equals 0 and src_size equals 0
-  if (src_size == 0UL) { return tensorflow::Status::OK(); }
 
   size_t copy_size = 0UL;
   size_t org_src_size = src_size;

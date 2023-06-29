@@ -142,9 +142,12 @@ tensorflow::Status HdcChannel::AssembleAclTensor2Tensor(const acltdtDataItem *it
       return tensorflow::errors::Internal("Hdc channel receive size mismatch tensor size acl:", acl_data_len,
                                           " vs. tensorflow:", tensor_size);
     }
-    auto status = LoopCopy(static_cast<char *>(tensor.data()), tensor_size,
-                           const_cast<char *>(acl_data), tensor_size);
-    if (!status.ok()) { return status; }
+    // Skip data copy for empty tensor
+    if (tensor_size > 0UL) {
+      auto status = LoopCopy(static_cast<char *>(tensor.data()), tensor_size,
+                             const_cast<char *>(acl_data), tensor_size);
+      if (!status.ok()) { return status; }
+    }
     tensors.emplace_back(std::move(tensor));
   } else {
     return tensorflow::errors::InvalidArgument("Hdc channel receive un-copyable tensorflow data type",
@@ -276,8 +279,9 @@ tensorflow::Status HdcChannel::AssembleTensors2AclDataset(acltdtTensorType acl_t
     if (DataTypeCanUseMemcpy(tensor.dtype())) {
       auto dims = tensor.shape().dim_sizes();
       void *tensor_data = tensor.data();
-      if (IsNeedContinuousMem() && !npu_alloc) {
-        size_t src_size = tensor.TotalBytes();
+      size_t src_size = tensor.TotalBytes();
+      // Skip data copy for empty tensor
+      if (src_size > 0UL && IsNeedContinuousMem() && !npu_alloc) {
         tensor_data = tensors_buffer_.data() + offset;
         NPU_REQUIRES_OK(Copy2ContinuousMem(tensor_data, (dst_size - offset), tensor.data(), src_size));
         offset += src_size;

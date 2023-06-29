@@ -46,6 +46,8 @@ Status GetDtStringTensorData(const Tensor &tensor, uint8_t *&data_ptr, uint64_t 
     ge::StringHead *head = ge::PtrToPtr<uint8_t, ge::StringHead>(base_ptr + i * sizeof(ge::StringHead));
     head->addr = offset;
     head->len = tensor.flat<tstring>()(i).size();
+    // Skip data copy for empty tensor
+    if (head->len == 0ULL) { continue; }
     auto status = LoopCopy(ge::PtrToPtr<uint8_t, char>(base_ptr + offset), (buff_size - offset),
                            const_cast<char *>(tensor.flat<tstring>()(i).data()), head->len);
     if (!status.ok()) { return status; }
@@ -101,8 +103,6 @@ Status LoopCopy(char *dst_ptr, size_t dst_size, char *src_ptr, size_t src_size) 
   if (dst_size < src_size) {
     return tensorflow::errors::Internal("Loop memory copy failed. dst_size:", dst_size, ", src_size:", src_size);
   }
-  // For empty tensor : dst_size equals 0 and src_size equals 0
-  if (src_size == 0UL) { return tensorflow::Status::OK(); }
 
   size_t copy_size = 0UL;
   size_t org_src_size = src_size;
