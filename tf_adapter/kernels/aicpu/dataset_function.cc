@@ -231,22 +231,17 @@ void *DatasetFunction::ConvertDTStringTensor(const Tensor &tf_tensor, uint64_t &
   for (uint64_t i = 0U; i < count; ++i) {
     string_head[i].addr = offset;
     const string &str = string_vector[i];
-    string_head[i].len = static_cast<int64_t>(str.size());
+    string_head[i].len = static_cast<uint64_t>(str.size());
     size_t str_size = str.size();
-    const char *string_addr = str.c_str();
-    while (str_size >= SECUREC_MEM_MAX_LEN) {
-      const auto ret = memcpy_s(data_addr, total_size - offset, string_addr, SECUREC_MEM_MAX_LEN);
-      DATASET_REQUIRES_RT_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
-      str_size -= SECUREC_MEM_MAX_LEN;
-      offset += SECUREC_MEM_MAX_LEN;
-      data_addr += SECUREC_MEM_MAX_LEN;
-      string_addr += SECUREC_MEM_MAX_LEN;
-    }
-    auto remain_size = total_size - offset;
-    const auto ret = memcpy_s(data_addr, remain_size, string_addr, str_size + 1U);
-    DATASET_REQUIRES_RT_NULL(ret == EOK, errors::Internal("call memcpy_s failed, ret:", ret));
-    data_addr += (str_size + 1U);
-    offset += (static_cast<int64_t>(str_size) + 1);
+    char *string_addr = const_cast<char*>(str.c_str());
+    DATASET_REQUIRES_RT_NULL((total_size > offset), errors::Internal("Check data error, total_size=", total_size,
+        ", offset=", offset));
+    auto status = LoopCopy(data_addr, total_size - offset, string_addr, str_size);
+    DATASET_REQUIRES_RT_NULL(status.ok(),
+        errors::Internal("Execute data copy failed, status:", status.ToString().c_str()));
+    data_addr[str_size] = '\0';
+    data_addr += (str_size + 1ULL);
+    offset += (static_cast<uint64_t>(str_size) + 1ULL);
   }
 
   tensor_size = total_size;

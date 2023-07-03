@@ -109,22 +109,10 @@ Status AssembleAclTensor2Tensor(const acltdtDataItem *item, std::vector<Tensor> 
       return errors::Internal("Acl channel receive size mismatch tensor size acl:", acl_data_len,
                               "vs. tf:", tensor_size);
     }
-    do {
-      if (tensor_data == nullptr || tensor_size == 0) {
-        LOG(INFO) << "This is a empty tensor, shape:" << tf_shape.DebugString()
-            << ", tensor_size:" << tensor_size <<", tensor_type:" << tf_type;
-        break;
-      }
-      auto copy_size = (tensor_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : tensor_size;
-      LOG(INFO) << "tensor data:" << reinterpret_cast<uintptr_t>(tensor_data) << ", tensor_size:" << tensor_size
-                << ", acl_data:" << reinterpret_cast<uintptr_t>(acl_data) << ", copy_size:" << copy_size;
-      if (memcpy_s(tensor_data, tensor_size, acl_data, copy_size) != EOK) {
-        return errors::Internal("Failed copy acl channel data to tensorflow.");
-      }
-      tensor_size -= copy_size;
-      tensor_data += copy_size;
-      acl_data += copy_size;
-    } while (tensor_size > 0);
+    // Skip data copy for empty tensor
+    if (tensor_size != 0UL) {
+      TF_RETURN_IF_ERROR(LoopCopy(tensor_data, tensor_size, acl_data, acl_data_len));
+    }
     tensors.emplace_back(std::move(tensor));
   } else {
     return errors::InvalidArgument("Acl channel receive uncopyable tf data type[", DataTypeString(tf_type), "]");

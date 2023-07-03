@@ -395,6 +395,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
       bool ParallelCopy(void* const dst_ptr, uint64_t dst_size,
                         const char *src_ptr, uint64_t src_size) {
+        if (dst_size < src_size) {
+          ADP_LOG(ERROR) << "Parameters is invalid. "<< "[dst_size:" << dst_size
+                         << ", src_size:" << src_size <<"].";
+          return false;
+        }
         event_num_.store(0U);
         {
           mutex_lock lck(event_finish_mu_);
@@ -424,22 +429,15 @@ class HostQueueDatasetOp : public DatasetOpKernel {
               ADP_LOG(ERROR) << "Parameters is invalid. "<< "[len:" << len << ", buffer_size:" << dst_len <<"].";
               return;
             }
-            uint64_t temp_len = 0ULL;
-            do {
-              uint64_t temp_copy_size = len - temp_len;
-              uint64_t copy_size = (temp_copy_size > SECUREC_MEM_MAX_LEN) ? SECUREC_MEM_MAX_LEN : temp_copy_size;
-              if (memcpy_s(reinterpret_cast<void *>(dst), static_cast<size_t>(dst_len),
-                           src, static_cast<size_t>(copy_size)) != EOK) {
-                closure_ret = false;
-                NotifyEventFinish();
-                ADP_LOG(ERROR) << "Failed to execute memcpy_s. [" << start_pos << "," << copy_size << "].";
-                return;
-              }
-              temp_len += copy_size;
-              dst_len -= copy_size;
-              dst += copy_size;
-              src += copy_size;
-            } while (temp_len < len);
+            auto status = LoopCopy(dst, static_cast<size_t>(len),
+                                   const_cast<char *>(src), static_cast<size_t>(len));
+            if (!status.ok()) {
+              ADP_LOG(ERROR) << "Failed to execute data copy task. start_pos:" << start_pos
+                             << ", copy len:" << len << ", status:" << status.ToString().c_str();
+              closure_ret = false;
+              NotifyEventFinish();
+              return;
+            }
             NotifyEventFinish();
           };
           thread_pool_.PushTask(closure);
@@ -467,6 +465,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             continue;
           }
           void *dst_ptr = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(memory_ptr) + offset);
+          if (memory_size < offset) {
+            ADP_LOG(ERROR) << "Data check failed for memcpy, memory_size:" << memory_size << ", offset:" << offset;
+            return false;
+          }
           uint64_t dst_size = memory_size - offset;
           if (src_size > PARALLEL_MEMORY_TRHESHOLD) {
             if (!ParallelCopy(dst_ptr, dst_size, src_ptr, src_size)) {
