@@ -300,6 +300,7 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
   json option_name_map;
   SetOptionNameMap(option_name_map);
   init_options["ge.optionNameMap"] = option_name_map.dump();
+  init_options["ge.exec.IOAlwaysOnHost"] = "1";
 
   // ge Initialize
   ge::Status status = ge::GEInitialize(init_options);

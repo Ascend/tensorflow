@@ -68,22 +68,9 @@ class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::c
   std::unique_ptr<T, DT> ptr_;
 };
 
-bool IsNeedSetReuseOptions(const std::map<std::string, std::string> &global_options,
-                           const std::map<std::string, std::string> &graph_options) {
-  static auto kGetMemoryPolicy = [](const std::map<std::string, std::string> &options) -> std::string {
-    auto found = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
-    return (found == options.end()) ? "" : found->second;
-  };
-  auto policy = kGetMemoryPolicy(graph_options);
-  if (!policy.empty()) {
-    return policy == "MemoryPriority";
-  }
-  return kGetMemoryPolicy(global_options) == "MemoryPriority";
-}
-
 void SetReuseOptions(const std::string &key, size_t num, const std::map<std::string, std::string> &global_options,
                      std::map<std::string, std::string> &options) {
-  if ((num < 1U) || (!IsNeedSetReuseOptions(global_options, options))) {
+  if (num < 1U) {
     return;
   }
   auto inserted_kv = options.insert(std::make_pair(key, ""));
