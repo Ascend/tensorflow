@@ -267,10 +267,28 @@ bool CmpNodeIndex(const std::pair<Node *, uint32_t> &p1, const std::pair<Node *,
   return p1.second < p2.second;
 }
 
+bool IsNeedSetReuseOptions(const std::map<std::string, std::string> &global_options,
+                           const std::map<std::string, std::string> &init_options,
+                           const std::map<std::string, std::string> &graph_options) {
+  static auto kGetMemoryPolicy = [](const std::map<std::string, std::string> &options) -> std::string {
+    auto found = options.find(ge::MEMORY_OPTIMIZATION_POLICY);
+    return (found == options.end()) ? "" : found->second;
+  };
+  auto policy = kGetMemoryPolicy(graph_options);
+  if (!policy.empty()) {
+    return policy == "MemoryPriority";
+  }
+  policy = kGetMemoryPolicy(init_options);
+  if (!policy.empty()) {
+    return policy == "MemoryPriority";
+  }
+  return kGetMemoryPolicy(global_options) == "MemoryPriority";
+}
+
 void SetReuseOptions(const std::string &key, int32_t num, const std::map<std::string, std::string> &global_options,
                      const std::map<std::string, std::string> &init_options,
                      std::map<std::string, std::string> &options) {
-  if (num < 1) {
+  if ((num < 1) || (!IsNeedSetReuseOptions(global_options, init_options, options))) {
     return;
   }
   auto inserted_kv = options.insert(std::make_pair(key, ""));
