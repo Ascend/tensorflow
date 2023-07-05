@@ -500,8 +500,8 @@ class ESWorker:
                 gen_npu_cpu_ops.embedding_table_export(file_path=file_path_tensor,
                                                        ps_id=ps_id_tensor,
                                                        table_id=table_id_tensor,
-                                                       embedding_dim=embedding_dim_list[0],
-                                                       value_total_len=embedding_dim_list[0],
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
                                                        export_mode="all",
                                                        only_var_flag=True,
                                                        file_type="bin")
@@ -542,8 +542,8 @@ class ESWorker:
                 gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
                                                        file_path=ops.convert_to_tensor(path),
                                                        table_id=ops.convert_to_tensor(table_id_list),
-                                                       embedding_dim=embedding_dim_list[0],
-                                                       value_total_len=embedding_dim_list[0],
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
                                                        only_var_flag=True,
                                                        file_type="bin")
             return tf.group([embedding_table_import])
@@ -609,8 +609,8 @@ class ESWorker:
                 gen_npu_cpu_ops.embedding_table_export(file_path=file_path_tensor,
                                                        ps_id=ps_id_tensor,
                                                        table_id=table_id_tensor,
-                                                       embedding_dim=embedding_dim_list[0],
-                                                       value_total_len=value_total_len_list[0],
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=value_total_len_list,
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin")
@@ -673,8 +673,8 @@ class ESWorker:
                 gen_npu_cpu_ops.embedding_table_import(ps_id=ps_id_tensor,
                                                        file_path=file_path_tensor,
                                                        table_id=table_id_tensor,
-                                                       embedding_dim=embedding_dim_list[0],
-                                                       value_total_len=value_total_len_list[0],
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=value_total_len_list,
                                                        only_var_flag=False,
                                                        file_type="bin")
             with tf.control_dependencies([embedding_table_import]):
@@ -736,8 +736,8 @@ class ESWorker:
                 gen_npu_cpu_ops.embedding_table_export(file_path=file_path_tensor,
                                                        ps_id=ps_id_tensor,
                                                        table_id=table_id_tensor,
-                                                       embedding_dim=embedding_dim_list[0],
-                                                       value_total_len=embedding_dim_list[0],
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
                                                        export_mode="new",
                                                        only_var_flag=True,
                                                        file_type="bin")
@@ -778,8 +778,8 @@ class ESWorker:
                 gen_npu_cpu_ops.embedding_table_import(ps_id=ops.convert_to_tensor(-1),
                                                        file_path=ops.convert_to_tensor(path),
                                                        table_id=ops.convert_to_tensor(table_id_list),
-                                                       embedding_dim=embedding_dim_list[0],
-                                                       value_total_len=embedding_dim_list[0],
+                                                       embedding_dim=embedding_dim_list,
+                                                       value_total_len=embedding_dim_list,
                                                        only_var_flag=True,
                                                        file_type="bin")
             return tf.group([embedding_table_import])
