@@ -216,6 +216,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
                   json option_name_map;
                   SetOptionNameMap(option_name_map);
                   global_options["ge.optionNameMap"] = option_name_map.dump();
+                  global_options["ge.exec.graphIOMemAllocMode"] = "ByGE";
                   auto ge_status = ge::GEInitialize(global_options);
                   if (ge_status != ge::SUCCESS) {
                     return "Failed start graph engine:" + ge::GEGetErrorMsg();
