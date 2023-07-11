@@ -77,7 +77,7 @@ using TimePoint = std::chrono::system_clock::time_point;
 class HostQueueDatasetOp : public DatasetOpKernel {
  public:
   explicit HostQueueDatasetOp(OpKernelConstruction *ctx)
-      : DatasetOpKernel(ctx), local_rank_id_(0U), device_id_(0U), queue_id_(0U) {
+      : DatasetOpKernel(ctx), local_rank_id_(0U), device_id_(0U) {
     // ctx is not nullptr
     std::string local_rank_id;
     std::string local_device_list;
@@ -107,10 +107,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   ~HostQueueDatasetOp() override {
-    if ((kIsHeterogeneous) && (!queue_name_.empty())) {
-      HostQueueDestroy(queue_id_);
-    }
-
     if (tdt_release || (channel_type_ != ChannelType::TDT)) {
       return;
     }
@@ -154,14 +150,11 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       OP_REQUIRES(ctx, queue_depth > 0LL, errors::InvalidArgument("Current data size is unsupported."));
       channel_depth = std::min(static_cast<size_t>(queue_depth), kMaxDepth);
       ADP_LOG(INFO) << "Channel depth is : " << channel_depth;
-      if (kIsHeterogeneous) {
-        CreateHostQueue(ctx, channel_depth);
-      }
     }
     *output = new (nothrow) Dataset(ctx, inputs, channel_name_,
                                     output_types_, output_shapes_, local_rank_id_,
                                     local_device_list_, device_id_, tf_session_,
-                                    channel_type_, channel_depth, queue_id_);
+                                    channel_type_, channel_depth);
     OP_REQUIRES(ctx, *output != nullptr,
                 errors::InvalidArgument("Data process host queue dataset op: new dataset failed."));
   }
@@ -217,31 +210,17 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     return (total_sizes == 0LL) ? kMaxDepth : std::max(2L, (kMaxBytes / total_sizes));
   }
 
-  void CreateHostQueue(OpKernelContext *ctx, size_t channel_depth) {
-    std::hash<std::string> channel_name_dict;
-    std::string queue_name = std::to_string(
-      channel_name_dict(tf_session_ + channel_name_ + "_device_" + std::to_string(device_id_)));
-    if (queue_name_ == queue_name) {
-      ADP_LOG(INFO) << "The channel is already create.";
-      return;
-    }
-    ADP_LOG(INFO) << "Channel name is: " << queue_name << ", Channel depth is: " << channel_depth;
-    Status ret = HostQueueInit(queue_name, channel_depth, queue_id_);
-    OP_REQUIRES(ctx, ret == Status::OK(), errors::InvalidArgument("Failed to create host queue."));
-    queue_name_ = queue_name;
-  }
-
  private:
   class Dataset : public DatasetBase {
    public:
     Dataset(OpKernelContext *ctx, const std::vector<DatasetBase *> &inputs, const string &channelName,
             const DataTypeVector &outputTypes, const vector<PartialTensorShape> &outputShapes,
             const int &local_rank_id, const std::vector<uint32_t> &local_device_list, const uint32_t &device_id,
-            const string &tf_session, const ChannelType &channel_type, size_t channel_depth, uint32_t queue_id)
+            const string &tf_session, const ChannelType &channel_type, size_t channel_depth)
         : DatasetBase(DatasetContext(ctx)), inputs_(inputs), channel_name_(channelName),
           output_types_(outputTypes), output_shapes_(outputShapes), tf_session_(tf_session),
           local_rank_id_(local_rank_id), local_device_list_(local_device_list), device_id_(device_id),
-          channel_type_(channel_type), channel_depth_(channel_depth), queue_id_(queue_id) {
+          channel_type_(channel_type), channel_depth_(channel_depth) {
       for (const auto &input : inputs_) { input->Ref(); }
     }
 
@@ -286,6 +265,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       }
 
       ~Iterator() override {
+        if ((kIsHeterogeneous) && (!queue_name_.empty())) {
+          HostQueueDestroy(queue_id_);
+        }
         std::vector<DataItem> stop_message;
         data_deliver_->ParallelSendDataVec(stop_message);
         {
@@ -749,7 +731,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         bool is_need_resend = false;
         void *buff = nullptr;
         TF_RETURN_IF_ERROR(MappingTensor2Buff(data_type, args, buff));
-        TF_RETURN_IF_ERROR(HostQueueSetTransId(dataset()->queue_id_, buff));
+        TF_RETURN_IF_ERROR(HostQueueSetTransId(queue_id_, buff));
         do {
           {
             mutex_lock lck(mu_);
@@ -761,7 +743,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           if (is_need_resend) {
             sleep(kSleepTime);
           }
-          status = HostQueueSendData(dataset()->queue_id_, buff, is_need_resend);
+          status = HostQueueSendData(queue_id_, buff, is_need_resend);
         } while (status.ok() && is_need_resend);
         return status;
       }
@@ -1050,13 +1032,25 @@ class HostQueueDatasetOp : public DatasetOpKernel {
                                                   dataset()->channel_name_ +
                                                   "_device_" +
                                                   std::to_string(dataset()->device_id_)));
-        acl_handle_ = acltdtCreateChannelWithCapacity(
-          dataset()->device_id_, channel_name.c_str(), static_cast<size_t>(dataset()->channel_depth_));
-        if (acl_handle_ == nullptr) {
-          ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
-          return errors::InvalidArgument("Call acltdtCreateChannelWithCapacity failed.");
+        if (queue_name_ == channel_name) {
+          ADP_LOG(INFO) << "The channel is already exist, channel_name is " << queue_name_.c_str();
+          return Status::OK();
         }
-        ADP_LOG(INFO) << "Create Channel success. channel_name:" << channel_name;
+        if (kIsHeterogeneous) {
+          // For the Helper scenario
+          TF_RETURN_IF_ERROR(HostQueueInit(channel_name, dataset()->channel_depth_, queue_id_));
+        } else {
+          // For the Mbuf scenario
+          acl_handle_ = acltdtCreateChannelWithCapacity(
+              dataset()->device_id_, channel_name.c_str(), dataset()->channel_depth_);
+          if (acl_handle_ == nullptr) {
+            ADP_LOG(ERROR) << "Call acltdtCreateChannelWithCapacity failed.";
+            return errors::InvalidArgument("Call acltdtCreateChannelWithCapacity failed.");
+          }
+        }
+        queue_name_ = channel_name;
+        ADP_LOG(INFO) << "Create Channel success. Channel_name:" << queue_name_.c_str()
+                      << ", Channel depth is: " << dataset()->channel_depth_;
         return Status::OK();
       }
 
@@ -1073,7 +1067,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         try {
           input_impls_.resize(dataset()->inputs_.size());
         } catch (...) { return errors::InvalidArgument("HostQueueDataset resize failed."); }
-        if ((dataset()->channel_type_ == ChannelType::ACL_QUEUE) && (!CreateChannel().ok())) {
+        if ((dataset()->channel_type_ != ChannelType::TDT) && (!CreateChannel().ok())) {
           return errors::InvalidArgument("Call CreatChannel queue failed");
         }
         for (size_t i = 0; i < input_impls_.size(); ++i) {
@@ -1160,6 +1154,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       DataItemDeliver *data_deliver_;
       acltdtChannelHandle *acl_handle_;
       uint32_t queue_id_;
+      std::string queue_name_;
       int active_thread_num_ = 0;
       std::function<void()> deregister_fn_;
       using DataPerfRecord = struct {
@@ -1188,8 +1183,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
     std::vector<uint32_t> local_device_list_;
     uint32_t device_id_;
     ChannelType channel_type_;
-    int64_t channel_depth_;
-    uint32_t queue_id_;
+    size_t channel_depth_;
   };
   std::string channel_name_;
   DataTypeVector output_types_;
@@ -1199,8 +1193,6 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   std::vector<uint32_t> local_device_list_;
   uint32_t device_id_;
   ChannelType channel_type_;
-  uint32_t queue_id_;
-  std::string queue_name_;
 };
 
 REGISTER_KERNEL_BUILDER(Name("HostQueueDataset").Device(DEVICE_CPU), HostQueueDatasetOp);
