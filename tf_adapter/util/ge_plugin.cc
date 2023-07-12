@@ -117,7 +117,7 @@ void SetOptionNameMap(json &option_name_map) {
   option_name_map.emplace("ge.exec.hcclExecuteTimeOut", "hccl_timeout");
   option_name_map.emplace("ge.exec.opWaitTimeout", "op_wait_timeout");
   option_name_map.emplace("ge.exec.opExecuteTimeout", "op_execute_timeout");
-  option_name_map.emplace("ge.exec.opDebugConfig", "op_debug_config");
+  option_name_map.emplace("op_debug_config", "op_debug_config");
   option_name_map.emplace("ge.exec.staticMemoryPolicy", "static_memory_policy");
   option_name_map.emplace("ge.socVersion", "soc_config");
   option_name_map.emplace("ge.esClusterConfig", "es_cluster_config");
