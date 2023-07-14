@@ -49,7 +49,7 @@ class IteratorH2D : public OpKernel {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("device_ids", &device_ids_));
   }
 
-  ~IteratorH2D() override = default;
+  ~IteratorH2D() override { DestroyTdtChannels(); }
 
   void Compute(OpKernelContext *ctx) override {
     if (!initialized_.exchange(true)) {
@@ -58,6 +58,7 @@ class IteratorH2D : public OpKernel {
         ss << device_id << " ";
       }
       npu::global::GlobalHdcChannel::GetInstance().Get(channel_name_, channels_);
+      LOG(INFO) << channels_.size() << " hdc channels for iterator resource " << channel_name_ << " created.";
       if (channels_.empty()) {
         use_global_channel_ = false;
         channels_.resize(device_ids_.size());
@@ -67,18 +68,12 @@ class IteratorH2D : public OpKernel {
         }
       }
       LOG(INFO) << "Hdc channel for iterator resource " << channel_name_ << " to device ["
-                << ss.str().substr(0, ss.str().size() - 1) << "] created";
+                << ss.str().substr(0, ss.str().size() - 1) << "] created.";
     }
 
     CancellationManager *cm = ctx->cancellation_manager();
     CancellationToken token = cm->get_cancellation_token();
-    bool cancelled = !cm->RegisterCallback(token, [this]() {
-      if (!use_global_channel_) {
-        for (const auto &channel : channels_) {
-          channel->Destroy();
-        }
-      }
-    });
+    bool cancelled = !cm->RegisterCallback(token, [this]() { DestroyTdtChannels(); });
     if (cancelled) {
       ctx->SetStatus(tensorflow::errors::Internal("Iterator resource ", channel_name_, " consume after destroyed"));
       return;
@@ -88,13 +83,13 @@ class IteratorH2D : public OpKernel {
     data::IteratorResource *iterator;
     OP_REQUIRES_OK(ctx, LookupResource(ctx, HandleFromInput(ctx, 0), &iterator));
     core::ScopedUnref unref_iterator(iterator);
-    std::vector<Tensor> components;
-    bool end_of_sequence = false;
 
     int64_t nums = ctx->input(1).flat<int64>()(0);
     OP_REQUIRES(ctx, nums >= 0, tensorflow::errors::InvalidArgument(channel_name_, " invalid consume nums ", nums));
 
     int64_t consumed = 0;
+    bool end_of_sequence = false;
+    std::vector<Tensor> components;
     while (nums == 0 || consumed++ < nums) {
       components.clear();
 
@@ -124,11 +119,20 @@ class IteratorH2D : public OpKernel {
   }
 
  private:
+  void DestroyTdtChannels() {
+    if (use_global_channel_) {
+      return;
+    }
+    for (const auto &channel : channels_) {
+      channel->Destroy();
+    }
+    channels_.clear();
+  }
+  bool use_global_channel_ {true};
+  std::atomic_bool initialized_ {false};
   std::string channel_name_;
   std::vector<int> device_ids_;
   std::vector<std::shared_ptr<npu::HdcChannel>> channels_;
-  std::atomic_bool initialized_{false};
-  bool use_global_channel_{true};
 };
 
 REGISTER_KERNEL_BUILDER(Name("IteratorH2D").Device(DEVICE_CPU).Priority(3), IteratorH2D);

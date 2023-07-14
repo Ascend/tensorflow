@@ -349,23 +349,23 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             auto record = &data_thread_perf_stat_[i].data_record[index];
             if (record->start_time == 0) { continue; }
             ADP_LOG(EVENT) << "DataThreadPerf: " << i
-                           << "(0:recv, 1:send), data_index: " << record->data_index
+                           << "[0:RECV, 1:SEND], data_index: " << record->data_index
                            << ", start_time: " << FormatTimestampToDate(record->start_time)
                            << ", end_time: " << FormatTimestampToDate(record->end_time)
                            << ", elapsed_time: " << record->elapsed_time
                            << " us, buffer_size: " << record->buffer_size
-                           << ", total_bytes: " << record->total_bytes << " bytes";
+                           << ", total_bytes: " << record->total_bytes << " bytes.";
           }
           auto record_max =  &data_thread_perf_stat_[i].data_record_max;
           ADP_LOG(EVENT) << "DataThreadPerf: " << i
-                         << "(0:recv, 1:send), device_id: " << dataset()->device_id_
+                         << "[0:RECV, 1:SEND], device_id: " << dataset()->device_id_
                          << ", channel_name: " << dataset()->channel_name_
                          << ", longest time data_index: " << record_max->data_index
                          << ", start_time: " << FormatTimestampToDate(record_max->start_time)
                          << ", end_time: " << FormatTimestampToDate(record_max->end_time)
                          << ", elapsed_time: " << record_max->elapsed_time
                          << " us, buffer_size: " << record_max->buffer_size
-                         << ", total_bytes: " << record_max->total_bytes << " bytes";
+                         << ", total_bytes: " << record_max->total_bytes << " bytes.";
         }
       }
 
@@ -543,10 +543,10 @@ class HostQueueDatasetOp : public DatasetOpKernel {
         }
 
         ADP_LOG(INFO) << "DataThreadPerf: " << static_cast<size_t>(type)
-                      << "(0:revc, 1:send), data_index: " << perf_stat->data_record_num
+                      << "[0:RECV, 1:SEND], data_index: " << perf_stat->data_record_num
                       << ", elapsed_time: " << elapsed_time
                       << " us, buffer_size: " << buff_size
-                      << ", total_bytes: " << args_total_bytes << " bytes";
+                      << ", total_bytes: " << args_total_bytes << " bytes.";
       }
 
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {

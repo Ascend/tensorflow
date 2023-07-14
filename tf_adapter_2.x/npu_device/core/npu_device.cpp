@@ -153,7 +153,7 @@ void NpuDevice::CreateIteratorProvider(TFE_Context *context, const tensorflow::T
   };
 
   auto provider = std::make_shared<npu::IteratorResourceProvider>(resource.name(), consume_func, destroy_func);
-  LOG(INFO) << "Iterator resource provider for " << resource.name() << " created";
+  LOG(INFO) << "Iterator resource provider for " << resource.name() << " created.";
 
   NPU_CTX_REQUIRES(status, provider != nullptr,
                    tensorflow::errors::Internal("Failed create iterator reosurce provider for ", resource.name()));
@@ -241,7 +241,8 @@ void NpuDevice::ReleaseResource() {
     auto provider = iterator_provider.second;
     thread_guarder.emplace_back(std::async([provider]() { provider->Destroy(); }));
   }
-
+  cached_op_specs_.clear();
+  cached_func_specs_.clear();
   DLOG() << "Start cancel all uncompleted async call";
   CancellationManager()->StartCancel();
 }
