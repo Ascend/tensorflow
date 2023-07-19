@@ -156,8 +156,40 @@ class NPUBulkSaverBuilder(BulkSaverBuilder):
 
 class NPUSaver(Saver):
     """NPU saver for saving checkpoints"""
-    def __init__(self):
-        super().__init__()
+
+    def __init__(self,
+                 var_list=None,
+                 reshape=False,
+                 sharded=False,
+                 max_to_keep=5,
+                 keep_checkpoint_every_n_hours=10000.0,
+                 name=None,
+                 restore_sequentially=False,
+                 saver_def=None,
+                 builder=None,
+                 defer_build=False,
+                 allow_empty=False,
+                 write_version=saver_pb2.SaverDef.V2,
+                 pad_step_number=False,
+                 save_relative_paths=False,
+                 filename=None):
+        super(NPUSaver, self).__init__(
+            var_list=var_list,
+            reshape=reshape,
+            sharded=sharded,
+            max_to_keep=max_to_keep,
+            keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours,
+            name=name,
+            restore_sequentially=restore_sequentially,
+            saver_def=saver_def,
+            builder=builder,
+            defer_build=defer_build,
+            allow_empty=allow_empty,
+            write_version=write_version,
+            pad_step_number=pad_step_number,
+            save_relative_paths=save_relative_paths,
+            filename=filename
+        )
         self._builder = None
 
     def _build(self, checkpoint_path, build_save, build_restore):

@@ -392,7 +392,7 @@ class NPUEstimator(estimator_lib.Estimator):
                         checkpoint_dir=model_dir,
                         save_secs=config.save_checkpoints_secs,
                         save_steps=config.save_checkpoints_steps,
-                        saver=NPUSaver()))
+                        saver=NPUSaver(max_to_keep=config.keep_checkpoint_max)))
 
                 if isinstance(estimator_spec, NPUEstimatorSpec):
                     if estimator_spec._host_call is not None:
