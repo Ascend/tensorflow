@@ -29,7 +29,12 @@ file(GLOB_RECURSE UT_SOURCES
     "kernels/testcase/*.cc"
     "common/testcase/*.cc"
 )
-
+file(GLOB_RECURSE SEPARATED_UT_SOURCES
+    "kernels/testcase/dataset/map_dataset_ut.cc"
+    "kernels/testcase/dataset/map_and_batch_dataset_ut.cc"
+    "kernels/testcase/dataset/dataset_function_ut.cc"
+)
+list(REMOVE_ITEM UT_SOURCES ${SEPARATED_UT_SOURCES})
 add_executable(tfadapter_utest
                "main.cc"
                ${UT_SOURCES}

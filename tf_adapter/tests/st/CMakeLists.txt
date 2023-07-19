@@ -28,7 +28,12 @@ file(GLOB_RECURSE ST_SOURCES
     "kernels/testcase/*.cc"
     "util/testcase/*.cc"
 )
-
+file(GLOB_RECURSE SEPARATED_ST_SOURCES
+    "kernels/testcase/dataset/map_dataset_st.cc"
+    "kernels/testcase/dataset/map_and_batch_dataset_st.cc"
+    "kernels/testcase/dataset/dataset_function_st.cc"
+    )
+list(REMOVE_ITEM ST_SOURCES ${SEPARATED_ST_SOURCES})
 add_executable(tfadapter_stest
                "main.cc"
                ${ST_SOURCES}

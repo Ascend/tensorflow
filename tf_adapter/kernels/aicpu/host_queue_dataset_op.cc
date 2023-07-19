@@ -38,6 +38,7 @@
 #include "tf_adapter/common/compat_tf1_tf2.h"
 #include "tf_adapter/util/util.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter/util/ge_plugin.h"
 #include "tf_adapter/util/acl_channel.h"
 #include "tf_adapter/util/host_queue.h"
 #include "tf_adapter/util/memory_pool.h"
@@ -45,7 +46,6 @@
 #include "tf_adapter/util/host_allocator.h"
 #include "tf_adapter/kernels/aicpu/data_item_deliver.h"
 #include "tf_adapter/kernels/aicpu/npu_tensor.h"
-#include "tf_adapter/kernels/aicpu/dataset_function.h"
 
 namespace tensorflow {
 namespace data {
@@ -1092,7 +1092,7 @@ class HostQueueDatasetOp : public DatasetOpKernel {
             TF_RETURN_IF_ERROR(data_deliver_->InitSocketServer());
           }
         }
-        TF_RETURN_IF_ERROR(DatasetFunction::RegisterNpuCancellation(
+        TF_RETURN_IF_ERROR(RegisterNpuCancellationCallback(
             [this]() {
               mutex_lock lck(mu_);
               finish_send_ = true;

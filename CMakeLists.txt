@@ -1,6 +1,11 @@
 option(ENABLE_OPEN_SRC "Enable graphengine compile in opensource." FALSE)
 
 set(TFADAPTER_DIR ${CMAKE_CURRENT_LIST_DIR})
+file(GLOB_RECURSE SEPARATED_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/aicpu/map_dataset_op.cc
+    ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/aicpu/map_and_batch_dataset_op.cc
+    ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/aicpu/dataset_function.cc
+)
 
 if (ENABLE_OPEN_SRC)
     cmake_minimum_required(VERSION 3.14)
@@ -64,6 +69,7 @@ if (ENABLE_OPEN_SRC)
         ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/optimizers/*.cc
         ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/util/*.cc
     )
+    list(REMOVE_ITEM SOURCES ${SEPARATED_SOURCES})
     add_library(_tf_adapter SHARED ${SOURCES} ${CMAKE_BINARY_DIR}/dist/swig/ge_plugin_wrap.cxx)
 
     foreach (COMPILE_FLAG ${COMPILE_FLAGS})
@@ -135,7 +141,7 @@ else()
         ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/optimizers/*.cc
         ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/util/*.cc
     )
-
+    list(REMOVE_ITEM SOURCES ${SEPARATED_SOURCES})
     add_library(tf_adapter SHARED
         ${SOURCES}
         ${BASE_DIR}/tf_adapter/util/ge_plugin_wrap.cxx

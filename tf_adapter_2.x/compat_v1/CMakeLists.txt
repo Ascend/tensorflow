@@ -38,7 +38,12 @@ file(GLOB_RECURSE SOURCES
         ${ADAPTER_ROOT}/tf_adapter/optimizers/*.cc
         ${ADAPTER_ROOT}/tf_adapter/util/*.cc
         )
-
+file(GLOB_RECURSE SEPARATED_SOURCES
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/aicpu/map_dataset_op.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/aicpu/map_and_batch_dataset_op.cc
+        ${CMAKE_CURRENT_LIST_DIR}/tf_adapter/kernels/aicpu/dataset_function.cc
+        )
+list(REMOVE_ITEM SOURCES ${SEPARATED_SOURCES})
 add_library(_tf_adapter SHARED ${SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/ge_plugin_wrap.cxx)
 set_target_properties(_tf_adapter PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY ${COMPAT_V1_DST})
 
