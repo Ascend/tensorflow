@@ -121,6 +121,8 @@ void SetOptionNameMap(json &option_name_map) {
   option_name_map.emplace("ge.exec.staticMemoryPolicy", "static_memory_policy");
   option_name_map.emplace("ge.socVersion", "soc_config");
   option_name_map.emplace("ge.esClusterConfig", "es_cluster_config");
+  option_name_map.emplace(ge::OPTION_EXEC_DYNAMIC_EXECUTE_MODE, "dynamic_graph_execute_mode");
+  option_name_map.emplace(ge::OPTION_EXEC_DYNAMIC_INPUT, "dynamic_input");
 }
 }  // namespace
 
