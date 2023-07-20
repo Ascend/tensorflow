@@ -143,6 +143,10 @@ private:
 
   void UpdateInputsShapeDesc(Graph &graph);
 
+  Status DoGraphParser(ge::ComputeGraphPtr &compute_graph, FunctionLibraryDefinition *flib_def,
+                       GraphDef &ori_graph_def);
+
+  Status CreateGeSession();
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;
   static const std::string SERIALIZE_FORMAT;
