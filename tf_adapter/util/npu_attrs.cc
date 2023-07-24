@@ -2048,15 +2048,63 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
         }
       }
       if (params.count("modify_mixlist") > 0) {
-        if (params.count("precision_mode") > 0 && params.at("precision_mode").s() == "allow_mix_precision") {
+        bool check_precision_mode = false;
+        bool check_precision_mode_v2 = false;
+        if (params.count("precision_mode") > 0) {
+          const std::string precision_mode = params.at("precision_mode").s();
+          check_precision_mode = ((precision_mode == "allow_mix_precision") ||
+              (precision_mode == "allow_mix_precision_fp16") ||
+              (precision_mode == "allow_mix_precision_bf16"));
+        } else if (params.count("precision_mode_v2") > 0) {
+          const std::string precision_mode_v2 = params.at("precision_mode_v2").s();
+          check_precision_mode_v2 = ((precision_mode_v2 == "mixed_float16") ||
+              (precision_mode_v2 == "mixed_bfloat16"));
+        }
+
+        if (check_precision_mode || check_precision_mode_v2) {
           modify_mixlist = params.at("modify_mixlist").s();
+        } else if (params.count("precision_mode") > 0) {
+          ADP_LOG(ERROR)
+              << "modify_mixlist is assigned, please ensure that precision_mode is assigned to "
+              << "'allow_mix_precision' or 'allow_mix_precision_fp16' or "
+              << "'allow_mix_precision_bf16'(if available).";
+          LOG(ERROR)
+              << "modify_mixlist is assigned, please ensure that precision_mode is assigned to "
+              << "'allow_mix_precision' or 'allow_mix_precision_fp16' or "
+              << "'allow_mix_precision_bf16'(if available).";
+          return errors::Internal(
+              "modify_mixlist is assigned, please ensure that precision_mode is assigned to "
+              "'allow_mix_precision' or 'allow_mix_precision_fp16' or "
+              "'allow_mix_precision_bf16'(if available).");
+        } else if (params.count("precision_mode_v2") > 0) {
+          ADP_LOG(ERROR)
+              << "modify_mixlist is assigned, please ensure that precision_mode_v2 is assigned to "
+              << "'mixed_float16' or 'mixed_bfloat16'(if available).";
+          LOG(ERROR)
+              << "modify_mixlist is assigned, please ensure that precision_mode_v2 is assigned to "
+              << "'mixed_float16' or 'mixed_bfloat16'(if available).";
+          return errors::Internal(
+              "modify_mixlist is assigned, please ensure that precision_mode_v2 is assigned to "
+              "'mixed_float16' or 'mixed_bfloat16'(if available).");
         } else {
           ADP_LOG(ERROR)
-              << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
+              << "modify_mixlist is assigned, please ensure precision_mode only can be assigned "
+              << "to 'allow_mix_precision' or 'allow_mix_precision_fp16' or "
+              << "'allow_mix_precision_bf16'(if available),"
+              << "precision_mode_v2 only can be assigned to 'mixed_float16' or "
+              << "'mixed_bfloat16'(if available).";
           LOG(ERROR)
-              << "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.";
+              << "modify_mixlist is assigned, please ensure precision_mode only can be assigned "
+              << "to 'allow_mix_precision' or 'allow_mix_precision_fp16' or "
+              << "'allow_mix_precision_bf16'(if available),"
+              << "precision_mode_v2 only can be assigned to 'mixed_float16' or "
+              << "'mixed_bfloat16'(if available).";
           return errors::Internal(
-              "modify_mixlist is assigned, please ensure that precision_mode is assigned to 'allow_mix_precision'.");
+              "modify_mixlist is assigned, please ensure precision_mode only can be assigned "
+              "to 'allow_mix_precision' or 'allow_mix_precision_fp16' or "
+              "'allow_mix_precision_bf16'(if available),"
+              "precision_mode_v2 only can be assigned to 'mixed_float16' or "
+              "'mixed_bfloat16'(if available).");
         }
       }
       if ((params.count("precision_mode") > 0) && (params.count("precision_mode_v2") > 0)) {
