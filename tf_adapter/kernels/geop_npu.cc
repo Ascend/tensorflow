@@ -1472,8 +1472,15 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   std::map<ge::AscendString, ge::AscendString> parser_params;
   std::string subgrph_name("onnx_compute_graph_" + node->name() + '_' + CurrentTimeInStr());
   parser_params.insert({ge::AscendString(ge::ir_option::OUTPUT), ge::AscendString(subgrph_name.c_str())});
-  NPU_REQUIRES(ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph) == ge::SUCCESS,
-               errors::Internal("[GEOP] node:", node->name(), " Onnx Model Parse Failed."));
+  ge::Status status = ge::aclgrphParseONNX(model_path.c_str(), parser_params, sub_graph);
+  if (status != ge::SUCCESS) {
+    ADP_LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx model parse failed, ret: " << ToString(status);
+    std::stringstream ss;
+    ss << "[GEOP] node: " << node->name() << ": Onnx model parse failed, ret: " << ToString(status) << std::endl
+       << "Error Message is : " << std::endl
+       << ge::GEGetErrorMsg();
+    return errors::Internal(ss.str());
+  }
 
   // rename the nodes in subgraph of onnx model
   for (auto &sub_node : sub_graph.GetAllNodes()) {
