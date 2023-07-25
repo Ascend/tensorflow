@@ -955,6 +955,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     SetReuseOptions("ge.exec.outputReuseMemIndexes", ctx->num_outputs(), sess_options_, init_options_, graph_options);
     ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << jit_compile_;
+    graph_options["ge.exec.graphIOMemAllocMode"] = "ByGE";
     status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
