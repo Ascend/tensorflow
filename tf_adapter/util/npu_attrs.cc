@@ -2088,22 +2088,22 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
               "'mixed_float16' or 'mixed_bfloat16'(if available).");
         } else {
           ADP_LOG(ERROR)
-              << "modify_mixlist is assigned, please ensure precision_mode only can be assigned"
+              << "modify_mixlist is assigned, please ensure precision_mode only can be assigned "
               << "to 'allow_mix_precision' or 'allow_mix_precision_fp16' or "
-              << "'allow_mix_precision_bf16'(if available)."
-              << "precision_mode_v2 only can be assigned to mixed_float16' or "
+              << "'allow_mix_precision_bf16'(if available),"
+              << "precision_mode_v2 only can be assigned to 'mixed_float16' or "
               << "'mixed_bfloat16'(if available).";
           LOG(ERROR)
-              << "modify_mixlist is assigned, please ensure precision_mode only can be assigned"
+              << "modify_mixlist is assigned, please ensure precision_mode only can be assigned "
               << "to 'allow_mix_precision' or 'allow_mix_precision_fp16' or "
-              << "'allow_mix_precision_bf16'(if available)."
-              << "precision_mode_v2 only can be assigned to mixed_float16' or "
+              << "'allow_mix_precision_bf16'(if available),"
+              << "precision_mode_v2 only can be assigned to 'mixed_float16' or "
               << "'mixed_bfloat16'(if available).";
           return errors::Internal(
-              "modify_mixlist is assigned, please ensure precision_mode only can be assigned"
+              "modify_mixlist is assigned, please ensure precision_mode only can be assigned "
               "to 'allow_mix_precision' or 'allow_mix_precision_fp16' or "
-              "'allow_mix_precision_bf16'(if available)."
-              "precision_mode_v2 only can be assigned to mixed_float16' or "
+              "'allow_mix_precision_bf16'(if available),"
+              "precision_mode_v2 only can be assigned to 'mixed_float16' or "
               "'mixed_bfloat16'(if available).");
         }
       }
