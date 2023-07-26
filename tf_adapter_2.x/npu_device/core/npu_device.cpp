@@ -977,6 +977,7 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
       LOG(INFO) << "  " << option.first << ":" << option.second;
     }
   }
+  options["ge.exec.graphIOMemAllocMode"] = "ByGE";
   NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph, options),
                                 graph_id);
   return graph_id;
