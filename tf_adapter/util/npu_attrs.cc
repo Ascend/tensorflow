@@ -685,7 +685,6 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   init_options_["ge.exec.customizeDdtypes"] = customize_dtypes;
   init_options_["static_memory_policy"] = static_memory_policy;
   // Commercial version has been released, temporarily used
-  init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
   init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
   if (!soc_config.empty()) {
     init_options_["ge.socVersion"] = soc_config;
@@ -1529,7 +1528,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["memory_optimization_policy"] = memory_optimization_policy;
   all_options["static_memory_policy"] = static_memory_policy;
   // Commercial version has been released, temporarily used
-  all_options["GE_USE_STATIC_MEMORY"] = static_memory_policy;
   all_options["ge.autoTuneMode"] = auto_tune_mode;
   all_options["graph_run_mode"] = graph_run_mode;
   all_options["op_debug_level"] = op_debug_level;
@@ -2321,7 +2319,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   init_options_["ge.exec.opDebugConfig"] = op_debug_config;
   init_options_["static_memory_policy"] = static_memory_policy;
   // Commercial version has been released, temporarily used
-  init_options_["GE_USE_STATIC_MEMORY"] = static_memory_policy;
   init_options_["ge.exec.staticMemoryPolicy"] = static_memory_policy;
 
   init_options_["ge.hcomMultiMode"] = std::to_string(hcom_multi_mode);
