@@ -395,16 +395,18 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   mix_compile_mode_ = pass_options["mix_compile_mode"];
   if (GePlugin::GetInstance()->IsGlobal()) {
     ADP_LOG(INFO) << "[GEOP] GePlugin global, skip GePlugin init";
-    init_options_ = GePlugin::GetInstance()->GetInitOptions();
+    InitAoeFlag();
   } else {
     init_options_ = NpuAttrs::GetInitOptions(ctx);
-    GePlugin::GetInstance()->Init(init_options_);
+    InitAoeFlag();
+    // aoe should not init ge async
+    GePlugin::GetInstance()->Init(init_options_, false, !is_aoe_);
     ADP_LOG(INFO) << "[GEOP] GePlugin init success.";
   }
   ADP_LOG(INFO) << "init options: ";
   NpuAttrs::LogOptions(init_options_);
 
-  if ((!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty())) {
+  if (is_aoe_) {
     handle_ = mmDlopen("libaoe_tuning.so", MMPA_RTLD_NOW);
     OP_REQUIRES(ctx, handle_ != nullptr, errors::InvalidArgument("libaoe_tuning.so dlopen failed, ", mmDlerror()));
     // aoe init
@@ -423,7 +425,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
     aoe_destroy_session_ = (AoeDestroySessionFunc) mmDlsym(handle_, "AoeDestroySession");
     OP_REQUIRES(ctx, aoe_destroy_session_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe destroy session API failed, ", mmDlerror()));
-    // aoe set session
+    // share ge_session to aoe
     aoe_set_gesession_ = (AoeSetGeSessionFunc) mmDlsym(handle_, "AoeSetGeSession");
     OP_REQUIRES(ctx, aoe_set_gesession_ != nullptr,
                 errors::InvalidArgument("dlsym Aoe set session API failed, ", mmDlerror()));
@@ -700,63 +702,105 @@ bool GeOp::MaybeUpdateShape(OpKernelContext *const ctx) {
   return updated;
 }
 
+Status GeOp::CreateGeSession() {
+  // create ge session should be ensure after getinit aysnc success
+  const auto init_status = GePlugin::GetInstance()->GetInitStatus();
+  if (init_status != ge::SUCCESS) {
+    std::string error_message = ge::GEGetErrorMsg();
+    std::stringstream ss;
+    ss << "[GePlugin] Initialize ge failed, ret : " << ToString(init_status) << std::endl
+       << "Error Message is : " << std::endl
+       << error_message;
+    return errors::Internal(ss.str());
+  }
+  static bool first = true;
+  if (first) {
+    ADP_LOG(INFO) << "[GePlugin] Initialize ge success.";
+    first = false;
+  }
+  if (!sess_init_flag_) {
+    mutex_lock lock{mu_};
+    if (!SessionManager::GetInstance().GetOrCreateGeSession(tf_session_, ge_session_, sess_options_) ||
+        tf_session_.empty() || ge_session_ == nullptr) {
+      return errors::Unavailable("Get ge session failed.");
+    }
+  }
+  sess_init_flag_ = true;
+  ADP_LOG(INFO) << "[GEOP] tf session: " << tf_session_ << " get ge session success.";
+  return Status::OK();
+}
+
+Status GeOp::DoGraphParser(ge::ComputeGraphPtr &compute_graph, FunctionLibraryDefinition *flib_def,
+                           GraphDef &ori_graph_def) {
+  std::shared_ptr<domi::ModelParser> model_parser =
+      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
+  REQUIRES_NOT_NULL(model_parser);
+
+  std::map<std::string, std::string> const_value_map;
+  std::vector<std::string> partition_graph;
+  auto tf_status = SeparateGraphDef(ori_graph_def, partition_graph, const_value_map);
+  if (!tf_status.ok()) {
+    return tf_status;
+  }
+  auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
+    return this->BuildSubGraph(flib_def, graph);
+  };
+  ge::Status status =
+      model_parser->ParseProtoWithSubgraph(partition_graph, const_value_map, build_sub_graph, compute_graph);
+  if (status != ge::SUCCESS) {
+    std::string error_message = ge::GEGetErrorMsg();
+    std::stringstream ss;
+    ss << "graph parse failed. ret : " << status << std::endl << "Error Message is : " << std::endl << error_message;
+    return errors::Internal(ss.str());
+  }
+
+  domi::GetContext().format = ge::GetParserContext().format;
+  return Status::OK();
+}
+
 void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   // ctx is not nullptr
   OP_REQUIRES_ASYNC(ctx, init_flag_, errors::InvalidArgument("GeOp not Initialize success."), done);
-  // ge ge session
-  {
-    mutex_lock lock{mu_};
-    if (!sess_init_flag_) {
-      if (job_type_ != "localhost") {  // in ps mode : ctx->session_handle() is empty
-        tf_session_ = "ps_worker_session";
-        ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " when in ps mode.";
-      }
+  if (!sess_init_flag_) {
+    if (job_type_ != "localhost") {  // in ps mode : ctx->session_handle() is empty
+      tf_session_ = "ps_worker_session";
+      ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " when in ps mode.";
+    }
+    if (tf_session_.empty()) {
+      tf_session_ = ctx->session_handle();
+      ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " from session handle.";
+    }
+    bool res = IncrementGraphIdCount(graph_id_);
+    if (!res) {
+      OP_REQUIRES_ASYNC(ctx, false, errors::Unavailable("Get ge session failed."), done);
+      return;
+    }
 
-      if (tf_session_.empty()) {
-        tf_session_ = ctx->session_handle();
-        ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " from session handle.";
+    ADP_LOG(INFO) << "[GEOP] Node name: " << ctx->op_kernel().name() << " , tf session: " << tf_session_;
+    if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
+      uint32_t device_id = 0;
+      OP_REQUIRES_OK_ASYNC(ctx, GetEnvDeviceID(device_id), done);
+      ADP_LOG(INFO) << "[GEOP] in tuning func, aoe_mode:" << init_options_["ge.jobType"]
+                    << ", work_path:" << init_options_["ge.tuningPath"]
+                    << ", distribute_config:" << init_options_["distribute_config"];
+      tune_options_.insert(init_options_.cbegin(), init_options_.cend());
+      tune_options_.insert({"devices", std::to_string(device_id)});
+      tune_options_.insert(sess_options_.cbegin(), sess_options_.cend());
+      tune_options_.insert({"work_path", init_options_["ge.tuningPath"]});
+      tune_options_.insert({"job_type", init_options_["ge.jobType"]});
+      // aoe ini
+      if (!tuned_initialize_flag_) {
+        std::map<ge::AscendString, ge::AscendString> global_options;
+        global_options.insert(
+            {ge::AscendString("work_path"), ge::AscendString(init_options_["ge.tuningPath"].c_str())});
+        global_options.insert({ge::AscendString("job_type"), ge::AscendString(init_options_["ge.jobType"].c_str())});
+        global_options.insert({ge::AscendString("ge.resourceConfigPath"),
+                               ge::AscendString(sess_options_["ge.resourceConfigPath"].c_str())});
+        AoeStatus init_ret = (*aoe_initialize_)(global_options);
+        OP_REQUIRES_ASYNC(ctx, init_ret == Aoe::AOE_SUCCESS,
+                          errors::Internal("[GEOP] exec aoe initialize func failed[", init_ret, "]."), done);
+        tuned_initialize_flag_ = true;
       }
-
-      bool res = IncrementGraphIdCount(graph_id_);
-      if (!res) {
-        OP_REQUIRES_ASYNC(ctx, false, errors::Unavailable("Get ge session failed."), done);
-        return;
-      }
-
-      ADP_LOG(INFO) << "[GEOP] Node name: " << ctx->op_kernel().name() << " , tf session: " << tf_session_;
-
-      res = SessionManager::GetInstance().GetOrCreateGeSession(tf_session_, ge_session_, sess_options_);
-      if (!res || tf_session_.empty() || ge_session_ == nullptr) {
-        OP_REQUIRES_ASYNC(ctx, false, errors::Unavailable("Get ge session failed."), done);
-        return;
-      }
-      if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
-        uint32_t device_id = 0;
-        OP_REQUIRES_OK_ASYNC(ctx, GetEnvDeviceID(device_id), done);
-        ADP_LOG(INFO) << "[GEOP] in tuning func, aoe_mode:" << init_options_["ge.jobType"]
-                      << ", work_path:" << init_options_["ge.tuningPath"]
-                      << ", distribute_config:" << init_options_["distribute_config"];
-        tune_options_.insert(init_options_.cbegin(), init_options_.cend());
-        tune_options_.insert({"devices", std::to_string(device_id)});
-        tune_options_.insert(sess_options_.cbegin(), sess_options_.cend());
-        tune_options_.insert({"work_path", init_options_["ge.tuningPath"]});
-        tune_options_.insert({"job_type", init_options_["ge.jobType"]});
-        // aoe ini
-        if (!tuned_initialize_flag_) {
-          std::map<ge::AscendString, ge::AscendString> global_options;
-          global_options.insert(
-              {ge::AscendString("work_path"), ge::AscendString(init_options_["ge.tuningPath"].c_str())});
-          global_options.insert({ge::AscendString("job_type"), ge::AscendString(init_options_["ge.jobType"].c_str())});
-          global_options.insert({ge::AscendString("ge.resourceConfigPath"),
-                                 ge::AscendString(sess_options_["ge.resourceConfigPath"].c_str())});
-          AoeStatus init_ret = (*aoe_initialize_)(global_options);
-          OP_REQUIRES_ASYNC(ctx, init_ret == Aoe::AOE_SUCCESS,
-                            errors::Internal("[GEOP] exec aoe initialize func failed[", init_ret, "]."), done);
-          tuned_initialize_flag_ = true;
-        }
-      }
-      ADP_LOG(INFO) << "[GEOP] tf session: " << tf_session_ << " get ge session success.";
-      sess_init_flag_ = true;
     }
   }
 
@@ -790,13 +834,12 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
   // if input shapes changed, cache graphs
   uint32_t cache_graph_id = graph_id_;
-  bool is_tuning = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
   bool is_lazy_recompile_mode = (dynamic_input_ == "1") && (dynamic_graph_execute_mode_ == "lazy_recompile");
   ADP_LOG(INFO) << "is_set_dynamic_config: " << is_set_dynamic_config
-                << " is_tuning: " << is_tuning
+                << " is_aoe_: " << is_aoe_
                 << " is_lazy_recompile_mode: " << is_lazy_recompile_mode;
 
-  if (is_tuning) {
+  if (is_aoe_) {
     if (is_set_dynamic_config) {
       ADP_LOG(ERROR) << "dynamic input config can not use with mstuning.";
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("dynamic input config can not use with mstuning."), done);
@@ -837,8 +880,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     FunctionLibraryDefinition *flib_def =
         const_cast<FunctionLibraryDefinition *>(ctx->function_library()->GetFunctionLibraryDefinition());
     OP_REQUIRES_ASYNC(ctx, flib_def != nullptr, errors::Internal("flib_def is nullptr"), done);
-    std::shared_ptr<Graph> graph = std::make_shared<Graph>(OpRegistry::Global());
-    OP_REQUIRES_ASYNC(ctx, graph != nullptr, errors::Internal("create tensorflow graph failed"), done);
 
     // Build GraphDef from FunctionDef
     GraphDef ori_graph_def;
@@ -862,42 +903,18 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                    << ((endTime - startTime) / kMicrosToMillis) << " ms].";
     ADP_LOG(INFO) << "[GEOP] TFadpter process graph success, GE parser begin, kernel_name: " << geop_name
                   << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id;
-    // parser,  tensorflow graph to ge graph
-    std::shared_ptr<domi::ModelParser> model_parser =
-        domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
-    OP_REQUIRES_ASYNC(ctx, model_parser != nullptr, errors::Unavailable("create model parser ret failed."), done);
     ge::ComputeGraphPtr compute_graph = nullptr;
     try {
       compute_graph = std::make_shared<ge::ComputeGraph>("ge_default_" + CurrentTimeInStr());
     } catch (...) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("make shared failed"), done);
     }
-
     OP_REQUIRES_ASYNC(ctx, compute_graph != nullptr, errors::InvalidArgument("create ComputeGraph failed"), done);
-
-    std::map<std::string, std::string> const_value_map;
-    std::vector<std::string> partition_graph;
-    OP_REQUIRES_OK_ASYNC(ctx, SeparateGraphDef(ori_graph_def, partition_graph, const_value_map), done);
-    auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
-      return this->BuildSubGraph(flib_def, graph);
-    };
-    ge::Status status =
-        model_parser->ParseProtoWithSubgraph(partition_graph, const_value_map, build_sub_graph, compute_graph);
-    if (status != ge::SUCCESS) {
-      std::string error_message = ge::GEGetErrorMsg();
-      std::stringstream ss;
-      ss << "graph parse failed. ret : " << status << std::endl
-         << "Error Message is : " << std::endl
-         << error_message;
-      OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Internal(ss.str()), done);
-    }
-
-    domi::GetContext().format = ge::GetParserContext().format;
-
+    // parser,  tensorflow graph to ge graph
+    OP_REQUIRES_OK_ASYNC(ctx, DoGraphParser(compute_graph, flib_def, ori_graph_def), done);
     ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success, kernel_name: " << geop_name
                   << ", tf session: " << tf_session_ << " , graph id: " << cache_graph_id
                   << ", iteration_per_loop: " << iteration_per_loop_ << ", need iteration: " << this->need_iteration_;
-
     size_t nodes = compute_graph->GetAllNodesSize();
     if (nodes == 0) {
       build_flag_ = true;
@@ -909,7 +926,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       done();
       return;
     }
-
     // convert to ge::graph
     if (graph_options_.count("input_format") != 0) {
       ADP_LOG(INFO) << "graph_options_[\"input_format\"] = " << graph_options_["input_format"];
@@ -947,7 +963,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
 
     // call ge session addGraph api
     auto graph_options = graph_options_;
-    if (is_tuning) {
+    if (is_aoe_) {
       graph_options["ge.buildMode"] = "normal";
     }
     if ((is_dynamic_getnext_ != "1") && (iteration_per_loop_ <= 1)) {
@@ -956,7 +972,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     SetReuseOptions("ge.exec.outputReuseMemIndexes", ctx->num_outputs(), sess_options_, init_options_, graph_options);
     ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << jit_compile_;
     graph_options["ge.exec.graphIOMemAllocMode"] = "ByGE";
-    status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
+    OP_REQUIRES_OK_ASYNC(ctx, CreateGeSession(), done);
+    auto status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: "
@@ -1672,35 +1689,18 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     const std::string pbtxt_path = GetDumpPath() + "TF_" + ctx->op_kernel().name() + "_AOE.pbtxt";
     (void) WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
   }
-
-  // parser,  tensorflow graph to ge graph
-  std::shared_ptr<domi::ModelParser> model_parser =
-      domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
-  if (model_parser == nullptr) {
-    ADP_LOG(ERROR) << "create model parser ret failed.";
-    return -1;
-  }
   ge::ComputeGraphPtr compute_graph = nullptr;
   compute_graph = std::make_shared<ge::ComputeGraph>("ge_default_" + CurrentTimeInStr());
   if (compute_graph == nullptr) {
     ADP_LOG(ERROR) << "create ComputeGraph failed";
     return -1;
   }
-
-  auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
-    return this->BuildSubGraph(flib_def, graph);
-  };
-  ge::Status status =
-      model_parser->ParseProtoWithSubgraph(ori_graph_def.SerializeAsString(), build_sub_graph, compute_graph);
-  if (status != ge::SUCCESS) {
-    std::stringstream ss;
-    ss << "graph parse failed. ret : " << status << std::endl
-       << "Error Message is : " << std::endl
-       << ge::GEGetErrorMsg();
-    ADP_LOG(ERROR) << ss.str();
+  // parser,  tensorflow graph to ge graph
+  auto status = DoGraphParser(compute_graph, flib_def, ori_graph_def);
+  if (!(status.ok())) {
+    ADP_LOG(ERROR) << status.error_message();
     return -1;
   }
-  domi::GetContext().format = ge::GetParserContext().format;
   ADP_LOG(INFO) << "[GEOP] Tensorflow graph parse to ge graph success.";
 
   // convert to ge::graph
@@ -1737,7 +1737,12 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     }
     {
       GE_MAKE_GUARD(destroy, callback);
-      // aoe set ge session
+      const auto &ge_status = CreateGeSession();
+      if (!ge_status.ok()) {
+        ADP_LOG(ERROR) << "get ge session failed[" << ge_status.error_message() << "].";
+        return -1;
+      }
+      // share ge_session to aoe
       AoeStatus set_ret = (*aoe_set_gesession_)(session_id_, ge_session_);
       if (set_ret != Aoe::AOE_SUCCESS) {
         ADP_LOG(ERROR) << "exec aoe set session func failed[" << set_ret << "].";
@@ -2235,6 +2240,9 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
     return Status::OK();
   }
   return errors::Unavailable("DomiFormatFromString, not supported format, format = ", format);
+}
+void GeOp::InitAoeFlag() {
+  is_aoe_ = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());
 }
 }  // namespace tensorflow
 

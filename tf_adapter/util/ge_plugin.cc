@@ -146,7 +146,7 @@ GePlugin *GePlugin::GetInstance() {
   return &instance;
 }
 
-void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool is_global) {
+void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool is_global, const bool is_async) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (isInit_) {
     ADP_LOG(INFO) << "[GePlugin] Ge has already initialized";
@@ -303,19 +303,6 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
   SetOptionNameMap(option_name_map);
   init_options["ge.optionNameMap"] = option_name_map.dump();
 
-  // ge Initialize
-  ge::Status status = ge::GEInitialize(init_options);
-  if (status != ge::SUCCESS) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
-    ADP_LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
-    std::string error_message = ge::GEGetErrorMsg();
-    LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status) << std::endl
-               << "Error Message is : " << std::endl
-               << error_message;
-  }
-  domi::GetContext().train_flag = true;
-  ADP_LOG(INFO) << "[GePlugin] Initialize ge success.";
-
   // parser Initialize
   ge::Status status_parser = ge::ParserInitialize(init_options);
   if (status_parser != ge::SUCCESS) {
@@ -324,6 +311,26 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
     LOG(FATAL) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
   }
   ADP_LOG(INFO) << "[GePlugin] Initialize parser success.";
+  if (is_async) {
+    // ge Initialize async
+    future_ = std::async(
+                  std::launch::async,
+                  [&](const std::map<std::string, std::string> &init_options) -> ge::Status {
+                    return ge::GEInitialize(init_options);
+                  }, init_options).share();
+  } else {
+    ge::Status status = ge::GEInitialize(init_options);
+    if (status != ge::SUCCESS) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
+      ADP_LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
+      std::string error_message = ge::GEGetErrorMsg();
+      LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status) << std::endl
+                 << "Error Message is : " << std::endl
+                 << error_message;
+    }
+    ADP_LOG(INFO) << "[GePlugin] Initialize ge success.";
+  }
+  domi::GetContext().train_flag = true;
   isInit_ = true;
   isGlobal_ = is_global;
 }

@@ -20,20 +20,29 @@
 #include <mutex>
 #include <string>
 #include <atomic>
+#include <future>
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/lib/core/status.h"
 
+#include "framework/common/ge_inner_error_codes.h"
 // Singleton class for manage the relationship between
 // tf session and ge session
 class GePlugin {
  public:
   static GePlugin *GetInstance();
 
-  void Init(std::map<std::string, std::string> &init_options, const bool is_global = false);
+  void Init(std::map<std::string, std::string> &init_options, const bool is_global = false, const bool is_async = false);
 
   void Finalize();
 
   bool IsGlobal();
+
+  ge::Status GetInitStatus() {
+    if (future_.valid()) {
+      return future_.get();
+    }
+    return ge::SUCCESS;
+  }
 
   std::map<std::string, std::string> GetInitOptions();
 
@@ -58,6 +67,7 @@ class GePlugin {
   std::map<std::string, std::string> init_options_;
   std::mutex mutex_;
   static std::atomic_int graph_counter_;
+  std::shared_future<ge::Status> future_;
 };
 
 tensorflow::Status RegisterNpuCancellationCallback(std::function<void()> callback,

@@ -147,6 +147,7 @@ Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::string &serializ
 }
 
 bool g_parse_root_graph = false;
+bool g_geinit_fore_return_fail = false;
 void SetParseRootGraph(bool is_root) {
   g_parse_root_graph = is_root;
 }
@@ -201,6 +202,9 @@ GE_FUNC_VISIBILITY Status GetVarBaseAddrAndSize(const std::string &var_name, uin
 
 GE_FUNC_VISIBILITY Status GEInitialize(const std::map<std::string, std::string> &options) {
   if (options.empty()) {
+    return ge::FAILED;
+  }
+  if (g_geinit_fore_return_fail) {
     return ge::FAILED;
   }
   is_ge_init = true;
