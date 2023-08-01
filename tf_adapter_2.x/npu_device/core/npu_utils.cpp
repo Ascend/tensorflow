@@ -576,13 +576,15 @@ int64_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu:
     if (!shapes[i].IsFullyDefined()) {
       return kUnknownShapeCapacity;
     }
-    int64_t result = 0L;
+    // 空tensor场景
+    if (shapes[i].num_elements() == 0) {
+      return kMinChannelCapacity;
+    }
     if (shapes[i].num_elements() > 0 &&
         tensorflow::DataTypeSize(data_type) > (kSizeTMaxsize / shapes[i].num_elements())) {
       return kInvalidCpacity;
-    } else {
-      result = shapes[i].num_elements() * tensorflow::DataTypeSize(data_type);
     }
+    const int64_t result = shapes[i].num_elements() * tensorflow::DataTypeSize(data_type);
     if (result > kSizeTMaxsize - total_sizes) {
       return kInvalidCpacity;
     }

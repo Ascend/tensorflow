@@ -339,6 +339,24 @@ class Adapter2St(unittest.TestCase):
         iterator = iter(dataset)
         f(iterator)
 
+    def test_empty_while(self):
+        def dataset_fn():
+            dataset = tf.data.Dataset.range(1,13)
+            def map_fn(x):
+                return tf.fill([3,0], 1)
+            dataset = dataset.map(map_fn)
+            dataset = dataset.prefetch(1)
+            return dataset
+        iterator = iter(dataset_fn())
+
+        @tf.function
+        def loop_fn(iterator):
+            output = next(iterator)
+        get_next_times = 10
+        for i in range(get_next_times):
+            output = next(iterator)
+            print(output)
+
     def test_while_3(self):
         v = tf.Variable(tf.ones([10, 1024, 1024], dtype=tf.int64), dtype=tf.int64)
 
