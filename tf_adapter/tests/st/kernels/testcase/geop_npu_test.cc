@@ -1,5 +1,6 @@
 #include "securec.h"
 #include "tf_adapter/util/npu_attrs.h"
+#include "tf_adapter/util/npu_plugin.h"
 #include "tf_adapter/util/util.h"
 #include "tensorflow/core/platform/env.h"
 #include "tensorflow/core/graph/graph_constructor.h"
@@ -104,6 +105,16 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
     }
   }
   return Status::OK();
+}
+TEST_F(GeOpTest, GeOpInitTest) {
+  PluginFinalize();
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop.pbtxt";
+  gtl::InlinedVector<TensorValue, 4> inputs;
+  ge::g_geinit_fore_return_fail = true;
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0").ok());
+  ge::g_geinit_fore_return_fail = false;
+  PluginFinalize();
 }
 
 TEST_F(GeOpTest, GeOpFuncTest) {

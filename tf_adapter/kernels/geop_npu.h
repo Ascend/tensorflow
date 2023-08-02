@@ -143,6 +143,11 @@ private:
 
   void UpdateInputsShapeDesc(Graph &graph);
 
+  Status DoGraphParser(ge::ComputeGraphPtr &compute_graph, FunctionLibraryDefinition *flib_def,
+                       GraphDef &ori_graph_def);
+
+  Status CreateGeSession();
+  void InitAoeFlag();
   static const std::string INPUT_DESC;
   static const std::string OUTPUT_DESC;
   static const std::string SERIALIZE_FORMAT;
@@ -201,6 +206,7 @@ private:
   bool is_dynamic_input_;
   std::map<std::string, bool> is_getnext_dynamic_shape_;
   SessionId session_id_;
+  bool is_aoe_{false};
   AoeInitializeFunc aoe_initialize_;
   AoeFinalizeFunc aoe_finalize_;
   AoeCreateSessionFunc aoe_create_session_;
