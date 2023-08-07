@@ -20,5 +20,6 @@ from npu_bridge.embedding.embedding_optimizer import AdamOptimizer as EmbeddingA
 from npu_bridge.embedding.embedding_optimizer import AdagradOptimizer as EmbeddingAdagradOptimizer
 from npu_bridge.embedding.embedding_optimizer import AdamWOptimizer as EmbeddingAdamWOptimizer
 from npu_bridge.embedding.embedding_service import ESWorker as EmbeddingService
+from npu_bridge.embedding.embedding_service import es_initializer
 from npu_bridge.embedding.tf_path import path_on_tf
 path_on_tf()
