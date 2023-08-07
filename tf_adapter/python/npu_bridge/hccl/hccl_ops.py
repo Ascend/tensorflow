@@ -51,12 +51,16 @@ def _allreduce_grad(op, grad):
 ## 提供group内的集合通信allgather功能
 #  @param tensor tensorflow的tensor类型，allgather操作的输入；
 #  @param rank_size int类型，group内device的数量;
+#  @param fusion int类型，算子融合标识。0: 不融合 2: 按照相同fusion_id融合。
+#  @param fusion_id int类型，算子融合索引标识，相同fusion_id的算子将会融合。
 #  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group";
 #  @return 对输入tensor执行完allgather操作之后的结果tensor
-def allgather(tensor, rank_size, group="hccl_world_group"):
+def allgather(tensor, rank_size, fusion=0, fusion_id=-1, group="hccl_world_group"):
     result = gen_hccl_ops.hcom_all_gather(
         input=tensor,
         group=group,
+        fusion=fusion,
+        fusion_id=fusion_id,
         rank_size=rank_size)
     return result
 
@@ -100,12 +104,16 @@ def reduce(tensor, reduction, root_rank, fusion=0, fusion_id=-1, group="hccl_wor
 #  @param tensor tensorflow的tensor类型，reduce_scatter操作的输入；
 #  @param reduction string类型，reduce的操作类型，可以为”max”,”min”,”prod”和”sum”;
 #  @param rank_size int类型，group内device的数量;
+#  @param fusion int类型，算子融合标识。0: 不融合； 2: 按照相同fusion_id融合。
+#  @param fusion_id int类型，算子融合索引标识，相同fusion_id的算子将会融合。
 #  @param group string类型，group名称，可以为用户自定义group或者"hccl_world_group";
 #  @return 对输入tensor执行完reduce_scatter操作之后的结果tensor
-def reduce_scatter(tensor, reduction, rank_size, group="hccl_world_group"):
+def reduce_scatter(tensor, reduction, rank_size, fusion=0, fusion_id=-1, group="hccl_world_group"):
     result = gen_hccl_ops.hcom_reduce_scatter(
         input=tensor,
         reduction=reduction,
+        fusion=fusion,
+        fusion_id=fusion_id,
         group=group,
         rank_size=rank_size)
     return result
