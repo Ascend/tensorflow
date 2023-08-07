@@ -312,21 +312,24 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
   }
   ADP_LOG(INFO) << "[GePlugin] Initialize parser success.";
   if (is_async) {
-    // ge Initialize async
     future_ = std::async(
                   std::launch::async,
-                  [&](const std::map<std::string, std::string> &init_options) -> ge::Status {
-                    return ge::GEInitialize(init_options);
-                  }, init_options).share();
+                  [this](const std::map<std::string, std::string> &init_options) -> ge::Status {
+                    const auto ret = ge::GEInitialize(init_options);
+                    error_message_ = ge::GEGetErrorMsg();
+                    return ret;
+                  },
+                  init_options)
+                  .share();
   } else {
     ge::Status status = ge::GEInitialize(init_options);
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
-      std::string error_message = ge::GEGetErrorMsg();
+      error_message_ = ge::GEGetErrorMsg();
       LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status) << std::endl
                  << "Error Message is : " << std::endl
-                 << error_message;
+                 << error_message_;
     }
     ADP_LOG(INFO) << "[GePlugin] Initialize ge success.";
   }

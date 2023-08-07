@@ -706,11 +706,13 @@ Status GeOp::CreateGeSession() {
   // create ge session should be ensure after getinit aysnc success
   const auto init_status = GePlugin::GetInstance()->GetInitStatus();
   if (init_status != ge::SUCCESS) {
-    std::string error_message = ge::GEGetErrorMsg();
+    ADP_LOG(ERROR) << "[GePlugin] Init ge failed, ret : " << ToString(init_status);
+    const auto &error_message = GePlugin::GetInstance()->GetInitErrorMessage();
     std::stringstream ss;
     ss << "[GePlugin] Initialize ge failed, ret : " << ToString(init_status) << std::endl
        << "Error Message is : " << std::endl
        << error_message;
+    LOG(ERROR) << ss.str();
     return errors::Internal(ss.str());
   }
   static bool first = true;
@@ -1074,7 +1076,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name: " << geop_name
+  ADP_LOG(EVENT) << "[GEOP] End GeOp::ComputeAsync, kernel_name: " << geop_name
                 << ", ret_status: " << ToString(run_graph_status) << ", tf session : " << tf_session_
                 << ", graph id: " << cache_graph_id << "[" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;

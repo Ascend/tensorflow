@@ -31,7 +31,8 @@ class GePlugin {
  public:
   static GePlugin *GetInstance();
 
-  void Init(std::map<std::string, std::string> &init_options, const bool is_global = false, const bool is_async = false);
+  void Init(std::map<std::string, std::string> &init_options, const bool is_global = false,
+            const bool is_async = false);
 
   void Finalize();
 
@@ -42,6 +43,10 @@ class GePlugin {
       return future_.get();
     }
     return ge::SUCCESS;
+  }
+
+  std::string GetInitErrorMessage() {
+    return error_message_;
   }
 
   std::map<std::string, std::string> GetInitOptions();
@@ -68,6 +73,7 @@ class GePlugin {
   std::mutex mutex_;
   static std::atomic_int graph_counter_;
   std::shared_future<ge::Status> future_;
+  std::string error_message_;
 };
 
 tensorflow::Status RegisterNpuCancellationCallback(std::function<void()> callback,
