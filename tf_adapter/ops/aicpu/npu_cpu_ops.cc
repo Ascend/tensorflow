@@ -251,6 +251,7 @@ REGISTER_OP("EmbeddingTableImport")
   .Attr("value_total_len: list(int)")
   .Attr("only_var_flag: bool = false")
   .Attr("file_type: string = 'bin' ")
+  .Attr("table_name: list(string)")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("EmbeddingTableFind")
@@ -379,11 +380,13 @@ REGISTER_OP("EmbeddingComputeVarExport")
   .Input("file_path: string")
   .Input("ps_id: int32")
   .Input("table_id: int32")
+  .Attr("table_name: list(string)")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("EmbeddingComputeVarImport")
   .Input("file_path: string")
   .Input("ps_id: int32")
+  .Attr("table_name: list(string)")
   .Input("table_id: int32")
   .SetShapeFn(shape_inference::NoOutputs);
 
@@ -396,6 +399,7 @@ REGISTER_OP("EmbeddingTableExport")
   .Attr("export_mode: {'all', 'old', 'new', 'specifiednew'} = 'all'")
   .Attr("only_var_flag: bool = false")
   .Attr("file_type: string = 'bin' ")
+  .Attr("table_name: list(string)")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("EmbeddingFeatureMapping")
