@@ -150,6 +150,7 @@ class ESWorker:
 
         self._table_count = 0
         self._table_name_to_id = {}
+        self._table_id_to_name = {}
         self._table_id_to_initializer = {}
 
         self._ps_table_has_init = []
@@ -258,6 +259,7 @@ class ESWorker:
         if name not in self._table_name_has_init:
             table_id = self._table_count
             self._table_name_to_id[name] = table_id
+            self._table_id_to_name[table_id] = name
             self._table_count += 1
             self._table_name_has_init.append(name)
         else:
@@ -399,6 +401,7 @@ class ESWorker:
         self._table_to_embedding_dim[table_id] = embedding_dim
         self._table_to_max_num[table_id] = max_batch_size
         self._ps_table_has_init.append(table_id)
+        self._big_table_name_list.append(str(table_id))
         if len(self._ps_table_has_init) > 10:
             raise ValueError("Now only 10 embedding tables can be init.")
         bucket_size = math.ceil(vocabulary_size / self._ps_num)
@@ -804,7 +807,8 @@ class ESWorker:
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        export_mode="all",
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=[name])
             return tf.group([embedding_table_export])
 
     def save_embeddings(self, path: str):
@@ -836,7 +840,8 @@ class ESWorker:
                                                        value_total_len=embedding_dim_list,
                                                        export_mode="all",
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_export])
 
     def restore_embedding_v2(self, name: str, path: str):
@@ -855,7 +860,8 @@ class ESWorker:
                                                        embedding_dim=[self._table_to_embedding_dim.get(table_id)],
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=[name])
             return tf.group([embedding_table_import])
 
     def restore_embeddings(self, path: str):
@@ -878,7 +884,8 @@ class ESWorker:
                                                        embedding_dim=embedding_dim_list,
                                                        value_total_len=embedding_dim_list,
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_import])
 
     def save_checkpoint_v2(self, name: str, path: str):
@@ -908,12 +915,14 @@ class ESWorker:
                                                                             table_id) + 1)],
                                                        export_mode="all",
                                                        only_var_flag=False,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=[name])
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
-                                                                 table_id=table_id_tensor)
+                                                                 table_id=table_id_tensor,
+                                                                 table_name=[name])
                 return tf.group([embedding_compute_var_export])
 
     def save_checkpoints(self, path: str):
@@ -948,12 +957,14 @@ class ESWorker:
                                                        value_total_len=value_total_len_list,
                                                        export_mode="all",
                                                        only_var_flag=False,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._big_table_name_list)
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
-                                                                 table_id=table_id_tensor)
+                                                                 table_id=table_id_tensor,
+                                                                 table_name=self._big_table_name_list)
                 return tf.group([embedding_compute_var_export])
 
     def restore_checkpoint_v2(self, name: str, path: str):
@@ -978,12 +989,14 @@ class ESWorker:
                                                                         (self._table_to_slot_var_num.get(
                                                                             table_id) + 1)],
                                                        only_var_flag=False,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=[name])
             with tf.control_dependencies([embedding_table_import]):
                 embedding_compute_var_import = \
                     gen_npu_cpu_ops.embedding_compute_var_import(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
-                                                                 table_id=table_id_tensor)
+                                                                 table_id=table_id_tensor,
+                                                                 table_name=[name])
                 return tf.group([embedding_compute_var_import])
 
     def restore_checkpoints(self, path: str):
@@ -1013,12 +1026,14 @@ class ESWorker:
                                                        embedding_dim=embedding_dim_list,
                                                        value_total_len=value_total_len_list,
                                                        only_var_flag=False,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._big_table_name_list)
             with tf.control_dependencies([embedding_table_import]):
                 embedding_compute_var_import = \
                     gen_npu_cpu_ops.embedding_compute_var_import(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
-                                                                 table_id=table_id_tensor)
+                                                                 table_id=table_id_tensor,
+                                                                 table_name=self._big_table_name_list)
                 return tf.group([embedding_compute_var_import])
 
     def save_incremental_embedding_v2(self, name: str, path: str):
@@ -1046,7 +1061,8 @@ class ESWorker:
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        export_mode="new",
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=[name])
             return tf.group([embedding_table_export])
 
     def save_incremental_embeddings(self, path: str):
@@ -1078,7 +1094,8 @@ class ESWorker:
                                                        value_total_len=embedding_dim_list,
                                                        export_mode="new",
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_export])
 
     def restore_incremental_embedding_v2(self, name: str, path: str):
@@ -1097,7 +1114,8 @@ class ESWorker:
                                                        embedding_dim=[self._table_to_embedding_dim.get(table_id)],
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=[name])
             return tf.group([embedding_table_import])
 
     def restore_incremental_embeddings(self, path: str):
@@ -1120,7 +1138,8 @@ class ESWorker:
                                                        embedding_dim=embedding_dim_list,
                                                        value_total_len=embedding_dim_list,
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_import])
 
     # old version
@@ -1148,7 +1167,8 @@ class ESWorker:
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        export_mode="all",
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_export])
 
     def restore_embedding(self, path: str, table_id: int):
@@ -1166,7 +1186,8 @@ class ESWorker:
                                                        embedding_dim=[self._table_to_embedding_dim.get(table_id)],
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_import])
 
     def save_checkpoint(self, path: str, table_id: int):
@@ -1194,12 +1215,14 @@ class ESWorker:
                                                                         (self._table_to_slot_var_num.get(table_id) + 1)],
                                                        export_mode="all",
                                                        only_var_flag=False,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._table_id_to_name.get(table_id))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
-                                                                 table_id=table_id_tensor)
+                                                                 table_id=table_id_tensor,
+                                                                 table_name=self._table_id_to_name.get(table_id))
                 return tf.group([embedding_compute_var_export])
 
     def restore_checkpoint(self, path: str, table_id: int):
@@ -1222,12 +1245,14 @@ class ESWorker:
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id) *
                                                                         (self._table_to_slot_var_num.get(table_id) + 1)],
                                                        only_var_flag=False,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._table_id_to_name.get(table_id))
             with tf.control_dependencies([embedding_table_import]):
                 embedding_compute_var_import = \
                     gen_npu_cpu_ops.embedding_compute_var_import(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
-                                                                 table_id=table_id_tensor)
+                                                                 table_id=table_id_tensor,
+                                                                 table_name=self._table_id_to_name.get(table_id))
                 return tf.group([embedding_compute_var_import])
 
     def save_incremental_embedding(self, path: str, table_id: int):
@@ -1254,7 +1279,8 @@ class ESWorker:
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        export_mode="new",
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_export])
 
     def restore_incremental_embedding(self, path: str, table_id: int):
@@ -1272,7 +1298,8 @@ class ESWorker:
                                                        embedding_dim=[self._table_to_embedding_dim.get(table_id)],
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        only_var_flag=True,
-                                                       file_type="bin")
+                                                       file_type="bin",
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_import])
 
     def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim, ev_option):
