@@ -98,11 +98,11 @@ def es_initializer(initializer_mode, min=-2.0, max=2.0, constant_value=0.0, mu=0
                 (not isinstance(min, (float, int))) or (not isinstance(max, (float, int))):
             raise ValueError("If initializer is random_uniform, min and max can not be None, must be int or float.")
     if initializer_mode == 'truncated_normal':
-        if (min is None) or (max is None) or (mu is None) or (sigma is None):
-            raise ValueError("If initializer is truncated_normal, min, max, mu and sigma can not be None")
-        if (not isinstance(min, (float, int))) or (not isinstance(max, (float, int))) or \
+        if (min is None) or (max is None) or (mu is None) or (sigma is None) or \
+                (not isinstance(min, (float, int))) or (not isinstance(max, (float, int))) or \
                 (not isinstance(mu, (float, int))) or (not isinstance(sigma, (float, int))):
-            raise ValueError("If initializer is truncated_normal, min, max, mu and sigma must be int or float.")
+            raise ValueError("If initializer is truncated_normal, min, max, mu and sigma can not be None,"
+                             "and they must be int or float.")
     if initializer_mode == 'constant':
         if (constant_value is None) or (not isinstance(constant_value, (float, int))):
             raise ValueError("If initializer is constant, constant_value can not be None, must be float or int.")
@@ -133,32 +133,27 @@ class ESWorker:
             es_cluster_config_json = json.load(a)
             self._es_cluster_conf = json.dumps(es_cluster_config_json)
             self._ps_num = int(es_cluster_config_json["psNum"])
+            self._embedding_dim = -1
+            self._max_num = -1
             self._ps_ids = []
             self._ps_ids_list = es_cluster_config_json["psCluster"]
+            self._init_embedding_hash_maps = {}
+            self._init_partition_maps = {}
+            self._table_to_embedding_dim = {}
+            self._table_to_max_num = {}
+            self._table_to_optimizer = {}
+            self._table_to_initializer = {}
+            self._table_to_slot_var_num = {}
+            self._table_to_counter_filter = {}
             for each_ps in self._ps_ids_list:
                 self._ps_ids.append(each_ps["id"])
 
-        self._init_embedding_hash_maps = {}
-        self._init_partition_maps = {}
-        # storage each ps table's params
-        self._table_to_embedding_dim = {}
-        self._table_to_max_num = {}
-        self._table_to_optimizer = {}
-        self._table_to_initializer = {}
-        self._table_to_slot_var_num = {}
-        self._table_to_counter_filter = {}
-        self._train_mode = True
-        self._train_level = False
-        self._optimizer = None
-        self._init_table_flag = False
-
-        self._small_table_name_list = []
-        self._ps_table_count = 0
+        self._table_count = 0
         self._table_name_to_id = {}
         self._table_id_to_name = {}
         self._table_id_to_initializer = {}
 
-        self._ps_table_id_list = []
+        self._ps_table_has_init = []
         # storage lookup: table_id list, lookup result list, lookup key list
         self._ps_table_has_lookup = []
         self._ps_table_lookup_key = []
@@ -166,19 +161,22 @@ class ESWorker:
         # storage all inited table names
         self._table_name_has_init = []
         # only storage all inited PS table names
-        self._ps_table_name_list = []
-        # now only use for adagrad accum 
-        self._ps_table_id_to_optimizer_mode = {}
-        self._ps_table_id_to_optimizer_params = {}
+        self._big_table_name_list = []
 
-        # use for small table merge
+        self._train_mode = True
+        self._train_level = False
+        self._optimizer = None
+        self.slot_vars_num = None
+        self._initializer = None
+        self._init_flag = False
+        self._table_init = False
+        self._ps_table_has_init = []
         self.user_defined_table_infos = []
         self.table_map_policy = None
         self.table_create_infos = []
         self.total_variable_table = []
         self.total_embedding_count = 0
         self._npu_table_to_embedding_dim = {}
-        # use for counter filter
         self._use_counter_filter = False
         self._default_key_or_value = True
         self._filter_freq = None
@@ -258,16 +256,16 @@ class ESWorker:
             raise ValueError("init_vocabulary_size and embedding_dim must be int.")
         if init_vocabulary_size < 0:
             raise ValueError("init_vocabulary_size can not be smaller than zero.")
-        if embedding_dim <= 0:
-            raise ValueError("embedding_dim must be greater than zero.")
-        if (embedding_type != "PS") and (embedding_type != "data_parallel"):
-            raise TypeError("embedding_type must be PS or data_parallel")
+        if name not in self._table_name_has_init:
+            table_id = self._table_count
+            self._table_name_to_id[name] = table_id
+            self._table_id_to_name[table_id] = name
+            self._table_count += 1
+            self._table_name_has_init.append(name)
+        else:
+            raise ValueError("This table has been initialized.")
 
         if embedding_type == "data_parallel":
-            if name not in self._small_table_name_list:
-                self._small_table_name_list.append(name)
-            else:
-                raise ValueError("This small table has been initialized.")
             if (init_vocabulary_size is None) or (embedding_dim is None) or (multihot_lens is None):
                 raise ValueError("max_vocabulary_size or embedding_dim or multihot_lens can not be None.")
             if (key_dtype is None) or (value_dtype is None):
@@ -317,20 +315,12 @@ class ESWorker:
                 raise ValueError("init_vocabulary_size exceeds int32 max value.")
             if max_feature_count <= 0:
                 raise ValueError("For ps table, max_feature_count must be greater than zero.")
-            if name not in self._table_name_has_init:
-                table_id = self._ps_table_count
-                self._table_name_to_id[name] = table_id
-                self._table_id_to_name[table_id] = name
-                self._ps_table_count += 1
-                self._table_name_has_init.append(name)
-            else:
-                raise ValueError("This table has been initialized.")
             self._table_to_embedding_dim[table_id] = embedding_dim
             self._table_to_max_num[table_id] = max_feature_count
             # storage the table id for embedding PS table
-            self._ps_table_id_list.append(table_id)
-            self._ps_table_name_list.append(name)
-            if len(self._ps_table_id_list) > 10:
+            self._ps_table_has_init.append(table_id)
+            self._big_table_name_list.append(name)
+            if len(self._ps_table_has_init) > 10:
                 raise ValueError("Now only 10 PS embedding tables can be init.")
             bucket_size = math.ceil(init_vocabulary_size / self._ps_num)
             if optimizer is None:
@@ -370,13 +360,10 @@ class ESWorker:
                 self._optimizer._max_nums = max_feature_count
                 self._optimizer._es_cluster_configs = self._es_cluster_conf
                 self._table_to_optimizer[table_id] = self._optimizer
-                self._ps_table_id_to_optimizer_params[table_id] = []
                 # adam, adamw include m and v, 2 slots; adagrad include accumulator, 1 slot
-                if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer):
-                    self._table_to_slot_var_num[table_id] = 1
-                else:
-                    self._table_to_slot_var_num[table_id] = 2
-                # new train or continue train from a checkpoint
+                self._table_to_slot_var_num[table_id] = 1 if \
+                    isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer) else 2
+                # new train or train from a checkpoint
                 if initializer is not None:
                     self._train_level = True
             with specified_ps_engine_scope():
@@ -385,9 +372,9 @@ class ESWorker:
                                                        ps_ids=ops.convert_to_tensor(self._ps_ids),
                                                        partition_num=65537)
                 self._init_partition_maps.get(table_id)._set_attr("_embedding_dim",
-                                                                  attr_value_pb2.AttrValue(i=embedding_dim))
+                                                                  attr_value_pb2.AttrValue(i=self._embedding_dim))
                 self._init_partition_maps.get(table_id)._set_attr("_max_key_num",
-                                                                  attr_value_pb2.AttrValue(i=max_feature_count))
+                                                                  attr_value_pb2.AttrValue(i=self._max_num))
                 return self._init_hashmap_and_table_import(bucket_size, table_id, embedding_dim, ev_option)
 
     # old version
@@ -407,15 +394,15 @@ class ESWorker:
             raise ValueError("vocabulary_size or table_id exceed int32 max value.")
         if embedding_dim <= 0 or max_batch_size <= 0:
             raise ValueError("embedding_dim and max_batch_size must be greater than zero.")
-        if table_id in self._ps_table_id_list:
+        if table_id in self._ps_table_has_init:
             raise ValueError("this table has already initialized.")
-
+        self._embedding_dim = embedding_dim
+        self._max_num = max_batch_size
         self._table_to_embedding_dim[table_id] = embedding_dim
         self._table_to_max_num[table_id] = max_batch_size
-        self._table_id_to_name[table_id] = str(table_id)
-        self._ps_table_id_list.append(table_id)
-        self._ps_table_name_list.append(str(table_id))
-        if len(self._ps_table_id_list) > 10:
+        self._ps_table_has_init.append(table_id)
+        self._big_table_name_list.append(str(table_id))
+        if len(self._ps_table_has_init) > 10:
             raise ValueError("Now only 10 embedding tables can be init.")
         bucket_size = math.ceil(vocabulary_size / self._ps_num)
         if (self._table_id_to_initializer.get(table_id) is None) and (initializer is not None):
@@ -427,7 +414,7 @@ class ESWorker:
                                                                     sigma=1.0)
         if optimizer is None:
             self._train_mode = False
-            self._table_to_slot_var_num[table_id] = 0
+            self.slot_vars_num = 0
         else:
             if (not isinstance(optimizer, embedding_optimizer.AdamOptimizer)) and \
                     (not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)) and \
@@ -442,20 +429,19 @@ class ESWorker:
             self._optimizer._max_nums = max_batch_size
             self._optimizer._es_cluster_configs = self._es_cluster_conf
             self._table_to_optimizer[table_id] = self._optimizer
-            self._ps_table_id_to_optimizer_params[table_id] = []
             # adam include m and v, 2 slots; adagrad include accumulator, 1 slot
-            self._table_to_slot_var_num[table_id] = 1 if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer) else 2
+            self.slot_vars_num = 1 if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer) else 2
             if (initializer is not None) or (self._table_to_initializer.get(table_id) is not None):
                 self._train_level = True
+        self._table_to_slot_var_num[table_id] = self.slot_vars_num
         with specified_ps_engine_scope():
             self._init_partition_maps[table_id] = \
                 gen_npu_cpu_ops.init_partition_map(ps_num=ops.convert_to_tensor(self._ps_num),
                                                    ps_ids=ops.convert_to_tensor(self._ps_ids),
                                                    partition_num=65537)
             self._init_partition_maps.get(table_id)._set_attr("_embedding_dim",
-                                                              attr_value_pb2.AttrValue(i=embedding_dim))
-            self._init_partition_maps.get(table_id)._set_attr("_max_key_num",
-                                                              attr_value_pb2.AttrValue(i=max_batch_size))
+                                                              attr_value_pb2.AttrValue(i=self._embedding_dim))
+            self._init_partition_maps.get(table_id)._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_num))
             return self._init_hashmap_and_table_import(bucket_size, table_id, embedding_dim, ev_option)
 
     # new version
@@ -469,11 +455,11 @@ class ESWorker:
             raise ValueError("table name or ids must be specified.")
         if ids.dtype != tf.int64:
             raise ValueError("dtype of ids must be tf.int64.")
-        if not self._init_table_flag:
+        if not self._init_flag:
             raise ValueError("embedding must init first!")
 
         table_id = self._table_name_to_id.get(name)
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this ps table has not yet initialized.")
         self._ps_table_has_lookup.append(table_id)
         self._ps_table_lookup_key.append(ids)
@@ -506,9 +492,7 @@ class ESWorker:
                                               filter_freq=self._filter_freq,
                                               default_key_or_value=self._default_key_or_value,
                                               default_key=self._default_key,
-                                              default_value=self._default_value,
-                                              optimizer_mode=self._ps_table_id_to_optimizer_mode.get(table_id),
-                                              optimizer_params=self._ps_table_id_to_optimizer_params.get(table_id)
+                                              default_value=self._default_value
                                               )
             self._filter_freq = None
             self._default_key_or_value = True
@@ -538,9 +522,9 @@ class ESWorker:
             raise ValueError("dtype of input_ids must be tf.int64.")
         if table_id < 0:
             raise ValueError("table_id can not be smaller than zero.")
-        if not self._init_table_flag:
+        if not self._init_flag:
             raise ValueError("embedding must init first!")
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this table has not yet initialized.")
         if self._train_mode:
             seed1, seed2 = random_seed.get_seed(None)
@@ -571,9 +555,7 @@ class ESWorker:
                                               filter_freq=self._filter_freq,
                                               default_key_or_value=self._default_key_or_value,
                                               default_key=self._default_key,
-                                              default_value=self._default_value,
-                                              optimizer_mode=self._ps_table_id_to_optimizer_mode.get(table_id),
-                                              optimizer_params=self._ps_table_id_to_optimizer_params.get(table_id)
+                                              default_value=self._default_value
                                               )
             self._filter_freq = None
             self._default_key_or_value = True
@@ -600,7 +582,7 @@ class ESWorker:
         if (isinstance(loss, str)) or (isinstance(params, str)) or isinstance(table_ids, str) or \
                 isinstance(input_ids_list, str):
             raise ValueError("loss, params, table_ids and input_ids_list can not be str.")
-        if not self._init_table_flag:
+        if not self._init_flag:
             raise ValueError("embedding must init first!")
         if (not isinstance(params, (list, tuple)) and not isinstance(table_ids, (list, tuple))
                 and not isinstance(input_ids_list, (list, tuple))):
@@ -608,7 +590,7 @@ class ESWorker:
             table_ids = [table_ids]
             input_ids_list = [input_ids_list]
         for table_id in table_ids:
-            if table_id not in self._ps_table_id_list:
+            if table_id not in self._ps_table_has_init:
                 raise ValueError("this table has not yet initialized.")
         if (len(params) != len(table_ids)) or (len(params) != len(input_ids_list)) \
                 or (len(table_ids) != len(input_ids_list)):
@@ -639,7 +621,7 @@ class ESWorker:
         if (isinstance(loss, str)) or (isinstance(params, str)) or isinstance(table_ids, str) or \
                 isinstance(input_ids_list, str):
             raise ValueError("loss, params, table_ids and input_ids_list can not be str.")
-        if not self._init_table_flag:
+        if not self._init_flag:
             raise ValueError("embedding must init first!")
         if (not isinstance(params, (list, tuple)) and not isinstance(table_ids, (list, tuple))
                 and not isinstance(input_ids_list, (list, tuple))):
@@ -647,7 +629,7 @@ class ESWorker:
             table_ids = [table_ids]
             input_ids_list = [input_ids_list]
         for table_id in table_ids:
-            if table_id not in self._ps_table_id_list:
+            if table_id not in self._ps_table_has_init:
                 raise ValueError("this table has not yet initialized.")
         if (len(params) != len(table_ids)) or (len(params) != len(input_ids_list)) \
                 or (len(table_ids) != len(input_ids_list)):
@@ -725,7 +707,6 @@ class ESWorker:
             self._npu_table_to_embedding_dim[self.total_embedding_count] = table_info_['embedding_dim']
             self.total_embedding_count += 1
         self.user_defined_table_infos = []
-        self._small_table_name_list = []
 
     # new version
     def embeddings_lookup(self, ids_list):
@@ -805,9 +786,7 @@ class ESWorker:
         """ Operator for save values in table_id embedding table. """
         if path is None or name is None:
             raise ValueError("table name, embedding table path can not be None.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
+        if name not in self._big_table_name_list:
             raise ValueError("this table has not yet initialized.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
@@ -842,12 +821,12 @@ class ESWorker:
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
             raise ValueError("Device must be rank_id 0.")
-        if not self._init_table_flag:
+        if not self._table_init:
             raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
-            for table_id in self._ps_table_id_list:
+            for table_id in self._ps_table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
             file_path_tensor = ops.convert_to_tensor(path, name="file_path")
@@ -862,7 +841,7 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=self._ps_table_name_list)
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_export])
 
     def restore_embedding_v2(self, name: str, path: str):
@@ -870,9 +849,7 @@ class ESWorker:
             raise ValueError("table name, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
+        if name not in self._big_table_name_list:
             raise ValueError("this table has not yet initialized.")
         table_id = self._table_name_to_id.get(name)
         with specified_ps_engine_scope():
@@ -892,12 +869,12 @@ class ESWorker:
             raise ValueError("embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
+        if not self._table_init:
             raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
-            for table_id in self._ps_table_id_list:
+            for table_id in self._ps_table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
             embedding_table_import = \
@@ -908,7 +885,7 @@ class ESWorker:
                                                        value_total_len=embedding_dim_list,
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=self._ps_table_name_list)
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_import])
 
     def save_checkpoint_v2(self, name: str, path: str):
@@ -917,9 +894,7 @@ class ESWorker:
             raise ValueError("table name, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
+        if name not in self._big_table_name_list:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -960,13 +935,13 @@ class ESWorker:
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
             raise ValueError("Device must be rank_id 0.")
-        if not self._init_table_flag:
+        if not self._table_init:
             raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
             value_total_len_list = []
-            for table_id in self._ps_table_id_list:
+            for table_id in self._ps_table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
                 value_total_len_list.append(self._table_to_embedding_dim.get(table_id) *
@@ -983,13 +958,13 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin",
-                                                       table_name=self._ps_table_name_list)
+                                                       table_name=self._big_table_name_list)
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
                                                                  table_id=table_id_tensor,
-                                                                 table_name=self._ps_table_name_list)
+                                                                 table_name=self._big_table_name_list)
                 return tf.group([embedding_compute_var_export])
 
     def restore_checkpoint_v2(self, name: str, path: str):
@@ -998,7 +973,7 @@ class ESWorker:
             raise ValueError("name, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if name not in self._ps_table_name_list:
+        if name not in self._big_table_name_list:
             raise ValueError("this table has not yet initialized.")
         table_id = self._table_name_to_id.get(name)
         with specified_ps_engine_scope():
@@ -1030,13 +1005,13 @@ class ESWorker:
             raise ValueError("embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
+        if not self._table_init:
             raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
             value_total_len_list = []
-            for table_id in self._ps_table_id_list:
+            for table_id in self._ps_table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
                 value_total_len_list.append(self._table_to_embedding_dim.get(table_id) *
@@ -1052,13 +1027,13 @@ class ESWorker:
                                                        value_total_len=value_total_len_list,
                                                        only_var_flag=False,
                                                        file_type="bin",
-                                                       table_name=self._ps_table_name_list)
+                                                       table_name=self._big_table_name_list)
             with tf.control_dependencies([embedding_table_import]):
                 embedding_compute_var_import = \
                     gen_npu_cpu_ops.embedding_compute_var_import(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
                                                                  table_id=table_id_tensor,
-                                                                 table_name=self._ps_table_name_list)
+                                                                 table_name=self._big_table_name_list)
                 return tf.group([embedding_compute_var_import])
 
     def save_incremental_embedding_v2(self, name: str, path: str):
@@ -1067,9 +1042,7 @@ class ESWorker:
             raise ValueError("table name, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
+        if name not in self._big_table_name_list:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -1102,12 +1075,12 @@ class ESWorker:
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
             raise ValueError("Device must be rank_id 0.")
-        if not self._init_table_flag:
+        if not self._table_init:
             raise ValueError("Not any table has been initialized.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
-            for table_id in self._ps_table_id_list:
+            for table_id in self._ps_table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
             file_path_tensor = ops.convert_to_tensor(path, name="file_path")
@@ -1122,7 +1095,7 @@ class ESWorker:
                                                        export_mode="new",
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=self._ps_table_name_list)
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_export])
 
     def restore_incremental_embedding_v2(self, name: str, path: str):
@@ -1130,9 +1103,7 @@ class ESWorker:
             raise ValueError("table name, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
+        if name not in self._big_table_name_list:
             raise ValueError("this table has not yet initialized.")
         table_id = self._table_name_to_id.get(name)
         with specified_ps_engine_scope():
@@ -1150,14 +1121,14 @@ class ESWorker:
     def restore_incremental_embeddings(self, path: str):
         if path is None:
             raise ValueError("embedding table path can not be None.")
-        if not self._init_table_flag:
+        if not self._table_init:
             raise ValueError("Not any table has been initialized.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
-            for table_id in self._ps_table_id_list:
+            for table_id in self._ps_table_has_init:
                 table_id_list.append(table_id)
                 embedding_dim_list.append(self._table_to_embedding_dim.get(table_id))
             embedding_table_import = \
@@ -1168,7 +1139,7 @@ class ESWorker:
                                                        value_total_len=embedding_dim_list,
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=self._ps_table_name_list)
+                                                       table_name=self._big_table_name_list)
             return tf.group([embedding_table_import])
 
     # old version
@@ -1178,9 +1149,7 @@ class ESWorker:
             raise ValueError("table_id, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -1199,7 +1168,7 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=[self._table_id_to_name.get(table_id)])
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_export])
 
     def restore_embedding(self, path: str, table_id: int):
@@ -1207,9 +1176,7 @@ class ESWorker:
             raise ValueError("table_id, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this table has not yet initialized.")
         with specified_ps_engine_scope():
             embedding_table_import = \
@@ -1220,7 +1187,7 @@ class ESWorker:
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=[self._table_id_to_name.get(table_id)])
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_import])
 
     def save_checkpoint(self, path: str, table_id: int):
@@ -1229,9 +1196,7 @@ class ESWorker:
             raise ValueError("table_id, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -1247,18 +1212,17 @@ class ESWorker:
                                                        table_id=table_id_tensor,
                                                        embedding_dim=[self._table_to_embedding_dim.get(table_id)],
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id) *
-                                                                        (self._table_to_slot_var_num.get(table_id)
-                                                                         + 1)],
+                                                                        (self._table_to_slot_var_num.get(table_id) + 1)],
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin",
-                                                       table_name=[self._table_id_to_name.get(table_id)])
+                                                       table_name=self._table_id_to_name.get(table_id))
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
                                                                  table_id=table_id_tensor,
-                                                                 table_name=[self._table_id_to_name.get(table_id)])
+                                                                 table_name=self._table_id_to_name.get(table_id))
                 return tf.group([embedding_compute_var_export])
 
     def restore_checkpoint(self, path: str, table_id: int):
@@ -1267,9 +1231,7 @@ class ESWorker:
             raise ValueError("table_id, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this table has not yet initialized.")
         with specified_ps_engine_scope():
             file_path_tensor = ops.convert_to_tensor(path, name="file_path")
@@ -1281,17 +1243,16 @@ class ESWorker:
                                                        table_id=table_id_tensor,
                                                        embedding_dim=[self._table_to_embedding_dim.get(table_id)],
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id) *
-                                                                        (self._table_to_slot_var_num.get(table_id)
-                                                                         + 1)],
+                                                                        (self._table_to_slot_var_num.get(table_id) + 1)],
                                                        only_var_flag=False,
                                                        file_type="bin",
-                                                       table_name=[self._table_id_to_name.get(table_id)])
+                                                       table_name=self._table_id_to_name.get(table_id))
             with tf.control_dependencies([embedding_table_import]):
                 embedding_compute_var_import = \
                     gen_npu_cpu_ops.embedding_compute_var_import(file_path=file_path_tensor,
                                                                  ps_id=ps_id_tensor,
                                                                  table_id=table_id_tensor,
-                                                                 table_name=[self._table_id_to_name.get(table_id)])
+                                                                 table_name=self._table_id_to_name.get(table_id))
                 return tf.group([embedding_compute_var_import])
 
     def save_incremental_embedding(self, path: str, table_id: int):
@@ -1300,9 +1261,7 @@ class ESWorker:
             raise ValueError("table_id, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this table has not yet initialized.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
@@ -1321,7 +1280,7 @@ class ESWorker:
                                                        export_mode="new",
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=[self._table_id_to_name.get(table_id)])
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_export])
 
     def restore_incremental_embedding(self, path: str, table_id: int):
@@ -1329,9 +1288,7 @@ class ESWorker:
             raise ValueError("table_id, embedding table path can not be None.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if table_id not in self._ps_table_id_list:
+        if table_id not in self._ps_table_has_init:
             raise ValueError("this table has not yet initialized.")
         with specified_ps_engine_scope():
             embedding_table_import = \
@@ -1342,7 +1299,7 @@ class ESWorker:
                                                        value_total_len=[self._table_to_embedding_dim.get(table_id)],
                                                        only_var_flag=True,
                                                        file_type="bin",
-                                                       table_name=[self._table_id_to_name.get(table_id)])
+                                                       table_name=self._table_id_to_name.get(table_id))
             return tf.group([embedding_table_import])
 
     def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim, ev_option):
@@ -1351,18 +1308,6 @@ class ESWorker:
             self._table_to_counter_filter[table_id] = ev_option.filter_option
         else:
             filter_mode = "no_filter"
-        if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.AdagradOptimizer):
-            self._ps_table_id_to_optimizer_mode[table_id] = "adagrad"
-            self._ps_table_id_to_optimizer_params[table_id].append(
-                self._table_to_optimizer.get(table_id)._initial_accumulator_value
-            )
-        if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.AdamOptimizer):
-            self._ps_table_id_to_optimizer_mode[table_id] = "adam"
-            self._ps_table_id_to_optimizer_params[table_id].append(0)
-        if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.AdamWOptimizer):
-            self._ps_table_id_to_optimizer_mode[table_id] = "adamw"
-            self._ps_table_id_to_optimizer_params[table_id].append(0)
-
         with tf.control_dependencies([self._init_partition_maps.get(table_id)]):
             if self._train_mode:
                 if self._train_level:
@@ -1384,11 +1329,7 @@ class ESWorker:
                                                                sigma=self._table_id_to_initializer.get(table_id).sigma,
                                                                seed=self._table_id_to_initializer.get(table_id).seed,
                                                                seed2=self._table_id_to_initializer.get(table_id).seed,
-                                                               filter_mode=filter_mode,
-                                                               optimizer_mode=
-                                                               self._ps_table_id_to_optimizer_mode.get(table_id),
-                                                               optimizer_params=
-                                                               self._ps_table_id_to_optimizer_params.get(table_id))
+                                                               filter_mode=filter_mode)
                 else:
                     self._init_embedding_hash_maps[table_id] = \
                         gen_npu_cpu_ops.init_embedding_hashmap(table_id=ops.convert_to_tensor(table_id),
@@ -1398,11 +1339,7 @@ class ESWorker:
                                                                embedding_dim=embedding_dim,
                                                                initializer_mode=None, constant_value=None,
                                                                min=None, max=None, mu=None, sigma=None,
-                                                               seed=None, seed2=None, filter_mode=filter_mode,
-                                                               optimizer_mode=
-                                                               self._ps_table_id_to_optimizer_mode.get(table_id),
-                                                               optimizer_params=
-                                                               self._ps_table_id_to_optimizer_params.get(table_id))
+                                                               seed=None, seed2=None, filter_mode=filter_mode)
             else:
                 self._init_embedding_hash_maps[table_id] = \
                     gen_npu_cpu_ops.init_embedding_hashmap(table_id=ops.convert_to_tensor(table_id),
@@ -1411,13 +1348,9 @@ class ESWorker:
                                                            embedding_dim=embedding_dim,
                                                            initializer_mode=None, constant_value=None,
                                                            min=None, max=None, mu=None, sigma=None,
-                                                           seed=None, seed2=None, filter_mode=filter_mode,
-                                                           optimizer_mode=
-                                                           self._ps_table_id_to_optimizer_mode.get(table_id),
-                                                           optimizer_params=
-                                                           self._ps_table_id_to_optimizer_params.get(table_id))
-        self._init_table_flag = True
-        self._init_table_flag = True
+                                                           seed=None, seed2=None, filter_mode=filter_mode)
+        self._init_flag = True
+        self._table_init = True
         if self._train_mode:
             return tf.group(
                 [tf.initializers.variables(self._optimizer.variables()), self._init_embedding_hash_maps.get(table_id)])
