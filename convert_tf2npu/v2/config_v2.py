@@ -23,7 +23,7 @@ HELP_INFO = '    this tool just support to convert tf-2.6 scripts.\n' \
             '    main.py -i <input> -l <list> -o <output> -r <report> -m <main>\n' \
             'or: main.py --input=<input> --list=<list> --output=<output> --report=<report> --main=<main>\n' \
             '-i or --input:  The source script to be converted.\n' \
-            '-l or --list:  The list of supported api, Default value: TF2.6.0_api_support_list.xlsx\n' \
+            '-l or --list:  The list of supported api, Default value: TF2.6_api_support_list.xlsx\n' \
             '-o or --output: The destination script after converted, Default value: output_npu_***/\n' \
             '-r or --report: Conversion report, Default value: report_npu_***/\n' \
             '-m or --main: The executed entry *.py file, default:None\n' \
@@ -37,7 +37,7 @@ param_config = util_global.ParamConfig(
     opt_err_prompt =
         'Parameter error, please check.\n{}'.format(HELP_INFO),
     opt_help = HELP_INFO,
-    support_list_filename = 'TF2.6.0_api_support_list.xlsx',
+    support_list_filename = 'TF2.6_api_support_list.xlsx',
     main_arg_not_set_promt = "As it is necessary to initiate npu device, ensure that the Python entry script contains "\
             "the main function or the '-m' option is included to avoid porting failures. "\
             "Enter 'continue' or 'c' to continue or enter 'exit' to exit: "
