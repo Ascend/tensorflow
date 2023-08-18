@@ -185,34 +185,6 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
   return;
 }
 
-inline Status checkDumpStep(const std::string &dump_step) {
-  std::string tmp_dump_step = dump_step + "|";
-  std::smatch result;
-  std::vector<string> match_vecs;
-  std::regex pattern(R"((\d{1,}-\d{1,}\||\d{1,}\|)+)");
-  if (regex_match(tmp_dump_step, result, pattern)) {
-    Split(result.str(), match_vecs, "|");
-    // 100 is the max sets of dump steps.
-    if (match_vecs.size() > 100) {
-      return errors::InvalidArgument("dump_step only support dump <= 100 sets of data");
-    }
-    for (const auto &match_vec : match_vecs) {
-      std::vector<string> tmp_vecs;
-      Split(match_vec, tmp_vecs, "-");
-      if (tmp_vecs.size() > 1) {
-        if (std::atoi(tmp_vecs[0].c_str()) >= std::atoi(tmp_vecs[1].c_str())) {
-          return errors::InvalidArgument("in range steps, the first step is >= "
-                                         "second step, correct example:'0|5|10-20'");
-        }
-      }
-    }
-  } else {
-    return errors::InvalidArgument("dump_step string style is error,"
-                                   " correct example:'0|5|10|50-100'");
-  }
-  return Status::OK();
-}
-
 inline Status checkDumpMode(const std::string &dump_mode) {
   std::set<string> dump_mode_list = {"input", "output", "all"};
   if (dump_mode_list.find(dump_mode) != dump_mode_list.cend()) {
@@ -435,13 +407,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
       (void) ctx->GetAttr("_dump_path", &dump_path);
     }
     if (enable_dump != "0") {
-      if (ctx->GetAttr("_dump_step", &dump_step) == Status::OK() && !dump_step.empty()) {
-        Status s = checkDumpStep(dump_step);
-        if (!s.ok()) {
-          ADP_LOG(FATAL) << s.error_message();
-          LOG(FATAL) << s.error_message();
-        }
-      }
+      (void)ctx->GetAttr("_dump_step", &dump_step);
       if (ctx->GetAttr("_dump_mode", &dump_mode) == Status::OK()) {
         Status s = checkDumpMode(dump_mode);
         if (!s.ok()) {
@@ -1273,13 +1239,6 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (enable_dump != "0") {
       if (dump_step_value != nullptr) {
         dump_step = dump_step_value->s();
-        if (!dump_step.empty()) {
-          Status s = checkDumpStep(dump_step);
-          if (!s.ok()) {
-            ADP_LOG(FATAL) << s.error_message();
-            LOG(FATAL) << s.error_message();
-          }
-        }
       }
       if (dump_mode_value != nullptr) {
         dump_mode = dump_mode_value->s();
@@ -1754,11 +1713,6 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (enable_dump) {
         if (params.count("dump_step") > 0) {
           dump_step = params.at("dump_step").s();
-          Status s = checkDumpStep(dump_step);
-          if (!s.ok()) {
-            ADP_LOG(FATAL) << s.error_message();
-            LOG(FATAL) << s.error_message();
-          }
         }
         if (params.count("dump_mode") > 0) {
           dump_mode = params.at("dump_mode").s();

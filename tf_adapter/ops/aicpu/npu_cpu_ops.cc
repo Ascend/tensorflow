@@ -241,6 +241,8 @@ REGISTER_OP("InitEmbeddingHashmap")
   .Attr("seed: int = 0")
   .Attr("seed2: int = 0")
   .Attr("filter_mode: string = 'no_filter' ")
+  .Attr("optimizer_mode: string = '' ")
+  .Attr("optimizer_params: list(float) = [0.1]")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("EmbeddingTableImport")
@@ -305,6 +307,8 @@ REGISTER_OP("EmbeddingTableFindAndInit")
   .Attr("default_key_or_value: bool = false")
   .Attr("default_key: int = 0")
   .Attr("default_value: float = 0")
+  .Attr("optimizer_mode: string = '' ")
+  .Attr("optimizer_params: list(float) = [0.1]")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     ShapeHandle keys_shape;
     TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 1, &keys_shape));
