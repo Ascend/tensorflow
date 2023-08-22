@@ -18,6 +18,7 @@
 #define TENSORFLOW_ADP_LOGGER_H
 
 #include <sstream>
+#include "mmpa/mmpa_api.h"
 
 #define FMK_MODULE_NAME static_cast<int>(FMK)
 
@@ -51,14 +52,17 @@ const int ADP_EVENT = 16;
 const int ADP_FATAL = 32;
 
 class AdapterLogger : public std::basic_ostringstream<char> {
-public:
+ public:
   AdapterLogger(const char *fname, int line, int severity) : severity_(severity) {
-    *this << " [" << fname << ":" << line << "]"
-          << " ";
+    *this << " [" << fname << ":" << line << "]" << GetTid() << " ";
   }
   ~AdapterLogger() override;
 
-private:
+ private:
+  mmPid_t GetTid() {
+    static const thread_local mmPid_t tid = static_cast<mmPid_t>(mmGetTid());
+    return tid;
+  }
   int severity_;
 };
 }  // namespace npu

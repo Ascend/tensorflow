@@ -83,3 +83,13 @@ INT32 mmDlclose(VOID *handle) {
 INT32 mmSleep(UINT32 milliSecond) {
   return EN_OK;
 }
+
+INT32 mmGetTid() {
+  INT32 ret = (INT32)syscall(SYS_gettid);
+
+  if (ret < MMPA_ZERO) {
+    return EN_ERROR;
+  }
+
+  return ret;
+}

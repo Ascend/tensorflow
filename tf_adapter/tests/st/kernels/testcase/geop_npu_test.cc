@@ -62,7 +62,7 @@ class DummyDevice : public DeviceBase {
   bool save_;
 };
 
-Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValue, 4> inputs,
+Status GeOpRunGraph(std::string example_path, gtl::InlinedVector<TensorValue, 4> inputs,
                          NodeDef &geop_node_def, std::string node_name, bool only_run_once = true) {
   Env* env = Env::Default();
   GraphDef graph_def;
@@ -80,8 +80,7 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
       std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
                                    *node_def, TF_GRAPH_DEF_VERSION, &status));
       EXPECT_TRUE(status.ok());
-      AsyncOpKernel* async_op = op->AsAsync();
-      params.op_kernel = async_op;
+      params.op_kernel = op.get();
       params.session_handle = "session_0";
       params.inputs = &inputs;
 
@@ -96,11 +95,10 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
       FunctionLibraryRuntime* flr = proc_flr->GetFLR(ProcessFunctionLibraryRuntime::kDefaultFLRDevice);
       params.function_library = flr;
       auto ctx = absl::make_unique<OpKernelContext>(&params);
-      AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
-      async_op->ComputeAsync(ctx.get(), done);
+      op->Compute(ctx.get());
       if (!only_run_once) {
         auto ctx1 = absl::make_unique<OpKernelContext>(&params);
-        async_op->ComputeAsync(ctx1.get(), done);
+        op->Compute(ctx1.get());
       }
     }
   }
@@ -112,7 +110,7 @@ TEST_F(GeOpTest, GeOpInitTest) {
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
   ge::g_geinit_fore_return_fail = true;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp1_0").ok());
   ge::g_geinit_fore_return_fail = false;
   PluginFinalize();
 }
@@ -121,25 +119,25 @@ TEST_F(GeOpTest, GeOpFuncTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp1_0").ok());
 }
 TEST_F(GeOpTest, GeDynamicConfigError) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_config.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp61_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp61_0").ok());
 }
 TEST_F(GeOpTest, GeOpOutputError) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_output_error.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp51_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp51_0").ok());
 }
 TEST_F(GeOpTest, GeOpVarInitGraphTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_var_init_graph.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp14_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp14_0").ok());
 }
 TEST_F(GeOpTest, GeOpDynamicInputTest) {
   NodeDef node_def;
@@ -157,7 +155,7 @@ TEST_F(GeOpTest, GeOpDynamicInputTest) {
   Tensor c(DT_INT32, TensorShape({1,}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a), TensorValue(&b),
                                             TensorValue(&c)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp11_1", false).ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp11_1", false).ok());
   auto attrs = node_def.attr();
   EXPECT_TRUE(attrs.find("_dynamic_input") != attrs.end());
   EXPECT_TRUE(!attrs["_dynamic_input"].s().empty());
@@ -166,14 +164,14 @@ TEST_F(GeOpTest, GeOpDynamicInputGetNextTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_input_lazy_recompile.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp11_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp11_0").ok());
 }
 TEST_F(GeOpTest, GeOpDynamicInput1Test) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_execute.pbtxt";
   Tensor a(DT_INT32, TensorShape({1,}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp14_0", false).ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp14_0", false).ok());
   auto attrs = node_def.attr();
   EXPECT_TRUE(attrs.find("_dynamic_input") != attrs.end());
   EXPECT_TRUE(!attrs["_dynamic_input"].s().empty());
@@ -191,7 +189,7 @@ TEST_F(GeOpTest, GeOpGetNextStringTest) {
   in.scalar<tstring>()() = "ABC";
   Tensor d(DT_INT32, TensorShape({2, 2}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a), TensorValue(&in), TensorValue(&d)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp14_0", false).ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp14_0", false).ok());
 }
 TEST_F(GeOpTest, GeOpAoeTuningAndDynamicDimsTest) {
   NodeDef node_def;
@@ -199,7 +197,7 @@ TEST_F(GeOpTest, GeOpAoeTuningAndDynamicDimsTest) {
   Tensor a(DT_INT32, TensorShape({1,}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a)};
   setenv("ENABLE_FORCE_V2_CONTROL", "1", true);
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0", false).ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp13_0", false).ok());
 }
 TEST_F(GeOpTest, GeOpAoeTuningTest) {
   Env* env = Env::Default();
@@ -221,8 +219,7 @@ TEST_F(GeOpTest, GeOpAoeTuningTest) {
       std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
                                    *node_def, TF_GRAPH_DEF_VERSION, &status));
       EXPECT_TRUE(status.ok());
-      AsyncOpKernel* async_op = op->AsAsync();
-      params.op_kernel = async_op;
+      params.op_kernel = op.get();
       params.session_handle = "session_0";
       gtl::InlinedVector<TensorValue, 4> inputs;
       params.inputs = &inputs;
@@ -240,8 +237,7 @@ TEST_F(GeOpTest, GeOpAoeTuningTest) {
       int forward_from = 0;
       params.forward_from_array = &forward_from;
       auto ctx = absl::make_unique<OpKernelContext>(&params);
-      AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
-      async_op->ComputeAsync(ctx.get(), done);
+      op->Compute(ctx.get());
       EXPECT_EQ(ctx->status().ok(), true);
 
       // another graph
@@ -264,8 +260,7 @@ TEST_F(GeOpTest, GeOpAoeTuningTest) {
           std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
                                        *node_def, TF_GRAPH_DEF_VERSION, &status));
           EXPECT_TRUE(status.ok());
-          AsyncOpKernel* async_op = op->AsAsync();
-          params.op_kernel = async_op;
+          params.op_kernel = op.get();
           params.session_handle = "session_0";
           gtl::InlinedVector<TensorValue, 4> inputs;
           params.inputs = &inputs;
@@ -283,8 +278,7 @@ TEST_F(GeOpTest, GeOpAoeTuningTest) {
           int forward_from = 0;
           params.forward_from_array = &forward_from;
           auto ctx = absl::make_unique<OpKernelContext>(&params);
-          AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
-          async_op->ComputeAsync(ctx.get(), done);
+          op->Compute(ctx.get());
           EXPECT_EQ(ctx->status().ok(), true);
         }
       }
@@ -313,8 +307,7 @@ TEST_F(GeOpTest, GeOpAoeTuningTest_fail) {
       std::unique_ptr<OpKernel> op(CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(),
                                    *node_def, TF_GRAPH_DEF_VERSION, &status));
       EXPECT_TRUE(status.ok());
-      AsyncOpKernel* async_op = op->AsAsync();
-      params.op_kernel = async_op;
+      params.op_kernel = op.get();
       params.session_handle = "session_0";
       gtl::InlinedVector<TensorValue, 4> inputs;
       params.inputs = &inputs;
@@ -332,10 +325,9 @@ TEST_F(GeOpTest, GeOpAoeTuningTest_fail) {
       int forward_from = 0;
       params.forward_from_array = &forward_from;
       auto ctx = absl::make_unique<OpKernelContext>(&params);
-      AsyncOpKernel::DoneCallback done = []() { LOG(INFO) << "DONE DoneCallback"; };
 
-      static_cast<GeOp*>(async_op)->session_id_ = 9999;
-      async_op->ComputeAsync(ctx.get(), done);
+      static_cast<GeOp*>(op.get())->session_id_ = 9999;
+      op->Compute(ctx.get());
       EXPECT_EQ(ctx->status().ok(), false);
     }
   }
@@ -345,7 +337,7 @@ TEST_F(GeOpTest, GeOpFuncSubGraphTest) {
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_node_func_subgraph.pbtxt";
   Tensor a(DT_INT32, TensorShape({1,}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp12_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp12_0").ok());
 }
 
 TEST_F(GeOpTest, GeOpDynamicDimsTest) {
@@ -353,7 +345,7 @@ TEST_F(GeOpTest, GeOpDynamicDimsTest) {
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_dims.pbtxt";
   Tensor a(DT_INT32, TensorShape({1,}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp13_0").ok());
   auto attrs = node_def.attr();
   EXPECT_TRUE(attrs.find("_input_shape") != attrs.end());
   EXPECT_TRUE(!attrs["_input_shape"].s().empty());
@@ -364,7 +356,7 @@ TEST_F(GeOpTest, GeOpDynamicDimsNodeType1Test) {
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dynamic_dims_node_type1.pbtxt";
   Tensor a(DT_INT32, TensorShape({1,}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&a)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp13_0").ok());
   auto attrs = node_def.attr();
   EXPECT_TRUE(attrs.find("_input_shape") != attrs.end());
   EXPECT_TRUE(!attrs["_input_shape"].s().empty());
@@ -374,7 +366,7 @@ TEST_F(GeOpTest, GeOpWhileLoopV1Test) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_while_loop.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp13_0").ok());
 }
 
 TEST_F(GeOpTest, GeOpWhileLoopV2Test) {
@@ -382,7 +374,7 @@ TEST_F(GeOpTest, GeOpWhileLoopV2Test) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_while_loop.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp13_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp13_0").ok());
 }
 
 TEST_F(GeOpTest, GeOpNpuOnnxGraphOpTest) {
@@ -391,7 +383,7 @@ TEST_F(GeOpTest, GeOpNpuOnnxGraphOpTest) {
 
   Tensor in(DT_FLOAT, TensorShape({1,1,5,5}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
-  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0", false).ok());
+  EXPECT_TRUE(GeOpRunGraph(grph_pbtxt_path, inputs, node_def, "GeOp91_0", false).ok());
 }
 
 TEST_F(GeOpTest, GeOpNpuOnnxGraphOpNoModelTest) {
@@ -400,13 +392,13 @@ TEST_F(GeOpTest, GeOpNpuOnnxGraphOpNoModelTest) {
 
   Tensor in(DT_FLOAT, TensorShape({1,1,5,5}));
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
-  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
 }
 TEST_F(GeOpTest, GeOpDpOpTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop_dpop.pbtxt";
   gtl::InlinedVector<TensorValue, 4> inputs;
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0_dp").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_def_path, inputs, node_def, "GeOp1_0_dp").ok());
 }
 TEST_F(GeOpTest, GeOpNpuStringMaxSizeTest) {
   NodeDef node_def;
@@ -418,7 +410,7 @@ TEST_F(GeOpTest, GeOpNpuStringMaxSizeTest) {
   Tensor in(DT_STRING, TensorShape({1,}));
   in.scalar<tstring>()() = buff;
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
-  EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
   free(buff);
   buff = nullptr;
 }
@@ -471,7 +463,7 @@ TEST_F(GeOpTest, BuildOutputTensorInfo) {
   Tensor in(DT_STRING, TensorShape({1}));
   in.scalar<tstring>()() = "ABC";
   gtl::InlinedVector<TensorValue, 4> inputs{TensorValue(&in)};
-  EXPECT_TRUE(GeOpRunGraphAsync(graph_pbtxt_path, inputs, node_def, "GeOp1_0").ok());
+  EXPECT_TRUE(GeOpRunGraph(graph_pbtxt_path, inputs, node_def, "GeOp1_0").ok());
 }
 TEST_F(GeOpTest, test_MakeCompatShape) {
   GeOp *geop_node = reinterpret_cast<GeOp *>(0x100);
