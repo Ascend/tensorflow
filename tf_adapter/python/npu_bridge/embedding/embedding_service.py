@@ -160,6 +160,7 @@ class ESWorker:
 
         self._ps_table_id_list = []
         # storage lookup: table_id list, lookup result list, lookup key list
+        self._ps_lookup_index = 0
         self._ps_table_has_lookup = []
         self._ps_table_lookup_key = []
         self._ps_table_lookup_result = []
@@ -325,6 +326,7 @@ class ESWorker:
                 self._table_name_has_init.append(name)
             else:
                 raise ValueError("This table has been initialized.")
+            self._ps_lookup_index = self._ps_table_count
             self._table_to_embedding_dim[table_id] = embedding_dim
             self._table_to_max_num[table_id] = max_feature_count
             # storage the table id for embedding PS table
@@ -479,8 +481,6 @@ class ESWorker:
         table_id = self._table_name_to_id.get(name)
         if table_id not in self._ps_table_id_list:
             raise ValueError("this ps table has not yet initialized.")
-        self._ps_table_has_lookup.append(table_id)
-        self._ps_table_lookup_key.append(ids)
 
         if self._train_mode:
             if self._table_to_counter_filter.get(table_id) is not None:
@@ -524,7 +524,11 @@ class ESWorker:
                                                           embedding_dim=self._table_to_embedding_dim.get(table_id))
         result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
         result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
-        self._ps_table_lookup_result.append(result)
+        if self._ps_lookup_index != 0:
+            self._ps_table_has_lookup.append(table_id)
+            self._ps_table_lookup_key.append(ids)
+            self._ps_table_lookup_result.append(result)
+            self._ps_lookup_index = self._ps_lookup_index - 1
         return result
 
     # old version
@@ -596,9 +600,9 @@ class ESWorker:
     # @param loss 类型
     def embedding_update_v2(self, loss):
         """ Operator for update in embedding table. """
-        params = self._ps_table_lookup_result[0]
-        input_ids_list = self._ps_table_lookup_key[0]
-        table_ids = self._ps_table_has_lookup[0]
+        params = self._ps_table_lookup_result
+        input_ids_list = self._ps_table_lookup_key
+        table_ids = self._ps_table_has_lookup
         if (loss is None) or (params is None) or (table_ids is None) or (input_ids_list is None):
             raise ValueError("loss or params or table_ids or input_ids_list is None.")
         if (isinstance(loss, str)) or (isinstance(params, str)) or isinstance(table_ids, str) or \
