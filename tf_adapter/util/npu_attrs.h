@@ -35,6 +35,8 @@
 namespace tensorflow {
 std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
+Status GetStepFromEnv(const std::string &env_name, uint32_t &step);
+Status GetLossFromEnv(const std::string &env_name, float &loss);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
 extern const bool kDumpGraph;
 extern const bool kIsHeterogeneous;

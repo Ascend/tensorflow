@@ -617,6 +617,10 @@ class NPUEstimator(estimator_lib.Estimator):
                     config._experimental_config._graph_parallel_option_path)
             if config._experimental_config._enable_graph_parallel is not None:
                 custom_op.parameter_map["enable_graph_parallel"].b = config._experimental_config._enable_graph_parallel
+            if config._experimental_config._accelerate_train_mode is not None:
+                custom_op.parameter_map[
+                    "experimental_accelerate_train_mode"].s = tf.compat.as_bytes(
+                    config._experimental_config._accelerate_train_mode)
 
     def __load_stream_max_config(self, config, custom_op):
         """Load stream_max_parallel_num config ,and add to custom_optimizers

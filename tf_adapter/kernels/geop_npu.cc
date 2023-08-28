@@ -31,6 +31,7 @@
 #include <thread>
 #include <vector>
 #include <algorithm>
+#include <limits>
 
 #include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
@@ -90,6 +91,35 @@ namespace {
 const std::string ATTR_NAME_CONST_INPUT_NAME = "_const_input";
 const std::string kMdatTuning = "mdat";
 const std::string kAutoRecompute = "auto";
+const std::string kTotalStep = "TOTAL_STEP";
+const std::string kStepNow = "STEP_NOW";
+const std::string kTargetLoss = "TARGET_LOSS";
+const std::string kLossNow = "LOSS_NOW";
+const std::string kModeValueStep = "step";
+const std::string kModeValueLoss = "loss";
+const float kDefaultStepRatio = 0.9;
+const float kMinStepRatio = 0.2;
+const float kMaxStepRatio = 0.9;
+const float kDefaultLossRatio = 1.05;
+const float kMinLossRatio = 1.01;
+const float kMaxLossRatio = 1.5;
+
+const std::map<std::string, GeOp::FastValue> fast_value_string_2_eunm = {{"fast", GeOp::kfast},
+                                                                         {"fast1", GeOp::kfast1}};
+
+const std::map<GeOp::FastValue, std::string> fast_value_enum_2_string = {{GeOp::kfast, "fast"},
+                                                                         {GeOp::kfast1, "fast1"}};
+const std::map<GeOp::FastValue, std::string> fast_value_2_precision_mode_v1 = {
+    {GeOp::kfast, "allow_mix_precision_fp16"},
+    {GeOp::kfast1, "allow_mix_precision_bf16"},
+};
+const std::unordered_set<std::string> supported_origin_precision_mode_v1 = {"allow_fp32_to_fp16",
+                                                                            "must_keep_origin_dtype", ""};
+const std::unordered_set<std::string> valid_mode_values = {kModeValueStep, kModeValueLoss};
+const std::map<GeOp::FastValue, std::string> fast_value_2_precision_mode_v2 = {{GeOp::kfast, "mixed_float16"},
+                                                                               {GeOp::kfast1, "mixed_bfloat16"}};
+const std::unordered_set<std::string> supported_origin_precision_mode_v2 = {"origin", ""};
+
 using geDataUniquePtr = std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>>;
 
 class NpuHostFixedAllocator : public tensorflow::Allocator, public tensorflow::core::RefCounted {
@@ -172,12 +202,12 @@ Status BuildStringOutput(geDataUniquePtr data_ptr, size_t output_size, Tensor &c
     return errors::Internal("Graph engine process graph success but output string format is not right.");
   }
   auto tensor_flat = cpu_tensor.flat<tstring>();
-  tstring* tensor_data = tensor_flat.data();
+  tstring *tensor_data = tensor_flat.data();
   ge::StringHead *string_head = reinterpret_cast<ge::StringHead *>(reinterpret_cast<char *>(data_ptr.get()));
   for (int64_t j = 0; j < out_shape.num_elements(); j++) {
     int64_t offset = string_head[j].addr;
     int64_t string_len = string_head[j].len;
-    const char* temp_string = reinterpret_cast<const char *>(data_ptr.get()) + offset;
+    const char *temp_string = reinterpret_cast<const char *>(data_ptr.get()) + offset;
     tensor_data[j] = tstring(temp_string, string_len);
     ADP_LOG(INFO) << "[GEOP] output string data " << tensor_data[j];
   }
@@ -393,6 +423,8 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
   iteration_per_loop_ = std::atoi(pass_options["iterations_per_loop"].c_str());
   job_type_ = pass_options["job"];
   mix_compile_mode_ = pass_options["mix_compile_mode"];
+  accelerate_train_mode_ = pass_options["accelerate_train_mode"];
+  ADP_LOG(INFO) << "accelerate train mode :" << accelerate_train_mode_;
   if (GePlugin::GetInstance()->IsGlobal()) {
     ADP_LOG(INFO) << "[GEOP] GePlugin global, skip GePlugin init";
     InitAoeFlag();
@@ -518,6 +550,250 @@ void GeOp::Finalize() {
   return;
 }
 
+uint32_t GetStepToChange(const uint32_t total_step, const float ratio) {
+  return total_step * ratio;
+}
+
+float GetLossToChange(const float target_loss, const float ratio) {
+  return target_loss * ratio;
+}
+
+Status GeOp::AccelerateInfo::TriggeredByStep(bool &is_triggered) {
+  uint32_t total_step = 0U;
+  REQUIRES_STATUS_OK(GetStepFromEnv(kTotalStep, total_step));
+  uint32_t step_to_change = GetStepToChange(total_step, fast_ratio_);
+  ADP_LOG(INFO) << "[GEOP] accelerate train: get expected trigger recompile step: " << step_to_change
+                << " with total step: " << total_step;
+  uint32_t step_now = 0U;
+  REQUIRES_STATUS_OK(GetStepFromEnv(kStepNow, step_now));
+  if ((step_now >= step_to_change) || (step_now + iteration_per_loop_ >= total_step)) {
+    ADP_LOG(EVENT) << "[GEOP] accelerate train: trigger recompile when step is " << step_now;
+    if (step_now != step_to_change) {
+      ADP_LOG(WARNING) << "[GEOP] accelerate train: trigger recompile step earlier or later than expected step, may"
+                          "have some effect on train";
+    }
+    is_triggered = true;
+    is_recovered_ = true;
+    return Status::OK();
+  }
+  is_triggered = false;
+  return Status::OK();
+}
+
+Status GeOp::AccelerateInfo::TriggeredByLoss(bool &is_triggered) {
+  float target_loss = 0.0;
+  REQUIRES_STATUS_OK(GetLossFromEnv(kTargetLoss, target_loss));
+  float loss_to_change = GetLossToChange(target_loss, fast_ratio_);
+  ADP_LOG(INFO) << "[GEOP] accelerate train: get expected trigger recompile loss: " << loss_to_change
+                << " with target loss: " << target_loss;
+  float loss_now = 0;
+  REQUIRES_STATUS_OK(GetLossFromEnv(kLossNow, loss_now));
+  if ((loss_now != 0.0) && (loss_now <= loss_to_change)) {
+    ADP_LOG(EVENT) << "[GEOP] accelerate train: trigger recompile when loss is " << loss_now;
+    if (loss_now != loss_to_change) {
+      ADP_LOG(WARNING) << "[GEOP] accelerate train: trigger recompile loss smaller than expected loss, may"
+                          "have some effect on train";
+    }
+    is_triggered = true;
+    is_recovered_ = true;
+    return Status::OK();
+  }
+  is_triggered = false;
+  return Status::OK();
+}
+
+Status GeOp::AccelerateInfo::JudgeNeedRecompile(bool &need_recompile) {
+  if (is_recovered_) {
+    need_recompile = false;
+    return Status::OK();
+  }
+  if (fast_mode_ == kModeValueStep) {
+    REQUIRES_STATUS_OK(TriggeredByStep(need_recompile));
+  } else {
+    REQUIRES_STATUS_OK(TriggeredByLoss(need_recompile));
+  }
+  return Status::OK();
+}
+
+Status GeOp::DoAccelerateTrain() {
+  if (!IsAccelerateTrainOn()) {
+    return Status::OK();
+  }
+  // accelerate_train_mode_ must be valid if `IsAccelerateTrainOn` is true
+  REQUIRES_STATUS_OK(ParserAccelerateTrain(accelerate_train_mode_));
+
+  // accelerate by modify precision mode
+  if (need_recover_precision_mode_) {
+    REQUIRES_STATUS_OK(RecoverPrecisionMode());
+  } else {
+    REQUIRES_STATUS_OK(CheckAndModifyPrecisionMode());
+  }
+  return Status::OK();
+}
+
+Status GeOp::NeedRecompileWhenAccelerateTrainOn(bool &need_recompile) {
+  if (!IsAccelerateTrainOn()) {
+    need_recompile = false;
+    return Status::OK();
+  }
+  REQUIRES_STATUS_OK(ParserAccelerateTrain(accelerate_train_mode_));
+  return accelerate_info_.JudgeNeedRecompile(need_recompile);
+}
+
+Status GeOp::CheckAndSetAccelarateMode(const std::string &mode_value) {
+  std::stringstream ss;
+  if (valid_mode_values.find(mode_value) == valid_mode_values.end()) {
+    ss << "accelerate_train_mode second part is invalid: " << mode_value << ", you can chose `step`";
+    ADP_LOG(ERROR) << ss.str();
+    return errors::Unavailable(ss.str());
+  }
+  if (mode_value == kModeValueStep) {
+    uint32_t step = 0U;
+    REQUIRES_STATUS_OK(GetStepFromEnv(kTotalStep, step));
+    REQUIRES_STATUS_OK(GetStepFromEnv(kStepNow, step));
+  }
+  if (mode_value == kModeValueLoss) {
+    float loss = 0.0;
+    REQUIRES_STATUS_OK(GetLossFromEnv(kTargetLoss, loss));
+    REQUIRES_STATUS_OK(GetLossFromEnv(kLossNow, loss));
+  }
+  accelerate_info_.fast_mode_ = mode_value;
+  return Status::OK();
+}
+
+Status GeOp::CheckAndSetAccelarateRatio(const std::string &mode_value, const std::string &ratio_value) {
+  float ratio = 0.0;
+  std::stringstream ss;
+  if (!strings::safe_strtof(ratio_value, &ratio)) {
+    ss << "accelerate_train_mode third part is invalid: " << ratio_value
+       << " ,you can chose `0.9` for `step` or `1.02` for `loss`";
+    ADP_LOG(ERROR) << ss.str();
+    return errors::Unavailable(ss.str());
+  }
+
+  if (mode_value == kModeValueStep) {
+    if (ratio < kMinStepRatio || ratio > kMaxStepRatio) {
+      ss << "accelerate_train_mode third part is invalid: " << ratio_value << " ,you can chose `" << kMinStepRatio
+         << "-" << kMaxStepRatio << "`for `" << mode_value << "`";
+      ADP_LOG(ERROR) << ss.str();
+      return errors::Unavailable(ss.str());
+    }
+  } else if (mode_value == kModeValueLoss) {
+    if (ratio < kMinLossRatio || ratio > kMaxLossRatio) {
+      ss << "accelerate_train_mode third part is invalid: " << ratio_value << " ,you can chose `" << kMinLossRatio
+         << "-" << kMaxLossRatio << "`for `" << mode_value << "`";
+      ADP_LOG(ERROR) << ss.str();
+      return errors::Unavailable(ss.str());
+    }
+  } else {
+    ADP_LOG(ERROR) << "invalid mode value: " << mode_value;
+    return errors::Unavailable("invalid mode value");
+  }
+  accelerate_info_.fast_ratio_ = ratio;
+  return Status::OK();
+}
+
+Status GeOp::ParserAccelerateTrain(const std::string &accelerate_train_mode) {
+  if (accelerate_info_.is_inited_) {
+    return Status::OK();
+  }
+  accelerate_info_.iteration_per_loop_ = iteration_per_loop_;
+  // format like "fast|step|0.9" or "fast|step"
+  std::vector<std::string> infos = ge::StringUtils::Split(accelerate_train_mode, '|');
+  std::stringstream ss;
+  if ((infos.size() != 2U) && (infos.size() != 3U)) {
+    ss << "Format of accelerate_train_mode is invalid: " << accelerate_train_mode;
+    ADP_LOG(ERROR) << ss.str();
+    return errors::Unavailable(ss.str());
+  }
+  const auto &fast_value = infos[0U];
+  const auto &iter = fast_value_string_2_eunm.find(fast_value);
+  if (iter == fast_value_string_2_eunm.end()) {
+    ss << "accelerate_train_mode first part is invalid: " << fast_value << ", you can chose `fast`";
+    ADP_LOG(ERROR) << ss.str();
+    return errors::Unavailable(ss.str());
+  }
+  accelerate_info_.fast_value_ = iter->second;
+  REQUIRES_STATUS_OK(CheckAndSetAccelarateMode(infos[1U]));
+  if ((infos.size() != 3U) || (infos[2U].empty())) {
+    accelerate_info_.fast_ratio_ =
+        accelerate_info_.fast_mode_ == kModeValueStep ? kDefaultStepRatio : kDefaultLossRatio;
+    accelerate_info_.is_inited_ = true;
+    return Status::OK();
+  }
+  REQUIRES_STATUS_OK(CheckAndSetAccelarateRatio(accelerate_info_.fast_mode_, infos[2U]));
+  accelerate_info_.is_inited_ = true;
+  return Status::OK();
+}
+
+bool GeOp::IsAccelerateTrainOn() {
+  return !(accelerate_train_mode_.empty());
+}
+
+Status GeOp::CheckAndModifyPrecisionMode() {
+  std::stringstream ss;
+  const auto &iter_v2 = init_options_.find(ge::PRECISION_MODE_V2);
+  if ((accelerate_info_.origin_precision_mode_v2.empty()) && (iter_v2 != init_options_.end())) {
+    const auto &origin_mode_v2 = init_options_[ge::PRECISION_MODE_V2];
+    const auto &inner_iter_v2 = fast_value_2_precision_mode_v2.find(accelerate_info_.fast_value_);
+    if ((inner_iter_v2 == fast_value_2_precision_mode_v2.end()) ||
+        (supported_origin_precision_mode_v2.find(origin_mode_v2) == supported_origin_precision_mode_v2.end())) {
+      ss << "accelerate fast_value:" << fast_value_enum_2_string.at(accelerate_info_.fast_value_)
+         << " is not support with PRECISION_MODE_V2: " << origin_mode_v2;
+      ADP_LOG(ERROR) << ss.str();
+      return errors::Unavailable(ss.str());
+    }
+    graph_options_[ge::PRECISION_MODE_V2] = inner_iter_v2->second;
+    accelerate_info_.origin_precision_mode_v2 = origin_mode_v2;
+    ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_
+                  << " change PRECISION_MODE_V2 from: " << accelerate_info_.origin_precision_mode_v2
+                  << " to: " << inner_iter_v2->second;
+    return Status::OK();
+  }
+  if ((accelerate_info_.origin_precision_mode_v1.empty())) {
+    // if init_options_ has no PRECISION_MODE, set empty to origin mode
+    const auto &origin_mode_v1 = init_options_[ge::PRECISION_MODE];
+    const auto &inner_iter_v1 = fast_value_2_precision_mode_v1.find(accelerate_info_.fast_value_);
+    if ((inner_iter_v1 == fast_value_2_precision_mode_v1.end()) ||
+        (supported_origin_precision_mode_v1.find(origin_mode_v1) == supported_origin_precision_mode_v1.end())) {
+      ss << "accelerate fast_value:" << fast_value_enum_2_string.at(accelerate_info_.fast_value_)
+         << " is not support with PRECISION_MODE: " << origin_mode_v1;
+      ADP_LOG(ERROR) << ss.str();
+      return errors::Unavailable(ss.str());
+    }
+    graph_options_[ge::PRECISION_MODE] = inner_iter_v1->second;
+    accelerate_info_.origin_precision_mode_v1 = origin_mode_v1;
+    ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_
+                  << " change PRECISION_MODE from: " << accelerate_info_.origin_precision_mode_v1
+                  << " to: " << inner_iter_v1->second;
+  }
+  return Status::OK();
+}
+
+Status GeOp::RecoverPrecisionMode() {
+  if (!accelerate_info_.origin_precision_mode_v2.empty()) {
+    const auto fast_value = graph_options_[ge::PRECISION_MODE_V2];
+    graph_options_[ge::PRECISION_MODE_V2] = accelerate_info_.origin_precision_mode_v2;
+    ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_ << " recover PRECISION_MODE_V2 from: " << fast_value
+                  << " to: " << accelerate_info_.origin_precision_mode_v2;
+  } else {
+    const auto fast_value = graph_options_[ge::PRECISION_MODE];
+    graph_options_[ge::PRECISION_MODE] = accelerate_info_.origin_precision_mode_v1;
+    ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_ << " recover PRECISION_MODE from: " << fast_value
+                  << " to: " << accelerate_info_.origin_precision_mode_v1;
+  }
+  return Status::OK();
+}
+
+bool GeOp::IsGraphNeedRebuild(const uint32_t cache_graph_id) {
+  if (NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode_) != Status::OK()) {
+    ADP_LOG(ERROR) << "[GEOP] tf session " << tf_session_ << ", graph id: " << cache_graph_id
+                   << " prepare to accelerate for train failed";
+    return false;
+  }
+  return ((need_recover_precision_mode_) || (ge_session_->IsGraphNeedRebuild(cache_graph_id)));
+}
+
 int32_t GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
   if (!build_flag_) {
     ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_ << ", graph id: " << cache_graph_id
@@ -534,12 +810,12 @@ int32_t GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
     LOG(ERROR) << "[GEOP] GE session is nullptr";
     return -1;
   }
-  if (!ge_session_->IsGraphNeedRebuild(cache_graph_id)) {
+  if (!IsGraphNeedRebuild(cache_graph_id)) {
     ADP_LOG(INFO) << "[GEOP] tf session " << tf_session_ << ", graph id: " << cache_graph_id << " no need to rebuild";
     return 0;
   }
-
-  ADP_LOG(INFO) << "[GEOP] The graph need rebuild, graph id " << cache_graph_id;
+  ADP_LOG(INFO) << "[GEOP] The graph need rebuild, graph id " << cache_graph_id << " ,need_change_precision_mode: "
+                << need_recover_precision_mode_;
 
   // The graph need to rebuild, remove it from GE first.
   ADP_LOG(INFO) << "[GEOP] tf session: " << tf_session_ << ", graph id: " << cache_graph_id;
@@ -943,7 +1219,7 @@ void GeOp::Compute(OpKernelContext *ctx) {
     graph_options_["ge.jit_compile"] = jit_compile_;
     graph_options_["ge.exec.overflow"] = "1";
     graph_options_["ge.graphLevelSat"] = (mix_compile_mode_ == "0") ? "1" : "0";
-
+    OP_REQUIRES_OK(ctx, DoAccelerateTrain());
     // call ge session addGraph api
     auto graph_options = graph_options_;
     if (is_aoe_) {
@@ -1347,7 +1623,7 @@ void GeOp::ProcessGetNextNode(const Node *node) {
   }
   auto it = is_getnext_dynamic_shape_.find(node->name());
   if (it == is_getnext_dynamic_shape_.end()) {
-    (void)is_getnext_dynamic_shape_.insert(std::make_pair(node->name(), is_dynamic_shape));
+    (void) is_getnext_dynamic_shape_.insert(std::make_pair(node->name(), is_dynamic_shape));
   } else {
     ADP_LOG(WARNING) << "[GEOP]node: " + node->name() + " has is_dynamic_shape[" << it->second << "].";
   }
@@ -1918,10 +2194,10 @@ Status GeOp::GraphInputConvertToConst(OpKernelContext *ctx) {
       std::string const_input_name = "Const" + std::to_string(index);
       Node *const_node = nullptr;
       TF_CHECK_OK(NodeBuilder(const_input_name, "Const")
-                  .Device(node->def().device())
-                  .Attr("dtype", tensor.dtype())
-                  .Attr("value", tensor)
-                  .Finalize(&graph, &const_node));
+                      .Device(node->def().device())
+                      .Attr("dtype", tensor.dtype())
+                      .Attr("value", tensor)
+                      .Finalize(&graph, &const_node));
       for (auto out_edge : node->out_edges()) {
         REQUIRES_NOT_NULL(out_edge);
         graph.AddEdge(const_node, out_edge->src_output(), out_edge->dst(), out_edge->dst_input());

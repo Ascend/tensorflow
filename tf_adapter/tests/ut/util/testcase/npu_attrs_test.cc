@@ -59,6 +59,32 @@ TEST_F(NpuAttrTest, GetEnvAscendDeviceIdFailTest) {
   Status s = GetEnvDeviceID(device_id);
   EXPECT_EQ(s.ok(), false);
 }
+
+TEST_F(NpuAttrTest, GetStepFromEnv) {
+  uint32_t step = 0;
+  Status s = GetStepFromEnv("STEP_NOW", step);
+  EXPECT_EQ(s.ok(), false);
+  setenv("STEP_NOW", "1000", true);
+  s = GetStepFromEnv("STEP_NOW", step);
+  EXPECT_EQ(s.ok(), true);
+  EXPECT_EQ(step, 1000);
+  setenv("STEP_NOW", "1.1", true);
+  s = GetStepFromEnv("STEP_NOW", step);
+  EXPECT_EQ(s.ok(), false);
+  unsetenv("STEP_NOW");
+}
+
+TEST_F(NpuAttrTest, GetLossFromEnv) {
+  float loss = 0;
+  Status s = GetLossFromEnv("LOSS_NOW", loss);
+  EXPECT_EQ(s.ok(), false);
+  setenv("LOSS_NOW", "1.1", true);
+  s = GetLossFromEnv("LOSS_NOW", loss);
+  EXPECT_EQ(s.ok(), true);
+  EXPECT_FLOAT_EQ(loss, 1.1);
+  unsetenv("LOSS_NOW");
+}
+
 TEST_F(NpuAttrTest, SplitTest) {
   std::string s = "a,b,c";
   std::vector<std::string> res;

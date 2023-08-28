@@ -419,7 +419,8 @@ class ExperimentalConfig():
                  enable_graph_parallel=None,
                  graph_parallel_option_path=None,
                  graph_compiler_cache_dir=None,
-                 resource_config_path=None):
+                 resource_config_path=None,
+                 accelerate_train_mode=None):
         """
         Constructs a ExperimentalConfig.
 
@@ -441,7 +442,7 @@ class ExperimentalConfig():
         self._graph_parallel_option_path = graph_parallel_option_path
         self._graph_compiler_cache_dir = graph_compiler_cache_dir
         self._resource_config_path = resource_config_path
-
+        self._accelerate_train_mode = accelerate_train_mode
 
 class NpuExecutePlacement(Enum):
     """npu execute place option. """

@@ -47,12 +47,29 @@ using AoeSetTuningGraphFunc = AoeStatus (*)(SessionId, ge::Graph &);
 using AoeTuningGraphFunc = AoeStatus (*)(SessionId, const std::map<ge::AscendString, ge::AscendString> &);
 
 class GeOp : public OpKernel {
-public:
+ public:
   explicit GeOp(OpKernelConstruction *ctx);
   ~GeOp() override;
   void Compute(OpKernelContext *ctx) override;
 
-private:
+  enum FastValue { kfast = 0, kfast1 };
+  struct AccelerateInfo {
+    FastValue fast_value_;
+    std::string fast_mode_;
+    float fast_ratio_;
+    std::string origin_precision_mode_v1;
+    std::string origin_precision_mode_v2;
+    bool is_inited_{false};            // mark has been parsered from option or not
+    bool is_recovered_{false};         // mark has been triggered recover precision mode or not
+    uint32_t iteration_per_loop_{0U};  // iteration_per_loop has some effect to match fast_ratio_
+    Status JudgeNeedRecompile(bool &need_recompile);
+
+   private:
+    Status TriggeredByStep(bool &need_recompile);
+    Status TriggeredByLoss(bool &need_recompile);
+  };
+
+ private:
   void Initialize(OpKernelConstruction *ctx);
   void Finalize();
 
@@ -92,7 +109,15 @@ private:
   void AddNodeAttrs(Node *node, bool &is_initialize);
 
   int InitRebuildFlag(uint32_t cache_graph_id);
-
+  bool IsGraphNeedRebuild(const uint32_t cache_graph_id);
+  Status DoAccelerateTrain();
+  Status NeedRecompileWhenAccelerateTrainOn(bool &need_recompile);
+  bool IsAccelerateTrainOn();
+  Status ParserAccelerateTrain(const std::string &accelerate_train_mode);
+  Status CheckAndSetAccelarateMode(const std::string &mode_value);
+  Status CheckAndSetAccelarateRatio(const std::string &mode_value, const std::string &ratio_value);
+  Status CheckAndModifyPrecisionMode();
+  Status RecoverPrecisionMode();
   bool IncrementGraphIdCount(uint32_t &graph_id);
 
   bool DecrementGraphIdCount(const std::string &tf_session, uint32_t &graph_id);
@@ -175,6 +200,7 @@ private:
   ge::Session *ge_session_;
   std::string job_type_;
   std::string mix_compile_mode_;
+  std::string accelerate_train_mode_;
   std::map<std::vector<std::string>, uint32_t> cache_graphs_;
   std::vector<std::pair<std::vector<std::string>, uint32_t>> graph_counts_;
   std::map<std::string, std::string> sess_options_;
@@ -207,6 +233,7 @@ private:
   std::map<std::string, bool> is_getnext_dynamic_shape_;
   SessionId session_id_;
   bool is_aoe_{false};
+  bool need_recover_precision_mode_{false};
   AoeInitializeFunc aoe_initialize_;
   AoeFinalizeFunc aoe_finalize_;
   AoeCreateSessionFunc aoe_create_session_;
@@ -218,6 +245,8 @@ private:
   AoeSetDependGraphsInputsFunc aoe_set_depend_graphs_inputs_;
   AoeSetTuningGraphInputFunc aoe_set_tuning_graph_input_;
   mutex run_mtx_;
+  // accelerate train
+  AccelerateInfo accelerate_info_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_
