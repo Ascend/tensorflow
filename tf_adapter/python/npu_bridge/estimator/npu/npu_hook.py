@@ -375,3 +375,50 @@ class NPUOutputTensorHook(basic_session_run_hooks.LoggingTensorHook):
     def _call_output_fn(self):
         self._output_fn.__call__(self._output_list)
         del self._output_list[:]
+
+
+class TellMeStepOrLossHook(session_run_hook.SessionRunHook):
+    """tell me step or loss"""
+
+    def __init__(self, step=None, total_step=None, loss=None, final_loss=None
+                 ):
+        """Initializes a `TellMeStepOrLossHook`.
+        """
+        if step is None and loss is None:
+            raise ValueError("One of step or loss must be specified")
+        self._step = step
+        self._total_step = total_step
+        self._loss = loss
+        self._final_loss = final_loss
+        # set init value for inner check
+        if self._step is not None:
+            os.environ["STEP_NOW"] = "0"
+        if self._total_step is not None:
+            os.environ["TOTAL_STEP"] = str(self._total_step)
+        if self._loss is not None:
+            os.environ["LOSS_NOW"] = "0.0"
+        if self._final_loss is not None:
+            os.environ["TARGET_LOSS"] = str(self._final_loss)
+
+    def before_run(self, run_context):
+        """Call before session will run"""
+        logging.info("TellMeStepOrLossHook before_run...")
+        fetches = {}
+        if self._step is not None:
+            fetches["step_now"] = self._step
+        if self._loss is not None:
+            fetches["loss_now"] = self._loss
+        return tf.train.SessionRunArgs(fetches=fetches)
+
+    def after_run(self, run_context, run_values):
+        """Call after session has run"""
+        logging.info("TellMeStepOrLossHook after_run...")
+        res = run_values.results
+        logging.info(
+            f'step_now:{res.get("step_now")} total_step:{self._total_step} loss_now:{res.get("loss_now")} target_loss:{self._final_loss}')
+        if res.get("step_now") is None and res.get("loss_now") is None:
+            raise ValueError(f'step tensor:{self._step} or loss tensor:{self._loss} is not a valid tensor')
+        if res.get("step_now") is not None:
+            os.environ["STEP_NOW"] = str(res.get("step_now"))
+        if res.get("loss_now") is not None:
+            os.environ["LOSS_NOW"] = str(res.get("loss_now"))

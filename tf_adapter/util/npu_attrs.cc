@@ -171,6 +171,39 @@ Status GetEnvDeviceID(uint32_t &device_id) {
   }
   return Status::OK();
 }
+
+Status GetStepFromEnv(const std::string &env_name, uint32_t &step) {
+  std::string step_string;
+  (void) ReadStringFromEnvVar(env_name, "", &step_string);
+  std::stringstream ss;
+  if (step_string.empty()) {
+    ss << env_name << " is not set, which is needed when accelarate by step";
+    return errors::InvalidArgument(ss.str());
+  } else {
+    if (!strings::safe_strtou32(step_string, &step)) {
+      ss << env_name << " is invalid, should be int, such as 1000";
+      return errors::InvalidArgument(ss.str());
+    }
+  }
+  return Status::OK();
+}
+
+Status GetLossFromEnv(const std::string &env_name, float &loss) {
+  std::string loss_string;
+  (void) ReadStringFromEnvVar(env_name, "", &loss_string);
+  std::stringstream ss;
+  if (loss_string.empty()) {
+    ss << env_name << " is not set, which is needed when accelarate by loss";
+    return errors::InvalidArgument(ss.str());
+  } else {
+    if (!strings::safe_strtof(loss_string, &loss)) {
+      ss << env_name << " is invalid, should be float, such as 0.1";
+      return errors::InvalidArgument(ss.str());
+    }
+  }
+  return Status::OK();
+}
+
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar) {
   if (s.empty()) {
     return;
@@ -832,6 +865,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
   std::string npuOptimizer;
   std::string variable_location = "Device";
   std::string frozen_variable = "0";
+  std::string accelerate_train_mode;
 
   if (ctx != nullptr && ctx->GetAttr("_NpuOptimizer", &npuOptimizer) == Status::OK()) {
     do_npu_optimizer = "1";
@@ -854,6 +888,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
     (void) ctx->GetAttr("_in_out_pair", &in_out_pair);
     (void) ctx->GetAttr("_frozen_variable", &frozen_variable);
     (void) ctx->GetAttr("_variable_location", &variable_location);
+    (void) ctx->GetAttr("_accelerate_train_mode", &accelerate_train_mode);
   }
   // pass options
   pass_options["do_npu_optimizer"] = do_npu_optimizer;
@@ -873,6 +908,7 @@ std::map<std::string, std::string> NpuAttrs::GetPassOptions(const OpKernelConstr
   pass_options["in_out_pair"] = in_out_pair;
   pass_options["frozen_variable"] = frozen_variable;
   pass_options["variable_location"] = variable_location;
+  pass_options["accelerate_train_mode"] = accelerate_train_mode;
 
   return pass_options;
 }
@@ -1079,6 +1115,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string enable_graph_parallel;
   std::string graph_compiler_cache_dir;
   std::string graph_slice_mode;
+  std::string accelerate_train_mode;
 
   auto NpuOptimizer_value = attrs.Find("_NpuOptimizer");
   auto enable_data_pre_proc_value = attrs.Find("_enable_data_pre_proc");
@@ -1168,6 +1205,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto enable_graph_parallel_val = attrs.Find("_enable_graph_parallel");
   auto jit_compile_value = attrs.Find("_jit_compile");
   auto graph_compiler_cache_dir_val = attrs.Find("_graph_compiler_cache_dir");
+  auto accelerate_train_mode_value = attrs.Find("_accelerate_train_mode");
 
   if (NpuOptimizer_value != nullptr) {
     do_npu_optimizer = "1";
@@ -1403,6 +1441,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (model_deploy_mode_value != nullptr) {
       model_deploy_mode = model_deploy_mode_value->s();
     }
+    if (accelerate_train_mode_value != nullptr) {
+      accelerate_train_mode = accelerate_train_mode_value->s();
+    }
     if (model_deploy_devicelist_value != nullptr) {
       model_deploy_devicelist = model_deploy_devicelist_value->s();
     }
@@ -1536,6 +1577,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["logical_device_cluster_deploy_mode"] = logical_device_cluster_deploy_mode;
   all_options["logical_device_id"] = logical_device_id;
   all_options["model_deploy_mode"] = model_deploy_mode;
+  all_options["accelerate_train_mode"] = accelerate_train_mode;
   all_options["model_deploy_devicelist"] = model_deploy_devicelist;
   all_options["topo_sorting_mode"] = topo_sorting_mode;
   all_options["ge.topoSortingMode"] = topo_sorting_mode;
@@ -1670,6 +1712,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string es_cluster_config;
   std::string graph_slice_mode;
   std::string jit_compile;
+  std::string accelerate_train_mode;
 
   const RewriterConfig &rewrite_options = options.session_options->config.graph_options().rewrite_options();
   for (const auto &custom_optimizer : rewrite_options.custom_optimizers()) {
@@ -2109,6 +2152,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (params.count("experimental_logical_device_id") > 0) {
         logical_device_id = params.at("experimental_logical_device_id").s();
       }
+      if (params.count("experimental_accelerate_train_mode") > 0) {
+        accelerate_train_mode = params.at("experimental_accelerate_train_mode").s();
+      }
       if (params.count("experimental_model_deploy_mode") > 0) {
         model_deploy_mode = params.at("experimental_model_deploy_mode").s();
       }
@@ -2323,6 +2369,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   pass_options["in_out_pair"] = in_out_pair;
   pass_options["frozen_variable"] = std::to_string(static_cast<int32_t>(frozen_variable));
   pass_options["variable_location"] = variable_location;
+  pass_options["accelerate_train_mode"] = accelerate_train_mode;
 
   for (const auto &option : sess_options) {
     std::string attr_name = std::string("_") + option.first;

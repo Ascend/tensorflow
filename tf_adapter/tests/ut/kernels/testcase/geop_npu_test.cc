@@ -48,22 +48,63 @@ class NpuHostGetNextAllocator : public tensorflow::Allocator {
   std::unique_ptr<NpuGetNextOutputInfo> output_;
 };
 
+class DummyDevice : public DeviceBase {
+ public:
+  DummyDevice(Env *env, bool save) : DeviceBase(env), save_(save) {}
+  bool RequiresRecordingAccessedTensors() const override {
+    return save_;
+  }
+  Allocator *GetAllocator(AllocatorAttributes /*attr*/) override {
+    return cpu_allocator();
+  }
+
+ private:
+  bool save_;
+};
+
+namespace {
+std::unique_ptr<OpKernel> g_op = nullptr;
+void CreateGeOp() {
+  Env *env = Env::Default();
+  GraphDef graph_def;
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop.pbtxt";
+  gtl::InlinedVector<TensorValue, 4> inputs;
+  ReadTextProto(env, graph_def_path, &graph_def);
+  for (int i = 0; i < graph_def.node_size(); i++) {
+    NodeDef *node_def = graph_def.mutable_node(i);
+    if (node_def->name() == "GeOp1_0") {
+      OpKernelContext::Params params;
+      params.record_tensor_accesses = false;
+      auto device = absl::make_unique<DummyDevice>(env, params.record_tensor_accesses);
+      params.device = device.get();
+      Status status;
+      g_op = CreateOpKernel(DEVICE_CPU, params.device, cpu_allocator(), *node_def, TF_GRAPH_DEF_VERSION, &status);
+      EXPECT_TRUE(status.ok());
+    }
+  }
+}
+void DelGeOp() {
+  g_op.reset();
+}
+void UnSetEnv() {
+  unsetenv("LOSS_NOW");
+  unsetenv("TARGET_LOSS");
+  unsetenv("STEP_NOW");
+  unsetenv("TOTAL_STEP");
+}
+}
 class GeOpTest : public testing::Test {
  protected:
   virtual void SetUp() {
     *const_cast<bool *>(&kDumpGraph) = true;
     NpuAttrs::SetNewDataTransferFlag(true);
+    CreateGeOp();
   }
-  virtual void TearDown() {}
-};
-class DummyDevice : public DeviceBase {
- public:
-  DummyDevice(Env* env, bool save) : DeviceBase(env), save_(save) {}
-  bool RequiresRecordingAccessedTensors() const override { return save_; }
-  Allocator* GetAllocator(AllocatorAttributes /*attr*/) override { return cpu_allocator(); }
-
- private:
-  bool save_;
+  virtual void TearDown() {
+    DelGeOp();
+    UnSetEnv();
+  }
 };
 
 Status GeOpRunGraph(std::string example_path, gtl::InlinedVector<TensorValue, 4> inputs, NodeDef& geop_node_def,
@@ -562,6 +603,80 @@ TEST_F(GeOpTest, test_SeparateGraphDef) {
   tensor2->set_tensor_content(tensor_content);
   attr2->insert({"value", value_attr2});
   EXPECT_EQ(geop_node->SeparateGraphDef(graph_def, partition_graph, const_value_map).ok(), true);
+}
+
+TEST_F(GeOpTest, test_AccelerateTrain_InvalidOption) {
+  GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
+  std::string invalid_option_value = "fastxx";
+  EXPECT_EQ(geop_node->ParserAccelerateTrain(invalid_option_value).ok(), false);
+  invalid_option_value = "fastxx|step";
+  EXPECT_EQ(geop_node->ParserAccelerateTrain(invalid_option_value).ok(), false);
+  invalid_option_value = "fast|stepxx";
+  EXPECT_EQ(geop_node->ParserAccelerateTrain(invalid_option_value).ok(), false);
+  invalid_option_value = "fast|step|0.1";
+  EXPECT_EQ(geop_node->ParserAccelerateTrain(invalid_option_value).ok(), false);
+  invalid_option_value = "fast|step|1.6";
+  EXPECT_EQ(geop_node->ParserAccelerateTrain(invalid_option_value).ok(), false);
+}
+
+TEST_F(GeOpTest, test_AccelerateTrain_Loss_PrecisonV2) {
+  GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
+  bool need_recover_precision_mode = false;
+  // not enable accelerate, skip
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), true);
+  geop_node->accelerate_train_mode_ = "fast1|loss|1.1";
+  // not set env, return error
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), false);
+  EXPECT_FALSE(need_recover_precision_mode);
+  setenv("LOSS_NOW", "1.21", true);
+  setenv("TARGET_LOSS", "1.1", true);
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), true);
+  // when loss is 1.21, which is 1.1 * 1.1, need recover
+  EXPECT_TRUE(need_recover_precision_mode);
+  geop_node->init_options_[ge::PRECISION_MODE_V2] = "fp16";
+  // not support
+  EXPECT_EQ(geop_node->CheckAndModifyPrecisionMode().ok(), false);
+  geop_node->init_options_[ge::PRECISION_MODE_V2] = "origin";
+  EXPECT_EQ(geop_node->CheckAndModifyPrecisionMode().ok(), true);
+  // change mode to mixed successfully
+  EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE_V2], "mixed_bfloat16");
+  EXPECT_EQ(geop_node->RecoverPrecisionMode().ok(), true);
+  EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE_V2], "origin");
+}
+
+TEST_F(GeOpTest, test_AccelerateTrain_Loss_PrecisonV1) {
+  GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
+  bool need_recover_precision_mode = false;
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), true);
+  geop_node->accelerate_train_mode_ = "fast1|loss|1.1";
+  setenv("LOSS_NOW", "1.22", true);
+  setenv("TARGET_LOSS", "1.1", true);
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), true);
+  EXPECT_FALSE(need_recover_precision_mode);
+  setenv("LOSS_NOW", "1.21", true);
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), true);
+  EXPECT_TRUE(need_recover_precision_mode);
+  EXPECT_EQ(geop_node->CheckAndModifyPrecisionMode().ok(), true);
+  EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE], "allow_mix_precision_bf16");
+  EXPECT_EQ(geop_node->RecoverPrecisionMode().ok(), true);
+  EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE], "");
+}
+
+TEST_F(GeOpTest, test_AccelerateTrain_Step) {
+  GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
+  bool need_recover_precision_mode = false;
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), true);
+  geop_node->accelerate_train_mode_ = "fast|step";
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), false);
+  EXPECT_FALSE(need_recover_precision_mode);
+  setenv("STEP_NOW", "9000", true);
+  setenv("TOTAL_STEP", "10000", true);
+  EXPECT_EQ(geop_node->NeedRecompileWhenAccelerateTrainOn(need_recover_precision_mode).ok(), true);
+  EXPECT_TRUE(need_recover_precision_mode);
+  EXPECT_EQ(geop_node->CheckAndModifyPrecisionMode().ok(), true);
+  EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE], "allow_mix_precision_fp16");
+  EXPECT_EQ(geop_node->RecoverPrecisionMode().ok(), true);
+  EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE], "");
 }
 }  // namespace
 }  // namespace tensorflow
