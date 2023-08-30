@@ -46,11 +46,11 @@ using AoeSetTuningGraphInputFunc = AoeStatus (*)(SessionId, std::vector<ge::Tens
 using AoeSetTuningGraphFunc = AoeStatus (*)(SessionId, ge::Graph &);
 using AoeTuningGraphFunc = AoeStatus (*)(SessionId, const std::map<ge::AscendString, ge::AscendString> &);
 
-class GeOp : public OpKernel {
- public:
+class GeOp : public AsyncOpKernel {
+public:
   explicit GeOp(OpKernelConstruction *ctx);
   ~GeOp() override;
-  void Compute(OpKernelContext *ctx) override;
+  void ComputeAsync(OpKernelContext *ctx, DoneCallback done) override;
 
   enum FastValue { kfast = 0, kfast1 };
   struct AccelerateInfo {
@@ -244,7 +244,6 @@ class GeOp : public OpKernel {
   AoeTuningGraphFunc aoe_tuning_graph_;
   AoeSetDependGraphsInputsFunc aoe_set_depend_graphs_inputs_;
   AoeSetTuningGraphInputFunc aoe_set_tuning_graph_input_;
-  mutex run_mtx_;
   // accelerate train
   AccelerateInfo accelerate_info_;
 };
