@@ -570,7 +570,7 @@ Status GeOp::AccelerateInfo::TriggeredByStep(bool &is_triggered) {
     ADP_LOG(EVENT) << "[GEOP] accelerate train: trigger recompile when step is " << step_now;
     if (step_now != step_to_change) {
       ADP_LOG(WARNING) << "[GEOP] accelerate train: trigger recompile step earlier or later than expected step, may"
-                          "have some effect on train";
+                          " have some effect on train";
     }
     is_triggered = true;
     is_recovered_ = true;
@@ -592,7 +592,7 @@ Status GeOp::AccelerateInfo::TriggeredByLoss(bool &is_triggered) {
     ADP_LOG(EVENT) << "[GEOP] accelerate train: trigger recompile when loss is " << loss_now;
     if (loss_now != loss_to_change) {
       ADP_LOG(WARNING) << "[GEOP] accelerate train: trigger recompile loss smaller than expected loss, may"
-                          "have some effect on train";
+                          " have some effect on train";
     }
     is_triggered = true;
     is_recovered_ = true;
@@ -643,9 +643,9 @@ Status GeOp::NeedRecompileWhenAccelerateTrainOn(bool &need_recompile) {
 Status GeOp::CheckAndSetAccelarateMode(const std::string &mode_value) {
   std::stringstream ss;
   if (valid_mode_values.find(mode_value) == valid_mode_values.end()) {
-    ss << "accelerate_train_mode second part is invalid: " << mode_value << ", you can chose `step`";
+    ss << "accelerate_train_mode second part is invalid: " << mode_value << ", you can choose `step`";
     ADP_LOG(ERROR) << ss.str();
-    return errors::Unavailable(ss.str());
+    return errors::Internal(ss.str());
   }
   if (mode_value == kModeValueStep) {
     uint32_t step = 0U;
@@ -666,28 +666,28 @@ Status GeOp::CheckAndSetAccelarateRatio(const std::string &mode_value, const std
   std::stringstream ss;
   if (!strings::safe_strtof(ratio_value, &ratio)) {
     ss << "accelerate_train_mode third part is invalid: " << ratio_value
-       << " ,you can chose `0.9` for `step` or `1.02` for `loss`";
+       << " ,you can choose `0.9` for `step` or `1.02` for `loss`";
     ADP_LOG(ERROR) << ss.str();
-    return errors::Unavailable(ss.str());
+    return errors::Internal(ss.str());
   }
 
   if (mode_value == kModeValueStep) {
     if (ratio < kMinStepRatio || ratio > kMaxStepRatio) {
-      ss << "accelerate_train_mode third part is invalid: " << ratio_value << " ,you can chose `" << kMinStepRatio
-         << "-" << kMaxStepRatio << "`for `" << mode_value << "`";
+      ss << "accelerate_train_mode third part is invalid: " << ratio_value << " ,you can choose `" << kMinStepRatio
+         << "-" << kMaxStepRatio << "` for `" << mode_value << "`";
       ADP_LOG(ERROR) << ss.str();
-      return errors::Unavailable(ss.str());
+      return errors::Internal(ss.str());
     }
   } else if (mode_value == kModeValueLoss) {
     if (ratio < kMinLossRatio || ratio > kMaxLossRatio) {
-      ss << "accelerate_train_mode third part is invalid: " << ratio_value << " ,you can chose `" << kMinLossRatio
-         << "-" << kMaxLossRatio << "`for `" << mode_value << "`";
+      ss << "accelerate_train_mode third part is invalid: " << ratio_value << " ,you can choose `" << kMinLossRatio
+         << "-" << kMaxLossRatio << "` for `" << mode_value << "`";
       ADP_LOG(ERROR) << ss.str();
-      return errors::Unavailable(ss.str());
+      return errors::Internal(ss.str());
     }
   } else {
     ADP_LOG(ERROR) << "invalid mode value: " << mode_value;
-    return errors::Unavailable("invalid mode value");
+    return errors::Internal("invalid mode value");
   }
   accelerate_info_.fast_ratio_ = ratio;
   return Status::OK();
@@ -704,14 +704,14 @@ Status GeOp::ParserAccelerateTrain(const std::string &accelerate_train_mode) {
   if ((infos.size() != 2U) && (infos.size() != 3U)) {
     ss << "Format of accelerate_train_mode is invalid: " << accelerate_train_mode;
     ADP_LOG(ERROR) << ss.str();
-    return errors::Unavailable(ss.str());
+    return errors::Internal(ss.str());
   }
   const auto &fast_value = infos[0U];
   const auto &iter = fast_value_string_2_eunm.find(fast_value);
   if (iter == fast_value_string_2_eunm.end()) {
-    ss << "accelerate_train_mode first part is invalid: " << fast_value << ", you can chose `fast`";
+    ss << "accelerate_train_mode first part is invalid: " << fast_value << ", you can choose `fast`";
     ADP_LOG(ERROR) << ss.str();
-    return errors::Unavailable(ss.str());
+    return errors::Internal(ss.str());
   }
   accelerate_info_.fast_value_ = iter->second;
   REQUIRES_STATUS_OK(CheckAndSetAccelarateMode(infos[1U]));
@@ -741,7 +741,7 @@ Status GeOp::CheckAndModifyPrecisionMode() {
       ss << "accelerate fast_value:" << fast_value_enum_2_string.at(accelerate_info_.fast_value_)
          << " is not support with PRECISION_MODE_V2: " << origin_mode_v2;
       ADP_LOG(ERROR) << ss.str();
-      return errors::Unavailable(ss.str());
+      return errors::Internal(ss.str());
     }
     graph_options_[ge::PRECISION_MODE_V2] = inner_iter_v2->second;
     accelerate_info_.origin_precision_mode_v2 = origin_mode_v2;
@@ -759,7 +759,7 @@ Status GeOp::CheckAndModifyPrecisionMode() {
       ss << "accelerate fast_value:" << fast_value_enum_2_string.at(accelerate_info_.fast_value_)
          << " is not support with PRECISION_MODE: " << origin_mode_v1;
       ADP_LOG(ERROR) << ss.str();
-      return errors::Unavailable(ss.str());
+      return errors::Internal(ss.str());
     }
     graph_options_[ge::PRECISION_MODE] = inner_iter_v1->second;
     accelerate_info_.origin_precision_mode_v1 = origin_mode_v1;

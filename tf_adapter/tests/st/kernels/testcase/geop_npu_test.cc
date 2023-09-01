@@ -586,6 +586,19 @@ TEST_F(GeOpTest, test_AccelerateTrain_InvalidOption) {
   EXPECT_EQ(geop_node->ParserAccelerateTrain(invalid_option_value).ok(), false);
 }
 
+TEST_F(GeOpTest, test_AccelerateTrain_CheckAndSetAccelarateRatio) {
+  GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
+  std::string mode_value = "invalid";
+  std::string ratio_value = "invalid";
+  EXPECT_EQ(geop_node->CheckAndSetAccelarateRatio(mode_value, ratio_value).ok(), false);
+  ratio_value = "2";
+  EXPECT_EQ(geop_node->CheckAndSetAccelarateRatio(mode_value, ratio_value).ok(), false);
+  mode_value = "step";
+  EXPECT_EQ(geop_node->CheckAndSetAccelarateRatio(mode_value, ratio_value).ok(), false);
+  mode_value = "loss";
+  EXPECT_EQ(geop_node->CheckAndSetAccelarateRatio(mode_value, ratio_value).ok(), false);
+}
+
 TEST_F(GeOpTest, test_AccelerateTrain_Loss_PrecisonV2) {
   GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
   bool need_recover_precision_mode = false;
