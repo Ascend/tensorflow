@@ -415,7 +415,8 @@ class TellMeStepOrLossHook(session_run_hook.SessionRunHook):
         logging.info("TellMeStepOrLossHook after_run...")
         res = run_values.results
         logging.info(
-            f'step_now:{res.get("step_now")} total_step:{self._total_step} loss_now:{res.get("loss_now")} target_loss:{self._final_loss}')
+            f'step_now:{res.get("step_now")} total_step:{self._total_step} '
+            f'loss_now:{res.get("loss_now")} target_loss:{self._final_loss}')
         if res.get("step_now") is None and res.get("loss_now") is None:
             raise ValueError(f'step tensor:{self._step} or loss tensor:{self._loss} is not a valid tensor')
         if res.get("step_now") is not None:

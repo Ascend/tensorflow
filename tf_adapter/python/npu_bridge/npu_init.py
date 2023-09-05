@@ -30,6 +30,7 @@ from npu_bridge.estimator.npu.npu_hook import NPUCheckpointSaverHook
 from npu_bridge.estimator.npu.npu_hook import NPUOutputTensorHook
 from npu_bridge.estimator.npu.npu_hook import NPUBroadcastGlobalVariablesHook
 from npu_bridge.estimator.npu.npu_hook import SetIterationsVarHook
+from npu_bridge.estimator.npu.npu_hook import TellMeStepOrLossHook
 from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
 from npu_bridge.estimator.npu.npu_optimizer import KerasDistributeOptimizer
 from npu_bridge.estimator.npu.npu_optimizer import npu_distributed_optimizer_wrapper
