@@ -52,7 +52,7 @@ public:
   ~GeOp() override;
   void ComputeAsync(OpKernelContext *ctx, DoneCallback done) override;
 
-  enum FastValue { kfast = 0, kfast1 };
+  enum class FastValue { kfast = 0, kfast1 };
   struct AccelerateInfo {
     FastValue fast_value_;
     std::string fast_mode_;

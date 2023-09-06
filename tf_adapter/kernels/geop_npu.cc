@@ -32,6 +32,7 @@
 #include <vector>
 #include <algorithm>
 #include <limits>
+#include <numeric>
 
 #include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
@@ -104,20 +105,21 @@ const float kDefaultLossRatio = 1.05;
 const float kMinLossRatio = 1.01;
 const float kMaxLossRatio = 1.5;
 
-const std::map<std::string, GeOp::FastValue> fast_value_string_2_eunm = {{"fast", GeOp::kfast},
-                                                                         {"fast1", GeOp::kfast1}};
+const std::map<std::string, GeOp::FastValue> fast_value_string_2_eunm = {{"fast", GeOp::FastValue::kfast},
+                                                                         {"fast1", GeOp::FastValue::kfast1}};
 
-const std::map<GeOp::FastValue, std::string> fast_value_enum_2_string = {{GeOp::kfast, "fast"},
-                                                                         {GeOp::kfast1, "fast1"}};
+const std::map<GeOp::FastValue, std::string> fast_value_enum_2_string = {{GeOp::FastValue::kfast, "fast"},
+                                                                         {GeOp::FastValue::kfast1, "fast1"}};
 const std::map<GeOp::FastValue, std::string> fast_value_2_precision_mode_v1 = {
-    {GeOp::kfast, "allow_mix_precision_fp16"},
-    {GeOp::kfast1, "allow_mix_precision_bf16"},
+    {GeOp::FastValue::kfast, "allow_mix_precision_fp16"},
+    {GeOp::FastValue::kfast1, "allow_mix_precision_bf16"},
 };
 const std::unordered_set<std::string> supported_origin_precision_mode_v1 = {"allow_fp32_to_fp16",
                                                                             "must_keep_origin_dtype", ""};
 const std::unordered_set<std::string> valid_mode_values = {kModeValueStep, kModeValueLoss};
-const std::map<GeOp::FastValue, std::string> fast_value_2_precision_mode_v2 = {{GeOp::kfast, "mixed_float16"},
-                                                                               {GeOp::kfast1, "mixed_bfloat16"}};
+const std::map<GeOp::FastValue, std::string> fast_value_2_precision_mode_v2 = {
+    {GeOp::FastValue::kfast, "mixed_float16"},
+    {GeOp::FastValue::kfast1, "mixed_bfloat16"}};
 const std::unordered_set<std::string> supported_origin_precision_mode_v2 = {"origin", ""};
 
 using geDataUniquePtr = std::unique_ptr<uint8_t[], std::function<void(uint8_t *)>>;
@@ -643,7 +645,11 @@ Status GeOp::NeedRecompileWhenAccelerateTrainOn(bool &need_recompile) {
 Status GeOp::CheckAndSetAccelarateMode(const std::string &mode_value) {
   std::stringstream ss;
   if (valid_mode_values.find(mode_value) == valid_mode_values.end()) {
-    ss << "accelerate_train_mode second part is invalid: " << mode_value << ", you can choose `step`";
+    const std::string valid_modes =
+        std::accumulate(valid_mode_values.begin(), valid_mode_values.end(), std::string{},
+                        [](const std::string &l, const std::string &r) { return l.empty() ? r : l + ", " + r; });
+    ss << "accelerate_train_mode second part is invalid: " << mode_value << ", you can choose one of `" << valid_modes
+       << "`";
     ADP_LOG(ERROR) << ss.str();
     return errors::Internal(ss.str());
   }
@@ -709,7 +715,13 @@ Status GeOp::ParserAccelerateTrain(const std::string &accelerate_train_mode) {
   const auto &fast_value = infos[0U];
   const auto &iter = fast_value_string_2_eunm.find(fast_value);
   if (iter == fast_value_string_2_eunm.end()) {
-    ss << "accelerate_train_mode first part is invalid: " << fast_value << ", you can choose `fast`";
+    const std::string valid_values =
+        std::accumulate(fast_value_string_2_eunm.begin(), fast_value_string_2_eunm.end(), std::string{},
+                        [](const std::string &l, const std::pair<std::string, GeOp::FastValue> &r) {
+                          return l.empty() ? r.first : l + ", " + r.first;
+                        });
+    ss << "accelerate_train_mode first part is invalid: " << fast_value << ", you can choose one of `" << valid_values
+       << "`";
     ADP_LOG(ERROR) << ss.str();
     return errors::Internal(ss.str());
   }
