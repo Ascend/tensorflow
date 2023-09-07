@@ -81,21 +81,6 @@ const static uint64_t kMbufHeadMaxSize = 256UL;
 const static uint32_t kMbufHeadEndOfSequencePos = 128U;
 const static uint8_t kEndOfSequenceFlag = 0x5A;
 
-Status CheckSymbols() {
-  if (rtMemQueueCreate == nullptr) { return errors::Internal("rtMemQueueCreate not found"); }
-  if (rtMemQueueDestroy == nullptr) { return errors::Internal("rtMemQueueDestroy not found"); }
-  if (rtMemQueueInit == nullptr) { return errors::Internal("rtMemQueueInit not found"); }
-  if (rtMemQueueEnQueue == nullptr) { return errors::Internal("rtMemQueueEnQueue not found"); }
-  if (rtMemQueueDeQueue == nullptr) { return errors::Internal("rtMemQueueDeQueue not found"); }
-  if (rtMbufInit == nullptr) { return errors::Internal("rtMbufInit not found"); }
-  if (rtMbufAlloc == nullptr) { return errors::Internal("rtMbufAlloc not found"); }
-  if (rtMbufFree == nullptr) { return errors::Internal("rtMbufFree not found"); }
-  if (rtMbufGetBuffAddr == nullptr) { return errors::Internal("rtMbufGetBuffAddr not found"); }
-  if (rtMbufGetBuffSize == nullptr) { return errors::Internal("rtMbufGetBuffSize not found"); }
-  if (rtMbufGetPrivInfo == nullptr) { return errors::Internal("rtMbufGetPrivInfo not found"); }
-  return Status::OK();
-}
-
 Status GetDataTypeByTensorType(acltdtTensorType tensor_type, int32_t &data_type) {
   const static std::unordered_map<acltdtTensorType, int32_t> type_map = {
     {ACL_TENSOR_DATA_TENSOR, 0}, {ACL_TENSOR_DATA_END_OF_SEQUENCE, 1}, {ACL_TENSOR_DATA_ABNORMAL, 2}};
@@ -265,7 +250,6 @@ Status HostQueueSetTransId(const uint32_t queue_id, void *&buff) {
 }
 
 Status HostQueueInit(const std::string &name, const uint32_t &depth, uint32_t &queue_id) {
-  TF_RETURN_IF_ERROR(CheckSymbols());
   std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions();
   NpuAttrs::LogOptions(init_options);
   GePlugin::GetInstance()->Init(init_options, false);

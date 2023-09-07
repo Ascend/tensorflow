@@ -497,15 +497,16 @@ OpDesc::OpDesc(std::string const&, std::string const&) {
 
 ProtoAttrMap &OpDesc::MutableAttrMap() {
   // Stub
-  return attrs_;
+  static AttrStore attrs;
+  return attrs;
 }
 
 ConstProtoAttrMap &OpDesc::GetAttrMap() const{
   // Stub
-  return attrs_;
+  static AttrStore attrs;
+  return attrs;
 }
 
-constexpr int kDefaultMaxInputNum = 6;
 graphStatus aclgrphBuildModel(const ge::Graph &graph, const std::map<AscendString, AscendString> &build_options,
     ModelBufferData &model) {
   // std::map<std::string, std::string> tmp_build_options;

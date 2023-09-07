@@ -31,5 +31,5 @@ int32_t TdtHostPopData(const std::string &channelName, std::vector<DataItem> &it
 
 int32_t TdtHostStop(const std::string &channelName) { return 0; }
 
-int32_t TdtHostPushData(const std::string &channelName, std::vector<DataItem> &item, uint32_t deviceId) { return 0; }
+int32_t TdtHostPushData(const std::string &channelName, const std::vector<DataItem> &item, uint32_t deviceId) { return 0; }
 }

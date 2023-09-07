@@ -58,11 +58,4 @@ void DlogInnerForC(int moduleId, int level, const char *fmt, ...) {
   return;
 }
 
-#define DlogForC(moduleId, level, fmt, ...)                                                 \
-  do {                                                                                  \
-    if(CheckLogLevelForC(moduleId, level) == 1) {                                           \
-        DlogInnerForC(moduleId, level, "[%s:%d]" fmt, __FILE__, __LINE__, ##__VA_ARGS__);   \
-     }                                                                                  \
-  } while (0)
-
 DLL_EXPORT int DlogReportFinalize() { return 0; }
