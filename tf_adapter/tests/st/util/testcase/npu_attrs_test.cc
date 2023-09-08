@@ -274,5 +274,37 @@ TEST_F(NpuAttrTest, SetNpuOptimizerAttrInvalidEnableOnlineInference) {
   s = NpuAttrs::SetNpuOptimizerAttr(options, nullptr);
   EXPECT_EQ(s.ok(), false);
 }
+
+TEST_F(NpuAttrTest, GetNpuOptimizerAttrCheckDumpStep) {
+  AttrValueMap attr_map;
+
+  AttrValue graph_compiler_cache_dir = AttrValue();
+  graph_compiler_cache_dir.set_s("./cache_dir");
+  attr_map["_graph_compiler_cache_dir"] = graph_compiler_cache_dir;
+
+  AttrValue npu_optimizer = AttrValue();
+  npu_optimizer.set_s("NpuOptimizer");
+  attr_map["_NpuOptimizer"] = npu_optimizer;
+
+  AttrValue enable_dump = AttrValue();
+  enable_dump.set_s("1");
+  attr_map["_enable_dump"] = enable_dump;
+
+  AttrValue dump_step = AttrValue();
+  dump_step.set_s("yyy");
+  attr_map["_dump_step"] = dump_step;
+
+  AttrSlice attrs(&attr_map);
+  const auto &all_options = NpuAttrs::GetAllAttrOptions(attrs);
+  EXPECT_NE(all_options.find("dump_step"), all_options.cend());
+
+  AttrValue dump_step_2 = AttrValue();
+  dump_step_2.set_s("0|2-1");
+  attr_map["_dump_step"] = dump_step_2;
+
+  AttrSlice attrs2(&attr_map);
+  const auto &all_options2 = NpuAttrs::GetAllAttrOptions(attrs2);
+  EXPECT_NE(all_options2.find("dump_step"), all_options2.cend());
+}
 }
 } // end tensorflow
