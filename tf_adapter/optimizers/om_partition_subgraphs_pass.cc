@@ -2007,6 +2007,7 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   const std::string kRecomputeMode = "_recompute_mode";
   const std::string kMaxKeyNum = "_max_key_num";
   const std::string kEmbeddingDim = "_embedding_dim";
+  const std::string kUseCounterFilter = "_use_counter_filter";
   if (node_attrs.find(kDynamicInput) != node_attrs.end()) {
     bool dynamic_input = node_attrs.at(kDynamicInput).b();
     graph_options["dynamic_input"] = std::to_string(static_cast<int32_t>(dynamic_input));
@@ -2033,6 +2034,9 @@ void OMPartitionSubgraphsPass::GetGraphConfig(const Node &node, bool enable_dp,
   if (node_attrs.find(kEmbeddingDim) != node_attrs.end()) {
     const auto embedding_dim = node_attrs.at(kEmbeddingDim).i();
     graph_options["embedding_dim"] = std::to_string(static_cast<const int32_t>(embedding_dim));
+  }
+  if (node_attrs.find(kUseCounterFilter) != node_attrs.end()) {
+    graph_options["use_counter_filter"] = std::to_string(static_cast<const int32_t>(node_attrs.at(kUseCounterFilter).i()));
   }
 }
 

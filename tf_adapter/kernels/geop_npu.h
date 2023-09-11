@@ -226,6 +226,7 @@ public:
   std::string is_var_init_graph_;
   std::string max_key_num_;
   std::string embedding_dim_;
+  std::string use_counter_filter_;
   std::string recompute_mode_;
   std::vector<absl::optional<PartialTensorShape>> input_shapes_vec_;
   std::string jit_compile_;

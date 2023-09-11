@@ -126,6 +126,12 @@ node {
     }
   }
   attr {
+     key: "_use_counter_filter"
+     value {
+       s: "1"
+     }
+   }
+  attr {
     key: "_dynamic_input"
     value {
       s: "0"

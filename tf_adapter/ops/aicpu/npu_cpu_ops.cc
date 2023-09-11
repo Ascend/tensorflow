@@ -404,6 +404,7 @@ REGISTER_OP("EmbeddingTableExport")
   .Attr("only_var_flag: bool = false")
   .Attr("file_type: string = 'bin' ")
   .Attr("table_name: list(string)")
+  .Attr("filter_export_flag: bool = false")
   .SetShapeFn(shape_inference::NoOutputs);
 
 REGISTER_OP("EmbeddingFeatureMapping")
