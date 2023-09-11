@@ -46,6 +46,11 @@ std::map<std::string, bool> NpuAttrs::dataset_execute_info_;
 std::map<std::string, std::string> NpuAttrs::init_options_;
 std::mutex NpuAttrs::mutex_;
 const static int32_t kRuntimeTypeHeterogeneous = 1;
+const std::string kNumerics = "0123456789";
+const std::string kErrMsgInvalidStepSets = "dump_step only support dump <= 100 sets of data";
+const std::string kErrMsgReverseStepNum = "in range steps, the first step is >= "\
+                                          "second step, correct example:'0|5|10-20'";
+const std::string kErrMsgInvalidStepFormat = "dump_step string style is error, correct example:'0|5|10|50-100'";
 
 bool NpuAttrs::CheckIsNewDataTransfer() {
   uint32_t device_id = 0U;
@@ -216,6 +221,38 @@ void Split(const std::string &s, std::vector<std::string> &result, const char *d
     result.push_back(item);
   }
   return;
+}
+
+inline Status checkDumpStep(const std::string &dump_step) {
+  std::vector<string> match_vecs;
+  Split(dump_step, match_vecs, "|");
+  // 100 is the max sets of dump steps.
+  if (match_vecs.size() > 100U) {
+    return errors::InvalidArgument(kErrMsgInvalidStepSets);
+  }
+  const auto is_str_num = [] (const std::string &s) -> bool {
+    return s.find_first_not_of(kNumerics) == string::npos;
+  };
+  for (const auto &match_vec : match_vecs) {
+    std::vector<string> tmp_vecs;
+    Split(match_vec, tmp_vecs, "-");
+    // 正确的格式是1或者2-3这种，因此tmp_vecs的大小只能是1或者2
+    if (tmp_vecs.size() == 1U) {
+      if (!is_str_num(tmp_vecs[0U])) {
+        return errors::InvalidArgument(kErrMsgInvalidStepFormat);
+      }
+    } else if (tmp_vecs.size() == 2U) {
+      if (!is_str_num(tmp_vecs[0U]) || !is_str_num(tmp_vecs[1U])) {
+        return errors::InvalidArgument(kErrMsgInvalidStepFormat);
+      }
+      if (std::atoi(tmp_vecs[0U].c_str()) >= std::atoi(tmp_vecs[1U].c_str())) {
+        return errors::InvalidArgument(kErrMsgReverseStepNum);
+      }
+    } else {
+      return errors::InvalidArgument(kErrMsgInvalidStepFormat);
+    }
+  }
+  return Status::OK();
 }
 
 inline Status checkDumpMode(const std::string &dump_mode) {
@@ -440,7 +477,12 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
       (void) ctx->GetAttr("_dump_path", &dump_path);
     }
     if (enable_dump != "0") {
-      (void)ctx->GetAttr("_dump_step", &dump_step);
+      if (ctx->GetAttr("_dump_step", &dump_step) == Status::OK() && !dump_step.empty()) {
+        Status s = checkDumpStep(dump_step);
+        if (!s.ok()) {
+          ADP_LOG(FATAL) << s.error_message();
+        }
+      }
       if (ctx->GetAttr("_dump_mode", &dump_mode) == Status::OK()) {
         Status s = checkDumpMode(dump_mode);
         if (!s.ok()) {
@@ -1277,6 +1319,12 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     if (enable_dump != "0") {
       if (dump_step_value != nullptr) {
         dump_step = dump_step_value->s();
+        if (!dump_step.empty()) {
+          Status s = checkDumpStep(dump_step);
+          if (!s.ok()) {
+            ADP_LOG(FATAL) << s.error_message();
+          }
+        }
       }
       if (dump_mode_value != nullptr) {
         dump_mode = dump_mode_value->s();
@@ -1756,6 +1804,11 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       if (enable_dump) {
         if (params.count("dump_step") > 0) {
           dump_step = params.at("dump_step").s();
+          Status s = checkDumpStep(dump_step);
+          if (!s.ok()) {
+            ADP_LOG(FATAL) << s.error_message();
+            return errors::Internal(s.error_message());
+          }
         }
         if (params.count("dump_mode") > 0) {
           dump_mode = params.at("dump_mode").s();
