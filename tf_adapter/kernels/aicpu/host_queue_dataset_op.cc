@@ -343,29 +343,28 @@ class HostQueueDatasetOp : public DatasetOpKernel {
 
       void ShowDataThreadPerfRecord() const {
         for (uint32_t i = 0; i < static_cast<uint32_t>(ThreadType::BUTT); i++) {
+          std::string thread_type = (i == 0) ? "RECV" : "SEND";
           uint32_t start_index = static_cast<uint32_t>(data_thread_perf_stat_[i].data_record_num % kDataPerRecord);
           for (uint32_t j = 0; j < kDataPerRecord; j++) {
             uint32_t index = (start_index + j + 1) % kDataPerRecord;
             auto record = &data_thread_perf_stat_[i].data_record[index];
             if (record->start_time == 0) { continue; }
-            ADP_LOG(EVENT) << "DataThreadPerf: " << i
-                           << "[0:RECV, 1:SEND], data_index: " << record->data_index
-                           << ", start_time: " << FormatTimestampToDate(record->start_time)
-                           << ", end_time: " << FormatTimestampToDate(record->end_time)
-                           << ", elapsed_time: " << record->elapsed_time
+            ADP_LOG(EVENT) << "DataThreadPerf: " << thread_type
+                           << ", idx: " << record->data_index
+                           << ", start: " << FormatTimestampToDate(record->start_time)
+                           << ", elapsed: " << record->elapsed_time
                            << " us, buffer_size: " << record->buffer_size
-                           << ", total_bytes: " << record->total_bytes << " bytes.";
+                           << ", total_bytes: " << record->total_bytes << ".";
           }
           auto record_max =  &data_thread_perf_stat_[i].data_record_max;
-          ADP_LOG(EVENT) << "DataThreadPerf: " << i
-                         << "[0:RECV, 1:SEND], device_id: " << dataset()->device_id_
+          ADP_LOG(EVENT) << "DataThreadPerf: " << thread_type
+                         << ", device_id: " << dataset()->device_id_
                          << ", channel_name: " << dataset()->channel_name_
-                         << ", longest time data_index: " << record_max->data_index
-                         << ", start_time: " << FormatTimestampToDate(record_max->start_time)
-                         << ", end_time: " << FormatTimestampToDate(record_max->end_time)
-                         << ", elapsed_time: " << record_max->elapsed_time
+                         << ", longest time idx: " << record_max->data_index
+                         << ", start: " << FormatTimestampToDate(record_max->start_time)
+                         << ", elapsed: " << record_max->elapsed_time
                          << " us, buffer_size: " << record_max->buffer_size
-                         << ", total_bytes: " << record_max->total_bytes << " bytes.";
+                         << ", total_bytes: " << record_max->total_bytes << ".";
         }
       }
 
@@ -542,11 +541,12 @@ class HostQueueDatasetOp : public DatasetOpKernel {
           perf_stat->data_record_max = perf_stat->data_record[index];
         }
 
-        ADP_LOG(INFO) << "DataThreadPerf: " << static_cast<size_t>(type)
-                      << "[0:RECV, 1:SEND], data_index: " << perf_stat->data_record_num
-                      << ", elapsed_time: " << elapsed_time
+        std::string thread_type = (type == ThreadType::RECV) ? "RECV" : "SEND";
+        ADP_LOG(INFO) << "DataThreadPerf: " << thread_type
+                      << ", idx: " << perf_stat->data_record_num
+                      << ", elapsed: " << elapsed_time
                       << " us, buffer_size: " << buff_size
-                      << ", total_bytes: " << args_total_bytes << " bytes.";
+                      << ", total_bytes: " << args_total_bytes << ".";
       }
 
       void GetDataThread(const std::shared_ptr<IteratorContext> &ctx) {
