@@ -394,6 +394,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
 
   (void) ctx->GetAttr("_recompute_mode", &recompute_mode_);
   (void) ctx->GetAttr("_max_key_num", &max_key_num_);
+  (void) ctx->GetAttr("_use_counter_filter", &use_counter_filter_);
   (void) ctx->GetAttr("_embedding_dim", &embedding_dim_);
   (void) ctx->GetAttr("_dynamic_input", &dynamic_input_);
   (void) ctx->GetAttr("_jit_compile", &jit_compile_);
@@ -415,7 +416,7 @@ void GeOp::Initialize(OpKernelConstruction *ctx) {
                 << ", getnext_inputs_shape_range: " << getnext_inputs_shape_range_
                 << ", data_inputs_shape_range: " << data_inputs_shape_range_ << ", is_train_graph: " << is_train_graph_
                 << ", is_dynamic_getnext: " << is_dynamic_getnext_ << ", placeholder_index: " << placeholder_index_
-                << ", is_var_init_graph: " << is_var_init_graph_
+                << ", is_var_init_graph: " << is_var_init_graph_ << ", use_counter_filter: " << use_counter_filter_
                 << ", max_key_num: " << max_key_num_ << ", embedding_dim: " << embedding_dim_;
 
   // global environment Initialize, invoke once for each process
@@ -1244,6 +1245,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     if (!embedding_dim_.empty()) {
       graph_options_["ge.embedding_dim"] = embedding_dim_;
+    }
+    if (!use_counter_filter_.empty()) {
+      graph_options_["ge.use_counter_filter"] = use_counter_filter_;
     }
     SetDynamicInput();
     graph_options_["ge.exec.isVarInitGraph"] = is_var_init_graph_;

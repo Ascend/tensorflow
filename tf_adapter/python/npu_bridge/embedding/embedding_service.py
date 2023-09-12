@@ -180,6 +180,8 @@ class ESWorker:
         self.total_embedding_count = 0
         self._npu_table_to_embedding_dim = {}
         # use for counter filter
+        self._table_use_counter_filter = {}
+
         self._use_counter_filter = False
         self._default_key_or_value = True
         self._filter_freq = None
@@ -524,6 +526,8 @@ class ESWorker:
                                                           embedding_dim=self._table_to_embedding_dim.get(table_id))
         result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
         result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
+        result.op._set_attr("_use_counter_filter",
+                            attr_value_pb2.AttrValue(i=self._table_use_counter_filter.get(table_id)))
         if self._ps_lookup_index != 0:
             self._ps_table_has_lookup.append(table_id)
             self._ps_table_lookup_key.append(ids)
@@ -593,6 +597,8 @@ class ESWorker:
                                                           embedding_dim=self._table_to_embedding_dim.get(table_id))
         result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
         result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
+        result.op._set_attr("_use_counter_filter",
+                            attr_value_pb2.AttrValue(i=self._table_use_counter_filter.get(table_id)))
         return result
 
     # new version
@@ -919,7 +925,7 @@ class ESWorker:
                                                        table_name=self._ps_table_name_list)
             return tf.group([embedding_table_import])
 
-    def save_checkpoint(self, name: str, path: str):
+    def save_checkpoint(self, name: str, path: str, save_filtered_features=False):
         """ Operator for save values and optimizer params in table_id embedding table. """
         if path is None or name is None:
             raise ValueError("table name, embedding table path can not be None.")
@@ -929,6 +935,8 @@ class ESWorker:
             raise ValueError("Not any table has been initialized.")
         if name not in self._ps_table_name_list:
             raise ValueError("this table has not yet initialized.")
+        if not isinstance(save_filtered_features, bool):
+            raise TypeError("save_filtered_features must be bool.")
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
@@ -949,7 +957,8 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin",
-                                                       table_name=[name])
+                                                       table_name=[name],
+                                                       filter_export_flag=save_filtered_features)
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
@@ -958,7 +967,7 @@ class ESWorker:
                                                                  table_name=[name])
                 return tf.group([embedding_compute_var_export])
 
-    def save_checkpoints(self, path: str):
+    def save_checkpoints(self, path: str, save_filtered_features=False):
         """ Operator for save values and optimizer params in all embedding tables. """
         if path is None:
             raise ValueError("embedding table path can not be None.")
@@ -970,6 +979,8 @@ class ESWorker:
             raise ValueError("Device must be rank_id 0.")
         if not self._init_table_flag:
             raise ValueError("Not any table has been initialized.")
+        if not isinstance(save_filtered_features, bool):
+            raise TypeError("save_filtered_features must be bool.")
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -991,7 +1002,8 @@ class ESWorker:
                                                        export_mode="all",
                                                        only_var_flag=False,
                                                        file_type="bin",
-                                                       table_name=self._ps_table_name_list)
+                                                       table_name=self._ps_table_name_list,
+                                                       filter_export_flag=save_filtered_features)
             with tf.control_dependencies([embedding_table_export]):
                 embedding_compute_var_export = \
                     gen_npu_cpu_ops.embedding_compute_var_export(file_path=file_path_tensor,
@@ -1357,8 +1369,10 @@ class ESWorker:
         if (ev_option is not None) and (ev_option.filter_option is not None):
             filter_mode = "counter"
             self._table_to_counter_filter[table_id] = ev_option.filter_option
+            self._table_use_counter_filter[table_id] = 1
         else:
             filter_mode = "no_filter"
+            self._table_use_counter_filter[table_id] = 0
         if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.AdagradOptimizer):
             self._ps_table_id_to_optimizer_mode[table_id] = "adagrad"
             self._ps_table_id_to_optimizer_params[table_id].append(
