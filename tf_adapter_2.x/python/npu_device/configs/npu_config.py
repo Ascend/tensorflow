@@ -42,7 +42,7 @@ class NpuConfig(NpuBaseConfig):
         self.op_select_implmode = DeprecatedValue(['high_performance', 'high_precision'],
                                                   replacement='op_precision_mode')
         self.optypelist_for_implmode = DeprecatedValue(None, replacement='op_precision_mode')
-        self.op_compiler_cache_mode = OptionValue('disable', ['enable', 'disable', 'force'])
+        self.op_compiler_cache_mode = OptionValue('enable', ['enable', 'disable', 'force'])
         self.op_compiler_cache_dir = OptionValue(None, None)
         self.stream_max_parallel_num = OptionValue(None, None)
         self.hcom_parallel = OptionValue(True, [True, False])
