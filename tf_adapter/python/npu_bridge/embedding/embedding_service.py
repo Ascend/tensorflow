@@ -179,6 +179,8 @@ class ESWorker:
         self.total_variable_table = []
         self.total_embedding_count = 0
         self._npu_table_to_embedding_dim = {}
+        self._need_table_merge = False
+        self._only_merge_to_one_table = True
         # use for counter filter
         self._table_use_counter_filter = {}
 
@@ -285,6 +287,8 @@ class ESWorker:
                 raise ValueError("init_vocabulary_size, embedding_dim, multihot_lens must be greater than zero.")
             if initializer is None:
                 raise ValueError("Initializer can not be None.")
+            if allow_merge:
+                self._need_table_merge = True
             if isinstance(initializer, EsInitializer):
                 if initializer.initializer_mode == "random_uniform":
                     self._table_id_to_initializer[table_id] = \
@@ -679,6 +683,8 @@ class ESWorker:
     def counter_filter(self, filter_freq, default_key=None, default_value=None):
         if not isinstance(filter_freq, int):
             raise TypeError("filter_freq must be int, please check.")
+        if filter_freq < 0:
+            raise ValueError("filter_freq must can not be smaller than 0.")
         if (default_key is None) and (default_value is None):
             raise ValueError("default_key and default_value can not be both None.")
         if (default_key is not None) and (default_value is not None):
@@ -761,6 +767,15 @@ class ESWorker:
             total_in_slot_num += in_slot_size
         if ids_list_shape_list[1] != total_in_slot_num:
             raise ValueError("size of ids_list is not the same as all small tables.")
+
+        if self.total_embedding_count == 1:
+            output_slots = [None for _ in in_slot_size_group]
+            tid = 0
+            table_embedding = tf.nn.embedding_lookup(self.total_variable_table[tid], ids_list)
+            out_embedding_splited = tf.split(table_embedding, table_to_output_slots[0], axis=1)
+            for out_emb, sid in zip(out_embedding_splited, table_to_slot[0]):
+                output_slots[sid] = out_emb
+            return output_slots
 
         indices_split = tf.split(ids_list, in_slot_size_group, axis=1)
         for tid in range(self.total_embedding_count):
