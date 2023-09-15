@@ -40,10 +40,10 @@ using AoeFinalizeFunc = AoeStatus (*)();
 using AoeCreateSessionFunc = AoeStatus (*)(SessionId &);
 using AoeDestroySessionFunc = AoeStatus (*)(SessionId);
 using AoeSetGeSessionFunc = AoeStatus (*)(SessionId, ge::Session*);
-using AoeSetDependGraphFunc = AoeStatus (*)(SessionId, std::vector<ge::Graph>&);
-using AoeSetDependGraphsInputsFunc = AoeStatus (*)(SessionId, std::vector<std::vector<ge::Tensor>> &);
-using AoeSetTuningGraphInputFunc = AoeStatus (*)(SessionId, std::vector<ge::Tensor> &);
-using AoeSetTuningGraphFunc = AoeStatus (*)(SessionId, ge::Graph &);
+using AoeSetDependGraphFunc = AoeStatus (*)(SessionId, const std::vector<ge::Graph>&);
+using AoeSetDependGraphsInputsFunc = AoeStatus (*)(SessionId, const std::vector<std::vector<ge::Tensor>> &);
+using AoeSetTuningGraphInputFunc = AoeStatus (*)(SessionId, const std::vector<ge::Tensor> &);
+using AoeSetTuningGraphFunc = AoeStatus (*)(SessionId, const ge::Graph &);
 using AoeTuningGraphFunc = AoeStatus (*)(SessionId, const std::map<ge::AscendString, ge::AscendString> &);
 
 class GeOp : public AsyncOpKernel {

@@ -19,9 +19,8 @@ file(GLOB_RECURSE SRC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     "src/*.cc"
 )
 
-include_directories(${TFADAPTER_DIR}/inc/)
-
 add_library(aoe_tuning SHARED ${SRC_FILES})
 target_link_libraries(aoe_tuning PRIVATE
     $<BUILD_INTERFACE:intf_pub>
+    ge_runner_stub
 )

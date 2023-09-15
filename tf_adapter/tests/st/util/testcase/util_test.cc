@@ -1,7 +1,7 @@
 #include "tf_adapter/util/util.h"
 #include <vector>
 #include "gtest/gtest.h"
-#include "inc/metadef/inc/graph/def_types.h"
+#include "graph/def_types.h"
 
 namespace tensorflow {
 namespace {

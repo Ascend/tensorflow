@@ -22,7 +22,7 @@
 #include "tf_adapter/common/adapter_logger.h"
 #include "tf_adapter/common/common.h"
 #include "tf_adapter/common/compat_tf1_tf2.h"
-#include "inc/metadef/inc/graph/def_types.h"
+#include "graph/def_types.h"
 #include "securec.h"
 namespace tensorflow {
 namespace {

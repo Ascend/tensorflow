@@ -14,12 +14,14 @@ link_libraries(-lgcov)
 
 if (NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/tools/COMPILE_FLAGS OR NOT EXISTS
         ${CMAKE_CURRENT_LIST_DIR}/tools/TF_INSTALLED_PATH OR NOT EXISTS
+        ${CMAKE_CURRENT_LIST_DIR}/tools/ASCEND_INSTALLED_PATH OR NOT EXISTS
         ${CMAKE_CURRENT_LIST_DIR}/tools/PYTHON_BIN_PATH OR NOT EXISTS
         ${CMAKE_CURRENT_LIST_DIR}/tools/PYTHON_LD_LIBRARY)
     message(FATAL_ERROR "No validate configuration found. Did you forget to configure first?")
 endif ()
 
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/TF_INSTALLED_PATH" TF_INSTALLED_PATH)
+file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/ASCEND_INSTALLED_PATH" ASCEND_INSTALLED_PATH)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/PYTHON_BIN_PATH" PYTHON_BIN_PATH)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/COMPILE_FLAGS" CUSTOM_COMPILE_FLAGS)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/tools/PYTHON_LD_LIBRARY" PYTHON_LD_LIBRARY)
@@ -28,8 +30,8 @@ foreach (COMPILE_FLAG ${CUSTOM_COMPILE_FLAGS})
     set(CMAKE_CXX_FLAGS "${COMPILE_FLAG} ${CMAKE_CXX_FLAGS}")
 endforeach (COMPILE_FLAG)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR}/../../inc/external) # just for acl
-include_directories(${CMAKE_CURRENT_LIST_DIR}/../../inc/toolchain/tuning_tool)
+include_directories(${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/ascendcl/external) # just for acl
+include_directories(${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/aoe)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/stub/include)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../npu_device/core)
 

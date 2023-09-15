@@ -23,7 +23,7 @@
 #include "tensorflow/core/platform/mutex.h"
 #include "tensorflow/core/platform/types.h"
 #include "tf_adapter/common/adapter_logger.h"
-#include "inc/external/acl/error_codes/rt_error_codes.h"
+#include "acl/error_codes/rt_error_codes.h"
 #include "runtime/rt_mem_queue.h"
 #include "infershape_util.h"
 #include "runtime/dev.h"

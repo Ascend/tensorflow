@@ -1,10 +1,10 @@
 add_library(ge_libs INTERFACE)
 
 if(DEFINED ASCEND_INSTALLED_PATH)
-    include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../inc/graphengine/inc)
-    include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../inc/graphengine/inc/external)
-    include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../inc/metadef/inc)
-    include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../inc/metadef/inc/external)
+    include_directories(${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/air)
+    include_directories(${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/air/external)
+    include_directories(${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/metadef)
+    include_directories(${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/metadef/external)
     target_link_libraries(ge_libs INTERFACE
             ${ASCEND_INSTALLED_PATH}/compiler/lib64/libge_runner.so
             ${ASCEND_INSTALLED_PATH}/compiler/lib64/libfmk_parser.so)

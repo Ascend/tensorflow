@@ -83,7 +83,8 @@ tensorflow::Status NpuAoe::AoeTuningInitialize(const std::string &work_path, con
   DLOG() << "Start to run aoe initialize";
 
   handle_ = dlopen("libaoe_tuning.so", RTLD_NOW);
-  NPU_REQUIRES(handle_ != nullptr, tensorflow::errors::Internal("libaoe_tuning.so dlopen failed"));
+  NPU_REQUIRES(handle_ != nullptr,
+               tensorflow::errors::Internal("libaoe_tuning.so dlopen failed, dlerror: ", dlerror()));
 
   NPU_REQUIRES_OK(LoadAoeFunc());
 

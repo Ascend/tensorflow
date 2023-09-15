@@ -30,6 +30,7 @@ except ImportError:
 
 _COMPAT_TENSORFLOW_VERSION = "2.6"
 _PYTHON_BIN_PATH_ENV = "ADAPTER_TARGET_PYTHON_PATH"
+_ASCEND_INSTALLED_PATH_ENV = "ASCEND_HOME_PATH"
 
 
 def run_command(cmd):
@@ -113,9 +114,35 @@ def setup_python(env_path):
         break
 
 
+def setup_ascend(env_path):
+    """Get ascend install path."""
+    default_ascend_path = os.path.realpath("/usr/local/Ascend/latest")
+    ask_ascend_path = ('Please specify the location of ascend. [Default is '
+                       '%s]\n(You can make this quiet by set env [ASCEND_INSTALLED_PATH]): ') % default_ascend_path
+    custom_ascend_path = env_path
+    while True:
+        if not custom_ascend_path:
+            ascend_path = get_input(ask_ascend_path)
+        else:
+            ascend_path = custom_ascend_path
+            custom_ascend_path = None
+        if not ascend_path:
+            ascend_path = default_ascend_path
+        # Check if the path is valid
+        if os.path.isdir(ascend_path) and os.access(ascend_path, os.X_OK):
+            break
+        if not os.path.exists(ascend_path):
+            print('Invalid ascend path: %s cannot be found.' % ascend_path)
+
+    with open(real_config_path('ASCEND_INSTALLED_PATH'), 'w') as f:
+        f.write(ascend_path)
+
+
 def main():
+    """Entry point for configuration"""
     env_snapshot = dict(os.environ)
     setup_python(env_snapshot.get(_PYTHON_BIN_PATH_ENV))
+    setup_ascend(env_snapshot.get(_ASCEND_INSTALLED_PATH_ENV))
 
 
 if __name__ == '__main__':
