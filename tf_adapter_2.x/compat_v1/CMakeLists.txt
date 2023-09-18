@@ -51,12 +51,29 @@ add_dependencies(_tf_adapter generate_compat_headers)
 
 target_compile_definitions(_tf_adapter PRIVATE LOG_CPP TF_VERSION_TF2)
 
-target_include_directories(_tf_adapter PRIVATE
+if (DEFINED ASCEND_CI_BUILD_DIR)
+    target_include_directories(_tf_adapter PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${ADAPTER_ROOT}/
+        ${ASCEND_CI_BUILD_DIR}/abl/mmpa/inc
+        ${ASCEND_CI_BUILD_DIR}/asl/aoetools/inc/aoe
+        ${ASCEND_CI_BUILD_DIR}/abl/slog/inc
+        ${ASCEND_CI_BUILD_DIR}/ace/npuruntime/inc
+        ${ASCEND_CI_BUILD_DIR}/abl/msprof/inc
+        ${ASCEND_CI_BUILD_DIR}/parser/inc/external
+    )
+else ()
+    target_include_directories(_tf_adapter PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}
         ${ADAPTER_ROOT}/
         ${ADAPTER_ROOT}/inc/
-        ${ADAPTER_ROOT}/inc/toolchain/tuning_tool
-        )
+        ${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include
+        ${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/aoe
+        ${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/slog
+        ${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/runtime
+        ${ASCEND_INSTALLED_PATH}/opensdk/opensdk/include/msprof
+    )
+endif ()
 
 add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_fake.cc

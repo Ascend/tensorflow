@@ -23,43 +23,43 @@ extern "C" AoeStatus AoeFinalize() {
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeCreateSession(SessionId &SessionId) {
+extern "C" AoeStatus AoeCreateSession(uint64_t &sessionId) {
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeDestroySession(SessionId SessionId) {
-  if (SessionId >= 9999) {
-    return Aoe::AOE_FALLURE;
+extern "C" AoeStatus AoeDestroySession(uint64_t sessionId) {
+  if (sessionId >= 9999) {
+    return Aoe::AOE_FAILURE;
   }
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeSetGeSession(SessionId SessionId, ge::Session* geSession) {
-  if (SessionId >= 9999) {
-    return Aoe::AOE_FALLURE;
+extern "C" AoeStatus AoeSetGeSession(uint64_t sessionId, ge::Session *geSession) {
+  if (sessionId >= 9999) {
+    return Aoe::AOE_FAILURE;
   }
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeSetDependGraphs(SessionId SessionId, std::vector<ge::Graph> &dependGraph) {
+extern "C" AoeStatus AoeSetDependGraphs(uint64_t sessionId, const std::vector<ge::Graph> &dependGraphs) {
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeSetTuningGraph(SessionId SessionId, ge::Graph &tuningGraph) {
+extern "C" AoeStatus AoeSetTuningGraph(uint64_t sessionId, const ge::Graph &tuningGraph) {
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeTuningGraph(SessionId SessionId,
+extern "C" AoeStatus AoeTuningGraph(uint64_t sessionId,
                                     const std::map<ge::AscendString, ge::AscendString> &tuningOptions) {
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeSetDependGraphsInputs(SessionId SessionId,
-                                              std::vector<std::vector<ge::Tensor>> &input) {
+extern "C" AoeStatus AoeSetDependGraphsInputs(uint64_t sessionId,
+                                              const std::vector<std::vector<ge::Tensor>> &inputs) {
   return Aoe::AOE_SUCCESS;
 }
 
-extern "C" AoeStatus AoeSetTuningGraphInput(SessionId SessionId, std::vector<ge::Tensor> &input) {
+extern "C" AoeStatus AoeSetTuningGraphInput(uint64_t sessionId, const std::vector<ge::Tensor> &input) {
   return Aoe::AOE_SUCCESS;
 }
 } // namespace Aoe

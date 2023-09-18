@@ -24,15 +24,7 @@ set(BASE_DIR ${TOP_DIR}/../)
 add_library(ge_runner_stub SHARED ${SRC_FILES})
 
 target_include_directories(ge_runner_stub PRIVATE
-    ${TFADAPTER_DIR}/inc/
     ${TF_INSTALL_LIB_PATH}/include/
-    ${TFADAPTER_DIR}/inc/external/
-    ${TFADAPTER_DIR}/inc/common/
-    ${TFADAPTER_DIR}/inc/graphengine/inc/
-    ${TFADAPTER_DIR}/inc/graphengine/inc/external/
-    ${TFADAPTER_DIR}/inc/graphengine/inc/framework/
-    ${TFADAPTER_DIR}/metadef/inc/
-    ${TFADAPTER_DIR}/metadef/inc/external/
     ${TFADAPTER_DIR}/tf_adapter/tests/depends/ascendcl/src
     ${TFADAPTER_DIR}/tf_adapter/common
 )

@@ -32,6 +32,7 @@ if (ENABLE_OPEN_SRC)
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/tensorflow.cmake)
     include_directories(${CMAKE_CURRENT_LIST_DIR})
     include_directories(${ASCEND_OPENSDK_DIR}/include)
+    include_directories(${ASCEND_OPENSDK_DIR}/include/aoe)
     include_directories(${ASCEND_OPENSDK_DIR}/include/slog)
     include_directories(${ASCEND_OPENSDK_DIR}/include/runtime)
     include_directories(${ASCEND_OPENSDK_DIR}/include/ascendcl/external)
@@ -43,7 +44,6 @@ if (ENABLE_OPEN_SRC)
     include_directories(${ASCEND_OPENSDK_DIR}/include/metadef)
     include_directories(${ASCEND_OPENSDK_DIR}/include/metadef/external)
     include_directories(${CMAKE_CURRENT_LIST_DIR}/inc)
-    include_directories(${CMAKE_CURRENT_LIST_DIR}/inc/toolchain/tuning_tool)
 
     if (NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/tools/COMPILE_FLAGS OR NOT EXISTS
             ${CMAKE_CURRENT_LIST_DIR}/tools/LINK_FLAGS OR NOT EXISTS
@@ -156,8 +156,6 @@ else()
 
     target_include_directories(tf_adapter PRIVATE
         ${BASE_DIR}/
-        ${BASE_DIR}/inc/parser/inc/
-        ${BASE_DIR}/inc/parser/inc/external/
         ${TOP_DIR}/inc/
         ${TOP_DIR}/inc/external/
         ${TOP_DIR}/inc/common/
@@ -165,6 +163,8 @@ else()
         ${TOP_DIR}/graphengine/inc/external/
         ${TOP_DIR}/metadef/inc/
         ${TOP_DIR}/metadef/inc/external/
+        ${TOP_DIR}/parser/inc/
+        ${TOP_DIR}/parser/inc/external/
         ${TOP_DIR}/libc_sec/include/
         ${TOP_DIR}/abl/libc_sec/include/
         ${CMAKE_CURRENT_LIST_DIR}/inc/third_party/tensorflow/include/tensorflow_core/include/
