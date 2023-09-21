@@ -444,6 +444,7 @@ class ExperimentalConfig():
         self._resource_config_path = resource_config_path
         self._accelerate_train_mode = accelerate_train_mode
 
+
 class NpuExecutePlacement(Enum):
     """npu execute place option. """
     ALL = "all"

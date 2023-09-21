@@ -565,10 +565,10 @@ Status GeOp::AccelerateInfo::TriggeredByStep(bool &is_triggered) {
   uint32_t total_step = 0U;
   REQUIRES_STATUS_OK(GetStepFromEnv(kTotalStep, total_step));
   uint32_t step_to_change = GetStepToChange(total_step, fast_ratio_);
-  ADP_LOG(INFO) << "[GEOP] accelerate train: get expected trigger recompile step: " << step_to_change
-                << " with total step: " << total_step;
   uint32_t step_now = 0U;
   REQUIRES_STATUS_OK(GetStepFromEnv(kStepNow, step_now));
+  ADP_LOG(INFO) << "[GEOP] accelerate train: get expected trigger recompile step: " << step_to_change
+                << " with total step: " << total_step << " and step now is: " << step_now;
   if ((step_now >= step_to_change) || (step_now + iteration_per_loop_ >= total_step)) {
     ADP_LOG(EVENT) << "[GEOP] accelerate train: trigger recompile when step is " << step_now;
     if (step_now != step_to_change) {
@@ -587,10 +587,10 @@ Status GeOp::AccelerateInfo::TriggeredByLoss(bool &is_triggered) {
   float target_loss = 0.0;
   REQUIRES_STATUS_OK(GetLossFromEnv(kTargetLoss, target_loss));
   float loss_to_change = GetLossToChange(target_loss, fast_ratio_);
-  ADP_LOG(INFO) << "[GEOP] accelerate train: get expected trigger recompile loss: " << loss_to_change
-                << " with target loss: " << target_loss;
   float loss_now = 0;
   REQUIRES_STATUS_OK(GetLossFromEnv(kLossNow, loss_now));
+  ADP_LOG(INFO) << "[GEOP] accelerate train: get expected trigger recompile loss: " << loss_to_change
+                << " with target loss: " << target_loss << " and loss now is: " << loss_now;
   if ((loss_now != 0.0) && (loss_now <= loss_to_change)) {
     ADP_LOG(EVENT) << "[GEOP] accelerate train: trigger recompile when loss is " << loss_now;
     if (loss_now != loss_to_change) {
@@ -1368,7 +1368,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   endTime = InferShapeUtil::GetCurrentTimestap();
-  ADP_LOG(EVENT) << "[GEOP] End GeOp::ComputeAsync, kernel_name: " << geop_name
+  ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name: " << geop_name
                 << ", ret_status: " << ToString(run_graph_status) << ", tf session : " << tf_session_
                 << ", graph id: " << cache_graph_id << "[" << ((endTime - startTime) / kMicrosToMillis) << " ms]";
   return;
