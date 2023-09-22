@@ -1569,6 +1569,13 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
           CHECK_NOT_NULL(out_edge);
           graph.AddEdge(aicpu_getnext, out_edge->src_output(), out_edge->dst(), out_edge->dst_input());
         }
+        for (auto in_edge : node->in_edges()) {
+          CHECK_NOT_NULL(in_edge);
+          CHECK_NOT_NULL(in_edge->src());
+          if (in_edge->IsControlEdge()) {
+            graph.AddControlEdge(in_edge->src(), aicpu_getnext);
+          }
+        }
         const OpDef &getnext_op_def = aicpu_getnext->op_def();
         NodeDef &getnext_node_def = const_cast<NodeDef &>(aicpu_getnext->def());
         std::string op_def_s;
