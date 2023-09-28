@@ -1345,7 +1345,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       return;
     }
     int64 run_end_time = InferShapeUtil::GetCurrentTimestap();
-    ADP_LOG(EVENT) << "[GEOP] RunGraphAsync callback, status:" << ge_status
+    ADP_LOG(INFO) << "[GEOP] RunGraphAsync callback, status:" << ge_status
                    << ", kernel_name:" << ctx->op_kernel().name() << "[ " << (run_end_time - run_start_time) << "us]";
     done();
   };
