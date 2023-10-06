@@ -65,8 +65,8 @@ public:
     Status JudgeNeedRecompile(bool &need_recompile);
 
    private:
-    Status TriggeredByStep(bool &need_recompile);
-    Status TriggeredByLoss(bool &need_recompile);
+    Status TriggeredByStep(bool &is_triggered);
+    Status TriggeredByLoss(bool &is_triggered);
   };
 
  private:
