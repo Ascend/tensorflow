@@ -59,7 +59,7 @@ class AdapterLogger : public std::basic_ostringstream<char> {
   ~AdapterLogger() override;
 
  private:
-  mmPid_t GetTid() {
+  mmPid_t GetTid() const {
     static const thread_local mmPid_t tid = static_cast<mmPid_t>(mmGetTid());
     return tid;
   }
