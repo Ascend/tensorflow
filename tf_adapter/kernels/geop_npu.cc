@@ -1050,7 +1050,6 @@ Status GeOp::DoGraphParser(ge::ComputeGraphPtr &compute_graph, FunctionLibraryDe
 }
 
 void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
-  run_mtx_.lock();
   // ctx is not nullptr
   OP_REQUIRES_ASYNC(ctx, init_flag_, errors::InvalidArgument("GeOp not Initialize success."), done);
   if (!sess_init_flag_) {
@@ -1319,10 +1318,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   }
 
   int64 run_start_time = InferShapeUtil::GetCurrentTimestap();
-  auto callback = [done, ctx, run_start_time, this](ge::Status ge_status, std::vector<ge::Tensor> &outputs) {
+  auto callback = [done, ctx, run_start_time](ge::Status ge_status, std::vector<ge::Tensor> &outputs) {
     if (ge_status == ge::SUCCESS) {
       if (BuildOutputTensorInfo(ctx, outputs) != Status::OK()) {
-        run_mtx_.unlock();
         ADP_LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
         std::string error_message = ge::GEGetErrorMsg();
         std::stringstream ss;
@@ -1337,7 +1335,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       ADP_LOG(WARNING) << "[GEOP] Out of range: End of sequence.";
       LOG(WARNING) << "[GEOP] Out of range: End of sequence.";
     } else if (ge_status != ge::SUCCESS) {
-      run_mtx_.unlock();
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
       std::string error_message = ge::GEGetErrorMsg();
@@ -1351,7 +1348,6 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     ADP_LOG(INFO) << "[GEOP] RunGraphAsync callback, status:" << ge_status
                    << ", kernel_name:" << ctx->op_kernel().name() << "[ " << (run_end_time - run_start_time) << "us]";
     done();
-    run_mtx_.unlock();
   };
 
   // call ge session runGraphAsync api
