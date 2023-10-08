@@ -247,7 +247,6 @@ public:
   AoeSetTuningGraphInputFunc aoe_set_tuning_graph_input_;
   // accelerate train
   AccelerateInfo accelerate_info_;
-  std::mutex run_mtx_;
 };
 }  // namespace tensorflow
 #endif  // TENSORFLOW_KERNELS_GEOP_NPU_H_
