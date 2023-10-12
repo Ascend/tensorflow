@@ -261,6 +261,7 @@ REGISTER_OP("EmbeddingTableFind")
   .Input("keys: int64")
   .Output("values: float32")
   .Attr("embedding_dim: int = 0")
+  .Attr("default_value: float = -1")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     ShapeHandle keys_shape;
     TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 1, &keys_shape));
