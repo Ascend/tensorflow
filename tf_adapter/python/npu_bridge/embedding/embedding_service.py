@@ -488,15 +488,17 @@ class ESWorker:
         if table_id not in self._ps_table_id_list:
             raise ValueError("this ps table has not yet initialized.")
 
+        if self._table_to_counter_filter.get(table_id) is not None:
+            filter_mode = "counter"
+            self._filter_freq = self._table_to_counter_filter.get(table_id).filter_freq
+            self._default_key_or_value = self._table_to_counter_filter.get(table_id).default_key_or_value
+            self._default_key = self._table_to_counter_filter.get(table_id).default_key
+            self._default_value = self._table_to_counter_filter.get(table_id).default_value
+        else:
+            filter_mode = "no_filter"
+            self._default_value = -1
+
         if self._train_mode:
-            if self._table_to_counter_filter.get(table_id) is not None:
-                filter_mode = "counter"
-                self._filter_freq = self._table_to_counter_filter.get(table_id).filter_freq
-                self._default_key_or_value = self._table_to_counter_filter.get(table_id).default_key_or_value
-                self._default_key = self._table_to_counter_filter.get(table_id).default_key
-                self._default_value = self._table_to_counter_filter.get(table_id).default_value
-            else:
-                filter_mode = "no_filter"
             result = gen_npu_cpu_ops. \
                 embedding_table_find_and_init(table_id=ops.convert_to_tensor(table_id),
                                               keys=ids,
@@ -520,14 +522,15 @@ class ESWorker:
                                               optimizer_mode=self._ps_table_id_to_optimizer_mode.get(table_id),
                                               optimizer_params=self._ps_table_id_to_optimizer_params.get(table_id)
                                               )
-            self._filter_freq = None
-            self._default_key_or_value = True
-            self._default_key = None
-            self._default_value = None
         else:
             result = gen_npu_cpu_ops.embedding_table_find(table_id=ops.convert_to_tensor(table_id),
                                                           keys=ids,
-                                                          embedding_dim=self._table_to_embedding_dim.get(table_id))
+                                                          embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                          default_value=self._default_value)
+        self._filter_freq = None
+        self._default_key_or_value = True
+        self._default_key = None
+        self._default_value = None
         result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
         result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
         result.op._set_attr("_use_counter_filter",
