@@ -20,6 +20,7 @@ import contextlib
 import os
 import math
 import typing
+import re
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
@@ -259,6 +260,11 @@ class ESWorker:
         """ Operator for get embedding variable according to embedding type. """
         if (name is None) or (init_vocabulary_size is None) or (embedding_dim is None):
             raise ValueError("table name, init_vocabulary_size and embedding_dim can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if (not isinstance(init_vocabulary_size, int)) or (not isinstance(embedding_dim, int)):
             raise ValueError("init_vocabulary_size and embedding_dim must be int.")
         if init_vocabulary_size < 0:
@@ -479,6 +485,11 @@ class ESWorker:
         """ Operator for look up in embedding table. """
         if (name is None) or (ids is None):
             raise ValueError("table name or ids must be specified.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if ids.dtype != tf.int64:
             raise ValueError("dtype of ids must be tf.int64.")
         if not self._init_table_flag:
@@ -837,6 +848,11 @@ class ESWorker:
         """ Operator for save values in table_id embedding table. """
         if path is None or name is None:
             raise ValueError("table name, embedding table path can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if not self._init_table_flag:
             raise ValueError("Not any table has been initialized.")
         if name not in self._ps_table_name_list:
@@ -900,6 +916,11 @@ class ESWorker:
     def restore_embedding(self, name: str, path: str):
         if path is None or name is None:
             raise ValueError("table name, embedding table path can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if not self._init_table_flag:
@@ -947,6 +968,11 @@ class ESWorker:
         """ Operator for save values and optimizer params in table_id embedding table. """
         if path is None or name is None:
             raise ValueError("table name, embedding table path can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if not self._init_table_flag:
@@ -1034,6 +1060,11 @@ class ESWorker:
         """ Operator for restore values and optimizer params in table_id embedding table. """
         if path is None or name is None:
             raise ValueError("name, embedding table path can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if name not in self._ps_table_name_list:
@@ -1103,6 +1134,11 @@ class ESWorker:
         """ Operator for save incremental values in table_id embedding table. """
         if path is None or name is None:
             raise ValueError("table name, embedding table path can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if not self._init_table_flag:
@@ -1166,6 +1202,11 @@ class ESWorker:
     def restore_incremental_embedding(self, name: str, path: str):
         if path is None or name is None:
             raise ValueError("table name, embedding table path can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
         if path[-1] == '/':
             raise ValueError("path format is wrong, please check.")
         if not self._init_table_flag:
