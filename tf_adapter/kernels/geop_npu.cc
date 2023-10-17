@@ -1013,7 +1013,7 @@ Status GeOp::CreateGeSession() {
     mutex_lock lock{mu_};
     if (!SessionManager::GetInstance().GetOrCreateGeSession(tf_session_, ge_session_, sess_options_) ||
         tf_session_.empty() || ge_session_ == nullptr) {
-      return errors::Unavailable("Get ge session failed.");
+      return errors::Internal("Get ge session failed.");
     }
   }
   sess_init_flag_ = true;
@@ -1061,11 +1061,7 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       tf_session_ = ctx->session_handle();
       ADP_LOG(INFO) << "[GEOP] get tf session " << tf_session_ << " from session handle.";
     }
-    bool res = IncrementGraphIdCount(graph_id_);
-    if (!res) {
-      OP_REQUIRES_ASYNC(ctx, false, errors::Unavailable("Get ge session failed."), done);
-      return;
-    }
+    OP_REQUIRES_ASYNC(ctx, IncrementGraphIdCount(graph_id_), errors::Internal("Get ge session failed."), done);
 
     ADP_LOG(INFO) << "[GEOP] Node name: " << ctx->op_kernel().name() << " , tf session: " << tf_session_;
     if (!init_options_["ge.jobType"].empty() && !init_options_["ge.tuningPath"].empty()) {
@@ -1268,23 +1264,23 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     graph_options["ge.exec.graphIOMemAllocMode"] = "ByGE";
     OP_REQUIRES_OK_ASYNC(ctx, CreateGeSession(), done);
     auto status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
+    std::stringstream ss;
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: "
                      << tf_session_ << ", graph id: " << cache_graph_id;
 
       std::string error_message = ge::GEGetErrorMsg();
-      std::stringstream ss;
       ss << "[GEOP] call ge session add graph failed, kernel: " << geop_name << ", tf session: " << tf_session_
          << ", graph id: " << cache_graph_id << std::endl
          << "Error Message is : " << std::endl
          << error_message;
-      OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
-    } else {
-      add_graph_flag_ = true;
-      ADP_LOG(INFO) << "[GEOP] Add graph to ge session success, kernel_name: " << geop_name
-                    << ", tf session: " << tf_session_ << ", graph id: " << cache_graph_id;
     }
+    OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Internal(ss.str()), done);
+    add_graph_flag_ = true;
+    ADP_LOG(INFO) << "[GEOP] Add graph to ge session success, kernel_name: " << geop_name
+                  << ", tf session: " << tf_session_ << ", graph id: " << cache_graph_id;
+
     build_flag_ = true;
     if (!is_set_dynamic_config && is_lazy_recompile_mode) {
       cache_graphs_.insert(std::make_pair(input_shapes, cache_graph_id));
@@ -1292,15 +1288,14 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     }
     if (need_compile_graph_first_) {
       ge::Status build_graph_status = ge_session_->BuildGraph(cache_graph_id, inputs);
+      std::stringstream ss;
       if (build_graph_status != ge::SUCCESS) {
         std::string error_message = ge::GEGetErrorMsg();
-        std::stringstream ss;
         ss << "[GEOP] GE session build graph failed, domi_ret : " << build_graph_status << std::endl
            << "Error Message is : " << std::endl
            << error_message;
-        OP_REQUIRES_ASYNC(ctx, build_graph_status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
       }
-
+      OP_REQUIRES_ASYNC(ctx, build_graph_status == ge::SUCCESS, errors::Internal(ss.str()), done);
       ADP_LOG(INFO) << "[GEOP] Build graph success.";
       done();
       return;
@@ -1354,18 +1349,18 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
   ADP_LOG(INFO) << "[GEOP] Call ge session RunGraphAsync, kernel_name: " << geop_name << ", tf session: " << tf_session_
                 << ", graph id: " << cache_graph_id;
   ge::Status run_graph_status = ge_session_->RunGraphAsync(cache_graph_id, inputs, callback);
+  std::stringstream ss;
   if (run_graph_status != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
     ADP_LOG(FATAL) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: "
                    << tf_session_ << " ,graph id: " << cache_graph_id;
     std::string error_message = ge::GEGetErrorMsg();
-    std::stringstream ss;
     ss << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << ", tf session: " << tf_session_
        << ", graph id: " << cache_graph_id << std::endl
        << "Error Message is : " << std::endl
        << error_message;
-    OP_REQUIRES_ASYNC(ctx, run_graph_status == ge::SUCCESS, errors::Unavailable(ss.str()), done);
   }
+  OP_REQUIRES_ASYNC(ctx, run_graph_status == ge::SUCCESS, errors::Internal(ss.str()), done);
 
   endTime = InferShapeUtil::GetCurrentTimestap();
   ADP_LOG(INFO) << "[GEOP] End GeOp::ComputeAsync, kernel_name: " << geop_name
@@ -2540,7 +2535,7 @@ Status GeOp::DomiFormatFromString(std::string format, int32_t &domi_format) cons
     domi_format = domi::domiTensorFormat_t::DOMI_TENSOR_ND;
     return Status::OK();
   }
-  return errors::Unavailable("DomiFormatFromString, not supported format, format = ", format);
+  return errors::Internal("DomiFormatFromString, not supported format, format = ", format);
 }
 void GeOp::InitAoeFlag() {
   is_aoe_ = (!init_options_["ge.jobType"].empty()) && (!init_options_["ge.tuningPath"].empty());

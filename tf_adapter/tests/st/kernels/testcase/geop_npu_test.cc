@@ -658,5 +658,36 @@ TEST_F(GeOpTest, test_AccelerateTrain_Step) {
   EXPECT_EQ(geop_node->RecoverPrecisionMode().ok(), true);
   EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE], "");
 }
+
+TEST_F(GeOpTest, DomiFormatFromStringTest) {
+  GeOp* geop_node = dynamic_cast<GeOp *>(g_op.get());
+  int32_t domi_format = 0;
+  Status ret = geop_node->DomiFormatFromString("NCHW", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_NCHW);
+  ret = geop_node->DomiFormatFromString("NHWC", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_NHWC);
+  ret = geop_node->DomiFormatFromString("NC1HWC0", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_NC1HWC0);
+  ret = geop_node->DomiFormatFromString("NDHWC", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_NDHWC);
+  ret = geop_node->DomiFormatFromString("NCDHW", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_NCDHW);
+  ret = geop_node->DomiFormatFromString("DHWCN", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_DHWCN);
+  ret = geop_node->DomiFormatFromString("DHWNC", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_DHWNC);
+  ret = geop_node->DomiFormatFromString("FRACTALZ", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_FRACTAL_Z);
+  ret = geop_node->DomiFormatFromString("ND", domi_format);
+  EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_ND);
+  ret = geop_node->DomiFormatFromString("aa", domi_format);
+  EXPECT_TRUE(!ret.ok());
+}
+
+TEST_F(GeOpTest, test_Get_GeSession_Failed) {
+  GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
+  geop_node->tf_session_ = "";
+  EXPECT_EQ(geop_node->CreateGeSession().ok(), false);
+}
 }  // namespace
 } //end tensorflow

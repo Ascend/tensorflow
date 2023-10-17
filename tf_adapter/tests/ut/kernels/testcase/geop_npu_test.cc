@@ -150,6 +150,7 @@ Status GeOpRunGraphAsync(std::string example_path, gtl::InlinedVector<TensorValu
   }
   return Status::OK();
 }
+
 TEST_F(GeOpTest, GeOpInitTest) {
   NpuClose();
   PluginFinalize();
@@ -466,7 +467,7 @@ TEST_F(GeOpTest, GeOpNpuOnnxGraphOpNoModelTest) {
   EXPECT_TRUE(GeOpRunGraphAsync(grph_pbtxt_path, inputs, node_def, "GeOp91_0").ok());
 }
 TEST_F(GeOpTest, DomiFormatFromStringTest) {
-  GeOp* geop_node;
+  GeOp* geop_node = dynamic_cast<GeOp *>(g_op.get());
   int32_t domi_format = 0;
   Status ret = geop_node->DomiFormatFromString("NCHW", domi_format);
   EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_NCHW);
@@ -488,7 +489,6 @@ TEST_F(GeOpTest, DomiFormatFromStringTest) {
   EXPECT_EQ(domi_format, domi::domiTensorFormat_t::DOMI_TENSOR_ND);
   ret = geop_node->DomiFormatFromString("aa", domi_format);
   EXPECT_TRUE(!ret.ok());
-
 }
 
 TEST_F(GeOpTest, GeOpNpuStringMaxSizeTest) {
@@ -698,6 +698,12 @@ TEST_F(GeOpTest, test_AccelerateTrain_Step) {
   EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE], "allow_mix_precision_fp16");
   EXPECT_EQ(geop_node->RecoverPrecisionMode().ok(), true);
   EXPECT_EQ(geop_node->graph_options_[ge::PRECISION_MODE], "");
+}
+
+TEST_F(GeOpTest, test_Get_GeSession_Failed) {
+  GeOp *geop_node = dynamic_cast<GeOp *>(g_op.get());
+  geop_node->tf_session_ = "";
+  EXPECT_EQ(geop_node->CreateGeSession().ok(), false);
 }
 }  // namespace
 }  // namespace tensorflow
