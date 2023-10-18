@@ -103,6 +103,10 @@ rtError_t rtBuffFree(void *buff) {
   return RT_ERROR_NONE;
 }
 
+rtError_t rtBuffGetInfo(rtBuffGetCmdType type, const void * const inBuff, uint32_t inLen,
+                        void * const outBuff, uint32_t * const outLen) {
+  return RT_ERROR_NONE;
+}
 rtError_t rtMbufBuild(void *buff, const uint64_t size, rtMbufPtr_t *mbuf) { return RT_ERROR_NONE; }
 
 rtError_t rtMbufUnBuild(rtMbufPtr_t mbuf, void **buff, uint64_t *const size) { return RT_ERROR_NONE; }

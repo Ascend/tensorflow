@@ -29,6 +29,15 @@
 #include "runtime/dev.h"
 
 namespace tensorflow {
+namespace {
+enum class BuffType {
+  kBuffTypeNormal,
+  kBuffTypeMbufData
+};
+struct BuffTypeInfo {
+  BuffType type;
+};
+} // namespace
 static mutex mtx;
 #ifdef TF_VERSION_TF2
 static bool isMbufInit TF_GUARDED_BY(mtx) = false;
@@ -127,7 +136,7 @@ public:
     }
 
     void DeallocateRaw(void *ptr) override {
-      if (ptr == nullptr) {
+      if ((ptr == nullptr) || !IsBuffTypeNomal(DataAddrToPtr(ptr, kRuntimeTensorDescSize))) {
         return;
       }
       ADP_LOG(INFO) << "MbufAllocator DeallocateRaw begin, ptr:" << ptr;
@@ -149,6 +158,13 @@ public:
     }
 
 private:
+    bool IsBuffTypeNomal(void *ptr) {
+      BuffTypeInfo buff_type_info{};
+      uint32_t len = static_cast<uint32_t>(sizeof(BuffTypeInfo));
+      (void) rtBuffGetInfo(RT_BUFF_GET_MBUF_BUILD_INFO, &ptr, sizeof(void *), &buff_type_info, &len);
+      (void) len;
+      return buff_type_info.type == BuffType::kBuffTypeNormal;
+    }
     TF_DISALLOW_COPY_AND_ASSIGN(MbufAllocator);
 };
 
