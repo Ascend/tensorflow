@@ -139,6 +139,9 @@ class ESWorker:
             for each_ps in self._ps_ids_list:
                 self._ps_ids.append(each_ps["id"])
 
+        if self._ps_num > 15:
+            raise ValueError("PS num can not exceed 15, please check config params.")
+
         self._init_embedding_hash_maps = {}
         self._init_partition_maps = {}
         # storage each ps table's params
