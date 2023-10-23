@@ -631,6 +631,15 @@ class NPUEstimator(estimator_lib.Estimator):
         if config._stream_max_parallel_num is not None:
             custom_op.parameter_map["stream_max_parallel_num"].s = tf.compat.as_bytes(config._stream_max_parallel_num)
 
+    def __load_ac_parallel_enable_config(self, config, custom_op):
+        """Load ac_parallel_enable config, and add to custom_optimizers
+        Args:
+            config: NPURunConfig.
+            custom_op: Customer optimizers.
+        """
+        if config._ac_parallel_enable is not None:
+            custom_op.parameter_map["ac_parallel_enable"].s = tf.compat.as_bytes(config._ac_parallel_enable)
+
     def __load_ps_mode_config(self, custom_op):
         """Load stream_max_parallel_num config ,and add to custom_optimizers
         Args:
@@ -808,6 +817,8 @@ class NPUEstimator(estimator_lib.Estimator):
 
         # add stream_max_parallel to custom_op
         self.__load_stream_max_config(config, custom_op)
+
+        self.__load_ac_parallel_enable_config(config, custom_op)
 
         self.__load_ps_mode_config(custom_op)
 

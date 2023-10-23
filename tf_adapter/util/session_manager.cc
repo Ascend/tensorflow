@@ -107,6 +107,8 @@ void SessionManager::PrintGeSessionOptions(std::map<std::string, std::string> &s
 
   // stream max parallel num
   ADP_LOG(INFO) << "[GEOP] stream_max_parallel_num :" << sess_options[ge::STREAM_MAX_PARALLEL_NUM];
+  // ac parallel enable
+  ADP_LOG(INFO) << "[GEOP] ac_parallel_enable :" << sess_options[ge::AC_PARALLEL_ENABLE];
 
   // graph memory configuration
   if (!sess_options[ge::GRAPH_MEMORY_MAX_SIZE].empty()) {

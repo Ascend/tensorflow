@@ -168,6 +168,10 @@ const std::string GE_FE_FLAG = "ge.feFlag";
 // this option is to obtain stream max parallel num
 const std::string STREAM_MAX_PARALLEL_NUM = "ge.streamMaxParallelNum";
 
+// Configure engines such as Aicpu to compute parallelly with other engines in dynamic shape graphs.
+// its value should be "0" or "1", default value is "0"
+const std::string AC_PARALLEL_ENABLE = "ac_parallel_enable";
+
 // congigure outputDatatype to setting net output type
 const std::string OUTPUT_DATATYPE = "ge.outputDatatype";
 

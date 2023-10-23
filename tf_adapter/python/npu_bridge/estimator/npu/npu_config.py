@@ -110,7 +110,8 @@ class NPURunConfig(run_config_lib.RunConfig):
                  frozen_variable=False,
                  variable_placement="Device",
                  jit_compile="auto",
-                 precision_mode_v2=None
+                 precision_mode_v2=None,
+                 ac_parallel_enable=0
                  ):
         """
         Constructs a NPUConfig.
@@ -144,6 +145,7 @@ class NPURunConfig(run_config_lib.RunConfig):
         dump_config: The dump configuration.
         stream_max_parallel_num: Specify the degree of parallelism of the AICPU / AICORE engine
                                  to achieve parallel execution between AICPU / AICORE operators.
+        ac_parallel_enable: Enable engines such as Aicpu to parallel with other engines in dynamic shape graphs.
         op_select_implmode: Selecting whether the operator is implemented with high_precision
                             or high_performance or high_precision_for_all or high_performance_for_all.
         optypelist_for_implmode: Operator list.
@@ -211,6 +213,7 @@ class NPURunConfig(run_config_lib.RunConfig):
 
         self._dump_config = self._get_dump_config(dump_config)
         self._stream_max_parallel_num = stream_max_parallel_num
+        self._ac_parallel_enable = ac_parallel_enable
 
         self.horovod_mode = self._get_horovod_mode(horovod_mode)
         util.check_nonnegative_integer(graph_run_mode, "graph_run_mode")

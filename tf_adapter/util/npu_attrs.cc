@@ -436,6 +436,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   std::string dump_debug_mode = "all";
   std::string dump_layer;
   std::string stream_max_parallel_num;
+  std::string ac_parallel_enable;
   std::string npuOptimizer;
   std::string is_tailing_optimization = "0";
   std::string op_select_implmode;
@@ -501,6 +502,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
       }
     }
     (void) ctx->GetAttr("_stream_max_parallel_num", &stream_max_parallel_num);
+    (void) ctx->GetAttr("_ac_parallel_enable", &ac_parallel_enable);
     (void) ctx->GetAttr("_is_tailing_optimization", &is_tailing_optimization);
     (void) ctx->GetAttr("_op_select_implmode", &op_select_implmode);
     (void) ctx->GetAttr("_optypelist_for_implmode", &optypelist_for_implmode);
@@ -542,6 +544,7 @@ std::map<std::string, std::string> NpuAttrs::GetSessOptions(const OpKernelConstr
   sess_options["ge.exec.variable_acc"] = variable_format_optimize;
   sess_options[ge::HCOM_PARALLEL] = hcom_parallel;
   sess_options[ge::STREAM_MAX_PARALLEL_NUM] = stream_max_parallel_num;
+  sess_options[ge::AC_PARALLEL_ENABLE] = ac_parallel_enable;
   if (!graph_memory_max_size.empty()) {
     sess_options[ge::GRAPH_MEMORY_MAX_SIZE] = graph_memory_max_size;
   }
@@ -1098,6 +1101,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string dump_data = "tensor";
   std::string dump_layer;
   std::string stream_max_parallel_num;
+  std::string ac_parallel_enable;
   std::string soc_config;
 
   std::string is_tailing_optimization = "0";
@@ -1187,6 +1191,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   auto dump_layer_value = attrs.Find("_dump_layer");
   auto dump_debug_mode_value = attrs.Find("_dump_debug_mode");
   auto stream_max_parallel_num_value = attrs.Find("_stream_max_parallel_num");
+  auto ac_parallel_enable_value = attrs.Find("_ac_parallel_enable");
   auto soc_config_value = attrs.Find("_soc_config");
   auto graph_slice_value = attrs.Find("_graph_slice");
 
@@ -1347,6 +1352,9 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
     }
     if (stream_max_parallel_num_value != nullptr) {
       stream_max_parallel_num = stream_max_parallel_num_value->s();
+    }
+    if (ac_parallel_enable_value != nullptr) {
+      ac_parallel_enable = ac_parallel_enable_value->s();
     }
     if (graph_slice_value != nullptr) {
       graph_slice_mode = graph_slice_value->s();
@@ -1544,6 +1552,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   all_options["variable_format_optimize"] = variable_format_optimize;
   all_options["hcom_parallel"] = hcom_parallel;
   all_options["stream_max_parallel_num"] = stream_max_parallel_num;
+  all_options["ac_parallel_enable"] = ac_parallel_enable;
   if (!graph_memory_max_size.empty()) {
     all_options["graph_memory_max_size"] = graph_memory_max_size;
   }
@@ -1683,6 +1692,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string dump_data = "tensor";
   std::string dump_layer;
   std::string stream_max_parallel_num;
+  std::string ac_parallel_enable;
   std::string soc_config;
   std::string hccl_timeout;
   std::string HCCL_algorithm;
@@ -1831,6 +1841,9 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("stream_max_parallel_num") > 0) {
         stream_max_parallel_num = params.at("stream_max_parallel_num").s();
+      }
+      if (params.count("ac_parallel_enable") > 0) {
+        ac_parallel_enable = params.at("ac_parallel_enable").s();
       }
 
       if (params.count("is_tailing_optimization") > 0) {
@@ -2287,6 +2300,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   sess_options["graph_slice"] = graph_slice_mode;
   sess_options["hcom_parallel"] = std::to_string(static_cast<int32_t>(hcom_parallel));
   sess_options["stream_max_parallel_num"] = stream_max_parallel_num;
+  sess_options["ac_parallel_enable"] = ac_parallel_enable;
   if (!graph_memory_max_size.empty()) {
     sess_options["graph_memory_max_size"] = graph_memory_max_size;
   }

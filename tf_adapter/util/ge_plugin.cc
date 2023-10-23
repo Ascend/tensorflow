@@ -76,6 +76,7 @@ void SetOptionNameMap(json &option_name_map) {
   option_name_map.emplace(ge::OP_COMPILER_CACHE_MODE, "op_compiler_cache_mode");
   option_name_map.emplace(ge::OP_COMPILER_CACHE_DIR, "op_compiler_cache_dir");
   option_name_map.emplace(ge::STREAM_MAX_PARALLEL_NUM, "stream_max_parallel_num");
+  option_name_map.emplace(ge::AC_PARALLEL_ENABLE, "ac_parallel_enable");
   option_name_map.emplace(ge::HCOM_PARALLEL, "hcom_parallel");
   option_name_map.emplace(ge::HCOM_MULTI_MODE, "hcom_multi_mode");
   option_name_map.emplace(ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION, "is_tailing_optimization");

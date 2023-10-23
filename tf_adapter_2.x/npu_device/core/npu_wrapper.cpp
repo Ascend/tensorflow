@@ -73,6 +73,7 @@ const std::map<std::string, std::string> kConfigurableOptions = {
   {"op_compiler_cache_mode", ge::OP_COMPILER_CACHE_MODE},
   {"op_compiler_cache_dir", ge::OP_COMPILER_CACHE_DIR},
   {"stream_max_parallel_num", ge::STREAM_MAX_PARALLEL_NUM},
+  {"ac_parallel_enable", ge::AC_PARALLEL_ENABLE},
   {"hcom_parallel", ge::HCOM_PARALLEL},
   {"hcom_multi_mode", ge::HCOM_MULTI_MODE},
   {"is_tailing_optimization", ge::OPTION_EXEC_ENABLE_TAILING_OPTIMIZATION},
