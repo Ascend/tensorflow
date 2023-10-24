@@ -111,7 +111,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  variable_placement="Device",
                  jit_compile="auto",
                  precision_mode_v2=None,
-                 ac_parallel_enable=0
+                 ac_parallel_enable=None
                  ):
         """
         Constructs a NPUConfig.
