@@ -108,7 +108,7 @@ class NpuLossScaleOptimizer(tf.keras.mixed_precision.LossScaleOptimizer):
                         name=None):
         """Apply gradients on variables"""
         if global_npu_ctx() is None or is_inf_nan_enabled():
-            super().apply_gradients(grads_and_vars, name)
+            return super().apply_gradients(grads_and_vars, name)
 
         grads_and_vars = tuple(grads_and_vars)  # grads_and_vars origin type is zip and can only be iter once
         grads = [g for g, _ in grads_and_vars]
@@ -159,8 +159,8 @@ class NpuExperimentalLossScaleOptimizer(tf.keras.mixed_precision.experimental.Lo
                         grads_and_vars,
                         name=None):
         """Apply gradients on variables"""
-        if global_npu_ctx() is None:
-            super().apply_gradients(grads_and_vars, name)
+        if global_npu_ctx() is None or is_inf_nan_enabled():
+            return super().apply_gradients(grads_and_vars, name)
 
         grads_and_vars = tuple(grads_and_vars)  # grads_and_vars origin type is zip and can only be iter once
         grads = [g for g, _ in grads_and_vars]
