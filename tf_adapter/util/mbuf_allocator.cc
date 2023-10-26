@@ -158,7 +158,7 @@ public:
     }
 
 private:
-    bool IsBuffTypeNomal(void *ptr) {
+    bool IsBuffTypeNomal(const void *ptr) {
       BuffTypeInfo buff_type_info{};
       uint32_t len = static_cast<uint32_t>(sizeof(BuffTypeInfo));
       (void) rtBuffGetInfo(RT_BUFF_GET_MBUF_BUILD_INFO, &ptr, sizeof(void *), &buff_type_info, &len);
