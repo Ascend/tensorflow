@@ -63,7 +63,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                  graph_run_mode=1,
                  op_debug_level=None,
                  enable_scope_fusion_passes=None,
-                 enable_exception_dump=0,
+                 enable_exception_dump=2,
                  op_select_implmode=None,
                  optypelist_for_implmode=None,
                  dynamic_input_config=None,
