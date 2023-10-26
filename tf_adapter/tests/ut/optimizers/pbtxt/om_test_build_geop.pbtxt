@@ -129,6 +129,12 @@ node {
     }
   }
   attr {
+    key: "_ac_parallel_enable"
+    value {
+      s: "0"
+    }
+  }
+  attr {
     key: "_is_tailing_optimization"
     value {
       s: "0"
