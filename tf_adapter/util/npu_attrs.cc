@@ -622,7 +622,7 @@ std::map<std::string, std::string> NpuAttrs::GetInitOptions(const OpKernelConstr
   std::string graph_run_mode = "1";
   std::string op_debug_level;
   std::string enable_scope_fusion_passes;
-  std::string enable_exception_dump = "2";
+  std::string enable_exception_dump;
   std::string op_compiler_cache_mode;
   std::string op_compiler_cache_dir;
   std::string debug_dir;
@@ -1116,7 +1116,7 @@ std::map<std::string, std::string> NpuAttrs::GetAllAttrOptions(const AttrSlice &
   std::string graph_run_mode = "1";
   std::string op_debug_level;
   std::string enable_scope_fusion_passes;
-  std::string enable_exception_dump = "2";
+  std::string enable_exception_dump;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string input_shape;
@@ -1729,7 +1729,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
   std::string local_device_list;
   bool in_out_pair_flag = true;
   std::string in_out_pair;
-  int64_t enable_exception_dump = 2L;
+  int64_t enable_exception_dump = 0L;
   std::string op_select_implmode;
   std::string optypelist_for_implmode;
   std::string input_shape;
