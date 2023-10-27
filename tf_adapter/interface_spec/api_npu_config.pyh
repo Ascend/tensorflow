@@ -9,7 +9,7 @@ class NPURunConfig(run_config_lib.RunConfig):
                 graph_memory_max_size=None, variable_memory_max_size=None, dump_config=None,
                 stream_max_parallel_num=None, is_tailing_optimization=False,
                 horovod_mode=False, graph_run_mode=1, op_debug_level=None, enable_scope_fusion_passes=None,
-                enable_exception_dump=0, op_select_implmode=None, optypelist_for_implmode=None, dynamic_input_config=None,
+                enable_exception_dump=2, op_select_implmode=None, optypelist_for_implmode=None, dynamic_input_config=None,
                 aoe_mode=None, work_path=None, buffer_optimize="l2_optimize", enable_small_channel=0, fusion_switch_file=None,
                 enable_compress_weight=False, compress_weight_conf=None,
                 op_compiler_cache_mode=None, op_compiler_cache_dir=None, debug_dir=None, hcom_multi_mode=False, dynamic_input=None,
