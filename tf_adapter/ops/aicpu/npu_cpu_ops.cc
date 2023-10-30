@@ -320,6 +320,40 @@ REGISTER_OP("EmbeddingTableFindAndInit")
     return Status::OK();
   });
 
+REGISTER_OP("FusedRemoteLookupWithUnique")
+  .Input("table_id: int32")
+  .Input("keys: int64")
+  .Input("key_num_input: int64")
+  .Input("unique_indices: int32")
+  .Output("values: float32")
+  .Attr("embedding_dim: int = 0")
+  .Attr("value_total_len: int = 0")
+  .Attr("initializer_mode: string = 'random_uniform'")
+  .Attr("constant_value: float = 0")
+  .Attr("min: float = -2")
+  .Attr("max: float = 2")
+  .Attr("mu: float = 0")
+  .Attr("sigma: float = 1")
+  .Attr("seed: int = 0")
+  .Attr("seed2: int = 0")
+  .Attr("filter_mode: string = 'no_filter'")
+  .Attr("filter_freq: int = 0")
+  .Attr("default_key_or_value: bool = false")
+  .Attr("default_key: int = 0")
+  .Attr("default_value: float = 0")
+  .Attr("optimizer_mode: string = '' ")
+  .Attr("optimizer_params: list(float) = [0.1]")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    ShapeHandle keys_shape;
+    TF_RETURN_IF_ERROR(c->WithRank(c->input(3), 1, &keys_shape));
+    int embedding_dim;
+    if (!c->GetAttr("embedding_dim", &embedding_dim).ok()) {
+        return errors::InvalidArgument("Invalid embedding_dim");
+    }
+    c->set_output(0, c->Matrix(c->Dim(keys_shape, 0), embedding_dim));
+    return Status::OK();
+  });
+
 REGISTER_OP("EmbeddingApplyAdam")
   .Input("var_handle: resource")
   .Input("beta1_power: T")
