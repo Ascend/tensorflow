@@ -76,7 +76,11 @@ acltdtChannelHandle *acltdtCreateChannel(uint32_t deviceId, const char *name) {
 }
 
 aclError aclrtSetDevice(int32_t deviceId){
-    return ACL_SUCCESS;
+  int32_t deviceMaxNum = 7;
+  if (deviceId > deviceMaxNum) {
+    return ACL_ERROR_INVALID_PARAM;
+  }
+  return ACL_SUCCESS;
 }
 
 aclError aclrtMallocHost(void **hostPtr, size_t size) {
@@ -100,7 +104,11 @@ aclError aclrtFreeHost(void *hostPtr) {
 }
 
 aclError aclrtResetDevice(int32_t deviceId) {
-    return ACL_SUCCESS;
+  int32_t deviceMaxNum = 7;
+  if (deviceId > deviceMaxNum) {
+    return ACL_ERROR_INVALID_PARAM;
+  }
+  return ACL_SUCCESS;
 }
 
 acltdtChannelHandle *acltdtCreateChannelWithCapacity(uint32_t deviceId,

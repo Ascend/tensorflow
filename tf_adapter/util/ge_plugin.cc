@@ -312,6 +312,10 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
     LOG(FATAL) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
   }
   ADP_LOG(INFO) << "[GePlugin] Initialize parser success.";
+  auto ret = aclrtSetDevice(static_cast<int32_t>(device_id_));
+  if (ret != ACL_ERROR_NONE) {
+    ADP_LOG(ERROR) << "Set device failed, device_id: " << device_id_;
+  }
   if (is_async) {
     future_ = std::async(
                   std::launch::async,
@@ -420,7 +424,10 @@ void GePlugin::Finalize() {
     ADP_LOG(INFO) << "[GePlugin] Ge has already finalized.";
     return;
   }
-
+  auto ret = aclrtResetDevice(static_cast<int32_t>(device_id_));
+  if (ret != ACL_ERROR_NONE) {
+    ADP_LOG(ERROR) << "Reset device failed, device_id: " << device_id_;
+  }
   // ge finalize
   GeFinalize();
 

@@ -159,6 +159,19 @@ TEST_F(GeOpTest, GeOpInitTest) {
   PluginFinalize();
 }
 
+TEST_F(GeOpTest, GeOpInitTestErrorDeviceId) {
+  PluginFinalize();
+  NodeDef node_def;
+  std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop.pbtxt";
+  gtl::InlinedVector<TensorValue, 4> inputs;
+  ge::g_geinit_fore_return_fail = true;
+  setenv("ASCEND_DEVICE_ID", "10", true);
+  EXPECT_TRUE(GeOpRunGraphAsync(graph_def_path, inputs, node_def, "GeOp1_0").ok());
+  ge::g_geinit_fore_return_fail = false;
+  PluginFinalize();
+  unsetenv("ASCEND_DEVICE_ID");
+}
+
 TEST_F(GeOpTest, GeOpFuncTest) {
   NodeDef node_def;
   std::string graph_def_path = "tf_adapter/tests/ut/kernels/pbtxt/geop.pbtxt";
