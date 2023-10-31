@@ -270,6 +270,13 @@ public:
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingTableFindAndInitOp Compute"; }
 };
 
+class FusedRemoteLookupWithUniqueOp : public OpKernel {
+ public:
+  explicit FusedRemoteLookupWithUniqueOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~FusedRemoteLookupWithUniqueOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "FusedRemoteLookupWithUniqueOp Compute"; }
+};
+
 class EmbeddingApplyAdamOp : public OpKernel {
 public:
   explicit EmbeddingApplyAdamOp(OpKernelConstruction *context) : OpKernel(context) {}
@@ -350,6 +357,7 @@ REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdamW").Device(DEVICE_CPU), Embeddin
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdaGrad").Device(DEVICE_CPU), EmbeddingApplyAdaGradOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingTableExport").Device(DEVICE_CPU), EmbeddingTableExportOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingFeatureMapping").Device(DEVICE_CPU), EmbeddingFeatureMappingOp);
+REGISTER_KERNEL_BUILDER(Name("FusedRemoteLookupWithUnique").Device(DEVICE_CPU), FusedRemoteLookupWithUniqueOp);
 REGISTER_KERNEL_BUILDER(Name("WarpAffineV2").Device(DEVICE_CPU), WarpAffineV2Op);
 REGISTER_KERNEL_BUILDER(Name("ResizeV2").Device(DEVICE_CPU), ResizeV2Op);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingComputeVarExport").Device(DEVICE_CPU), EmbeddingComputeVarExportOp);
