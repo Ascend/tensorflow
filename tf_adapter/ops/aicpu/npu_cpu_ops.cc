@@ -321,10 +321,10 @@ REGISTER_OP("EmbeddingTableFindAndInit")
     return Status::OK();
   });
 
-REGISTER_OP("FusedRemoteLookupWithUnique")
+REGISTER_OP("FakeRemoteLookupUniqued")
   .Input("table_id: int32")
   .Input("keys: int64")
-  .Input("key_num_input: int64")
+  .Input("actual_keys_input: int64")
   .Input("unique_indices: int32")
   .Output("values: float32")
   .Attr("embedding_dim: int = 0")
