@@ -37,6 +37,7 @@ bool kHasSetDataTransferMode = false;
 std::mutex mu;
 std::string kGraphSliceModeAuto = "auto";
 std::string kGraphSliceModeManual = "manual";
+int64_t kSessionDeviceID = -1L;
 }  // namespace
 const string profiling_default_options = "{\"output\":\".\\/\",\"training_trace\":\"on\",\"task_trace\":\"on\",\
 \"hccl\":\"on\",\"aicpu\":\"on\",\"aic_metrics\":\"PipeUtilization\",\"msproftx\":\"off\"}";
@@ -54,7 +55,7 @@ const std::string kErrMsgInvalidStepFormat = "dump_step string style is error, c
 
 bool NpuAttrs::CheckIsNewDataTransfer() {
   uint32_t device_id = 0U;
-  (void)GetEnvDeviceID(device_id);
+  (void)GetDeviceID(device_id);
   std::map<std::string, std::string> init_options = NpuAttrs::GetInitOptions();
   NpuAttrs::LogOptions(init_options);
   GePlugin::GetInstance()->Init(init_options);
@@ -90,7 +91,7 @@ bool NpuAttrs::GetNewDataTransferFlag() {
 }
 void NpuAttrs::SetNewDataTransferFlag(bool flag) {
   std::unique_lock<std::mutex> lck(mu);
-  kHasSetDataTransferMode = true;
+  kHasSetDataTransferMode = flag;
   kIsNewDataTransfer = flag;
 }
 
@@ -175,6 +176,15 @@ Status GetEnvDeviceID(uint32_t &device_id) {
     }
   }
   return Status::OK();
+}
+
+// device_id setting priority: seesion_device_id > ASCEND_DEVICE_ID > DEVICE_ID > default 0
+Status GetDeviceID(uint32_t &device_id) {
+  if (kSessionDeviceID >= 0) {
+    device_id = static_cast<uint32_t>(kSessionDeviceID);
+    return Status::OK();
+  }
+  return GetEnvDeviceID(device_id);
 }
 
 Status GetStepFromEnv(const std::string &env_name, uint32_t &step) {
@@ -2108,6 +2118,7 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
           LOG(FATAL) << "session_device_id must be nonnegative integer.";
         }
       }
+      kSessionDeviceID = session_device_id;
       if (params.count("modify_mixlist") > 0) {
         bool check_precision_mode = false;
         bool check_precision_mode_v2 = false;

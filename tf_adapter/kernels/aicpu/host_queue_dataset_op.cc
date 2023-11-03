@@ -96,8 +96,8 @@ class HostQueueDatasetOp : public DatasetOpKernel {
       local_device_list_.push_back(device_id);
     }
     SetChannelType();
+    OP_REQUIRES_OK(ctx, GetDeviceID(device_id_));
     ADP_LOG(INFO) << "Begin to init channel in device[" << device_id_ << "].";
-    OP_REQUIRES_OK(ctx, GetEnvDeviceID(device_id_));
     if (channel_type_ == ChannelType::TDT) {
       int32_t tdt_status = TdtInFeedInit(device_id_);
       OP_REQUIRES(ctx, tdt_status == 0, errors::InvalidArgument("Tdt client init failed."));
@@ -128,6 +128,9 @@ class HostQueueDatasetOp : public DatasetOpKernel {
   }
 
   void SetChannelType() {
+    // When setting session_device_id, before init channel for each device,
+    // CheckIsNewDataTransfer is required to set device, otherwise error when destroying the channel.
+    NpuAttrs::SetNewDataTransferFlag(false);
     if (kIsHeterogeneous) {
       channel_type_ = ChannelType::HOST_QUEUE;
     } else if (NpuAttrs::GetNewDataTransferFlag()) {

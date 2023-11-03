@@ -35,6 +35,7 @@
 namespace tensorflow {
 std::string GetDumpPath();
 Status GetEnvDeviceID(uint32_t &device_id);
+Status GetDeviceID(uint32_t &device_id);
 Status GetStepFromEnv(const std::string &env_name, uint32_t &step);
 Status GetLossFromEnv(const std::string &env_name, float &loss);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
@@ -62,7 +63,7 @@ class NpuAttrs {
   static bool IsDatasetExecuteInDevice(const std::string &iterator_name);
   static void SetDatasetExecuteInDeviceStatus(const std::string &iterator_name, bool is_dataset_execute_device);
   static bool GetNewDataTransferFlag();
-  // only use for ut/st
+  // only use for ut/st and host_queue_dataset set session_device_id
   static void SetNewDataTransferFlag(bool flag);
   template<typename T>
   static std::string VectorToString(const std::vector<T> &values) {
