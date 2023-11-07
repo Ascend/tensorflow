@@ -1528,7 +1528,7 @@ void GeOp::HandleDpOpAndGetNextNodes(Graph &graph) {
         }
       }
       uint32_t device_id = 0;
-      (void) GetEnvDeviceID(device_id);
+      (void) GetDeviceID(device_id);
       std::string channel_name;
       if (HasNodeAttr(node->def(), "channel_name")) {
         channel_name = node->def().attr().at("channel_name").s();

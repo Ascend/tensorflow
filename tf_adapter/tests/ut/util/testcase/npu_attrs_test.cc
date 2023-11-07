@@ -18,6 +18,14 @@ class NpuAttrTest : public testing::Test {
   virtual void SetUp() {}
   virtual void TearDown() {}
 };
+
+TEST_F(NpuAttrTest, CheckIsNewDataTransfer) {
+  NpuAttrs::SetNewDataTransferFlag(false);
+  bool ret = NpuAttrs::GetNewDataTransferFlag();
+  EXPECT_EQ(ret, true);
+  NpuAttrs::SetNewDataTransferFlag(true);
+}
+
 TEST_F(NpuAttrTest, GetEnvDeviceIdDefaultTest) {
   uint32_t device_id = 0;
   (void)GetEnvDeviceID(device_id);
