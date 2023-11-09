@@ -48,6 +48,7 @@ class AdamOptimizer(adam.AdamOptimizer):
         super(AdamOptimizer, self).__init__(learning_rate, beta_1, beta_2, epsilon, using_locking, name)
         self._beta1_power = None
         self._beta2_power = None
+        self.mask_zero = False
 
     @property
     def embedding_dims(self):
@@ -64,14 +65,6 @@ class AdamOptimizer(adam.AdamOptimizer):
     @max_nums.setter
     def max_nums(self, val):
         self._max_nums = val
-
-    @property
-    def es_cluster_configs(self):
-        return self._es_cluster_configs
-
-    @es_cluster_configs.setter
-    def es_cluster_configs(self, val):
-        self._es_cluster_configs = val
 
     def _prepare(self):
         lr = self._call_if_callable(self._lr)
@@ -119,6 +112,16 @@ class AdamOptimizer(adam.AdamOptimizer):
 
 
 class AdagradOptimizer(adagrad.AdagradOptimizer):
+    def __init__(self,
+                 learning_rate=0.01,
+                 initial_accumulator_value=0.1,
+                 using_locking=False,
+                 name="EmbeddingAdagradOptimizer"):
+        """Construct a EmbeddingAdagrad optimizer."""
+        super(AdagradOptimizer, self).__init__(learning_rate, initial_accumulator_value, using_locking, name)
+        self.mask_zero = False
+        self.initial_accumulator_value = initial_accumulator_value
+
     @property
     def embedding_dims(self):
         return self._embedding_dims
@@ -134,14 +137,6 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
     @max_nums.setter
     def max_nums(self, val):
         self._max_nums = val
-
-    @property
-    def es_cluster_configs(self):
-        return self._es_cluster_configs
-
-    @es_cluster_configs.setter
-    def es_cluster_configs(self, val):
-        self._es_cluster_configs = val
 
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
@@ -213,6 +208,7 @@ class AdamWOptimizer(optimizer.Optimizer):
         self._max_grad_norm_t = None
         self._beta1_power_t = None
         self._beta2_power_t = None
+        self.mask_zero = False
 
     @property
     def embedding_dims(self):
@@ -229,14 +225,6 @@ class AdamWOptimizer(optimizer.Optimizer):
     @max_nums.setter
     def max_nums(self, val):
         self._max_nums = val
-
-    @property
-    def es_cluster_configs(self):
-        return self._es_cluster_configs
-
-    @es_cluster_configs.setter
-    def es_cluster_configs(self, val):
-        self._es_cluster_configs = val
 
     def _prepare(self):
         beta1_power = self._call_if_callable(_ADAMW_BEAT1_POWER_VALUE)
@@ -277,6 +265,118 @@ class AdamWOptimizer(optimizer.Optimizer):
                                                             amsgrad=self._amsgrad,
                                                             maximize=self._maximize,
                                                             embedding_dim=self._embedding_dims)
+            result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
+            result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            return result
+        else:
+            raise TypeError("Variable is not NpuEmbeddingResource type, please check.")
+
+
+class SgdOptimizer(optimizer.Optimizer):
+    """A sgd optimizer that apply SGD algorithm."""
+
+    def __init__(self,
+                 learning_rate=0.01,
+                 name="EmbeddingApplySgdOptimizer"):
+        """Construct a AdamW optimizer."""
+        super(SgdOptimizer, self).__init__(False, name)
+        self._lr = learning_rate
+        self.mask_zero = False
+
+    @property
+    def embedding_dims(self):
+        return self._embedding_dims
+
+    @embedding_dims.setter
+    def embedding_dims(self, val):
+        self._embedding_dims = val
+
+    @property
+    def max_nums(self):
+        return self._max_nums
+
+    @max_nums.setter
+    def max_nums(self, val):
+        self._max_nums = val
+
+    def _prepare(self):
+        lr = self._call_if_callable(self._lr)
+        self._lr_t = ops.convert_to_tensor(lr, name="learning_rate")
+
+    def _resource_apply_sparse(self, grad, var, indices):
+        if isinstance(var, NpuEmbeddingResource):
+            result = gen_npu_cpu_ops.embedding_apply_sgd(var_handle=var.handle,
+                                                         lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                         grad=grad,
+                                                         keys=indices,
+                                                         mask_zero=self.mask_zero,
+                                                         embedding_dim=self._embedding_dims)
+            result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
+            result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
+            return result
+        else:
+            raise TypeError("Variable is not NpuEmbeddingResource type, please check.")
+
+
+class RmspropOptimizer(optimizer.Optimizer):
+    """A Rmsprop optimizer that use rmsprop algorithm."""
+
+    def __init__(self,
+                 learning_rate=0.01,
+                 ms=0.9,
+                 mom=0.0,
+                 rho=0.9,
+                 momentum=0.9,
+                 epsilon=1e-8,
+                 name="EmbeddingApplyRmspropOptimizer"):
+        """Construct an ApplyRmsprop optimizer."""
+        super(RmspropOptimizer, self).__init__(False, name)
+        self.ms = ms
+        self.mom = mom
+        self._rho = rho
+        self._momentum = momentum
+        self._epsilon = epsilon
+        self._lr = learning_rate
+        self.mask_zero = False
+
+    @property
+    def embedding_dims(self):
+        return self._embedding_dims
+
+    @embedding_dims.setter
+    def embedding_dims(self, val):
+        self._embedding_dims = val
+
+    @property
+    def max_nums(self):
+        return self._max_nums
+
+    @max_nums.setter
+    def max_nums(self, val):
+        self._max_nums = val
+
+    def _prepare(self):
+        rho = self._call_if_callable(self._rho)
+        momentum = self._call_if_callable(self._momentum)
+        epsilon = self._call_if_callable(self._epsilon)
+        lr = self._call_if_callable(self._lr)
+
+        self._rho_t = ops.convert_to_tensor(rho, name="rho")
+        self._momentum_t = ops.convert_to_tensor(momentum, name="momentum")
+        self._epsilon_t = ops.convert_to_tensor(epsilon, name="epsilon")
+        self._lr_t = ops.convert_to_tensor(lr, name="learning_rate")
+
+    def _resource_apply_sparse(self, grad, var, indices):
+        if isinstance(var, NpuEmbeddingResource):
+            result = gen_npu_cpu_ops.embedding_apply_rmsprop(var_handle=var.handle,
+                                                             lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                             rho=math_ops.cast(self._rho_t, grad.dtype),
+                                                             momentum=math_ops.cast(self._momentum_t, grad.dtype),
+                                                             epsilon=math_ops.cast(self._epsilon_t, grad.dtype),
+                                                             grad=grad,
+                                                             keys=indices,
+                                                             mask_zero=self.mask_zero,
+                                                             embedding_dim=self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
             result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
             return result
