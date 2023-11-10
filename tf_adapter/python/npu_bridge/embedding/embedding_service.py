@@ -259,7 +259,7 @@ class ESWorker:
                                value_dtype=tf.float32, partitioner=None,
                                initializer=tf.random_uniform_initializer(minval=-0.01, maxval=0.01, seed=1234),
                                embedding_type="PS", ev_option=None, max_feature_count=None, multihot_lens=None,
-                               optimizer=None, allow_merge=True):
+                               optimizer=None, allow_merge=True, mask_zero=False):
         """ Operator for get embedding variable according to embedding type. """
         if (name is None) or (init_vocabulary_size is None) or (embedding_dim is None):
             raise ValueError("table name, init_vocabulary_size and embedding_dim can not be None.")
@@ -276,6 +276,8 @@ class ESWorker:
             raise ValueError("embedding_dim must be greater than zero.")
         if (embedding_type != "PS") and (embedding_type != "data_parallel"):
             raise TypeError("embedding_type must be PS or data_parallel")
+        if not isinstance(mask_zero, bool):
+            raise TypeError("mask zero must be bool")
 
         if embedding_type == "data_parallel":
             if name not in self._small_table_name_list:
@@ -356,9 +358,12 @@ class ESWorker:
             else:
                 if (not isinstance(optimizer, embedding_optimizer.AdamOptimizer)) and \
                         (not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)) and \
-                        (not isinstance(optimizer, embedding_optimizer.AdamWOptimizer)):
+                        (not isinstance(optimizer, embedding_optimizer.AdamWOptimizer)) and \
+                        (not isinstance(optimizer, embedding_optimizer.SgdOptimizer)) and \
+                        (not isinstance(optimizer, embedding_optimizer.RmspropOptimizer)):
                     raise ValueError(
-                        "optimizer should be embedding_optimizer AdamOptimizer, AdagradOptimizer or AdamWOptimizer.")
+                        "optimizer should be embedding_optimizer AdamOptimizer, AdagradOptimizer, AdamWOptimizer, "
+                        "SGDOptimizer or RmspropOptimizer.")
                 if initializer is not None:
                     if isinstance(initializer, EsInitializer):
                         self._table_id_to_initializer[table_id] = initializer
@@ -385,12 +390,14 @@ class ESWorker:
                 self._optimizer = optimizer
                 self._optimizer._embedding_dims = embedding_dim
                 self._optimizer._max_nums = max_feature_count
-                self._optimizer._es_cluster_configs = self._es_cluster_conf
+                self._optimizer.mask_zero = mask_zero
                 self._table_to_optimizer[table_id] = self._optimizer
                 self._ps_table_id_to_optimizer_params[table_id] = []
-                # adam, adamw include m and v, 2 slots; adagrad include accumulator, 1 slot
+                # adam, adamw, rmsprop include m and v, 2 slots; adagrad include accumulator, 1 slot; sgd include 0 slot
                 if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer):
                     self._table_to_slot_var_num[table_id] = 1
+                elif isinstance(self._optimizer, embedding_optimizer.SgdOptimizer):
+                    self._table_to_slot_var_num[table_id] = 0
                 else:
                     self._table_to_slot_var_num[table_id] = 2
                 # new train or continue train from a checkpoint
@@ -1461,7 +1468,7 @@ class ESWorker:
                                                        table_name=[self._table_id_to_name.get(table_id)])
             return tf.group([embedding_table_import])
 
-    def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim, ev_option):
+    def _init_counter_filter(self, table_id, ev_option):
         if (ev_option is not None) and (ev_option.filter_option is not None):
             filter_mode = "counter"
             self._table_to_counter_filter[table_id] = ev_option.filter_option
@@ -1469,10 +1476,13 @@ class ESWorker:
         else:
             filter_mode = "no_filter"
             self._table_use_counter_filter[table_id] = 0
+        return filter_mode
+
+    def _init_optimizer_mode_and_params(self, table_id):
         if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.AdagradOptimizer):
             self._ps_table_id_to_optimizer_mode[table_id] = "adagrad"
             self._ps_table_id_to_optimizer_params[table_id].append(
-                self._table_to_optimizer.get(table_id)._initial_accumulator_value
+                self._table_to_optimizer.get(table_id).initial_accumulator_value
             )
         if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.AdamOptimizer):
             self._ps_table_id_to_optimizer_mode[table_id] = "adam"
@@ -1480,6 +1490,19 @@ class ESWorker:
         if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.AdamWOptimizer):
             self._ps_table_id_to_optimizer_mode[table_id] = "adamw"
             self._ps_table_id_to_optimizer_params[table_id].append(0)
+        if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.SgdOptimizer):
+            self._ps_table_id_to_optimizer_mode[table_id] = "sgd"
+            self._ps_table_id_to_optimizer_params[table_id].append(0)
+        if isinstance(self._table_to_optimizer.get(table_id), embedding_optimizer.RmspropOptimizer):
+            self._ps_table_id_to_optimizer_mode[table_id] = "rmsprop"
+            self._ps_table_id_to_optimizer_params[table_id].append(
+                self._table_to_optimizer.get(table_id).ms)
+            self._ps_table_id_to_optimizer_params[table_id].append(
+                self._table_to_optimizer.get(table_id).mom)
+
+    def _init_hashmap_and_table_import(self, bucket_size, table_id, embedding_dim, ev_option):
+        filter_mode = self._init_counter_filter(table_id, ev_option)
+        self._init_optimizer_mode_and_params(table_id)
 
         with tf.control_dependencies([self._init_partition_maps.get(table_id)]):
             if self._train_mode:
