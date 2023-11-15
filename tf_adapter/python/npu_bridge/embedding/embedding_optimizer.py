@@ -45,7 +45,18 @@ class AdamOptimizer(adam.AdamOptimizer):
                  using_locking=False,
                  name="EmbeddingAdamOptimizer"):
         """Construct a EmbeddingAdam optimizer."""
-        super(AdamOptimizer, self).__init__(learning_rate, beta_1, beta_2, epsilon, using_locking, name)
+        if isinstance(learning_rate, ExponentialDecayLR):
+            lr = learning_rate.learning_rate
+            self._decay_rate = learning_rate.decay_rate
+            self._decay_steps = learning_rate.decay_steps
+            self._staircase = learning_rate.staircase
+            self._decay_steps_t = None
+            self._decay_rate_t = None
+            self._use_adaptive_lr = True
+        else:
+            lr = learning_rate
+            self._use_adaptive_lr = False
+        super(AdamOptimizer, self).__init__(lr, beta_1, beta_2, epsilon, using_locking, name)
         self._beta1_power = None
         self._beta2_power = None
         self.mask_zero = False
@@ -81,12 +92,26 @@ class AdamOptimizer(adam.AdamOptimizer):
         self._beta1_power = ops.convert_to_tensor(beta1_power, name="beta1_power")
         self._beta2_power = ops.convert_to_tensor(beta2_power, name="beta2_power")
 
+        if self._use_adaptive_lr:
+            decay_steps = self._call_if_callable(self._decay_steps)
+            decay_rate = self._call_if_callable(self._decay_rate)
+            self._decay_steps_t = ops.convert_to_tensor(decay_steps, name="decay_steps")
+            self._decay_rate_t = ops.convert_to_tensor(decay_rate, name="decay_rate")
+
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
+            if self._use_adaptive_lr:
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
+                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 decay_rate=self._decay_rate_t,
+                                                                 decay_steps=self._decay_steps_t,
+                                                                 staircase=self._staircase)
+            else:
+                lr_output = math_ops.cast(self._lr_t, grad.dtype)
             result = gen_npu_cpu_ops.embedding_apply_adam(var.handle,
                                                           math_ops.cast(self._beta1_power, grad.dtype),
                                                           math_ops.cast(self._beta2_power, grad.dtype),
-                                                          math_ops.cast(self._lr_t, grad.dtype),
+                                                          lr_output,
                                                           math_ops.cast(self._beta1_t, grad.dtype),
                                                           math_ops.cast(self._beta2_t, grad.dtype),
                                                           math_ops.cast(self._epsilon_t, grad.dtype),
@@ -118,7 +143,16 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
                  using_locking=False,
                  name="EmbeddingAdagradOptimizer"):
         """Construct a EmbeddingAdagrad optimizer."""
-        super(AdagradOptimizer, self).__init__(learning_rate, initial_accumulator_value, using_locking, name)
+        if isinstance(learning_rate, ExponentialDecayLR):
+            lr = learning_rate.learning_rate
+            self._decay_rate = learning_rate.decay_rate
+            self._decay_steps = learning_rate.decay_steps
+            self._staircase = learning_rate.staircase
+            self._use_adaptive_lr = True
+        else:
+            lr = learning_rate
+            self._use_adaptive_lr = False
+        super(AdagradOptimizer, self).__init__(lr, initial_accumulator_value, using_locking, name)
         self.mask_zero = False
         self.initial_accumulator_value = initial_accumulator_value
 
@@ -140,8 +174,17 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
 
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
+            if self._use_adaptive_lr:
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
+                                                                 lr=
+                                                                 math_ops.cast(self._learning_rate_tensor, grad.dtype),
+                                                                 decay_rate=self._decay_rate_t,
+                                                                 decay_steps=self._decay_steps_t,
+                                                                 staircase=self._staircase)
+            else:
+                lr_output = math_ops.cast(self._learning_rate_tensor, grad.dtype)
             result = gen_npu_cpu_ops.embedding_apply_ada_grad(var.handle,
-                                                              math_ops.cast(self._learning_rate_tensor, grad.dtype),
+                                                              lr_output,
                                                               grad,
                                                               indices,
                                                               ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
@@ -183,6 +226,17 @@ class AdamWOptimizer(optimizer.Optimizer):
                  maximize: bool = False,
                  name="AdamWOptimizer"):
         """Construct a AdamW optimizer."""
+        if isinstance(learning_rate, ExponentialDecayLR):
+            lr = learning_rate.learning_rate
+            self._decay_rate = learning_rate.decay_rate
+            self._decay_steps = learning_rate.decay_steps
+            self._staircase = learning_rate.staircase
+            self._decay_steps_t = None
+            self._decay_rate_t = None
+            self._use_adaptive_lr = True
+        else:
+            lr = learning_rate
+            self._use_adaptive_lr = False
         super(AdamWOptimizer, self).__init__(False, name)
         if (learning_rate is None) or (weight_decay is None) or (beta_1 is None) or (beta_2 is None):
             raise ValueError("learning_rate, weight decay, beta_1 and beta_2 can not be None.")
@@ -191,7 +245,7 @@ class AdamWOptimizer(optimizer.Optimizer):
         if (max_grad_norm is None) and amsgrad:
             raise ValueError("if amsgrad is True, max_grad_norm can not be None.")
         self._weight_decay = weight_decay
-        self._lr = learning_rate
+        self._lr = lr
         self._beta1 = beta_1
         self._beta2 = beta_2
         self._epsilon = epsilon
@@ -244,15 +298,28 @@ class AdamWOptimizer(optimizer.Optimizer):
         self._beta2_t = ops.convert_to_tensor(beta2, name="beta2")
         self._epsilon_t = ops.convert_to_tensor(epsilon, name="epsilon")
         self._max_grad_norm_t = ops.convert_to_tensor(max_grad_norm, name="max_grad_norm")
+        if self._use_adaptive_lr:
+            decay_steps = self._call_if_callable(self._decay_steps)
+            decay_rate = self._call_if_callable(self._decay_rate)
+            self._decay_steps_t = ops.convert_to_tensor(decay_steps, name="decay_steps")
+            self._decay_rate_t = ops.convert_to_tensor(decay_rate, name="decay_rate")
 
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
+            if self._use_adaptive_lr:
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
+                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 decay_rate=self._decay_rate_t,
+                                                                 decay_steps=self._decay_steps_t,
+                                                                 staircase=self._staircase)
+            else:
+                lr_output = math_ops.cast(self._lr_t, grad.dtype)
             result = gen_npu_cpu_ops.embedding_apply_adam_w(var.handle,
                                                             beta1_power=
                                                             math_ops.cast(self._beta1_power_t, grad.dtype),
                                                             beta2_power=
                                                             math_ops.cast(self._beta2_power_t, grad.dtype),
-                                                            lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                            lr=lr_output,
                                                             weight_decay=
                                                             math_ops.cast(self._weight_decay_t, grad.dtype),
                                                             beta1=math_ops.cast(self._beta1_t, grad.dtype),
@@ -279,8 +346,19 @@ class SgdOptimizer(optimizer.Optimizer):
                  learning_rate=0.01,
                  name="EmbeddingApplySgdOptimizer"):
         """Construct a AdamW optimizer."""
+        if isinstance(learning_rate, ExponentialDecayLR):
+            lr = learning_rate.learning_rate
+            self._decay_rate = learning_rate.decay_rate
+            self._decay_steps = learning_rate.decay_steps
+            self._staircase = learning_rate.staircase
+            self._decay_steps_t = None
+            self._decay_rate_t = None
+            self._use_adaptive_lr = True
+        else:
+            lr = learning_rate
+            self._use_adaptive_lr = False
         super(SgdOptimizer, self).__init__(False, name)
-        self._lr = learning_rate
+        self._lr = lr
         self.mask_zero = False
 
     @property
@@ -302,11 +380,24 @@ class SgdOptimizer(optimizer.Optimizer):
     def _prepare(self):
         lr = self._call_if_callable(self._lr)
         self._lr_t = ops.convert_to_tensor(lr, name="learning_rate")
+        if self._use_adaptive_lr:
+            decay_steps = self._call_if_callable(self._decay_steps)
+            decay_rate = self._call_if_callable(self._decay_rate)
+            self._decay_steps_t = ops.convert_to_tensor(decay_steps, name="decay_steps")
+            self._decay_rate_t = ops.convert_to_tensor(decay_rate, name="decay_rate")
 
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
+            if self._use_adaptive_lr:
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
+                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 decay_rate=self._decay_rate_t,
+                                                                 decay_steps=self._decay_steps_t,
+                                                                 staircase=self._staircase)
+            else:
+                lr_output = math_ops.cast(self._lr_t, grad.dtype)
             result = gen_npu_cpu_ops.embedding_apply_sgd(var_handle=var.handle,
-                                                         lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                         lr=lr_output,
                                                          grad=grad,
                                                          keys=indices,
                                                          mask_zero=self.mask_zero,
@@ -330,13 +421,26 @@ class RmspropOptimizer(optimizer.Optimizer):
                  epsilon=1e-8,
                  name="EmbeddingApplyRmspropOptimizer"):
         """Construct an ApplyRmsprop optimizer."""
+        if isinstance(learning_rate, ExponentialDecayLR):
+            lr = learning_rate.learning_rate
+            self._decay_rate = learning_rate.decay_rate
+            self._decay_steps = learning_rate.decay_steps
+            self._staircase = learning_rate.staircase
+            self._decay_steps_t = None
+            self._decay_rate_t = None
+            self._use_adaptive_lr = True
+        else:
+            lr = learning_rate
+            self._use_adaptive_lr = False
         super(RmspropOptimizer, self).__init__(False, name)
         self.ms = ms
         self.mom = mom
         self._rho = rho
         self._momentum = momentum
         self._epsilon = epsilon
-        self._lr = learning_rate
+        self._lr = lr
+        self._rho_t = None
+        self._momentum_t = None
         self.mask_zero = False
 
     @property
@@ -365,11 +469,24 @@ class RmspropOptimizer(optimizer.Optimizer):
         self._momentum_t = ops.convert_to_tensor(momentum, name="momentum")
         self._epsilon_t = ops.convert_to_tensor(epsilon, name="epsilon")
         self._lr_t = ops.convert_to_tensor(lr, name="learning_rate")
+        if self._use_adaptive_lr:
+            decay_steps = self._call_if_callable(self._decay_steps)
+            decay_rate = self._call_if_callable(self._decay_rate)
+            self._decay_steps_t = ops.convert_to_tensor(decay_steps, name="decay_steps")
+            self._decay_rate_t = ops.convert_to_tensor(decay_rate, name="decay_rate")
 
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
+            if self._use_adaptive_lr:
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
+                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 decay_rate=self._decay_rate_t,
+                                                                 decay_steps=self._decay_steps_t,
+                                                                 staircase=self._staircase)
+            else:
+                lr_output = math_ops.cast(self._lr_t, grad.dtype)
             result = gen_npu_cpu_ops.embedding_apply_rmsprop(var_handle=var.handle,
-                                                             lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                             lr=lr_output,
                                                              rho=math_ops.cast(self._rho_t, grad.dtype),
                                                              momentum=math_ops.cast(self._momentum_t, grad.dtype),
                                                              epsilon=math_ops.cast(self._epsilon_t, grad.dtype),
@@ -382,3 +499,27 @@ class RmspropOptimizer(optimizer.Optimizer):
             return result
         else:
             raise TypeError("Variable is not NpuEmbeddingResource type, please check.")
+
+
+class ExponentialDecayLR:
+    """ exponential decay learning rate used in embedding optimizer. """
+
+    def __init__(self, learning_rate, decay_steps, decay_rate, staircase=False):
+        self.learning_rate = learning_rate
+        self.decay_steps = decay_steps
+        self.decay_rate = decay_rate
+        self.staircase = staircase
+
+
+def exponential_decay_lr(learning_rate, decay_steps, decay_rate, staircase=False):
+    """" Operator for init ExponentialDecayLr. """
+    if (learning_rate is None) or (not isinstance(learning_rate, (float, int))):
+        raise ValueError("learning_rate can not be None, must be float or int.")
+    if (decay_rate is None) or (not isinstance(decay_rate, (float, int))):
+        raise ValueError("decay_rate can not be None, must be float or int.")
+    if (decay_steps is None) or (not isinstance(decay_steps, int)):
+        raise ValueError("decay_steps can not be None, must be int.")
+    if not isinstance(staircase, bool):
+        raise TypeError("staircase must be bool.")
+    return ExponentialDecayLR(learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
+                              staircase=staircase)
