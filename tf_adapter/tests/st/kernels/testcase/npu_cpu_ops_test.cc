@@ -345,6 +345,66 @@ TEST(EmbeddingOpsTest, TestEmbeddingApplyAdaGrad) {
     delete context;
 }
 
+TEST(EmbeddingOpsTest, TestEmbeddingApplySgd) {
+    DataTypeSlice input_types({DT_RESOURCE});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_RESOURCE});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    EmbeddingApplySgdOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestEmbeddingApplyRmspropOp) {
+    DataTypeSlice input_types({DT_RESOURCE});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_RESOURCE});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    EmbeddingApplyRmspropOp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
+TEST(EmbeddingOpsTest, TestExponentialDecayLROp) {
+    DataTypeSlice input_types({DT_RESOURCE});
+    MemoryTypeSlice input_memory_types;
+    DataTypeSlice output_types({DT_RESOURCE});
+    MemoryTypeSlice output_memory_types;
+    DeviceBase *device = new DeviceBase(Env::Default());
+    NodeDef *node_def = new NodeDef();
+    OpDef *op_def = new OpDef();
+    OpKernelConstruction *context = new OpKernelConstruction(DEVICE_CPU, device, nullptr, node_def, op_def, nullptr,
+                                                             input_types, input_memory_types, output_types, output_memory_types,
+                                                             1, nullptr);
+    ExponentialDecayLROp cache(context);
+    OpKernelContext *ctx = nullptr;
+    cache.Compute(ctx);
+    delete device;
+    delete node_def;
+    delete op_def;
+    delete context;
+}
+
 TEST(EmbeddingOpsTest, TestEmbeddingFeatureMapping) {
     DataTypeSlice input_types({DT_INT64});
     MemoryTypeSlice input_memory_types;

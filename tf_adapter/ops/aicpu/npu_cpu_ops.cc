@@ -368,6 +368,7 @@ REGISTER_OP("EmbeddingApplyAdam")
   .Input("global_step: Tstep")
   .Output("var_handle_output: resource")
   .Attr("embedding_dim: int = 0")
+  .Attr("mask_zero: bool = false")
   .Attr("T: {float32, float16}")
   .Attr("Tstep: {int32, int64}")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
@@ -392,6 +393,7 @@ REGISTER_OP("EmbeddingApplyAdamW")
   .Attr("amsgrad: bool")
   .Attr("maximize: bool")
   .Attr("embedding_dim: int = 0")
+  .Attr("mask_zero: bool = false")
   .Attr("T: {float32, float16}")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
     auto data_shape = c->input(0);
@@ -407,6 +409,55 @@ REGISTER_OP("EmbeddingApplyAdaGrad")
   .Input("global_step: Tstep")
   .Output("var_handle_output: resource")
   .Attr("embedding_dim: int = 0")
+  .Attr("mask_zero: bool = false")
+  .Attr("T: {float32, float16}")
+  .Attr("Tstep: {int32, int64}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
+REGISTER_OP("EmbeddingApplySgd")
+  .Input("var_handle: resource")
+  .Input("lr: T")
+  .Input("grad: T")
+  .Input("keys: int64")
+  .Output("var_handle_output: resource")
+  .Attr("embedding_dim: int = 0")
+  .Attr("mask_zero: bool = false")
+  .Attr("T: {float32, float16}")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
+REGISTER_OP("EmbeddingApplyRmsprop")
+  .Input("var_handle: resource")
+  .Input("lr: T")
+  .Input("rho: T")
+  .Input("momentum: T")
+  .Input("epsilon: T")
+  .Input("grad: T")
+  .Input("keys: int64")
+  .Output("var_handle_output: resource")
+  .Attr("embedding_dim: int = 0")
+  .Attr("mask_zero: bool = false")
+  .Attr("T: numbertype")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    auto data_shape = c->input(0);
+    c->set_output(0, data_shape);
+    return Status::OK();
+  });
+
+REGISTER_OP("ExponentialDecayLR")
+  .Input("var_handle: resource")
+  .Input("lr: T")
+  .Input("decay_rate: T")
+  .Input("decay_steps: Tstep")
+  .Output("lr_out: T")
+  .Attr("staircase: bool = false")
   .Attr("T: {float32, float16}")
   .Attr("Tstep: {int32, int64}")
   .SetShapeFn([](shape_inference::InferenceContext *c) {

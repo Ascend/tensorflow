@@ -298,6 +298,27 @@ public:
   void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplyAdaGradOp Compute"; }
 };
 
+class EmbeddingApplySgdOp : public OpKernel {
+public:
+  explicit EmbeddingApplySgdOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingApplySgdOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplySgdOp Compute"; }
+};
+
+class EmbeddingApplyRmspropOp : public OpKernel {
+public:
+  explicit EmbeddingApplyRmspropOp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~EmbeddingApplyRmspropOp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "EmbeddingApplyRmspropOp Compute"; }
+};
+
+class ExponentialDecayLROp : public OpKernel {
+public:
+  explicit ExponentialDecayLROp(OpKernelConstruction *context) : OpKernel(context) {}
+  ~ExponentialDecayLROp() override {}
+  void Compute(OpKernelContext *context) override { ADP_LOG(INFO) << "ExponentialDecayLROp Compute"; }
+};
+
 class EmbeddingComputeVarExportOp : public OpKernel {
 public:
   explicit EmbeddingComputeVarExportOp(OpKernelConstruction *context) : OpKernel(context) {}
@@ -355,6 +376,9 @@ REGISTER_KERNEL_BUILDER(Name("EmbeddingTableFindAndInit").Device(DEVICE_CPU), Em
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdam").Device(DEVICE_CPU), EmbeddingApplyAdamOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdamW").Device(DEVICE_CPU), EmbeddingApplyAdamWOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyAdaGrad").Device(DEVICE_CPU), EmbeddingApplyAdaGradOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingApplySgd").Device(DEVICE_CPU), EmbeddingApplySgdOp);
+REGISTER_KERNEL_BUILDER(Name("EmbeddingApplyRmsprop").Device(DEVICE_CPU), EmbeddingApplyRmspropOp);
+REGISTER_KERNEL_BUILDER(Name("ExponentialDecayLR").Device(DEVICE_CPU), ExponentialDecayLROp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingTableExport").Device(DEVICE_CPU), EmbeddingTableExportOp);
 REGISTER_KERNEL_BUILDER(Name("EmbeddingFeatureMapping").Device(DEVICE_CPU), EmbeddingFeatureMappingOp);
 REGISTER_KERNEL_BUILDER(Name("FakeRemoteLookupUniqued").Device(DEVICE_CPU), FakeRemoteLookupUniquedOp);
