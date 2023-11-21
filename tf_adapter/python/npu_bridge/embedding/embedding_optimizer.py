@@ -101,7 +101,7 @@ class AdamOptimizer(adam.AdamOptimizer):
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
-                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
                                                                  lr=math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
@@ -118,8 +118,7 @@ class AdamOptimizer(adam.AdamOptimizer):
                                                           grad,
                                                           indices,
                                                           ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
-                                                          self._embedding_dims,
-                                                          self.mask_zero)
+                                                          self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
             result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
             return result
@@ -176,11 +175,11 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
-                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
                                                                  lr=
                                                                  math_ops.cast(self._learning_rate_tensor, grad.dtype),
-                                                                 decay_rate=math_ops.cast(self._decay_rate, grad.dtype),
-                                                                 decay_steps=self._decay_steps,
+                                                                 decay_rate=self._decay_rate_t,
+                                                                 decay_steps=self._decay_steps_t,
                                                                  staircase=self._staircase)
             else:
                 lr_output = math_ops.cast(self._learning_rate_tensor, grad.dtype)
@@ -189,8 +188,7 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
                                                               grad,
                                                               indices,
                                                               ops.convert_to_tensor(_GLOBAL_STEP_VALUE),
-                                                              self._embedding_dims,
-                                                              self.mask_zero)
+                                                              self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
             result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
             return result
@@ -309,7 +307,7 @@ class AdamWOptimizer(optimizer.Optimizer):
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
-                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
                                                                  lr=math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
@@ -333,8 +331,7 @@ class AdamWOptimizer(optimizer.Optimizer):
                                                             math_ops.cast(self._max_grad_norm_t, grad.dtype),
                                                             amsgrad=self._amsgrad,
                                                             maximize=self._maximize,
-                                                            embedding_dim=self._embedding_dims,
-                                                            mask_zero=self.mask_zero)
+                                                            embedding_dim=self._embedding_dims)
             result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._embedding_dims))
             result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._max_nums))
             return result
@@ -392,7 +389,7 @@ class SgdOptimizer(optimizer.Optimizer):
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
-                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
                                                                  lr=math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
@@ -481,7 +478,7 @@ class RmspropOptimizer(optimizer.Optimizer):
     def _resource_apply_sparse(self, grad, var, indices):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
-                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
+                lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_hanle=var.handle,
                                                                  lr=math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
