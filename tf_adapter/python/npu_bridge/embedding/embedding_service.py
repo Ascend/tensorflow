@@ -163,6 +163,7 @@ class ESWorker:
         self._table_id_to_initializer = {}
 
         self._ps_table_id_list = []
+        self._existing_lookup_table_ids = []
         # storage lookup: table_id list, lookup result list, lookup key list
         self._ps_lookup_index = 0
         self._ps_table_has_lookup = []
@@ -518,83 +519,26 @@ class ESWorker:
         else:
             filter_mode = "no_filter"
             self._default_value = -1
-
+        # whether to use host unique to improve performance
         use_host_unique = False
         if (actual_keys_input is not None) and (unique_indices is not None):
             use_host_unique = True
 
-        if self._train_mode:
-            if use_host_unique:
-                result = gen_npu_cpu_ops. \
-                    fake_remote_lookup_uniqued(table_id=ops.convert_to_tensor(table_id),
-                                               keys=ids,
-                                               actual_keys_input=actual_keys_input,
-                                               unique_indices=unique_indices,
-                                               embedding_dim=self._table_to_embedding_dim.get(table_id),
-                                               initializer_mode=self._table_id_to_initializer.get(table_id)
-                                               .initializer_mode,
-                                               constant_value=self._table_id_to_initializer.get(table_id)
-                                               .constant_value,
-                                               min=self._table_id_to_initializer.get(table_id).min,
-                                               max=self._table_id_to_initializer.get(table_id).max,
-                                               mu=self._table_id_to_initializer.get(table_id).mu,
-                                               sigma=self._table_id_to_initializer.get(table_id).sigma,
-                                               seed=self._table_id_to_initializer.get(table_id).seed,
-                                               seed2=self._table_id_to_initializer.get(table_id).seed,
-                                               value_total_len=self._table_to_embedding_dim
-                                               .get(table_id) * (self._table_to_slot_var_num.get(table_id) + 1),
-                                               filter_mode=filter_mode,
-                                               filter_freq=self._filter_freq,
-                                               default_key_or_value=self._default_key_or_value,
-                                               default_key=self._default_key,
-                                               default_value=self._default_value,
-                                               optimizer_mode=self._ps_table_id_to_optimizer_mode.get(table_id),
-                                               optimizer_params=self._ps_table_id_to_optimizer_params.get(table_id)
-                                               )
-            else:
-                result = gen_npu_cpu_ops. \
-                    embedding_table_find_and_init(table_id=ops.convert_to_tensor(table_id),
-                                                  keys=ids,
-                                                  embedding_dim=self._table_to_embedding_dim.get(table_id),
-                                                  initializer_mode=self._table_id_to_initializer.get(table_id)
-                                                  .initializer_mode,
-                                                  constant_value=self._table_id_to_initializer.get(table_id)
-                                                  .constant_value,
-                                                  min=self._table_id_to_initializer.get(table_id).min,
-                                                  max=self._table_id_to_initializer.get(table_id).max,
-                                                  mu=self._table_id_to_initializer.get(table_id).mu,
-                                                  sigma=self._table_id_to_initializer.get(table_id).sigma,
-                                                  seed=self._table_id_to_initializer.get(table_id).seed,
-                                                  seed2=self._table_id_to_initializer.get(table_id).seed,
-                                                  value_total_len=self._table_to_embedding_dim.get(table_id) *
-                                                                  (self._table_to_slot_var_num.get(table_id) + 1),
-                                                  filter_mode=filter_mode,
-                                                  filter_freq=self._filter_freq,
-                                                  default_key_or_value=self._default_key_or_value,
-                                                  default_key=self._default_key,
-                                                  default_value=self._default_value,
-                                                  optimizer_mode=self._ps_table_id_to_optimizer_mode.get(table_id),
-                                                  optimizer_params=self._ps_table_id_to_optimizer_params.get(table_id)
-                                                  )
+        result = self._call_lookup_op(table_id=table_id, ids=ids, actual_keys_input=actual_keys_input,
+                                      unique_indices=unique_indices, filter_mode=filter_mode,
+                                      use_host_unique=use_host_unique)
 
-        else:
-            result = gen_npu_cpu_ops.embedding_table_find(table_id=ops.convert_to_tensor(table_id),
-                                                          keys=ids,
-                                                          embedding_dim=self._table_to_embedding_dim.get(table_id),
-                                                          default_value=self._default_value)
         self._filter_freq = None
         self._default_key_or_value = True
         self._default_key = None
         self._default_value = None
-        result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
-        result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
-        result.op._set_attr("_use_counter_filter",
-                            attr_value_pb2.AttrValue(i=self._table_use_counter_filter.get(table_id)))
-        if self._ps_lookup_index != 0:
+        if (self._ps_lookup_index != 0) or (self._existing_lookup_table_ids.count(table_id) != 0):
             self._ps_table_has_lookup.append(table_id)
             self._ps_table_lookup_key.append(ids)
             self._ps_table_lookup_result.append(result)
             self._ps_lookup_index = self._ps_lookup_index - 1
+        # restore table id that has called lookup, if this table call lookup again, key and values must be stored.
+        self._existing_lookup_table_ids.append(table_id)
         return result
 
     # old version
@@ -1564,3 +1508,70 @@ class ESWorker:
                 [tf.initializers.variables(self._optimizer.variables()), self._init_embedding_hash_maps.get(table_id)])
         else:
             return tf.group([self._init_embedding_hash_maps.get(table_id)])
+
+    def _call_lookup_op(self, table_id, ids, actual_keys_input=None, unique_indices=None,
+                        filter_mode=None, use_host_unique=False):
+        if self._train_mode:
+            if use_host_unique:
+                result = gen_npu_cpu_ops. \
+                    fake_remote_lookup_uniqued(table_id=ops.convert_to_tensor(table_id),
+                                               keys=ids,
+                                               actual_keys_input=actual_keys_input,
+                                               unique_indices=unique_indices,
+                                               embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                               initializer_mode=self._table_id_to_initializer.get(table_id)
+                                               .initializer_mode,
+                                               constant_value=self._table_id_to_initializer.get(table_id)
+                                               .constant_value,
+                                               min=self._table_id_to_initializer.get(table_id).min,
+                                               max=self._table_id_to_initializer.get(table_id).max,
+                                               mu=self._table_id_to_initializer.get(table_id).mu,
+                                               sigma=self._table_id_to_initializer.get(table_id).sigma,
+                                               seed=self._table_id_to_initializer.get(table_id).seed,
+                                               seed2=self._table_id_to_initializer.get(table_id).seed,
+                                               value_total_len=self._table_to_embedding_dim
+                                               .get(table_id) * (self._table_to_slot_var_num.get(table_id) + 1),
+                                               filter_mode=filter_mode,
+                                               filter_freq=self._filter_freq,
+                                               default_key_or_value=self._default_key_or_value,
+                                               default_key=self._default_key,
+                                               default_value=self._default_value,
+                                               optimizer_mode=self._ps_table_id_to_optimizer_mode.get(table_id),
+                                               optimizer_params=self._ps_table_id_to_optimizer_params.get(table_id)
+                                               )
+            else:
+                result = gen_npu_cpu_ops. \
+                    embedding_table_find_and_init(table_id=ops.convert_to_tensor(table_id),
+                                                  keys=ids,
+                                                  embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                  initializer_mode=self._table_id_to_initializer.get(table_id)
+                                                  .initializer_mode,
+                                                  constant_value=self._table_id_to_initializer.get(table_id)
+                                                  .constant_value,
+                                                  min=self._table_id_to_initializer.get(table_id).min,
+                                                  max=self._table_id_to_initializer.get(table_id).max,
+                                                  mu=self._table_id_to_initializer.get(table_id).mu,
+                                                  sigma=self._table_id_to_initializer.get(table_id).sigma,
+                                                  seed=self._table_id_to_initializer.get(table_id).seed,
+                                                  seed2=self._table_id_to_initializer.get(table_id).seed,
+                                                  value_total_len=self._table_to_embedding_dim.get(table_id) *
+                                                                  (self._table_to_slot_var_num.get(table_id) + 1),
+                                                  filter_mode=filter_mode,
+                                                  filter_freq=self._filter_freq,
+                                                  default_key_or_value=self._default_key_or_value,
+                                                  default_key=self._default_key,
+                                                  default_value=self._default_value,
+                                                  optimizer_mode=self._ps_table_id_to_optimizer_mode.get(table_id),
+                                                  optimizer_params=self._ps_table_id_to_optimizer_params.get(table_id)
+                                                  )
+
+        else:
+            result = gen_npu_cpu_ops.embedding_table_find(table_id=ops.convert_to_tensor(table_id),
+                                                          keys=ids,
+                                                          embedding_dim=self._table_to_embedding_dim.get(table_id),
+                                                          default_value=self._default_value)
+        result.op._set_attr("_embedding_dim", attr_value_pb2.AttrValue(i=self._table_to_embedding_dim.get(table_id)))
+        result.op._set_attr("_max_key_num", attr_value_pb2.AttrValue(i=self._table_to_max_num.get(table_id)))
+        result.op._set_attr("_use_counter_filter",
+                            attr_value_pb2.AttrValue(i=self._table_use_counter_filter.get(table_id)))
+        return result
