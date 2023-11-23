@@ -20,11 +20,15 @@
 
 namespace npu {
 AdapterLogger::~AdapterLogger() {
+  int32_t modeule = FMK_MODULE_NAME;
+  if (severity_ == ADP_RUN_INFO) {
+    modeule = static_cast<int32_t>(static_cast<uint32_t>(RUN_LOG_MASK) | static_cast<uint32_t>(FMK_MODULE_NAME));
+  }
   if (severity_ == ADP_FATAL) {
-    DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, ADP_ERROR, "%s", str().c_str());
+    DlogSubForC(modeule, ADP_MODULE_NAME, ADP_ERROR, "%s", str().c_str());
     (void) DlogReportFinalize();
   } else {
-    DlogSubForC(FMK_MODULE_NAME, ADP_MODULE_NAME, severity_, "%s", str().c_str());
+    DlogSubForC(modeule, ADP_MODULE_NAME, severity_, "%s", str().c_str());
   }
 }
 }  // namespace npu
