@@ -48,7 +48,7 @@ const int ADP_DEBUG = 0;
 const int ADP_INFO = 1;
 const int ADP_WARNING = 2;
 const int ADP_ERROR = 3;
-const int ADP_EVENT = 16;
+const int ADP_RUN_INFO = 1;
 const int ADP_FATAL = 32;
 
 class AdapterLogger : public std::basic_ostringstream<char> {
@@ -70,7 +70,7 @@ class AdapterLogger : public std::basic_ostringstream<char> {
 #define ADP_LOG_INFO npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_INFO)
 #define ADP_LOG_WARNING npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_WARNING)
 #define ADP_LOG_ERROR npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_ERROR)
-#define ADP_LOG_EVENT npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_EVENT)
+#define ADP_LOG_EVENT npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_RUN_INFO)
 #define ADP_LOG_DEBUG npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_DEBUG)
 #define ADP_LOG_FATAL npu::AdapterLogger(__FILE__, __LINE__, npu::ADP_FATAL)
 
