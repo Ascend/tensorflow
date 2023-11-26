@@ -102,7 +102,8 @@ class AdamOptimizer(adam.AdamOptimizer):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
                 lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
-                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 initial_learning_rate=
+                                                                 math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
                                                                  staircase=self._staircase)
@@ -177,7 +178,7 @@ class AdagradOptimizer(adagrad.AdagradOptimizer):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
                 lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
-                                                                 lr=
+                                                                 initial_learning_rate=
                                                                  math_ops.cast(self._learning_rate_tensor, grad.dtype),
                                                                  decay_rate=math_ops.cast(self._decay_rate, grad.dtype),
                                                                  decay_steps=self._decay_steps,
@@ -310,7 +311,8 @@ class AdamWOptimizer(optimizer.Optimizer):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
                 lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
-                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 initial_learning_rate=
+                                                                 math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
                                                                  staircase=self._staircase)
@@ -393,7 +395,8 @@ class SgdOptimizer(optimizer.Optimizer):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
                 lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
-                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 initial_learning_rate=
+                                                                 math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
                                                                  staircase=self._staircase)
@@ -482,7 +485,8 @@ class RmspropOptimizer(optimizer.Optimizer):
         if isinstance(var, NpuEmbeddingResource):
             if self._use_adaptive_lr:
                 lr_output = gen_npu_cpu_ops.exponential_decay_lr(var_handle=var.handle,
-                                                                 lr=math_ops.cast(self._lr_t, grad.dtype),
+                                                                 initial_learning_rate=
+                                                                 math_ops.cast(self._lr_t, grad.dtype),
                                                                  decay_rate=self._decay_rate_t,
                                                                  decay_steps=self._decay_steps_t,
                                                                  staircase=self._staircase)
@@ -522,6 +526,8 @@ def exponential_decay_lr(learning_rate, decay_steps, decay_rate, staircase=False
         raise ValueError("decay_rate can not be None, must be float or int.")
     if (decay_steps is None) or (not isinstance(decay_steps, int)):
         raise ValueError("decay_steps can not be None, must be int.")
+    if (learning_rate <= 0) or (decay_rate <= 0) or (decay_steps <= 0):
+        raise ValueError("learning_rate, decay_rate and decay_steps must be bigger than 0")
     if not isinstance(staircase, bool):
         raise TypeError("staircase must be bool.")
     return ExponentialDecayLR(learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=decay_rate,
