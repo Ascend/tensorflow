@@ -21,14 +21,17 @@
 namespace npu {
 AdapterLogger::~AdapterLogger() {
   int32_t modeule = FMK_MODULE_NAME;
+  int32_t log_level = severity_;
   if (severity_ == ADP_RUN_INFO) {
+    // ADP_RUN_INFO and ADP_INFO use same log level,but module is not same
     modeule = static_cast<int32_t>(static_cast<uint32_t>(RUN_LOG_MASK) | static_cast<uint32_t>(FMK_MODULE_NAME));
+    log_level = ADP_INFO;
   }
   if (severity_ == ADP_FATAL) {
     DlogSubForC(modeule, ADP_MODULE_NAME, ADP_ERROR, "%s", str().c_str());
     (void) DlogReportFinalize();
   } else {
-    DlogSubForC(modeule, ADP_MODULE_NAME, severity_, "%s", str().c_str());
+    DlogSubForC(modeule, ADP_MODULE_NAME, log_level, "%s", str().c_str());
   }
 }
 }  // namespace npu
