@@ -2022,6 +2022,16 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
 
       if (params.count("enable_exception_dump") > 0) {
         enable_exception_dump = params.at("enable_exception_dump").i();
+        const int64_t lite_exception_dump = 2L;
+        const int64_t exception_dump_close = 0L;
+        if ((enable_exception_dump > lite_exception_dump) ||
+            (enable_exception_dump < exception_dump_close)) {
+          ADP_LOG(ERROR) << "enable_exception_dump should be one of 0, 1 and 2, which be: "
+              << enable_exception_dump << " now.";
+          LOG(ERROR) << "enable_exception_dump should be one of 0, 1 and 2, which be: "
+              << enable_exception_dump << " now.";
+          return errors::Internal("enable_exception_dump should be one of 0, 1 and 2.");
+        }
       }
 
       if (params.count("op_select_implmode") == 0) {
@@ -2259,6 +2269,13 @@ Status NpuAttrs::SetNpuOptimizerAttr(const GraphOptimizationPassOptions &options
       }
       if (params.count("dump_data") > 0) {
         dump_data = params.at("dump_data").s();
+        if ((dump_data != "tensor") && (dump_data != "stats")) {
+          ADP_LOG(ERROR) << "dump_data should be 'tensor' or 'stats', which be: "
+              << dump_data << " now.";
+          LOG(ERROR) << "dump_data should be 'tensor' or 'stats', which be: "
+              << dump_data << " now.";
+          return errors::Internal("dump_data should be 'tensor' or 'stats'.");
+        }
       }
       if (params.count("dump_layer") > 0) {
         dump_layer = params.at("dump_layer").s();
