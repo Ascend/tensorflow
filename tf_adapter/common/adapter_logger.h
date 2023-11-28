@@ -48,7 +48,7 @@ const int ADP_DEBUG = 0;
 const int ADP_INFO = 1;
 const int ADP_WARNING = 2;
 const int ADP_ERROR = 3;
-const int ADP_RUN_INFO = 1;
+const int ADP_RUN_INFO = 4;
 const int ADP_FATAL = 32;
 
 class AdapterLogger : public std::basic_ostringstream<char> {
