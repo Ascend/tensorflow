@@ -85,6 +85,39 @@ TEST_F(NpuAttrTest, CheckAoeMode) {
   EXPECT_EQ(s.ok(), false);
 }
 
+TEST_F(NpuAttrTest, CheckExceptionDump) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  session_options.config.mutable_graph_options()->mutable_optimizer_options()->set_do_function_inlining(true);
+  auto *custom_config =
+      session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+
+  AttrValue enable_exception_dump = AttrValue();
+  const int64_t invalid_exception_dump = 4L;
+  enable_exception_dump.set_i(invalid_exception_dump);
+  (*custom_config->mutable_parameter_map())["enable_exception_dump"] = enable_exception_dump;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+}
+
+TEST_F(NpuAttrTest, CheckDumpData) {
+  GraphOptimizationPassOptions options;
+  SessionOptions session_options;
+  session_options.config.mutable_graph_options()->mutable_optimizer_options()->set_do_function_inlining(true);
+  auto *custom_config =
+      session_options.config.mutable_graph_options()->mutable_rewrite_options()->add_custom_optimizers();
+  custom_config->set_name("NpuOptimizer");
+  options.session_options = &session_options;
+
+  AttrValue dump_data = AttrValue();
+  dump_data.set_s("sta");
+  (*custom_config->mutable_parameter_map())["dump_data"] = dump_data;
+  Status s = NpuAttrs::SetNpuOptimizerAttr(options, reinterpret_cast<Node *>(1));
+  EXPECT_EQ(s.ok(), false);
+}
+
 TEST_F(NpuAttrTest, CheckPrecisionMode) {
   GraphOptimizationPassOptions options;
   SessionOptions session_options;

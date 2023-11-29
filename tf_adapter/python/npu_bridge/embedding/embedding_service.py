@@ -615,13 +615,7 @@ class ESWorker:
         params = self._ps_table_lookup_result
         input_ids_list = self._ps_table_lookup_key
         table_ids = self._ps_table_has_lookup
-        if (loss is None) or (params is None) or (table_ids is None) or (input_ids_list is None):
-            raise ValueError("loss or params or table_ids or input_ids_list is None.")
-        if (isinstance(loss, str)) or (isinstance(params, str)) or isinstance(table_ids, str) or \
-                isinstance(input_ids_list, str):
-            raise ValueError("loss, params, table_ids and input_ids_list can not be str.")
-        if not self._init_table_flag:
-            raise ValueError("embedding must init first!")
+        self._check_update_params(params, input_ids_list, table_ids, loss)
         if (not isinstance(params, (list, tuple)) and not isinstance(table_ids, (list, tuple))
                 and not isinstance(input_ids_list, (list, tuple))):
             params = [params]
@@ -640,6 +634,8 @@ class ESWorker:
         self._ps_table_has_lookup = []
         with specified_ps_engine_scope():
             for i in range(len(table_ids)):
+                if embedding_grads[i] is None:
+                    continue
                 params_grads = [tf.IndexedSlices(embedding_grads[i], input_ids_list[i], dense_shape=params[i].shape)]
                 var_refs = [NpuEmbeddingResource(table_ids[i])]
                 update_op.append(
@@ -1411,6 +1407,15 @@ class ESWorker:
                                                        file_type="bin",
                                                        table_name=[self._table_id_to_name.get(table_id)])
             return tf.group([embedding_table_import])
+
+    def _check_update_params(self, params, input_ids_list, table_ids, loss):
+        if (loss is None) or (params is None) or (table_ids is None) or (input_ids_list is None):
+            raise ValueError("loss or params or table_ids or input_ids_list is None.")
+        if (isinstance(loss, str)) or (isinstance(params, str)) or isinstance(table_ids, str) or \
+                isinstance(input_ids_list, str):
+            raise ValueError("loss, params, table_ids and input_ids_list can not be str.")
+        if not self._init_table_flag:
+            raise ValueError("embedding must init first!")
 
     def _init_counter_filter(self, table_id, ev_option):
         if (ev_option is not None) and (ev_option.filter_option is not None):
