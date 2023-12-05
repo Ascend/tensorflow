@@ -121,6 +121,26 @@ def es_initializer(initializer_mode, min=-2.0, max=2.0, constant_value=0.0, mu=0
                          seed=seed)
 
 
+def check_common_init_params(name, init_vocabulary_size, embedding_dim, embedding_type, mask_zero):
+    if (name is None) or (init_vocabulary_size is None) or (embedding_dim is None):
+        raise ValueError("table name, init_vocabulary_size and embedding_dim can not be None.")
+    if not isinstance(name, str):
+        raise TypeError("embedding table name must be string.")
+    regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+    if regex.search(name) is not None:
+        raise ValueError("table name contains illegal character.")
+    if (not isinstance(init_vocabulary_size, int)) or (not isinstance(embedding_dim, int)):
+        raise ValueError("init_vocabulary_size and embedding_dim must be int.")
+    if init_vocabulary_size < 0:
+        raise ValueError("init_vocabulary_size can not be smaller than zero.")
+    if embedding_dim <= 0:
+        raise ValueError("embedding_dim must be greater than zero.")
+    if (embedding_type != "PS") and (embedding_type != "data_parallel"):
+        raise TypeError("embedding_type must be PS or data_parallel")
+    if not isinstance(mask_zero, bool):
+        raise TypeError("mask zero must be bool")
+
+
 class ESWorker:
     """ Embedding service class. """
 
@@ -262,60 +282,13 @@ class ESWorker:
                                embedding_type="PS", ev_option=None, max_feature_count=None, multihot_lens=None,
                                optimizer=None, allow_merge=True, mask_zero=False):
         """ Operator for get embedding variable according to embedding type. """
-        if (name is None) or (init_vocabulary_size is None) or (embedding_dim is None):
-            raise ValueError("table name, init_vocabulary_size and embedding_dim can not be None.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if (not isinstance(init_vocabulary_size, int)) or (not isinstance(embedding_dim, int)):
-            raise ValueError("init_vocabulary_size and embedding_dim must be int.")
-        if init_vocabulary_size < 0:
-            raise ValueError("init_vocabulary_size can not be smaller than zero.")
-        if embedding_dim <= 0:
-            raise ValueError("embedding_dim must be greater than zero.")
-        if (embedding_type != "PS") and (embedding_type != "data_parallel"):
-            raise TypeError("embedding_type must be PS or data_parallel")
-        if not isinstance(mask_zero, bool):
-            raise TypeError("mask zero must be bool")
-
+        check_common_init_params(name=name, init_vocabulary_size=init_vocabulary_size, embedding_dim=embedding_dim,
+                                 embedding_type=embedding_type, mask_zero=mask_zero)
         if embedding_type == "data_parallel":
-            if name not in self._small_table_name_list:
-                self._small_table_name_list.append(name)
-            else:
-                raise ValueError("This small table has been initialized.")
-            if (init_vocabulary_size is None) or (embedding_dim is None) or (multihot_lens is None):
-                raise ValueError("max_vocabulary_size or embedding_dim or multihot_lens can not be None.")
-            if (key_dtype is None) or (value_dtype is None):
-                raise ValueError("key_dtype and value_dtype can not be None.")
-            if (key_dtype is not tf.int64) or (value_dtype is not tf.float32):
-                raise TypeError("key_dtype only support tf.int64, value_dtype only support tf.float32 now.")
-            if (not isinstance(init_vocabulary_size, int)) or (not isinstance(embedding_dim, int)) or \
-                    (not isinstance(multihot_lens, int)) or (not isinstance(allow_merge, bool)):
-                raise TypeError("init_vocabulary_size, embedding_dim, multihot_lens must be int,"
-                                "allow_merge must be bool.")
-            if init_vocabulary_size <= 0 or embedding_dim <= 0 or multihot_lens <= 0:
-                raise ValueError("init_vocabulary_size, embedding_dim, multihot_lens must be greater than zero.")
-            if initializer is None:
-                raise ValueError("Initializer can not be None.")
-            if allow_merge:
-                self._need_table_merge = True
-            if isinstance(initializer, EsInitializer):
-                if initializer.initializer_mode == "random_uniform":
-                    self._table_id_to_initializer[table_id] = \
-                        tf.random_uniform_initializer(minval=initializer.min, maxval=initializer.max,
-                                                      seed=initializer.seed, dtype=value_dtype)
-                elif initializer.initializer_mode == "truncated_normal":
-                    self._table_id_to_initializer[table_id] = \
-                        tf.truncated_normal_initializer(stddev=initializer.stddev, mean=initializer.mean,
-                                                        seed=initializer.seed, dtype=value_dtype)
-                elif initializer.initializer_mode == "constant":
-                    self._table_id_to_initializer[table_id] = \
-                        tf.constant_initializer(value=initializer.value, dtype=value_dtype)
-            elif not callable(initializer):
-                if ops.convert_to_tensor(initializer).dtype.base_dtype != tf.float32:
-                    raise ValueError("Initializer type '%s' and explict dtype tf.float32 don't match." % init_dtype)
+            self._check_and_update_small_init_params(name=name, init_vocabulary_size=init_vocabulary_size,
+                                                     embedding_dim=embedding_dim, multihot_lens=multihot_lens,
+                                                     key_dtype=key_dtype, value_dtype=value_dtype,
+                                                     allow_merge=allow_merge, initializer=initializer)
             new_small_table_info = dict(
                 max_vocabulary_size=init_vocabulary_size,
                 embedding_dim=embedding_dim,
@@ -324,26 +297,10 @@ class ESWorker:
                 initializer=initializer)
             self.user_defined_table_infos.append(new_small_table_info)
             return new_small_table_info
-
         elif embedding_type == "PS":
-            if max_feature_count is None:
-                raise ValueError("For ps table, max_feature_count can not be None.")
-            if (ev_option is not None) and (not isinstance(ev_option, EmbeddingVariableOption)):
-                raise TypeError("For ps table, ev_option must be EmbeddingVariableOption type.")
-            if not isinstance(max_feature_count, int):
-                raise ValueError("For ps table, max_feature_count must be int.")
-            if init_vocabulary_size >= _INT32_MAX_VALUE:
-                raise ValueError("init_vocabulary_size exceeds int32 max value.")
-            if max_feature_count <= 0:
-                raise ValueError("For ps table, max_feature_count must be greater than zero.")
-            if name not in self._table_name_has_init:
-                table_id = self._ps_table_count
-                self._table_name_to_id[name] = table_id
-                self._table_id_to_name[table_id] = name
-                self._ps_table_count += 1
-                self._table_name_has_init.append(name)
-            else:
-                raise ValueError("This table has been initialized.")
+            table_id = self._check_and_update_ps_init_params(name=name, init_vocabulary_size=init_vocabulary_size,
+                                                             embedding_dim=embedding_dim,
+                                                             max_feature_count=max_feature_count, ev_option=ev_option)
             self._ps_lookup_index = self._ps_table_count
             self._table_to_embedding_dim[table_id] = embedding_dim
             self._table_to_max_num[table_id] = max_feature_count
@@ -357,50 +314,14 @@ class ESWorker:
                 self._train_mode = False
                 self._table_to_slot_var_num[table_id] = 0
             else:
-                if (not isinstance(optimizer, embedding_optimizer.AdamOptimizer)) and \
-                        (not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)) and \
-                        (not isinstance(optimizer, embedding_optimizer.AdamWOptimizer)) and \
-                        (not isinstance(optimizer, embedding_optimizer.SgdOptimizer)) and \
-                        (not isinstance(optimizer, embedding_optimizer.RmspropOptimizer)):
-                    raise ValueError(
-                        "optimizer should be embedding_optimizer AdamOptimizer, AdagradOptimizer, AdamWOptimizer, "
-                        "SGDOptimizer or RmspropOptimizer.")
-                if initializer is not None:
-                    if isinstance(initializer, EsInitializer):
-                        self._table_id_to_initializer[table_id] = initializer
-                    elif isinstance(initializer, tf.initializers.truncated_normal):
-                        if initializer.dtype != tf.float32:
-                            raise TypeError("initializer dtype error.")
-                        self._table_id_to_initializer[table_id] = \
-                            EsInitializer(initializer_mode="truncated_normal", mu=initializer.mean,
-                                          sigma=initializer.stddev, seed=initializer.seed)
-                    elif isinstance(initializer, tf.initializers.random_uniform):
-                        if initializer.dtype != tf.float32:
-                            raise TypeError("initializer dtype error.")
-                        self._table_id_to_initializer[table_id] = \
-                            EsInitializer(initializer_mode="random_uniform", min=initializer.minval,
-                                          max=initializer.maxval, seed=initializer.seed)
-                    elif isinstance(initializer, tf.initializers.constant):
-                        if initializer.dtype != tf.float32:
-                            raise TypeError("initializer dtype error.")
-                        self._table_id_to_initializer[table_id] = \
-                            EsInitializer(initializer_mode="constant", constant_value=initializer.value)
-                    else:
-                        raise TypeError("initializer must be EsInitializer or tensorflow initializer, and only support"
-                                        "random_uniform, truncated_normal and constant value.")
+                self._check_ps_opt_and_initializer(optimizer=optimizer, initializer=initializer, table_id=table_id)
                 self._optimizer = optimizer
                 self._optimizer._embedding_dims = embedding_dim
                 self._optimizer._max_nums = max_feature_count
                 self._optimizer.mask_zero = mask_zero
                 self._table_to_optimizer[table_id] = self._optimizer
                 self._ps_table_id_to_optimizer_params[table_id] = []
-                # adam, adamw, rmsprop include m and v, 2 slots; adagrad include accumulator, 1 slot; sgd include 0 slot
-                if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer):
-                    self._table_to_slot_var_num[table_id] = 1
-                elif isinstance(self._optimizer, embedding_optimizer.SgdOptimizer):
-                    self._table_to_slot_var_num[table_id] = 0
-                else:
-                    self._table_to_slot_var_num[table_id] = 2
+                self._update_optimizer_slot_var_num(table_id=table_id)
                 # new train or continue train from a checkpoint
                 if initializer is not None:
                     self._train_level = True
@@ -494,22 +415,7 @@ class ESWorker:
     # @return values float32 类型
     def embedding_lookup(self, name: str, ids: typing.Any, actual_keys_input=None, unique_indices=None):
         """ Operator for look up in embedding table. """
-        if (name is None) or (ids is None):
-            raise ValueError("table name or ids must be specified.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if ids.dtype != tf.int64:
-            raise ValueError("dtype of ids must be tf.int64.")
-        if not self._init_table_flag:
-            raise ValueError("embedding table must init first!")
-
-        table_id = self._table_name_to_id.get(name)
-        if table_id not in self._ps_table_id_list:
-            raise ValueError("this ps table has not yet initialized.")
-
+        table_id = self._check_ps_lookup_params(name=name, ids=ids)
         if self._table_to_counter_filter.get(table_id) is not None:
             filter_mode = "counter"
             self._filter_freq = self._table_to_counter_filter.get(table_id).filter_freq
@@ -830,19 +736,7 @@ class ESWorker:
 
     def save_embedding(self, name: str, path: str):
         """ Operator for save values in table_id embedding table. """
-        if path is None or name is None:
-            raise ValueError("table name, embedding table path can not be None.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
-            raise ValueError("this table has not yet initialized.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
+        self._check_save_or_restore_params(name=name, path=path)
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
@@ -866,16 +760,7 @@ class ESWorker:
 
     def save_embeddings(self, path: str):
         """ Operator for save values in all embedding tables. """
-        if path is None:
-            raise ValueError("embedding table path can not be None.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        env_dist = os.environ
-        rank_id_from_env = env_dist.get("RANK_ID")
-        if rank_id_from_env != "0":
-            raise ValueError("Device must be rank_id 0.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
+        self._check_save_or_restore_params_v2(path=path, save_flag=True)
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -898,19 +783,7 @@ class ESWorker:
             return tf.group([embedding_table_export])
 
     def restore_embedding(self, name: str, path: str):
-        if path is None or name is None:
-            raise ValueError("table name, embedding table path can not be None.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
-            raise ValueError("this table has not yet initialized.")
+        self._check_save_or_restore_params(name=name, path=path)
         table_id = self._table_name_to_id.get(name)
         with specified_ps_engine_scope():
             embedding_table_import = \
@@ -925,12 +798,7 @@ class ESWorker:
             return tf.group([embedding_table_import])
 
     def restore_embeddings(self, path: str):
-        if path is None:
-            raise ValueError("embedding table path can not be None.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
+        self._check_save_or_restore_params_v2(path=path, save_flag=False)
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -950,19 +818,7 @@ class ESWorker:
 
     def save_checkpoint(self, name: str, path: str, save_filtered_features=False):
         """ Operator for save values and optimizer params in table_id embedding table. """
-        if path is None or name is None:
-            raise ValueError("table name, embedding table path can not be None.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
-            raise ValueError("this table has not yet initialized.")
+        self._check_save_or_restore_params(name=name, path=path)
         if not isinstance(save_filtered_features, bool):
             raise TypeError("save_filtered_features must be bool.")
         env_dist = os.environ
@@ -997,16 +853,7 @@ class ESWorker:
 
     def save_checkpoints(self, path: str, save_filtered_features=False):
         """ Operator for save values and optimizer params in all embedding tables. """
-        if path is None:
-            raise ValueError("embedding table path can not be None.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        env_dist = os.environ
-        rank_id_from_env = env_dist.get("RANK_ID")
-        if rank_id_from_env != "0":
-            raise ValueError("Device must be rank_id 0.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
+        self._check_save_or_restore_params_v2(path=path, save_flag=True)
         if not isinstance(save_filtered_features, bool):
             raise TypeError("save_filtered_features must be bool.")
         with specified_ps_engine_scope():
@@ -1042,17 +889,7 @@ class ESWorker:
 
     def restore_checkpoint(self, name: str, path: str):
         """ Operator for restore values and optimizer params in table_id embedding table. """
-        if path is None or name is None:
-            raise ValueError("name, embedding table path can not be None.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        if name not in self._ps_table_name_list:
-            raise ValueError("this table has not yet initialized.")
+        self._check_save_or_restore_params(name=name, path=path)
         table_id = self._table_name_to_id.get(name)
         with specified_ps_engine_scope():
             file_path_tensor = ops.convert_to_tensor(path, name="file_path")
@@ -1079,12 +916,7 @@ class ESWorker:
 
     def restore_checkpoints(self, path: str):
         """ Operator for restore values and optimizer params in all embedding tables. """
-        if path is None:
-            raise ValueError("embedding table path can not be None.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
+        self._check_save_or_restore_params_v2(path=path, save_flag=False)
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -1116,19 +948,7 @@ class ESWorker:
 
     def save_incremental_embedding(self, name: str, path: str):
         """ Operator for save incremental values in table_id embedding table. """
-        if path is None or name is None:
-            raise ValueError("table name, embedding table path can not be None.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
-            raise ValueError("this table has not yet initialized.")
+        self._check_save_or_restore_params(name=name, path=path)
         env_dist = os.environ
         rank_id_from_env = env_dist.get("RANK_ID")
         if rank_id_from_env != "0":
@@ -1152,16 +972,7 @@ class ESWorker:
 
     def save_incremental_embeddings(self, path: str):
         """ Operator for save incremental values in all embedding tables. """
-        if path is None:
-            raise ValueError("embedding table path can not be None.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        env_dist = os.environ
-        rank_id_from_env = env_dist.get("RANK_ID")
-        if rank_id_from_env != "0":
-            raise ValueError("Device must be rank_id 0.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
+        self._check_save_or_restore_params_v2(path=path, save_flag=True)
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -1184,19 +995,7 @@ class ESWorker:
             return tf.group([embedding_table_export])
 
     def restore_incremental_embedding(self, name: str, path: str):
-        if path is None or name is None:
-            raise ValueError("table name, embedding table path can not be None.")
-        if not isinstance(name, str):
-            raise TypeError("embedding table name must be string.")
-        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
-        if regex.search(name) is not None:
-            raise ValueError("table name contains illegal character.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if name not in self._ps_table_name_list:
-            raise ValueError("this table has not yet initialized.")
+        self._check_save_or_restore_params(name=name, path=path)
         table_id = self._table_name_to_id.get(name)
         with specified_ps_engine_scope():
             embedding_table_import = \
@@ -1211,12 +1010,7 @@ class ESWorker:
             return tf.group([embedding_table_import])
 
     def restore_incremental_embeddings(self, path: str):
-        if path is None:
-            raise ValueError("embedding table path can not be None.")
-        if not self._init_table_flag:
-            raise ValueError("Not any table has been initialized.")
-        if path[-1] == '/':
-            raise ValueError("path format is wrong, please check.")
+        self._check_save_or_restore_params_v2(path=path, save_flag=False)
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -1408,6 +1202,124 @@ class ESWorker:
                                                        table_name=[self._table_id_to_name.get(table_id)])
             return tf.group([embedding_table_import])
 
+    def _check_and_update_small_init_params(self, name, init_vocabulary_size, embedding_dim, multihot_lens, key_dtype,
+                                            value_dtype, allow_merge, initializer):
+        if name not in self._small_table_name_list:
+            self._small_table_name_list.append(name)
+        else:
+            raise ValueError("This small table has been initialized.")
+        if (init_vocabulary_size is None) or (embedding_dim is None) or (multihot_lens is None):
+            raise ValueError("max_vocabulary_size or embedding_dim or multihot_lens can not be None.")
+        if (key_dtype is None) or (value_dtype is None):
+            raise ValueError("key_dtype and value_dtype can not be None.")
+        if (key_dtype is not tf.int64) or (value_dtype is not tf.float32):
+            raise TypeError("key_dtype only support tf.int64, value_dtype only support tf.float32 now.")
+        if (not isinstance(init_vocabulary_size, int)) or (not isinstance(embedding_dim, int)) or \
+                (not isinstance(multihot_lens, int)) or (not isinstance(allow_merge, bool)):
+            raise TypeError("init_vocabulary_size, embedding_dim, multihot_lens must be int,"
+                            "allow_merge must be bool.")
+        if init_vocabulary_size <= 0 or embedding_dim <= 0 or multihot_lens <= 0:
+            raise ValueError("init_vocabulary_size, embedding_dim, multihot_lens must be greater than zero.")
+        if initializer is None:
+            raise ValueError("Initializer can not be None.")
+        if allow_merge:
+            self._need_table_merge = True
+        if isinstance(initializer, EsInitializer):
+            if initializer.initializer_mode == "random_uniform":
+                self._table_id_to_initializer[table_id] = \
+                    tf.random_uniform_initializer(minval=initializer.min, maxval=initializer.max,
+                                                  seed=initializer.seed, dtype=value_dtype)
+            elif initializer.initializer_mode == "truncated_normal":
+                self._table_id_to_initializer[table_id] = \
+                    tf.truncated_normal_initializer(stddev=initializer.stddev, mean=initializer.mean,
+                                                    seed=initializer.seed, dtype=value_dtype)
+            elif initializer.initializer_mode == "constant":
+                self._table_id_to_initializer[table_id] = \
+                    tf.constant_initializer(value=initializer.value, dtype=value_dtype)
+        elif not callable(initializer):
+            if ops.convert_to_tensor(initializer).dtype.base_dtype != tf.float32:
+                raise ValueError("Initializer type '%s' and explict dtype tf.float32 don't match." % init_dtype)
+
+    def _check_and_update_ps_init_params(self, name, init_vocabulary_size, embedding_dim, max_feature_count, ev_option):
+        if max_feature_count is None:
+            raise ValueError("For ps table, max_feature_count can not be None.")
+        if (ev_option is not None) and (not isinstance(ev_option, EmbeddingVariableOption)):
+            raise TypeError("For ps table, ev_option must be EmbeddingVariableOption type.")
+        if not isinstance(max_feature_count, int):
+            raise ValueError("For ps table, max_feature_count must be int.")
+        if init_vocabulary_size >= _INT32_MAX_VALUE:
+            raise ValueError("init_vocabulary_size exceeds int32 max value.")
+        if max_feature_count <= 0:
+            raise ValueError("For ps table, max_feature_count must be greater than zero.")
+        if name not in self._table_name_has_init:
+            table_id = self._ps_table_count
+            self._table_name_to_id[name] = table_id
+            self._table_id_to_name[table_id] = name
+            self._ps_table_count += 1
+            self._table_name_has_init.append(name)
+        else:
+            raise ValueError("This table has been initialized.")
+        return table_id
+
+    def _check_ps_opt_and_initializer(self, optimizer, initializer, table_id):
+        if (not isinstance(optimizer, embedding_optimizer.AdamOptimizer)) and \
+                (not isinstance(optimizer, embedding_optimizer.AdagradOptimizer)) and \
+                (not isinstance(optimizer, embedding_optimizer.AdamWOptimizer)) and \
+                (not isinstance(optimizer, embedding_optimizer.SgdOptimizer)) and \
+                (not isinstance(optimizer, embedding_optimizer.RmspropOptimizer)):
+            raise ValueError(
+                "optimizer should be embedding_optimizer AdamOptimizer, AdagradOptimizer, AdamWOptimizer, "
+                "SGDOptimizer or RmspropOptimizer.")
+        if initializer is not None:
+            if isinstance(initializer, EsInitializer):
+                self._table_id_to_initializer[table_id] = initializer
+            elif isinstance(initializer, tf.initializers.truncated_normal):
+                if initializer.dtype != tf.float32:
+                    raise TypeError("initializer dtype error.")
+                self._table_id_to_initializer[table_id] = \
+                    EsInitializer(initializer_mode="truncated_normal", mu=initializer.mean,
+                                  sigma=initializer.stddev, seed=initializer.seed)
+            elif isinstance(initializer, tf.initializers.random_uniform):
+                if initializer.dtype != tf.float32:
+                    raise TypeError("initializer dtype error.")
+                self._table_id_to_initializer[table_id] = \
+                    EsInitializer(initializer_mode="random_uniform", min=initializer.minval,
+                                  max=initializer.maxval, seed=initializer.seed)
+            elif isinstance(initializer, tf.initializers.constant):
+                if initializer.dtype != tf.float32:
+                    raise TypeError("initializer dtype error.")
+                self._table_id_to_initializer[table_id] = \
+                    EsInitializer(initializer_mode="constant", constant_value=initializer.value)
+            else:
+                raise TypeError("initializer must be EsInitializer or tensorflow initializer, and only support"
+                                "random_uniform, truncated_normal and constant value.")
+
+    def _update_optimizer_slot_var_num(self, table_id):
+        # adam, adamw, rmsprop include m and v, 2 slots; adagrad include accumulator, 1 slot; sgd include 0 slot
+        if isinstance(self._optimizer, embedding_optimizer.AdagradOptimizer):
+            self._table_to_slot_var_num[table_id] = 1
+        elif isinstance(self._optimizer, embedding_optimizer.SgdOptimizer):
+            self._table_to_slot_var_num[table_id] = 0
+        else:
+            self._table_to_slot_var_num[table_id] = 2
+
+    def _check_ps_lookup_params(self, name, ids):
+        if (name is None) or (ids is None):
+            raise ValueError("table name or ids must be specified.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
+        if ids.dtype != tf.int64:
+            raise ValueError("dtype of ids must be tf.int64.")
+        if not self._init_table_flag:
+            raise ValueError("embedding table must init first!")
+        table_id = self._table_name_to_id.get(name)
+        if table_id not in self._ps_table_id_list:
+            raise ValueError("this ps table has not yet initialized.")
+        return table_id
+
     def _check_update_params(self, params, input_ids_list, table_ids, loss):
         if (loss is None) or (params is None) or (table_ids is None) or (input_ids_list is None):
             raise ValueError("loss or params or table_ids or input_ids_list is None.")
@@ -1416,6 +1328,34 @@ class ESWorker:
             raise ValueError("loss, params, table_ids and input_ids_list can not be str.")
         if not self._init_table_flag:
             raise ValueError("embedding must init first!")
+
+    def _check_save_or_restore_params(self, name, path):
+        if path is None or name is None:
+            raise ValueError("table name, embedding table path can not be None.")
+        if not isinstance(name, str):
+            raise TypeError("embedding table name must be string.")
+        regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+        if regex.search(name) is not None:
+            raise ValueError("table name contains illegal character.")
+        if not self._init_table_flag:
+            raise ValueError("Not any table has been initialized.")
+        if name not in self._ps_table_name_list:
+            raise ValueError("this table has not yet initialized.")
+        if path[-1] == '/':
+            raise ValueError("path format is wrong, please check.")
+
+    def _check_save_or_restore_params_v2(self, path, save_flag):
+        if path is None:
+            raise ValueError("embedding table path can not be None.")
+        if path[-1] == '/':
+            raise ValueError("path format is wrong, please check.")
+        if not self._init_table_flag:
+            raise ValueError("Not any table has been initialized.")
+        if save_flag:
+            env_dist = os.environ
+            rank_id_from_env = env_dist.get("RANK_ID")
+            if rank_id_from_env != "0":
+                raise ValueError("Device must be rank_id 0.")
 
     def _init_counter_filter(self, table_id, ev_option):
         if (ev_option is not None) and (ev_option.filter_option is not None):
