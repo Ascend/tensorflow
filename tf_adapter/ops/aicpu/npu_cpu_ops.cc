@@ -501,6 +501,16 @@ REGISTER_OP("EmbeddingFeatureMapping")
     return Status::OK();
   });
 
+REGISTER_OP("FeatureMapping")
+  .Input("feature_id: int32")
+  .Output("offset_id: int32")
+  .Attr("threshold: int = 1")
+  .Attr("table_name: string = 'default_table_name' ")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    c->set_output(0, c->input(0));
+    return Status::OK();
+  });
+
 // regist dense image warp op
 REGISTER_OP("DenseImageWarp")
   .Input("image: T")
