@@ -10,13 +10,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <future>
+#include <thread>
+
 #include "tf_adapter/common/adapter_logger.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/util/work_sharder.h"
-#include <future>
-#include <thread>
 
 namespace tensorflow {
 namespace {
@@ -27,7 +28,10 @@ struct FeatureMappingTable {
         feature_mappings_ptr(input_buckets_num) {
     for (int i = 0; i < this->buckets_num; ++i) {
       this->offsets[i] = 0;
-      this->feature_mappings_ptr[i] = new HashmapType(init_hashmap_size / buckets_num);
+      this->feature_mappings_ptr[i] = new (std::nothrow) HashmapType(init_hashmap_size / buckets_num);
+      if (this->feature_mappings_ptr[i] == nullptr) {
+        ADP_LOG(ERROR) << "new Hash map maping failed";
+      }
     }
   }
   static const uint32_t init_hashmap_size = 60 * 10000;
@@ -67,9 +71,12 @@ class FeatureMappingOp : public OpKernel {
     if (it != feature_mapping_table.end()) {
       return it->second;
     } else {
-      FeatureMappingTable *table = new FeatureMappingTable(buckets_num, threshold);
-      feature_mapping_table[table_name] = table;
-      return table;
+      FeatureMappingTable *table = new (std::nothrow) FeatureMappingTable(buckets_num, threshold);
+      if (table != nullptr) {
+        feature_mapping_table[table_name] = table;
+        return table;
+      }
+      return nullptr;
     }
   }
 
@@ -119,6 +126,10 @@ class FeatureMappingOp : public OpKernel {
     uint32_t thread_num = 1;
     std::vector<std::function<int()>> tasks;
     FeatureMappingTable *table = get_or_init_tables(table_name, thread_num, threshold);
+    if (table == nullptr) {
+        ADP_LOG(ERROR) << "get_or_init_tables failed ";
+        return;
+    }
     for (uint32_t i = 0; i < thread_num; ++i) {
       tasks.push_back([this, table, i, feature_id_len, feature_id_data, offset_id]() -> int {
         find_hash_table(table, i, feature_id_len, feature_id_data, offset_id);

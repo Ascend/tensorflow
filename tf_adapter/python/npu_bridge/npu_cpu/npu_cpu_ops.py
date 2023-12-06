@@ -331,3 +331,13 @@ def host_feature_mapping(feature_id, threshold=1, table_name="default_table_name
         threshold=threshold,
         table_name=table_name)
     return result
+
+
+## 提供device侧FeatureMapping功能
+#  @param feature_id int64 类型
+#  @return offset_id int32 类型
+def device_feature_mapping(feature_id):
+    """ device feature mapping. """
+    result = gen_npu_cpu_ops.EmbeddingFeatureMapping(
+        feature_id=feature_id)
+    return result
