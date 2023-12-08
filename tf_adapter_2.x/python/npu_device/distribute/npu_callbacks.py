@@ -95,15 +95,17 @@ class NpuBroadcastScopeContext(object):
     scope automatically.
     """
     _is_in_scope = False
+    _is_broadcast = False
 
-    def __init__(self, org_scope_ctx):
+    def __init__(self, org_scope_ctx, model_trainable_variables):
         self.org_scope_ctx = org_scope_ctx
         self.enter_scope_again_count = 0
+        self.model_trainable_variables = model_trainable_variables
 
         def _variable_broadcast_creator(next_creator, **kwargs):
             var = next_creator(**kwargs)
             if var.trainable:
-                broadcast_helper([var])
+                self.model_trainable_variables.append(var)
             return var
 
         # all var created in scope ctx will auto-broadcast
@@ -123,6 +125,9 @@ class NpuBroadcastScopeContext(object):
     def __exit__(self, exception_type, exception_value, traceback):
         if self.org_scope_ctx:
             self.org_scope_ctx.__exit__(exception_type, exception_value, traceback)
+        if not NpuBroadcastScopeContext._is_broadcast:
+            NpuBroadcastScopeContext._is_broadcast = True
+            broadcast_helper(self.model_trainable_variables)
         if self.enter_scope_again_count > 0:
             self.enter_scope_again_count -= 1
             return
@@ -138,9 +143,10 @@ def npu_broadcast_scope_wrapper(strategy):
 
     org_scope = strategy.scope
 
+    model_trainable_variables = []
     def _npu_broadcast_scope():
         org_scope_ctx = org_scope()
-        return NpuBroadcastScopeContext(org_scope_ctx)
+        return NpuBroadcastScopeContext(org_scope_ctx, model_trainable_variables)
 
     if not hasattr(strategy, '_npu_scope_wrapped'):
         strategy.scope = _npu_broadcast_scope
