@@ -27,62 +27,63 @@ const uint32_t kIncludeCountsLength = 8;
 class FeatureMappingImportOp : public OpKernel {
  public:
   explicit FeatureMappingImportOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    ADP_LOG(INFO) << "Host FeatureMappingImport built";
+    ADP_LOG(DEBUG) << "Host FeatureMappingImport built";
   }
   ~FeatureMappingImportOp() override {
-    ADP_LOG(INFO) << "Host FeatureMappingImport has been destructed";
+    ADP_LOG(DEBUG) << "Host FeatureMappingImport has been destructed";
   }
 
   void ResotreLineToMapping(std::string &line, std::string &table_name) const {
     /* format :: feature_id: 3 | counts: 1 | offset_id: 7 */
-    ADP_LOG(INFO) << "table name: " << table_name << " line " << line;
+    ADP_LOG(DEBUG) << "table name: " << table_name << " line " << line;
     size_t fid_pos = line.find(":") + kSpaceAndSymbolLength;
     size_t bar_pos = line.find("|");
     std::string feature_id_str = line.substr(fid_pos, bar_pos - fid_pos - 1);
-    ADP_LOG(INFO) << "feature id str: " << feature_id_str;
+    ADP_LOG(DEBUG) << "feature id str: " << feature_id_str;
     uint32_t feature_id = 0;
     try {
       feature_id = stoi(feature_id_str);
     } catch(std::exception &e) {
-      ADP_LOG(ERROR) << "stoi failed feature id str: " << feature_id_str << " err: " << e.what();
+      ADP_LOG(ERROR) << "stoi failed feature id str: " << feature_id_str << " reason: " << e.what();
       return;
     }
 
     size_t counts_index = line.find("counts") + kIncludeCountsLength;
     size_t last_sep_pos = line.find_last_of("|");
     std::string counts_str = line.substr(counts_index, last_sep_pos - 1 - counts_index);
-    ADP_LOG(INFO) << "counts str: " << counts_str;
+    ADP_LOG(DEBUG) << "counts str: " << counts_str;
     uint32_t counts = 0;
     try {
       counts = stoi(counts_str);
     } catch(std::exception &e) {
-      ADP_LOG(ERROR) << "stoi failed counts str: " << counts_str << " err: " << e.what();
+      ADP_LOG(ERROR) << "stoi failed counts str: " << counts_str << " reason: " << e.what();
       return;
     }
 
     size_t off_pos = line.find_last_of(":") + kSpaceAndSymbolLength;
     std::string offset_id_str = line.substr(off_pos, line.length());
-    ADP_LOG(INFO) << "offset id str: " << offset_id_str;
+    ADP_LOG(DEBUG) << "offset id str: " << offset_id_str;
     uint32_t offset_id = 0;
     try {
       offset_id = stoi(offset_id_str);
     } catch(std::exception &e) {
-      ADP_LOG(ERROR) << "stoi failed offset id str: " << offset_id_str << " err: " << e.what();
+      ADP_LOG(ERROR) << "stoi failed offset id str: " << offset_id_str << " reason: " << e.what();
       return;
     }
-    ADP_LOG(INFO) << "feature_id: " << feature_id << " counts: " << counts << " offset_id: " << offset_id;
+    ADP_LOG(DEBUG) << "feature_id: " << feature_id << " counts: " << counts << " offset_id: " << offset_id;
 
     // import data to hash map
     FeatureMappingTable *table = nullptr;
     auto it = feature_mapping_table.find(table_name);
     if (it != feature_mapping_table.end()) {
-      ADP_LOG(INFO) << "have the map, insert directly";
+      ADP_LOG(DEBUG) << "have the map, insert directly";
       table = it->second;
     } else {
       uint32_t buckets_num = 1;
       uint32_t threshold = 1;
       table = new (std::nothrow) FeatureMappingTable(buckets_num, threshold);
     }
+
     if (table != nullptr) {
       feature_mapping_table[table_name] = table;
       // current use only one bucket refer to host feature mapping op
@@ -91,30 +92,37 @@ class FeatureMappingImportOp : public OpKernel {
       if (it_key == table->feature_mappings_ptr[bucket_index]->end()) {
         std::pair<int32_t, int32_t> count_and_offset = std::make_pair(counts, offset_id);
         table->feature_mappings_ptr[bucket_index]->insert(std::make_pair(feature_id, count_and_offset));
-        ADP_LOG(INFO) << "one item insert feature_id: " << feature_id << " counts: " << counts << " offset_id " << offset_id;
+        ADP_LOG(DEBUG) << "one item insert feature_id: " << feature_id << " counts: " << counts << " offset_id " << offset_id;
       } else {
         ADP_LOG(ERROR) << "do not here anymore";
       }
-      ADP_LOG(INFO) << "map size: " << table->feature_mappings_ptr[bucket_index]->size();
+      ADP_LOG(DEBUG) << "map size: " << table->feature_mappings_ptr[bucket_index]->size();
     } else {
-      ADP_LOG(ERROR) << "new table failed";
+      ADP_LOG(ERROR) << "table new nothrow failed";
     }
     return;
   }
 
-  void FindTableDoImport(std::string file_name) {
+  void FindTableDoImport(std::string &dst_path_way, std::string &file_name) {
+    std::string src_file_name = dst_path_way + file_name;
     try {
-      std::ifstream in_stream(file_name);
+      std::ifstream in_stream(src_file_name);
       if (!in_stream.is_open()) {
-        ADP_LOG(INFO) << "file_name: " << file_name << " can not open";
+        ADP_LOG(ERROR) << "src_file_name: " << src_file_name << " can not open";
         return;
       }
 
       // read line by line
       std::string line = "";
       while (std::getline(in_stream, line)) {
-        // need to parse
-        std::string table_name = file_name;
+        std::string table_name = "";
+        size_t pos_period = file_name.find_last_of(".");
+        if (pos_period != std::string::npos) {
+          table_name = file_name.substr(0, pos_period);
+        } else {
+          ADP_LOG(ERROR) << "parse file " << file_name << " error";
+          return;
+        }
         ResotreLineToMapping(line, table_name);
       }
       in_stream.close();
@@ -125,11 +133,18 @@ class FeatureMappingImportOp : public OpKernel {
   }
 
   void TraverseAndParse(const std::string &src_path) {
+    std::ifstream is_path(src_path);
+    if (!is_path) {
+      ADP_LOG(ERROR) << "import file path " << src_path << " is not exits";
+      return;
+    }
+
     const size_t path_length = src_path.size();
     std::string dst_path_way = src_path;
     if (dst_path_way[path_length - 1] != '/') {
       (void)dst_path_way.append("/");
     }
+
     DIR *dir;
     struct dirent *ent;
     dir = opendir(src_path.c_str());
@@ -139,8 +154,8 @@ class FeatureMappingImportOp : public OpKernel {
         if (file_name == ".." || file_name == ".") {
           continue;
         }
-        ADP_LOG(INFO) << "file_name: " << ent->d_name;
-        FindTableDoImport(dst_path_way + file_name);
+        ADP_LOG(DEBUG) << "file_name: " << ent->d_name;
+        FindTableDoImport(dst_path_way, file_name);
       }
       closedir(dir);
     } else {

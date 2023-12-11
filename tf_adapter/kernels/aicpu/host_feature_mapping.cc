@@ -32,12 +32,12 @@ std::unordered_map<std::string, FeatureMappingTable *> feature_mapping_table;
 class FeatureMappingOp : public OpKernel {
  public:
   explicit FeatureMappingOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("threshold", &threshold));
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("table_name", &table_name));
-    ADP_LOG(INFO) << "Host FeatureMapping built" << table_name;
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("threshold", &threshold_));
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("table_name", &table_name_));
+    ADP_LOG(DEBUG) << "Host FeatureMapping built table_name " << table_name_;
   }
   ~FeatureMappingOp() override {
-    ADP_LOG(INFO) << "Host FeatureMapping has been destructed";
+    ADP_LOG(DEBUG) << "Host FeatureMapping has been destructed";
   }
 
   FeatureMappingTable *get_or_init_tables(std::string table_name, int32_t buckets_num, int32_t threshold) {
@@ -54,8 +54,9 @@ class FeatureMappingOp : public OpKernel {
     }
   }
 
-  int32_t get_and_increase_offset(FeatureMappingTable *table, int32_t bucket_index, int32_t buckets_num) {
-    int32_t offset = table->offsets[bucket_index] * buckets_num + bucket_index;
+  int32_t get_and_increase_offset(FeatureMappingTable *table, int32_t bucket_index,
+                                  int32_t buckets_num, int32_t last_index) {
+    int32_t offset = table->offsets[bucket_index] * buckets_num + bucket_index + last_index;
     table->offsets[bucket_index]++;
     return offset;
   }
@@ -65,26 +66,26 @@ class FeatureMappingOp : public OpKernel {
     const int32_t buckets_num = table->buckets_num;
     auto table_mappings = table->feature_mappings_ptr[bucket_index];
     int32_t last_index = table_mappings->size();
-    ADP_LOG(INFO) << "last_index value " << last_index;
-    for (int i = last_index; i < feature_id_len + last_index; ++i) {
-      int32_t feature_id = feature_id_data[i - last_index];
-      ADP_LOG(INFO) << "feature id " << feature_id;
+    ADP_LOG(DEBUG) << "last_index value " << last_index;
+    for (int i = 0; i < feature_id_len; ++i) {
+      int32_t feature_id = feature_id_data[i];
+      ADP_LOG(DEBUG) << "feature id " << feature_id;
       if (feature_id < 0) {
-        offset_id_data[i - last_index] = -1;
+        offset_id_data[i] = -1;
         continue;
       }
       auto it = table_mappings->find(feature_id);
       if (it == table_mappings->end()) {
-        int32_t offset = get_and_increase_offset(table, bucket_index, buckets_num);
+        int32_t offset = get_and_increase_offset(table, bucket_index, buckets_num, last_index);
         std::pair<int32_t, int32_t> count_and_offset = std::make_pair(1, offset);
         table_mappings->insert(std::make_pair(feature_id, count_and_offset));
-        offset_id_data[i - last_index] = offset;
-        ADP_LOG(INFO) << "new insert offset id " << offset;
+        offset_id_data[i] = offset;
+        ADP_LOG(DEBUG) << "new insert offset id " << offset;
       } else {
         std::pair<int32_t, int32_t> &count_and_offset = it->second;
         count_and_offset.first++;
-        offset_id_data[i - last_index] = count_and_offset.second;
-        ADP_LOG(INFO) << "orginal offset id " << count_and_offset.second;
+        offset_id_data[i] = count_and_offset.second;
+        ADP_LOG(DEBUG) << "orginal offset id " << count_and_offset.second;
       }
     }
   }
@@ -102,14 +103,14 @@ class FeatureMappingOp : public OpKernel {
 
     // device FeatureMapping uses Usafe only support Single Core
     SimpleThreadPool pool;
-    uint32_t thread_num = 1;
+    int32_t thread_num = 1;
     std::vector<std::function<int()>> tasks;
-    FeatureMappingTable *table = get_or_init_tables(table_name, thread_num, threshold);
+    FeatureMappingTable *table = get_or_init_tables(table_name_, thread_num, threshold_);
     if (table == nullptr) {
-        ADP_LOG(ERROR) << "get_or_init_tables failed ";
+        ADP_LOG(ERROR) << "get or init table failed table is nullptr";
         return;
     }
-    for (uint32_t i = 0; i < thread_num; ++i) {
+    for (int32_t i = 0; i < thread_num; ++i) {
       tasks.push_back([this, table, i, feature_id_len, feature_id_data, offset_id]() -> int {
         find_hash_table(table, i, feature_id_len, feature_id_data, offset_id);
         return int{};
@@ -123,8 +124,8 @@ class FeatureMappingOp : public OpKernel {
   }
 
  private:
-  int threshold{};
-  std::string table_name{};
+  int threshold_{};
+  std::string table_name_{};
 };
 
 REGISTER_KERNEL_BUILDER(Name("FeatureMapping").Device(DEVICE_CPU), FeatureMappingOp);

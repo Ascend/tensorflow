@@ -25,17 +25,17 @@ const std::string kBinFileSuffix = ".bin";
 class FeatureMappingExportOp : public OpKernel {
  public:
   explicit FeatureMappingExportOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    ADP_LOG(INFO) << "FeatureMappingExport built";
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("table_name_list", &table_name_list));
+    ADP_LOG(DEBUG) << "FeatureMappingExport built";
+    OP_REQUIRES_OK(ctx, ctx->GetAttr("table_name_list", &table_name_list_));
   }
   ~FeatureMappingExportOp() override {
-    ADP_LOG(INFO) << "FeatureMappingExport has been destructed";
+    ADP_LOG(DEBUG) << "FeatureMappingExport has been destructed";
   }
 
   void WriteMappingContens2File(std::string &table_name, std::string &dst_path) {
     auto it = feature_mapping_table.find(table_name);
     if (it == feature_mapping_table.end()) {
-      ADP_LOG(INFO) << "this table is not in mapping, just skip";
+      ADP_LOG(WARNING) << "this table " << table_name << " is not in mapping, just skip";
       return;
     }
 
@@ -60,7 +60,7 @@ class FeatureMappingExportOp : public OpKernel {
         std::string content = "feature_id: " + std::to_string(feature_id) + " | "
                               + "counts: " + std::to_string(counts) + " | "
                               + "offset_id: " + std::to_string(offset_id);
-        ADP_LOG(INFO) << "content: " << content;
+        ADP_LOG(DEBUG) << "content: " << content;
         out_stream << content << std::endl;
       }
       out_stream.close();
@@ -71,27 +71,34 @@ class FeatureMappingExportOp : public OpKernel {
   }
 
   void SaveFeatureMapping2File(const std::string &path) {
+    std::ifstream is_path(path);
+    if (!is_path) {
+      ADP_LOG(ERROR) << "export file path " << path << " is not exits";
+      return;
+    }
+
     const size_t path_length = path.size();
     std::string dst_path_way = path;
     if (path[path_length - 1] != '/') {
       (void)dst_path_way.append("/");
     }
-    const size_t name_size = table_name_list.size();
-    ADP_LOG(INFO) << "dst_path_way " << dst_path_way << " name_size " << name_size;
+
+    const size_t name_size = table_name_list_.size();
+    ADP_LOG(DEBUG) << "dst_path_way " << dst_path_way << " name_size " << name_size;
     if (name_size == 0) {
-      ADP_LOG(INFO) << "default export all feature mapping";
+      ADP_LOG(DEBUG) << "default export all feature mapping";
       for (const auto &map_pair : feature_mapping_table) {
         std::string table_name = map_pair.first;
         std::string dst_path_file = dst_path_way + table_name + kBinFileSuffix;
-        ADP_LOG(INFO) << "table_name " << table_name << " dst_path_file " << dst_path_file;
+        ADP_LOG(DEBUG) << "table_name " << table_name << " dst_path_file " << dst_path_file;
         WriteMappingContens2File(table_name, dst_path_file);
       }
     } else {
-      ADP_LOG(INFO) << "export attr name of user specified";
+      ADP_LOG(DEBUG) << "export attr name of user specified";
       for (size_t index = 0; index < name_size; ++index) {
-        std::string attr_table_name = std::string(table_name_list[index]);
+        std::string attr_table_name = std::string(table_name_list_[index]);
         std::string dst_file_path = dst_path_way + attr_table_name + kBinFileSuffix;
-        ADP_LOG(INFO) << "attr_table_name " << attr_table_name << " dst_file_path " << dst_file_path;
+        ADP_LOG(DEBUG) << "attr_table_name " << attr_table_name << " dst_file_path " << dst_file_path;
         WriteMappingContens2File(attr_table_name, dst_file_path);
       }
     }
@@ -116,7 +123,7 @@ class FeatureMappingExportOp : public OpKernel {
   }
 
  private:
-  std::vector<std::string> table_name_list{};
+  std::vector<std::string> table_name_list_{};
 };
 
 REGISTER_KERNEL_BUILDER(Name("FeatureMappingExport").Device(DEVICE_CPU), FeatureMappingExportOp);
