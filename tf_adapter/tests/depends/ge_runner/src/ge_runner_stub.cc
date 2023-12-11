@@ -368,6 +368,10 @@ ComputeGraph::ComputeGraph(const std::string &name)
     : impl_(std::shared_ptr<ComputeGraphImpl>(new ComputeGraphImpl(name))) {
 }
 
+ComputeGraph::ComputeGraph(const char_t *name)
+    : impl_(std::shared_ptr<ComputeGraphImpl>(new ComputeGraphImpl(std::string(name)))) {
+}
+
 ComputeGraph::~ComputeGraph() {}
 
 ProtoAttrMap &ComputeGraph::MutableAttrMap() {
