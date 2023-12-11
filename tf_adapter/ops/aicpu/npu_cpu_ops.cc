@@ -511,6 +511,15 @@ REGISTER_OP("FeatureMapping")
     return Status::OK();
   });
 
+REGISTER_OP("FeatureMappingExport")
+  .Input("path: string")
+  .Attr("table_name_list: list(string)")
+  .SetShapeFn(shape_inference::NoOutputs);
+
+REGISTER_OP("FeatureMappingImport")
+  .Input("path: string")
+  .SetShapeFn(shape_inference::NoOutputs);
+
 // regist dense image warp op
 REGISTER_OP("DenseImageWarp")
   .Input("image: T")

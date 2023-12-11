@@ -341,3 +341,19 @@ def device_feature_mapping(feature_id):
     result = gen_npu_cpu_ops.EmbeddingFeatureMapping(
         feature_id=feature_id)
     return result
+
+
+## 提供host侧FeatureMapping Import功能
+#  @param path string 类型
+#  @param table_name string 类型
+def host_feature_mapping_export(path, table_name_list):
+    """ host feature mapping export. """
+    gen_npu_cpu_ops.FeatureMappingExport(path=path, table_name_list=table_name_list)
+
+
+## 提供host侧FeatureMapping Export功能
+#  @param path string 类型
+#  @param table_name string 类型
+def host_feature_mapping_import(path):
+    """ host feature mapping export. """
+    gen_npu_cpu_ops.FeatureMappingImport(path=path)

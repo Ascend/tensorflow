@@ -10,38 +10,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <future>
-#include <thread>
-
-#include "tf_adapter/common/adapter_logger.h"
-#include "tensorflow/core/framework/common_shape_fns.h"
-#include "tensorflow/core/framework/op.h"
-#include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/util/work_sharder.h"
+#include "host_feature_mapping.h"
 
 namespace tensorflow {
-namespace {
+namespace featuremapping {
 using HashmapType = std::unordered_map<int32_t, std::pair<int32_t, int32_t>>;
-struct FeatureMappingTable {
-  explicit FeatureMappingTable(int32_t input_buckets_num, int32_t inpuit_threshold)
-      : buckets_num(input_buckets_num), threshold(inpuit_threshold), offsets(input_buckets_num),
-        feature_mappings_ptr(input_buckets_num) {
-    for (int i = 0; i < this->buckets_num; ++i) {
-      this->offsets[i] = 0;
-      this->feature_mappings_ptr[i] = new (std::nothrow) HashmapType(init_hashmap_size / buckets_num);
-      if (this->feature_mappings_ptr[i] == nullptr) {
-        ADP_LOG(ERROR) << "new Hash map maping failed";
-      }
-    }
-  }
-  static const uint32_t init_hashmap_size = 60 * 10000;
-  int32_t buckets_num;
-  int32_t threshold;
-  std::vector<int> offsets;
-  std::vector<HashmapType *> feature_mappings_ptr;  // buckets_num分桶
-};
-static std::unordered_map<std::string, FeatureMappingTable *> feature_mapping_table;
-
 class SimpleThreadPool {
  public:
   void SyncRun(const std::vector<std::function<int()>> &tasks) {
@@ -55,6 +28,7 @@ class SimpleThreadPool {
   }
 };
 
+std::unordered_map<std::string, FeatureMappingTable *> feature_mapping_table;
 class FeatureMappingOp : public OpKernel {
  public:
   explicit FeatureMappingOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
@@ -88,24 +62,28 @@ class FeatureMappingOp : public OpKernel {
 
   void find_hash_table(FeatureMappingTable *table, int32_t bucket_index, int32_t feature_id_len,
                        const int32_t *feature_id_data, int32_t *offset_id_data) {
-    int32_t buckets_num = table->buckets_num;
-    for (int i = 0; i < feature_id_len; ++i) {
-      int32_t feature_id = feature_id_data[i];
+    const int32_t buckets_num = table->buckets_num;
+    auto table_mappings = table->feature_mappings_ptr[bucket_index];
+    int32_t last_index = table_mappings->size();
+    ADP_LOG(INFO) << "last_index value " << last_index;
+    for (int i = last_index; i < feature_id_len + last_index; ++i) {
+      int32_t feature_id = feature_id_data[i - last_index];
       ADP_LOG(INFO) << "feature id " << feature_id;
       if (feature_id < 0) {
-        offset_id_data[i] = -1;
+        offset_id_data[i - last_index] = -1;
         continue;
       }
-      auto it = table->feature_mappings_ptr[bucket_index]->find(feature_id);
-      if (it == table->feature_mappings_ptr[bucket_index]->end()) {
+      auto it = table_mappings->find(feature_id);
+      if (it == table_mappings->end()) {
         int32_t offset = get_and_increase_offset(table, bucket_index, buckets_num);
         std::pair<int32_t, int32_t> count_and_offset = std::make_pair(1, offset);
-        table->feature_mappings_ptr[bucket_index]->insert(std::make_pair(feature_id, count_and_offset));
-        offset_id_data[i] = offset;
+        table_mappings->insert(std::make_pair(feature_id, count_and_offset));
+        offset_id_data[i - last_index] = offset;
         ADP_LOG(INFO) << "new insert value " << offset;
       } else {
         std::pair<int32_t, int32_t> &count_and_offset = it->second;
-        offset_id_data[i] = count_and_offset.second;
+        count_and_offset.first++;
+        offset_id_data[i - last_index] = count_and_offset.second;
         ADP_LOG(INFO) << "orginal value " << count_and_offset.second;
       }
     }
@@ -148,5 +126,5 @@ class FeatureMappingOp : public OpKernel {
 };
 
 REGISTER_KERNEL_BUILDER(Name("FeatureMapping").Device(DEVICE_CPU), FeatureMappingOp);
-}  // namespace
+}  // namespace featuremapping
 }  // namespace tensorflow
