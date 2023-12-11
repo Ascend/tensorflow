@@ -514,11 +514,19 @@ REGISTER_OP("FeatureMapping")
 REGISTER_OP("FeatureMappingExport")
   .Input("path: string")
   .Attr("table_name_list: list(string)")
-  .SetShapeFn(shape_inference::NoOutputs);
+  .Output("export_fake_output: string")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    c->set_output(0, c->input(0));
+    return Status::OK();
+  });
 
 REGISTER_OP("FeatureMappingImport")
   .Input("path: string")
-  .SetShapeFn(shape_inference::NoOutputs);
+  .Output("import_fake_output: string")
+  .SetShapeFn([](shape_inference::InferenceContext *c) {
+    c->set_output(0, c->input(0));
+    return Status::OK();
+  });
 
 // regist dense image warp op
 REGISTER_OP("DenseImageWarp")

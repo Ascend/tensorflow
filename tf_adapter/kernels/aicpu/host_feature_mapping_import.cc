@@ -27,10 +27,10 @@ const uint32_t kIncludeCountsLength = 8;
 class FeatureMappingImportOp : public OpKernel {
  public:
   explicit FeatureMappingImportOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
-    ADP_LOG(INFO) << "FeatureMappingImport built ";
+    ADP_LOG(INFO) << "Host FeatureMappingImport built";
   }
   ~FeatureMappingImportOp() override {
-    ADP_LOG(INFO) << "FeatureMappingImport has been destructed";
+    ADP_LOG(INFO) << "Host FeatureMappingImport has been destructed";
   }
 
   void ResotreLineToMapping(std::string &line, std::string &table_name) const {
@@ -103,7 +103,6 @@ class FeatureMappingImportOp : public OpKernel {
   }
 
   void FindTableDoImport(std::string file_name) {
-    // feature_id: 3 - offset_id: 7
     try {
       std::ifstream in_stream(file_name);
       if (!in_stream.is_open()) {
@@ -150,7 +149,7 @@ class FeatureMappingImportOp : public OpKernel {
   }
 
   void Compute(OpKernelContext *ctx) override {
-    ADP_LOG(INFO) << "FeatureMappingImport compute";
+    ADP_LOG(INFO) << "Host FeatureMappingImport compute begin";
     const Tensor &restore_path_tensor = ctx->input(0);
     OP_REQUIRES(ctx, TensorShapeUtils::IsScalar(restore_path_tensor.shape()),
                 errors::InvalidArgument("path expects a scalar."));
@@ -160,7 +159,10 @@ class FeatureMappingImportOp : public OpKernel {
     const StringPiece restore_path = restore_path_tensor.scalar<tstring>()();
     OP_REQUIRES(ctx, !restore_path.empty(),
                 errors::InvalidArgument("path should be a valid string."));
+    Tensor *output_tensor = NULL;
+    OP_REQUIRES_OK(ctx, ctx->allocate_output(0, restore_path_tensor.shape(), &output_tensor));
     TraverseAndParse(std::string(restore_path));
+    ADP_LOG(INFO) << "Host FeatureMappingImport compute end";
   }
 };
 

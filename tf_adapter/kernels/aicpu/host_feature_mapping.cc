@@ -34,10 +34,10 @@ class FeatureMappingOp : public OpKernel {
   explicit FeatureMappingOp(OpKernelConstruction *ctx) : OpKernel(ctx) {
     OP_REQUIRES_OK(ctx, ctx->GetAttr("threshold", &threshold));
     OP_REQUIRES_OK(ctx, ctx->GetAttr("table_name", &table_name));
-    ADP_LOG(INFO) << "FeatureMapping built " << table_name;
+    ADP_LOG(INFO) << "Host FeatureMapping built" << table_name;
   }
   ~FeatureMappingOp() override {
-    ADP_LOG(INFO) << "FeatureMapping has been destructed";
+    ADP_LOG(INFO) << "Host FeatureMapping has been destructed";
   }
 
   FeatureMappingTable *get_or_init_tables(std::string table_name, int32_t buckets_num, int32_t threshold) {
@@ -79,17 +79,18 @@ class FeatureMappingOp : public OpKernel {
         std::pair<int32_t, int32_t> count_and_offset = std::make_pair(1, offset);
         table_mappings->insert(std::make_pair(feature_id, count_and_offset));
         offset_id_data[i - last_index] = offset;
-        ADP_LOG(INFO) << "new insert value " << offset;
+        ADP_LOG(INFO) << "new insert offset id " << offset;
       } else {
         std::pair<int32_t, int32_t> &count_and_offset = it->second;
         count_and_offset.first++;
         offset_id_data[i - last_index] = count_and_offset.second;
-        ADP_LOG(INFO) << "orginal value " << count_and_offset.second;
+        ADP_LOG(INFO) << "orginal offset id " << count_and_offset.second;
       }
     }
   }
 
   void Compute(OpKernelContext *ctx) override {
+    ADP_LOG(INFO) << "Host FeatureMapping compute begin";
     const Tensor &featureIdTensor = ctx->input(0);
     auto input = featureIdTensor.flat<int32_t>();
     auto feature_id_data = (const int32_t *)featureIdTensor.tensor_data().data();
@@ -118,6 +119,7 @@ class FeatureMappingOp : public OpKernel {
     if (!tasks.empty()) {
       pool.SyncRun(tasks);
     }
+    ADP_LOG(INFO) << "Host FeatureMapping compute end";
   }
 
  private:
