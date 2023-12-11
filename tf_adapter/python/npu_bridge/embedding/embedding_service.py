@@ -26,6 +26,8 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
 from tensorflow.core.framework import attr_value_pb2
 from npu_bridge.npu_cpu.npu_cpu_ops import gen_npu_cpu_ops
+from npu_bridge.npu_cpu.npu_cpu_ops import host_feature_mapping_export
+from npu_bridge.npu_cpu.npu_cpu_ops import host_feature_mapping_import
 from npu_bridge.embedding.embedding_resource import NpuEmbeddingResource
 from npu_bridge.embedding import embedding_optimizer
 from npu_bridge.embedding.embedding_table_map_policy import NoneTableMapPolicy, AutoMergeTableMapPolicy
@@ -193,6 +195,8 @@ class ESWorker:
         self._table_name_has_init = []
         # only storage all inited PS table names
         self._ps_table_name_list = []
+        # feature_mapping export and import
+        self._feature_mapping_name_list = []
         # now only use for adagrad accum
         self._ps_table_id_to_optimizer_mode = {}
         self._ps_table_id_to_optimizer_params = {}
@@ -851,11 +855,17 @@ class ESWorker:
                                                                  table_name=[name])
                 return tf.group([embedding_compute_var_export])
 
-    def save_checkpoints(self, path: str, save_filtered_features=False):
+    def save_checkpoints(self, path: str, save_filtered_features=False, export_feature_mapping=False):
         """ Operator for save values and optimizer params in all embedding tables. """
-        self._check_save_or_restore_params_v2(path=path, save_flag=True)
+        if export_feature_mapping is False:
+            self._check_save_or_restore_params_v2(path=path, save_flag=True)
         if not isinstance(save_filtered_features, bool):
             raise TypeError("save_filtered_features must be bool.")
+        if export_feature_mapping:
+            feature_mapping_export = host_feature_mapping_export(path=path,
+                                                                 table_name_list=self._feature_mapping_name_list)
+            if self._ps_table_count == 0:
+                return feature_mapping_export
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -885,7 +895,9 @@ class ESWorker:
                                                                  ps_id=ps_id_tensor,
                                                                  table_id=table_id_tensor,
                                                                  table_name=self._ps_table_name_list)
-                return tf.group([embedding_compute_var_export])
+                if export_feature_mapping is False:
+                    return tf.group([embedding_compute_var_export])
+        return embedding_compute_var_export, feature_mapping_export
 
     def restore_checkpoint(self, name: str, path: str):
         """ Operator for restore values and optimizer params in table_id embedding table. """
@@ -914,9 +926,14 @@ class ESWorker:
                                                                  table_name=[name])
                 return tf.group([embedding_compute_var_import])
 
-    def restore_checkpoints(self, path: str):
+    def restore_checkpoints(self, path: str, import_feature_mapping=False):
         """ Operator for restore values and optimizer params in all embedding tables. """
-        self._check_save_or_restore_params_v2(path=path, save_flag=False)
+        if import_feature_mapping is False:
+            self._check_save_or_restore_params_v2(path=path, save_flag=False)
+        if import_feature_mapping:
+            feature_mapping_import = host_feature_mapping_import(path=path)
+            if self._ps_table_count == 0:
+                return feature_mapping_import
         with specified_ps_engine_scope():
             table_id_list = []
             embedding_dim_list = []
@@ -944,7 +961,9 @@ class ESWorker:
                                                                  ps_id=ps_id_tensor,
                                                                  table_id=table_id_tensor,
                                                                  table_name=self._ps_table_name_list)
-                return tf.group([embedding_compute_var_import])
+                if import_feature_mapping is False:
+                    return tf.group([embedding_compute_var_import])
+        return embedding_compute_var_import, feature_mapping_import
 
     def save_incremental_embedding(self, name: str, path: str):
         """ Operator for save incremental values in table_id embedding table. """
@@ -1206,6 +1225,7 @@ class ESWorker:
                                             value_dtype, allow_merge, initializer):
         if name not in self._small_table_name_list:
             self._small_table_name_list.append(name)
+            self._feature_mapping_name_list.append(name)
         else:
             raise ValueError("This small table has been initialized.")
         if (init_vocabulary_size is None) or (embedding_dim is None) or (multihot_lens is None):
