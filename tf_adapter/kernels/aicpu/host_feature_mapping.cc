@@ -17,7 +17,7 @@ namespace featuremapping {
 using HashmapType = std::unordered_map<int32_t, std::pair<int32_t, int32_t>>;
 class SimpleThreadPool {
  public:
-  void SyncRun(const std::vector<std::function<int()>> &tasks) {
+  void SyncRun(const std::vector<std::function<int()>> &tasks) const {
     std::vector<std::future<int>> futs;
     for (auto &task : tasks) {
       futs.push_back(std::async(task));
@@ -40,7 +40,7 @@ class FeatureMappingOp : public OpKernel {
     ADP_LOG(DEBUG) << "Host FeatureMapping has been destructed";
   }
 
-  FeatureMappingTable *get_or_init_tables(std::string table_name, int32_t buckets_num, int32_t threshold) {
+  FeatureMappingTable *get_or_init_tables(std::string table_name, int32_t buckets_num, int32_t threshold) const {
     auto it = feature_mapping_table.find(table_name);
     if (it != feature_mapping_table.end()) {
       return it->second;
@@ -55,7 +55,7 @@ class FeatureMappingOp : public OpKernel {
   }
 
   int32_t get_and_increase_offset(FeatureMappingTable *table, int32_t bucket_index,
-                                  int32_t buckets_num, int32_t last_index) {
+                                  int32_t buckets_num, int32_t last_index) const {
     int32_t offset = table->offsets[bucket_index] * buckets_num + bucket_index + last_index;
     table->offsets[bucket_index]++;
     return offset;
@@ -94,12 +94,12 @@ class FeatureMappingOp : public OpKernel {
     ADP_LOG(INFO) << "Host FeatureMapping compute begin";
     const Tensor &featureIdTensor = ctx->input(0);
     auto input = featureIdTensor.flat<int32_t>();
-    auto feature_id_data = (const int32_t *)featureIdTensor.tensor_data().data();
+    auto feature_id_data = (const int32_t *)(featureIdTensor.tensor_data().data());
     const int32_t feature_id_len = input.size();
 
-    Tensor *output_tensor = NULL;
+    Tensor *output_tensor = nullptr;
     OP_REQUIRES_OK(ctx, ctx->allocate_output(0, featureIdTensor.shape(), &output_tensor));
-    auto offset_id = (int32_t *)output_tensor->tensor_data().data();
+    auto offset_id = (int32_t *)(output_tensor->tensor_data().data());
 
     // device FeatureMapping uses Usafe only support Single Core
     SimpleThreadPool pool;

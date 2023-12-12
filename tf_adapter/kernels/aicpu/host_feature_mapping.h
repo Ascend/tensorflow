@@ -10,6 +10,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef TENSORFLOW_TF_ADAPTER_KERNELS_HOST_FEATURE_MAPPING_OP_H
+#define TENSORFLOW_TF_ADAPTER_KERNELS_HOST_FEATURE_MAPPING_OP_H
+
 #include <future>
 #include <thread>
 #include <vector>
@@ -44,3 +47,5 @@ struct FeatureMappingTable {
 extern std::unordered_map<std::string, FeatureMappingTable *> feature_mapping_table;
 }  // namespace featuremapping
 }  // namespace tensorflow
+
+#endif // TENSORFLOW_TF_ADAPTER_KERNELS_HOST_FEATURE_MAPPING_OP_H

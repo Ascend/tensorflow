@@ -103,7 +103,7 @@ class FeatureMappingImportOp : public OpKernel {
     return;
   }
 
-  void FindTableDoImport(std::string &dst_path_way, std::string &file_name) {
+  void FindTableDoImport(std::string &dst_path_way, std::string &file_name) const {
     std::string src_file_name = dst_path_way + file_name;
     try {
       std::ifstream in_stream(src_file_name);
@@ -174,7 +174,7 @@ class FeatureMappingImportOp : public OpKernel {
     const StringPiece restore_path = restore_path_tensor.scalar<tstring>()();
     OP_REQUIRES(ctx, !restore_path.empty(),
                 errors::InvalidArgument("path should be a valid string."));
-    Tensor *output_tensor = NULL;
+    Tensor *output_tensor = nullptr;
     OP_REQUIRES_OK(ctx, ctx->allocate_output(0, restore_path_tensor.shape(), &output_tensor));
     TraverseAndParse(std::string(restore_path));
     ADP_LOG(INFO) << "Host FeatureMappingImport compute end";

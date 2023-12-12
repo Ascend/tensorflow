@@ -32,7 +32,7 @@ class FeatureMappingExportOp : public OpKernel {
     ADP_LOG(DEBUG) << "FeatureMappingExport has been destructed";
   }
 
-  void WriteMappingContens2File(std::string &table_name, std::string &dst_path) {
+  void WriteMappingContens2File(std::string &table_name, std::string &dst_path) const {
     auto it = feature_mapping_table.find(table_name);
     if (it == feature_mapping_table.end()) {
       ADP_LOG(WARNING) << "this table " << table_name << " is not in mapping, just skip";
@@ -116,7 +116,7 @@ class FeatureMappingExportOp : public OpKernel {
     const StringPiece save_path = save_path_tensor.scalar<tstring>()();
     OP_REQUIRES(ctx, !save_path.empty(),
                 errors::InvalidArgument("path should be a valid string."));
-    Tensor *output_tensor = NULL;
+    Tensor *output_tensor = nullptr;
     OP_REQUIRES_OK(ctx, ctx->allocate_output(0, save_path_tensor.shape(), &output_tensor));
     SaveFeatureMapping2File(std::string(save_path));
     ADP_LOG(INFO) << "Host FeatureMappingExport compute end";
