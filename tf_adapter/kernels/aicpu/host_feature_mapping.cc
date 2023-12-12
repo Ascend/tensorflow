@@ -37,7 +37,7 @@ class FeatureMappingOp : public OpKernel {
     ADP_LOG(DEBUG) << "Host FeatureMapping built table_name " << table_name_;
   }
   ~FeatureMappingOp() override {
-    ADP_LOG(DEBUG) << "Host FeatureMapping has been destructed";
+    ADP_LOG(DEBUG) << table_name_ << " has been destructed";
   }
 
   FeatureMappingTable *get_or_init_tables(std::string table_name, int32_t buckets_num, int32_t threshold) const {
@@ -69,8 +69,8 @@ class FeatureMappingOp : public OpKernel {
     ADP_LOG(DEBUG) << "last_index value " << last_index;
     for (int i = 0; i < feature_id_len; ++i) {
       int32_t feature_id = feature_id_data[i];
-      ADP_LOG(DEBUG) << "feature id " << feature_id;
       if (feature_id < 0) {
+        ADP_LOG(DEBUG) << "table_name " << table_name_ << " feature id " << feature_id << " is less than zero";
         offset_id_data[i] = -1;
         continue;
       }
@@ -80,18 +80,20 @@ class FeatureMappingOp : public OpKernel {
         std::pair<int32_t, int32_t> count_and_offset = std::make_pair(1, offset);
         table_mappings->insert(std::make_pair(feature_id, count_and_offset));
         offset_id_data[i] = offset;
-        ADP_LOG(DEBUG) << "new insert offset id " << offset;
+        ADP_LOG(DEBUG) << "table_name " << table_name_ << " feature id " << feature_id <<
+                          " new insert offset id " << offset;
       } else {
         std::pair<int32_t, int32_t> &count_and_offset = it->second;
         count_and_offset.first++;
         offset_id_data[i] = count_and_offset.second;
-        ADP_LOG(DEBUG) << "orginal offset id " << count_and_offset.second;
+        ADP_LOG(DEBUG) << "table_name " << table_name_ << "feature id " << feature_id <<
+                          " orginal offset id " << count_and_offset.second;
       }
     }
   }
 
   void Compute(OpKernelContext *ctx) override {
-    ADP_LOG(INFO) << "Host FeatureMapping compute begin";
+    ADP_LOG(INFO) << "table_name " << table_name_ << " compute begin";
     const Tensor &featureIdTensor = ctx->input(0);
     auto input = featureIdTensor.flat<int32_t>();
     auto feature_id_data = (const int32_t *)(featureIdTensor.tensor_data().data());
@@ -120,7 +122,7 @@ class FeatureMappingOp : public OpKernel {
     if (!tasks.empty()) {
       pool.SyncRun(tasks);
     }
-    ADP_LOG(INFO) << "Host FeatureMapping compute end";
+    ADP_LOG(INFO) << "table_name " << table_name_ << " compute end";
   }
 
  private:
