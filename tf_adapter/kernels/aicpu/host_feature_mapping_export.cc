@@ -10,6 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cerrno>
 #include <fstream>
 #include <iostream>
 
@@ -71,16 +72,21 @@ class FeatureMappingExportOp : public OpKernel {
   }
 
   void SaveFeatureMapping2File(const std::string &path) {
-    std::ifstream is_path(path);
-    if (!is_path) {
-      ADP_LOG(ERROR) << "export file path " << path << " is not exits";
-      return;
-    }
-
     const size_t path_length = path.size();
     std::string dst_path_way = path;
     if (path[path_length - 1] != '/') {
       (void)dst_path_way.append("/");
+    }
+
+    std::ifstream is_path(dst_path_way);
+    if (!is_path) {
+      ADP_LOG(DEBUG) << "export file path " << dst_path_way << " is not exits, make it";
+      if (mkdir(dst_path_way.c_str(), S_IRWXO | S_IRWXG | S_IRWXU) != 0) {
+        if (errno != EEXIST) {
+          ADP_LOG(ERROR) << "Create file directory " << dst_path_way << " failed, errmsg " << strerror(errno);
+          return;
+        }
+      }
     }
 
     const size_t name_size = table_name_list_.size();

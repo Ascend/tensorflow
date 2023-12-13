@@ -86,7 +86,7 @@ class FeatureMappingOp : public OpKernel {
         std::pair<int32_t, int32_t> &count_and_offset = it->second;
         count_and_offset.first++;
         offset_id_data[i] = count_and_offset.second;
-        ADP_LOG(DEBUG) << "table_name " << table_name_ << "feature id " << feature_id <<
+        ADP_LOG(DEBUG) << "table_name " << table_name_ << " feature id " << feature_id <<
                           " orginal offset id " << count_and_offset.second;
       }
     }
