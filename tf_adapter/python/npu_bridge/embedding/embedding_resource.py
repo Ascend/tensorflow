@@ -37,3 +37,7 @@ class NpuEmbeddingResource:
     def op(self):
         return self._tensor.op
 
+    @property
+    def device(self):
+        return self._tensor.op.device
+
