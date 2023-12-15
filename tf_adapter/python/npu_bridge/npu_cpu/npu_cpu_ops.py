@@ -320,13 +320,13 @@ def non_zero_with_value_shape(value, index, count):
 
 
 ## 提供host侧FeatureMapping功能
-#  @param feature_id int32 类型
+#  @param feature_id int64 类型
 #  @param threshold int 类型
 #  @param table_name string 类型
-#  @return offset_id int32 类型
+#  @return offset_id int64 类型
 def host_feature_mapping(feature_id, threshold=1, table_name="default_table_name"):
     """ host feature mapping. """
-    result = gen_npu_cpu_ops.FeatureMapping(
+    result = gen_npu_cpu_ops.HostFeatureMapping(
         feature_id=feature_id,
         threshold=threshold,
         table_name=table_name)

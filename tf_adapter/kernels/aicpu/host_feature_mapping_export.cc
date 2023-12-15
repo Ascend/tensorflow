@@ -51,12 +51,12 @@ class FeatureMappingExportOp : public OpKernel {
       // current use only one bucket refer to host feature mapping op
       int32_t bucket_index = 0;
       const auto mapping_map = table->feature_mappings_ptr[bucket_index];
-      std::unordered_map<int32_t, std::pair<int32_t, int32_t>>::iterator map_iter;
+      std::unordered_map<int64_t, std::pair<int64_t, int64_t>>::iterator map_iter;
       for (map_iter = mapping_map->begin(); map_iter != mapping_map->end(); ++map_iter) {
-        const int32_t feature_id = map_iter->first;
-        std::pair<int32_t, int32_t> &count_and_offset = map_iter->second;
-        const int32_t counts = count_and_offset.first;
-        const int32_t offset_id = count_and_offset.second;
+        const int64_t feature_id = map_iter->first;
+        std::pair<int64_t, int64_t> &count_and_offset = map_iter->second;
+        const int64_t counts = count_and_offset.first;
+        const int64_t offset_id = count_and_offset.second;
         // feature_id: 3 | counts: 1 | offset_id: 7
         std::string content = "feature_id: " + std::to_string(feature_id) + " | "
                               + "counts: " + std::to_string(counts) + " | "

@@ -25,7 +25,7 @@
 
 namespace tensorflow {
 namespace featuremapping {
-using HashmapType = std::unordered_map<int32_t, std::pair<int32_t, int32_t>>;
+using HashmapType = std::unordered_map<int64_t, std::pair<int64_t, int64_t>>;
 struct FeatureMappingTable {
   explicit FeatureMappingTable(int32_t input_buckets_num, int32_t input_threshold)
       : buckets_num(input_buckets_num), threshold(input_threshold), offsets(input_buckets_num),
@@ -38,10 +38,10 @@ struct FeatureMappingTable {
       }
     }
   }
-  static const uint32_t init_hashmap_size = 60 * 10000;
+  const int64_t init_hashmap_size = 60 * 10000;
   int32_t buckets_num;
   int32_t threshold;
-  std::vector<int> offsets;
+  std::vector<int64_t> offsets;
   std::vector<HashmapType *> feature_mappings_ptr;  // buckets_num分桶
 };
 extern std::unordered_map<std::string, FeatureMappingTable *> feature_mapping_table;

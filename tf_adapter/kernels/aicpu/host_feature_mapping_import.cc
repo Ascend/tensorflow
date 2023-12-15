@@ -40,11 +40,11 @@ class FeatureMappingImportOp : public OpKernel {
     size_t bar_pos = line.find("|");
     std::string feature_id_str = line.substr(fid_pos, bar_pos - fid_pos - 1);
     ADP_LOG(DEBUG) << "feature id str: " << feature_id_str;
-    uint32_t feature_id = 0;
+    int64_t feature_id = 0;
     try {
-      feature_id = stoi(feature_id_str);
+      feature_id = stoll(feature_id_str);
     } catch(std::exception &e) {
-      ADP_LOG(ERROR) << "stoi failed feature id str: " << feature_id_str << " reason: " << e.what();
+      ADP_LOG(ERROR) << "stoll failed feature id str: " << feature_id_str << " reason: " << e.what();
       return;
     }
 
@@ -52,22 +52,22 @@ class FeatureMappingImportOp : public OpKernel {
     size_t last_sep_pos = line.find_last_of("|");
     std::string counts_str = line.substr(counts_index, last_sep_pos - 1 - counts_index);
     ADP_LOG(DEBUG) << "counts str: " << counts_str;
-    uint32_t counts = 0;
+    int64_t counts = 0;
     try {
-      counts = stoi(counts_str);
+      counts = stoll(counts_str);
     } catch(std::exception &e) {
-      ADP_LOG(ERROR) << "stoi failed counts str: " << counts_str << " reason: " << e.what();
+      ADP_LOG(ERROR) << "stoll failed counts str: " << counts_str << " reason: " << e.what();
       return;
     }
 
     size_t off_pos = line.find_last_of(":") + kSpaceAndSymbolLength;
     std::string offset_id_str = line.substr(off_pos, line.length());
     ADP_LOG(DEBUG) << "offset id str: " << offset_id_str;
-    uint32_t offset_id = 0;
+    int64_t offset_id = 0;
     try {
-      offset_id = stoi(offset_id_str);
+      offset_id = stoll(offset_id_str);
     } catch(std::exception &e) {
-      ADP_LOG(ERROR) << "stoi failed offset id str: " << offset_id_str << " reason: " << e.what();
+      ADP_LOG(ERROR) << "stoll failed offset id str: " << offset_id_str << " reason: " << e.what();
       return;
     }
     ADP_LOG(DEBUG) << "feature_id: " << feature_id << " counts: " << counts << " offset_id: " << offset_id;
@@ -90,7 +90,7 @@ class FeatureMappingImportOp : public OpKernel {
       int32_t bucket_index = 0;
       auto it_key = table->feature_mappings_ptr[bucket_index]->find(feature_id);
       if (it_key == table->feature_mappings_ptr[bucket_index]->end()) {
-        std::pair<int32_t, int32_t> count_and_offset = std::make_pair(counts, offset_id);
+        std::pair<int64_t, int64_t> count_and_offset = std::make_pair(counts, offset_id);
         table->feature_mappings_ptr[bucket_index]->insert(std::make_pair(feature_id, count_and_offset));
         ADP_LOG(DEBUG) << "one item insert feature_id: " << feature_id << " counts: " << counts << " offset_id " << offset_id;
       } else {

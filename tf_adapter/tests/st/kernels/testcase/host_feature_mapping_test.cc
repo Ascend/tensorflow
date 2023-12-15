@@ -49,13 +49,13 @@ PartialTensorShape THostShape(std::initializer_list<int64> dims) {
 
 TEST(HostFeatureMappingTest, HostFeatureMappingTestShapeInference) {
   const OpRegistrationData *reg;
-  TF_CHECK_OK(OpRegistry::Global()->LookUp("FeatureMapping", &reg));
+  TF_CHECK_OK(OpRegistry::Global()->LookUp("HostFeatureMapping", &reg));
   OpDef op_def = reg->op_def;
   NodeDef def;
   int threshold = 1;
   std::string table_name = "table_name1";
   TF_CHECK_OK(NodeDefBuilder("dummy", &op_def)
-                  .Input(FakeHostInputStub(DT_INT32))
+                  .Input(FakeHostInputStub(DT_INT64))
                   .Attr("threshold", threshold)
                   .Attr("table_name", table_name)
                   .Finalize(&def));

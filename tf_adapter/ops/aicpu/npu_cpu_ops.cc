@@ -501,9 +501,9 @@ REGISTER_OP("EmbeddingFeatureMapping")
     return Status::OK();
   });
 
-REGISTER_OP("FeatureMapping")
-  .Input("feature_id: int32")
-  .Output("offset_id: int32")
+REGISTER_OP("HostFeatureMapping")
+  .Input("feature_id: int64")
+  .Output("offset_id: int64")
   .Attr("threshold: int = 1")
   .Attr("table_name: string = 'default_table_name' ")
   .SetShapeFn([](shape_inference::InferenceContext *c) {
