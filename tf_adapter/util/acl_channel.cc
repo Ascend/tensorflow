@@ -245,10 +245,8 @@ Status SendTensorsByAcl(const acltdtChannelHandle *acl_handle, acltdtTensorType 
   }
   if (acl_status != ACL_ERROR_NONE) {
     sleep(kWaitingForLogRecord);
-    std::string error_message = ge::GEGetErrorMsg();
     LOG(FATAL) << "Failed to send data by acl, error code : "<< acl_status << std::endl
-               << "Error Message is " << std::endl
-               << error_message;
+               << "Error Message is " << std::endl << ge::GEGetErrorMsgV2().GetString();
     return errors::Internal("Acl send data failed, acl status:", acl_status);
   }
   return Status::OK();

@@ -20,7 +20,7 @@
 #include "stub/defines.h"
 
 namespace ge {
-Status ParserInitialize(const std::map<std::string, std::string>& options);
+Status ParserInitialize(const std::map<ge::AscendString, ge::AscendString>& options);
 
 Status ParserFinalize();
 }  // namespace ge

@@ -84,7 +84,8 @@ bool SessionManager::CreateGeSession(const std::string &tf_session, ge::Session 
 
   // stream max parallel num
   ADP_LOG(INFO) << "[GEOP] stream_max_parallel_num :" << sess_options[ge::STREAM_MAX_PARALLEL_NUM];
-  ge_session = new (std::nothrow) ge::Session(sess_options);
+  const auto sess_options_ascend_string = ChangeStringToAscendString(sess_options);
+  ge_session = new (std::nothrow) ge::Session(sess_options_ascend_string);
   if (ge_session == nullptr) {
     ADP_LOG(ERROR) << "tf session " << tf_session << " create ge session failed.";
     LOG(ERROR) << "tf session " << tf_session << " create ge session failed.";

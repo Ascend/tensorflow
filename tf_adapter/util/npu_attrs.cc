@@ -107,6 +107,17 @@ extern const bool kIsHeterogeneous = []() -> bool {
   return is_heterogeneous == kRuntimeTypeHeterogeneous;
 }();
 
+std::map<ge::AscendString, ge::AscendString> ChangeStringToAscendString(
+    const std::map<std::string, std::string> &string_map) {
+  std::map<ge::AscendString, ge::AscendString> ascend_string_map;
+  for (const auto &string_pair : string_map) {
+    ascend_string_map.emplace(
+        std::make_pair(ge::AscendString(string_pair.first.c_str(), string_pair.first.length()),
+        ge::AscendString(string_pair.second.c_str(), string_pair.second.length())));
+  }
+  return ascend_string_map;
+}
+
 std::string GetDumpPath() {
   std::string npu_collect_path;
   (void) ReadStringFromEnvVar("NPU_COLLECT_PATH", "", &npu_collect_path);

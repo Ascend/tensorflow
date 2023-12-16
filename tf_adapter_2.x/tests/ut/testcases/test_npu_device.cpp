@@ -27,6 +27,7 @@
 #include "npu_managed_buffer.h"
 #include "npu_tensor.h"
 #include "npu_unwrap.h"
+#include "graph/ascend_string.h"
 
 #include "common/test_function_library.h"
 
@@ -253,8 +254,8 @@ TEST_F(ST_NpuDevice, eager_iterator_v2_op) {
 
 TEST(NpuUtils, SeparateGraphDef) {
   tensorflow::GraphDef graph_def;
-  std::map<std::string, std::string> const_value_map;
-  std::vector<std::string> partition_graph;
+  std::map<ge::AscendString, ge::AscendString> const_value_map;
+  std::vector<ge::AscendString> partition_graph;
   tensorflow::NodeDef *node_def = graph_def.add_node();
   node_def->set_op("Const");
   node_def->set_name("ConstOp");

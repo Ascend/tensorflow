@@ -3,6 +3,7 @@
 
 #include <functional>
 #include "graph/types.h"
+#include "graph/ascend_string.h"
 #include "ge_api_error_codes.h"
 
 namespace ge {
@@ -324,7 +325,7 @@ const graphStatus GRAPH_NODE_NEED_REPASS = 50331647;
 
 namespace domi {
 using Status = uint32_t;
-using GetGraphCallbackV2 = std::function<std::string(const std::string &subgraph_name)>;
+using GetGraphCallbackV3 = std::function<ge::AscendString(const ge::AscendString &subgraph_name)>;
 enum FrameworkType {
   CAFFE = 0,
   MINDSPORE = 1,

@@ -49,10 +49,8 @@ void GeFinalize() {
   ge::Status status = ge::GEFinalize();
   if (status != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status);
-    std::string error_message = ge::GEGetErrorMsg();
     LOG(ERROR) << "[GePlugin] GE finalize failed, ret : " << ToString(status) << std::endl
-               << "Error Message is : " << std::endl
-               << error_message;
+               << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
   }
 
   // parser finalize
@@ -305,7 +303,8 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
   init_options["ge.optionNameMap"] = option_name_map.dump();
 
   // parser Initialize
-  ge::Status status_parser = ge::ParserInitialize(init_options);
+  auto const init_options_ascend_string = ChangeStringToAscendString(init_options);
+  ge::Status status_parser = ge::ParserInitialize(init_options_ascend_string);
   if (status_parser != ge::SUCCESS) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
     ADP_LOG(FATAL) << "[GePlugin] Initialize parser failed, ret : " << ToString(status_parser);
@@ -320,18 +319,19 @@ void GePlugin::Init(std::map<std::string, std::string> &init_options, const bool
     future_ = std::async(
                   std::launch::async,
                   [this](const std::map<std::string, std::string> &init_options) -> ge::Status {
-                    const auto ret = ge::GEInitialize(init_options);
-                    error_message_ = ge::GEGetErrorMsg();
+                    const auto init_ascend_string_options = ChangeStringToAscendString(init_options);
+                    const auto ret = ge::GEInitialize(init_ascend_string_options);
+                    error_message_ = std::string(ge::GEGetErrorMsgV2().GetString());
                     return ret;
                   },
                   init_options)
                   .share();
   } else {
-    ge::Status status = ge::GEInitialize(init_options);
+    ge::Status status = ge::GEInitialize(init_options_ascend_string);
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status);
-      error_message_ = ge::GEGetErrorMsg();
+      error_message_ = std::string(ge::GEGetErrorMsgV2().GetString());
       LOG(FATAL) << "[GePlugin] Initialize ge failed, ret : " << ToString(status) << std::endl
                  << "Error Message is : " << std::endl
                  << error_message_;
@@ -559,7 +559,7 @@ int32_t RdmaInitAndRegister(const std::vector<ge::HostVarInfo> &var_info, size_t
 }
 
 int32_t GetVarAddrAndSize(const string &var_name, uint64_t &base_addr, uint64_t &var_size) {
-  ge::Status ret = ge::GetVarBaseAddrAndSize(var_name, base_addr, var_size);
+  ge::Status ret = ge::GetVarBaseAddrAndSize(var_name.c_str(), base_addr, var_size);
   if (ret != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GePlugin] get " << var_name << " base addr and size failed, ret : " << ToString(ret);
     LOG(ERROR) << "[GePlugin] get " << var_name << " base addr and size failed, ret : " << ToString(ret);

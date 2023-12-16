@@ -510,11 +510,11 @@ void NpuCustomizedOptimizeGraph(tensorflow::FunctionLibraryRuntime &lib, std::un
 }
 
 tensorflow::Status SeparateGraphDef(tensorflow::GraphDef *def,
-                                    std::vector<std::string> &partition_graph,
-                                    std::map<std::string, std::string> &const_value_map) {
+                                    std::vector<ge::AscendString> &partition_graph,
+                                    std::map<ge::AscendString, ge::AscendString> &const_value_map) {
   std::string def_str = def->SerializeAsString();
   if (!def_str.empty()) {
-    partition_graph.push_back(def_str);
+    partition_graph.push_back(ge::AscendString(def_str.c_str(), def_str.length()));
     return tensorflow::Status::OK();
   }
   LOG(INFO) << "GraphDef is beyond 2G, which is need separate weight from model";
@@ -529,12 +529,13 @@ tensorflow::Status SeparateGraphDef(tensorflow::GraphDef *def,
       }
       tensorflow::TensorProto *tensor = iter->second.mutable_tensor();
       std::string tensor_content = tensor->tensor_content();
-      const_value_map.insert({node_name, tensor_content});
+      const_value_map.insert({ge::AscendString(node_name.c_str(), node_name.length()),
+          ge::AscendString(tensor_content.c_str(), tensor_content.length())});
       tensor->set_tensor_content("");
     }
   }
   def_str = def->SerializeAsString();
-  partition_graph.push_back(def_str);
+  partition_graph.push_back(ge::AscendString(def_str.c_str(), def_str.length()));
   return tensorflow::Status::OK();
 }
 
@@ -556,6 +557,17 @@ tensorflow::Status LoopCopy(char *dst_ptr, size_t dst_size, char *src_ptr, size_
     src_size -= src_copy_size;
   } while (copy_size < org_src_size);
   return tensorflow::Status::OK();
+}
+
+std::map<ge::AscendString, ge::AscendString> StringToAscendString(
+    const std::map<std::string, std::string> &string_map) {
+  std::map<ge::AscendString, ge::AscendString> ascend_string_map;
+  for (const auto &string_pair : string_map) {
+    ascend_string_map.emplace(
+        std::make_pair(ge::AscendString(string_pair.first.c_str(), string_pair.first.length()),
+        ge::AscendString(string_pair.second.c_str(), string_pair.second.length())));
+  }
+  return ascend_string_map;
 }
 
 int64_t CreateChannelCapacity(const npu::TensorPartialShapes &shapes, const npu::TensorDataTypes &types) {

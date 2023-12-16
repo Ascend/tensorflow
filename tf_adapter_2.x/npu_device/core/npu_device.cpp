@@ -206,7 +206,8 @@ void NpuDevice::EraseIteratorProvider(const TFE_Context *const context, const te
  */
 std::string NpuDevice::CreateDevice(const char *name, int device_index,
                                     const std::map<std::string, std::string> &options, NpuDevice **device) {
-  auto *ge_session = new (std::nothrow) ge::Session(options);
+  const auto options_ascend_string = StringToAscendString(options);
+  auto *ge_session = new (std::nothrow) ge::Session(options_ascend_string);
   if (ge_session == nullptr) {
     return "Failed init graph engine: create new session failed";
   }
@@ -832,7 +833,7 @@ void NpuDevice::RunGeGraphAsync(TFE_Context *context, uint64_t graph_id, int num
       done(tensorflow::errors::OutOfRange("Graph engine process graph ", graph_id, " reach end of sequence"));
       return;
     } else if (s != ge::SUCCESS) {
-      std::string err_msg = ge::GEGetErrorMsg();
+      std::string err_msg(ge::GEGetErrorMsgV2().GetString());
       if (err_msg.empty()) {
         err_msg = "<unknown error> code:" + std::to_string(s);
       }
@@ -978,30 +979,32 @@ uint64_t NpuDevice::AddGeGraphInner(TFE_Context *context, uint64_t graph_id, con
     }
   }
   options["ge.exec.graphIOMemAllocMode"] = "ByGE";
-  NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph, options),
+  const auto options_ascend_string = StringToAscendString(options);
+  NPU_CTX_REQUIRES_GE_OK_RETURN(status, "Graph engine Add graph", GeSession()->AddGraph(graph_id, ge_graph, options_ascend_string),
                                 graph_id);
   return graph_id;
 }
 
 tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const std::string &name,
                                                    const tensorflow::GraphDef &def, ge::Graph &ge_graph) const {
-  auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name);
+  auto ge_compute_graph = std::make_shared<ge::ComputeGraph>(name.c_str());
   std::shared_ptr<domi::ModelParser> parser =
     domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
   NPU_REQUIRES(parser != nullptr, tensorflow::errors::Internal("NPU Create new tensorflow model parser failed"));
 
-  auto request_subgraph = [name, context](const std::string &fn) -> std::string {
-    DLOG() << "Tensorflow model parser requesting subgraph " << fn << " for ge graph " << name;
+  auto request_subgraph = [name, context](const ge::AscendString &fn) -> ge::AscendString {
+    std::string fn_str(fn.GetString(), fn.GetLength());
+    DLOG() << "Tensorflow model parser requesting subgraph " << fn_str << " for ge graph " << name;
     tensorflow::FunctionLibraryDefinition *lib_def = npu::UnwrapCtx(context)->FuncLibDef();
-    const tensorflow::FunctionDef *fdef = lib_def->Find(fn);
+    const tensorflow::FunctionDef *fdef = lib_def->Find(fn_str);
     if (fdef == nullptr) {
-      return "";
+      return ge::AscendString("");
     }
     std::unique_ptr<tensorflow::FunctionBody> fbody;
     auto tf_status = FunctionDefToBodyHelper(*fdef, tensorflow::AttrSlice{}, lib_def, &fbody);
     if (!tf_status.ok()) {
       LOG(ERROR) << "Failed trans function body to graph " << tf_status.ToString();
-      return "";
+      return ge::AscendString("");
     }
 
     tensorflow::ProcessFunctionLibraryRuntime *pflr = npu::UnwrapCtx(context)->pflr();
@@ -1016,17 +1019,18 @@ tensorflow::Status NpuDevice::TransTfGraph2GeGraph(TFE_Context *context, const s
     AssembleParserAddons(context, graph.get());
 
     if (kDumpExecutionDetail || kDumpGraph) {
-      WriteTextProto(tensorflow::Env::Default(), name + "_subgraph_" + fn + ".pbtxt", graph->ToGraphDefDebug());
+      WriteTextProto(tensorflow::Env::Default(), name + "_subgraph_" + fn_str + ".pbtxt", graph->ToGraphDefDebug());
     }
-    return graph->ToGraphDefDebug().SerializeAsString();
+    const std::string graph_def = graph->ToGraphDefDebug().SerializeAsString();
+    return ge::AscendString(graph_def.c_str(), graph_def.length());
   };
 
-  std::map<std::string, std::string> const_value_map;
-  std::vector<std::string> partition_graph;
+  std::map<ge::AscendString, ge::AscendString> const_value_map;
+  std::vector<ge::AscendString> partition_graph;
   NPU_REQUIRES_OK(SeparateGraphDef(const_cast<tensorflow::GraphDef *>(&def), partition_graph, const_value_map));
-  NPU_REQUIRES(
-    parser->ParseProtoWithSubgraph(partition_graph, const_value_map, request_subgraph, ge_compute_graph) == ge::SUCCESS,
-    tensorflow::errors::Internal("NPU Parse tensorflow model failed"));
+  NPU_REQUIRES(parser->ParseProtoWithSubgraph(partition_graph, const_value_map,
+      request_subgraph, ge_compute_graph) == ge::SUCCESS,
+      tensorflow::errors::Internal("NPU Parse tensorflow model failed"));
 
   if (ge_compute_graph->GetAllNodesSize() != 0) {
     ge_graph = ge::GraphUtilsEx::CreateGraphFromComputeGraph(ge_compute_graph);

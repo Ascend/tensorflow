@@ -24,6 +24,7 @@
 #include <mutex>
 #include <string>
 #include "ge/ge_api_types.h"
+#include "graph/ascend_string.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/graph/graph.h"
@@ -39,6 +40,8 @@ Status GetDeviceID(uint32_t &device_id);
 Status GetStepFromEnv(const std::string &env_name, uint32_t &step);
 Status GetLossFromEnv(const std::string &env_name, float &loss);
 void Split(const std::string &s, std::vector<std::string> &result, const char *delchar = " ");
+std::map<ge::AscendString, ge::AscendString> ChangeStringToAscendString(
+    const std::map<std::string, std::string> &string_map);
 extern const bool kDumpGraph;
 extern const bool kIsHeterogeneous;
 

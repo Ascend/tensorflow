@@ -23,15 +23,15 @@
 #include <string>
 #include <vector>
 #include <cstring>
-
+#include "graph/ascend_string.h"
 #include "tensorflow/core/graph/graph.h"
 
 namespace ge {
-Status GEInitialize(const std::map<std::string, std::string> &options);
+Status GEInitialize(const std::map<ge::AscendString, ge::AscendString> &options);
 
 Status GEFinalize();
 
-std::string GEGetErrorMsg();
+ge::AscendString GEGetErrorMsgV2();
 
 class Shape {
  public:
@@ -122,12 +122,13 @@ class Session {
 
  public:
   explicit Session(const std::map<std::string, std::string> &options) {}
+  explicit Session(const std::map<ge::AscendString, ge::AscendString> &options) {}
 
   ~Session() = default;
 
   Status AddGraph(uint32_t graphId, const Graph &graph);
 
-  Status AddGraph(uint32_t graphId, const Graph &graph, const std::map<std::string, std::string> &options);
+  Status AddGraph(uint32_t graphId, const Graph &graph, const std::map<ge::AscendString, ge::AscendString> &options);
 
   Status RemoveGraph(uint32_t graphId);
 

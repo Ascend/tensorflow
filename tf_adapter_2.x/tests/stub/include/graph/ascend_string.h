@@ -27,8 +27,9 @@ public:
     AscendString() = default;
     ~AscendString() = default;
     inline explicit AscendString(const char *name);
-
+    inline explicit AscendString(const char *name, size_t length);
     inline const char *GetString() const;
+    inline size_t GetLength() const;
     inline bool operator<(const AscendString &d) const;
     inline bool operator>(const AscendString &d) const;
     inline bool operator<=(const AscendString &d) const;
@@ -48,6 +49,23 @@ inline AscendString::AscendString(const char *name) {
       name_ = nullptr;
     }
   }
+}
+
+inline AscendString::AscendString(const char *name, size_t length) {
+  if (name != nullptr) {
+    try {
+      name_ = std::make_shared<std::string>(name, length);
+    } catch (...) {
+      name_ = nullptr;
+    }
+  }
+}
+
+inline size_t AscendString::GetLength() const {
+  if (name_ == nullptr) {
+    return 0;
+  }
+  return name_->length();
 }
 
 inline const char *AscendString::GetString() const {

@@ -34,7 +34,7 @@ Status Session::AddGraph(uint32_t graphId, const Graph &graph) {
   return SUCCESS;
 }
 
-Status Session::AddGraph(uint32_t graphId, const Graph &graph, const std::map<std::string, std::string> &options) {
+Status Session::AddGraph(uint32_t graphId, const Graph &graph, const std::map<ge::AscendString, ge::AscendString> &options) {
   graphs_[graphId] = graph.graph;
   graph_need_rebuild_[graphId] = false;
   return SUCCESS;
@@ -53,6 +53,7 @@ Status Session::RunGraphAsync(uint32_t graphId, const std::vector<ge::Tensor> &i
 
   if (graph == nullptr) {
     callback(ge::FAILED, outputs);
+    return ge::FAILED;
   }
   for (const auto &node : graph->op_nodes()) {
     if (node->IsRetval()) {
@@ -107,10 +108,9 @@ bool Session::IsGraphNeedRebuild(uint32_t graphId) { return graph_need_rebuild_[
 size_t ComputeGraph::GetAllNodesSize() const { return graph->num_op_nodes(); }
 size_t ComputeGraph::GetInputSize() const { return 1U; }
 size_t ComputeGraph::GetOutputSize() const { return 1U; }
+ge::AscendString GEGetErrorMsgV2() { return ge::AscendString("ERROR"); }
 
-std::string GEGetErrorMsg() { return ""; }
-
-Status GEInitialize(const std::map<std::string, std::string> &options) { return SUCCESS; }
+Status GEInitialize(const std::map<ge::AscendString, ge::AscendString> &options) { return SUCCESS; }
 
 Status GEFinalize() { return SUCCESS; }
 

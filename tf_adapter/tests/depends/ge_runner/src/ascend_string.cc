@@ -25,6 +25,14 @@ AscendString::AscendString(const char* name) {
     }
   }
 }
+AscendString::AscendString(const char_t *const name, size_t length) {
+  if (name != nullptr) {
+    name_ = std::shared_ptr<std::string>(new (std::nothrow) std::string(name, length)); //lint !e1524
+    if (name_ == nullptr) {
+      fprintf(stderr, "[New][String]AscendString[%s] make shared failed.", name);
+    }
+  }
+}
 
 const char* AscendString::GetString() const {
   if (name_ == nullptr) {

@@ -109,12 +109,12 @@ class TensorFlowModelParser : public domi::ModelParser {
   Status ParseProtoWithSubgraph(const google::protobuf::Message *proto, domi::GetGraphCallback callback,
                                 ge::ComputeGraphPtr &graph) override;
 
-  Status ParseProtoWithSubgraph(const std::string &serialized_proto, domi::GetGraphCallbackV2 callback,
+  Status ParseProtoWithSubgraph(const ge::AscendString &serialized_proto, domi::GetGraphCallbackV3 callback,
                                 ge::ComputeGraphPtr &graph) override;
 
-  Status ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
-                                const std::map<std::string, std::string> &const_value_map,
-                                domi::GetGraphCallbackV2 callback,
+  Status ParseProtoWithSubgraph(const std::vector<ge::AscendString> &partitioned_serialized,
+                                const std::map<ge::AscendString, ge::AscendString> &const_value_map,
+                                domi::GetGraphCallbackV3 callback,
                                 ge::ComputeGraphPtr &graph) override;
 
   ge::DataType ConvertToGeDataType(const uint32_t type) override;
@@ -138,11 +138,11 @@ Status TensorFlowModelParser::ToJson(const char *model_file, const char *json_fi
 
 Status TensorFlowModelParser::ParseProto(const google::protobuf::Message *proto, ge::ComputeGraphPtr &graph) { return ge::SUCCESS; }
 
-Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto,
-                                                     domi::GetGraphCallbackV2 callback,
+Status TensorFlowModelParser::ParseProtoWithSubgraph(const ge::AscendString &serialized_proto,
+                                                     domi::GetGraphCallbackV3 callback,
                                                      ge::ComputeGraphPtr &graph) {
-  std::vector<std::string> partitioned_serialized{serialized_proto};
-  std::map<std::string, std::string> const_value_map;
+  std::vector<ge::AscendString> partitioned_serialized{serialized_proto};
+  std::map<ge::AscendString, ge::AscendString> const_value_map;
   return ParseProtoWithSubgraph(partitioned_serialized, const_value_map, callback, graph);
 }
 
@@ -152,9 +152,9 @@ void SetParseRootGraph(bool is_root) {
   g_parse_root_graph = is_root;
 }
 
-Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
-                                                     const std::map<std::string, std::string> &const_value_map,
-                                                     domi::GetGraphCallbackV2 callback,
+Status TensorFlowModelParser::ParseProtoWithSubgraph(const std::vector<ge::AscendString> &partitioned_serialized,
+                                                     const std::map<ge::AscendString, ge::AscendString> &const_value_map,
+                                                     domi::GetGraphCallbackV3 callback,
                                                      ge::ComputeGraphPtr &graph) {
   if (!g_parse_root_graph) {
     callback("finall_branch1_Y3CNZMF9Vv8");
@@ -193,14 +193,19 @@ GE_FUNC_VISIBILITY Status MallocSharedMemory(const TensorInfo &tensor_info, uint
   return ge::SUCCESS;
 }
 
-GE_FUNC_VISIBILITY Status GetVarBaseAddrAndSize(const std::string &var_name, uint64_t &base_addr, uint64_t &var_size) {
-  if (var_name.empty()) {
+GE_FUNC_VISIBILITY Status GetVarBaseAddrAndSize(const char_t *var_name, uint64_t &base_addr, uint64_t &var_size) {
+  if (var_name == nullptr) {
     return ge::FAILED;
   }
+  
+  if (std::string(var_name) == "") {
+    return ge::FAILED;
+  }
+
   return ge::SUCCESS;
 }
 
-GE_FUNC_VISIBILITY Status GEInitialize(const std::map<std::string, std::string> &options) {
+GE_FUNC_VISIBILITY Status GEInitialize(const std::map<ge::AscendString, ge::AscendString> &options) {
   if (options.empty()) {
     return ge::FAILED;
   }
@@ -218,7 +223,7 @@ GE_FUNC_VISIBILITY Status GEFinalize() {
   return ge::SUCCESS;
 }
 
-Status ParserInitialize(const std::map<std::string, std::string> &options) {
+Status ParserInitialize(const std::map<ge::AscendString, ge::AscendString> &options) {
   if (options.empty()) {
     return ge::FAILED;
   }
@@ -233,9 +238,11 @@ Status ParserFinalize() {
   return ge::SUCCESS;
 }
 
+GE_FUNC_VISIBILITY ge::AscendString GEGetErrorMsgV2() { return ge::AscendString("ERROR");}
 GE_FUNC_VISIBILITY std::string GEGetErrorMsg() { return "ERROR";}
 
 Session::Session(const std::map<string, string> &options) {}
+Session::Session(const std::map<ge::AscendString, ge::AscendString> &options) {}
 
 Session::~Session() {
   graphs_map.clear();
@@ -258,7 +265,7 @@ bool Session::IsGraphNeedRebuild(uint32_t graphId) {
   return true;
 }
 
-Status Session::AddGraph(uint32_t graphId, const Graph &graph, const std::map<std::string, std::string> &options) {
+Status Session::AddGraph(uint32_t graphId, const Graph &graph, const std::map<ge::AscendString, ge::AscendString> &options) {
   auto ret = graphs_map.find(graphId);
   if (ret != graphs_map.end()) {
     return ge::FAILED;
@@ -399,9 +406,9 @@ ComputeGraphPtr GraphUtilsEx::GetComputeGraph(const ge::Graph &graph) {
 }
 
 void GraphUtils::DumpGEGraph(const ComputeGraphPtr &graph,
-                 const std::string &suffix,
-                 bool is_always_dump,
-                 const std::string &user_graph_name) {
+                             const std::string &suffix,
+                             bool is_always_dump,
+                             const std::string &user_graph_name) {
   return;
 }
 
@@ -464,6 +471,7 @@ const std::uint8_t *Buffer::GetData() const {
 
 Model::Model() {}
 Model::Model(const string &name, const string &custom_version) {}
+Model::Model(const char_t *name, const char_t *custom_version) {}
 void Model::SetGraph(const ComputeGraphPtr &graph) {}
 graphStatus Model::Save(Buffer &buffer, bool is_dump) const {
   return GRAPH_SUCCESS;

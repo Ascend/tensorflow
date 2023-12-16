@@ -26,6 +26,7 @@
 
 #include "acl/acl_base.h"
 #include "graph/types.h"
+#include "graph/ascend_string.h"
 
 #include "npu_types.h"
 
@@ -49,8 +50,8 @@ class ScopeTensorHandleDeleter {
 tensorflow::Status MapGeType2Tf(ge::DataType ge_type, tensorflow::DataType &tf_type);
 
 tensorflow::Status SeparateGraphDef(tensorflow::GraphDef *def,
-                                    std::vector<std::string> &partition_graph,
-                                    std::map<std::string, std::string> &const_value_map);
+                                    std::vector<ge::AscendString> &partition_graph,
+                                    std::map<ge::AscendString, ge::AscendString> &const_value_map);
 
 /**
  * @brief: map tf type to ge
@@ -95,6 +96,9 @@ std::string VecToString(std::vector<T> vec) {
   }
   return s + "]";
 }
+
+std::map<ge::AscendString, ge::AscendString> StringToAscendString(
+    const std::map<std::string, std::string> &string_map);
 
 std::string SetToString(const std::set<std::string> &vec);
 

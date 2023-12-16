@@ -597,8 +597,8 @@ TEST_F(GeOpTest, test_MakeCompatShape) {
 TEST_F(GeOpTest, test_SeparateGraphDef) {
   GeOp *geop_node;
   GraphDef graph_def;
-  std::map<std::string, std::string> const_value_map;
-  std::vector<std::string> partition_graph;
+  std::map<ge::AscendString, ge::AscendString> const_value_map;
+  std::vector<ge::AscendString> partition_graph;
   NodeDef *node_def = graph_def.add_node();
   node_def->set_op("Const");
   node_def->set_name("ConstOp");

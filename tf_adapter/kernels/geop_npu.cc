@@ -835,10 +835,8 @@ int32_t GeOp::InitRebuildFlag(uint32_t cache_graph_id) {
   auto ret = ge_session_->RemoveGraph(cache_graph_id);
   if (ret != ge::SUCCESS) {
     ADP_LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret;
-    std::string error_message = ge::GEGetErrorMsg();
     LOG(ERROR) << "[GEOP] Failed to remove graph " << cache_graph_id << " from ge, error code " << ret << std::endl
-               << "Error Message is : " << std::endl
-               << error_message;
+               << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
     return -1;
   }
 
@@ -1027,21 +1025,22 @@ Status GeOp::DoGraphParser(ge::ComputeGraphPtr &compute_graph, FunctionLibraryDe
       domi::ModelParserFactory::Instance()->CreateModelParser(domi::FrameworkType::TENSORFLOW);
   REQUIRES_NOT_NULL(model_parser);
 
-  std::map<std::string, std::string> const_value_map;
-  std::vector<std::string> partition_graph;
+  std::map<ge::AscendString, ge::AscendString> const_value_map;
+  std::vector<ge::AscendString> partition_graph;
   auto tf_status = SeparateGraphDef(ori_graph_def, partition_graph, const_value_map);
   if (!tf_status.ok()) {
     return tf_status;
   }
-  auto build_sub_graph = [this, flib_def](const std::string &graph) -> std::string {
-    return this->BuildSubGraph(flib_def, graph);
+  auto build_sub_graph = [this, flib_def](const ge::AscendString &graph) -> ge::AscendString {
+    const auto &graph_def = this->BuildSubGraph(flib_def, std::string(graph.GetString()));
+    return ge::AscendString(graph_def.c_str(), graph_def.length());
   };
   ge::Status status =
       model_parser->ParseProtoWithSubgraph(partition_graph, const_value_map, build_sub_graph, compute_graph);
   if (status != ge::SUCCESS) {
-    std::string error_message = ge::GEGetErrorMsg();
     std::stringstream ss;
-    ss << "graph parse failed. ret : " << status << std::endl << "Error Message is : " << std::endl << error_message;
+    ss << "graph parse failed. ret : " << status << std::endl << "Error Message is : "
+       << std::endl << ge::GEGetErrorMsgV2().GetString();
     return errors::Internal(ss.str());
   }
 
@@ -1135,9 +1134,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     auto input_vec_aoe = input_vec;
     if (RunTuning(input_vec_aoe, inputs, ctx) != 0) {
       ADP_LOG(ERROR) << "RunTuning fail.";
-      std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
-      ss << std::endl << error_message;
+      ss << std::endl << ge::GEGetErrorMsgV2().GetString();
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
     }
     if (InitRebuildFlag(cache_graph_id) != 0) {
@@ -1192,7 +1190,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
                   << " , tf session: " << tf_session_ << " , graph id: " << cache_graph_id;
     ge::ComputeGraphPtr compute_graph = nullptr;
     try {
-      compute_graph = std::make_shared<ge::ComputeGraph>("ge_default_" + CurrentTimeInStr());
+      const std::string compute_graph_name = "ge_default_" + CurrentTimeInStr();
+      compute_graph = std::make_shared<ge::ComputeGraph>(compute_graph_name.c_str());
     } catch (...) {
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal("make shared failed"), done);
     }
@@ -1263,18 +1262,17 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     ADP_LOG(EVENT) << "[GEOP] call ge session add graph jit_compile: " << jit_compile_;
     graph_options["ge.exec.graphIOMemAllocMode"] = "ByGE";
     OP_REQUIRES_OK_ASYNC(ctx, CreateGeSession(), done);
-    auto status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_options);
+    auto const graph_option_ascend_string = ChangeStringToAscendString(graph_options);
+    auto status = ge_session_->AddGraph(cache_graph_id, ge_graph, graph_option_ascend_string);
     std::stringstream ss;
     if (status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << "[GEOP] call ge session add graph failed, kernel: " << geop_name << " ,tf session: "
                      << tf_session_ << ", graph id: " << cache_graph_id;
 
-      std::string error_message = ge::GEGetErrorMsg();
       ss << "[GEOP] call ge session add graph failed, kernel: " << geop_name << ", tf session: " << tf_session_
          << ", graph id: " << cache_graph_id << std::endl
-         << "Error Message is : " << std::endl
-         << error_message;
+         << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
     }
     OP_REQUIRES_ASYNC(ctx, status == ge::SUCCESS, errors::Internal(ss.str()), done);
     add_graph_flag_ = true;
@@ -1290,10 +1288,8 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
       ge::Status build_graph_status = ge_session_->BuildGraph(cache_graph_id, inputs);
       std::stringstream ss;
       if (build_graph_status != ge::SUCCESS) {
-        std::string error_message = ge::GEGetErrorMsg();
         ss << "[GEOP] GE session build graph failed, domi_ret : " << build_graph_status << std::endl
-           << "Error Message is : " << std::endl
-           << error_message;
+           << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
       }
       OP_REQUIRES_ASYNC(ctx, build_graph_status == ge::SUCCESS, errors::Internal(ss.str()), done);
       ADP_LOG(INFO) << "[GEOP] Build graph success.";
@@ -1317,11 +1313,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     if (ge_status == ge::SUCCESS) {
       if (BuildOutputTensorInfo(ctx, outputs) != Status::OK()) {
         ADP_LOG(FATAL) << ctx->op_kernel().name() << " GEOP::DoRunAsync get output failed.";
-        std::string error_message = ge::GEGetErrorMsg();
         std::stringstream ss;
         ss << ctx->op_kernel().name() << "GEOP::DoRunAsync get output failed." << std::endl
-           << "Error Message is : " << std::endl
-           << error_message;
+           << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
         OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
         return;
       }
@@ -1332,10 +1326,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     } else if (ge_status != ge::SUCCESS) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
       ADP_LOG(FATAL) << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed";
-      std::string error_message = ge::GEGetErrorMsg();
       std::stringstream ss;
       ss << ctx->op_kernel().name() << "GEOP::::DoRunAsync Failed" << std::endl
-         << "Error Message is : " << std::endl << error_message;
+         << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
       OP_REQUIRES_ASYNC(ctx, false, errors::Internal(ss.str()), done);
       return;
     }
@@ -1354,11 +1347,9 @@ void GeOp::ComputeAsync(OpKernelContext *ctx, DoneCallback done) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kFatalSleepTime));
     ADP_LOG(FATAL) << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << " ,tf session: "
                    << tf_session_ << " ,graph id: " << cache_graph_id;
-    std::string error_message = ge::GEGetErrorMsg();
     ss << "[GEOP] call ge session RunGraphAsync Failed, kernel:" << geop_name << ", tf session: " << tf_session_
        << ", graph id: " << cache_graph_id << std::endl
-       << "Error Message is : " << std::endl
-       << error_message;
+       << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
   }
   OP_REQUIRES_ASYNC(ctx, run_graph_status == ge::SUCCESS, errors::Internal(ss.str()), done);
 
@@ -1739,11 +1730,11 @@ Status GeOp::BuildGraphDef(FunctionLibraryDefinition &flib_def, const std::vecto
 }
 
 Status GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
-                              std::vector<std::string> &partition_graph,
-                              std::map<std::string, std::string> &const_value_map) {
+                              std::vector<ge::AscendString> &partition_graph,
+                              std::map<ge::AscendString, ge::AscendString> &const_value_map) {
   std::string graph_def_str = ori_graph_def.SerializeAsString();
   if (!graph_def_str.empty()) {
-    partition_graph.push_back(graph_def_str);
+    partition_graph.push_back(ge::AscendString(graph_def_str.c_str(), graph_def_str.length()));
     return Status::OK();
   }
   LOG(INFO) << "GraphDef is beyond 2G, which is need separate weight from model";
@@ -1758,12 +1749,13 @@ Status GeOp::SeparateGraphDef(GraphDef &ori_graph_def,
       }
       TensorProto *tensor = iter->second.mutable_tensor();
       std::string tensor_content = tensor->tensor_content();
-      const_value_map.insert({node_name, tensor_content});
+      const_value_map.insert({ge::AscendString(node_name.c_str(), node_name.length()),
+          ge::AscendString(tensor_content.c_str(), tensor_content.length())});
       tensor->set_tensor_content("");
     }
   }
   graph_def_str = ori_graph_def.SerializeAsString();
-  partition_graph.push_back(graph_def_str);
+  partition_graph.push_back(ge::AscendString(graph_def_str.c_str(), graph_def_str.length()));
   return Status::OK();
 }
 
@@ -1781,7 +1773,8 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
   node_def.mutable_attr()->insert({"_output_num", ot_value});
 
   std::string model_path = node_def.attr().find("model_path")->second.s();
-  ge::Graph sub_graph("onnx_compute_graph_" + node->name());
+  std::string graph_name = "onnx_compute_graph_" + node->name();
+  ge::Graph sub_graph(graph_name.c_str());
   std::map<ge::AscendString, ge::AscendString> parser_params;
   std::string subgrph_name("onnx_compute_graph_" + node->name() + '_' + CurrentTimeInStr());
   parser_params.insert({ge::AscendString(ge::ir_option::OUTPUT), ge::AscendString(subgrph_name.c_str())});
@@ -1790,8 +1783,7 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
     ADP_LOG(ERROR) << "[GEOP] node: " << node->name() << ": Onnx model parse failed, ret: " << ToString(status);
     std::stringstream ss;
     ss << "[GEOP] node: " << node->name() << ": Onnx model parse failed, ret: " << ToString(status) << std::endl
-       << "Error Message is : " << std::endl
-       << ge::GEGetErrorMsg();
+       << "Error Message is : " << std::endl << ge::GEGetErrorMsgV2().GetString();
     return errors::Internal(ss.str());
   }
 
@@ -1802,8 +1794,8 @@ Status GeOp::ParseOnnxGraphOpAttr(Node *&node) const {
     auto modi_name = node->name() + '_' + orig_name;
     snode->GetOpDesc()->SetName(modi_name);
   }
-
-  ge::Model onnx_model("onnx_compute_model_" + node->name(), "");
+  std::string model_name = "onnx_compute_model_" + node->name();
+  ge::Model onnx_model(model_name.c_str(), "");
   onnx_model.SetGraph(ge::GraphUtilsEx::GetComputeGraph(sub_graph));
   ge::Buffer model_buf;
   NPU_REQUIRES(onnx_model.Save(model_buf, false) == ge::SUCCESS,
@@ -1985,8 +1977,8 @@ int GeOp::RunTuning(std::vector<Tensor> &input_vec, std::vector<ge::Tensor> &inp
     const std::string pbtxt_path = GetDumpPath() + "TF_" + ctx->op_kernel().name() + "_AOE.pbtxt";
     (void) WriteTextProto(Env::Default(), pbtxt_path, ori_graph_def);
   }
-  ge::ComputeGraphPtr compute_graph = nullptr;
-  compute_graph = std::make_shared<ge::ComputeGraph>("ge_default_" + CurrentTimeInStr());
+  const std::string compute_graph_name = "ge_default_" + CurrentTimeInStr();
+  ge::ComputeGraphPtr compute_graph = std::make_shared<ge::ComputeGraph>(compute_graph_name.c_str());
   if (compute_graph == nullptr) {
     ADP_LOG(ERROR) << "create ComputeGraph failed";
     return -1;

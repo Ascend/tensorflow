@@ -78,18 +78,18 @@ ge::DataType ModelParser::ConvertToGeDataType(const uint32_t type) {
   }
 }
 
-Status ModelParser::ParseProtoWithSubgraph(const std::string &serialized_proto, GetGraphCallbackV2 callback,
+Status ModelParser::ParseProtoWithSubgraph(const ge::AscendString &serialized_proto, GetGraphCallbackV3 callback,
                                            ge::ComputeGraphPtr &graph) {
-  std::vector<std::string> partitioned_serialized{serialized_proto};
-  std::map<std::string, std::string> const_value_map;
+  std::vector<ge::AscendString> partitioned_serialized{serialized_proto};
+  std::map<ge::AscendString, ge::AscendString> const_value_map;
   return ParseProtoWithSubgraph(partitioned_serialized, const_value_map, callback, graph);
 }
 
-Status ModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &partitioned_serialized,
-                                           const std::map<std::string, std::string> &const_value_map,
-                                           GetGraphCallbackV2 callback,
+Status ModelParser::ParseProtoWithSubgraph(const std::vector<ge::AscendString> &partitioned_serialized,
+                                           const std::map<ge::AscendString, ge::AscendString> &const_value_map,
+                                           GetGraphCallbackV3 callback,
                                            ge::ComputeGraphPtr &graph) {
-  std::string graph_def_str = partitioned_serialized[0];
+  std::string graph_def_str = std::string(partitioned_serialized[0].GetString(), partitioned_serialized[0].GetLength());
   tensorflow::GraphDef graph_def;
   graph_def.ParseFromString(graph_def_str);
 
@@ -97,7 +97,7 @@ Status ModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &parti
     for (auto &node : *graph_def.mutable_node()) {
       if (node.op() == "Const") {
         std::string node_name = node.name();
-        auto iter = const_value_map.find(node_name);
+        auto iter = const_value_map.find(ge::AscendString(node_name.c_str()));
         if (iter == const_value_map.end()) {
           return ge::FAILED;
         }
@@ -106,7 +106,7 @@ Status ModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &parti
           return ge::FAILED;
         }
         tensorflow::TensorProto *tensor = attr_iter->second.mutable_tensor();
-        tensor->set_tensor_content(iter->second);
+        tensor->set_tensor_content(std::string(iter->second.GetString(), iter->second.GetLength()));
       }
     }
   }
@@ -117,7 +117,7 @@ Status ModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &parti
   for (const auto &node : graph->graph->op_nodes()) {
     for (const auto &attr : node->attrs()) {
       if (attr.second.has_func()) {
-        callback(attr.second.func().name());
+        callback(ge::AscendString(attr.second.func().name().c_str()));
       }
     }
   }
@@ -126,7 +126,7 @@ Status ModelParser::ParseProtoWithSubgraph(const std::vector<std::string> &parti
 }  // namespace domi
 
 namespace ge {
-Status ParserInitialize(const std::map<std::string, std::string> &options) { return SUCCESS; }
+Status ParserInitialize(const std::map<ge::AscendString, ge::AscendString> &options) { return SUCCESS; }
 
 Status ParserFinalize() { return SUCCESS; }
 }  // namespace ge

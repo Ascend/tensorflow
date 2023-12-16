@@ -217,14 +217,17 @@ PYBIND11_MODULE(_npu_device_backends, m) {
                   json option_name_map;
                   SetOptionNameMap(option_name_map);
                   global_options["ge.optionNameMap"] = option_name_map.dump();
-                  auto ge_status = ge::GEInitialize(global_options);
+                  const auto global_options_ascend_string = StringToAscendString(global_options);
+                  auto ge_status = ge::GEInitialize(global_options_ascend_string);
                   if (ge_status != ge::SUCCESS) {
-                    return "Failed start graph engine:" + ge::GEGetErrorMsg();
+                    return "Failed start graph engine:" +
+                        std::string(ge::GEGetErrorMsgV2().GetString());
                   }
                   LOG(INFO) << "Start graph engine succeed";
-                  ge_status = ge::ParserInitialize(global_options);
+                  ge_status = ge::ParserInitialize(global_options_ascend_string);
                   if (ge_status != ge::SUCCESS) {
-                    return "Failed start tensorflow model parser:" + ge::GEGetErrorMsg();
+                    return "Failed start tensorflow model parser:" +
+                        std::string(ge::GEGetErrorMsgV2().GetString());
                   }
                   LOG(INFO) << "Start tensorflow model parser succeed";
 
@@ -271,7 +274,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
     if (graph_engine_started.exchange(false)) {
       auto ge_status = ge::ParserFinalize();
       if (ge_status != ge::SUCCESS) {
-        LOG(ERROR) << "Failed stop tensorflow model parser:" << ge::GEGetErrorMsg();
+        LOG(ERROR) << "Failed stop tensorflow model parser:" << ge::GEGetErrorMsgV2().GetString();
       } else {
         LOG(INFO) << "Stop tensorflow model parser succeed";
       }
@@ -281,7 +284,7 @@ PYBIND11_MODULE(_npu_device_backends, m) {
 
       ge_status = ge::GEFinalize();
       if (ge_status != ge::SUCCESS) {
-        LOG(ERROR) << "Failed stop graph engine:" << ge::GEGetErrorMsg();
+        LOG(ERROR) << "Failed stop graph engine:" << ge::GEGetErrorMsgV2().GetString();
       } else {
         LOG(INFO) << "Stop graph engine succeed";
       }
